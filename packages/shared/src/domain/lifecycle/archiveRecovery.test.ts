@@ -61,7 +61,7 @@ function fixture() {
       companyId,
       id: 'person',
       name: 'Bruce Wayne',
-      role: 'Secret role',
+      jobTitle: 'Secret role',
       archivedAt,
       deletedAt: null,
     },
@@ -131,14 +131,14 @@ describe('identity-only archive recovery', () => {
       'person',
     ]);
   });
-  it('classifies every resource group and uses the role label only for unnamed placeholders', () => {
+  it('classifies every resource group and uses the job title label only for unnamed placeholders', () => {
     const data = fixture();
     const resource = requireFixture(data.resources[0]);
     data.resources = [
       { ...resource, id: 'studio', kind: 'person', engagement: 'studio' },
       { ...resource, id: 'supplementary', kind: 'person', engagement: 'supplementary' },
       { ...resource, id: 'external', kind: 'external' },
-      { ...resource, id: 'placeholder', kind: 'placeholder', name: '', role: 'Designer' },
+      { ...resource, id: 'placeholder', kind: 'placeholder', name: '', jobTitle: 'Designer' },
     ];
     expect(
       archiveRecovery(data, companyId, 'editor')

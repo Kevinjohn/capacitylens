@@ -110,7 +110,7 @@ export const DEFAULT_UTILISATION_PREFS: UtilisationPreferences = {
   showPersonal: true,
 };
 
-const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`;
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilisationPrefs`;
 
 /** Read the saved preferences, falling back to the defaults for anything missing
  * or when storage is unavailable. Tolerant of partial stored shapes. */

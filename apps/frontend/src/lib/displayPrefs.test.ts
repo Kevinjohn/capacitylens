@@ -107,7 +107,7 @@ describe('week-snap test override', () => {
 
 describe('utilisation display preferences', () => {
   beforeEach(() => {
-    localStorage.removeItem('capacitylens/utilizationPrefs');
+    localStorage.removeItem('capacitylens/utilisationPrefs');
   });
 
   it('defaults to showing everything', () => {
@@ -136,7 +136,7 @@ describe('utilisation display preferences', () => {
   });
 
   it('fills in defaults for fields missing from a partial stored shape', () => {
-    localStorage.setItem('capacitylens/utilizationPrefs', JSON.stringify({ showTotal: false }));
+    localStorage.setItem('capacitylens/utilisationPrefs', JSON.stringify({ showTotal: false }));
     expect(readStoredUtilisationPrefs()).toEqual({
       showTotal: false,
       showDiscipline: true,
@@ -146,7 +146,7 @@ describe('utilisation display preferences', () => {
 
   it('falls back to defaults when a stored field is not a boolean', () => {
     localStorage.setItem(
-      'capacitylens/utilizationPrefs',
+      'capacitylens/utilisationPrefs',
       JSON.stringify({ showTotal: 'yes', showDiscipline: 1, showPersonal: null }),
     );
     expect(readStoredUtilisationPrefs()).toEqual({
@@ -157,7 +157,7 @@ describe('utilisation display preferences', () => {
   });
 
   it('falls back to defaults on malformed JSON', () => {
-    localStorage.setItem('capacitylens/utilizationPrefs', '{not json');
+    localStorage.setItem('capacitylens/utilisationPrefs', '{not json');
     expect(readStoredUtilisationPrefs()).toEqual(DEFAULT_UTILISATION_PREFS);
   });
 
@@ -185,7 +185,7 @@ describe('utilisation display preferences', () => {
 
   it('persists under the documented storage key', () => {
     writeStoredUtilisationPrefs({ showTotal: false, showDiscipline: false, showPersonal: false });
-    expect(localStorage.getItem('capacitylens/utilizationPrefs')).toBe(
+    expect(localStorage.getItem('capacitylens/utilisationPrefs')).toBe(
       JSON.stringify({ showTotal: false, showDiscipline: false, showPersonal: false }),
     );
   });

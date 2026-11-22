@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import { resetState } from '#tests/helpers/state_fixture';
-import { signUpAndIn } from '../../helpers/identities.js';
+import { signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 const withSession = asDataOwner;
@@ -80,7 +80,7 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
     ]);
-    await db.table('accounts').insert({
+    await db.table('companies').insert({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
@@ -97,7 +97,7 @@ test.group('direct member resource association', (group) => {
       company_id: companyId,
       kind: 'person',
       name: id,
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,
@@ -157,7 +157,7 @@ test.group('direct member resource association', (group) => {
     });
 
     const response = await asDataOwner(
-      client.get('/api/companies/a-studio/members'),
+      client.visit('api.members.index', { companyId: 'a-studio' }),
       ownerCookie
     ).send();
     response.assertStatus(200);
@@ -198,7 +198,7 @@ test.group('direct member resource association', (group) => {
     const ownerId = (owner.body().data as { user: { id: string } }).user.id;
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const now = new Date().toISOString();
-    await db.table('accounts').insert({
+    await db.table('companies').insert({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
@@ -210,7 +210,7 @@ test.group('direct member resource association', (group) => {
       company_id: companyId,
       kind,
       name: id,
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,
@@ -231,7 +231,7 @@ test.group('direct member resource association', (group) => {
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${userId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
@@ -254,12 +254,12 @@ test.group('direct member resource association', (group) => {
     const createLinkCommand = () =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-link-command-0001',
+          'x-account-operation-id': 'member-link-command-0001',
           'idempotency-key': 'member-link-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: null })
@@ -284,12 +284,12 @@ test.group('direct member resource association', (group) => {
     const repeatLink = () =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-link-noop-command-0001',
+          'x-account-operation-id': 'member-link-noop-command-0001',
           'idempotency-key': 'member-link-noop-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: revision })
@@ -318,12 +318,12 @@ test.group('direct member resource association', (group) => {
     const unlink = () =>
       withSession(
         client
-          .delete(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-unlink-command-0001',
+          'x-account-operation-id': 'member-unlink-command-0001',
           'idempotency-key': 'member-unlink-idempotency-0001',
         })
         .json({ expectedRevision: revision })
@@ -369,7 +369,7 @@ test.group('direct member resource association', (group) => {
     const clear = (userId: string, expectedRevision: string) =>
       withSession(
         client
-          .delete(`/api/companies/a-studio/members/${userId}/resource-link`)
+          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )

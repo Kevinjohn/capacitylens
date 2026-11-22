@@ -69,7 +69,7 @@ describe('MasqueradeModel', () => {
     const newer = {
       ...state,
       token: 'token-2',
-      contextToken: 'token-2',
+      masqueradeToken: 'token-2',
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
@@ -95,7 +95,7 @@ describe('MasqueradeModel', () => {
     const remote = {
       ...state,
       token: 'remote-mode-token',
-      contextToken: 'remote-mode-token',
+      masqueradeToken: 'remote-mode-token',
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };

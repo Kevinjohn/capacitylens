@@ -1,6 +1,6 @@
 # US-ACT-01 — Add an activity (internal, all-projects, or project-specific)
 
-As an Editor, I want to add an activity as Project-specific, Internal or All projects so that work is categorized correctly.
+As an Editor, I want to add an activity as Project-specific, Internal or All projects so that work is categorised correctly.
 
 **Status:** Current
 **Access:** Editor and above (Editor, Admin, Owner)
@@ -41,7 +41,7 @@ flowchart TD
   A["ActivityForm.ActivityForm.submit"] --> B["useStore.addActivity → createTypedPlanningActions.addActivity"]
   B --> C["createCatalogue → allocationSlice.send"]
   C --> D["createPlanningCache.execute"] --> E{"createStorePlanningTransport"}
-  E --> F["createPlanningTransport.sendOperation → api.planning.mutate"] --> G["PlanningMutationsController.store → mutatePlanning begins the scoped transaction"]
+  E --> F["createPlanningTransport.sendOperation → api.planning_mutations.store"] --> G["PlanningMutationsController.store → mutatePlanning begins the scoped transaction"]
   G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ActivityList renders"]
 ```
 

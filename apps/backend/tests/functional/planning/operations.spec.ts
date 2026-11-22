@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
 import { readState } from '#tests/helpers/state_fixture';
@@ -12,8 +12,8 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
-import { listCreatedAllocationIds } from './restoration_helpers.js';
+} from '#tests/functional/planning/helpers';
+import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers';
 
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
 const body = (response: { body(): unknown; status(): number }) =>
@@ -161,7 +161,7 @@ test.group('authenticated planning operations', (group) => {
     const fields = {
       kind: 'person',
       name: 'Dick Grayson',
-      role: 'Designer',
+      jobTitle: 'Designer',
       avatarUrl: null,
       disciplineId: original.disciplineId,
       employmentType: original.employmentType,
@@ -180,12 +180,12 @@ test.group('authenticated planning operations', (group) => {
       .send();
     created.assertStatus(200);
     const updated = await session(client.post(route('planning/mutations')), cookie)
-      .json(input(1, { operation: 'resource.update', id, changes: { role: 'Lead Designer' } }))
+      .json(input(1, { operation: 'resource.update', id, changes: { jobTitle: 'Lead Designer' } }))
       .send();
     updated.assertStatus(200);
     const state = await readState(companyId, true);
     const resource = state.resources.find((row) => row.id === id);
-    assert.equal(resource?.role, 'Lead Designer');
+    assert.equal(resource?.jobTitle, 'Lead Designer');
     assert.equal(resource?.workingHoursPerDay, original.workingHoursPerDay);
     assert.deepEqual(resource?.workingDays, original.workingDays);
   });
@@ -813,15 +813,15 @@ test.group('authenticated planning operations', (group) => {
     read.assertStatus(200);
     const snapshot = read.body().data as {
       revision: number;
-      data: { accounts: Array<{ id: string; weekStartsOn: number | null }> };
+      data: { companies: Array<{ id: string; weekStartsOn: number | null }> };
     };
     assert.equal(snapshot.revision, 2);
     assert.deepEqual(
-      snapshot.data.accounts.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
+      snapshot.data.companies.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
       [{ id: companyId, weekStartsOn: 0 }]
     );
     const state = await readState(companyId, true);
-    assert.equal(state.accounts[0]?.weekStartsOn, 0);
+    assert.equal(state.companies[0]?.weekStartsOn, 0);
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
   });
 
@@ -842,7 +842,7 @@ test.group('authenticated planning operations', (group) => {
     cleared.assertStatus(200);
     assert.equal(body(cleared).revision, 2);
     const state = await readState(companyId, true);
-    assert.isNull(state.accounts[0]?.dateStyle);
+    assert.isNull(state.companies[0]?.dateStyle);
   });
 
   test('refuses phase reassignment that would invalidate its activities without committing effects', async ({
@@ -969,7 +969,7 @@ test.group('authenticated planning operations', (group) => {
             id: activityId,
             fields: {
               name: 'All projects planning',
-              kind: 'repeatable',
+              kind: 'allProjects',
               projectId: null,
               phaseId: null,
             },

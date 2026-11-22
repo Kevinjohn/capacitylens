@@ -71,21 +71,21 @@ This is the short, present-tense record of decisions that constrain future work.
   leaves existing allocations in place; capacity and utilisation are recalculated so they show
   as over-capacity rather than being moved, split or deleted.
 
-## Data and tenancy
+## Data and company separation
 
 - Every server requires an authenticated, authorised company member. There is no sign-in mode
   setting or anonymous persisted access. The development demo runs the full server with a printed
-  sign-in and one sample company on disposable SQLite storage. Refresh retains changes; restarting
-  the command resets the sample data. Each invocation owns its own storage. Cleanup removes it only
+  sign-in and one demo company on disposable SQLite storage. Refresh retains changes; restarting
+  the command resets the demo data. Each invocation owns its own storage. Cleanup removes it only
   after the owned processes are verified to have exited. Uncertain crash residue is retained and
   never reset by a later invocation.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
-- Every scoped row carries its company id. The server authorises every tenant read and write from
+- Every scoped row carries its company id. The server authorises every company read and write from
   session membership; client scoping is UI hygiene, not authorisation. Database triggers reject
   cross-company references within the scheduling graph; control links are checked transactionally
   against the member and resource. Every installation serves one company. First-install setup
-  creates that company; the UI offers no company switcher or additional-company creation. Tenant
+  creates that company; the UI offers no company switcher or additional-company creation. Company
   scoping, memberships and the account directory remain enforced, and ambiguous installations
   report an error.
 - The one-company rule has one server home. Every server check of the limit, or of whether a
@@ -127,14 +127,14 @@ This is the short, present-tense record of decisions that constrain future work.
   cross-device undo.
 - Ordinary writes reject invalid supplied input; nothing is repaired on the way in. Blind writers
   cannot echo hidden names or notes, so an unrelated edit preserves protected stored values.
-  Unknown request fields are stripped by the validator. Identity, membership and transfer routes
+  Unknown request fields are stripped by the validator. Identity, membership and import routes
   refuse unknown fields.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
   Identity, sessions, membership and admission records are never part of the export. The server
   builds the export for the reader's role, labels it full or redacted and serves it as a download;
   the browser only saves the file.
-- Beta transfer uses the versioned full company document, binds the exported company scope to
+- Beta import uses the versioned full company document, binds the exported company scope to
   the selected destination company, preserves scheduling IDs and existing member links, and replaces
   supported company settings. Validate every source row against the exported company before binding;
   retain the destination company ID and its identity, membership, session and admission records.
@@ -180,11 +180,11 @@ This is the short, present-tense record of decisions that constrain future work.
 - An online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
   configured number of verified bundles on local storage. Pre-migration bundles and reset archives
   stay outside scheduled retention. Failures are logged or returned by the operator command.
-- Account commands record receipts inside the caller's transaction. Receipts are scoped to one
-  actor's operation, so the same command headers sent by another actor or for another operation run
-  as a new command.
+- Account operations record receipts inside the caller's transaction. Receipts are scoped to one
+  actor's operation, so the same idempotency and command id headers sent by another actor or for another operation run
+  as a new operation.
 - Completed request receipts are deleted 24 hours after their last update, at startup and hourly.
-  Pending receipts stay. A command retried after its receipt is deleted runs as a new command.
+  Pending receipts stay. An operation retried after its receipt is deleted runs as a new operation.
 
 ## Browser data
 
@@ -205,11 +205,11 @@ This is the short, present-tense record of decisions that constrain future work.
 - Account Kit owns accounts: password sign-in, registration, address confirmation, password
   change and reset, invitations, sessions and admission. CapacityLens owns company membership,
   roles, the member↔resource link, the permission keys, the access-control services and every
-  screen and word that renders a kit outcome. CapacityLens has no authorization policies of its
+  screen and word that renders a kit outcome. CapacityLens has no authorisation policies of its
   own. Password sign-in is the only sign-in method; there are no identity providers.
 - Roles rank viewer < editor < admin < owner, and the permission keys are declared once. A route
   with the company in its path refuses a caller without an active membership before its handler,
-  with the refusal the handler would give. The server always authorizes inside the request
+  with the refusal the handler would give. The server always authorises inside the request
   transaction; a route that takes the company from the request body has only that check. The
   server sends the effective member's permission keys and the private-name and time-off-note flags
   with the company directory and the view-as state; the browser shows or hides permission-gated
@@ -241,7 +241,7 @@ This is the short, present-tense record of decisions that constrain future work.
   members are deferred; the operator's kit commands cover recovery.
 - Ownership transfer, whole-company import and company-wide people anonymisation each require a
   password confirmation for that action; no time-based fresh-session window replaces it.
-- A password confirmation is single-use, lasts five minutes and binds the real principal, Kit
+- A password confirmation is single-use, lasts five minutes and binds the real user, Kit
   session, live credential revision, company, action and exact intent. It verifies the current
   password and is spent in the same transaction as the change, including ownership transfer's
   idempotency execution boundary.
@@ -258,15 +258,15 @@ This is the short, present-tense record of decisions that constrain future work.
 - The first identity comes from the operator's bootstrap invitation. Accepting it sets that person's
   password; on an empty installation the sole admitted identity then enters a company name in the
   browser and becomes its Owner. The current session, absence of companies/memberships and
-  sole-principal identity are checked under the transaction lock, and defaults, Internal client,
+  sole-user identity are checked under the transaction lock, and defaults, Internal client,
   membership, revision and audit commit together. The server refuses open signup until the first
   company exists, even when open signup is enabled in configuration, and rechecks this under the
   transaction lock used by identity creation. The controlled first identity can still sign in and
   finish setup. Once the first company exists, the configured signup policy applies. The
-  stopped-server operator initializer remains a recovery option, never the normal install path, and
+  stopped-server operator initialiser remains a recovery option, never the normal install path, and
   also requires an admitted identity. Neither path creates credentials or changes identity
   admission. No environment variable grants company ownership.
-  A development-only demo command may, on an empty disposable database, create the sample company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
+  A development-only demo command may, on an empty disposable database, create the demo company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
 - The development bootstrap identity is the one account created outside the kit, already
   confirmed and with a known password; the kit creates an account only unconfirmed, with a mailed
   proof. Production refuses the setting that enables it.
@@ -276,7 +276,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Members and schedulable Resources are separate records linked explicitly. Adding a Resource never
   grants access; inviting a member never creates a person. Team & access is visible to every role;
   only Owner/Admin see invitation and access-management controls.
-- View-as-member is identity-wide and read-only, with durable lifecycle audit and a fixed 15-minute
+- View as member is identity-wide and read-only, with durable lifecycle audit and a fixed 15-minute
   expiry. Every signed-in session observes the same mode on its next request; focus and visibility
   reconciliation refresh the browser. Company navigation ends the mode globally; signing out ends
   only the current session. Each company request checks both real-actor and target permissions. No
@@ -323,7 +323,7 @@ reopened there.
    because they would log the error message and answer in a second shape. Empty strings are not
    converted to null; empty optionals are `null` on the wire, in storage and in the export.
    Revisit: #2334 item 3.
-3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
+3. Product models fail closed without an explicit company scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
 4. Columns are snake_case. The row transformer produces the camelCase wire format from each

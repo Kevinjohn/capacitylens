@@ -1,6 +1,6 @@
 # US-TOF-07 — Create repeated personal time off
 
-As an Editor, I want to create a finite batch of repeating time-off entries so that regular absences can be recorded in one form.
+As an Editor, I want to create a finite batch of repeating time-off entries so that regular time off can be recorded in one form.
 
 **Status:** Current
 **Access:** Editor, Admin or Owner

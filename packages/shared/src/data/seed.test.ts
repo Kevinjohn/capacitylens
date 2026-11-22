@@ -9,7 +9,7 @@ describe('fixed demo seed', () => {
     const expected = structuredClone(second);
 
     expect(first).toEqual(second);
-    for (const company of first.accounts) company.workingDays?.push(0);
+    for (const company of first.companies) company.workingDays?.push(0);
     for (const resource of first.resources) {
       resource.workingDays.push(0);
       resource.halfDays.push(1);
@@ -55,7 +55,7 @@ describe('runtime demo seed', () => {
       startDate: '2031-09-24',
       endDate: '2031-09-26',
     });
-    expect(current.accounts).toEqual(fixed.accounts);
+    expect(current.companies).toEqual(fixed.companies);
   });
   it('rejects a reference week whose scenarios exceed the four-digit date domain', () => {
     expect(() => seedForCurrentWeek('9999-12-31')).toThrow(RangeError);

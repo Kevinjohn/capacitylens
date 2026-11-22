@@ -1,12 +1,12 @@
 import logger from '@adonisjs/core/services/logger';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
 import { rememberSchemaIntegrity } from '#services/schema_integrity';
 import type { ApiClient } from '@japa/api-client';
@@ -22,10 +22,10 @@ test.group('backup diagnostics', (group) => {
     client,
     assert,
   }) => {
-    const anonymous = await client.get('/api/diagnostics');
+    const anonymous = await client.visit('api.diagnostics.show');
     assert.equal(anonymous.status(), 401);
     await db.from('memberships').update({ role: 'editor' });
-    const editor = await owner.get('/api/diagnostics');
+    const editor = await owner.visit('api.diagnostics.show');
     assert.equal(editor.status(), 403);
     assert.notProperty(editor.body(), 'server');
   });
@@ -142,7 +142,7 @@ test.group('backup diagnostics', (group) => {
   test('diagnostics reports the last applied migration and no snapshot when none exists', async ({
     assert,
   }) => {
-    const response = await owner.get('/api/diagnostics');
+    const response = await owner.visit('api.diagnostics.show');
     const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first();
     assert.equal(response.status(), 200);
     assert.deepEqual(response.body().data, {
@@ -150,7 +150,7 @@ test.group('backup diagnostics', (group) => {
         connectivity: 'ok',
         database: { status: 'ok' },
         schema: { migration: latest!.name },
-        backup: { newestSnapshotAt: null },
+        backup: { newestBackupAt: null },
       },
     });
   });
@@ -168,9 +168,9 @@ test.group('backup diagnostics', (group) => {
     try {
       env.set('CAPACITYLENS_BACKUP_DIR', join(root, 'PRIVATE_BACKUP_TOKEN'));
       const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first();
-      const response = await owner.get('/api/diagnostics');
+      const response = await owner.visit('api.diagnostics.show');
       assert.equal(response.status(), 200);
-      assert.deepEqual(warnings, [['Diagnostics could not inspect completed snapshots']]);
+      assert.deepEqual(warnings, [['Diagnostics could not inspect completed backups']]);
       const output = JSON.stringify(warnings);
       assert.notInclude(output, root);
       assert.notInclude(output, 'ENOENT');
@@ -180,7 +180,7 @@ test.group('backup diagnostics', (group) => {
           connectivity: 'ok',
           database: { status: 'ok' },
           schema: { migration: latest!.name },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
     } finally {
@@ -204,14 +204,14 @@ test.group('backup diagnostics', (group) => {
       return originalFrom.apply(db, args);
     }) as typeof db.from;
     try {
-      const response = await owner.get('/api/diagnostics');
+      const response = await owner.visit('api.diagnostics.show');
       assert.equal(response.status(), 503);
       assert.deepEqual(response.body(), {
         server: {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: null },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
       assert.deepEqual(warnings, [
@@ -246,10 +246,10 @@ test.group('backup diagnostics', (group) => {
       utimesSync(older.path, new Date('2020-01-01'), new Date('2020-01-01'));
       utimesSync(newer.path, new Date('2030-01-01'), new Date('2030-01-01'));
       env.set('CAPACITYLENS_BACKUP_DIR', dir);
-      const response = await owner.get('/api/diagnostics');
+      const response = await owner.visit('api.diagnostics.show');
       assert.equal(response.status(), 200);
       assert.containsSubset(response.body().data, {
-        server: { backup: { newestSnapshotAt: '2026-10-21T23:00:00.000Z' } },
+        server: { backup: { newestBackupAt: '2026-10-21T23:00:00.000Z' } },
       });
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '');
@@ -264,10 +264,10 @@ test.group('backup diagnostics', (group) => {
       mkdirSync(partial);
       writeFileSync(join(partial, 'db.sqlite'), 'unfinished');
       env.set('CAPACITYLENS_BACKUP_DIR', dir);
-      const response = await owner.get('/api/diagnostics');
+      const response = await owner.visit('api.diagnostics.show');
       assert.equal(response.status(), 200);
       assert.containsSubset(response.body().data, {
-        server: { backup: { newestSnapshotAt: null } },
+        server: { backup: { newestBackupAt: null } },
       });
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '');

@@ -80,7 +80,7 @@ async function verifyWorkingDayRejection({
     st.addResource({
       kind: 'person',
       name: 'Jess Chambers',
-      role: 'Dev',
+      jobTitle: 'Dev',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -93,7 +93,7 @@ async function verifyWorkingDayRejection({
     st.addResource({
       kind: 'person',
       name: 'Marie Moreau',
-      role: 'PM',
+      jobTitle: 'PM',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -208,13 +208,13 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addActivity({ name: 'Wires', kind: 'project', projectId: p1.id }),
     );
     const person = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
     // A placeholder bound to p2 cannot take a p1 activity, dropping onto it must be rejected.
     const slot = await requireCreated(
       st.addResource({
         kind: 'placeholder',
-        role: 'Slot',
+        jobTitle: 'Slot',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -297,7 +297,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addResource({
         kind: 'person',
         name: 'Jess Chambers',
-        role: 'Dev',
+        jobTitle: 'Dev',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -310,7 +310,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addResource({
         kind: 'person',
         name: 'Marie Moreau',
-        role: 'PM',
+        jobTitle: 'PM',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -403,13 +403,13 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
     );
     const source = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
     const destination = await requireCreated(
       st.addResource({
         kind: 'person',
         name: 'Sam',
-        role: 'Dev',
+        jobTitle: 'Dev',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -472,7 +472,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addResource({
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Partner studio',
+        jobTitle: 'Partner studio',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -482,7 +482,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       }),
     );
     const person = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#4' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#4' })),
     );
     const allocation = requireCreated(
       await st.addAllocation({
@@ -553,13 +553,13 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
           st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
         );
         const r1 = await requireCreated(
-          st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+          st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
         );
         const r2 = await requireCreated(
           st.addResource({
             kind: 'person',
             name: 'Sam',
-            role: 'Dev',
+            jobTitle: 'Dev',
             employmentType: 'permanent',
             engagement: 'studio' as const,
             workingHoursPerDay: 8,

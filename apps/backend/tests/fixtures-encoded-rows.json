@@ -1,5 +1,5 @@
 {
-  "accounts": {
+  "companies": {
     "seed": [
       {
         "capacity_overview_access": null,
@@ -139,7 +139,7 @@
         "last_available_date": null,
         "name": "Bruce Wayne",
         "project_id": null,
-        "role": "Designer",
+        "job_title": "Designer",
         "updated_at": "2026-05-01T00:00:00.000Z",
         "working_days": "[1,2,3,4,5]",
         "working_hours_per_day": 8
@@ -162,7 +162,7 @@
         "last_available_date": null,
         "name": "Diana Prince",
         "project_id": null,
-        "role": "PR & Brand",
+        "job_title": "PR & Brand",
         "updated_at": "2026-05-01T00:00:00.000Z",
         "working_days": "[1,2,3,4,5]",
         "working_hours_per_day": 8
@@ -185,7 +185,7 @@
         "last_available_date": null,
         "name": "Clark Kent",
         "project_id": null,
-        "role": "Web Developer",
+        "job_title": "Web Developer",
         "updated_at": "2026-05-01T00:00:00.000Z",
         "working_days": "[1,2,3,4,5]",
         "working_hours_per_day": 8
@@ -208,7 +208,7 @@
         "last_available_date": null,
         "name": "Barry Allen",
         "project_id": null,
-        "role": "Front End (freelance)",
+        "job_title": "Front End (freelance)",
         "updated_at": "2026-05-01T00:00:00.000Z",
         "working_days": "[1,2,3]",
         "working_hours_per_day": 8
@@ -231,7 +231,7 @@
         "last_available_date": null,
         "name": null,
         "project_id": "p-acme",
-        "role": "Senior Designer",
+        "job_title": "Senior Designer",
         "updated_at": "2026-05-01T00:00:00.000Z",
         "working_days": "[1,2,3,4,5]",
         "working_hours_per_day": 8
@@ -254,7 +254,7 @@
         "last_available_date": null,
         "name": "Kord Industries",
         "project_id": null,
-        "role": "Partner studio",
+        "job_title": "Partner studio",
         "updated_at": "2026-05-01T00:00:00.000Z",
         "working_days": "[1,2,3,4,5]",
         "working_hours_per_day": 8
@@ -277,7 +277,7 @@
         "last_available_date": null,
         "name": "Steve Rogers",
         "project_id": null,
-        "role": "Product Designer",
+        "job_title": "Product Designer",
         "updated_at": "2026-05-01T00:00:00.000Z",
         "working_days": "[1,2,3,4,5]",
         "working_hours_per_day": 8
@@ -301,7 +301,7 @@
       "last_available_date": true,
       "name": "Bruce Wayne",
       "project_id": true,
-      "role": "Designer",
+      "job_title": "Designer",
       "updated_at": "2026-05-01T00:00:00.000Z",
       "working_days": "[1,2,3,4,5]",
       "working_hours_per_day": 8
@@ -547,7 +547,7 @@
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
         "id": "t-design",
-        "kind": "repeatable",
+        "kind": "allProjects",
         "name": "Design",
         "phase_id": null,
         "project_id": null,
@@ -559,7 +559,7 @@
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
         "id": "t-workshop",
-        "kind": "repeatable",
+        "kind": "allProjects",
         "name": "Workshop",
         "phase_id": null,
         "project_id": null,

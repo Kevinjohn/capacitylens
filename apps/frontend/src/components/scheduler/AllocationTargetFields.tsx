@@ -13,7 +13,7 @@ function getNewActivityPlaceholder(
   kind: AllocationTargetFieldsProps['activityScope']['kind'],
 ): string {
   if (kind === 'internal') return m.form_allocation_new_internal_activity_placeholder();
-  if (kind === 'repeatable') return m.form_allocation_new_repeatable_activity_placeholder();
+  if (kind === 'allProjects') return m.form_allocation_new_all_projects_activity_placeholder();
   return m.form_allocation_new_activity_placeholder();
 }
 

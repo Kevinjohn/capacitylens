@@ -10,9 +10,9 @@ As a company Editor, I want to enable disciplines so that people can be grouped 
 
 ## Acceptance criteria
 
-| Field           | Control | Required/default/conditions                                                          |
-| --------------- | ------- | ------------------------------------------------------------------------------------ |
-| Use disciplines | Switch  | Company-wide; Off in a new company; on in the sample demo. Hiding preserves records. |
+| Field           | Control | Required/default/conditions                                                   |
+| --------------- | ------- | ----------------------------------------------------------------------------- |
+| Use disciplines | Switch  | Company-wide; Off in a new company; on in the demo. Hiding preserves records. |
 
 ## User flow
 
@@ -31,7 +31,7 @@ flowchart TD
   control["CompanyFeaturesSection calls updateSetting({ disciplinesEnabled })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
   view --> action["typedPlanningActions.updateAccount builds settings.update intent"]
   action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
-  execute --> transport["planningTransport sends api.planning.mutate"]
+  execute --> transport["planningTransport sends api.planning_mutations.store"]
   transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]
   route --> reply["Planning cache reconciles the response into the company projection"]
   reply --> read["store selectors.hasDisciplinesEnabled supplies setting to views"]

@@ -10,20 +10,20 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { bootstrapInvitation, rememberSessionCookie } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { bootstrapInvitation, rememberSessionCookie } from '#tests/helpers/identities';
 import {
   captureMail,
   clearIdentities,
   createIdentity,
   signIn,
   expectStatus,
-} from '../../helpers/identities.js';
-import { requestBarrier } from '../../helpers/request_barrier.js';
+} from '#tests/helpers/identities';
+import { requestBarrier } from '#tests/helpers/request_barrier';
 
 const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
@@ -51,7 +51,7 @@ async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
 }
 
 const invite = (client: ApiClient, cookie: string, email: string, role = 'editor') =>
-  asDataOwner(client.post('/api/invites'), cookie)
+  asDataOwner(client.visit('api.invitations.store'), cookie)
     .timeout({ response: 10000, deadline: 15000 })
     // The role is deliberately untyped so a test can send `owner` and reach the refusal.
     .json({ companyId, email, role } as never)
@@ -59,7 +59,7 @@ const invite = (client: ApiClient, cookie: string, email: string, role = 'editor
 
 const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>
   client
-    .post(`/api/invites/${token}/signup`)
+    .visit('api.invitation_acceptances.store', { token })
     .header('sec-fetch-site', 'same-origin')
     .json({ name, password })
     .send();
@@ -89,7 +89,7 @@ test.group('company invitations', (group) => {
     sent.assertStatus(201);
     assert.include(sent.body().data, { role: 'editor', preauthEmail: invitee, emailed: true });
     const listed = await asDataOwner(
-      client.get(`/api/companies/${companyId}/invites`),
+      client.visit('api.invitations.index', { companyId }),
       cookie
     ).send();
     assert.deepEqual(
@@ -98,11 +98,11 @@ test.group('company invitations', (group) => {
     );
     const token = mail.tokenFor(invitee);
     for (let look = 0; look < 2; look++) {
-      const preview = await client.get(`/api/invites/${token}/preview`).send();
+      const preview = await client.visit('api.invitation_links.show', { token }).send();
       preview.assertStatus(200);
       assert.deepEqual(preview.body().data, {
         companyId,
-        accountName: 'Wayne Enterprises',
+        companyName: 'Wayne Enterprises',
         role: 'editor',
         email: invitee,
       });
@@ -126,20 +126,20 @@ test.group('company invitations', (group) => {
     // Acceptance confirms the address; company data still waits for an Owner or Admin approval.
     rememberSessionCookie(accepted);
     const inviteeCookie = accepted.cookie('adonis-session')!.value;
-    const pending = await asDataOwner(client.get('/api/auth/me'), inviteeCookie).send();
+    const pending = await asDataOwner(client.visit('api.session.show'), inviteeCookie).send();
     assert.isTrue(pending.body().data.emailVerified);
     assert.isFalse(pending.body().data.admission.admitted);
     const planning = () =>
-      asDataOwner(client.get(`/api/companies/${companyId}/planning`), inviteeCookie).send();
+      asDataOwner(client.visit('api.planning.show', { companyId }), inviteeCookie).send();
     await expectStatus(planning(), 403);
     const approved = await asDataOwner(
-      client.post(`/api/admission/${userId}/approve`),
+      client.visit('api.admission_approvals.store', { userId }),
       cookie
     ).send();
     approved.assertStatus(200);
     await expectStatus(planning(), 200);
     await expectStatus(accept(client, token), 400);
-    await expectStatus(client.get(`/api/invites/${token}/preview`).send(), 404);
+    await expectStatus(client.visit('api.invitation_links.show', { token }).send(), 404);
   });
 
   test('a company invitation is stored with its company and one without a company is refused', async ({
@@ -254,12 +254,12 @@ test.group('company invitations', (group) => {
     assert.deepEqual(sent.body().data, { committed: true, emailed: false });
     assert.lengthOf(await db.from('account_invitations'), 1);
     const listed = await asDataOwner(
-      client.get(`/api/companies/${companyId}/invites`),
+      client.visit('api.invitations.index', { companyId }),
       cookie
     ).send();
     const { id } = (listed.body() as { data: { invites: { id: number }[] } }).data.invites[0];
     const resent = await asDataOwner(
-      client.post(`/api/companies/${companyId}/invites/${id}/resend`),
+      client.visit('api.invitation_deliveries.store', { companyId, id }),
       cookie
     ).send();
     resent.assertStatus(202);
@@ -319,24 +319,24 @@ test.group('company invitations', (group) => {
     const first = mail.tokenFor(invitee);
     const { id } = sent.body().data as { id: number };
     const resent = await asDataOwner(
-      client.post(`/api/companies/${companyId}/invites/${id}/resend`),
+      client.visit('api.invitation_deliveries.store', { companyId, id }),
       cookie
     ).send();
     resent.assertStatus(200);
     const second = mail.tokenFor(invitee);
     assert.notEqual(second, first);
-    await expectStatus(client.get(`/api/invites/${first}/preview`).send(), 404);
+    await expectStatus(client.visit('api.invitation_links.show', { token: first }).send(), 404);
     env.set('CAPACITYLENS_MAIL_HOST', '');
     const unavailable = await asDataOwner(
-      client.post(`/api/companies/${companyId}/invites/${id}/resend`),
+      client.visit('api.invitation_deliveries.store', { companyId, id }),
       cookie
     ).send();
     unavailable.assertStatus(503);
     assert.equal((unavailable.body() as { code?: string }).code, 'MAIL_UNAVAILABLE');
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example');
-    await expectStatus(client.get(`/api/invites/${second}/preview`).send(), 200);
+    await expectStatus(client.visit('api.invitation_links.show', { token: second }).send(), 200);
     const revoked = await asDataOwner(
-      client.delete(`/api/companies/${companyId}/invites/${id}`),
+      client.visit('api.invitations.destroy', { companyId, id }),
       cookie
     ).send();
     revoked.assertStatus(204);

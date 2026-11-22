@@ -42,14 +42,14 @@ function makeEngagementOrderingData(): AppData {
       id: 'external-alpha',
       kind: 'external',
       name: 'Ferris',
-      role: 'Print',
+      jobTitle: 'Print',
     },
     {
       ...designTemplate,
       id: 'external-zulu',
       kind: 'external',
       name: 'Zeta',
-      role: 'Studio',
+      jobTitle: 'Studio',
       isFavourite: true,
     },
   ];

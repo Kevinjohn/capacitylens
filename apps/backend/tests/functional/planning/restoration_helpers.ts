@@ -3,7 +3,7 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, newAllocation, session } from './helpers.js';
+import { companyId, newAllocation, session } from '#tests/functional/planning/helpers';
 
 export const mutationsUrl = `/api/companies/${companyId}/planning/mutations`;
 export const note = 'Gotham night shift briefing';
@@ -114,7 +114,7 @@ export async function stored(id: string) {
 
 /** Allocation ids in the planning read the browser replaces its slice from. */
 export async function readAllocationIds(client: ApiClient, cookie: string) {
-  const snapshot = await session(client.get(`/api/companies/${companyId}/planning`), cookie).send();
+  const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
   snapshot.assertStatus(200);
   return (
     snapshot.body().data as { data: { allocations: Array<{ id: string }> } }
@@ -122,7 +122,10 @@ export async function readAllocationIds(client: ApiClient, cookie: string) {
 }
 
 export async function currentRevision(client: ApiClient, cookie: string, account = companyId) {
-  const snapshot = await session(client.get(`/api/companies/${account}/planning`), cookie).send();
+  const snapshot = await session(
+    client.visit('api.planning.show', { companyId: account }),
+    cookie
+  ).send();
   snapshot.assertStatus(200);
   return Number((snapshot.body().data as { revision: number }).revision);
 }

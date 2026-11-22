@@ -100,7 +100,7 @@ test.group('documentation and repository rule contracts', () => {
     }
   });
 
-  test('documents the native Adonis commands and health routes without legacy server entry points', ({
+  test('documents the native AdonisJS commands and health routes without legacy server entry points', ({
     assert,
   }) => {
     const install = read('docs-src/self-hosting/install-without-docker.md');
@@ -116,6 +116,11 @@ test.group('documentation and repository rule contracts', () => {
       'node ace.js app:reset',
     ])
       assert.include(operatorDocs, command);
+    // nginx site files are copied by hand, so an upgrade must point at the release's copy.
+    assert.match(
+      operations,
+      /`capacitylens\.nginx\.conf`, compare that copy\s+with the new release's file and copy over any changed `location` blocks[\s\S]*`\/api\/invitations\/<token>\/\.\.\.` and\s+`\/invitation\/<token>`/
+    );
     assert.include(monitoring, '/health/live');
     assert.include(monitoring, '/health/ready');
     assert.notMatch(

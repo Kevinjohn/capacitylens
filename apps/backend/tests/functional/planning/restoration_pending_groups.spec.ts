@@ -1,17 +1,23 @@
-import { fixtureSession } from '../../helpers/identities.js';
+import { fixtureSession } from '#tests/helpers/identities';
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, configureAuth, resetPlanningFixture, session, signIn } from './helpers.js';
+import {
+  companyId,
+  configureAuth,
+  resetPlanningFixture,
+  session,
+  signIn,
+} from '#tests/functional/planning/helpers';
 import {
   send,
   deleteOne,
   createAllocations,
   currentRevision,
   group,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 test.group('typed catalogue and time-off restoration', (suite) => {
   suite.setup(() => freshDatabase());
@@ -92,7 +98,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -152,7 +158,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       3,
       {
         operation: 'catalogue.update',
-        entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
+        entity: { entity: 'activities', id: activity.id, changes: { kind: 'allProjects' } },
       },
       randomUUID()
     );
@@ -161,7 +167,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -170,7 +176,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         confirmedRestorationCount: 1,
         intent: {
           operation: 'catalogue.update',
-          entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
+          entity: { entity: 'activities', id: activity.id, changes: { kind: 'allProjects' } },
         },
       })
       .send();
@@ -252,17 +258,20 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       },
     };
     const request = (confirmedRestorationCount?: number, baseRevision = 2) =>
-      session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
+      session(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json({
           mutationId,
           baseRevision,
           intent,
           ...(confirmedRestorationCount === undefined ? {} : { confirmedRestorationCount }),
-        })
+        } as never)
         .send();
     const refused = await request();
     refused.assertStatus(409);
-    assert.equal(refused.body().restorableItemCount, 3);
+    assert.equal(
+      (refused.body() as unknown as { restorableItemCount?: number }).restorableItemCount,
+      3
+    );
     assert.deepEqual(await readState(companyId, true), before);
     assert.equal(await currentRevision(client, cookie), 2);
     assert.isNull(await db.from('planning_mutations').where('mutation_id', mutationId).first());
@@ -275,20 +284,30 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .update({ expires_at: '2000-01-01T00:00:00.000Z' });
     const stale = await request(3);
     stale.assertStatus(409);
-    assert.equal(stale.body().code, 'RESTORATION_CONFIRMATION_STALE');
-    assert.equal(stale.body().restorableItemCount, 1);
+    assert.equal(
+      (stale.body() as unknown as { code: string }).code,
+      'RESTORATION_CONFIRMATION_STALE'
+    );
+    assert.equal(
+      (stale.body() as unknown as { restorableItemCount?: number }).restorableItemCount,
+      1
+    );
     assert.deepEqual(await readState(companyId, true), before);
     const staleRevision = await request(1, 1);
     staleRevision.assertStatus(409);
-    assert.equal(staleRevision.body().code, 'STALE_REVISION');
-    assert.isUndefined(staleRevision.body().restorableItemCount);
+    assert.equal((staleRevision.body() as unknown as { code: string }).code, 'STALE_REVISION');
+    assert.isUndefined(
+      (staleRevision.body() as unknown as { restorableItemCount?: number }).restorableItemCount
+    );
     await db
       .from('memberships')
       .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'viewer' });
     const forbidden = await request(1);
     forbidden.assertStatus(403);
-    assert.isUndefined(forbidden.body().restorableItemCount);
+    assert.isUndefined(
+      (forbidden.body() as unknown as { restorableItemCount?: number }).restorableItemCount
+    );
     await db
       .from('memberships')
       .where({ scope_id: companyId, user_id: userId })

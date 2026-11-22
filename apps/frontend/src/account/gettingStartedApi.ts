@@ -16,7 +16,7 @@ export const gettingStartedApi = {
     signal?: AbortSignal,
   ): Promise<{ dismissed: boolean; steps: GettingStartedSteps }> {
     const response = await fetchApi(
-      buildApiRouteUrl('api.getting-started.show', { params: { companyId } }),
+      buildApiRouteUrl('api.getting_started.show', { params: { companyId } }),
       {
         credentials: 'include',
         ...(signal ? { signal } : {}),
@@ -49,12 +49,12 @@ export const gettingStartedApi = {
    */
   async dismiss(companyId: string): Promise<void> {
     const response = await fetchApi(
-      buildApiRouteUrl('api.getting-started.update', { params: { companyId } }),
+      buildApiRouteUrl('api.getting_started.update', { params: { companyId } }),
       {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.getting-started.update', { dismissed: true }),
+        body: buildJsonBody('api.getting_started.update', { dismissed: true }),
       },
     );
     if (!response.ok) throw new Error(`Getting started dismissal failed (${response.status})`);

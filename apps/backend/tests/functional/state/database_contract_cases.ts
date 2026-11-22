@@ -3,7 +3,7 @@ import {
   FIXTURE_COMPANY,
   FIXTURE_ACTIVITY,
   FIXTURE_ACTIVITY_INTERNAL,
-  FIXTURE_ACTIVITY_REPEATABLE,
+  FIXTURE_ACTIVITY_ALL_PROJECTS,
   FIXTURE_ALLOCATION,
   FIXTURE_ALLOCATION_ATTRIBUTED,
   FIXTURE_CLIENT,
@@ -46,7 +46,7 @@ export const foreignKeyIndexes = [
 ] as const;
 
 export const baselineTables = [
-  'accounts',
+  'companies',
   'clients',
   'disciplines',
   'projects',
@@ -72,7 +72,7 @@ export const baselineTables = [
   'deleted_groups',
   'deleted_rows',
   'password_confirmations',
-  'account_getting_started_dismissals',
+  'company_getting_started_dismissals',
   'adonis_sessions',
   'password_reset_tokens',
   'account_transaction_lock',
@@ -114,7 +114,7 @@ export function stripLifecycle<T extends { archivedAt?: string | null; deletedAt
 }
 
 export const fullFixtureRows = [
-  ['accounts', [FIXTURE_COMPANY]],
+  ['companies', [FIXTURE_COMPANY]],
   ['clients', [stripLifecycle(FIXTURE_CLIENT)]],
   ['disciplines', [FIXTURE_DISCIPLINE]],
   ['projects', [stripLifecycle(FIXTURE_PROJECT)]],
@@ -127,7 +127,7 @@ export const fullFixtureRows = [
       FIXTURE_RESOURCE_EXTERNAL,
     ],
   ],
-  ['activities', [FIXTURE_ACTIVITY, FIXTURE_ACTIVITY_INTERNAL, FIXTURE_ACTIVITY_REPEATABLE]],
+  ['activities', [FIXTURE_ACTIVITY, FIXTURE_ACTIVITY_INTERNAL, FIXTURE_ACTIVITY_ALL_PROJECTS]],
   ['allocations', [FIXTURE_ALLOCATION, FIXTURE_ALLOCATION_ATTRIBUTED]],
   ['time_off', [FIXTURE_TIME_OFF]],
   ['closures', [FIXTURE_CLOSURE]],
@@ -146,7 +146,7 @@ export async function insertInvalidReference(table: string, column: string, targ
     resources: {
       ...common,
       kind: 'person',
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,

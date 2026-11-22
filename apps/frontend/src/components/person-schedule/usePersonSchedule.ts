@@ -40,9 +40,11 @@ export function resolvePersonScheduleIdentity(resource: Resource, data: AppData)
   const discipline = resource.disciplineId
     ? data.disciplines.find((candidate) => candidate.id === resource.disciplineId)
     : undefined;
-  if (!discipline) return m.scheduler_person_schedule_placeholder_role({ role: resource.role });
+  if (!discipline) {
+    return m.scheduler_person_schedule_placeholder_job_title({ jobTitle: resource.jobTitle });
+  }
   return m.scheduler_person_schedule_placeholder_discipline({
-    role: resource.role,
+    jobTitle: resource.jobTitle,
     discipline: discipline.name,
   });
 }
@@ -87,13 +89,13 @@ export function usePersonSchedule({
   const data = useActiveScopedData();
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const activeCompany = useStore((state) =>
-    state.data.accounts.find((candidate) => candidate.id === state.activeCompanyId),
+    state.data.companies.find((candidate) => candidate.id === state.activeCompanyId),
   );
   const role = useRole();
   const grant = useAccessGrant();
   const permissionStatus = usePermissionStatus();
   const companyView = useMemo(
-    () => ({ ...data, accounts: activeCompany ? [activeCompany] : [] }),
+    () => ({ ...data, companies: activeCompany ? [activeCompany] : [] }),
     [activeCompany, data],
   );
   const today = useCompanyToday();

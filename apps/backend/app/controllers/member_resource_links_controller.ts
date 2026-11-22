@@ -14,7 +14,7 @@ export default class MemberResourceLinksController {
     });
     if (validationError) refuseInvalidAdmissionBody(validationError);
     const command = parseAccountOperation(
-      ctx.request.header('x-account-command-id'),
+      ctx.request.header('x-account-operation-id'),
       ctx.request.header('idempotency-key')
     );
     const { companyId, userId } = ctx.params;
@@ -51,7 +51,7 @@ export default class MemberResourceLinksController {
     });
     if (validationError) refuseInvalidAdmissionBody(validationError);
     const command = parseAccountOperation(
-      ctx.request.header('x-account-command-id'),
+      ctx.request.header('x-account-operation-id'),
       ctx.request.header('idempotency-key')
     );
     const { companyId, userId } = ctx.params;

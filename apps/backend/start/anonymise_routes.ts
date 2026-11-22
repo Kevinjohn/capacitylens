@@ -8,15 +8,13 @@ export function registerAnonymiseRoutes() {
   router
     .group(() => {
       router
-        .post('/api/companies/:companyId/anonymise', [controllers.CompanyAnonymisations, 'store'])
-        .as('api.companies.anonymise')
+        .post('/companies/:companyId/anonymise', [controllers.CompanyAnonymisations, 'store'])
         .use(asCompanyMember());
       router
-        .post('/api/companies/:companyId/resources/:id/anonymise', [
+        .post('/companies/:companyId/resources/:id/anonymise', [
           controllers.ResourceAnonymisations,
           'store',
         ])
-        .as('api.resources.anonymise')
         .use(asCompanyMember());
     })
     .use(middleware.accountGate({ access: 'admitted' }));

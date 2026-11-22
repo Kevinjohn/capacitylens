@@ -77,7 +77,7 @@ afterEach(() => {
   failure.onHeldRead = null;
 });
 
-describe('planning authority publication', () => {
+describe('planning access publication', () => {
   it('clears the cache and typed planning history together when authentication is lost', async () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),
@@ -151,11 +151,15 @@ describe('planning ownership of allocations', () => {
   it('opens the planning context for a company as soon as it becomes active', async () => {
     const data = {
       ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, makeCompany({ id: 'a2' })],
+      companies: [...useStore.getState().data.companies, makeCompany({ id: 'a2' })],
     };
     replaceFixtureData(data);
     useStore.getState().setCompanySummaries({
-      list: data.accounts.map((company) => ({ id: company.id, name: company.name, role: 'owner' })),
+      list: data.companies.map((company) => ({
+        id: company.id,
+        name: company.name,
+        role: 'owner',
+      })),
     });
 
     useStore.getState().setActiveCompany('a2');

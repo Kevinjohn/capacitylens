@@ -7,7 +7,7 @@ import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import {
   requireAdmissionDecision,
@@ -17,21 +17,21 @@ import {
 } from '#services/auth/current_actor';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import {
   clearIdentities,
   createIdentity,
   fixturePassword,
   signIn,
-} from '../../helpers/identities.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+} from '#tests/helpers/identities';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
 const body = { action: 'anonymise' as const, companyId, intent: {}, password: fixturePassword };
 function issue(client: ApiClient, cookie: string, input = body) {
-  return asDataOwner(client.post('/api/auth/password-confirmation'), cookie).json(input).send();
+  return asDataOwner(client.visit('api.password_confirmations.store'), cookie).json(input).send();
 }
 
 test.group('package proof adoption boundaries', (group) => {
@@ -40,7 +40,7 @@ test.group('package proof adoption boundaries', (group) => {
 
   test('a foreign Origin is refused on password proof issuance', async ({ client, assert }) => {
     const { cookie } = await resetAuthenticatedData(client);
-    const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
+    const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
       .header('origin', 'https://lex.example')
       .header('sec-fetch-site', 'cross-site')
       .json(body)
@@ -215,7 +215,7 @@ test.group('package proof adoption boundaries', (group) => {
     const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const responses = [
       await issue(client, cookie, { ...body, companyId: scope }),
-      await asDataOwner(client.post('/api/transfer/apply'), cookie)
+      await asDataOwner(client.visit('api.imports.store'), cookie)
         .json({ companyId: scope, document, baseRevision, confirmationId: 'missing' })
         .send(),
     ];
@@ -223,7 +223,10 @@ test.group('package proof adoption boundaries', (group) => {
       response.assertStatus(403);
       assert.deepEqual(response.body(), required);
     }
-    const anonymise = await asDataOwner(client.post(`/api/companies/${scope}/anonymise`), cookie)
+    const anonymise = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId: scope }),
+      cookie
+    )
       .json({ confirmationId: 'missing' })
       .send();
     anonymise.assertStatus(404);

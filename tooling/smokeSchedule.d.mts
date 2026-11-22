@@ -7,5 +7,5 @@ export function writeSmokeSchedule(
   cookie: string,
   companyId: string,
   fixture: unknown,
-  contextToken: string,
+  masqueradeToken: string,
 ): Promise<{ allocation: { id: string } }>;

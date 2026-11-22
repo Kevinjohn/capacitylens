@@ -1,11 +1,11 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { getPlanningRevision } from '#services/planning_revision';
 import { readState } from '#tests/helpers/state_fixture';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { createIdentity, fixturePassword, signIn } from '../../helpers/identities.js';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { createIdentity, fixturePassword, signIn } from '#tests/helpers/identities';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
@@ -25,9 +25,9 @@ test.group('password confirmation bindings', (group) => {
     const before = await readState(companyId, true);
     const baseRevision = await revision();
     const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
-    document.data.accounts[0]!.name += ' by Lex';
+    document.data.companies[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
-      const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
+      const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
         // The helper takes any action and intent, including ones the server refuses.
         .json({ action, companyId, intent, password: fixturePassword } as never)
         .send();
@@ -56,7 +56,7 @@ test.group('password confirmation bindings', (group) => {
     const auditBefore = await db.from('audit_entries').where('company_id', companyId);
 
     const anonymise = await asDataOwner(
-      client.post(`/api/companies/${companyId}/anonymise`),
+      client.visit('api.company_anonymisations.store', { companyId }),
       successorCookie
     )
       .json({ confirmationId: anonymiseProof })
@@ -66,7 +66,7 @@ test.group('password confirmation bindings', (group) => {
       error: 'Confirm this action again.',
       code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
-    const imported = await asDataOwner(client.post('/api/transfer/apply'), successorCookie)
+    const imported = await asDataOwner(client.visit('api.imports.store'), successorCookie)
       .json({ companyId, document, baseRevision, confirmationId: importProof })
       .send();
     imported.assertStatus(403);
@@ -98,7 +98,7 @@ test.group('password confirmation bindings', (group) => {
     const before = await readState(companyId, true);
     const baseRevision = await revision();
     const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
-    const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
+    const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
       .json({
         action: 'import',
         companyId,
@@ -109,7 +109,7 @@ test.group('password confirmation bindings', (group) => {
     response.assertStatus(200);
     const importProof = (response.body().data as { confirmationId: string }).confirmationId;
     const anonymise = await asDataOwner(
-      client.post(`/api/companies/${companyId}/anonymise`),
+      client.visit('api.company_anonymisations.store', { companyId }),
       cookie
     )
       .json({ confirmationId: importProof })

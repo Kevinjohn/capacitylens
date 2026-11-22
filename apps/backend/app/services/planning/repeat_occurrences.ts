@@ -42,7 +42,7 @@ export function buildAllocationOccurrences(
   first: FirstAllocation,
   repeat: RepeatRange
 ): Array<{ startDate: ISODate; endDate: ISODate }> {
-  const company = requireExistingRow(data, 'accounts', companyId);
+  const company = requireExistingRow(data, 'companies', companyId);
   const resource = requireExistingRow(data, 'resources', first.resourceId);
   const effectiveWeek = resolveEffectiveWorkingWeek(
     resource,

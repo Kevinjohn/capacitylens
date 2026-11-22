@@ -4,9 +4,9 @@ import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import ConfigurationProvider from '#providers/configuration_provider';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, createIdentity, signIn } from '../../helpers/identities.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
 
 const bootstrapEmail = 'admin@admin.admin';
 const bootstrapPassword = 'batman-local-bootstrap-2026';
@@ -48,7 +48,7 @@ test.group('development bootstrap provider recovery', (group) => {
       passwordHash
     );
     const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
+    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
     status.assertStatus(200);
     assert.isTrue(status.body().data.decision.admitted);
   });
@@ -101,7 +101,7 @@ test.group('development bootstrap provider recovery', (group) => {
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', false);
     await provider.start();
     const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
+    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
     status.assertStatus(200);
     const decision = (
       status.body().data as {
@@ -141,7 +141,7 @@ test.group('development bootstrap provider recovery', (group) => {
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', false);
     await provider.start();
     const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
+    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
     status.assertStatus(200);
     const decision = (
       status.body().data as {

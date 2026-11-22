@@ -51,11 +51,11 @@ export function CompanySetup({
     setBusy(true);
     setError(null);
     try {
-      const response = await fetchApi(buildApiRouteUrl('api.installation.company', {}), {
+      const response = await fetchApi(buildApiRouteUrl('api.first_company_setup.store', {}), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.installation.company', {
+        body: buildJsonBody('api.first_company_setup.store', {
           name: canonicalName,
           weekStartsOn,
           timeZone,

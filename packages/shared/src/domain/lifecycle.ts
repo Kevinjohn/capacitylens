@@ -24,10 +24,10 @@ export { archiveImpact } from './lifecycle/impact.js';
 export type { LifecycleTransitionErrorCode } from './lifecycle/transitions.js';
 export {
   canArchive,
-  canUnarchive,
+  canRestore,
   LifecycleTransitionError,
   archive,
-  unarchive,
+  restore,
   obfuscateResource,
 } from './lifecycle/transitions.js';
 

@@ -87,7 +87,7 @@ apply.
 **Undo** and **Redo** reverse changes still in your undo history. Check the schedule afterwards: a
 teammate's later edit is not undone.
 
-Record absences and closures on **Time off**, then check the affected weeks. Time-off notes are
+Record time off and company closures on **Time off**, then check the affected weeks. Time-off notes are
 visible only to Owners and Admins, even though you can create the entry.
 [Time off](/using/time-off) covers repeats, conflicts and closures.
 

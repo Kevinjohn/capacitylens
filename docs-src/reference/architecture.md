@@ -51,7 +51,7 @@ apps/frontend/src/
   lib/                    pure UI helpers
   api/planningContracts.ts  planning wire types derived from the generated route registry
 packages/shared/src/
-  domain/                 roles and access thresholds, lifecycle, tenancy, placement rules
+  domain/                 roles and access thresholds, lifecycle, company separation, placement rules
   types/                  entity types
   lib/                    dates, working days, colours, ids, integrity checks
   account/, api/, data/   account policy, HTTP error shapes, export format and seed data
@@ -90,12 +90,13 @@ Three middleware gates run, in this order, before the controller and can refuse:
 - P3. On a route with `:companyId` in its path, `apps/backend/app/middleware/company_scope_middleware.ts`
   runs Access Control's `scope` middleware for the authenticated user (the viewed-as member under
   view-as) and refuses one without an active membership: 403 `ACCOUNT_MEMBERSHIP_LOST` on planning
-  routes, 403 `IDENTITY_AUTHORITY_DENIED` elsewhere.
+  routes, 403 `IDENTITY_AUTHORIZATION_DENIED` elsewhere.
 
 Then, in order:
 
-1. `apps/backend/start/planning_routes.ts` maps the one mutation route (`api.planning.mutate`) to
-   `PlanningMutationsController.store`; the body's intent, not the URL, names the operation.
+1. `apps/backend/start/planning_routes.ts` maps the one mutation route
+   (`api.planning_mutations.store`) to `PlanningMutationsController.store`; the body's intent, not
+   the URL, names the operation.
 2. `apps/backend/app/controllers/planning_mutations_controller.ts` validates the body with
    `ctx.request.validateUsing(planningMutationValidator)` from
    `apps/backend/app/validators/planning_operations.ts`, whose union covers every operation.
@@ -106,7 +107,7 @@ Then, in order:
    `withCurrent` transaction. The Kit checks the session, credential revision and registry row
    under the account lock; the product then requires an active, confirmed, admitted account and
    binds the captured view-as context. Every later step uses this one transaction handle.
-6. `currentAuthority` resolves the effective principal (view-as re-check in
+6. `currentAuthority` resolves the effective actor (view-as re-check in
    `apps/backend/app/services/auth/masquerade.ts`), the live membership role
    (`getActiveMembership` in `apps/backend/app/services/auth/authorization.ts`), the Access Control
    `planning:read` permission for that role and the company row. `canWrite` is the `planning:write`
@@ -236,7 +237,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 
 | Capability | Entry | Owning module | Transaction owner | Live authority check | Projection point | Failure codes | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Planning read | `GET …/planning`; scheduler | `app/services/planning.ts` `readPlanning` | Read-only `withActor`; authority, revision and rows on one handle; no rows when `ifRevision` is the current revision | `currentAuthority`: view-as principal, live membership, `planning:read` ability | `transformState` by role | `ACCOUNT_MEMBERSHIP_LOST`, `AUTHORIZATION_DENIED`, 401, Kit codes | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/transactions.spec.ts`, `tests/unit/state_transformer.spec.ts` |
+| Planning read | `GET …/planning`; scheduler | `app/services/planning.ts` `readPlanning` | Read-only `withActor`; access, revision and rows on one handle; no rows when `ifRevision` is the current revision | `resolvePlanningAccess`: view-as actor, live membership, `planning:read` ability | `transformState` by role | `ACCOUNT_MEMBERSHIP_LOST`, `AUTHORIZATION_DENIED`, 401, Kit codes | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/transactions.spec.ts`, `tests/unit/state_transformer.spec.ts` |
 | Archive recovery read | `GET …/planning/archive`; archive screens | `app/services/planning.ts` `readArchiveRecovery` | Read-only `withActor` | `currentAuthority` plus `canWrite` (false under view-as) | `archiveRecovery` identity-only rows | `AUTHORIZATION_DENIED`, `MASQUERADE_READ_ONLY`, `ACCOUNT_MEMBERSHIP_LOST` | `tests/functional/planning/archive_recovery.spec.ts` |
 | Allocation intents | `POST …/planning/mutations`, `allocation.*`; scheduler | `app/services/planning/execute.ts`, `app/services/planning/writer.ts` | `withActor` in `mutatePlanning` | `currentAuthority`, `planning:write` ability, access grant re-check, privacy gate | `buildProjectionChanges` | Planning failure table | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/availability.spec.ts`, `tests/functional/planning/company_bulk.spec.ts` |
 | Catalogue intents | `POST …/planning/mutations`, `catalogue.*`; catalogue editors | `app/services/planning/execute.ts`, `app/services/planning/entity_rules.ts` | `withActor` in `mutatePlanning` | As allocation, plus owner-only privacy fields and the built-in client | `buildProjectionChanges` | Failure table, restoration confirmation, codeless 409 | `tests/functional/planning/operations.spec.ts`, `tests/functional/planning/independent_operations.spec.ts` |
@@ -248,18 +249,18 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Undo and redo | `POST …/planning/undo`, `…/planning/redo`; scheduler Undo and Redo | `app/services/planning.ts` `stepPlanningHistory`, `app/services/planning/history.ts`, `app/services/planning/inverse.ts` | `withActor`; the stored intent commits as an ordinary mutation; a refused step ends its history in a second `withActor` | As the stored intent, plus same actor, session, page history and revision as the last write | `canUndo` and `canRedo` only; stored intents never leave the server | `AUTHORIZATION_DENIED`, `STALE_REVISION`, codeless 409 | `tests/functional/planning/history.spec.ts`, `tests/functional/privacy/restricted_replies.spec.ts` |
 | Sign-in, session, revocation | `/api/auth/*`; sign-in and reset screens | Account Kit; `app/services/auth/password_sign_in.ts`, `app/controllers/password_resets_controller.ts`, `app/controllers/password_controller.ts` | Kit `login`, `logout`, password change and reset transactions; tracking in `withActor` | Kit session, revision and registry check under the account lock on every request | `app/services/auth/user_projection.ts` | 401, 429, `SIGN_UP_CLOSED`, `CURRENT_PASSWORD_INCORRECT`, `INVALID_TOKEN` | `tests/functional/auth/password_sessions.spec.ts`, `tests/functional/auth/recovery.spec.ts` |
 | Admission | `/api/admission*`; limited screens | Kit `AccountAdmission`; `app/services/account_kit/admission_rules.ts`, `app/services/membership/admission_membership.ts` | Kit admission transaction; completion in `withActor` | Live role holds `invitations:manage`; admission rechecked in `withActor` on the next request | `decision` in `/api/auth/me` and `/api/admission` | `ADMISSION_REQUIRED`, `COMPANY_SETUP_REQUIRED`, `MEMBERSHIP_SUSPENDED` | `tests/functional/auth/admission.spec.ts` |
-| Invitations | `/api/invites*`; Team & access, invite screen | Kit invitations; `app/controllers/invitations_controller.ts` and the other `invitation_*_controller.ts` files | Kit transactions; acceptance inserts the membership inside the Kit's; mail after commit | `assertCompanyPermission` `invitations:manage`, re-checked by Kit callbacks; Owner never invitable | Controller `projection`; `no-store` on token routes | `MAIL_UNAVAILABLE`, `INVALID_TOKEN`, `IDENTITY_AUTHORITY_DENIED`, 202 committed | `tests/functional/auth/invitations.spec.ts` |
-| Membership and roles | `…/members*`; Team & access | `app/services/membership/member_mutations.ts` | `withActor` with `@kevinjohn/adonisjs-duplicate-request-guard` receipts | `assertCompanyPermission` `members:manage`; Access Control management rules | `readMemberDirectory` | `FORBIDDEN`, `OWNER_TRANSFER_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/member_administration.spec.ts`, `tests/functional/membership/member_access_tracking.spec.ts` |
+| Invitations | `/api/invitations*`; Team & access, invite screen | Kit invitations; `app/controllers/invitations_controller.ts` and the other `invitation_*_controller.ts` files | Kit transactions; acceptance inserts the membership inside the Kit's; mail after commit | `assertCompanyPermission` `invitations:manage`, re-checked by Kit callbacks; Owner never invitable | Controller `projection`; `no-store` on token routes | `MAIL_UNAVAILABLE`, `INVALID_TOKEN`, `IDENTITY_AUTHORIZATION_DENIED`, 202 committed | `tests/functional/auth/invitations.spec.ts` |
+| Membership and roles | `…/members*`; Team & access | `app/services/membership/member_mutations.ts` | `withActor` with `@kevinjohn/adonisjs-duplicate-request-guard` receipts | `assertCompanyPermission` `members:manage`; Access Control management rules | `readMemberDirectory` | `FORBIDDEN`, `OWNER_TRANSFER_REQUIRED`, `IDENTITY_AUTHORIZATION_DENIED` | `tests/functional/membership/member_administration.spec.ts`, `tests/functional/membership/member_access_tracking.spec.ts` |
 | Member↔resource links | `…/members/:userId/resource-link`; Team & access | `app/services/member_resources/links.ts` | `withActor` with `@kevinjohn/adonisjs-duplicate-request-guard` receipts | `members:manage`; active member; available person; occupancy | `{ resourceId, revision }` | `CONFLICT`, `FORBIDDEN`, `VALIDATION_ERROR` | `tests/functional/auth/admission_resource_links.spec.ts` |
-| First company | `POST /api/installation/company`; setup screen | `app/services/first_company_setup.ts`, `app/services/initial_company_defaults.ts` | `withActor` plus `account_transaction_lock`; all rows in one transaction | Admitted sole principal, no company or membership, checked under the lock | `companySetupRequired`; 201 `{ companyId }` | `COMPANY_SETUP_UNAVAILABLE`, `FIRST_COMPANY_PENDING`, `SIGN_UP_CLOSED` | `tests/functional/auth/first_company_setup.spec.ts` |
-| Ownership transfer | `POST …/ownership-transfer`; Team & access | `app/services/membership/ownership_transfer.ts` | One `withActor`: receipt, password confirmation, Access Control ownership transfer, revision, audit | Live single Owner, not viewing as; Admin target; single-use password confirmation | Receipt `{ fromUserId, toUserId }` | `TARGET_INELIGIBLE`, `PASSWORD_CONFIRMATION_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/ownership_transfer.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
+| First company | `POST /api/installation/company`; setup screen | `app/services/first_company_setup.ts`, `app/services/initial_company_defaults.ts` | `withActor` plus `account_transaction_lock`; all rows in one transaction | Admitted sole user, no company or membership, checked under the lock | `companySetupRequired`; 201 `{ companyId }` | `COMPANY_SETUP_UNAVAILABLE`, `FIRST_COMPANY_PENDING`, `SIGN_UP_CLOSED` | `tests/functional/auth/first_company_setup.spec.ts` |
+| Ownership transfer | `POST …/ownership-transfer`; Team & access | `app/services/membership/ownership_transfer.ts` | One `withActor`: receipt, password confirmation, Access Control ownership transfer, revision, audit | Live single Owner, not viewing as; Admin target; single-use password confirmation | Receipt `{ fromUserId, toUserId }` | `TARGET_INELIGIBLE`, `PASSWORD_CONFIRMATION_REQUIRED`, `IDENTITY_AUTHORIZATION_DENIED` | `tests/functional/membership/ownership_transfer.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
 | View-as | `/api/masquerade`, `…/masquerade`; Team & access | `@kevinjohn/adonisjs-masquerade`; `app/services/auth/masquerade.ts` | Package control-store transaction, outside product transactions | Package policy; middleware refuses writes; target role re-checked in each product transaction | `readCurrentMasquerade` | `MASQUERADE_READ_ONLY`, `MASQUERADE_CONTEXT_CHANGED`, `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/auth/masquerade.spec.ts` |
-| Company state read | `GET /api/state`; archived records | `app/controllers/company_state_controller.ts` `show` | Read-only `withActor` | Effective principal and live role; inactive rows need `members:manage` | `transformState` by role | 400, 401, 403 | `tests/functional/data_routes.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
+| Company state read | `GET /api/state`; archived records | `app/controllers/company_state_controller.ts` `show` | Read-only `withActor` | Effective actor and live role; inactive rows need `members:manage` | `transformState` by role | 400, 401, 403 | `tests/functional/data_routes.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
 | Export | `GET /api/companies/:companyId/export`; import/export screen | `app/controllers/company_exports_controller.ts` `show` | Read-only `withActor` | Effective member through `resolvePlanningAccess`; inactive rows need `members:manage` | Serialised export document, `full` only for the Owner | 400 invalid export document `{ error }`, 401, 403 `ACCOUNT_MEMBERSHIP_LOST`, 409 `MASQUERADE_CONTEXT_CHANGED`, 428 `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/company_export.spec.ts` |
-| Transfer preview and apply | `POST /api/transfer/{preview,apply}`; import screen | `app/services/company_import.ts` | Parse outside; preview read-only `withActor`; apply spends the password confirmation, replaces rows, audits in one `withActor` | Live Owner, not viewing as; password confirmation bound to company, session and document | `{ baseRevision, imported, changed, companyName, counts }` (preview); `{ imported, changed, revision }` (apply) | `PASSWORD_CONFIRMATION_REQUIRED`, `IMPORT_SNAPSHOT_STALE`, `IMPORT_ID_COLLISION` | `tests/functional/transfer_apply.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
+| Import preview and apply | `POST /api/import/{preview,apply}`; import screen | `app/services/company_import.ts` | Parse outside; preview read-only `withActor`; apply spends the password confirmation, replaces rows, audits in one `withActor` | Live Owner, not viewing as; password confirmation bound to company, session and document | `{ baseRevision, imported, changed, companyName, counts }` (preview); `{ imported, changed, revision }` (apply) | `PASSWORD_CONFIRMATION_REQUIRED`, `IMPORT_SNAPSHOT_STALE`, `IMPORT_ID_COLLISION` | `tests/functional/import_apply.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
 | Anonymise resource | `POST …/resources/:id/anonymise` | `app/services/anonymise.ts` | `withActor`: scrub, restoration purge, audit, revision | Not viewing as; `resources:anonymise` ability (Owner or Admin) | 204 | 403, 404 | `tests/functional/anonymise.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
 | Anonymise company | `POST …/anonymise` | `app/services/anonymise.ts` | `withActor`: password confirmation spend then scrub, audit, revision | Live Owner and a single-use password confirmation | 204 | `PASSWORD_CONFIRMATION_REQUIRED` | `tests/functional/anonymise.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
-| Backup, restore, upgrade | `db:backup create/list/verify/prune/restore-prepare`, daily scheduler, `app:upgrade`; [Backups and restore](../self-hosting/backups-and-restore.md) | `@kevinjohn/adonisjs-sqlite-backup`, `providers/backup_provider.ts`, `commands/app_upgrade.ts` | Package one-step online copy and verification; reset borrows the exclusive operator handle; upgrade uses Lucid per-migration transactions; restore stages a verified copy before upgrade | Operator shell access; private local root outside the live database; stop the service for recovery | READY bundles; maximum manifest creation time as `newestSnapshotAt` | Non-zero `db:backup`/upgrade exit, scheduled errors logged | `tests/unit/backup_provider.spec.ts`, `tests/unit/backup_config.spec.ts`, `tests/unit/upgrade_command.spec.ts`, `tests/unit/app_reset_command.spec.ts` |
+| Backup, restore, upgrade | `db:backup create/list/verify/prune/restore-prepare`, daily scheduler, `app:upgrade`; [Backups and restore](../self-hosting/backups-and-restore.md) | `@kevinjohn/adonisjs-sqlite-backup`, `providers/backup_provider.ts`, `commands/app_upgrade.ts` | Package one-step online copy and verification; reset borrows the exclusive operator handle; upgrade uses Lucid per-migration transactions; restore stages a verified copy before upgrade | Operator shell access; private local root outside the live database; stop the service for recovery | READY bundles; maximum manifest creation time as `newestBackupAt` | Non-zero `db:backup`/upgrade exit, scheduled errors logged | `tests/unit/backup_provider.spec.ts`, `tests/unit/backup_config.spec.ts`, `tests/unit/upgrade_command.spec.ts`, `tests/unit/app_reset_command.spec.ts` |
 | Diagnostics | `GET /api/diagnostics`, `/health/ready`; diagnostics screen | `start/routes.ts`, `app/services/health/database_readiness_check.ts` | Diagnostics: read-only `withActor`; readiness: no transaction, `select 1` and schema check | Owner or Admin in some company; readiness is public and returns no paths | Server facts without paths | 401, 403, 503 | `tests/functional/backup_diagnostics.spec.ts` |
 
 ## Which tests establish which guarantee
@@ -272,13 +273,13 @@ Backend test paths are relative to `apps/backend/`.
   write), `tests/functional/auth/admission.spec.ts`, `tests/functional/auth/invitations.spec.ts`,
   `tests/functional/membership/ownership_transfer.spec.ts`,
   `tests/functional/privacy/password_confirmation_bindings.spec.ts` (password confirmation bindings).
-- **Tenant isolation.** `tests/functional/planning/company_bulk.spec.ts` (bulk intents change only
+- **Company isolation.** `tests/functional/planning/company_bulk.spec.ts` (bulk intents change only
   the caller's company), `tests/functional/data_routes.spec.ts` (export stays in one company),
   `tests/functional/membership/control_data_isolation.spec.ts`, `tests/unit/company_isolation.spec.ts`.
 - **Atomicity and rollback.** `tests/functional/planning/transactions.spec.ts` (audit failure
   rolls back rows, revision and marker; competing drafts commit once),
   `tests/functional/planning/availability.spec.ts` (group rollback),
-  `tests/functional/transfer_apply.spec.ts`, `tests/functional/anonymise.spec.ts`,
+  `tests/functional/import_apply.spec.ts`, `tests/functional/anonymise.spec.ts`,
   `tests/functional/auth/first_company_setup.spec.ts`,
   `tests/functional/transaction_faults.spec.ts` (the transaction primitive itself).
 - **Idempotency.** `tests/functional/planning/http_contract.spec.ts` (stale and duplicate
@@ -306,7 +307,7 @@ lockfile records each archive's integrity. To change a pin, update the backend m
 lockfile together; pnpm records the new archive's integrity.
 
 Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
-serializers validate the UTC ISO timestamp sent to the shared domain and wire contract. Product
+serialisers validate the UTC ISO timestamp sent to the shared domain and wire contract. Product
 `createdAt`, `updatedAt` and `archivedAt` are Luxon attributes too, declared with
 `timestampColumn` (`app/models_support/scalar_column.ts`), which stores and serialises the same canonical
 UTC ISO string. `database/schema_rules.ts` leaves every date-time column on Lucid's default
@@ -319,11 +320,11 @@ The shared `buildActiveData` projection owns descendant hiding, using the comple
 The package hides a model's own tombstone and does not implement application ancestry rules.
 
 Archive transitions, planning revisions, audit rows and session-bound restoration groups already
-exist in Adonis. The package integration does not introduce a public soft-delete or purge action,
+exist in AdonisJS. The package integration does not introduce a public soft-delete or purge action,
 a retention policy or deletion undo tokens for lifecycle models. Planning deletes for bookings,
 time off, closures, phases and disciplines use package lifecycle operations. Their rows stay in
 their own tables; the recovery ledger contains only expected row IDs and surviving-child links.
-These five types keep internal deletion fields out of serialization and omit deleted rows even
+These five types keep internal deletion fields out of serialisation and omit deleted rows even
 from inactive-inclusive state reads. A group foreign key and mandatory company-matching
 guards bind each retained row to its current deletion. Session and privacy cleanup cannot affect
 a replacement or a later deletion. Package lifecycle operations and database bookkeeping share the caller's
@@ -334,9 +335,9 @@ transaction resolves.
 results; [issue #1653](https://github.com/Kevinjohn/capacitylens/issues/1653) records planning
 recovery and cleanup acceptance.
 
-## Beta transfer contract (implementation) {#beta-transfer-implementation}
+## Beta import contract (implementation) {#beta-import-implementation}
 
-The reader-facing rules are in [Settings](/using/settings#beta-transfer-contract); this section is the
+The reader-facing rules are in [Settings](/using/settings#beta-import-contract); this section is the
 implementation contract.
 
 The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 2` and
@@ -350,14 +351,14 @@ member-to-person links. It rejects invalid data instead of repairing or remappin
 must redact confidential values before document construction; the completeness marker does not
 redact data. A redacted export cannot be restored as a full replacement.
 
-The public entry point is `@capacitylens/shared/data/companyDocument`: `buildCompanyExport`,
+The public entry point is `@capacitylens/shared/data/companyExport`: `buildCompanyExport`,
 `serializeCompanyExport`, `parseCompanyExport` and `prepareCompanyImport`. Preparation receives explicit
 server-owned `{ companyId, memberResourceLinks }` context and returns `{ data, imported }`, where
-`imported` includes the account row. Export callers must supply an authorized, confidentially
+`imported` includes the company row. Export callers must supply an authorised, confidentially
 projected dataset; the completeness marker grants no authority.
 
 Settings uses this contract for import/export, including the disposable demo. Preview and apply go
-through `POST /api/transfer/preview` and `POST /api/transfer/apply`. Apply requires the live Owner and a single-use password
+through `POST /api/import/preview` and `POST /api/import/apply`. Apply requires the live Owner and a single-use password
 proof bound to the exact document, company and previewed revision. Inside the transaction it checks
 the current revision and member links again, refuses scheduling IDs held by another company, then
 replaces the company slice and supported settings atomically. It retains the destination company ID,

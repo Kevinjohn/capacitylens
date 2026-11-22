@@ -23,7 +23,7 @@ const ACTIONS = [
   'members:manage',
   'members:signInTracking',
   'invitations:manage',
-  'viewAs:use',
+  'masquerade:use',
   'resources:anonymise',
   'company:import',
   'company:anonymise',

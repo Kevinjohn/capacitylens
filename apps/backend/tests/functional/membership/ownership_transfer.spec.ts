@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -9,8 +9,8 @@ import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { createIdentity, signUpAndIn } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { createIdentity, signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 
@@ -53,7 +53,7 @@ async function fixture(client: ApiClient) {
 const signed = asDataOwner;
 
 async function transferProof(client: ApiClient, cookie: string, toUserId: string) {
-  const result = await signed(client.post('/api/auth/password-confirmation'), cookie)
+  const result = await signed(client.visit('api.password_confirmations.store'), cookie)
     .header('sec-fetch-site', 'same-origin')
     .json({ action: 'transfer-ownership', companyId: 'a-studio', intent: { toUserId }, password })
     .send();
@@ -77,12 +77,12 @@ test.group('atomic ownership transfer', (group) => {
     assert,
   }) => {
     const { ownerId, adminId, ownerCookie } = await fixture(client);
-    const issued = await signed(client.post('/api/auth/password-confirmation'), ownerCookie)
+    const issued = await signed(client.visit('api.password_confirmations.store'), ownerCookie)
       .json({ action: 'anonymise', companyId: 'a-studio', intent: {}, password })
       .send();
     issued.assertStatus(200);
     const response = await signed(
-      client.post('/api/companies/a-studio/ownership-transfer'),
+      client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
       ownerCookie
     )
       .json({ toUserId: adminId, confirmationId: issued.body().data.confirmationId })
@@ -129,8 +129,8 @@ test.group('atomic ownership transfer', (group) => {
     assert,
   }) => {
     const { ownerId, adminId, ownerCookie, now } = await fixture(client);
-    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' };
-    await db.table('accounts').insert(encodeRow('accounts', otherCompany));
+    const otherCompany = { ...seed().companies[0]!, id: 'a-loft', name: 'Stark Industries' };
+    await db.table('companies').insert(encodeRow('companies', otherCompany));
     await db
       .table('clients')
       .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
@@ -164,12 +164,12 @@ test.group('atomic ownership transfer', (group) => {
         created_at: now,
       });
     const command = {
-      'x-account-command-id': 'ownership-transfer-command-0001',
+      'x-account-operation-id': 'ownership-transfer-command-0001',
       'idempotency-key': 'ownership-transfer-key-0001',
     };
     const confirmationId = await transferProof(client, ownerCookie, adminId);
     const transfer = (toUserId: string) =>
-      signed(client.post('/api/companies/a-studio/ownership-transfer'), ownerCookie)
+      signed(client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }), ownerCookie)
         .headers(command)
         .json({ toUserId, confirmationId })
         .send();
@@ -194,7 +194,7 @@ test.group('atomic ownership transfer', (group) => {
     const mismatch = await transfer(ownerId);
     mismatch.assertStatus(409);
     const differentCompany = await signed(
-      client.post('/api/companies/a-loft/ownership-transfer'),
+      client.visit('api.ownership_transfers.store', { companyId: 'a-loft' }),
       ownerCookie
     )
       .headers(command)
@@ -215,13 +215,13 @@ test.group('atomic ownership transfer', (group) => {
   }) => {
     const { ownerId, adminId, ownerCookie, adminCookie } = await fixture(client);
     const unsigned = await client
-      .post('/api/companies/a-studio/ownership-transfer')
+      .visit('api.ownership_transfers.store', { companyId: 'a-studio' })
       .header('sec-fetch-site', 'same-origin')
       .json({ toUserId: adminId })
       .send();
     unsigned.assertStatus(401);
     const post = (cookie: string, companyId: string, toUserId: string) =>
-      signed(client.post(`/api/companies/${companyId}/ownership-transfer`), cookie)
+      signed(client.visit('api.ownership_transfers.store', { companyId }), cookie)
         .json({ toUserId })
         .send();
     const missingProof = await post(ownerCookie, 'a-studio', adminId);
@@ -236,22 +236,22 @@ test.group('atomic ownership transfer', (group) => {
     self.assertStatus(409);
     const absent = await post(ownerCookie, 'a-studio', 'missing-user');
     absent.assertStatus(404);
-    // An unknown company answers exactly like a company the caller holds no authority in.
+    // An unknown company answers exactly like a company the caller holds no access in.
     const wrongCompany = await post(ownerCookie, 'a-missing', adminId);
     wrongCompany.assertStatus(403);
     assert.deepEqual(wrongCompany.body(), nonOwner.body());
     const legacyBody = await signed(
-      client.post('/api/companies/a-studio/ownership-transfer'),
+      client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
       ownerCookie
     )
-      .json({ toUserId: adminId, expectedRevision: 'old-ceremony' })
+      .json({ toUserId: adminId, expectedRevision: 'old-ceremony' } as never)
       .send();
     legacyBody.assertStatus(400);
     const unpaired = await signed(
-      client.post('/api/companies/a-studio/ownership-transfer'),
+      client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
       ownerCookie
     )
-      .header('x-account-command-id', 'ownership-unpaired-command-0001')
+      .header('x-account-operation-id', 'ownership-unpaired-command-0001')
       .json({ toUserId: adminId })
       .send();
     unpaired.assertStatus(400);
@@ -280,31 +280,34 @@ test.group('atomic ownership transfer', (group) => {
   }) => {
     const { ownerId, adminId, ownerCookie, adminCookie } = await fixture(client);
     const command = {
-      'x-account-command-id': 'ownership-cross-actor-command-0001',
+      'x-account-operation-id': 'ownership-cross-actor-command-0001',
       'idempotency-key': 'ownership-cross-actor-key-0001',
     };
     const confirmationId = await transferProof(client, ownerCookie, adminId);
     const ownerRequest = () =>
-      signed(client.post('/api/companies/a-studio/ownership-transfer'), ownerCookie)
+      signed(client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }), ownerCookie)
         .headers(command)
         .json({ toUserId: adminId, confirmationId })
         .send();
-    const started = await signed(client.post('/api/companies/a-studio/masquerade'), ownerCookie)
+    const started = await signed(
+      client.visit('api.masquerade.store', { companyId: 'a-studio' }),
+      ownerCookie
+    )
       .json({ targetUserId: adminId })
       .send();
     started.assertStatus(200);
     const refused = await ownerRequest();
     refused.assertStatus(403);
-    assert.equal((refused.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
-    const token = (started.body().data as { token: string }).token;
-    const ended = await signed(client.delete('/api/masquerade'), ownerCookie)
+    assert.equal((refused.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY');
+    const token = ((started.body() as { data: unknown }).data as { token: string }).token;
+    const ended = await signed(client.visit('api.masquerade.destroy'), ownerCookie)
       .json({ token, reason: 'explicit' })
       .send();
     ended.assertStatus(200);
     const completed = await ownerRequest();
     completed.assertStatus(200);
     const otherActor = await signed(
-      client.post('/api/companies/a-studio/ownership-transfer'),
+      client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
       adminCookie
     )
       .headers(command)
@@ -318,7 +321,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1);
     const reverseProof = await transferProof(client, adminCookie, ownerId);
     const reverse = () =>
-      signed(client.post('/api/companies/a-studio/ownership-transfer'), adminCookie)
+      signed(client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }), adminCookie)
         .headers(command)
         .json({ toUserId: ownerId, confirmationId: reverseProof })
         .send();
@@ -332,7 +335,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.lengthOf(
       await db
         .from('request_receipts')
-        .where({ scope_id: 'a-studio', command_id: command['x-account-command-id'] }),
+        .where({ scope_id: 'a-studio', command_id: command['x-account-operation-id'] }),
       2
     );
   });
@@ -359,9 +362,9 @@ test.group('atomic ownership transfer', (group) => {
         created_at: now,
       });
     const tryTransfer = (suffix: string) =>
-      signed(client.post('/api/companies/a-studio/ownership-transfer'), ownerCookie)
+      signed(client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }), ownerCookie)
         .headers({
-          'x-account-command-id': `ownership-fault-command-${suffix}`,
+          'x-account-operation-id': `ownership-fault-command-${suffix}`,
           'idempotency-key': `ownership-fault-key-${suffix}`,
         })
         .json({ toUserId: adminId, confirmationId })
@@ -431,16 +434,16 @@ test.group('atomic ownership transfer', (group) => {
     assert.deepEqual(retried.body().data, { fromUserId: ownerId, toUserId: adminId });
   });
 
-  test('two distinct concurrent commands produce one swap and one refused stale authority', async ({
+  test('two distinct concurrent commands produce one swap and one refused stale access', async ({
     client,
     assert,
   }) => {
     const { ownerId, adminId, ownerCookie } = await fixture(client);
     const confirmationId = await transferProof(client, ownerCookie, adminId);
     const request = (suffix: string) =>
-      signed(client.post('/api/companies/a-studio/ownership-transfer'), ownerCookie)
+      signed(client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }), ownerCookie)
         .headers({
-          'x-account-command-id': `ownership-race-command-${suffix}`,
+          'x-account-operation-id': `ownership-race-command-${suffix}`,
           'idempotency-key': `ownership-race-key-${suffix}`,
         })
         .json({ toUserId: adminId, confirmationId })
@@ -489,11 +492,11 @@ test.group('atomic ownership transfer', (group) => {
       updated_at: now,
     });
     const rejected = await signed(
-      client.post('/api/companies/a-studio/ownership-transfer'),
+      client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
       ownerCookie
     )
       .headers({
-        'x-account-command-id': 'ownership-broken-owner-command-0001',
+        'x-account-operation-id': 'ownership-broken-owner-command-0001',
         'idempotency-key': 'ownership-broken-owner-key-0001',
       })
       .json({ toUserId: adminId, confirmationId })

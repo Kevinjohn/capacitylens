@@ -141,7 +141,7 @@ function buildVisibleWindowDensityData(): AppData {
         id: 'r1',
         companyId: 'acct-test',
         name: 'Dana',
-        role: 'Designer',
+        jobTitle: 'Designer',
         color: '#4',
       }),
     ],

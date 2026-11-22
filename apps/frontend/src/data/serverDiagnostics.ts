@@ -17,7 +17,7 @@ export interface ServerDiagnosticsObservation {
 export async function readServerDiagnostics(
   signal?: AbortSignal,
 ): Promise<ServerDiagnosticsObservation> {
-  const response = await fetchApi(buildApiRouteUrl('api.diagnostics', {}), {
+  const response = await fetchApi(buildApiRouteUrl('api.diagnostics.show', {}), {
     credentials: 'include',
     ...(signal ? { signal } : {}),
   });

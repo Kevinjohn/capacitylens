@@ -1,12 +1,13 @@
 import { ActivitySchema } from '#database/schema';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
+import { compose } from '@adonisjs/core/helpers';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { DateTime } from 'luxon';
 import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import { deletedAtColumn, timestampColumn } from '#models_support/scalar_column';
 /** A company-scoped activity; its kind governs project and phase references. */
-export default class Activity extends SoftDeletes(ActivitySchema) {
+export default class Activity extends compose(ActivitySchema, SoftDeletes) {
   static forCompany = forCompany;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Activity>) {

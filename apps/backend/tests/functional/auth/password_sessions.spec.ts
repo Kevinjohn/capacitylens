@@ -3,29 +3,29 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, createIdentity, signIn, expectStatus } from '../../helpers/identities.js';
-import { requestBarrier } from '../../helpers/request_barrier.js';
-import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, createIdentity, signIn, expectStatus } from '#tests/helpers/identities';
+import { requestBarrier } from '#tests/helpers/request_barrier';
+import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
 
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
 const companyId = 'a-studio';
 
-const accounts = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get('/api/companies'), cookie).send();
+const companies = (client: ApiClient, cookie: string) =>
+  asDataOwner(client.visit('api.companies.index'), cookie).send();
 const planning = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get(`/api/companies/${companyId}/planning`), cookie).send();
+  asDataOwner(client.visit('api.planning.show', { companyId }), cookie).send();
 const dismiss = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.put(`/api/companies/${companyId}/getting-started`), cookie)
+  asDataOwner(client.visit('api.getting_started.update', { companyId }), cookie)
     .timeout({ response: 10000, deadline: 15000 })
     .json({ dismissed: true })
     .send();
-const dismissals = () => db.from('account_getting_started_dismissals');
+const dismissals = () => db.from('company_getting_started_dismissals');
 
 async function owner(options: { verified?: boolean; admitted?: boolean } = {}) {
   const userId = await createIdentity(email, { name: 'Bruce Wayne', password, ...options });
@@ -44,7 +44,7 @@ test.group('password sign-in and sessions', (group) => {
   test('each sign-in is separate and sign-out ends only its own', async ({ client, assert }) => {
     const userId = await owner();
     const wrong = await client
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email, password: 'not-the-password-2026' })
       .send();
@@ -53,10 +53,10 @@ test.group('password sign-in and sessions', (group) => {
     const phone = await signIn(client, 'Bruce.Wayne@Wayne.example', password);
     assert.equal(phone.userId, userId);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 2);
-    const signedOut = await asDataOwner(client.post('/api/auth/sign-out'), laptop.cookie).send();
+    const signedOut = await asDataOwner(client.visit('api.session.destroy'), laptop.cookie).send();
     signedOut.assertStatus(200);
-    await expectStatus(accounts(client, laptop.cookie), 401);
-    await expectStatus(accounts(client, phone.cookie), 200);
+    await expectStatus(companies(client, laptop.cookie), 401);
+    await expectStatus(companies(client, phone.cookie), 200);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 1);
   });
 
@@ -67,7 +67,7 @@ test.group('password sign-in and sessions', (group) => {
     await owner();
     const { cookie } = await signIn(client, email, password);
     const session = await db.from('adonis_sessions').select('id').first();
-    assert.isNotNull(session, 'sign-in creates a database-backed Adonis session');
+    assert.isNotNull(session, 'sign-in creates a database-backed AdonisJS session');
 
     const service = await masqueradeAdmission();
     const original = service.resolve.bind(service);
@@ -89,7 +89,7 @@ test.group('password sign-in and sessions', (group) => {
     try {
       // The real handler completes before session middleware attempts its database-store commit.
       await barrier.entered();
-      const signedOut = await asDataOwner(client.post('/api/auth/sign-out'), cookie).send();
+      const signedOut = await asDataOwner(client.visit('api.session.destroy'), cookie).send();
       signedOut.assertStatus(200);
       assert.isNull(
         await db.from('adonis_sessions').where('id', session!.id).first(),
@@ -107,7 +107,7 @@ test.group('password sign-in and sessions', (group) => {
         await db.from('adonis_sessions').where('id', session!.id).first(),
         'the late framework-session write does not recreate the destroyed row'
       );
-      await expectStatus(accounts(client, cookie), 401);
+      await expectStatus(companies(client, cookie), 401);
     } finally {
       barrier.release();
       service.resolve = original;
@@ -121,7 +121,7 @@ test.group('password sign-in and sessions', (group) => {
   }) => {
     const userId = await owner({ verified: false });
     const unconfirmed = await signIn(client, email, password);
-    const me = await asDataOwner(client.get('/api/auth/me'), unconfirmed.cookie).send();
+    const me = await asDataOwner(client.visit('api.session.show'), unconfirmed.cookie).send();
     me.assertStatus(200);
     assert.isFalse(me.body().data.emailVerified);
     await expectStatus(planning(client, unconfirmed.cookie), 403);
@@ -138,7 +138,7 @@ test.group('password sign-in and sessions', (group) => {
       .where('user_id', userId)
       .update({ approval_status: 'revoked' });
     await expectStatus(planning(client, unconfirmed.cookie), 403);
-    const limited = await asDataOwner(client.get('/api/auth/me'), unconfirmed.cookie).send();
+    const limited = await asDataOwner(client.visit('api.session.show'), unconfirmed.cookie).send();
     assert.isFalse(limited.body().data.admission.admitted);
 
     await db
@@ -157,22 +157,22 @@ test.group('password sign-in and sessions', (group) => {
     const userId = await owner();
     const laptop = await signIn(client, email, password);
     const phone = await signIn(client, email, password);
-    const wrong = await asDataOwner(client.post('/api/auth/change-password'), laptop.cookie)
+    const wrong = await asDataOwner(client.visit('api.password.update'), laptop.cookie)
       .json({ currentPassword: 'not-the-password-2026', newPassword: 'another-batman-2026' })
       .send();
     wrong.assertStatus(403);
     assert.equal((wrong.body() as { code?: string }).code, 'CURRENT_PASSWORD_INCORRECT');
-    await expectStatus(accounts(client, phone.cookie), 200);
-    const changed = await asDataOwner(client.post('/api/auth/change-password'), laptop.cookie)
+    await expectStatus(companies(client, phone.cookie), 200);
+    const changed = await asDataOwner(client.visit('api.password.update'), laptop.cookie)
       .json({ currentPassword: password, newPassword: 'another-batman-2026' })
       .send();
     changed.assertStatus(200);
     assert.deepEqual(changed.body().data, { ok: true, signedOut: true });
-    await expectStatus(accounts(client, laptop.cookie), 401);
-    await expectStatus(accounts(client, phone.cookie), 401);
+    await expectStatus(companies(client, laptop.cookie), 401);
+    await expectStatus(companies(client, phone.cookie), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 0);
     const old = await client
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email, password })
       .send();
@@ -193,10 +193,10 @@ test.group('password sign-in and sessions', (group) => {
       .from('account_sessions')
       .where('user_id', userId)
       .update({ expires_at: '2000-01-01T00:00:00.000Z' });
-    await expectStatus(accounts(client, expiring.cookie), 401);
+    await expectStatus(companies(client, expiring.cookie), 401);
     const removed = await signIn(client, email, password);
     await db.from('account_sessions').where('user_id', userId).delete();
-    await expectStatus(accounts(client, removed.cookie), 401);
+    await expectStatus(companies(client, removed.cookie), 401);
   });
 
   test('a session revoked after request admission refuses the protected write', async ({

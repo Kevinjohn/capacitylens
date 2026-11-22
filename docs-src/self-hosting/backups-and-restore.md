@@ -1,6 +1,6 @@
 ---
 title: Backups and restore
-description: Protect and restore the native SQLite database using verified bundles and the Adonis backup commands.
+description: Protect and restore the native SQLite database using verified bundles and the AdonisJS backup commands.
 ---
 
 # Backups and restore
@@ -58,7 +58,7 @@ read another backup root, including when scheduling is disabled. Create and prun
 
 Pre-upgrade bundles go to `<configured backup directory>/pre-migration`, or `<database path>.backups`
 when scheduling is disabled. Reset archives live beside the original database. Scheduled retention does
-not manage either destination. Old `capacitylens-*.db` scheduled snapshots are not managed by the new
+not manage either destination. Old `capacitylens-*.db` scheduled backups are not managed by the new
 retention; never delete the live database, pre-migration files or reset archives as retention cleanup.
 
 An interrupted create can leave a bundle directory without READY. It is not a backup; the next prune
@@ -131,7 +131,7 @@ privately; do not put it in a ticket, shell history shared with others, or servi
 
 `node ace.js app:reset <new-database-path> --confirm-server-stopped --disposable` is a separate,
 destructive operator action. It is unavailable in production and requires an explicit disposable
-confirmation outside production. It requires the server to be stopped, preserves a verified snapshot
-and archived copy of the original installation, then initializes a new database path. Update
+confirmation outside production. It requires the server to be stopped, preserves a verified backup
+and archived copy of the original installation, then initialises a new database path. Update
 `CAPACITYLENS_DB` only after the command succeeds. If it fails, preserve the named recovery files and
 partial destination; do not retry over them.

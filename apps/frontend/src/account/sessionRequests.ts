@@ -7,7 +7,7 @@ import { buildApiRouteUrl } from '@/api/queryClient';
  */
 export const sessionRequests = {
   me(signal?: AbortSignal): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.auth.me', {}), {
+    return fetchApi(buildApiRouteUrl('api.session.show', {}), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
