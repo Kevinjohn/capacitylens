@@ -321,7 +321,7 @@ export function buildResourceCreate(
   const fields = {
     kind: input.kind,
     name: input.name ?? null,
-    role: input.role,
+    jobTitle: input.jobTitle,
     avatarUrl: input.avatarUrl ?? null,
     disciplineId: input.disciplineId ?? null,
     employmentType:
@@ -345,7 +345,7 @@ export function buildResourceCreate(
 const RESOURCE_FIELDS = [
   'kind',
   'name',
-  'role',
+  'jobTitle',
   'avatarUrl',
   'disciplineId',
   'employmentType',

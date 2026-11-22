@@ -113,7 +113,7 @@ describe('assertScopedRefs', () => {
         assertScopedRefs(data, A1, 'resources', {
           kind: 'placeholder',
           projectId: 'p1',
-          role: 'Slot',
+          jobTitle: 'Slot',
         }),
       ).toThrow('Placeholder project must belong to this company.');
 
@@ -199,7 +199,7 @@ describe('assertScopedRefs', () => {
       'A project-specific activity must be assigned to a project.',
     );
   });
-  it('throws when an internal/repeatable activity carries a project or phase (kind coherence)', () => {
+  it('throws when an internal/all-projects activity carries a project or phase (kind coherence)', () => {
     const data = {
       ...makeBaseData(),
       clients: [makeClient('c1', A1)],
@@ -214,7 +214,7 @@ describe('assertScopedRefs', () => {
     ).toThrow('cannot belong to a project');
     expect(() =>
       assertScopedRefs(data, A1, 'activities', {
-        kind: 'repeatable',
+        kind: 'allProjects',
         phaseId: 'ph1',
       }),
     ).toThrow('cannot belong to a phase');
@@ -354,7 +354,7 @@ describe('assertScopedRefs', () => {
       }),
     ).toThrow('Activity phase must belong to this company.');
   });
-  it('an UNRECOGNISED activity kind is not treated as internal/repeatable (no false project rejection)', () => {
+  it('an UNRECOGNISED activity kind is not treated as internal/all-projects (no false project rejection)', () => {
     // assertScopedRefs checks refs + coherence for the known kinds only; it does not police the kind
     // enum itself (the write validator does). An unknown kind carrying a valid project must pass the ref checks.
     const data = {
@@ -619,12 +619,12 @@ describe('assertAllocationRefs', () => {
   it('allows a non-zero load on a normal resource', () => {
     expect(() => assertAllocationRefs(world(), A1, 'r1', 't1', 8)).not.toThrow();
   });
-  it('enforces repeatable-only attribution, project ownership/liveness and placeholder scope', () => {
-    const repeatable: Activity = {
-      ...makeActivity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
-      kind: 'repeatable' as const,
+  it('enforces all-projects-only attribution, project ownership/liveness and placeholder scope', () => {
+    const allProjects: Activity = {
+      ...makeActivity({ id: 'allProjects', companyId: A1, projectId: 'p1' }),
+      kind: 'allProjects' as const,
     };
-    repeatable.projectId = null;
+    allProjects.projectId = null;
     const projectActivity = world().activities[0];
     if (projectActivity === undefined) {
       throw new Error('World fixture must include a project activity.');
@@ -632,7 +632,7 @@ describe('assertAllocationRefs', () => {
     const data: AppData = {
       ...world(),
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1'), project('foreign', A2, 'c2')],
-      activities: [projectActivity, repeatable],
+      activities: [projectActivity, allProjects],
       resources: [
         makePerson('r1', A1),
         makePlaceholder('bound', A1, 'p1'),
@@ -640,43 +640,43 @@ describe('assertAllocationRefs', () => {
       ],
     };
 
-    expect(() => assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'p1')).not.toThrow();
+    expect(() => assertAllocationRefs(data, A1, 'r1', 'allProjects', 8, 'p1')).not.toThrow();
     expect(() => assertAllocationRefs(data, A1, 'r1', 't1', 8, 'p1')).toThrowError(
       expect.objectContaining({ code: 'allocation_project_forbidden' }),
     );
-    expect(() => assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'missing')).toThrow(
+    expect(() => assertAllocationRefs(data, A1, 'r1', 'allProjects', 8, 'missing')).toThrow(
       /active project/i,
     );
-    expect(() => assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'foreign')).toThrow(
+    expect(() => assertAllocationRefs(data, A1, 'r1', 'allProjects', 8, 'foreign')).toThrow(
       /active project/i,
     );
-    expect(() => assertAllocationRefs(data, A1, 'bound', 'repeatable', 8, 'p1')).not.toThrow();
-    expect(() => assertAllocationRefs(data, A1, 'bound', 'repeatable', 8, 'p2')).toThrow(
+    expect(() => assertAllocationRefs(data, A1, 'bound', 'allProjects', 8, 'p1')).not.toThrow();
+    expect(() => assertAllocationRefs(data, A1, 'bound', 'allProjects', 8, 'p2')).toThrow(
       /bound project/i,
     );
-    expect(() => assertAllocationRefs(data, A1, 'unbound', 'repeatable', 8, 'p1')).toThrow(
+    expect(() => assertAllocationRefs(data, A1, 'unbound', 'allProjects', 8, 'p1')).toThrow(
       /not bound/i,
     );
   });
 
   it('allows an unchanged archived allocation attribution but rejects changing to it', () => {
-    const repeatable: Activity = {
-      ...makeActivity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
-      kind: 'repeatable' as const,
+    const allProjects: Activity = {
+      ...makeActivity({ id: 'allProjects', companyId: A1, projectId: 'p1' }),
+      kind: 'allProjects' as const,
     };
-    repeatable.projectId = null;
+    allProjects.projectId = null;
     const data: AppData = {
       ...world(),
       projects: [{ ...project('p1', A1, 'c1'), archivedAt: TS }],
-      activities: [repeatable],
+      activities: [allProjects],
     };
-    const existing = { resourceId: 'r1', activityId: 'repeatable', projectId: 'p1' };
+    const existing = { resourceId: 'r1', activityId: 'allProjects', projectId: 'p1' };
 
     expect(() =>
-      assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'p1', existing),
+      assertAllocationRefs(data, A1, 'r1', 'allProjects', 8, 'p1', existing),
     ).not.toThrow();
     expect(() =>
-      assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'p1', {
+      assertAllocationRefs(data, A1, 'r1', 'allProjects', 8, 'p1', {
         resourceId: existing.resourceId,
         activityId: existing.activityId,
       }),

@@ -53,7 +53,7 @@ export function ResourceList() {
       {externalState.confirming && (
         <ArchiveDialog
           resource={externalState.confirming}
-          messageName={externalState.confirming.name ?? externalState.confirming.role}
+          messageName={externalState.confirming.name ?? externalState.confirming.jobTitle}
           archive={archive}
           onClose={() => externalState.setConfirming(null)}
         />

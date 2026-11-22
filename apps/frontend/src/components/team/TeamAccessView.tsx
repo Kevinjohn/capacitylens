@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/card';
 import { m } from '@/i18n';
 
-interface Capability {
+interface PermissionRow {
   label: string;
   allowed: boolean;
 }
@@ -39,7 +39,7 @@ interface AccessManagementProps {
 }
 
 // Rendered from the server's grant, so a view-as lists only what the read-only view allows.
-function listCapabilities(grant: AccessGrant): Capability[] {
+function listPermissions(grant: AccessGrant): PermissionRow[] {
   const hasPermission = (key: AccessGrant['permissions'][number]) =>
     grant.permissions.includes(key);
   return [
@@ -52,25 +52,25 @@ function listCapabilities(grant: AccessGrant): Capability[] {
   ];
 }
 
-function CapabilityList({ grant }: { grant: AccessGrant }) {
+function PermissionList({ grant }: { grant: AccessGrant }) {
   return (
     <ul
-      id="access-capabilities"
+      id="access-permissions"
       className="mt-3 grid gap-2 sm:grid-cols-2"
-      aria-label={m.access_capabilities_label()}
+      aria-label={m.access_permissions_label()}
     >
-      {listCapabilities(grant).map((capability) => (
-        <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
-          {capability.allowed ? (
+      {listPermissions(grant).map((permission) => (
+        <li key={permission.label} className="flex items-center gap-2 text-sm text-ink">
+          {permission.allowed ? (
             <Check className="text-brand" />
           ) : (
             <X className="text-muted-foreground" />
           )}
           <span className="sr-only">
-            {capability.allowed ? m.access_cap_allowed() : m.access_cap_not_allowed()}
+            {permission.allowed ? m.access_cap_allowed() : m.access_cap_not_allowed()}
           </span>
-          <span className={capability.allowed ? undefined : 'text-muted-foreground'}>
-            {capability.label}
+          <span className={permission.allowed ? undefined : 'text-muted-foreground'}>
+            {permission.label}
           </span>
         </li>
       ))}
@@ -84,29 +84,29 @@ function CurrentAccessCard({
   effectiveRole,
   grant,
 }: CurrentAccessCardProps) {
-  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
   let accessDetails = null;
 
   if (effectiveRole) {
-    // Collapse the capability reference by default so member administration remains easy to reach.
+    // Collapse the permission reference by default so member administration remains easy to reach.
     accessDetails = (
       <>
         <button
           type="button"
           className="inline-flex items-center gap-1 text-sm font-medium text-brand underline-offset-2 hover:underline"
-          aria-expanded={capabilitiesOpen}
-          aria-controls="access-capabilities"
-          data-testid="capabilities-toggle"
-          onClick={() => setCapabilitiesOpen((open) => !open)}
+          aria-expanded={permissionsOpen}
+          aria-controls="access-permissions"
+          data-testid="permissions-toggle"
+          onClick={() => setPermissionsOpen((open) => !open)}
         >
-          {capabilitiesOpen ? (
+          {permissionsOpen ? (
             <ChevronDown data-icon="inline-start" />
           ) : (
             <ChevronRight data-icon="inline-start" />
           )}
-          {capabilitiesOpen ? m.access_capabilities_hide() : m.access_capabilities_show()}
+          {permissionsOpen ? m.access_permissions_hide() : m.access_permissions_show()}
         </button>
-        {capabilitiesOpen && <CapabilityList grant={grant} />}
+        {permissionsOpen && <PermissionList grant={grant} />}
       </>
     );
   }

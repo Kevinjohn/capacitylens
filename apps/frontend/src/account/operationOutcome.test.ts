@@ -86,7 +86,7 @@ describe('browser account api', () => {
       ),
     ).resolves.toBe(false);
   });
-  it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORITY_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
+  it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORIZATION_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
     'classifies the known terminal 409 code %s as final',
     async (code) => {
       await expect(

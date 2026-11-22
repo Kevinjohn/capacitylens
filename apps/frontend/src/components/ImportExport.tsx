@@ -14,7 +14,7 @@ import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { companyDataRequests } from '@/data/companyDataRequests';
-import type { TransferPreview } from '@/data/companyDataRequests';
+import type { ImportPreviewSummary } from '@/data/companyDataRequests';
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
@@ -48,7 +48,7 @@ function ImportConfirmation({
   onCancel,
 }: {
   pending: PendingImport;
-  counts: TransferPreview['counts'];
+  counts: ImportPreviewSummary['counts'];
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -148,7 +148,7 @@ export function ImportExport() {
     requiresReload: importRequiresReload,
   } = useServerImport();
   const { busy: exportBusy, exportData } = useExportOperation();
-  const [preview, setPreview] = useState<TransferPreview | null>(null);
+  const [preview, setPreview] = useState<ImportPreviewSummary | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [continued, setContinued] = useState(false);
   const [confirmingAction, setConfirmingAction] = useState(false);
@@ -165,7 +165,7 @@ export function ImportExport() {
     const isCurrent = () =>
       selectionRef.current === selection && useStore.getState().activeCompanyId === companyId;
     try {
-      const reply = await companyDataRequests.readTransferPreview(companyId, pending.document);
+      const reply = await companyDataRequests.readImportPreview(companyId, pending.document);
       if (isCurrent()) setPreview(reply);
     } catch (error) {
       if (isCurrent()) setPreviewError(resolveErrorMessage(error));

@@ -195,7 +195,7 @@ test.group('HTTP contract', (group) => {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: null },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
     } finally {

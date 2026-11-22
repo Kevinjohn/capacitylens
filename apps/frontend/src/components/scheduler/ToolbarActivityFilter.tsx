@@ -13,12 +13,12 @@ import {
 /** Selected activity and change handler for the activity filter. */
 export interface ToolbarActivityFilterProps {
   activityId: string | null;
-  activityKind: 'internal' | 'repeatable' | null;
+  activityKind: 'internal' | 'allProjects' | null;
   internalActivities: Activity[];
-  repeatableActivities: Activity[];
+  allProjectsActivities: Activity[];
   onChange: (patch: {
     activityId: string | null;
-    activityKind: 'internal' | 'repeatable' | null;
+    activityKind: 'internal' | 'allProjects' | null;
   }) => void;
 }
 
@@ -26,7 +26,7 @@ function buildActivityFilterPatch(
   value: string,
 ): Parameters<ToolbarActivityFilterProps['onChange']>[0] {
   if (value === 'kind:internal') return { activityKind: 'internal', activityId: null };
-  if (value === 'kind:repeatable') return { activityKind: 'repeatable', activityId: null };
+  if (value === 'kind:allProjects') return { activityKind: 'allProjects', activityId: null };
   return { activityId: value === 'all' ? null : value, activityKind: null };
 }
 
@@ -35,16 +35,16 @@ export function ToolbarActivityFilter({
   activityId,
   activityKind,
   internalActivities,
-  repeatableActivities,
+  allProjectsActivities,
   onChange,
 }: ToolbarActivityFilterProps) {
   const selectedValue = activityKind ? `kind:${activityKind}` : (activityId ?? 'all');
   const availableValues = new Set([
     'all',
     ...internalActivities.map((activity) => activity.id),
-    ...repeatableActivities.map((activity) => activity.id),
+    ...allProjectsActivities.map((activity) => activity.id),
     ...(internalActivities.length > 0 ? ['kind:internal'] : []),
-    ...(repeatableActivities.length > 0 ? ['kind:repeatable'] : []),
+    ...(allProjectsActivities.length > 0 ? ['kind:allProjects'] : []),
   ]);
   const selectionUnavailable = selectedValue !== 'all' && !availableValues.has(selectedValue);
 
@@ -76,11 +76,13 @@ export function ToolbarActivityFilter({
             ))}
           </SelectGroup>
         )}
-        {repeatableActivities.length > 0 && (
+        {allProjectsActivities.length > 0 && (
           <SelectGroup>
-            <SelectLabel>{m.scheduler_filter_repeatable_group()}</SelectLabel>
-            <SelectItem value="kind:repeatable">{m.scheduler_filter_repeatable_all()}</SelectItem>
-            {repeatableActivities.map((activity) => (
+            <SelectLabel>{m.scheduler_filter_all_projects_group()}</SelectLabel>
+            <SelectItem value="kind:allProjects">
+              {m.scheduler_filter_all_projects_all()}
+            </SelectItem>
+            {allProjectsActivities.map((activity) => (
               <SelectItem key={activity.id} value={activity.id}>
                 {activity.name}
               </SelectItem>

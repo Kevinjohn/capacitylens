@@ -1,16 +1,16 @@
 /** A display-safe validation failure with a stable path into the beta document. */
-export class CompanyDocumentError extends Error {
+export class CompanyExportError extends Error {
   readonly path: string;
   constructor(path: string, message: string, options?: ErrorOptions) {
     super(`${path}: ${message}`, options);
-    this.name = 'CompanyDocumentError';
+    this.name = 'CompanyExportError';
     this.path = path;
   }
 }
 
 /** Throw a display-safe validation error for one field path. */
 export function fail(path: string, message: string): never {
-  throw new CompanyDocumentError(path, message);
+  throw new CompanyExportError(path, message);
 }
 
 /** Assert an untrusted value satisfies a validation condition. */

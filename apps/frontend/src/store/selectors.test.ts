@@ -48,7 +48,7 @@ function data(): AppData {
         id: 'r1',
         companyId: DEFAULT_COMPANY_ID,
         name: 'A',
-        role: 'x',
+        jobTitle: 'x',
         disciplineId: 'd1',
         color: '#1',
       }),
@@ -56,11 +56,17 @@ function data(): AppData {
         id: 'r2',
         companyId: DEFAULT_COMPANY_ID,
         name: 'B',
-        role: 'x',
+        jobTitle: 'x',
         disciplineId: 'd2',
         color: '#2',
       }),
-      makeResource({ id: 'r3', companyId: DEFAULT_COMPANY_ID, name: 'C', role: 'x', color: '#3' }),
+      makeResource({
+        id: 'r3',
+        companyId: DEFAULT_COMPANY_ID,
+        name: 'C',
+        jobTitle: 'x',
+        color: '#3',
+      }),
     ],
     projects: [
       {

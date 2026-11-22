@@ -347,7 +347,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   ) {
     throw new EntityWriteException('Closure name is required.');
   }
-  for (const field of ['name', 'role', 'codeName', 'note', 'task'] as const) {
+  for (const field of ['name', 'jobTitle', 'codeName', 'note', 'task'] as const) {
     if (typeof candidate[field] === 'string') {
       candidate[field] = cleanText(candidate[field] as string, { multiline: field === 'note' });
     }
