@@ -102,14 +102,14 @@ describe('assertScopedRefs with a lookup', () => {
     const lookup = lookupOver(archivedClient());
     expect(
       codeOf(() => assertScopedRefs(data(), A1, 'projects', { clientId: 'c1' }, undefined, lookup)),
-    ).toBe('reference_wrong_account');
+    ).toBe('reference_wrong_company');
     expect(lookup.row).toHaveBeenCalledWith('clients', 'c1');
   });
 
   it('accepts a reference the lookup reports as active even when data has it archived', () => {
     const write = { clientId: 'c1' };
     expect(codeOf(() => assertScopedRefs(archivedClient(), A1, 'projects', write))).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     const lookup = lookupOver(data());
     expect(

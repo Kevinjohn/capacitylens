@@ -47,7 +47,7 @@ describe('getOwned', () => {
       error = caught;
     }
     expect(error).toBeInstanceOf(DomainError);
-    expect((error as DomainError).code).toBe('record_wrong_account');
+    expect((error as DomainError).code).toBe('record_wrong_company');
   });
 });
 

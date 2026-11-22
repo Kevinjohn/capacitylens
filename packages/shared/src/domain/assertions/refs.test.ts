@@ -137,17 +137,17 @@ describe('assertScopedRefs required references', () => {
 
   it('rejects a non-string, missing, cross-company or archived reference on create', () => {
     for (const clientId of [42, 'c-missing', 'c-loft', 'c-archived']) {
-      expect(scoped('projects', { clientId })).toBe('reference_wrong_account');
+      expect(scoped('projects', { clientId })).toBe('reference_wrong_company');
     }
   });
 
   it('requires the parent on create, on a full row and when an update clears it', () => {
-    expect(scoped('projects', {})).toBe('reference_wrong_account');
+    expect(scoped('projects', {})).toBe('reference_wrong_company');
     expect(scoped('phases', {}, phase('ph1', 'p1'), { fullRow: true })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('phases', { projectId: null }, phase('ph1', 'p1'))).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
   });
 
@@ -164,12 +164,12 @@ describe('assertScopedRefs required references', () => {
     const gone = project('p1', { clientId: 'c-missing' });
     expect(scoped('projects', { clientId: 'c-missing' }, gone)).toBeUndefined();
     const foreign = project('p1', { clientId: 'c-loft' });
-    expect(scoped('projects', { clientId: 'c-loft' }, foreign)).toBe('reference_wrong_account');
+    expect(scoped('projects', { clientId: 'c-loft' }, foreign)).toBe('reference_wrong_company');
   });
 
   it('checks a changed reference on update', () => {
     expect(scoped('projects', { clientId: 'c-archived' }, project('p1'))).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('projects', { clientId: 'c1' }, project('p1'))).toBeUndefined();
   });
@@ -191,16 +191,16 @@ describe('assertScopedRefs activities', () => {
 
   it('rejects a phase of another company or one that does not exist', () => {
     expect(scoped('activities', { kind: 'project', projectId: 'p-loft', phaseId: 'ph-loft' })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-loft' })).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
     expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-missing' })).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
     expect(scoped('activities', { projectId: 'p1', phaseId: 7 })).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
   });
 
@@ -221,7 +221,7 @@ describe('assertScopedRefs activities', () => {
     ).toBeUndefined();
     const foreign = activity('t1', { phaseId: 'ph-loft' });
     expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-loft' }, foreign)).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
   });
 
@@ -293,10 +293,10 @@ describe('assertScopedRefs resources', () => {
 
   it('checks discipline and placeholder project references', () => {
     expect(scoped('resources', { kind: 'person', disciplineId: 'd-missing' })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('resources', { kind: 'placeholder', projectId: 'p-loft' })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
   });
 });

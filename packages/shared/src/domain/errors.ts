@@ -1,11 +1,11 @@
 /** Every stable code a domain rule violation may carry. */
 export const DOMAIN_ERROR_CODES = [
-  'record_wrong_account',
-  'reference_wrong_account',
+  'record_wrong_company',
+  'reference_wrong_company',
   'activity_project_required',
   'activity_project_forbidden',
   'activity_phase_forbidden',
-  'activity_phase_wrong_account',
+  'activity_phase_wrong_company',
   'activity_phase_project_required',
   'activity_phase_project_mismatch',
   'resource_project_forbidden',

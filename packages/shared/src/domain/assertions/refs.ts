@@ -35,7 +35,7 @@ export function getOwned<K extends ScopedEntityKey>(
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
   if (!row) return null;
   if (!isInCompany(row, companyId)) {
-    throwDomainError('record_wrong_account', 'That record does not belong to the active company.');
+    throwDomainError('record_wrong_company', 'That record does not belong to the active company.');
   }
   return row as AppData[K][number];
 }
@@ -95,7 +95,7 @@ function createScopedRefsContext(
       !isInCompany(resolved, companyId) ||
       !isEffectivelyActive({ data, table, row: resolved, ...lookupOptions })
     ) {
-      throwDomainError('reference_wrong_account', message);
+      throwDomainError('reference_wrong_company', message);
     }
   };
   return {
@@ -126,7 +126,7 @@ function assertRequiredRef(
     return;
   }
   if (existing === undefined || fullRow === true || context.isSupplied(field)) {
-    throwDomainError('reference_wrong_account', message);
+    throwDomainError('reference_wrong_company', message);
   }
 }
 
@@ -166,14 +166,14 @@ function assertActivityPhase(context: ScopedRefsContext): void {
   if (isUnchanged('phaseId') && isUnchanged('projectId')) {
     if (phase && !ownedPhase) {
       throwDomainError(
-        'activity_phase_wrong_account',
+        'activity_phase_wrong_company',
         'Activity phase must belong to this company.',
       );
     }
     return;
   }
   if (!ownedPhase) {
-    throwDomainError('activity_phase_wrong_account', 'Activity phase must belong to this company.');
+    throwDomainError('activity_phase_wrong_company', 'Activity phase must belong to this company.');
   }
   if (!isPresent('projectId')) {
     throwDomainError(
