@@ -50,7 +50,7 @@ function createBasicResponseClassificationTests() {
     expect(useStore.getState().companySummaries).toEqual([]);
     expect(useStore.getState().companySummariesComplete).toBe(false);
     expect(useStore.getState().companySummariesAmbiguous).toBe(true);
-    expect(useStore.getState().notice?.message).toBe(m.account_directory_ambiguous());
+    expect(useStore.getState().notice?.message).toBe(m.company_directory_ambiguous());
   });
 
   it('a valid array -> validated summaries (off-spec rows dropped, not the whole list) + a warn per drop', async () => {
@@ -69,7 +69,7 @@ function createBasicResponseClassificationTests() {
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));
     expect(useStore.getState().notice).toEqual({
-      message: m.account_directory_incomplete(),
+      message: m.company_directory_incomplete(),
       tone: 'warning',
     });
   });
@@ -90,7 +90,7 @@ function createBasicResponseClassificationTests() {
     await expect(fetchCompanySummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate company ids'));
     expect(useStore.getState().notice).toEqual({
-      message: m.account_directory_incomplete(),
+      message: m.company_directory_incomplete(),
       tone: 'warning',
     });
   });
@@ -141,7 +141,7 @@ function createMalformedResponseClassificationTests() {
     await expect(fetchCompanySummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));
     expect(useStore.getState().notice).toEqual({
-      message: m.account_directory_incomplete(),
+      message: m.company_directory_incomplete(),
       tone: 'warning',
     });
   });
@@ -312,7 +312,7 @@ function createCompletenessRefreshTests() {
     expect(useStore.getState().companySummariesComplete).toBe(false);
     expect(useStore.getState().activeCompanyId).toBe('active');
     expect(useStore.getState().notice).toEqual({
-      message: m.account_directory_incomplete(),
+      message: m.company_directory_incomplete(),
       tone: 'warning',
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));

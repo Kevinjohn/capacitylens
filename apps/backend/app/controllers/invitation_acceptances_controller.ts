@@ -42,7 +42,7 @@ export default class InvitationAcceptancesController {
       if (error instanceof RegistrationEmailAlreadyRegisteredError) {
         return ctx.response.conflict({
           error: 'An account already uses this email. Sign in instead.',
-          code: 'EMAIL_REGISTERED',
+          code: 'EMAIL_IN_USE',
         } satisfies ProductHttpErrorBody);
       }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.

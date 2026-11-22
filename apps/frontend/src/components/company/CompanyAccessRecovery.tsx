@@ -21,7 +21,7 @@ export function CompanyAccessRecovery() {
     <main className="flex min-h-full items-center justify-center bg-canvas p-6">
       <p role="alert" className="max-w-md text-center text-sm text-danger">
         {ambiguous || companies.length > 1
-          ? m.account_directory_ambiguous()
+          ? m.company_directory_ambiguous()
           : m.account_access_no_company_invite()}
       </p>
     </main>

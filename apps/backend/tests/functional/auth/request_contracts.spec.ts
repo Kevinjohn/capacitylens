@@ -207,7 +207,7 @@ test.group('ordinary authentication request contracts', (group) => {
     response.assertStatus(409);
     assert.deepEqual(response.body(), {
       error: 'An account already uses this email. Sign in or reset your password.',
-      code: 'EMAIL_REGISTERED',
+      code: 'EMAIL_IN_USE',
     });
   });
 
