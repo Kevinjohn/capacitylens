@@ -295,7 +295,7 @@ test.group('capacity section', () => {
   });
 });
 
-test.group('capacity section on the sample company', (group) => {
+test.group('capacity section on the example company', (group) => {
   group.setup(() => freshDatabase());
 
   test('equals the shared straight-line capacity window for every resource', async ({ assert }) => {
@@ -351,9 +351,9 @@ test.group('capacity section on the sample company', (group) => {
       assert.deepEqual(figures(actual.horizon), expected(result.horizon), row.id);
       overDays += window.over.filter(Boolean).length;
     }
-    // The sample company books tentative work, so the confirmed comparison is not all hours again.
+    // The example company books tentative work, so the confirmed comparison is not all hours again.
     assert.isTrue(stored.allocations.some((entry) => entry.status === 'tentative'));
-    // The sample company books someone over capacity, so the comparison covers that case.
+    // The example company books someone over capacity, so the comparison covers that case.
     assert.isAbove(overDays, 0);
   });
 });

@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import MainSeeder from '#database/seeders/main_seeder';
 import { operatorFixture } from '#tests/helpers/operator_command_helpers';
 
-test('the sample data seeder runs only in development and test', ({ assert }) => {
+test('the example data seeder runs only in development and test', ({ assert }) => {
   assert.sameMembers(MainSeeder.environment, ['development', 'test']);
 });
 

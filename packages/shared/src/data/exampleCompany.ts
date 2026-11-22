@@ -5,7 +5,7 @@ import { addDaysISO, startOfWeekISO } from '../lib/dateMath.js';
 
 // One small company's worth of rows a new owner can add to an empty company: just enough to see a
 // schedule working (two people, a client, a project, a few bookings) and small enough to read at a
-// glance. Rows are ordinary rows with fresh ids; nothing marks them as sample data, so deleting them
+// glance. Rows are ordinary rows with fresh ids; nothing marks them as example data, so deleting them
 // leaves no trace. Names follow the comic-book rule for invented people (DC universe).
 
 /**

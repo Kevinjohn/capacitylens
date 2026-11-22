@@ -53,7 +53,7 @@ Your company can switch [Disciplines](/using/disciplines) off.
 ## Can I use CapacityLens without a connection?
 
 The company schedule needs a server connection. If a read or save fails, reconnect and use the
-retry or recovery control offered. Changes are never queued for later. The disposable demo uses the same server path; restarting its command resets the sample data. [Connection errors](/using/settings#connection-errors)
+retry or recovery control offered. Changes are never queued for later. The disposable demo uses the same server path; restarting its command resets the demo data. [Connection errors](/using/settings#connection-errors)
 
 ## Where do clients, projects and activities come from?
 

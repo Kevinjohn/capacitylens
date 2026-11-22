@@ -10,7 +10,7 @@ agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the ta
 - **Current**: exposed in the product, subject to its role, configuration and feature conditions.
 - **Hidden**: retained implementation with its ordinary entry point hidden.
 - **Removed**: historical capability with no current product entry point.
-- **Demo**: available only through the disposable sample-data command.
+- **Demo**: available only through the disposable demo command.
 - **Operator**: hosting or recovery procedure outside the application UI.
 - **Planned**: agreed target for which an ordinary product journey is absent.
 

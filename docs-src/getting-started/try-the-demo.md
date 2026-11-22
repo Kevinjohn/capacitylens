@@ -1,11 +1,11 @@
 ---
 title: Try the demo
-description: See CapacityLens running with sample data in about two minutes, using a disposable local server.
+description: See CapacityLens running with demo data in about two minutes, using a disposable local server.
 ---
 
 # Try the demo
 
-Run a sample agency's schedule on your own machine. The command starts the full server and web
+Run a fictional agency's schedule on your own machine. The command starts the full server and web
 app with disposable SQLite storage. Schedule changes survive refresh and reset when you restart
 the command. Display preferences may stay in your browser. To keep real data, [install CapacityLens](/self-hosting/install) instead.
 
@@ -38,11 +38,11 @@ so do not assume the Node installation supplies pnpm.
    ```
 
 3. Open the address printed when the demo is ready. Sign in with the development email and
-   password printed alongside it. The sample company opens automatically.
+   password printed alongside it. The demo company opens automatically.
 
 No setup link or `.env` file is needed. The command creates its disposable database locally.
 
-## Explore the sample company
+## Explore the demo company
 
 The schedule opens with people, clients, projects and bookings already in place. The development
 identity is its Owner, so the same server permissions and password confirmations apply.

@@ -44,7 +44,7 @@ covers each action. If a company has no Owner at all, follow
 Three separate things can look like a [person](/reference/glossary#person) in the interface:
 
 - A **sign-in identity**: the email and password someone uses to reach CapacityLens. A production
-  installation contains one company; the disposable demo has one fictional sample company and a development sign-in
+  installation contains one company; the disposable demo has one fictional demo company and a development sign-in
   identities.
 - A **member**: that identity's role in the installation's company, created by
   [inviting them](/admin/invite-teammates).

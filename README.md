@@ -54,7 +54,7 @@ Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github
 ## Try it in two minutes
 
 For people comfortable with a terminal: the demo runs the full server and web app on your computer
-with sample data. It needs Node 24, git and [pnpm](https://pnpm.io/installation). Node 26 is an
+with demo data. It needs Node 24, git and [pnpm](https://pnpm.io/installation). Node 26 is an
 experimental, best-effort option. Install pnpm separately before running these commands; Node 25
 and later no longer bundle Corepack. Sign in with the credentials printed in the
 terminal. Changes survive refresh and reset when you restart the command. Everyone else can watch
@@ -66,7 +66,7 @@ pnpm run dev:demo
 ```
 
 Open the address printed in the terminal and sign in with the printed development account. The
-sample company's schedule opens automatically.
+demo company's schedule opens automatically.
 
 ## What you get
 

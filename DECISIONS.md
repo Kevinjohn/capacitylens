@@ -75,8 +75,8 @@ This is the short, present-tense record of decisions that constrain future work.
 
 - Every server requires an authenticated, authorised company member. There is no sign-in mode
   setting or anonymous persisted access. The development demo runs the full server with a printed
-  sign-in and one sample company on disposable SQLite storage. Refresh retains changes; restarting
-  the command resets the sample data. Each invocation owns its own storage. Cleanup removes it only
+  sign-in and one demo company on disposable SQLite storage. Refresh retains changes; restarting
+  the command resets the demo data. Each invocation owns its own storage. Cleanup removes it only
   after the owned processes are verified to have exited. Uncertain crash residue is retained and
   never reset by a later invocation.
 - SQLite is the only product database. One process owns one database file through a pool of one
@@ -266,7 +266,7 @@ This is the short, present-tense record of decisions that constrain future work.
   stopped-server operator initializer remains a recovery option, never the normal install path, and
   also requires an admitted identity. Neither path creates credentials or changes identity
   admission. No environment variable grants company ownership.
-  A development-only demo command may, on an empty disposable database, create the sample company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
+  A development-only demo command may, on an empty disposable database, create the demo company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
 - The development bootstrap identity is the one account created outside the kit, already
   confirmed and with a known password; the kit creates an account only unconfirmed, with a mailed
   proof. Production refuses the setting that enables it.

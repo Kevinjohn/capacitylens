@@ -125,7 +125,7 @@ test.group('disposable development demo', (group) => {
     assert.equal(membership.user_id, owner);
   });
 
-  test('authority failure rolls back sample rows, membership and revision together', async ({
+  test('authority failure rolls back demo rows, membership and revision together', async ({
     assert,
   }) => {
     await createIdentity(email, { password });

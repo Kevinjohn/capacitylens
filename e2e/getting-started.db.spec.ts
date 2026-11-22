@@ -134,7 +134,7 @@ test.describe('server-backed role tour', { tag: '@engine' }, () => {
     await waitForAppLanding(page, page.locator('#main'));
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0);
-    // The sample company has finished all five steps, so the strip is gone and the tour starts
+    // The example company has finished all five steps, so the strip is gone and the tour starts
     // from Help.
     await expect(page.getByTestId('getting-started')).toHaveCount(0);
     await page.getByRole('link', { name: 'Help', exact: true }).click();

@@ -12,7 +12,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 1. Check [DECISIONS.md](DECISIONS.md) and the open issues; for anything beyond a small fix, open an
    issue and agree the approach before writing code.
 2. Fork the repository, clone it and create a branch from `main`.
-3. Follow [Set up](#set-up), then run `pnpm run dev:demo` to see the app with sample data.
+3. Follow [Set up](#set-up), then run `pnpm run dev:demo` to see the app with demo data.
 4. Find what to edit with the README's [Where do I edit?](README.md#where-do-i-edit) map; the
    [architecture reference](docs-src/reference/architecture.md) shows where each capability lives
    and which tests pin it.
@@ -78,12 +78,12 @@ origin, stop and use a fresh local database instead of changing its admission. R
 
 ```bash
 pnpm run dev        # full stack on your local database
-pnpm run dev:demo   # full stack on disposable sample data
+pnpm run dev:demo   # full stack on disposable demo data
 pnpm run check:changed
 ```
 
 `pnpm run dev:demo` starts the full stack on disposable SQLite storage and prints its development
-sign-in. Refresh keeps changes; restarting resets the sample company. Normal `pnpm run dev` keeps
+sign-in. Refresh keeps changes; restarting resets the demo company. Normal `pnpm run dev` keeps
 the empty-install setup journey. The workspace contains the web app, pure shared domain package
 and server.
 
