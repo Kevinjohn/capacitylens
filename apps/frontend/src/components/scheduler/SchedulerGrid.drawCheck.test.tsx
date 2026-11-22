@@ -43,7 +43,7 @@ const INACTIVE_COMPANY_ID = 'a-loft';
 beforeEach(async () => {
   await resetStoreWithData(
     schedulerDataset({
-      accounts: [
+      companies: [
         makeCompany({ id: ACTIVE_COMPANY_ID }),
         makeCompany({ id: INACTIVE_COMPANY_ID, name: 'Stark Industries' }),
       ],

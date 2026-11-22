@@ -68,20 +68,36 @@ test.group('native auth and API rate limits', (group) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2');
 
-    assert.equal(await responseStatus(requestSignedOutSession(client)), 401);
-    assert.equal(await responseStatus(requestSignedOutSession(client)), 401);
+    for (const remaining of ['1', '0']) {
+      const counted = await requestSignedOutSession(client);
+      assert.equal(counted.status(), 401);
+      assert.equal(counted.header('x-ratelimit-limit'), '2');
+      assert.equal(counted.header('x-ratelimit-remaining'), remaining);
+    }
     const limited = await requestSignedOutSession(client);
     assert.equal(limited.status(), 429);
     assert.deepEqual(limited.body(), { error: 'Rate limit exceeded.' });
+    assert.equal(limited.header('x-ratelimit-limit'), '2');
+    assert.equal(limited.header('x-ratelimit-remaining'), '0');
+    assert.match(String(limited.header('retry-after')), /^[1-9]\d*$/);
+    assert.isFalse(Number.isNaN(Date.parse(String(limited.header('x-ratelimit-reset')))));
     const persistedLimits = await db.from('rate_limits').select('key', 'points');
     assert.isNotEmpty(persistedLimits, 'the native database limiter records the client bucket');
     for (const limit of persistedLimits) {
       assert.isAbove(Number(limit.points), 0);
-      assert.match(String(limit.key), /^rlflx:api:[a-f0-9]{64}$/);
+      assert.match(String(limit.key), /^rlflx:api_[a-f0-9]{64}$/);
     }
 
     for (let attempt = 0; attempt < 5; attempt++)
-      assert.equal(await responseStatus(client.visit('api.health').send()), 200);
+      assert.equal(await responseStatus(client.visit('api.health_checks.live').send()), 200);
+  });
+
+  test('GET /api/health is not limited', async ({ client, assert, cleanup }) => {
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
+    setEnvironment('CAPACITYLENS_RATE_LIMIT', '1');
+
+    for (let attempt = 0; attempt < 3; attempt++)
+      assert.equal(await responseStatus(client.visit('api.health_checks.live').send()), 200);
   });
 
   test('API rate limiting is disabled when unset, zero, or malformed', async ({

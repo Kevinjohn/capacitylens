@@ -207,7 +207,7 @@ export function AppShell() {
   // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
   // explicit light and dark preferences pass through as concrete schemes.
   const themePreference = useStore((state) => state.theme);
-  const companies = useStore((state) => state.data.accounts);
+  const companies = useStore((state) => state.data.companies);
   const companySummaries = useStore((state) => state.companySummaries);
   const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous);
   const activeCompanyId = useStore((state) => state.activeCompanyId);

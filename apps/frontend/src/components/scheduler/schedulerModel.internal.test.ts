@@ -78,7 +78,7 @@ function withInternal(): AppData {
   return d;
 }
 
-function withAttributedRepeatable(): AppData {
+function withAttributedAllProjects(): AppData {
   const d = withInternal();
   d.activities.push({
     ...NULLABLE_FIELDS.activities,
@@ -87,7 +87,7 @@ function withAttributedRepeatable(): AppData {
     createdAt: 't',
     updatedAt: 't',
     name: 'Design',
-    kind: 'repeatable',
+    kind: 'allProjects',
   });
   d.allocations.push(
     {
@@ -121,10 +121,10 @@ function withAttributedRepeatable(): AppData {
   return d;
 }
 
-describe('repeatable allocation effective project', () => {
+describe('all-projects allocation effective project', () => {
   const buildAttributed = (filters = buildEmptyFilters()) =>
     buildSchedulerModel({
-      data: withAttributedRepeatable(),
+      data: withAttributedAllProjects(),
       geom,
       days,
       visibleWindow: { start, end },
@@ -286,7 +286,7 @@ describe('built-in Internal client bucketing + filter', () => {
   });
 });
 
-function buildInternalAndRepeatableData(): AppData {
+function buildInternalAndAllProjectsData(): AppData {
   const d = withInternal();
   d.activities.push({
     ...NULLABLE_FIELDS.activities,
@@ -295,7 +295,7 @@ function buildInternalAndRepeatableData(): AppData {
     createdAt: 't',
     updatedAt: 't',
     name: 'Design',
-    kind: 'repeatable',
+    kind: 'allProjects',
   });
   d.allocations.push(
     {
@@ -333,7 +333,7 @@ describe('internal-work bars', () => {
   it('shows every internal and all-projects bar alongside ordinary work', () => {
     const ids = listBarIds(
       buildSchedulerModel({
-        data: buildInternalAndRepeatableData(),
+        data: buildInternalAndAllProjectsData(),
         geom,
         days,
         visibleWindow: { start, end },

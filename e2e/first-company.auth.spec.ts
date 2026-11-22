@@ -38,7 +38,7 @@ test('operator setup creates the first Owner, one company and its default client
     CAPACITYLENS_DB: join(scratch, 'native.db'),
     CAPACITYLENS_PUBLIC_URL: origin,
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: 'true',
+    CAPACITYLENS_ALLOW_OPEN_SIGN_UP: 'true',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
     CAPACITYLENS_BACKUP_DIR: '',
   };
@@ -82,7 +82,7 @@ test('operator setup creates the first Owner, one company and its default client
       )
       .toBe(true);
     await page.goto(origin);
-    await expect(page.getByTestId('login-setup-needed')).toBeVisible();
+    await expect(page.getByTestId('sign-in-setup-needed')).toBeVisible();
     await page.goto(setupLink!);
     await page.getByTestId('invite-name').fill('Bruce Wayne');
     await page.getByTestId('invite-password').fill('first-company-password-2026');
@@ -124,15 +124,16 @@ test('operator setup creates the first Owner, one company and its default client
     await page.getByRole('button', { name: 'Create company', exact: true }).click();
     await expect(page.getByTestId('company-setup')).toHaveCount(0);
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
-    const companies = await page.request.get(`${origin}/api/companies`);
-    const accounts = ((await companies.json()) as { data: { id: string; role: string }[] }).data;
-    expect(accounts).toHaveLength(1);
-    expect(accounts[0]!.role).toBe('owner');
-    const state = await page.request.get(`${origin}/api/state?companyId=${accounts[0]!.id}`);
+    const companiesResponse = await page.request.get(`${origin}/api/companies`);
+    const companies = ((await companiesResponse.json()) as { data: { id: string; role: string }[] })
+      .data;
+    expect(companies).toHaveLength(1);
+    expect(companies[0]!.role).toBe('owner');
+    const state = await page.request.get(`${origin}/api/state?companyId=${companies[0]!.id}`);
     const data = (await state.json()).data;
-    expect(data.accounts[0].name).toBe('Wayne Enterprises');
-    expect(data.accounts[0].weekStartsOn).toBe(0);
-    expect(data.accounts[0].timezone).toBe('America/New_York');
+    expect(data.companies[0].name).toBe('Wayne Enterprises');
+    expect(data.companies[0].weekStartsOn).toBe(0);
+    expect(data.companies[0].timezone).toBe('America/New_York');
     expect(data.clients).toHaveLength(1);
     expect(data.clients[0].builtin).toBe(true);
     const duplicate = await page.request.post(`${origin}/api/installation/company`, {

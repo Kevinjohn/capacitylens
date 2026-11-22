@@ -82,7 +82,7 @@ The remaining assessment retains its original review date.
 | `OSPS-GV-03.02` — Does the contributor guide define acceptable contributions? | Met | `CONTRIBUTING.md` defines scope, coding, testing, security, submission and DCO requirements. |
 | `OSPS-LE-01.01` — Must contributors assert legal authority for every commit? | Met | Contributor commits require DCO sign-off, documented in `CONTRIBUTING.md` and checked by CI. |
 | `OSPS-QA-03.01` — Must automated status checks pass or be explicitly bypassed before `main` accepts a commit? | Met | Branch protection requires pull requests and the `Lint and type-check` status check; admins are subject to the rule. |
-| `OSPS-QA-06.01` — Does CI run an automated test suite before every commit is accepted? | Unmet | Contributors run the complete local gates and CodeQL analyzes pull requests, but application and browser suites currently report after merge rather than blocking every merge. |
+| `OSPS-QA-06.01` — Does CI run an automated test suite before every commit is accepted? | Unmet | Contributors run the complete local gates and CodeQL analyses pull requests, but application and browser suites currently report after merge rather than blocking every merge. |
 | `OSPS-SA-01.01` — Does design documentation describe system actors and actions? | Met | The [account-boundary design](https://github.com/Kevinjohn/capacitylens/blob/main/docs-src/decisions/account-boundary.md) and [threat model](threat-model.md) describe people, trust boundaries, components and operations. |
 | `OSPS-SA-02.01` — Are the released software's external interfaces documented? | Met | Self-hosting, password sign-in, SMTP configuration, account-boundary and test references describe browser, HTTP, configuration and persistence interfaces. |
 | `OSPS-SA-03.01` — Has the project performed a security assessment? | Met | The ASVS ledger, threat model and control inventories identify likely and high-impact risks. |
@@ -108,7 +108,7 @@ Level 2 is not currently claimable because `OSPS-QA-06.01` remains unmet.
 | `OSPS-QA-02.02` — Are compiled release assets delivered with an SBOM? | Met | The release workflow publishes an SPDX JSON SBOM alongside the packaged web build and provenance bundle. |
 | `OSPS-QA-04.02` — Do all repositories in a multi-repository release enforce equivalent security requirements? | N/A | CapacityLens releases are built from one repository. |
 | `OSPS-QA-06.02` — Is it documented when and how tests run? | Met | `CONTRIBUTING.md` and the [test reference](../reference/how-it-is-tested.md) describe local commands, CI jobs, coverage expectations and affected-risk checks. |
-| `OSPS-QA-06.03` — Must major changes add or update automated tests? | Met | `CONTRIBUTING.md` requires tests that fail without a behavior change and names extra threat-oriented suites for sensitive changes. |
+| `OSPS-QA-06.03` — Must major changes add or update automated tests? | Met | `CONTRIBUTING.md` requires tests that fail without a behaviour change and names extra threat-oriented suites for sensitive changes. |
 | `OSPS-QA-07.01` — Does every change require approval from a human other than its author? | Unmet | CapacityLens currently has one active maintainer and branch protection deliberately requires no non-author approval. |
 | `OSPS-SA-03.02` — Has the project performed threat modelling and attack-surface analysis? | Met | The [threat model](threat-model.md), attack inventory and ASVS ledger cover trust boundaries, critical paths, threats and mitigations. |
 | `OSPS-VM-04.02` — Are non-exploitable component findings accounted for in VEX documents? | Unmet | The project produces SBOMs and reviews dependency findings but does not publish a VEX feed. |
@@ -116,14 +116,14 @@ Level 2 is not currently claimable because `OSPS-QA-06.01` remains unmet.
 | `OSPS-VM-05.02` — Must applicable composition-analysis violations be resolved before release? | Unmet | Security scans run on `main` and on demand, but the release workflow does not enforce a documented SCA decision gate before publication. |
 | `OSPS-VM-05.03` — Is every change automatically checked against dependency policy and blocked on violations? | Unmet | Dependency checks are not currently a required pre-merge status on every change. |
 | `OSPS-VM-06.01` — Is there a documented remediation threshold for static-analysis findings? | Unmet | CodeQL runs on every pull request, but the public policy does not yet define severity and remediation-time thresholds. |
-| `OSPS-VM-06.02` — Is every change statically analyzed and blocked on unsuppressed security violations? | Unmet | CodeQL analyzes each pull request, but its result is not currently a required branch-protection check. |
+| `OSPS-VM-06.02` — Is every change statically analyzed and blocked on unsuppressed security violations? | Unmet | CodeQL analyses each pull request, but its result is not currently a required branch-protection check. |
 
 Level 3 is not currently claimable. The unmet controls above are the executable improvement queue;
 they should only be changed to **Met** after the policy, enforcement and consumer evidence land.
 
 ## Keep the record current
 
-Review this page whenever branch protection, release publication, security policy or CI behavior
+Review this page whenever branch protection, release publication, security policy or CI behaviour
 changes. Update the public BadgeApp answers separately: repository documentation is evidence, not a
 substitute for the public self-certification.
 

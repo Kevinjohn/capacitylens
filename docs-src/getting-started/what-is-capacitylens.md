@@ -29,7 +29,7 @@ The **How CapacityLens works** introduction can be reopened from **Help**.
   warning looks two weeks ahead for problems not yet on screen.
 - **How full everyone is.** A [utilisation](/reference/glossary#utilisation) percentage beside
   each name, for the weeks on screen.
-- **Time off in the same picture.** Holidays and company closures sit beside the work, so they
+- **Time off in the same picture.** Each person's time off and company closures sit beside the work, so they
   stop being a surprise.
 - **Work you haven't won yet.** Tentative bookings, [placeholders](/reference/glossary#placeholder)
   for roles you haven't filled, and external parties who don't count against your team's capacity.

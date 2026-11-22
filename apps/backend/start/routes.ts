@@ -2,6 +2,7 @@ import router from '@adonisjs/core/services/router';
 import app from '@adonisjs/core/services/app';
 import { controllers } from '#generated/controllers';
 import { middleware } from '#start/kernel';
+import { throttle } from '#start/limiter';
 import { registerAuthRoutes } from '#start/auth_routes';
 import { registerMembershipRoutes } from '#start/membership_routes';
 import { registerAdmissionRoutes } from '#start/admission_routes';
@@ -9,7 +10,7 @@ import { registerMasqueradeRoutes } from '#start/masquerade_routes';
 import { registerOwnershipRoutes } from '#start/ownership_routes';
 import { registerPlanningRoutes } from '#start/planning_routes';
 import { registerCompanyRoutes } from '#start/company_routes';
-import { registerTransferRoutes } from '#start/transfer_routes';
+import { registerImportRoutes } from '#start/import_routes';
 import { registerExportRoutes } from '#start/export_routes';
 import { registerAnonymiseRoutes } from '#start/anonymise_routes';
 import { registerExampleDataRoutes } from '#start/example_data_routes';
@@ -20,11 +21,19 @@ import { registerDiagnosticsRoutes } from '#start/diagnostics_routes';
 // identifier matches no route and answers 404 instead of reaching the package.
 for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
 
+// Health is registered first, in its own group, so the API throttle does not count it.
+router
+  .group(() => {
+    router.get('/health', [controllers.HealthChecks, 'live']);
+  })
+  .prefix('/api')
+  .as('api');
+
 router
   .group(() => {
     registerPlanningRoutes();
     registerCompanyRoutes();
-    registerTransferRoutes();
+    registerImportRoutes();
     registerExportRoutes();
     registerAnonymiseRoutes();
     registerExampleDataRoutes();
@@ -34,7 +43,6 @@ router
     registerAdmissionRoutes();
     registerMasqueradeRoutes();
     registerOwnershipRoutes();
-    router.get('/health', [controllers.HealthChecks, 'live']).as('health');
     registerDiagnosticsRoutes();
     router
       .get('/*', ({ response }) => response.notFound({ error: 'Not found' }))
@@ -42,7 +50,8 @@ router
       .as('not_found');
   })
   .prefix('/api')
-  .as('api');
+  .as('api')
+  .use(throttle);
 
 router.get('/health/live', [controllers.HealthChecks, 'live']);
 router.get('/health/ready', [controllers.HealthChecks, 'ready']);

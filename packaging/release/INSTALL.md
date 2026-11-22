@@ -57,7 +57,7 @@ binds the backend to loopback port 8787; put HTTPS in front with the supplied Ca
 example. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
 which reads that file and gives the service user access to its settings without giving it read
 access to the file. The command takes a verified pre-upgrade
-snapshot of an existing database before running pending migrations.
+backup of an existing database before running pending migrations.
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \

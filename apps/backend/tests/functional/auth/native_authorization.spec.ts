@@ -6,7 +6,7 @@ import type { ApiClient } from '@japa/api-client';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '#tests/helpers/identities';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
@@ -35,13 +35,13 @@ const withSession = asDataOwner;
 
 function configureAuth(cleanup: (callback: () => void) => void) {
   const prior = {
-    openSignup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
+    openSignUp: env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP'),
     rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
   };
-  env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false);
+  env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', false);
   env.set('CAPACITYLENS_RATE_LIMIT', '0');
   cleanup(() => {
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior.openSignup);
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', prior.openSignUp);
     env.set('CAPACITYLENS_RATE_LIMIT', prior.rateLimit ?? '');
   });
 }
@@ -141,7 +141,7 @@ test.group('native authorization and role projections', (group) => {
     await db.from('memberships').delete();
     await db.from('users').delete();
     await db.from('rate_limits').delete();
-    await db.from('account_getting_started_dismissals').delete();
+    await db.from('company_getting_started_dismissals').delete();
     await resetState(true);
   });
 
@@ -157,7 +157,7 @@ test.group('native authorization and role projections', (group) => {
       client.visit('api.company_state.show').qs({ companyId })
     ).send();
     anonymous.assertStatus(401);
-    const openHealth = await client.visit('api.health').send();
+    const openHealth = await client.visit('api.health_checks.live').send();
     openHealth.assertStatus(200);
 
     await db.from('memberships').where({ user_id: userId }).delete();
@@ -191,7 +191,7 @@ test.group('native authorization and role projections', (group) => {
     assert.equal(foreignRow?.company_id, otherCompanyId);
   });
 
-  test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import authority', async ({
+  test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import access', async ({
     client,
     assert,
     cleanup,
@@ -206,11 +206,11 @@ test.group('native authorization and role projections', (group) => {
       const read = await stateFor(client, cookie);
       read.assertStatus(200);
       const body = read.body().data as {
-        accounts: Array<{ id: string }>;
+        companies: Array<{ id: string }>;
         clients: Array<{ companyId: string }>;
       };
       assert.deepEqual(
-        body.accounts.map((row) => row.id),
+        body.companies.map((row) => row.id),
         [companyId]
       );
       assert.isTrue(body.clients.every((row) => row.companyId === companyId));
@@ -239,12 +239,12 @@ test.group('native authorization and role projections', (group) => {
         `${role} checklist dismissal`
       );
       const dismissalCount = await db
-        .from('account_getting_started_dismissals')
+        .from('company_getting_started_dismissals')
         .where('company_id', companyId)
         .count('* as total');
       assert.equal(dismissalCount[0]?.total, role === 'admin' || role === 'owner' ? 1 : 0);
       if (role === 'admin' || role === 'owner') {
-        await db.from('account_getting_started_dismissals').delete();
+        await db.from('company_getting_started_dismissals').delete();
       }
 
       const target = role === 'owner' ? anonymiseCandidates[1]! : anonymiseCandidates[0]!;
@@ -351,7 +351,7 @@ test.group('native authorization and role projections', (group) => {
     stillReadable.assertStatus(200);
     assert.deepEqual(
       await db
-        .from('account_getting_started_dismissals')
+        .from('company_getting_started_dismissals')
         .where('company_id', companyId)
         .count('* as total'),
       [{ total: 1 }]

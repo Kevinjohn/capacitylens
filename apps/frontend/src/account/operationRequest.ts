@@ -55,7 +55,7 @@ export function buildOperationRequestInit(
 ): RequestInit {
   const headers = new Headers(requestOptions.headers);
   headers.set('Idempotency-Key', operation.idempotencyKey);
-  headers.set('X-Account-Command-Id', operation.commandId);
+  headers.set('X-Account-Operation-Id', operation.commandId);
   return { ...requestOptions, headers };
 }
 

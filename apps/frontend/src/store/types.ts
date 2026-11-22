@@ -108,7 +108,7 @@ export interface StoreState extends StoreEntityActions {
   companySummariesRequestId: number;
   /** Planning cache metadata, including the server-reported Undo/Redo availability. Page-local. */
   planning: PlanningCacheMetadata;
-  /** Advances only when a current planning request confirms that sign-in authority was lost. */
+  /** Advances only when a current planning request confirms that sign-in access was lost. */
   planningAuthLossVersion: number;
   /** Submit one typed planning intent and resolve with the server reply after authoritative
    * reconciliation, or with nothing when a viewer is blocked from writing. */

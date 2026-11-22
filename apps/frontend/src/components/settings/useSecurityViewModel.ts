@@ -37,7 +37,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     clear();
     setMessage(null);
     if (currentPassword.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
-      fail('current', m.login_password_input_too_long());
+      fail('current', m.sign_in_password_input_too_long());
       return;
     }
     if (getPasswordLengthFailure(newPassword)) {
@@ -124,7 +124,7 @@ function useAccountDeletion({ fail, clear, setMessage, setBusy }: PasswordChange
     clear();
     setMessage(null);
     if (currentPassword.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
-      fail('current', m.login_password_input_too_long());
+      fail('current', m.sign_in_password_input_too_long());
       return;
     }
     const requestGeneration = ++generation.current;

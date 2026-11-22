@@ -61,7 +61,7 @@ it('does not reactivate a consumed joined-account handoff after a later account-
   const otherCompanyId = 'acct-other';
   const companies = [makeCompany(), makeCompany({ id: otherCompanyId, name: 'Other Co' })];
   companyDirectory.response = companies.map(({ id, name }) => ({ id, name, role: 'owner' }));
-  loadPlanningData(makeAppData({ accounts: companies }));
+  loadPlanningData(makeAppData({ companies }));
   useStore
     .getState()
     .setCompanySummaries({ list: companies.map(({ id, name }) => ({ id, name, role: 'owner' })) });
@@ -108,7 +108,7 @@ it('does not apply a late joined-account handoff after an explicit company choic
 it('shows an installation error when the account directory contains multiple memberships', async () => {
   const companies = [makeCompany(), makeCompany({ id: 'acct-other', name: 'Other Co' })];
   companyDirectory.refused = true;
-  loadPlanningData(makeAppData({ accounts: companies }));
+  loadPlanningData(makeAppData({ companies }));
   useStore.setState({
     activeCompanyId: null,
     companySummaries: companies.map(({ id, name }) => ({ id, name, role: 'owner' as const })),

@@ -1,15 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
-import type { TransferPreview } from '@/data/companyDataRequests';
+import type { ImportPreviewSummary } from '@/data/companyDataRequests';
 import { ImportPreview } from './ImportPreview';
 
 const counts = {
-  ...(Object.fromEntries(SCOPED_KEYS.map((key) => [key, 0])) as TransferPreview['counts']),
+  ...(Object.fromEntries(SCOPED_KEYS.map((key) => [key, 0])) as ImportPreviewSummary['counts']),
   resources: 3,
   allocations: 4,
 };
-const preview: TransferPreview = { baseRevision: 7, companyName: 'Wayne Enterprises', counts };
+const preview: ImportPreviewSummary = { baseRevision: 7, companyName: 'Wayne Enterprises', counts };
 
 describe('Beta import preview', () => {
   it('shows the server summary and continues only when the user asks', () => {

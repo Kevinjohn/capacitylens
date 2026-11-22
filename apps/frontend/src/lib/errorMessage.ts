@@ -9,12 +9,12 @@ import { PlanningCacheError } from '@/data/planning/planningErrors';
 // here would freeze every message to the import-time language. The Record type makes omissions a
 // type error.
 const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
-  record_wrong_account: m.domain_error_record_wrong_account,
-  reference_wrong_account: m.domain_error_reference_wrong_account,
+  record_wrong_company: m.domain_error_record_wrong_company,
+  reference_wrong_company: m.domain_error_reference_wrong_company,
   activity_project_required: m.domain_error_activity_project_required,
   activity_project_forbidden: m.domain_error_activity_project_forbidden,
   activity_phase_forbidden: m.domain_error_activity_phase_forbidden,
-  activity_phase_wrong_account: m.domain_error_activity_phase_wrong_account,
+  activity_phase_wrong_company: m.domain_error_activity_phase_wrong_company,
   activity_phase_project_required: m.domain_error_activity_phase_project_required,
   activity_phase_project_mismatch: m.domain_error_activity_phase_project_mismatch,
   resource_project_forbidden: m.domain_error_resource_project_forbidden,
@@ -52,7 +52,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
 export const resolveDomainErrorMessage = (code: DomainErrorCode): string =>
   DOMAIN_ERROR_MESSAGES[code]();
 
-/** Normalize anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
+/** Normalise anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
  * to a human message, so a non-Error throw never renders a blank screen.
  *
  * @remarks This function returns the localized fallback when an unsupported or hostile value

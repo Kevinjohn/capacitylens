@@ -216,7 +216,7 @@ test(
   { tag: '@engine' },
   async ({ page }) => {
     await openApp(page, '/diagnostics');
-    await expect(page.getByTestId('diagnostics-report-text')).toContainText('Snapshot observed:');
+    await expect(page.getByTestId('diagnostics-report-text')).toContainText('Observed at:');
     await settledAxe(page);
   },
 );

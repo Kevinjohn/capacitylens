@@ -13,7 +13,7 @@ export default class CompaniesController {
       if (await hasMultipleCompanies(trx)) return null;
       const rows = await trx
         .from(`${access.config.membershipsTable} as member`)
-        .innerJoin('accounts as account', 'account.id', 'member.scope_id')
+        .innerJoin('companies as account', 'account.id', 'member.scope_id')
         .where({ 'member.user_id': actor.userId, 'member.status': 'active' })
         .select('account.id', 'account.name', 'member.role');
       return rows

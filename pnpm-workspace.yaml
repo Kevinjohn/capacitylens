@@ -1,4 +1,4 @@
-# The frontend, Adonis backend and pure shared domain package own the active workspace.
+# The frontend, AdonisJS backend and pure shared domain package own the active workspace.
 packages:
   - apps/*
   - packages/*

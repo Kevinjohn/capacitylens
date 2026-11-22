@@ -15,8 +15,8 @@ test.group('state reset through the Account Kit transaction runner', (group) => 
     assert,
   }) => {
     await resetState('single');
-    const before = { accounts: await count('accounts'), memberships: await count('memberships') };
-    assert.isAbove(before.accounts, 0);
+    const before = { companies: await count('companies'), memberships: await count('memberships') };
+    assert.isAbove(before.companies, 0);
     // Only the Kit runner touches the singleton lock row, so its absence proves the runner is in use.
     await db.from('account_transaction_lock').delete();
     try {
@@ -24,9 +24,9 @@ test.group('state reset through the Account Kit transaction runner', (group) => 
     } finally {
       await db.table('account_transaction_lock').insert({ id: 1, version: 0 });
     }
-    assert.equal(await count('accounts'), before.accounts);
+    assert.equal(await count('companies'), before.companies);
     assert.equal(await count('memberships'), before.memberships);
     await resetState(false);
-    assert.equal(await count('accounts'), 0);
+    assert.equal(await count('companies'), 0);
   });
 });

@@ -4,10 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import { ArchiveRecoverySection } from './ArchiveRecoverySection';
-const { recovery, unarchive } = vi.hoisted(() => ({ recovery: vi.fn(), unarchive: vi.fn() }));
+const { recovery, restore } = vi.hoisted(() => ({ recovery: vi.fn(), restore: vi.fn() }));
 vi.mock('@/hooks/useArchiveRecovery', () => ({ useArchiveRecovery: recovery }));
 vi.mock('@/hooks/useLifecycleOperations', () => ({
-  useLifecycleOperations: () => ({ unarchive }),
+  useLifecycleOperations: () => ({ restore }),
 }));
 const row: ArchiveRecoveryRow = {
   entity: 'projects',
@@ -17,7 +17,7 @@ const row: ArchiveRecoveryRow = {
   parent: { entity: 'clients', id: 'client/one', label: '"Wayne"' },
 };
 beforeEach(() => {
-  unarchive.mockReset().mockResolvedValue(undefined);
+  restore.mockReset().mockResolvedValue(undefined);
   recovery.mockReturnValue({ data: { companyId: 'a-studio', rows: [row] }, error: null });
 });
 describe('identity archive rows', () => {
@@ -32,7 +32,7 @@ describe('identity archive rows', () => {
       '/clients#archived-client%2Fone',
     );
     await userEvent.setup().click(screen.getByRole('button', { name: 'Restore "Gotham"' }));
-    expect(unarchive).toHaveBeenCalledWith('projects', 'project');
+    expect(restore).toHaveBeenCalledWith('projects', 'project');
     expect(screen.queryByRole('button', { name: /Anonymise/ })).not.toBeInTheDocument();
   });
   it('offers only the parent journey for an active inherited-hidden child', () => {

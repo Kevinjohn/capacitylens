@@ -20,7 +20,7 @@ test.group('installation company', (group) => {
 
   test('a single company is the installation company', async ({ assert }) => {
     await resetState('single');
-    const [company] = await db.from('accounts').select('id');
+    const [company] = await db.from('companies').select('id');
     assert.isFalse(await hasNoCompany(db));
     assert.isFalse(await hasMultipleCompanies(db));
     assert.equal(await getInstallationCompanyId(db), String(company.id));

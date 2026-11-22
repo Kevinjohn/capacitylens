@@ -24,11 +24,11 @@ export function SettingsCompanyOptions({
   ];
   return (
     <SettingsSection
-      title={m.settings_account_options_heading()}
+      title={m.settings_company_options_heading()}
       description={m.settings_company_details_scope()}
       help={
         <>
-          <p>{m.settings_account_options_help()}</p>
+          <p>{m.settings_company_options_help()}</p>
           <p>{m.settings_calendar_intro()}</p>
         </>
       }

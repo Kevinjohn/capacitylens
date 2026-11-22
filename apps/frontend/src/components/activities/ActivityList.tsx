@@ -160,17 +160,17 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
         </Fragment>
       );
     }
-    if (kind === 'repeatable') {
+    if (kind === 'allProjects') {
       return (
         <Fragment key={kind}>
           <div className={headingClassName}>
-            <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
+            <h2 className="text-lg font-semibold">{m.list_activities_all_projects_heading()}</h2>
           </div>
           {renderBox({
             rows: model.crossProject,
-            empty: m.list_activities_repeatable_empty(),
+            empty: m.list_activities_all_projects_empty(),
             testid: 'cross-project-activities',
-            description: m.list_activities_repeatable_empty_desc(),
+            description: m.list_activities_all_projects_empty_desc(),
           })}
         </Fragment>
       );

@@ -58,7 +58,7 @@ export async function fetchInactiveRecords(companyId: ID, signal?: AbortSignal):
   if (!isRecord(body) || !APP_DATA_KEYS.every((key) => Array.isArray(body[key]))) {
     throw new InactiveRecordsShapeError();
   }
-  const companies = body.accounts as unknown[];
+  const companies = body.companies as unknown[];
   const company = companies[0];
   if (companies.length !== 1 || !isRecord(company) || company.id !== companyId) {
     throw new InactiveRecordsShapeError();

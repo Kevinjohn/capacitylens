@@ -43,7 +43,7 @@ export function assertProductionPosture(options: ProductionPosture) {
 }
 
 export default class ConfigurationProvider {
-  private pruneTimer?: NodeJS.Timeout;
+  #pruneTimer?: NodeJS.Timeout;
 
   constructor(protected app: ApplicationService) {}
   async boot() {
@@ -65,7 +65,7 @@ export default class ConfigurationProvider {
     if (this.app.getEnvironment() === 'console') return;
     const rows = await db
       .from('sqlite_master')
-      .where({ type: 'table', name: 'accounts' })
+      .where({ type: 'table', name: 'companies' })
       .select('name');
     if (rows.length > 0) {
       await rememberSchemaIntegrity();
@@ -99,11 +99,11 @@ export default class ConfigurationProvider {
     // A pass still in flight would reopen the database after shutdown closed it.
     this.app.terminating(() => maintenance.stop());
     void maintenance.run();
-    this.pruneTimer = setInterval(() => void maintenance.run(), PRUNE_INTERVAL_MS);
-    this.pruneTimer.unref();
+    this.#pruneTimer = setInterval(() => void maintenance.run(), PRUNE_INTERVAL_MS);
+    this.#pruneTimer.unref();
   }
 
   async shutdown() {
-    if (this.pruneTimer) clearInterval(this.pruneTimer);
+    if (this.#pruneTimer) clearInterval(this.#pruneTimer);
   }
 }

@@ -15,12 +15,12 @@ test.group('isolated company fixtures', (group) => {
   }) => {
     const owner = await resetAuthenticatedData(client, false);
     const firstId = await createFixtureCompanyForOwner(owner.userId, 'Wayne Enterprises');
-    const first = await db.from('accounts').where('id', firstId).firstOrFail();
+    const first = await db.from('companies').where('id', firstId).firstOrFail();
     const firstInternal = await db.from('clients').where('company_id', firstId).firstOrFail();
     const secondId = await createFixtureCompanyForOwner(owner.userId, 'Stark Industries');
 
     assert.notEqual(secondId, firstId);
-    assert.deepEqual(await db.from('accounts').where('id', firstId).firstOrFail(), first);
+    assert.deepEqual(await db.from('companies').where('id', firstId).firstOrFail(), first);
     assert.deepEqual(
       await db.from('clients').where('company_id', firstId).firstOrFail(),
       firstInternal
@@ -53,7 +53,7 @@ test.group('isolated company fixtures', (group) => {
       if (previous === undefined) delete process.env.CAPACITYLENS_DB;
       else process.env.CAPACITYLENS_DB = previous;
     }
-    const accountCount = await db.from('accounts').count('* as total').first();
+    const accountCount = await db.from('companies').count('* as total').first();
     assert.equal(accountCount?.total, 0);
   });
 });

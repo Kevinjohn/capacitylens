@@ -18,7 +18,7 @@ attempt. Do not retry while the outcome is uncertain.
 If the roles appear inconsistent, stop ownership changes and review the diagnostics. If the
 application reports corrupt or inconsistent database state, stop the service and preserve the
 database and its recovery files. Check [Monitoring](/self-hosting/monitoring) and contact support with redacted diagnostics;
-do not include bearer links or customer data. Restore only from a verified snapshot using
+do not include bearer links or customer data. Restore only from a verified backup using
 [Backups and restore](/self-hosting/backups-and-restore) when recovery is necessary, then confirm
 readiness before using the in-product transfer flow again. Do not rewrite transfer records or edit
 ownership and membership tables directly.

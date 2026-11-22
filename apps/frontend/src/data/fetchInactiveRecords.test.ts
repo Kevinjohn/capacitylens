@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { companySeed } from '@/test/companyDocument';
+import { companySeed } from '@/test/companyExport';
 import {
   fetchInactiveRecords,
   InactiveRecordsHttpError,
@@ -74,7 +74,7 @@ describe('fetchInactiveRecords', () => {
       null,
       [],
       { definitely: 'not CapacityLens' },
-      { accounts: [{ id: 'a1' }] },
+      { companies: [{ id: 'a1' }] },
     ]) {
       vi.stubGlobal(
         'fetch',
@@ -87,7 +87,7 @@ describe('fetchInactiveRecords', () => {
   it('lets an unexpected failure propagate instead of reporting a shape error', async () => {
     const fault = new TypeError('unexpected reader fault');
     const body = {
-      get accounts(): never {
+      get companies(): never {
         throw fault;
       },
     };
@@ -101,10 +101,10 @@ describe('fetchInactiveRecords', () => {
 
   it('refuses a response that holds more than the requested company', async () => {
     const body = companySeed('a-studio');
-    const other = companySeed('a-loft').accounts;
+    const other = companySeed('a-loft').companies;
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ok({ ...body, accounts: [...body.accounts, ...other] })),
+      vi.fn(async () => ok({ ...body, companies: [...body.companies, ...other] })),
     );
     await expect(fetchInactiveRecords('a-studio')).rejects.toBeInstanceOf(
       InactiveRecordsShapeError,
