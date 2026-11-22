@@ -7,7 +7,7 @@ import type {
   Weekday,
 } from '../types/entities.js';
 import type { ValidationResult } from '../lib/integrity.js';
-import { isInCompany } from './tenancy.js';
+import { isInCompany } from './companyBoundary.js';
 import { throwDomainError } from './errors.js';
 import { inspectLifecycleAncestry, resolveLifecycleStatus } from './lifecycle.js';
 import type { LifecycleAncestryRow, LifecycleFields } from './lifecycle.js';

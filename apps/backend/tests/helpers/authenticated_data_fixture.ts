@@ -17,9 +17,9 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
   if (!(await db.from('users').where('email', ownerEmail).select('id').first()))
     await createIdentity(ownerEmail, { name: 'Bruce Wayne' });
   const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail);
-  const accounts = await db.from('accounts').select('id');
+  const companies = await db.from('companies').select('id');
   const now = new Date().toISOString();
-  for (const account of accounts)
+  for (const account of companies)
     await db.table('memberships').insert({
       scope_id: account.id,
       user_id: userId,
@@ -43,9 +43,9 @@ export function asDataOwner<T extends ApiRequest>(request: T, cookie: string): T
         },
       });
       if (!status.ok) throw new Error(`Could not capture masquerade context: ${status.status}`);
-      const { data: body } = (await status.json()) as { data: { contextToken?: unknown } };
-      if (typeof body.contextToken === 'string' && body.contextToken)
-        prepared.header('X-Masquerade-Context', body.contextToken);
+      const { data: body } = (await status.json()) as { data: { masqueradeToken?: unknown } };
+      if (typeof body.masqueradeToken === 'string' && body.masqueradeToken)
+        prepared.header('X-Masquerade-Context', body.masqueradeToken);
     })
     .header('sec-fetch-site', 'same-origin') as T;
 }
@@ -109,8 +109,8 @@ export async function createFixtureCompanyForOwner(
   await db.transaction(async (trx) => {
     const user = await trx.from('users').where('id', userId).select('id').first();
     if (!user) throw new Error('A fixture company requires an existing native user.');
-    await trx.table('accounts').insert(
-      encodeRow('accounts', {
+    await trx.table('companies').insert(
+      encodeRow('companies', {
         id,
         name: companyName,
         color: FALLBACK_PRESET_COLOR,

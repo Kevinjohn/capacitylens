@@ -10,7 +10,12 @@ const strictPolicy =
 test.group('static fallback', (group) => {
   group.setup(() => freshDatabase());
   test('serves the shell only for SPA routes', async ({ client, assert }) => {
-    for (const path of ['/', '/schedule/week/2026-10-05', '/invite/abc', '/reset-password/abc']) {
+    for (const path of [
+      '/',
+      '/schedule/week/2026-10-05',
+      '/invitation/abc',
+      '/reset-password/abc',
+    ]) {
       const response = await client.get(path);
       assert.equal(response.status(), 200, path);
       assert.include(response.header('content-type'), 'text/html');

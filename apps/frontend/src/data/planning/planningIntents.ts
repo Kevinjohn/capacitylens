@@ -51,7 +51,7 @@ const equal = (left: unknown, right: unknown): boolean => {
   return false;
 };
 
-type OwnedRow<K extends AppDataKey> = K extends 'accounts' ? Company : AppData[K][number];
+type OwnedRow<K extends AppDataKey> = K extends 'companies' ? Company : AppData[K][number];
 
 function getOwnedRow<K extends AppDataKey>(
   data: AppData,
@@ -59,8 +59,8 @@ function getOwnedRow<K extends AppDataKey>(
   companyId: string,
   id: string,
 ): OwnedRow<K> | undefined {
-  if (key === 'accounts') {
-    return data.accounts.find((row) => row.id === id) as OwnedRow<K> | undefined;
+  if (key === 'companies') {
+    return data.companies.find((row) => row.id === id) as OwnedRow<K> | undefined;
   }
   return data[key].find(
     (row) => 'companyId' in row && row.companyId === companyId && row.id === id,
@@ -68,7 +68,7 @@ function getOwnedRow<K extends AppDataKey>(
 }
 
 function hasCompany(data: AppData, companyId: string): boolean {
-  return data.accounts.some((company) => company.id === companyId);
+  return data.companies.some((company) => company.id === companyId);
 }
 
 function diffFields(
@@ -321,7 +321,7 @@ export function buildResourceCreate(
   const fields = {
     kind: input.kind,
     name: input.name ?? null,
-    role: input.role,
+    jobTitle: input.jobTitle,
     avatarUrl: input.avatarUrl ?? null,
     disciplineId: input.disciplineId ?? null,
     employmentType:
@@ -345,7 +345,7 @@ export function buildResourceCreate(
 const RESOURCE_FIELDS = [
   'kind',
   'name',
-  'role',
+  'jobTitle',
   'avatarUrl',
   'disciplineId',
   'employmentType',
@@ -569,7 +569,7 @@ export function buildSettingsUpdate(
   context: IntentScope & { original: Company; args: Pick<Patch<Company>, keyof SettingsFields> },
 ): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
-  const current = data.accounts.find((company) => company.id === companyId);
+  const current = data.companies.find((company) => company.id === companyId);
   if (!current || original.id !== companyId) return null;
   const allowedFields = [
     'name',

@@ -6,7 +6,7 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 const TERMINAL_OPERATION_CONFLICT_CODES = new Set<string>([
   'INVITATION_USED',
   'CONFLICT',
-  'AUTHORITY_CHANGED',
+  'AUTHORIZATION_CHANGED',
   'IDEMPOTENCY_CONFLICT',
 ] satisfies readonly AccountErrorCode[]);
 // The server refuses an emailed operation without mail delivery before it writes anything.

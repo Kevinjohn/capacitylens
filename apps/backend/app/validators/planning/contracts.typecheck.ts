@@ -46,7 +46,7 @@ export type PlanningChangeContracts = [
   Assert<
     Equal<
       keyof ObjectChanges<typeof settingsChanges>,
-      Exclude<WritableField<'accounts'>, 'language'>
+      Exclude<WritableField<'companies'>, 'language'>
     >
   >,
   // `builtin` is set only by the server.

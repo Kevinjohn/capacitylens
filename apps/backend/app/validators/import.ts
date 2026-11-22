@@ -2,7 +2,7 @@ import vine from '@vinejs/vine';
 import { allowedFields, fixedMessage, isSupplied } from '#validators/request_rules';
 
 // The document keeps its own parser and error type; the validator only requires the key.
-const previewMessage = 'Invalid beta transfer document.';
+const previewMessage = 'Invalid beta import document.';
 export const previewImportValidator = vine.create(
   vine
     .object({ companyId: vine.string().minLength(1), document: vine.any().nullable() })
@@ -10,7 +10,7 @@ export const previewImportValidator = vine.create(
 );
 previewImportValidator.messagesProvider = fixedMessage(previewMessage);
 
-const applyMessage = 'Invalid beta transfer request.';
+const applyMessage = 'Invalid beta import request.';
 export const applyImportValidator = vine.create(
   vine
     .object({

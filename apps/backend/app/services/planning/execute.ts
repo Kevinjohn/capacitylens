@@ -3,10 +3,10 @@ import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integri
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import {
   archive,
-  canUnarchive,
+  canRestore,
   LifecycleTransitionError,
   resolveLifecycleStatus,
-  unarchive,
+  restore,
 } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey, Client } from '@capacitylens/shared/types/entities';
 import { hasHourlyLoad } from '@capacitylens/shared/types/entities';
@@ -68,7 +68,7 @@ async function transitionLifecycle(
   companyId: string,
   table: LifecycleTable,
   id: string,
-  action: 'archive' | 'unarchive',
+  action: 'archive' | 'restore',
   written: WrittenRow[]
 ) {
   const current = requireExistingRow(data, table, id);
@@ -77,7 +77,7 @@ async function transitionLifecycle(
     throw new PlanningOperationException(
       409,
       null,
-      `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
+      `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'restored'}.`
     );
   }
   const now = createServerRevision(current.updatedAt);
@@ -88,18 +88,18 @@ async function transitionLifecycle(
       updatedAt: now,
     };
   } else {
-    if (!canUnarchive(current)) {
+    if (!canRestore(current)) {
       const noChange = resolveLifecycleStatus(current) === 'active';
       throw new PlanningOperationException(
         400,
         noChange ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         noChange
           ? 'The record is already active.'
-          : 'The record is not archived and cannot be unarchived.'
+          : 'The record is not archived and cannot be restored.'
       );
     }
     next = {
-      ...unarchive(current),
+      ...restore(current),
       updatedAt: now,
     };
   }
@@ -164,7 +164,7 @@ async function applyIntent(
   if (!accessGrant.canWrite) {
     throw new PlanningOperationException(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
-  if (!data.accounts.some((row) => row.id === companyId)) {
+  if (!data.companies.some((row) => row.id === companyId)) {
     throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
   const writeOptions = { trx, data, written, companyId, accessGrant, identity, expectedUpdatedAt };
@@ -221,7 +221,7 @@ async function applyIntent(
         const { id, resourceId, startDate, endDate } = intent;
         const existing = requireExistingRow(data, 'allocations', id);
         const target = requireExistingRow(data, 'resources', resourceId);
-        const company = requireExistingRow(data, 'accounts', companyId);
+        const company = requireExistingRow(data, 'companies', companyId);
         const hoursPerDay = reconcileReassignedHours({
           current: existing.hoursPerDay,
           target,
@@ -305,14 +305,14 @@ async function applyIntent(
         return unchanged;
       }
       case 'catalogue.archive':
-      case 'catalogue.unarchive':
+      case 'catalogue.restore':
         await transitionLifecycle(
           trx,
           data,
           companyId,
           intent.entity.entity,
           intent.entity.id,
-          intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive',
+          intent.operation === 'catalogue.archive' ? 'archive' : 'restore',
           written
         );
         return unchanged;
@@ -339,14 +339,14 @@ async function applyIntent(
         });
         return unchanged;
       case 'resource.archive':
-      case 'resource.unarchive':
+      case 'resource.restore':
         await transitionLifecycle(
           trx,
           data,
           companyId,
           'resources',
           intent.id,
-          intent.operation === 'resource.archive' ? 'archive' : 'unarchive',
+          intent.operation === 'resource.archive' ? 'archive' : 'restore',
           written
         );
         return unchanged;

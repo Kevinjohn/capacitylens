@@ -49,7 +49,7 @@ describe('ExternalForm', () => {
     expect(useStore.getState().data.resources[0]).toMatchObject({
       kind: 'external',
       name: 'Pixel Forge',
-      role: 'Print partner',
+      jobTitle: 'Print partner',
     });
   });
 
@@ -59,7 +59,7 @@ describe('ExternalForm', () => {
       useStore.getState().addResource({
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Visual design',
+        jobTitle: 'Visual design',
         employmentType: 'contractor',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -85,7 +85,7 @@ describe('ExternalForm', () => {
       id: resource.id,
       kind: 'external',
       name: 'Kord Studio',
-      role: 'Brand partner',
+      jobTitle: 'Brand partner',
     });
   });
 
@@ -95,7 +95,7 @@ describe('ExternalForm', () => {
       useStore.getState().addResource({
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Visual design',
+        jobTitle: 'Visual design',
         employmentType: 'contractor',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -111,12 +111,12 @@ describe('ExternalForm', () => {
       upserts: [
         {
           entity: 'resources',
-          row: { ...resource, role: 'Brand lead', updatedAt: '2098-01-01T00:00:00.000Z' },
+          row: { ...resource, jobTitle: 'Brand lead', updatedAt: '2098-01-01T00:00:00.000Z' },
         },
       ],
       removed: [],
     }));
-    await useStore.getState().updateResource(resource.id, { role: 'Brand lead' });
+    await useStore.getState().updateResource(resource.id, { jobTitle: 'Brand lead' });
     await user.clear(screen.getByLabelText('Company'));
     await user.type(screen.getByLabelText('Company'), 'Kord Studio');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -127,7 +127,7 @@ describe('ExternalForm', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(useStore.getState().data.resources[0]).toMatchObject({
       name: 'Kord Industries',
-      role: 'Brand lead',
+      jobTitle: 'Brand lead',
     });
   });
 
@@ -151,7 +151,7 @@ describe('ExternalForm', () => {
       useStore.getState().addResource({
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Visual design',
+        jobTitle: 'Visual design',
         employmentType: 'contractor',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,

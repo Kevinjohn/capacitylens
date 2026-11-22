@@ -22,7 +22,7 @@ export interface SemanticMutationInput<T> {
 export async function runMemberMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
   const { companyId, operation, payload, work } = input;
   const command = parseAccountOperation(
-    ctx.request.header('x-account-command-id'),
+    ctx.request.header('x-account-operation-id'),
     ctx.request.header('idempotency-key')
   );
   return withActor(ctx, async (currentActor, trx) => {

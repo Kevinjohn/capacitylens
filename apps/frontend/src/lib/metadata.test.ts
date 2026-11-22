@@ -25,7 +25,7 @@ const makeResource = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',
-  role: 'Developer',
+  jobTitle: 'Developer',
   employmentType: 'permanent',
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -125,18 +125,21 @@ describe('resourceDisplayName / placeholderDisplayName', () => {
     expect(resolveResourceDisplayName(r)).toBe('Bruce Wayne');
   });
 
-  it('falls back to role when a non-placeholder resource is unnamed', () => {
+  it('falls back to job title when a non-placeholder resource is unnamed', () => {
     const r = makeResource({
       kind: 'external',
-      role: 'Consultant',
+      jobTitle: 'Consultant',
     });
     expect(resolveResourceDisplayName(r)).toBe('Consultant');
   });
 
-  it.each(['', '   '])('falls back to role when a non-placeholder name is blank: %j', (name) => {
-    const r = makeResource({ kind: 'external', name, role: 'Consultant' });
-    expect(resolveResourceDisplayName(r)).toBe('Consultant');
-  });
+  it.each(['', '   '])(
+    'falls back to job title when a non-placeholder name is blank: %j',
+    (name) => {
+      const r = makeResource({ kind: 'external', name, jobTitle: 'Consultant' });
+      expect(resolveResourceDisplayName(r)).toBe('Consultant');
+    },
+  );
 });
 
 // Exercise the derivation primitives directly so independently owned tables preserve lazy locale lookup.

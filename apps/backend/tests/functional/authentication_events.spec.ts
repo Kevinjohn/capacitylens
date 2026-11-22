@@ -162,9 +162,9 @@ test.group('authentication outcome events', (group) => {
     const signupEmail = 'clark.kent@wayne.example';
     await createIdentity(signupEmail, { name: 'Clark Kent', password });
 
-    const previousSignup = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
+    const previousSignUp = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
     const originalRegister = accountKit.registration.register;
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
     accountKit.registration.register = async () =>
       ({
         id: 'test-registration',
@@ -174,7 +174,7 @@ test.group('authentication outcome events', (group) => {
         emailVerifiedAt: DateTime.now(),
       }) satisfies AccountUser;
     cleanup(() => {
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previousSignup);
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', previousSignUp);
       accountKit.registration.register = originalRegister;
     });
 

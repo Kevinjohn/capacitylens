@@ -10,7 +10,7 @@ const person: Resource = {
   companyId: 'a1',
   kind: 'person',
   name: 'Bruce Wayne',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio',
   workingHoursPerDay: 8,

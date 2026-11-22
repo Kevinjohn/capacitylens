@@ -194,7 +194,7 @@ export default class CompaniesController {
 export async function assertCompanyPermission(
 
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
-export default class Client extends SoftDeletes(ClientSchema) {
+export default class Client extends compose(ClientSchema, SoftDeletes) {
 
 /**
  * The Masquerade package's route rules: on a member route it admits the view-as mode, requires

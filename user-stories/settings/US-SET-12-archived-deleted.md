@@ -33,7 +33,7 @@ Archive, restore and individual anonymisation paths are shown. The separate [who
 
 ```mermaid
 flowchart TD
-archive["useLifecycleOperations.run: archive or unarchive"] --> intent["Build resource or catalogue lifecycle PlanningIntentRequest"]
+archive["useLifecycleOperations.run: archive or restore"] --> intent["Build resource or catalogue lifecycle PlanningIntentRequest"]
   intent --> send["sendPlanningIntent: createStorePlanningTransport selects transport"]
   send --> server["PlanningMutationsController → mutatePlanning → transitionLifecycle"]
   server --> view["Planning cache reconciles; active and archived views refresh"]

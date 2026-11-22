@@ -9,7 +9,7 @@ test.group('transaction helper', (group) => {
     await assert.rejects(
       () =>
         db.transaction(async (trx) => {
-          await trx.table('accounts').insert({
+          await trx.table('companies').insert({
             id: 'rollback-account',
             name: 'Rollback Account',
             color: '#2d75da',
@@ -20,7 +20,7 @@ test.group('transaction helper', (group) => {
         }),
       /force rollback/
     );
-    const row = await db.from('accounts').where('id', 'rollback-account').first();
+    const row = await db.from('companies').where('id', 'rollback-account').first();
     assert.isNull(row);
   });
 });

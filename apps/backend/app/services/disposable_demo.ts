@@ -20,11 +20,11 @@ async function insertDisposableDemoSeed(ownerId: string) {
       throw new Error('Refusing demo seed: memberships already exist');
     }
     const data = seedForCurrentWeek();
-    const company = data.accounts.find((row) => row.id === 'a-studio');
+    const company = data.companies.find((row) => row.id === 'a-studio');
     if (!company) throw new Error('Disposable demo company is missing');
     for (const [key, table] of Object.entries(tables)) {
       const rows =
-        key === 'accounts'
+        key === 'companies'
           ? [company]
           : data[key as keyof typeof tables].filter(
               (row) => 'companyId' in row && row.companyId === company.id

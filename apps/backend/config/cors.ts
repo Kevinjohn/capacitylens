@@ -44,7 +44,7 @@ const corsConfig = defineConfig({
   headers: [
     'Content-Type',
     'Idempotency-Key',
-    'x-account-command-id',
+    'x-account-operation-id',
     'x-capacitylens-sync-session',
     'x-capacitylens-sync-sequence',
   ],

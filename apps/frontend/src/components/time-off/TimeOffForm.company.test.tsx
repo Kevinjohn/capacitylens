@@ -12,7 +12,7 @@ const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
 const personDraft = {
   kind: 'person' as const,
   name: 'Bruce Wayne',
-  role: 'Director',
+  jobTitle: 'Director',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -62,7 +62,7 @@ describe('TimeOffForm personal assignee', () => {
         ...personDraft,
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Partner studio',
+        jobTitle: 'Partner studio',
       }),
     );
     render(<TimeOffForm defaults={{ resourceId: external.id }} onClose={() => {}} />);

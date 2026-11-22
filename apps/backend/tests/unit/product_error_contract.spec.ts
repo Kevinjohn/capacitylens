@@ -1,6 +1,6 @@
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
-import type { HttpContext } from '@adonisjs/core/http';
+import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
 import {
   ThrottledError,
   PostCommitError,
@@ -121,7 +121,7 @@ test.group('product error adapters', () => {
     };
     assert.deepEqual(await viaHandler(identity), {
       error: 'Invalid membership role.',
-      code: 'IDENTITY_AUTHORITY_DENIED',
+      code: 'IDENTITY_AUTHORIZATION_DENIED',
     });
     assert.deepEqual(await viaPlanning(identity), {
       error: 'Planning access is unavailable.',
@@ -131,7 +131,7 @@ test.group('product error adapters', () => {
     await new HttpExceptionHandler().handle(identity, admissionRoute.ctx);
     assert.deepEqual(admissionRoute.result.body, {
       error: 'Forbidden.',
-      code: 'IDENTITY_AUTHORITY_DENIED',
+      code: 'IDENTITY_AUTHORIZATION_DENIED',
     });
     assert.deepEqual(await viaHandler(admission), {
       error: 'Your access to this company is waiting on admission.',
@@ -158,9 +158,9 @@ test.group('product error adapters', () => {
       {
         error: () => new IdentityAuthorizationException('Invalid membership role.'),
         expected: {
-          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORITY_DENIED' },
+          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
           planning: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORITY_DENIED' },
+          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
         },
       },
       {
@@ -203,7 +203,7 @@ test.group('product error adapters', () => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     const cases = [
       {
-        thrown: new IdentityAuthorizationException('Masquerade company authority changed.'),
+        thrown: new IdentityAuthorizationException('Masquerade company access changed.'),
         expected: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
       },
       {
@@ -227,7 +227,7 @@ test.group('product error adapters', () => {
       new MasqueradeError('E_MASQUERADE_NOT_ALLOWED'),
       new AdmissionRequiredError({ admitted: false, requirements: { invitation: { met: false } } }),
       new IdentityAuthorizationException('Invalid membership role.'),
-      Object.assign(new Error('Route not found'), { code: 'E_ROUTE_NOT_FOUND' }),
+      new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing']),
     ]) {
       const { ctx, diagnostics } = context(error);
       await new HttpExceptionHandler().report(error, ctx);

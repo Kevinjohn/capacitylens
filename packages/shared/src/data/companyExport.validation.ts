@@ -27,9 +27,9 @@ import {
   buildPlaceholderCapacityDefaults,
 } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
-import { assert, isId, isOneOf, hasOwn } from './companyDocument.errors.js';
-import { FIELDS } from './companyDocument.fields.js';
-import type { Row } from './companyDocument.fields.js';
+import { assert, isId, isOneOf, hasOwn } from './companyExport.errors.js';
+import { FIELDS } from './companyExport.fields.js';
+import type { Row } from './companyExport.fields.js';
 
 const weekdays = [0, 1, 2, 3, 4, 5, 6];
 const isNullOr = (value: unknown, test: (candidate: unknown) => boolean) =>
@@ -109,7 +109,7 @@ function assertColor(value: Row, field: string, path: string, systemColor?: stri
 
 type RowLimits = { nameMaximum: number };
 
-function assertAccountRow(row: Row, path: string): void {
+function assertCompanyRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assertColor(row, 'color', path);
   assert(
@@ -176,7 +176,7 @@ function assertDisciplineRow(row: Row, path: string): void {
 function assertResourceRow(row: Row, path: string): void {
   assert(isOneOf(row.kind, RESOURCE_KINDS), `${path}.kind`, 'is invalid');
   assertNullableText(row, 'name', path);
-  assertText(row, 'role', path, { allowEmpty: true });
+  assertText(row, 'jobTitle', path, { allowEmpty: true });
   assert(isNullOr(row.avatarUrl, isString), `${path}.avatarUrl`, 'must be a string or null');
   assertNullableId(row, 'disciplineId', path);
   assert(isOneOf(row.employmentType, EMPLOYMENT_TYPES), `${path}.employmentType`, 'is invalid');
@@ -362,7 +362,7 @@ function assertClosureRow(row: Row, path: string): void {
 
 /** The table-specific field rules, one validator per export table. */
 const rowRules: { [K in AppDataKey]: (row: Row, path: string, limits: RowLimits) => void } = {
-  accounts: assertAccountRow,
+  companies: assertCompanyRow,
   disciplines: assertDisciplineRow,
   resources: assertResourceRow,
   clients: assertClientRow,
@@ -377,7 +377,7 @@ const rowRules: { [K in AppDataKey]: (row: Row, path: string, limits: RowLimits)
 /**
  * Checks every supplied scalar field without coercing or mutating the row.
  *
- * @throws CompanyDocumentError naming the first invalid field.
+ * @throws CompanyExportError naming the first invalid field.
  */
 export function assertRow(
   key: AppDataKey,
@@ -393,10 +393,10 @@ export function assertRow(
   assert(isId(row.id), `${path}.id`, 'must be a bounded non-empty id without whitespace');
   assert(isTimestamp(row.createdAt), `${path}.createdAt`, 'must be an ISO timestamp');
   assert(isTimestamp(row.updatedAt), `${path}.updatedAt`, 'must be an ISO timestamp');
-  if (key !== 'accounts') {
+  if (key !== 'companies') {
     assert(
-      isId(row.accountId),
-      `${path}.accountId`,
+      isId(row.companyId),
+      `${path}.companyId`,
       'must be a bounded non-empty id without whitespace',
     );
   }

@@ -1,5 +1,6 @@
 import { ResourceSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
+import { compose } from '@adonisjs/core/helpers';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
@@ -14,7 +15,7 @@ import {
 import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 
 /** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */
-export default class Resource extends SoftDeletes(ResourceSchema) {
+export default class Resource extends compose(ResourceSchema, SoftDeletes) {
   static forCompany = forCompany;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Resource>) {

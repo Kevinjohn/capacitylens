@@ -3,17 +3,17 @@ import { seed } from './seed.js';
 import {
   COMPANY_EXPORT_FORMAT,
   COMPANY_EXPORT_SCHEMA_VERSION,
-  CompanyDocumentError,
+  CompanyExportError,
   buildCompanyExport,
   parseCompanyExport,
   prepareCompanyImport,
   serializeCompanyExport,
-} from './companyDocument.js';
+} from './companyExport.js';
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import { buildInternalClientId } from './internalClient.js';
 
 const original = seed();
-const companyId = original.accounts[0]?.id ?? '';
+const companyId = original.companies[0]?.id ?? '';
 const context = {
   companyId,
   memberResourceLinks: [{ memberId: 'member-1', resourceId: original.resources[0]?.id ?? '' }],
@@ -41,7 +41,7 @@ describe('beta-native transfer', () => {
 
   it('round-trips every table, supported private content, archived rows, settings and IDs', () => {
     const source = structuredClone(original);
-    const account = fixture(source.accounts[0], 'account');
+    const account = fixture(source.companies[0], 'account');
     account.name = 'Wayne Enterprises';
     source.closures.push({
       id: 'closure-wayne-shutdown',
@@ -91,7 +91,7 @@ describe('beta-native transfer', () => {
     expect(prepared.imported).toBe(APP_DATA_KEYS.reduce((n, key) => n + built.data[key].length, 0));
     expect(parsed.format).toBe(COMPANY_EXPORT_FORMAT);
     expect(parsed.schemaVersion).toBe(COMPANY_EXPORT_SCHEMA_VERSION);
-    expect(parsed.data.accounts[0]?.id).toBe(companyId);
+    expect(parsed.data.companies[0]?.id).toBe(companyId);
     expect(built.data.closures).toHaveLength(1);
     expect(built.data.clients.find((row) => row.id === privateClient.id)?.codeName).toBe(
       'Project Bat',
@@ -106,18 +106,16 @@ describe('beta-native transfer', () => {
     expect(COMPANY_EXPORT_SCHEMA_VERSION).toBe(2);
   });
 
-  it('names the row company accountId in the file and companyId in memory', () => {
+  it('names the row company companyId in the file and in memory', () => {
     const json = serializeCompanyExport(
       buildCompanyExport(structuredClone(original), { companyId, completeness: 'full' }),
     );
     const wire = JSON.parse(json) as { data: { resources: Record<string, unknown>[] } };
     const wireRow = fixture(wire.data.resources[0], 'exported resource');
-    expect(wireRow.accountId).toBe(companyId);
-    expect(wireRow).not.toHaveProperty('companyId');
+    expect(wireRow.companyId).toBe(companyId);
 
     const parsedRow = fixture(parseCompanyExport(json).data.resources[0], 'parsed resource');
     expect(parsedRow.companyId).toBe(companyId);
-    expect(parsedRow).not.toHaveProperty('accountId');
   });
 
   it('projects named portable fields while preserving source objects', () => {
@@ -148,7 +146,7 @@ describe('beta-native transfer', () => {
       [
         'field',
         (doc) => {
-          delete (doc.data.accounts[0] as Partial<(typeof doc.data.accounts)[0]>).dateStyle;
+          delete (doc.data.companies[0] as Partial<(typeof doc.data.companies)[0]>).dateStyle;
         },
       ],
       [
@@ -188,10 +186,10 @@ describe('beta-native transfer', () => {
     for (const [name, corrupt] of cases) {
       const changed = structuredClone(document);
       corrupt(changed);
-      expect(() => prepareCompanyImport(changed, context), name).toThrow(CompanyDocumentError);
+      expect(() => prepareCompanyImport(changed, context), name).toThrow(CompanyExportError);
     }
     expect(() => parseCompanyExport(JSON.stringify({ schemaVersion: 24, data: original }))).toThrow(
-      CompanyDocumentError,
+      CompanyExportError,
     );
   });
 
@@ -222,7 +220,7 @@ describe('beta-native transfer', () => {
       'foreign resource',
     );
     document.data.resources.push(structuredClone(foreign));
-    expect(() => serializeCompanyExport(document)).toThrow(/accountId/i);
+    expect(() => serializeCompanyExport(document)).toThrow(/companyId/i);
   });
 
   it('keeps malformed JSON errors display-safe while retaining the parser cause', () => {
@@ -232,7 +230,7 @@ describe('beta-native transfer', () => {
     } catch (caught) {
       error = caught;
     }
-    expect(error).toBeInstanceOf(CompanyDocumentError);
+    expect(error).toBeInstanceOf(CompanyExportError);
     expect((error as Error).message).not.toContain('do not echo');
     expect((error as Error).cause).toBeInstanceOf(SyntaxError);
   });
@@ -247,9 +245,9 @@ describe('beta-native transfer', () => {
     const before = structuredClone(document);
     const destinationId = 'new-company';
     const prepared = prepareCompanyImport(document, { ...context, companyId: destinationId });
-    expect(prepared.data.accounts).toEqual([{ ...document.data.accounts[0], id: destinationId }]);
+    expect(prepared.data.companies).toEqual([{ ...document.data.companies[0], id: destinationId }]);
     for (const key of APP_DATA_KEYS) {
-      if (key === 'accounts') continue;
+      if (key === 'companies') continue;
       expect(prepared.data[key]).toEqual(
         document.data[key].map((row) => ({ ...row, companyId: destinationId })),
       );
