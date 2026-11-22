@@ -74,7 +74,7 @@ describe('implicit account operation cohorts', () => {
         body.email = 'barbara@wayne.test';
         await masqueradeModel.adoptStatus({
           active: false,
-          contextToken: changed ? 'idle-after' : 'idle-before',
+          masqueradeToken: changed ? 'idle-after' : 'idle-before',
         });
         const args = digest.mock.calls[0];
         if (!args) throw new Error('Expected payload digest');

@@ -84,7 +84,7 @@ export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
             },
           });
         }
-        return Response.json({ data: { active: false, contextToken: 'idle' } });
+        return Response.json({ data: { active: false, masqueradeToken: 'idle' } });
       }),
     );
     // Seed an active company so these tests exercise the shell.

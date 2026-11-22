@@ -118,9 +118,9 @@ test('both E2E server flavours require sign-in and expose no installation reset 
         });
         assert.equal(contextResponse.status, 200, 'signed-in requests resolve their context');
         const { data: context } = (await contextResponse.json()) as {
-          data: { contextToken?: unknown };
+          data: { masqueradeToken?: unknown };
         };
-        assert.isString(context.contextToken, 'signed-in requests receive a context token');
+        assert.isString(context.masqueradeToken, 'signed-in requests receive a masquerade token');
 
         const session = await fetch(`http://127.0.0.1:${port}/api/auth/me`, {
           headers: { cookie },
@@ -137,7 +137,7 @@ test('both E2E server flavours require sign-in and expose no installation reset 
             cookie,
             'content-type': 'application/json',
             'sec-fetch-site': 'same-origin',
-            'X-Masquerade-Context': context.contextToken as string,
+            'X-Masquerade-Context': context.masqueradeToken as string,
           },
           body: JSON.stringify({ seed: true }),
         });
