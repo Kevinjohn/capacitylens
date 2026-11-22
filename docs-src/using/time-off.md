@@ -7,7 +7,7 @@ next: false
 
 # Time off
 
-Record holidays, sickness and company closures so the schedule shows who is really available.
+Record time off and company closures so the schedule shows who is really available.
 Everyone can see time off; only an Editor, Admin or Owner can add or change it. There is no role
 for entering only your own holiday, so a Viewer asks whoever books work to add it.
 

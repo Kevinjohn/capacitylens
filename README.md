@@ -74,7 +74,7 @@ sample company's schedule opens automatically.
 - **Early warning:** over-capacity days in red, plus a 14-day warning for trouble off screen.
 - **Work you haven't won yet:** tentative bookings, placeholders for roles you haven't filled, and
   external parties who don't count against your capacity.
-- **Time off in the same picture:** holidays, closures and each person's start and end dates sit
+- **Time off in the same picture:** each person's time off, company closures, and start and end dates sit
   beside the work.
 - **How full everyone is:** utilisation per person and across the weeks on screen.
 - **Server-owned scheduling:** a connection is required; failed requests show an error and retry controls.
