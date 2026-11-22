@@ -18,7 +18,7 @@ function isValidAccess(access: unknown): boolean {
   );
 }
 
-function isValidSlice(snapshot: Record<string, unknown>): boolean {
+function isValidContent(snapshot: Record<string, unknown>): boolean {
   if (snapshot.content === 'unchanged') return !('data' in snapshot);
   if (snapshot.content !== undefined && snapshot.content !== 'full') return false;
   const data = snapshot.data;
@@ -37,7 +37,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
     Number.isSafeInteger(snapshot.revision) &&
     typeof snapshot.revision === 'number' &&
     snapshot.revision >= 0 &&
-    isValidSlice(snapshot) &&
+    isValidContent(snapshot) &&
     isValidAccess(snapshot.access) &&
     isValidISODate(snapshot.today) &&
     (snapshot.history === undefined ||
