@@ -20,7 +20,7 @@ import { createDeferred } from '@/test/createDeferred';
 const unchanged = (revision: number): PlanningSnapshot => ({
   revision,
   authority: makePlanningAccess(),
-  slice: 'unchanged',
+  content: 'unchanged',
   today: '2026-06-03',
   capacity: emptyCapacity(),
 });

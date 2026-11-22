@@ -194,7 +194,7 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const unchanged = await read({ ifRevision: 1 });
     unchanged.assertStatus(200);
-    assert.equal(unchanged.body().data.slice, 'unchanged');
+    assert.equal(unchanged.body().data.content, 'unchanged');
     assert.equal(unchanged.body().data.revision, 1);
     assert.notProperty(unchanged.body().data, 'data');
     assert.property(unchanged.body().data, 'capacity');

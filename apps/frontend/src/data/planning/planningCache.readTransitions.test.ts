@@ -21,7 +21,7 @@ import { createDeferred } from '@/test/createDeferred';
 const unchanged = (revision: number): PlanningSnapshot => ({
   revision,
   authority: makePlanningAccess(),
-  slice: 'unchanged',
+  content: 'unchanged',
   today: '2026-06-03',
   capacity: emptyCapacity(),
 });
@@ -169,7 +169,7 @@ describe('planning read transitions', () => {
     expect(h.state().planning.today).toBe('2026-06-04');
   });
 
-  it('reads the full slice once when an unchanged read names another revision', async () => {
+  it('reads the full data once when an unchanged read names another revision', async () => {
     const h = await ready();
     h.read.mockResolvedValueOnce(unchanged(2));
     await expect(h.cache.refresh()).resolves.toBe(true);

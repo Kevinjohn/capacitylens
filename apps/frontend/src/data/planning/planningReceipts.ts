@@ -19,8 +19,8 @@ function isValidAccess(authority: unknown): boolean {
 }
 
 function isValidSlice(snapshot: Record<string, unknown>): boolean {
-  if (snapshot.slice === 'unchanged') return !('data' in snapshot);
-  if (snapshot.slice !== undefined && snapshot.slice !== 'full') return false;
+  if (snapshot.content === 'unchanged') return !('data' in snapshot);
+  if (snapshot.content !== undefined && snapshot.content !== 'full') return false;
   const data = snapshot.data;
   return (
     isRecord(data) &&
@@ -48,7 +48,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
 }
 
 export function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: string): boolean {
-  if (snapshot.slice === 'unchanged') return true;
+  if (snapshot.content === 'unchanged') return true;
   return (
     snapshot.data.companies.length === 1 &&
     snapshot.data.companies.every((company) => isRecord(company) && company.id === companyId) &&

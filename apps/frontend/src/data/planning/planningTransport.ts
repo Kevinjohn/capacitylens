@@ -114,9 +114,9 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           capacity: snapshot.capacity,
           history: snapshot.history,
         };
-        return snapshot.slice === 'unchanged'
-          ? { ...base, slice: 'unchanged' }
-          : { ...base, slice: 'full', data: snapshot.data };
+        return snapshot.content === 'unchanged'
+          ? { ...base, content: 'unchanged' }
+          : { ...base, content: 'full', data: snapshot.data };
       } catch (error) {
         throw mapPlanningError(error);
       }

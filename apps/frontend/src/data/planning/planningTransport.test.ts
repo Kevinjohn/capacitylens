@@ -262,7 +262,7 @@ describe('generated planning transport', () => {
       data: createEmptyAppData(),
     });
     const result = await transport.read(context, signal);
-    expect(result).toEqual({ revision: 5, slice: 'full', data: createEmptyAppData(), authority });
+    expect(result).toEqual({ revision: 5, content: 'full', data: createEmptyAppData(), authority });
     expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning');
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
@@ -346,7 +346,7 @@ describe('generated planning transport', () => {
     const { transport, requests } = harness({
       companyId: 'wayne',
       revision: 5,
-      slice: 'unchanged',
+      content: 'unchanged',
       authority: {
         actorId: 'bruce',
         effectiveActorId: 'bruce',
@@ -359,7 +359,7 @@ describe('generated planning transport', () => {
 
     const result = await transport.read(context, signal, { ifRevision: 5 });
 
-    expect(result).toMatchObject({ revision: 5, slice: 'unchanged' });
+    expect(result).toMatchObject({ revision: 5, content: 'unchanged' });
     expect(result).not.toHaveProperty('data');
     expect(new URL(requests[0]?.url ?? '').searchParams.get('ifRevision')).toBe('5');
   });

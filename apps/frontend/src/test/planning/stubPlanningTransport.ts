@@ -200,8 +200,8 @@ export class StubPlanningTransport implements PlanningTransport {
       },
     };
     return ifRevision === revision
-      ? { ...base, slice: 'unchanged' }
-      : { ...base, slice: 'full', data: this.companyRows(context.companyId) };
+      ? { ...base, content: 'unchanged' }
+      : { ...base, content: 'full', data: this.companyRows(context.companyId) };
   }
 
   async execute(
