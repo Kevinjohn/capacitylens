@@ -1,6 +1,6 @@
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
-import type { HttpContext } from '@adonisjs/core/http';
+import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
 import {
   ThrottledError,
   PostCommitError,
@@ -227,7 +227,7 @@ test.group('product error adapters', () => {
       new MasqueradeError('E_MASQUERADE_NOT_ALLOWED'),
       new AdmissionRequiredError({ admitted: false, requirements: { invitation: { met: false } } }),
       new IdentityAuthorizationException('Invalid membership role.'),
-      Object.assign(new Error('Route not found'), { code: 'E_ROUTE_NOT_FOUND' }),
+      new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing']),
     ]) {
       const { ctx, diagnostics } = context(error);
       await new HttpExceptionHandler().report(error, ctx);
