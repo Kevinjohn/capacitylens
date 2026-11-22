@@ -7,7 +7,7 @@ import {
   buildRepeatedAllocationDrafts,
   buildRepeatedTimeOffDrafts,
 } from './repeatingOccurrences.js';
-import type { RepeatProjectionContext } from './repeatingOccurrences.js';
+import type { RepeatExpansionInput } from './repeatingOccurrences.js';
 
 type AllocationDraft = Pick<
   Allocation,
@@ -16,8 +16,8 @@ type AllocationDraft = Pick<
   Partial<Pick<Allocation, 'note' | 'ignoreWorkingDays'>>;
 type TimeOffDraft = Pick<TimeOff, 'resourceId' | 'startDate' | 'endDate' | 'type' | 'note'>;
 
-interface RepeatContextTestInput {
-  schedulingMode: RepeatProjectionContext['schedulingMode'];
+interface RepeatExpansionTestInput {
+  schedulingMode: RepeatExpansionInput['schedulingMode'];
   daysOver: number;
   resource?: ReturnType<typeof resourceContext> | undefined;
   companyWorkingDays?: Weekday[] | undefined;
@@ -35,7 +35,7 @@ const baseDraft = (overrides: Partial<AllocationDraft> = {}): AllocationDraft =>
   ...overrides,
 });
 
-type TestRepeatResource = RepeatProjectionContext['resource'] & { workingDays: Weekday[] };
+type TestRepeatResource = RepeatExpansionInput['resource'] & { workingDays: Weekday[] };
 
 const resourceContext = (overrides: Partial<TestRepeatResource> = {}): TestRepeatResource => ({
   id: 'r1',
@@ -49,7 +49,7 @@ const repeatContext = ({
   daysOver,
   resource = resourceContext(),
   companyWorkingDays = [1, 2, 3, 4, 5],
-}: RepeatContextTestInput): RepeatProjectionContext => ({
+}: RepeatExpansionTestInput): RepeatExpansionInput => ({
   schedulingMode,
   daysOver,
   resource,
@@ -67,20 +67,20 @@ const draft = (startDate: string, endDate: string = startDate): TimeOffDraft => 
 describe('projectAllocationDates', () => {
   it('retains the exact first draft and copies all fields while changing only an hourly calendar span', () => {
     const base = baseDraft();
-    const projected = buildRepeatedAllocationDrafts(
+    const expanded = buildRepeatedAllocationDrafts(
       base,
       ['2027-01-31', '2027-02-28', '2027-03-31'],
       repeatContext({ schedulingMode: 'hourly', daysOver: 99 }),
     );
-    expect(projected[0]).toBe(base);
-    expect(projected[1]).toEqual({ ...base, startDate: '2027-02-28', endDate: '2027-03-02' });
-    expect(projected[2]).toEqual({ ...base, startDate: '2027-03-31', endDate: '2027-04-02' });
+    expect(expanded[0]).toBe(base);
+    expect(expanded[1]).toEqual({ ...base, startDate: '2027-02-28', endDate: '2027-03-02' });
+    expect(expanded[2]).toEqual({ ...base, startDate: '2027-03-31', endDate: '2027-04-02' });
   });
 
   it('checks External first and preserves its validated zero-load literal span in every account mode', () => {
     const base = baseDraft({ hoursPerDay: 0, ignoreWorkingDays: true });
     for (const schedulingMode of ['hourly', 'days', 'blocks'] as const) {
-      const projected = buildRepeatedAllocationDrafts(
+      const expanded = buildRepeatedAllocationDrafts(
         base,
         ['2027-01-31', '2027-02-28'],
         repeatContext({
@@ -89,7 +89,7 @@ describe('projectAllocationDates', () => {
           resource: resourceContext({ kind: 'external', workingDays: [] }),
         }),
       );
-      expect(projected[1]).toMatchObject({
+      expect(expanded[1]).toMatchObject({
         startDate: '2027-02-28',
         endDate: '2027-03-02',
         hoursPerDay: 0,
@@ -108,12 +108,12 @@ describe('projectAllocationDates working spans', () => {
         endDate: '2026-06-03',
         hoursPerDay: mode === 'blocks' ? 0 : 6,
       });
-      const projected = buildRepeatedAllocationDrafts(
+      const expanded = buildRepeatedAllocationDrafts(
         base,
         ['2026-06-01', '2026-06-06'],
         repeatContext({ schedulingMode: mode, daysOver: 3 }),
       );
-      expect(projected[1]).toMatchObject({
+      expect(expanded[1]).toMatchObject({
         startDate: '2026-06-06',
         endDate: '2026-06-10',
         hoursPerDay: base.hoursPerDay,
@@ -197,7 +197,7 @@ describe('projectAllocationDates validation', () => {
     'projects %s working spans through the narrowed company week',
     (_, startDates, expectedEnd) => {
       const resource = resourceContext();
-      const projected = buildRepeatedAllocationDrafts(
+      const expanded = buildRepeatedAllocationDrafts(
         baseDraft({ startDate: '2026-06-01', endDate: '2026-06-08' }),
         startDates,
         repeatContext({
@@ -208,7 +208,7 @@ describe('projectAllocationDates validation', () => {
         }),
       );
 
-      expect(projected[1]).toMatchObject({ startDate: startDates[1], endDate: expectedEnd });
+      expect(expanded[1]).toMatchObject({ startDate: startDates[1], endDate: expectedEnd });
     },
   );
 
@@ -286,7 +286,7 @@ describe('buildRepeatedTimeOffDrafts', () => {
     expect(result.drafts.at(-1)).toEqual(draft('2026-03-27', '2026-03-29'));
   });
 
-  it('rejects the whole projection when any generated end exceeds the ISO domain', () => {
+  it('rejects the whole expansion when any generated end exceeds the ISO domain', () => {
     expect(() =>
       buildRepeatedTimeOffDrafts(draft('9999-11-30', '9999-12-31'), '9999-12-31', {
         kind: 'monthly-last-weekday',
@@ -308,7 +308,7 @@ describe('repeat occurrences pinned for the server', () => {
   const occurrences = (
     until: string,
     pattern: RepeatPattern,
-    schedulingMode: RepeatProjectionContext['schedulingMode'],
+    schedulingMode: RepeatExpansionInput['schedulingMode'],
   ) =>
     buildRepeatedAllocationDrafts(
       first,

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import { makeActivity, makeResource } from '@/test/fixtures';
-import { buildRepeatProjection } from './buildRepeatProjection';
+import { buildRepeatExpansion } from './buildRepeatExpansion';
 
-type ProjectionInput = Parameters<typeof buildRepeatProjection>[0];
+type ExpansionInput = Parameters<typeof buildRepeatExpansion>[0];
 
 // A Monday-to-Tuesday hourly allocation repeated weekly for four occurrences. Every guard test
 // changes exactly one field from this valid baseline, so a null result points at that guard.
-function validInput(overrides: Partial<ProjectionInput> = {}): ProjectionInput {
+function validInput(overrides: Partial<ExpansionInput> = {}): ExpansionInput {
   return {
     activityId: 't1',
     create: { resourceId: 'r1', startDate: '2027-01-04', endDate: '2027-01-05' },
@@ -40,25 +40,20 @@ function validInput(overrides: Partial<ProjectionInput> = {}): ProjectionInput {
   };
 }
 
-function expectRejected(overrides: Partial<ProjectionInput>) {
-  expect(buildRepeatProjection(validInput(overrides))).toBeNull();
+function expectRejected(overrides: Partial<ExpansionInput>) {
+  expect(buildRepeatExpansion(validInput(overrides))).toBeNull();
 }
 
-function expectAccepted(overrides: Partial<ProjectionInput>) {
-  expect(buildRepeatProjection(validInput(overrides))).not.toBeNull();
+function expectAccepted(overrides: Partial<ExpansionInput>) {
+  expect(buildRepeatExpansion(validInput(overrides))).not.toBeNull();
 }
 
-describe('buildRepeatProjection', () => {
+describe('buildRepeatExpansion', () => {
   it('projects one draft per repeated start date for a valid creation', () => {
-    const projection = buildRepeatProjection(validInput());
-    expect(projection?.startDates).toEqual([
-      '2027-01-04',
-      '2027-01-11',
-      '2027-01-18',
-      '2027-01-25',
-    ]);
-    expect(projection?.drafts.map((draft) => draft.startDate)).toEqual(projection?.startDates);
-    expect(projection?.drafts[0]).toMatchObject({
+    const expansion = buildRepeatExpansion(validInput());
+    expect(expansion?.startDates).toEqual(['2027-01-04', '2027-01-11', '2027-01-18', '2027-01-25']);
+    expect(expansion?.drafts.map((draft) => draft.startDate)).toEqual(expansion?.startDates);
+    expect(expansion?.drafts[0]).toMatchObject({
       resourceId: 'r1',
       activityId: 't1',
       endDate: '2027-01-05',
@@ -66,16 +61,16 @@ describe('buildRepeatProjection', () => {
       status: 'confirmed',
       ignoreWorkingDays: false,
     });
-    expect(projection?.drafts[0]).not.toHaveProperty('note');
-    expect(projection?.drafts[0]).not.toHaveProperty('task');
-    expect(projection?.drafts[0]).not.toHaveProperty('projectId');
+    expect(expansion?.drafts[0]).not.toHaveProperty('note');
+    expect(expansion?.drafts[0]).not.toHaveProperty('task');
+    expect(expansion?.drafts[0]).not.toHaveProperty('projectId');
   });
 
   it('carries note, task and attributed project only when present', () => {
-    const projection = buildRepeatProjection(
+    const expansion = buildRepeatExpansion(
       validInput({ note: 'Bring the deck', task: 'Review', attributedProjectId: 'p1' }),
     );
-    expect(projection?.drafts[0]).toMatchObject({
+    expect(expansion?.drafts[0]).toMatchObject({
       note: 'Bring the deck',
       task: 'Review',
       projectId: 'p1',
@@ -84,10 +79,10 @@ describe('buildRepeatProjection', () => {
 
   it('forces ignoreWorkingDays for external resources', () => {
     const external = makeResource({ kind: 'external' });
-    const projection = buildRepeatProjection(
+    const expansion = buildRepeatExpansion(
       validInput({ isExternal: true, selectedResource: external, effHoursPerDay: 0 }),
     );
-    expect(projection?.drafts.every((draft) => draft.ignoreWorkingDays)).toBe(true);
+    expect(expansion?.drafts.every((draft) => draft.ignoreWorkingDays)).toBe(true);
   });
 
   it('returns null outside a repeating creation context', () => {
@@ -150,7 +145,7 @@ describe('buildRepeatProjection', () => {
     expectAccepted({ selectedResource: bound, selectedEffectiveProjectId: 'p1' });
   });
 
-  it('returns null instead of throwing when the projection cannot fit the date domain', () => {
+  it('returns null instead of throwing when the expansion cannot fit the date domain', () => {
     expectRejected({
       repeatUntil: '2027-12-31',
       repeatUntilMaximum: '2028-12-31',

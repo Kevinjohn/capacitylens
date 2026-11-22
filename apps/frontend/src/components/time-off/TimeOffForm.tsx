@@ -134,7 +134,7 @@ function buildTimeOffRepeatFields(options: {
       repeat={repeat}
       repeatUntil={repeatUntil}
       repeatUntilMaximum={maximum}
-      projection={preview}
+      expansion={preview}
       errorField={options.errorField}
       errorId={options.errorId}
       disabled={options.disabled}

@@ -9,7 +9,7 @@ import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
 
 import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
 
-type ProjectionInput = Pick<
+type ExpansionInput = Pick<
   AllocationDialogSnapshot,
   | 'activityId'
   | 'create'
@@ -40,7 +40,7 @@ type ProjectionInput = Pick<
   | 'validDaysOver'
 >;
 
-function resolveProjectionContext(input: ProjectionInput) {
+function resolveExpansionSettings(input: ExpansionInput) {
   const { activityId, create, repeat, resourceId, selectedEffectiveWeek, selectedResource } = input;
   if (!create || repeat === 'none' || !selectedResource || selectedEffectiveWeek === undefined) {
     return null;
@@ -49,7 +49,7 @@ function resolveProjectionContext(input: ProjectionInput) {
   return { activityId, repeat, resourceId, selectedEffectiveWeek, selectedResource };
 }
 
-function hasValidProjectionDates(input: ProjectionInput) {
+function hasValidExpansionDates(input: ExpansionInput) {
   const {
     effEndDate: endDate,
     repeatUntil,
@@ -68,16 +68,16 @@ function hasValidProjectionDates(input: ProjectionInput) {
   return !(isDays || isBlocks) || (validDaysOver && spanFitsDateDomain);
 }
 
-function hasValidProjectionLoad(input: ProjectionInput) {
+function hasValidExpansionLoad(input: ExpansionInput) {
   const { daysOfWork, effHoursPerDay: hoursPerDay, isBlocks, isDays, isExternal } = input;
   if (isDays && !(daysOfWork > 0)) return false;
   if (isExternal || isBlocks) return true;
   return Number.isFinite(hoursPerDay) && hoursPerDay > 0 && hoursPerDay <= MAX_HOURS_PER_DAY;
 }
 
-function buildProjection(
-  input: ProjectionInput,
-  context: NonNullable<ReturnType<typeof resolveProjectionContext>>,
+function buildExpansion(
+  input: ExpansionInput,
+  context: NonNullable<ReturnType<typeof resolveExpansionSettings>>,
 ) {
   const {
     attributedProjectId,
@@ -123,7 +123,7 @@ function buildProjection(
     );
     return { drafts, startDates };
   } catch (error) {
-    // A near-boundary date can be valid input while a projected occurrence cannot fit. The server
+    // A near-boundary date can be valid input while an expanded occurrence cannot fit. The server
     // refuses that repeat on save; invariant/programming errors remain loud instead of disappearing.
     if (error instanceof RangeError) return null;
     throw error;
@@ -131,15 +131,15 @@ function buildProjection(
 }
 
 /** Projects a repeated allocation for preview without persisting drafts. */
-export function buildRepeatProjection(input: ProjectionInput) {
+export function buildRepeatExpansion(input: ExpansionInput) {
   const { selectedActivity, selectedEffectiveProjectId } = input;
-  const context = resolveProjectionContext(input);
-  if (!context || !hasValidProjectionDates(input) || !hasValidProjectionLoad(input)) return null;
+  const context = resolveExpansionSettings(input);
+  if (!context || !hasValidExpansionDates(input) || !hasValidExpansionLoad(input)) return null;
   if (
     !selectedActivity ||
     !validateAllocationAssignment(context.selectedResource, selectedEffectiveProjectId).ok
   ) {
     return null;
   }
-  return buildProjection(input, context);
+  return buildExpansion(input, context);
 }

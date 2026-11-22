@@ -21,7 +21,7 @@ import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import { buildAllocationDialogSeed } from './buildAllocationDialogSeed';
 import type { AllocationDialogProps } from './allocationDialogTypes';
-import { buildRepeatProjection } from './buildRepeatProjection';
+import { buildRepeatExpansion } from './buildRepeatExpansion';
 import { createAllocationIntents } from './allocationSubmit';
 import { useAllocationScheduleState } from './useAllocationScheduleState';
 import { useAllocationTargetState } from './useAllocationTargetState';
@@ -175,15 +175,13 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationDialogInputs>
     today: context.today,
     seed: context.seed,
   });
-  const repeatProjection = useRepeatProjection(
-    buildRepeatProjectionInput(context, target, schedule),
-  );
+  const repeatExpansion = useRepeatExpansion(buildRepeatExpansionInput(context, target, schedule));
   // A typed span can produce an invalid date; guard formatWeekdayScheduleDate() to avoid crashing the dialog.
   const parsedEndDate = parseDate(schedule.effEndDate);
   const endDateHint = Number.isNaN(parsedEndDate.getTime())
     ? null
     : formatWeekdayScheduleDate(schedule.effEndDate);
-  return { target, schedule, repeatProjection, endDateHint };
+  return { target, schedule, repeatExpansion, endDateHint };
 }
 
 /** Coordinates allocation dialog fields, validation, and submission. */
@@ -196,7 +194,7 @@ function buildDialogState(
   context: ReturnType<typeof useAllocationDialogInputs>,
   state: ReturnType<typeof useTargetSchedule>,
 ) {
-  const { target, schedule, repeatProjection, endDateHint } = state;
+  const { target, schedule, repeatExpansion, endDateHint } = state;
   const { submit, onDuplicate, onDelete } = createAllocationIntents({
     ...target.fields,
     ...target,
@@ -228,7 +226,7 @@ function buildDialogState(
     isCreate: context.create !== undefined,
     resource: context.seed.initialResource,
   });
-  const repeatLastStart = repeatProjection?.startDates.at(-1);
+  const repeatLastStart = repeatExpansion?.startDates.at(-1);
   return {
     shell: {
       editing: context.editing,
@@ -243,7 +241,7 @@ function buildDialogState(
       showTaskFieldInSchedule: context.showTaskFieldInSchedule,
       endDateHint,
       create: context.create,
-      repeatProjection,
+      repeatExpansion,
       repeatLastStart,
       error: context.fieldError.error,
       errorField: context.fieldError.errorField,
@@ -261,11 +259,11 @@ function buildDialogState(
   };
 }
 
-function buildRepeatProjectionInput(
+function buildRepeatExpansionInput(
   context: ReturnType<typeof useAllocationDialogInputs>,
   target: ReturnType<typeof useAllocationTargetState>,
   schedule: ReturnType<typeof useAllocationScheduleState>,
-): Parameters<typeof buildRepeatProjection>[0] {
+): Parameters<typeof buildRepeatExpansion>[0] {
   return {
     activityId: target.fields.activityId,
     create: context.create,
@@ -297,7 +295,7 @@ function buildRepeatProjectionInput(
   };
 }
 
-function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0]) {
+function useRepeatExpansion(input: Parameters<typeof buildRepeatExpansion>[0]) {
   // prettier-ignore
   const { activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
     ignoreWorkingDays, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
@@ -305,7 +303,7 @@ function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0])
     selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver } = input;
   return useMemo(
     () =>
-      buildRepeatProjection({
+      buildRepeatExpansion({
         activityId,
         create,
         attributedProjectId,
