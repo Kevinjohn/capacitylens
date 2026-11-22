@@ -364,7 +364,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
   on both `beforeFind` and `beforeFetch`. Hooks do not run for bulk `update` and `delete`.
 - A query scope is a static property made with `scope()` and applied with `withScopes`.
 - Avoid native database enums. Store a short string and narrow its type with a schema rule.
-- Product models fail closed without a tenant scope (departure 3).
+- Product models fail closed without a company scope (departure 3).
 
 **Queries and transactions**
 

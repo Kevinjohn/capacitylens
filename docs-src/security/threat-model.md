@@ -7,23 +7,23 @@ description: The security objectives, assets, actors, abuse cases and accepted r
 
 Baseline version: 2026-09-23. Authentication posture reviewed: 2026-10-26, after the Account Kit
 cutover in #1582. This update reconciles current controls; it is not a fresh review of the full
-model. Review the model after changes to authentication, tenancy, imports, browser storage,
+model. Review the model after changes to authentication, company separation, imports, browser storage,
 deployment topology or external services.
 
 ## Security objectives
 
-1. A user can read or change only accounts, operations, records and protected fields allowed by
+1. A user can read or change only companies, operations, records and protected fields allowed by
    their current server-side membership and role.
 2. Passwords, session tokens and emailed bearer links are not disclosed or stored in recoverable
    form where a safer representation is available.
-3. Tenant writes remain valid, atomic and attributable; schema drift prevents startup.
+3. Company writes remain valid, atomic and attributable; schema drift prevents startup.
 4. Browser-delivered code cannot silently turn an authenticated browser into a cross-site write
    primitive, and sensitive API responses are not cached.
 5. Operators can contain a compromised identity, restore authoritative data and investigate the
    application audit record without relying on the compromised host alone.
 
 CapacityLens is not a safety-critical, payments, classified-data, real-time media or anonymous
-public-upload system. Availability is important, but confidentiality and tenant integrity take
+public-upload system. Availability is important, but confidentiality and company integrity take
 priority over keeping a misconfigured production process running.
 
 ## Assets and trust boundaries
@@ -97,7 +97,7 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 - SMTP delivery, mailbox security and retention, public TLS, encrypted host volumes, secret-manager
   use, clock synchronization, log retention and off-host collection require deployment evidence.
 - The single-process SQLite service can still be denied service by sufficient network or
-  tenant-valid load. Edge rate limiting, connection limits and resource monitoring remain operator
+  company-valid load. Edge rate limiting, connection limits and resource monitoring remain operator
   controls.
 - Host compromise is outside the containment boundary of application code. Protect the database,
   `APP_KEY`, mail credentials, backups and operator shell access accordingly.

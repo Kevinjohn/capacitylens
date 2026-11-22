@@ -71,7 +71,7 @@ This is the short, present-tense record of decisions that constrain future work.
   leaves existing allocations in place; capacity and utilisation are recalculated so they show
   as over-capacity rather than being moved, split or deleted.
 
-## Data and tenancy
+## Data and company separation
 
 - Every server requires an authenticated, authorised company member. There is no sign-in mode
   setting or anonymous persisted access. The development demo runs the full server with a printed
@@ -81,11 +81,11 @@ This is the short, present-tense record of decisions that constrain future work.
   never reset by a later invocation.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
-- Every scoped row carries its company id. The server authorises every tenant read and write from
+- Every scoped row carries its company id. The server authorises every company read and write from
   session membership; client scoping is UI hygiene, not authorisation. Database triggers reject
   cross-company references within the scheduling graph; control links are checked transactionally
   against the member and resource. Every installation serves one company. First-install setup
-  creates that company; the UI offers no company switcher or additional-company creation. Tenant
+  creates that company; the UI offers no company switcher or additional-company creation. Company
   scoping, memberships and the account directory remain enforced, and ambiguous installations
   report an error.
 - The one-company rule has one server home. Every server check of the limit, or of whether a
@@ -323,7 +323,7 @@ reopened there.
    because they would log the error message and answer in a second shape. Empty strings are not
    converted to null; empty optionals are `null` on the wire, in storage and in the export.
    Revisit: #2334 item 3.
-3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
+3. Product models fail closed without an explicit company scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
 4. Columns are snake_case. The row transformer produces the camelCase wire format from each

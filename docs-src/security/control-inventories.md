@@ -12,7 +12,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 
 | Input | Format and limit | Trusted enforcement | Security treatment |
 | --- | --- | --- | --- |
-| Tenant API route, body, query and path | JSON requests up to the configured 5 MB limit; compiled Vine schemas | Adonis and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
+| Company API route, body, query and path | JSON requests up to the configured 5 MB limit; compiled Vine schemas | Adonis and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
 | Whole-company import | JSON request, subject to the configured 5 MB limit | Owner-only API and SQLite | Schema validation, reference checks, import preparation and atomic replacement |
 | Password creation, change and reset | 15–128 Unicode code points | Account Kit with application auth routes | Password length validation; no common-password or breached-password screening |
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
@@ -32,7 +32,7 @@ processing entry point.
 | --- | --- | --- | --- |
 | Authentication secrets | Password verifier, session id, reset/invitation/action-link tokens | SQLite and session cookie; emailed links through configured SMTP | Session registry expires after 14 days without use; link lifetimes are defined above; raw credentials and bearer values are not written to application logs |
 | Identity and admission data | Name, email, memberships, invitation evidence, approval decisions and last sign-in confirmation | SQLite over the configured connection | Retained while needed for account access; identity/account removal follows the account deletion policy |
-| Tenant confidential data | Schedule, notes and real private client/project names | SQLite, backups and role-filtered API | Operator controls database, exports, backups and retention |
+| Company confidential data | Schedule, notes and real private client/project names | SQLite, backups and role-filtered API | Operator controls database, exports, backups and retention |
 | Audit metadata | Timestamp, actor, company, action, entity, id and changed field names | Transactional `audit_entries` rows in SQLite | Values and credentials are not included; database and backup retention are operator-controlled |
 | Session metadata | User, session registry handle, user-agent label (up to 200 characters), expiry and last-seen time | Kit session registry and application session store in SQLite | 14-day idle expiry; no absolute lifetime or concurrent-session cap; no product session inventory or revocation screen for an Owner or Admin |
 | Device preference | Theme, zoom and similar settings | Browser `localStorage` | Device-local and outside company export |

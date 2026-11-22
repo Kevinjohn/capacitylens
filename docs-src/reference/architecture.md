@@ -51,7 +51,7 @@ apps/frontend/src/
   lib/                    pure UI helpers
   api/planningContracts.ts  planning wire types derived from the generated route registry
 packages/shared/src/
-  domain/                 roles and access thresholds, lifecycle, tenancy, placement rules
+  domain/                 roles and access thresholds, lifecycle, company separation, placement rules
   types/                  entity types
   lib/                    dates, working days, colours, ids, integrity checks
   account/, api/, data/   account policy, HTTP error shapes, export format and seed data
@@ -273,7 +273,7 @@ Backend test paths are relative to `apps/backend/`.
   write), `tests/functional/auth/admission.spec.ts`, `tests/functional/auth/invitations.spec.ts`,
   `tests/functional/membership/ownership_transfer.spec.ts`,
   `tests/functional/privacy/password_confirmation_bindings.spec.ts` (password confirmation bindings).
-- **Tenant isolation.** `tests/functional/planning/company_bulk.spec.ts` (bulk intents change only
+- **Company isolation.** `tests/functional/planning/company_bulk.spec.ts` (bulk intents change only
   the caller's company), `tests/functional/data_routes.spec.ts` (export stays in one company),
   `tests/functional/membership/control_data_isolation.spec.ts`, `tests/unit/company_isolation.spec.ts`.
 - **Atomicity and rollback.** `tests/functional/planning/transactions.spec.ts` (audit failure
@@ -354,7 +354,7 @@ redact data. A redacted export cannot be restored as a full replacement.
 The public entry point is `@capacitylens/shared/data/companyDocument`: `buildCompanyExport`,
 `serializeCompanyExport`, `parseCompanyExport` and `prepareCompanyImport`. Preparation receives explicit
 server-owned `{ companyId, memberResourceLinks }` context and returns `{ data, imported }`, where
-`imported` includes the account row. Export callers must supply an authorized, confidentially
+`imported` includes the company row. Export callers must supply an authorized, confidentially
 projected dataset; the completeness marker grants no authority.
 
 Settings uses this contract for import/export, including the disposable demo. Preview and apply go

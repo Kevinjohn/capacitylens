@@ -9,7 +9,7 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - The AdonisJS backend lives in `apps/backend`, the SPA in `apps/frontend`, and `packages/shared` is the pure domain and wire-contract package. Keep backend code out of shared.
 - SQLite is the supported product database. One application process owns one database file and a pool of one connection; do not add a second writer, PostgreSQL support or nested package transactions.
 - Keep network and mail work outside database transactions. Use explicit transaction handles for product writes and preserve the operation's authorization, audit and failure ordering.
-- Every scoped row carries its company id. The server independently authorizes every tenant read and write; client scoping is not authorization.
+- Every scoped row carries its company id. The server independently authorises every company read and write; client scoping is not authorization.
 - Before changing allocations, capacity, utilisation or working days, read [Scheduling invariants](DECISIONS.md#scheduling-invariants); those rules are authoritative.
 - Activity kind is required; only project activities carry project or phase ids. Colours use preset swatches, and a person's colour derives from discipline.
 - Ordinary writes reject invalid supplied input; nothing is repaired on the way in. Import accepts only this product's own export, atomically, and rejects anything else. Scheduling data is never persisted in the browser; failed requests remain visible and retryable.
