@@ -606,7 +606,7 @@ describe('assertAllocationRefs', () => {
     );
   });
 
-  it('rejects a non-zero load on an external / 3rd-party resource (no capacity)', () => {
+  it('rejects a non-zero load on an external party (no capacity)', () => {
     const data: AppData = { ...world(), resources: [makeExternal('ext', A1)] };
     expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 8)).toThrow('can’t carry hours');
   });

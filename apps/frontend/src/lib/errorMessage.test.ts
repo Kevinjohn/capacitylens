@@ -115,10 +115,7 @@ describe('domainErrorMessage', () => {
       'Allocation must reference an activity under an active project.',
     ],
     ['placeholder_project_missing', 'This placeholder is not bound to a project yet.'],
-    [
-      'external_allocation_hours',
-      'An external / 3rd-party resource’s allocation can’t carry hours.',
-    ],
+    ['external_allocation_hours', 'An external party’s allocation can’t carry hours.'],
     [
       'resource_external_dependents',
       'Reassign or remove this resource’s work and time off before making it external.',
@@ -136,10 +133,7 @@ describe('domainErrorMessage', () => {
     ['date_reversed', 'End date cannot be before the start date.'],
     ['time_off_resource_invalid', 'Time off must reference an existing resource in this company.'],
     ['time_off_resource_inactive', 'Time off must reference an active resource in this company.'],
-    [
-      'time_off_external_resource',
-      'Time off can’t be recorded for an external / 3rd-party resource.',
-    ],
+    ['time_off_external_resource', 'Time off can’t be recorded for an external party.'],
     ['closure_name_required', 'Closure name is required.'],
   ];
 

@@ -151,7 +151,7 @@ type BuildExtOptions = {
   disciplinesEnabled?: boolean;
   externalEnabled?: boolean;
 };
-describe('external / 3rd-party band', () => {
+describe('external-party band', () => {
   const buildExt = ({
     filters = buildEmptyFilters(),
     disciplinesEnabled = true,
@@ -178,7 +178,7 @@ describe('external / 3rd-party band', () => {
     const last = model[model.length - 1];
     expect(last).toBeDefined();
     if (!last) throw new Error('Expected the external resource group.');
-    expect(last.title).toBe('External / 3rd party');
+    expect(last.title).toBe('External party');
 
     expect(last.color).toBe('#9ca3af');
     expect(last.rows.map((r) => r.resource.id)).toEqual(['ext1']);

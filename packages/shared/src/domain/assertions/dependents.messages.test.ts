@@ -99,10 +99,10 @@ describe('assertResourceExists', () => {
       'Time off must reference an active resource in this company.',
     );
   });
-  it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
+  it('throws for an external party (no capacity → no time off)', () => {
     const data = { ...makeBaseData(), resources: [makeExternal('ext', A1)] };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'ext' })).toThrow(
-      'Time off can’t be recorded for an external / 3rd-party resource.',
+      'Time off can’t be recorded for an external party.',
     );
   });
 });

@@ -397,7 +397,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       'Development',
       'Studio',
       'Supplementary',
-      'External / 3rd party',
+      'External party',
     ]);
     expect(model.map((group) => group.key)).toEqual([
       'd-design',
@@ -436,7 +436,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(model.map((group) => group.title)).toEqual([
       'Studio',
       'Supplementary',
-      'External / 3rd party',
+      'External party',
     ]);
     expect(
       model
@@ -502,7 +502,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }).map((group) => group.title),
-    ).toEqual(['External / 3rd party']);
+    ).toEqual(['External party']);
   });
   it('uses one fallback band for a Studio-only company: Unassigned with disciplines, Resources without', () => {
     const d = makeDatasetWithExternal();
@@ -528,7 +528,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(withDisciplines.map((group) => group.title)).toEqual([
       'Development',
       'Unassigned',
-      'External / 3rd party',
+      'External party',
     ]);
 
     const withoutDisciplines = buildSchedulerModel({
@@ -544,10 +544,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         externalEnabled: true,
       },
     });
-    expect(withoutDisciplines.map((group) => group.title)).toEqual([
-      'Resources',
-      'External / 3rd party',
-    ]);
+    expect(withoutDisciplines.map((group) => group.title)).toEqual(['Resources', 'External party']);
     expect(requireValue(withoutDisciplines[0], 'resources group').rows).toHaveLength(2);
   });
   it('group.external is a real boolean: true for the external band, false (not undefined) for a discipline group', () => {

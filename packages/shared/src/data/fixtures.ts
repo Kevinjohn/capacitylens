@@ -151,7 +151,7 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
   updatedAt: TS2,
 };
 
-/** The external / 3rd-party kind: a company name + optional descriptor, and no discipline or
+/** The external-party kind: a company name + optional descriptor, and no discipline or
  * project binding (externals carry unused silent-default working hours/days). Proves `kind`
  * round-trips through the server with the optional FK columns left NULL. */
 export const FIXTURE_RESOURCE_EXTERNAL: Resource = {

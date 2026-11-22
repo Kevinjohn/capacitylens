@@ -48,7 +48,7 @@ export const RESOURCE_KINDS = ['person', 'placeholder', 'external'] as const;
  * What a resource row represents:
  * - `person`: a real team member with capacity (the default).
  * - `placeholder`: an unfilled role/"slot", bound to one project (see `projectId`).
- * - `external`: an outsourced 3rd-party company. Can be assigned activities, but has no
+ * - `external`: an outsourced external-party company. Can be assigned activities, but has no
  *   hours/capacity/utilisation and is excluded from all capacity math; it renders in its own
  *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
  *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
@@ -110,7 +110,7 @@ export interface Company extends Entity {
    * with placeholders off. When false, placeholders are hidden across the UI; the data is
    * preserved and returns when re-enabled. */
   placeholdersEnabled: boolean | null;
-  /** Whether this company surfaces external / 3rd-party resources. Null = false (hidden out
+  /** Whether this company surfaces external-party resources. Null = false (hidden out
    * of the box, like placeholdersEnabled) so new companies start with external off. When false,
    * external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
   externalEnabled: boolean | null;

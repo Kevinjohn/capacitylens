@@ -423,7 +423,7 @@ export function assertAllocationRefs(
     );
   }
   assertValid(validateAllocationAssignment(resource, resolvedProjectId));
-  // External / 3rd parties have no capacity: their allocations carry no load (hoursPerDay 0). The
+  // External parties have no capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only, enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
   // resource (the scheduler hides it, so it would persist invisibly). Import validates the same rule
@@ -432,7 +432,7 @@ export function assertAllocationRefs(
   if (hoursPerDay !== 0 && isExternalResource(resource)) {
     throwDomainError(
       'external_allocation_hours',
-      'An external / 3rd-party resource’s allocation can’t carry hours.',
+      'An external party’s allocation can’t carry hours.',
     );
   }
 }

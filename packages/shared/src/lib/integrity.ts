@@ -129,7 +129,7 @@ export function validateAllocationAssignment(
 ): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only placeholders are project-restricted. `person` and `external` are intentionally
-  // unrestricted (an external 3rd party can be assigned any activity), don't add a guard here.
+  // unrestricted (an external party can be assigned any activity), don't add a guard here.
   if (resource.kind === 'placeholder' && projectId !== undefined) {
     if (!resource.projectId) {
       issues.push({

@@ -153,7 +153,7 @@ describe('atomic time-off creation: resource validation', () => {
       requireCreated(
         state().addRepeatedTimeOff(draft({ resourceId: external.id }), weekly('2026-06-08'), 2),
       ),
-    ).rejects.toThrow(/external.*3rd-party/i);
+    ).rejects.toThrow(/external party/i);
 
     expect(state().data.timeOff).toHaveLength(0);
     expect(state().data.resources.map(({ id }) => id)).toContain(resource.id);

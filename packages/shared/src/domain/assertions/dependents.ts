@@ -243,7 +243,7 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
 }
 
 // Time off references a resource in the active account, exactly as an allocation does,
-// and that resource must be capacity-tracked. An external / 3rd party has no capacity, so
+// and that resource must be capacity-tracked. An external party has no capacity, so
 // time off is meaningless for it (the scheduler hides external time-off entirely): the form
 // omits externals from the picker and rejects a crafted pick, so enforce the same rule here
 // so a direct store / API write can't persist an invisible orphan.
@@ -282,7 +282,7 @@ function assertResourceExists({
   if (isExternalResource(resource)) {
     throwDomainError(
       'time_off_external_resource',
-      'Time off can’t be recorded for an external / 3rd-party resource.',
+      'Time off can’t be recorded for an external party.',
     );
   }
 }

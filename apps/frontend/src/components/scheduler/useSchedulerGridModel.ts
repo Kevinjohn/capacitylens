@@ -220,7 +220,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   const filtersActive = hasActiveFilters(ui.filters);
 
   const overallUtil = useMemo(
-    // External / 3rd-party rows are excluded inside the shared average; with none tracked, read 0%.
+    // External-party rows are excluded inside the shared average; with none tracked, read 0%.
     () => buildAverageUtilisationLabel(model.flatMap((group) => group.rows)) ?? '0',
     [model],
   );
