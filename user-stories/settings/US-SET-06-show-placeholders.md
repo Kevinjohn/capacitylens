@@ -29,7 +29,7 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 ```mermaid
 flowchart TD
   control["CompanyFeaturesSection calls updateSetting({ placeholdersEnabled })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
-  view --> action["typedPlanningActions.updateAccount builds settings.update intent"]
+  view --> action["typedPlanningActions.updateCompany builds settings.update intent"]
   action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
   execute --> transport["planningTransport sends api.planning_mutations.store"]
   transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]

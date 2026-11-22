@@ -121,7 +121,7 @@ export function checkBodyContracts() {
       enabled: null,
     } satisfies Route.Body<'api.member_sign_in_tracking.update'>,
     {
-      // @ts-expect-error A member role is one of the account roles.
+      // @ts-expect-error A member role is one of the company roles.
       role: 'superuser',
     } satisfies Route.Body<'api.members.update'>,
     {

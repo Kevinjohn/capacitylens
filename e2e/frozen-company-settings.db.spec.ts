@@ -22,7 +22,7 @@ async function visibleScheduleWeekday(page: Page): Promise<number> {
   return new Date(`${date}T12:00:00Z`).getUTCDay();
 }
 
-// The server rejects direct typed updates to frozen account fields. The read-only Settings summary
+// The server rejects direct typed updates to frozen company fields. The read-only Settings summary
 // is a convenience; server enforcement also applies when a client bypasses the UI.
 
 test.describe('database-backed frozen company settings (P1.14)', () => {
@@ -30,8 +30,8 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
     request,
   }) => {
     const before = await serverState(request);
-    const account = requireStateRows(before, 'companies')[0];
-    if (account === undefined) throw new Error('Seeded server state must include an account');
+    const company = requireStateRows(before, 'companies')[0];
+    if (company === undefined) throw new Error('Seeded server state must include a company');
 
     const changes = [
       ['weekStartsOn', 1, 0],
@@ -42,7 +42,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
       // The fixture deliberately models legacy companies with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
       const initialized = await request.post(
-        `${API}/api/companies/${account.id}/planning/mutations`,
+        `${API}/api/companies/${company.id}/planning/mutations`,
         {
           headers: await masqueradeTokenHeaders(request, undefined, API),
           data: {
@@ -55,7 +55,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
       expect(initialized.status(), `${field} must allow one-time initialization`).toBe(200);
       revision += 1;
 
-      const res = await request.post(`${API}/api/companies/${account.id}/planning/mutations`, {
+      const res = await request.post(`${API}/api/companies/${company.id}/planning/mutations`, {
         headers: await masqueradeTokenHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
@@ -68,7 +68,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
 
     // The settings-update schema excludes language, so language-only updates are rejected
     // before frozen-field handling, even when the supplied language is English ('en').
-    const language = await request.post(`${API}/api/companies/${account.id}/planning/mutations`, {
+    const language = await request.post(`${API}/api/companies/${company.id}/planning/mutations`, {
       headers: await masqueradeTokenHeaders(request, undefined, API),
       data: {
         mutationId: crypto.randomUUID(),
@@ -79,11 +79,11 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
     expect(language.status()).toBe(400);
 
     const after = await serverState(request);
-    const updatedAccount = requireStateRows(after, 'companies')[0];
-    if (updatedAccount === undefined)
-      throw new Error('Server state must retain the seeded account');
-    expect(updatedAccount.language).toBeNull();
-    expect(updatedAccount).toMatchObject({
+    const updatedCompany = requireStateRows(after, 'companies')[0];
+    if (updatedCompany === undefined)
+      throw new Error('Server state must retain the seeded company');
+    expect(updatedCompany.language).toBeNull();
+    expect(updatedCompany).toMatchObject({
       weekStartsOn: 1,
       timezone: 'UTC',
     });

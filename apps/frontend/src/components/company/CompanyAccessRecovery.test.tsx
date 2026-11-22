@@ -5,7 +5,7 @@ import { loadPlanningData } from '@/test/fixtures';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { CompanyAccessRecovery } from './CompanyAccessRecovery';
 
-describe('Account access recovery boundary', () => {
+describe('Company access recovery', () => {
   beforeEach(() => {
     loadPlanningData(createEmptyAppData());
     useStore.getState().setCompanySummaries({ list: [] });

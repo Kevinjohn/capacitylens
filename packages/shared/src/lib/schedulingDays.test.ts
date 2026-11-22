@@ -77,7 +77,7 @@ describe('endDateForSpan is the inverse of spanDays', () => {
     const opts = { workingDays: MON_FRI, ignoreWorkingDays: true };
     const capped = endDateForSpan('2026-06-01', MAX_SPAN_DAYS, opts);
     // A huge span clamps to the cap (instead of deriving a 5-digit-year date that throws
-    // RangeError when the modal hint formats it).
+    // RangeError when the dialog hint formats it).
     expect(endDateForSpan('2026-06-01', 9_999_999, opts)).toBe(capped);
     expect(/^\d{4}-\d{2}-\d{2}$/.test(capped)).toBe(true);
     expect(endDateForSpan('2026-06-01', Number.NaN, opts)).toBe('2026-06-01');

@@ -1,6 +1,6 @@
 # US-TEAM-01 — Check company access
 
-As a company member, I want to see my role and its capabilities so that I understand what I can do.
+As a company member, I want to see my role and its permissions so that I understand what I can do.
 
 **Status:** Current
 **Access:** Owner, Admin, Editor, Viewer
@@ -33,7 +33,7 @@ flowchart TD
     Route["router.tsx /team route"] --> View["TeamAccessView resolves role and access experience"]
     View --> Card["CurrentAccessCard renders resolveAccessLabel role and summary"]
     Card --> Toggle["Local permissionsOpen state toggles PermissionList"]
-    Toggle --> Capabilities["listPermissions uses shared can and visibility rules"]
+    Toggle --> Permissions["listPermissions uses shared can and visibility rules"]
     Auth["AuthProvider routes limited access to AccessScreen"] --> Limited["AccessScreen shows applicable next step"]
 ```
 

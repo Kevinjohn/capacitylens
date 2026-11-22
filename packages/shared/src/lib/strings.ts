@@ -3,7 +3,7 @@
 //   - import strips disallowed characters via cleanText;
 //   - ordinary server writes reject disallowed supplied characters before canonicalization
 //     for the same NFC and whitespace normalisation as the forms.
-// One source definition is imported by client + server, so the policy cannot drift in code.
+// One source definition is imported by client + server, so the rules cannot drift in code.
 // Unicode property escapes use the executing engine's Unicode tables, however; supported browser
 // and server runtimes must stay within the documented baseline and can briefly classify newly
 // assigned code points differently during an engine rollout.
@@ -67,7 +67,7 @@ function stripDisallowedCharacters(value: string): string {
   return cleaned;
 }
 
-/** Canonicalize user-authored plain text before applying the shared character and length policy.
+/** Canonicalize user-authored plain text before applying the shared character and length rules.
  * This preserves punctuation and letters; it never strips disallowed characters or truncates. */
 export function normalizeUserText(value: string, options: { multiline?: boolean } = {}): string {
   const normalized = value.normalize('NFC');

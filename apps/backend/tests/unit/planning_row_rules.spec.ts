@@ -118,7 +118,7 @@ const cases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
     'entityField: workingDays must contain a working day.',
   ],
   [
-    'no account working day',
+    'no company working day',
     'companies',
     { workingDays: [] },
     'entityField: workingDays must contain a working day.',

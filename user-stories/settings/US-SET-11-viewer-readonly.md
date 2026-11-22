@@ -1,6 +1,6 @@
-# US-SET-11 — View role capabilities
+# US-SET-11 — View role permissions
 
-As a company member, I want to review my role capabilities so that I know what I can do in this company.
+As a company member, I want to review my role permissions so that I know what I can do in this company.
 
 **Status:** Current — detailed access actions live in Team & access.
 **Access:** Owner, Admin, Editor, Viewer
@@ -10,7 +10,7 @@ As a company member, I want to review my role capabilities so that I know what I
 
 ## Acceptance criteria
 
-- Every member can review their role and capability summary. Server authorisation independently controls access.
+- Every member can review their role and permission summary. Server authorisation independently controls access.
 
 ## User flow
 
@@ -26,7 +26,7 @@ B --> C["Expand or collapse See all permissions"]
 flowchart TD
   team["TeamAccessView reads role and permission context"] --> copy["resolveAccessLabel and resolveAccessSummary build role explanation"]
   team --> caps["listPermissions maps role through shared can() rules"]
-  caps --> render["CurrentAccessCard renders expandable capability list"]
+  caps --> render["CurrentAccessCard renders expandable permission list"]
 ```
 
 **Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [accessCopy.ts](../../apps/frontend/src/lib/accessCopy.ts), [access.ts](../../packages/shared/src/domain/access.ts)

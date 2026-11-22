@@ -137,11 +137,11 @@ describe('disciplinesEnabledFor', () => {
     expect(hasDisciplinesEnabled(companies({ disciplinesEnabled: undefined }), 'a1')).toBe(true);
   });
 
-  it('defaults to true when no account matches', () => {
+  it('defaults to true when no company matches', () => {
     expect(hasDisciplinesEnabled(companies({ disciplinesEnabled: false }), 'missing')).toBe(true);
   });
 
-  it('returns the explicit account value', () => {
+  it('returns the explicit company value', () => {
     expect(hasDisciplinesEnabled(companies({ disciplinesEnabled: false }), 'a1')).toBe(false);
     expect(hasDisciplinesEnabled(companies({ disciplinesEnabled: true }), 'a1')).toBe(true);
   });
@@ -203,7 +203,7 @@ const companyFeatureCases: Array<{
   },
 ];
 
-describe('account feature selector defaults', () => {
+describe('company feature selector defaults', () => {
   it.each(companyFeatureCases)(
     'pins absent, unmatched and explicit $name values',
     ({ selector, fallback, explicit, values }) => {
@@ -238,17 +238,17 @@ describe('calendar primitive selectors', () => {
     expect(resolveWeekStart(companies(), 'missing')).toBe(1);
   });
 
-  it('returns the active account calendar values', () => {
+  it('returns the active company calendar values', () => {
     const appData = companies({ timezone: 'Europe/London', weekStartsOn: 0 });
     expect(resolveTimeZone(appData, 'a1')).toBe('Europe/London');
     expect(resolveWeekStart(appData, 'a1')).toBe(0);
   });
 
-  it('derives legacy account working days from week start and preserves an explicit selection', () => {
+  it('derives legacy company working days from week start and preserves an explicit selection', () => {
     expect(listCompanyWorkingDays(companies({ weekStartsOn: 1 }), 'a1')).toEqual([1, 2, 3, 4, 5]);
     expect(listCompanyWorkingDays(companies({ weekStartsOn: 0 }), 'a1')).toEqual([0, 1, 2, 3, 4]);
     const sundayCompany = companies({ weekStartsOn: 0 }).companies[0];
-    if (!sundayCompany) throw new Error('Expected Sunday-start account fixture');
+    if (!sundayCompany) throw new Error('Expected Sunday-start company fixture');
     expect(
       listCompanyWorkingDays(
         {
@@ -261,7 +261,7 @@ describe('calendar primitive selectors', () => {
     ).toEqual([1, 3, 5]);
   });
 
-  it('repairs an empty persisted account week from its configured week start', () => {
+  it('repairs an empty persisted company week from its configured week start', () => {
     expect(listCompanyWorkingDays(companies({ weekStartsOn: 1, workingDays: [] }), 'a1')).toEqual([
       1, 2, 3, 4, 5,
     ]);
@@ -307,7 +307,7 @@ describe('hasResourceEngagementGrouping', () => {
 });
 
 describe('hasVisibleTaskFieldInSchedule', () => {
-  it('defaults off and remains account-scoped', () => {
+  it('defaults off and remains company-scoped', () => {
     const appData = {
       ...createEmptyAppData(),
       companies: [

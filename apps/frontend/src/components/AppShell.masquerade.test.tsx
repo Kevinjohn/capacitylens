@@ -15,7 +15,7 @@ vi.mock('@/i18n', async (importOriginal) => ({
 
 setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
-it('shows a fail-closed banner while a member view is starting', () => {
+it('shows a fail-closed banner while a masquerade is starting', () => {
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
@@ -29,7 +29,7 @@ it('shows a fail-closed banner while a member view is starting', () => {
   expect(within(banner).queryByRole('button')).not.toBeInTheDocument();
 });
 
-it('offers projection recovery after the server has prepared a starting member view', () => {
+it('offers projection recovery after the server has prepared a starting masquerade', () => {
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
@@ -89,7 +89,7 @@ it('hides old actor route data during a member-view projection while keeping rec
   ).toBe(true);
 });
 
-it('offers Retry and End when an authenticated cold member view has no selected company', () => {
+it('offers Retry and End when an authenticated cold masquerade has no selected company', () => {
   useStore.getState().clearPlanning();
   useStore.getState().setMasquerade({
     kind: 'starting',

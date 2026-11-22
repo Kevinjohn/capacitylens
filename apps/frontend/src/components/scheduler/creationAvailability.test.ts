@@ -94,7 +94,7 @@ describe('creation start availability', () => {
       }),
     ).toBe(false);
   });
-  it('applies the account boundary to externals without inventing personal capacity', () => {
+  it('applies the company boundary to externals without inventing personal capacity', () => {
     const external: Resource = { ...person, kind: 'external', workingDays: [] };
     expect(resolveEffectiveWorkingDays(external, [2, 3, 4, 5])).toEqual([2, 3, 4, 5]);
     expect(

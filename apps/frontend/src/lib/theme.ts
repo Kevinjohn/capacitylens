@@ -1,4 +1,4 @@
-// The device theme preference resolves to a concrete light or dark scheme on the root attribute. Storage and runtime queries fall back to light so display failures cannot affect account data.
+// The device theme preference resolves to a concrete light or dark scheme on the root attribute. Storage and runtime queries fall back to light so display failures cannot affect company data.
 import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand';
 
 /** Theme selection stored for the current device. */

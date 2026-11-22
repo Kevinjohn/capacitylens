@@ -176,7 +176,7 @@ test.group('ordinary authentication request contracts', (group) => {
     }
   });
 
-  test('open registration keeps the product 409 response for an existing email', async ({
+  test('open sign-up keeps the product 409 response for an existing email', async ({
     client,
     assert,
     cleanup,

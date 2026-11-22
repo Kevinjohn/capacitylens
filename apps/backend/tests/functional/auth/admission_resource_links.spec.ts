@@ -251,7 +251,7 @@ test.group('direct member resource association', (group) => {
       .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
       .count('* as total');
     assert.equal(Number(auditCountBeforeLink[0].total), 0);
-    const createLinkCommand = () =>
+    const createLinkOperation = () =>
       withSession(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
@@ -264,9 +264,9 @@ test.group('direct member resource association', (group) => {
         })
         .json({ resourceId: 'r-clark', expectedRevision: null })
         .send();
-    const linked = await createLinkCommand();
+    const linked = await createLinkOperation();
     linked.assertStatus(200);
-    const replayLinked = await createLinkCommand();
+    const replayLinked = await createLinkOperation();
     replayLinked.assertStatus(200);
     assert.deepEqual(replayLinked.body().data, linked.body().data);
     const revision = (linked.body().data as { revision: string }).revision;

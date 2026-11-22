@@ -10,7 +10,7 @@ const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
   return next;
 };
 
-/** Create the rule and patch capabilities shared by canonical planning actions. */
+/** Create the rule and patch helpers shared by canonical planning actions. */
 export function createStoreInternals(get: () => StoreState) {
   const { requireCompany, isBlockedByViewer, resolveOwnedRow } = createStoreRules(get);
 
@@ -22,5 +22,5 @@ export function createStoreInternals(get: () => StoreState) {
   };
 }
 
-/** Internal capabilities exposed to store slices. */
+/** Internal helpers exposed to store slices. */
 export type StoreInternals = ReturnType<typeof createStoreInternals>;

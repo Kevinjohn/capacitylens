@@ -12,7 +12,7 @@ describe('IsoInstant', () => {
   });
 });
 
-describe('account role vocabulary', () => {
+describe('company role vocabulary', () => {
   it('is immutable and keeps the narrowing guard closed', () => {
     expect(Object.isFrozen(ROLES)).toBe(true);
     expect(() => (ROLES as unknown as string[]).push('super-admin')).toThrow();

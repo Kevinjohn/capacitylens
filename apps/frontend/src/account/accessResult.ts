@@ -16,7 +16,7 @@ export type TeamAccessResult<T> =
   | { kind: 'unknown'; status: number; message: string | null }
   | { kind: 'invalid'; status: number; message: string };
 
-/** Uses the server message only for a decoded rejection; ambiguous or undecodable outcomes use the operation fallback. An empty rejection message also falls back. */
+/** Uses the server message only for a decoded refusal; ambiguous or undecodable outcomes use the operation fallback. An empty refusal message also falls back. */
 export function resolveRefusalMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
   return result.kind === 'rejected' && result.message ? result.message : fallback;
 }
@@ -43,7 +43,7 @@ async function parseOkBody<T>(
     : { kind: 'ok', status: response.status, value };
 }
 
-/** Decodes a operation response and distinguishes rejection from an unknown outcome. */
+/** Decodes a operation response and distinguishes a refusal from an unknown outcome. */
 export async function readOperationResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,

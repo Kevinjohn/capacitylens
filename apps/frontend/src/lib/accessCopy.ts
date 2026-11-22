@@ -4,7 +4,7 @@ import { m } from '@/i18n';
 /** Permission check state used to select access messaging. */
 export type AccessPermissionStatus = 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
 
-/** Returns the localised display label for an account role. */
+/** Returns the localised display label for a company role. */
 export function resolveRoleLabel(role: Role): string {
   switch (role) {
     case 'owner':
@@ -18,7 +18,7 @@ export function resolveRoleLabel(role: Role): string {
   }
 }
 
-/** Returns a short explanation of an account role. */
+/** Returns a short explanation of a company role. */
 export function resolveRoleSummary(role: Role): string {
   switch (role) {
     case 'owner':

@@ -33,7 +33,7 @@ flowchart TD
 flowchart TD
   launcher["dev-demo runs the shared development stack"] --> migrate["Migrate the disposable database"]
   migrate --> identity["Explicitly prepare the admitted development identity"]
-  identity --> seed["Guarded demo seed writes one company graph and authority"]
+  identity --> seed["Guarded demo seed writes one company graph and its access"]
   seed --> api["Wait for API readiness"]
   api --> web["Start Vite and print sign-in when ready"]
 ```

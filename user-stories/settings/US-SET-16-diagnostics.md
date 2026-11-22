@@ -29,8 +29,8 @@ C -->|no| E["Read the clipboard error and retry when available"]
 ```mermaid
 flowchart TD
   entry["HelpView Diagnostics link (useDiagnosticsAccessDecision allowed) or palette item DIAGNOSTICS_LINK"] --> route["DiagnosticsRoute renders DiagnosticsView"]
-  route --> view["DiagnosticsView renders report and Copy report button"] --> controller["useDiagnosticsViewModel.copyReport"]
-  controller --> clipboard["navigator.clipboard.writeText(report)"]
+  route --> view["DiagnosticsView renders report and Copy report button"] --> viewModel["useDiagnosticsViewModel.copyReport"]
+  viewModel --> clipboard["navigator.clipboard.writeText(report)"]
   clipboard --> state{"Clipboard result"}
   state -->|"success"| copied["copyState becomes copied"]
   state -->|"failure"| failed["copyState becomes failed"]

@@ -1,7 +1,7 @@
 import type { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 
-/** The banner shown while viewing as a member, or null when no member view is in progress. */
+/** The banner shown while viewing as a member, or null when no masquerade is in progress. */
 export function buildMasqueradeBannerContent(
   masquerade: ReturnType<typeof useStore.getState>['masquerade'],
 ) {

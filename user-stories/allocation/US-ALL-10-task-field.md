@@ -39,7 +39,7 @@ flowchart TD
   B --> C["allocationSubmit.parseOptionalTask validates and normalizes text"]
   C -->|valid| D["Include task in allocation draft"]
   C -->|invalid| E["Field error; no write"]
-  D --> F["addAllocation/updateAllocation planning command"]
+  D --> F["addAllocation/updateAllocation planning intent"]
   F --> G["Reconciled allocation renders task"]
 ```
 

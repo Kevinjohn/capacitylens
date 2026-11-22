@@ -242,12 +242,12 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
   assertValid(validateDateRange(startDate, endDate));
 }
 
-// Time off references a resource in the active account, exactly as an allocation does,
+// Time off references a resource in the active company, exactly as an allocation does,
 // and that resource must be capacity-tracked. An external party has no capacity, so
 // time off is meaningless for it (the scheduler hides external time-off entirely): the form
 // omits externals from the picker and rejects a crafted pick, so enforce the same rule here
 // so a direct store / API write can't persist an invisible orphan.
-/** Require a same-account, capacity-tracked resource for time off; a changed reference must also be active.
+/** Require a same-company, capacity-tracked resource for time off; a changed reference must also be active.
  * @throws DomainError; callers must not persist the reference. */
 function assertResourceExists({
   data,

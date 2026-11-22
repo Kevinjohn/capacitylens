@@ -228,7 +228,7 @@ describe('diagnostics client facts', () => {
     const text = formatDiagnostics(
       readDiagnostics(
         {
-          account: { id, name: companyName },
+          company: { id, name: companyName },
           user: { email: 'bruce.wayne@wayne.example', name: 'Bruce Wayne' },
           server: {
             connectivity: 'ok',

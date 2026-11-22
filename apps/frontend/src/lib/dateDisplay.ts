@@ -25,7 +25,7 @@ const DATE_STYLE_DESCRIPTORS: Record<DateStyle, DateStyleDescriptor> = {
 };
 
 // Mirror date style before notifying subscribers so synchronous formatters agree
-// with the account snapshot. Consumers still need the style in memo dependencies
+// with the company snapshot. Consumers still need the style in memo dependencies
 // because changing the mirror alone cannot trigger a render.
 let activeDateStyle: DateStyle = DEFAULT_DATE_STYLE;
 

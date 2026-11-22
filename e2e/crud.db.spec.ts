@@ -52,7 +52,7 @@ test.describe('CRUD and persistent company transfer', () => {
       await page.getByTestId('export-data').click();
       const file = await (await downloadPromise).path();
 
-      // Change the exported row before restoring the exported company document.
+      // Change the exported row before importing the company export.
       await page.getByRole('link', { name: 'Clients' }).click();
       const row = page.getByTestId('client-row').filter({ hasText: 'RoundTrip Co' });
       await row.getByRole('button', { name: 'Edit RoundTrip Co' }).click();

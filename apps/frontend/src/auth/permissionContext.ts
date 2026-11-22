@@ -13,18 +13,18 @@ export const NO_ACCESS: AccessGrant = Object.freeze({
   canSeeTimeOffNote: false,
 });
 
-/** The resolved permission state for the active account. A null role means no membership applies. */
+/** The resolved permission state for the active company. A null role means no membership applies. */
 export interface PermissionContextValue {
   /** For display (badge and copy) only; decisions read `grant`. */
   role: Role | null;
   /** Resolution state of the membership lookup. While pending or unavailable `grant` is
    * {@link NO_ACCESS}, and explanatory UI can say that access is being checked or is unavailable. */
   status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
-  /** What the server allows the effective member in the active account. */
+  /** What the server allows the effective member in the active company. */
   grant: AccessGrant;
 }
 
-/** Context for the active account role, its grant and the permission-check status. */
+/** Context for the active company role, its grant and the permission-check status. */
 export const PermissionContext = createContext<PermissionContextValue>({
   role: null,
   status: 'not-applicable',
@@ -32,11 +32,11 @@ export const PermissionContext = createContext<PermissionContextValue>({
 });
 
 /**
- * The caller's {@link Role} for the active account, or `null`, for display only.
+ * The caller's {@link Role} for the active company, or `null`, for display only.
  *
- * `null` means no membership role applies in the current account context.
+ * `null` means no membership role applies in the current company context.
  *
- * @returns the active account's role, or `null` when there is no membership role.
+ * @returns the active company's role, or `null` when there is no membership role.
  */
 export function useRole(): Role | null {
   return useContext(PermissionContext).role;
@@ -48,13 +48,13 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue['statu
   return value.status ?? (value.role === null ? 'not-applicable' : 'resolved');
 }
 
-/** The grant the server sent for the active account, or {@link NO_ACCESS} until one is resolved. */
+/** The grant the server sent for the active company, or {@link NO_ACCESS} until one is resolved. */
 export function useAccessGrant(): AccessGrant {
   return useContext(PermissionContext).grant;
 }
 
 /**
- * Reports whether the server's grant for the active account holds `key`. It shows or hides a
+ * Reports whether the server's grant for the active company holds `key`. It shows or hides a
  * control only; the server enforces the permission on every request.
  *
  * @param key - the permission the calling surface is gating.
@@ -65,7 +65,7 @@ export function useCan(key: PermissionKey): boolean {
 }
 
 /**
- * Gate scheduling, planning, and configuration edit affordances for the active account.
+ * Gate scheduling, planning, and configuration edit affordances for the active company.
  * It follows `useCan('planning:write')`.
  *
  * @returns `true` when the grant holds `planning:write`; a view-as grant never does.

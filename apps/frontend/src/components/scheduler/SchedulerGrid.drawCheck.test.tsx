@@ -63,7 +63,7 @@ beforeEach(async () => {
 });
 
 describe('SchedulerGrid draw check', () => {
-  it('opens for the active account when only an inactive account has a closure on the date', async () => {
+  it('opens for the active company when only an inactive company has a closure on the date', async () => {
     render(<SchedulerGrid />, { wrapper: OwnerRouter });
 
     fireEvent.click(screen.getByRole('button', { name: 'Draw on 3 June' }));

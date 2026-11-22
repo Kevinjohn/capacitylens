@@ -37,40 +37,40 @@ export type AllocationCreateResult<T> =
  * `updatedAt` from when it opened as `expectedUpdatedAt`; the server refuses the update when the row
  * has changed since. */
 export interface StoreEntityActions {
-  /** Create a discipline in the active account. */
+  /** Create a discipline in the active company. */
   addDiscipline: (input: Omit<Draft<Discipline>, 'sortOrder'>) => Promise<CreateResult<Discipline>>;
-  /** Patch a discipline in the active account. */
+  /** Patch a discipline in the active company. */
   updateDiscipline: (id: ID, patch: Patch<Discipline>, expectedUpdatedAt?: string) => Promise<void>;
-  /** Delete a discipline from the active account; dependent rows follow the shared cascade rules. */
+  /** Delete a discipline from the active company; dependent rows follow the shared cascade rules. */
   deleteDiscipline: (id: ID) => Promise<void>;
 
-  /** Create a resource in the active account. */
+  /** Create a resource in the active company. */
   addResource: (input: Draft<Resource>) => Promise<CreateResult<Resource>>;
-  /** Patch a resource in the active account. */
+  /** Patch a resource in the active company. */
   updateResource: (id: ID, patch: Patch<Resource>, expectedUpdatedAt?: string) => Promise<void>;
 
-  /** Create a client in the active account. */
+  /** Create a client in the active company. */
   addClient: (input: Draft<Client>) => Promise<CreateResult<Client>>;
-  /** Patch a client in the active account. */
+  /** Patch a client in the active company. */
   updateClient: (id: ID, patch: Patch<Client>, expectedUpdatedAt?: string) => Promise<void>;
 
-  /** Create a project in the active account. */
+  /** Create a project in the active company. */
   addProject: (input: Draft<Project>) => Promise<CreateResult<Project>>;
-  /** Patch a project in the active account. */
+  /** Patch a project in the active company. */
   updateProject: (id: ID, patch: Patch<Project>, expectedUpdatedAt?: string) => Promise<void>;
 
-  /** Create a phase in the active account. */
+  /** Create a phase in the active company. */
   addPhase: (input: Draft<Phase>) => Promise<CreateResult<Phase>>;
-  /** Patch a phase in the active account. */
+  /** Patch a phase in the active company. */
   updatePhase: (id: ID, patch: Patch<Phase>) => Promise<void>;
-  /** Delete a phase from the active account; dependent rows follow the shared cascade rules. */
+  /** Delete a phase from the active company; dependent rows follow the shared cascade rules. */
   deletePhase: (id: ID) => Promise<void>;
 
-  /** Create an activity in the active account. */
+  /** Create an activity in the active company. */
   addActivity: (input: Draft<Activity>) => Promise<CreateResult<Activity>>;
-  /** Patch an activity in the active account. */
+  /** Patch an activity in the active company. */
   updateActivity: (id: ID, patch: Patch<Activity>, expectedUpdatedAt?: string) => Promise<void>;
-  /** Archive an activity in the active account and resolve with the server reply, or with nothing
+  /** Archive an activity in the active company and resolve with the server reply, or with nothing
    * when the write is blocked; dependent rows follow the shared cascade rules. */
   deleteActivity: (id: ID) => Promise<PlanningMutationSuccess | undefined>;
 
@@ -96,12 +96,12 @@ export interface StoreEntityActions {
     id: ID,
     placement: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate'>,
   ) => Promise<false | AllocationSaveAdvisory>;
-  /** Delete an allocation from the active account. */
+  /** Delete an allocation from the active company. */
   deleteAllocation: (id: ID) => Promise<void>;
   /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */
   deleteAllocationSeriesFrom: (id: ID) => Promise<void>;
 
-  /** Create a time-off entry in the active account. */
+  /** Create a time-off entry in the active company. */
   addTimeOff: (input: Draft<TimeOff>) => Promise<CreateResult<TimeOff>>;
   /** Create repeated time off as one typed planning write and one Undo step. The server places the
    * `count` entries from the first one and the repeat; a mismatched count or a refusal rejects. */
@@ -110,14 +110,14 @@ export interface StoreEntityActions {
     repeat: RepeatRange,
     count: number,
   ) => Promise<CreateResult<TimeOff[]>>;
-  /** Patch a time-off entry in the active account. */
+  /** Patch a time-off entry in the active company. */
   updateTimeOff: (id: ID, patch: Patch<TimeOff>, expectedUpdatedAt?: string) => Promise<void>;
-  /** Delete a time-off entry from the active account. */
+  /** Delete a time-off entry from the active company. */
   deleteTimeOff: (id: ID) => Promise<void>;
 
-  /** Create a company closure in the active account. */
+  /** Create a company closure in the active company. */
   addClosure: (input: Draft<Closure>) => Promise<CreateResult<Closure>>;
-  /** Patch a company closure in the active account. */
+  /** Patch a company closure in the active company. */
   updateClosure: (id: ID, patch: Patch<Closure>, expectedUpdatedAt?: string) => Promise<void>;
   /** Delete a company closure from the active company. */
   deleteClosure: (id: ID) => Promise<void>;

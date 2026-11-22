@@ -28,7 +28,7 @@ const knownResourceKinds: ReadonlySet<unknown> = new Set(RESOURCE_KINDS);
 
 /** Require the target row to belong to companyId before an update or delete.
  * Returns null for a stale id so callers can preserve the no-op contract; otherwise returns the owned row.
- * @throws DomainError for a cross-account row; nothing may be changed. */
+ * @throws DomainError for a cross-company row; nothing may be changed. */
 export function getOwned<K extends ScopedEntityKey>(
   ...[data, companyId, key, id]: [data: AppData, companyId: ID, key: K, id: ID]
 ): AppData[K][number] | null {
@@ -77,7 +77,7 @@ function createScopedRefsContext(
   // Reading loose field names off the stored row is safe: an absent field is undefined and can
   // only equal an equally absent patch field, which is an unchanged no-op.
   const previous = existing as Record<string, unknown> | undefined;
-  // An unchanged id was already proven in-account when it was written.
+  // An unchanged id was already proven in-company when it was written.
   const isUnchanged = (field: string) =>
     previous !== undefined && record[field] === previous[field];
   const assertRef = (field: string, table: ScopedEntityKey, message: string) => {
@@ -195,7 +195,7 @@ function assertActivityRefs(context: ScopedRefsContext): void {
   assertActivityPhase(context);
 }
 
-// Resource reference policy intentionally combines kind-dependent project and avatar invariants.
+// Resource reference rules intentionally combines kind-dependent project and avatar invariants.
 
 function assertResourceRefs(context: ScopedRefsContext): void {
   const { record, previous, isSupplied, assertRef } = context;
@@ -244,9 +244,9 @@ function assertResourceKindImmutable(
   }
 }
 
-/** Check catalog references within companyId without checking the record’s own tenancy.
+/** Check catalogue references within companyId without checking the record’s own company.
  * Allocation and time-off references have separate validators. Existing must be the owned stored row.
- * Unchanged references may be absent from an active-only client set; their missing/inactive target checks are skipped, but a resolved foreign-account target still fails.
+ * Unchanged references may be absent from an active-only client set; their missing/inactive target checks are skipped, but a resolved foreign-company target still fails.
  * Creates and full project/phase rows require their parent; partial updates may omit the parent but cannot clear it.
  * Ordinary resource updates cannot change kind.
  * @throws DomainError on a violation; callers must not persist the write. */
@@ -298,7 +298,7 @@ export function assertScopedRefs(
   }
 }
 
-// An allocation must reference a real resource and activity in the active account. Changed
+// An allocation must reference a real resource and activity in the active company. Changed
 // all-projects attribution may reference only a live project, and placeholder allocations must
 // remain effective under their bound project. External resources have no capacity and may carry
 // only zero load. Requiring `hoursPerDay` makes every allocation write check that rule.
@@ -405,9 +405,9 @@ export function assertAllocationRefs(
       'Allocation must reference an active resource in this company.',
     );
   }
-  // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
+  // A project-bound activity must resolve to a project in this company. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
-  // for corrupt state. Treat a missing or cross-account project exactly like an inactive
+  // for corrupt state. Treat a missing or cross-company project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
   const resolvedProjectId = assertAllocationProject(
     { data, companyId, projectId, existing, lookupOptions },

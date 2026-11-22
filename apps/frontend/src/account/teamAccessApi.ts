@@ -1,4 +1,4 @@
-// Account administration decodes untrusted responses here so Team and access controllers consume semantic outcomes.
+// Account administration decodes untrusted responses here so Team and access view models consume semantic outcomes.
 import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { admissionRequests } from './admissionRequests';

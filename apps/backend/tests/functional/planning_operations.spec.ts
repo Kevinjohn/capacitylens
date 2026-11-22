@@ -148,9 +148,9 @@ test.group('typed planning writers', (group) => {
       )
     );
     const state = await readState('a-studio', true);
-    const account = state.companies[0];
-    assert.equal(account?.weekStartsOn, 0);
-    assert.equal(account?.timezone, 'Europe/London');
+    const company = state.companies[0];
+    assert.equal(company?.weekStartsOn, 0);
+    assert.equal(company?.timezone, 'Europe/London');
     await assert.rejects(
       () =>
         db.transaction((trx) =>

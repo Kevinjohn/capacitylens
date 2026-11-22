@@ -18,7 +18,7 @@ export interface CapacityOverviewTableProps extends OverviewToolbarProps {
 }
 
 interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTableProps {
-  /** Scoped account data used to resolve person schedule titles. */
+  /** Scoped company data used to resolve person schedule titles. */
   data: AppData;
   /** Restores focus to a stable element when the drawer's opener has been removed from the DOM. */
   fallbackRef?: RefObject<HTMLDivElement | null>;

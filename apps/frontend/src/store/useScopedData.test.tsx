@@ -147,7 +147,7 @@ describe('scoped data', () => {
     expect(resolveSharedScopedData(data, COMPANY_B)).toBe(data);
   });
 
-  it('returns one stable empty projection without an active account', () => {
+  it('returns one stable empty projection without an active company', () => {
     const data = twoCompanyData();
 
     const first = resolveSharedScopedData(data, null);
@@ -159,7 +159,7 @@ describe('scoped data', () => {
 });
 
 describe('scoped data hooks', () => {
-  it('updates useScopedData on account changes without retaining the previous account rows', async () => {
+  it('updates useScopedData on company changes without retaining the previous company rows', async () => {
     const data = twoCompanyData();
     await act(async () => activateFixtureCompany(data, COMPANY_A));
     const { result } = renderHook(() => useScopedData());

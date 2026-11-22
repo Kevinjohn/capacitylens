@@ -73,7 +73,7 @@ export function validatePresetColor(value: string, fail: Fail, field = 'color'):
   return true;
 }
 
-/** Rejects empty or invalid resource working-day sets and reports the field error. Store and server write boundaries independently enforce the same non-empty policy. */
+/** Rejects empty or invalid resource working-day sets and reports the field error. Store and server write boundaries independently enforce the same non-empty rule. */
 export function validateWorkingDays(days: number[], fail: Fail, field = 'workingDays'): boolean {
   // The shared predicate validates weekday shape; this form additionally requires a non-empty resource working week.
   if (!isWeekdaySet(days) || days.length === 0) {

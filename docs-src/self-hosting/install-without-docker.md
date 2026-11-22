@@ -161,8 +161,8 @@ your company**, enter **Company name** and select **Create company**. Schedule o
 identity as Owner.
 
 The company starts with Monday, Monday–Friday working days, day-based scheduling and the Internal
-client, without an example schedule. The server blocks additional open signup until the first company
-exists, even when open signup is enabled in configuration.
+client, without an example schedule. The server blocks additional open sign-up until the first company
+exists, even when open sign-up is enabled in configuration.
 
 Browser setup requires exactly one existing sign-in identity and no company or membership. If
 multiple identities were created before the company, browser setup refuses rather than choosing

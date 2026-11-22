@@ -73,7 +73,7 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
   );
 }
 
-/** Lists company closures available to the active account. */
+/** Lists company closures available to the active company. */
 export function CompanyClosureSection() {
   const data = useActiveScopedData();
   const calendarWeekStartsOn = useStore((state) =>

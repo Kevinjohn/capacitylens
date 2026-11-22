@@ -228,7 +228,7 @@ export function resetStoreWithData(
   companyId: ID = data.companies[0]?.id ?? DEFAULT_COMPANY_ID,
 ): Promise<boolean> {
   const company = data.companies.find(({ id }) => id === companyId);
-  if (!company) throw new Error(`The fixture data must contain account ${companyId}.`);
+  if (!company) throw new Error(`The fixture data must contain company ${companyId}.`);
   useStore.getState().clearPlanning();
   resetPlanningTransport(companyId, data, useStore);
   useStore.getState().setCompanySummaries({

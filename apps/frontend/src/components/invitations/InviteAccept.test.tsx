@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { invitationSignupRequests } from '@/account/invitationSignupRequests';
+import { invitationSignUpRequests } from '@/account/invitationSignUpRequests';
 import { InviteAccept } from './InviteAccept';
 
 const preview = {
@@ -27,7 +27,7 @@ describe('InviteAccept outcomes', () => {
   it.each([429, 500])(
     'reports a %i preview as unavailable, not as an invalid invitation',
     async (status) => {
-      vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+      vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
         new Response(null, { status }),
       );
       renderPage();
@@ -38,7 +38,7 @@ describe('InviteAccept outcomes', () => {
   );
 
   it('reports a not-found preview as an invalid invitation', async () => {
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       new Response(null, { status: 404 }),
     );
     renderPage();
@@ -66,11 +66,11 @@ describe('InviteAccept outcomes', () => {
 
   it('sends the person to sign in when the sign-up answer is lost', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       Response.json({ data: preview }),
     );
-    const signup = vi
-      .spyOn(invitationSignupRequests, 'signupWithInvitation')
+    const signUp = vi
+      .spyOn(invitationSignUpRequests, 'signUpWithInvitation')
       .mockRejectedValue(new TypeError('offline'));
     renderPage();
     fireEvent.change(await screen.findByTestId('invite-name'), { target: { value: 'Clark Kent' } });
@@ -80,7 +80,7 @@ describe('InviteAccept outcomes', () => {
     fireEvent.click(screen.getByTestId('invite-submit'));
     expect(await screen.findByTestId('invite-uncertain')).toBeInTheDocument();
     expect(screen.queryByTestId('invite-password')).not.toBeInTheDocument();
-    expect(signup).toHaveBeenCalledTimes(1);
+    expect(signUp).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the form and shows existing-account guidance for EMAIL_REGISTERED', async () => {
@@ -88,11 +88,11 @@ describe('InviteAccept outcomes', () => {
       error: 'An account already uses this email. Sign in instead.',
       code: 'EMAIL_REGISTERED',
     } satisfies ProductHttpErrorBody;
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       Response.json({ data: preview }),
     );
-    const signup = vi
-      .spyOn(invitationSignupRequests, 'signupWithInvitation')
+    const signUp = vi
+      .spyOn(invitationSignUpRequests, 'signUpWithInvitation')
       .mockResolvedValue(Response.json(registered, { status: 409 }));
     renderPage();
     fireEvent.change(await screen.findByTestId('invite-name'), { target: { value: 'Clark Kent' } });
@@ -108,7 +108,7 @@ describe('InviteAccept outcomes', () => {
     expect(screen.getByTestId('invite-password')).toBeInTheDocument();
     expect(screen.getByTestId('invite-submit')).toBeEnabled();
     expect(screen.queryByTestId('invite-uncertain')).not.toBeInTheDocument();
-    expect(signup).toHaveBeenCalledWith('single-use-token', {
+    expect(signUp).toHaveBeenCalledWith('single-use-token', {
       name: 'Clark Kent',
       password: 'invitation-password-2026',
     });
@@ -118,7 +118,7 @@ describe('InviteAccept outcomes', () => {
 it.each(['not json', JSON.stringify({ role: 'editor' })])(
   'reports an unreadable or malformed successful preview as unavailable',
   async (body) => {
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       new Response(body, { status: 200 }),
     );
     renderPage();

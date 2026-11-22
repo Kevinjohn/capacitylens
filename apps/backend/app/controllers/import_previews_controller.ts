@@ -4,7 +4,7 @@ import { requirePasswordConfirmationActor } from '#services/auth/password_confir
 import { previewCompanyImport, readRequestDocument } from '#services/company_import';
 import { previewImportValidator } from '#validators/import';
 
-/** Previews what importing a company document would change. */
+/** Previews what importing a company export would change. */
 export default class ImportPreviewsController {
   async store(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(previewImportValidator, {

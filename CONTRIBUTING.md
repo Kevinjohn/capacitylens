@@ -112,7 +112,7 @@ unless your change is prose-only.
 | ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Documentation (`docs-src/`, Markdown) | `pnpm run format`                                                            | `pnpm run docs:build` (its `docs/` output is not committed); no gate                                   |
 | Frontend (`apps/frontend/`)           | `pnpm run check:changed` (format, lint, type-check, related tests)           | The gate; the [cross-browser suites](#before-opening-a-pull-request) for interaction or layout changes |
-| Backend (`apps/backend/`)             | `pnpm run check:changed` (runs the specs that import the changed files)      | The gate; focused authority and failure-path tests for authentication and account changes              |
+| Backend (`apps/backend/`)             | `pnpm run check:changed` (runs the specs that import the changed files)      | The gate; focused authorization and failure-path tests for authentication and account changes          |
 | Shared (`packages/shared/`)           | `pnpm run check:changed` (runs the whole backend suite for shared contracts) | The gate                                                                                               |
 | Dependencies or runtime               | `pnpm run check:changed`                                                     | See [Runtime and dependency upgrades](#runtime-and-dependency-upgrades)                                |
 
@@ -132,7 +132,7 @@ A prose-only change needs formatting and a content and link review instead; rebu
 documentation when its sources change. Run the focused checks for changed behaviour and preserve
 the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
 
-Authentication and account changes require focused backend tests for the affected authority and
+Authentication and account changes require focused backend tests for the affected authorization and
 failure paths. Use controlled responses for external-service behaviour; any live-service check needs
 an authorised test account and must be reported separately.
 
@@ -230,14 +230,14 @@ When changing a data path, preserve the product and security invariants in [DECI
 In brief:
 
 - Surface errors; never silently swallow them.
-- Keep account reads scoped and let the server enforce membership on every write.
+- Keep company reads scoped and let the server enforce membership on every write.
 - Put environment-independent domain rules in `packages/shared/`; do not duplicate them in UI/server code.
 - Preserve the three distinct workload signals and their time windows.
 - Add tests that fail without the change.
 - Never commit secrets, production data, generated application output or personal deployment notes.
 
 Authentication changes need explicit threat-oriented tests. Account Kit owns password-only sign-in;
-there is no identity-provider or social sign-in. Tests should cover the affected authority and
+there is no identity-provider or social sign-in. Tests should cover the affected authorization and
 failure paths, including missing or invalid configuration.
 
 ## Documentation and GitHub Pages

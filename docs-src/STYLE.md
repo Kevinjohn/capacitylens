@@ -85,7 +85,7 @@ to study it.
 - Make the next action locatable: name the page, control and useful result. Avoid generic
   commands such as "open the schedule" without a location, or "read each bar".
 - Keep essential information in the chosen guide. Reuse concise instructions where roles
-  overlap; link out for depth rather than sending readers to another role's onboarding.
+  overlap; link out for depth rather than sending readers to another role's setup guide.
 - State access restrictions where they affect an action. Explain what to do if access is
   missing, without making every reader study the permission model.
 - Write FAQs around actual interruptions: a missing invitation, an unavailable control,

@@ -48,11 +48,11 @@ function configureAuth(cleanup: (callback: () => void) => void) {
 
 async function createMember(client: ApiClient, role: Role) {
   const email = `wayne-${randomUUID()}@example.test`;
-  const signup = await signUpAndIn(client, { email, password, name: 'Bruce Wayne' });
-  signup.assertStatus(200);
-  const cookie = signup.cookie('adonis-session')?.value;
+  const signUp = await signUpAndIn(client, { email, password, name: 'Bruce Wayne' });
+  signUp.assertStatus(200);
+  const cookie = signUp.cookie('adonis-session')?.value;
   if (!cookie) throw new Error('Sign-up did not return a native session cookie');
-  const userId = String((signup.body().data as { user: { id: string } }).user.id);
+  const userId = String((signUp.body().data as { user: { id: string } }).user.id);
   const timestamp = new Date().toISOString();
   await db.table('memberships').insert({
     scope_id: companyId,
@@ -145,7 +145,7 @@ test.group('native authorization and role projections', (group) => {
     await resetState(true);
   });
 
-  test('protected reads require a real member and cross-account rows stay concealed', async ({
+  test('protected reads require a real member and cross-company rows stay concealed', async ({
     client,
     assert,
     cleanup,

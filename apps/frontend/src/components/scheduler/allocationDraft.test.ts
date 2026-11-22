@@ -205,7 +205,7 @@ describe('validateAllocationDraft', () => {
   });
 
   it('reports other repeat generation codes as the date-domain message', () => {
-    // The supplied maximum is beyond the policy horizon, so generation throws cutoff-after-limit.
+    // The supplied maximum is beyond the repeat horizon, so generation throws cutoff-after-limit.
     expectRejected(
       { repeat: validRepeat({ until: '2099-01-04', maximum: '2099-12-31' }) },
       'repeatUntil',

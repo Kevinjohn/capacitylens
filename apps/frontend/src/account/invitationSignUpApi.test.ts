@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { invitationSignupRequests } from './invitationSignupRequests';
-import { readInvitationPreview, signUpWithInvitation } from './invitationSignupApi';
+import { invitationSignUpRequests } from './invitationSignUpRequests';
+import { readInvitationPreview, signUpWithInvitation } from './invitationSignUpApi';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -12,7 +12,7 @@ describe('invitation sign-up client', () => {
     [new Response(null, { status: 404 }), 'invalid'],
     [new Response(null, { status: 503 }), 'unavailable'],
   ])('reads a preview answer as a typed result', async (response, kind) => {
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(response);
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(response);
     await expect(readInvitationPreview('token-1')).resolves.toMatchObject({ kind });
   });
 
@@ -40,7 +40,7 @@ describe('invitation sign-up client', () => {
       { kind: 'refused', message: 'Name is too long.' },
     ],
   ])('reads a sign-up answer as a typed result', async (response, result) => {
-    vi.spyOn(invitationSignupRequests, 'signupWithInvitation').mockResolvedValue(response);
+    vi.spyOn(invitationSignUpRequests, 'signUpWithInvitation').mockResolvedValue(response);
     await expect(
       signUpWithInvitation('token-1', { name: 'Diana Prince', password: 'lasso-of-truth' }),
     ).resolves.toEqual(result);

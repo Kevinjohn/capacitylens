@@ -18,9 +18,9 @@ import {
   TIME_OFF_TYPES,
 } from '@capacitylens/shared/types/entities';
 import {
-  accountIndexes,
+  companyIndexes,
   baselineTables,
-  crossAccountReferences,
+  crossCompanyReferences,
   encodeFixture,
   expectedFixture,
   foreignKeyIndexes,
@@ -344,13 +344,13 @@ test.group('database contract', (group) => {
   }) => {
     const companies = await Company.all();
     assert.includeMembers(
-      companies.map((account) => account.id),
+      companies.map((company) => company.id),
       [companyIds.dc, companyIds.marvel]
     );
 
     const state = await readState(companyIds.dc);
     assert.deepEqual(
-      state.companies.map((account) => account.id),
+      state.companies.map((company) => company.id),
       [companyIds.dc]
     );
     for (const [table, rows] of Object.entries(state)) {
@@ -510,8 +510,8 @@ test.group('database contract', (group) => {
     }
   });
 
-  for (const [relationship, table, column, targetId] of crossAccountReferences) {
-    test(`rejects cross-account ${relationship} inserts`, async ({ assert }) => {
+  for (const [relationship, table, column, targetId] of crossCompanyReferences) {
+    test(`rejects cross-company ${relationship} inserts`, async ({ assert }) => {
       await assert.rejects(
         () => insertInvalidReference(table, column, targetId),
         /cross-company reference/
@@ -520,7 +520,7 @@ test.group('database contract', (group) => {
     });
   }
 
-  test('rejects cross-account relationship updates while allowing NULL optional references', async ({
+  test('rejects cross-company relationship updates while allowing NULL optional references', async ({
     assert,
   }) => {
     await assert.rejects(
@@ -567,7 +567,7 @@ test.group('database contract', (group) => {
     );
     for (const table of scopedTables) {
       const sql = byName.get(`${table}_company_immutable`);
-      assert.isDefined(sql, `${table} account immutability trigger exists`);
+      assert.isDefined(sql, `${table} company immutability trigger exists`);
       assert.match(sql!, /BEFORE\s+UPDATE\s+OF\s+company_id/i);
       assert.match(sql!, /NEW\.company_id\s*<>\s*OLD\.company_id/i);
       assert.match(sql!, /RAISE\s*\(\s*ABORT/i);
@@ -611,7 +611,7 @@ test.group('database contract', (group) => {
     assert.match(cleanupSql!, /resource_id\s*=\s*OLD\.id/i);
   });
 
-  test('removes account member resource links when a person becomes a non-person', async ({
+  test('removes company member resource links when a person becomes a non-person', async ({
     assert,
   }) => {
     await db.table('account_member_resources').insert([
@@ -642,7 +642,7 @@ test.group('database contract', (group) => {
     );
   });
 
-  test('uses account-scoped member/resource uniqueness without foreign-key coupling', async ({
+  test('uses company-scoped member/resource uniqueness without foreign-key coupling', async ({
     assert,
   }) => {
     const association = {
@@ -681,7 +681,7 @@ test.group('database contract', (group) => {
   });
 
   test('uses company indexes for company-scoped reads and deletes', async ({ assert }) => {
-    for (const [table, column] of accountIndexes) {
+    for (const [table, column] of companyIndexes) {
       for (const operation of ['SELECT *', 'DELETE'] as const) {
         const query =
           operation === 'SELECT *'
@@ -775,7 +775,7 @@ test.group('database contract', (group) => {
     assert.equal(await rowCount('allocations', { id: 'm1-dc-allocation' }), 1);
   });
 
-  test('account deletion cascades exactly its scoped rows and preserves the other account', async ({
+  test('company deletion cascades exactly its scoped rows and preserves the other company', async ({
     assert,
   }) => {
     await db.from('companies').where('id', companyIds.dc).delete();

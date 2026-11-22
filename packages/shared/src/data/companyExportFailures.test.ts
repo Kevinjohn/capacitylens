@@ -18,15 +18,15 @@ function requireValue<T>(value: T | undefined | null): T {
 const context = { companyId: 'a-studio', memberResourceLinks: [] };
 const freshDocument = () => {
   const source = seed();
-  const account = requireValue(source.companies.find((row) => row.id === context.companyId));
+  const company = requireValue(source.companies.find((row) => row.id === context.companyId));
   source.closures.push({
     id: 'gotham-closure',
     companyId: context.companyId,
     name: 'Gotham closure',
     startDate: '2026-12-25',
     endDate: '2026-12-25',
-    createdAt: account.createdAt,
-    updatedAt: account.updatedAt,
+    createdAt: company.createdAt,
+    updatedAt: company.updatedAt,
   });
   return buildCompanyExport(source, { companyId: context.companyId, completeness: 'full' });
 };

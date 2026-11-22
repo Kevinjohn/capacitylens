@@ -32,7 +32,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["PersonScheduleTrigger calls viewSchedule"] --> B["usePersonScheduleDrawer records account, resource and opener"]
+  A["PersonScheduleTrigger calls viewSchedule"] --> B["usePersonScheduleDrawer records company, resource and opener"]
   B --> C["usePersonSchedule calls buildPersonSchedule from current client data"]
   C --> D["PersonScheduleSheet renders entries or empty state"]
   D --> E["close restores focus to opener or fallback"]
