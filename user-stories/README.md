@@ -86,16 +86,16 @@ status definitions. Guide and implementation links live with each story; tests r
 
 ## Data
 
-| Story                                                   | Action                                    | Status  |
-| ------------------------------------------------------- | ----------------------------------------- | ------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Current |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Current |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Current |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Current |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Current |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data            | Demo    |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Current |
-| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Current |
+| Story                                                   | Action                                             | Status  |
+| ------------------------------------------------------- | -------------------------------------------------- | ------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                                | Current |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data                   | Current |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history            | Current |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files                        | Current |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload                   | Current |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data                     | Demo    |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in export and import | Current |
+| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation                 | Current |
 
 ## Disciplines
 

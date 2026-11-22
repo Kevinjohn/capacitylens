@@ -51,7 +51,7 @@ separately from daily/manual retention; copy them off-host and keep the needed r
 
 ## Restore beta planning into a fresh installation
 
-A full beta-native JSON export can transfer planning without upgrading the source database. While
+A full beta-native JSON export can move planning without upgrading the source database. While
 the source still runs, sign in as its Owner and download **Export JSON** from **Settings → Data and
 support → Import and export**. Keep the file unchanged and preserve the source database.
 
@@ -63,7 +63,7 @@ and sign-in records remain local. Scheduling IDs and relationships are preserved
 and establish their person links as needed.
 
 Check all imported records and settings, make an allocation edit, and reload before retiring the
-source installation. This transfers only full `capacitylens-beta` version `2` documents. It does
+source installation. This imports only full `capacitylens-beta` version `2` documents. It does
 not convert alpha exports or migrate authentication. Redacted and malformed documents are refused.
 
 ## Databases the upgrade refuses

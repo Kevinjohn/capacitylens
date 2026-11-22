@@ -84,16 +84,16 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Data
 
-| Story                                                   | Action                                    | Access                               | Status  | Catalogue |
-| ------------------------------------------------------- | ----------------------------------------- | ------------------------------------ | ------- | --------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Owner, Admin, Editor, Viewer         | Current | Existing  |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Owner                                | Current | Existing  |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Owner                                | Current | Existing  |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Owner                                | Current | Existing  |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Any authorized company member        | Current | Existing  |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data            | Printed development Owner            | Demo    | Existing  |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Owner for import; role-tiered export | Current | Existing  |
-| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Owner                                | Current | New       |
+| Story                                                   | Action                                             | Access                               | Status  | Catalogue |
+| ------------------------------------------------------- | -------------------------------------------------- | ------------------------------------ | ------- | --------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                                | Owner, Admin, Editor, Viewer         | Current | Existing  |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data                   | Owner                                | Current | Existing  |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history            | Owner                                | Current | Existing  |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files                        | Owner                                | Current | Existing  |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload                   | Any authorized company member        | Current | Existing  |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data                     | Printed development Owner            | Demo    | Existing  |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in export and import | Owner for import; role-tiered export | Current | Existing  |
+| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation                 | Owner                                | Current | New       |
 
 ## Disciplines
 

@@ -183,7 +183,7 @@ Scheduling IDs stay unchanged; the destination company keeps its own ID and sign
 
 Check the imported people, catalogue, schedule and company settings. Add or edit an allocation,
 then reload to check persistence. Invite other members again and link them to imported people as
-needed: JSON transfers do not include identities, passwords, memberships or sessions. Keep the
+needed: JSON exports do not include identities, passwords, memberships or sessions. Keep the
 source installation and export until you have verified the destination.
 
 Continue with [TLS and networking](/self-hosting/tls-and-networking),

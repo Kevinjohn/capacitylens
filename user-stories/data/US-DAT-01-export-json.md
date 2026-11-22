@@ -1,6 +1,6 @@
 # US-DAT-01 — Export company data
 
-As a company member, I want to export company data so that I can inspect or transfer a portable copy.
+As a company member, I want to export company data so that I can inspect or move a portable copy.
 
 **Status:** Current
 **Access:** Owner, Admin, Editor, Viewer

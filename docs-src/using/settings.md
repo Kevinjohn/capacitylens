@@ -174,7 +174,7 @@ import with your password. A recent sign-in alone is not enough. The confirmatio
 file and company. Cancel leaves the company unchanged. If the company changed since the preview,
 preview again before retrying.
 
-### Beta transfer contract {#beta-transfer-contract}
+### Beta import contract {#beta-import-contract}
 
 Import replaces the selected company's scheduling records and supported settings atomically. It
 keeps scheduling IDs in the file and existing member-to-person links, which means every linked person

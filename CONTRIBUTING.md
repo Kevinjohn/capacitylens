@@ -331,7 +331,7 @@ closed or removed on success and failure. This command does not build, publish o
   (26 October 2026) lists the framework-alignment review and its limits.
 - [Lucid soft-delete integration](docs-src/reference/architecture.md#lucid-soft-delete-integration)
   covers the pinned package, trashed reads and planning deletes.
-- The [beta transfer contract](docs-src/reference/architecture.md#beta-transfer-implementation)
+- The [beta import contract](docs-src/reference/architecture.md#beta-import-implementation)
   defines the import/export document and its server-side apply.
 
 ## Releases
