@@ -231,7 +231,7 @@ export default defineConfig([
   },
 
   // The date-fns barrels load every function and every locale: about three seconds for each test
-  // file that reaches them, and the same again whenever the backend starts.
+  // file that reaches them.
   {
     files: ['apps/frontend/src/**/*.{ts,tsx}', 'packages/shared/src/**/*.{ts,tsx,mts,cts}'],
     rules: {
