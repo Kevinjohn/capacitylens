@@ -201,7 +201,7 @@ export function MemberRow({
   companyId: string | null;
   resourceLinkRequest: MemberResourceLinkRequest;
 }) {
-  const affordances = buildMemberAffordances(useCan('viewAs:use'), myRole, member);
+  const affordances = buildMemberAffordances(useCan('masquerade:use'), myRole, member);
   const memberLabel = resolveMemberLabel(member);
   return (
     <tr

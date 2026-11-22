@@ -280,7 +280,7 @@ test.group('company initialize command', () => {
               'members:manage',
               'members:signInTracking',
               'invitations:manage',
-              'viewAs:use',
+              'masquerade:use',
               'resources:anonymise',
               'ownership:transfer',
               'company:import',
