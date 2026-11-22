@@ -421,7 +421,7 @@ test.group('authenticated typed planning transactions', (group) => {
       ),
       ...(['clients', 'projects', 'activities'] as const).flatMap((entity) => {
         const id = { clients: ids.client, projects: ids.project, activities: ids.activity }[entity];
-        return (['catalogue.archive', 'catalogue.unarchive'] as const).map((operation) => () => ({
+        return (['catalogue.archive', 'catalogue.restore'] as const).map((operation) => () => ({
           operation,
           entity: { entity, id },
         }));
@@ -454,7 +454,7 @@ test.group('authenticated typed planning transactions', (group) => {
       }),
       () => ({ operation: 'resource.update', id: ids.resource, changes: { jobTitle: 'Lead' } }),
       () => ({ operation: 'resource.archive', id: ids.resource }),
-      () => ({ operation: 'resource.unarchive', id: ids.resource }),
+      () => ({ operation: 'resource.restore', id: ids.resource }),
       () => ({ operation: 'allocation.create', allocation }),
       () => ({
         operation: 'allocation.update',

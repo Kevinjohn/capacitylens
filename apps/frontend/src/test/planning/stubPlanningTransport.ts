@@ -475,7 +475,7 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'catalogue.archive':
         update(intent.entity.entity, intent.entity.id, { archivedAt: new Date().toISOString() });
         break;
-      case 'catalogue.unarchive':
+      case 'catalogue.restore':
         update(intent.entity.entity, intent.entity.id, { archivedAt: null });
         break;
       case 'resource.create':
@@ -487,7 +487,7 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'resource.archive':
         update('resources', intent.id, { archivedAt: new Date().toISOString() });
         break;
-      case 'resource.unarchive':
+      case 'resource.restore':
         update('resources', intent.id, { archivedAt: null });
         break;
       case 'timeOff.create':

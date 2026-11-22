@@ -47,24 +47,24 @@ function mutationInput(baseRevision: number, intent: Record<string, unknown>) {
   return { mutationId: randomUUID(), baseRevision, intent };
 }
 
-function unarchiveOperation(entity: ArchiveRecoveryRow['entity'], id: string) {
+function restoreOperation(entity: ArchiveRecoveryRow['entity'], id: string) {
   if (entity === 'resources')
     return {
-      intent: { operation: 'resource.unarchive', id },
+      intent: { operation: 'resource.restore', id },
     };
   return {
-    intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
+    intent: { operation: 'catalogue.restore', entity: { entity, id } },
   };
 }
 
-async function unarchive(
+async function restore(
   client: ApiClient,
   cookie: string,
   entity: ArchiveRecoveryRow['entity'],
   id: string,
   baseRevision: number
 ) {
-  const operation = unarchiveOperation(entity, id);
+  const operation = restoreOperation(entity, id);
   return session(client.post(route('planning/mutations')), cookie)
     .json(mutationInput(baseRevision, operation.intent))
     .send();
@@ -440,7 +440,7 @@ test.group('identity-only archive recovery', (suite) => {
         `${entity} ${id} should be recoverable`
       );
 
-    const childRestore = await unarchive(client, editor.cookie, 'activities', 't-brand', 3);
+    const childRestore = await restore(client, editor.cookie, 'activities', 't-brand', 3);
     childRestore.assertStatus(200);
     const stillHidden = await session(client.get(route('planning')), editor.cookie).send();
     assert.notInclude(
@@ -464,7 +464,7 @@ test.group('identity-only archive recovery', (suite) => {
       label: '"Confidential #pbrand"',
     });
 
-    const parentRestore = await unarchive(client, editor.cookie, 'projects', projectId, 4);
+    const parentRestore = await restore(client, editor.cookie, 'projects', projectId, 4);
     parentRestore.assertStatus(200);
     assert.notInclude(parentRestore.text(), 'Secret Designer Role');
 
@@ -490,7 +490,7 @@ test.group('identity-only archive recovery', (suite) => {
     const independentlyArchived = await db.from('activities').where({ id: 't-cms' }).first();
     assert.isNotNull(independentlyArchived.archived_at);
 
-    const clientRestore = await unarchive(client, editor.cookie, 'clients', clientId, 5);
+    const clientRestore = await restore(client, editor.cookie, 'clients', clientId, 5);
     clientRestore.assertStatus(200);
     assert.notInclude(clientRestore.text(), privateClientName);
     const afterClient = await session(client.get(route('planning')), editor.cookie).send();
@@ -507,7 +507,7 @@ test.group('identity-only archive recovery', (suite) => {
     ] as const;
     let revision = 6;
     for (const [entity, id] of remainingRestores) {
-      const response = await unarchive(client, editor.cookie, entity, id, revision);
+      const response = await restore(client, editor.cookie, entity, id, revision);
       response.assertStatus(200);
       revision += 1;
     }
@@ -548,7 +548,7 @@ test.group('identity-only archive recovery', (suite) => {
       .send();
     advance.assertStatus(200);
 
-    const stale = await unarchive(client, editor.cookie, 'clients', clientId, 0);
+    const stale = await restore(client, editor.cookie, 'clients', clientId, 0);
     stale.assertStatus(409);
     assert.equal((stale.body() as { code: string }).code, 'STALE_REVISION');
 
@@ -559,14 +559,14 @@ test.group('identity-only archive recovery', (suite) => {
         deleted_at: stamp,
       });
     assert.equal(deleted, 1);
-    const deletedTarget = await unarchive(client, editor.cookie, 'resources', 'r-tyler', 1);
+    const deletedTarget = await restore(client, editor.cookie, 'resources', 'r-tyler', 1);
     deletedTarget.assertStatus(400);
     assert.equal((deletedTarget.body() as { code: string }).code, 'VALIDATION_ERROR');
 
     const foreignTarget = await session(client.post(route('planning/mutations')), editor.cookie)
       .json(
         mutationInput(1, {
-          operation: 'catalogue.unarchive',
+          operation: 'catalogue.restore',
           entity: { entity: 'projects', id: 'p-loft-app' },
         })
       )
@@ -578,7 +578,7 @@ test.group('identity-only archive recovery', (suite) => {
       role: 'viewer',
     });
     // Membership changes after the read are checked when the write is actually submitted.
-    const demotedWrite = await unarchive(client, editor.cookie, 'clients', clientId, 1);
+    const demotedWrite = await restore(client, editor.cookie, 'clients', clientId, 1);
     demotedWrite.assertStatus(403);
     assert.equal((demotedWrite.body() as { code: string }).code, 'AUTHORIZATION_DENIED');
   });

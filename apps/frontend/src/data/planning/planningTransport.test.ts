@@ -166,7 +166,7 @@ for (const entity of ['phases', 'disciplines'] as const) {
   });
 }
 
-for (const action of ['archive', 'unarchive'] as const) {
+for (const action of ['archive', 'restore'] as const) {
   cases.push({
     intent: { operation: `resource.${action}`, id },
   });

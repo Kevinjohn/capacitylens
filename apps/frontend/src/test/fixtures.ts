@@ -253,14 +253,14 @@ export function archiveForTest(
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
-export function unarchiveForTest(
+export function restoreForTest(
   entity: LifecycleEntity,
   id: ID,
 ): Promise<PlanningMutationSuccess | undefined> {
   const intent =
     entity === 'resources'
-      ? { operation: 'resource.unarchive' as const, id }
-      : { operation: 'catalogue.unarchive' as const, entity: { entity, id } };
+      ? { operation: 'resource.restore' as const, id }
+      : { operation: 'catalogue.restore' as const, entity: { entity, id } };
   return useStore.getState().sendPlanningIntent({ intent });
 }
 

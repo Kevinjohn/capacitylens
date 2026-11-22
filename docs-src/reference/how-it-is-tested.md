@@ -44,7 +44,7 @@ The suites cover the frontend, backend and shared workspace packages.
   source-ID duplication, while a copy with edited non-date fields uses explicit creation with a fresh
   ID. Scheduler booking commands use these builders. A separate
   authenticated browser harness exercises the controller through real typed routes and SQLite:
-  create, move, resize, reassign, duplicate, grouped creation, archive/unarchive, update
+  create, move, resize, reassign, duplicate, grouped creation, archive/restore, update
   Undo/Redo, stale-edit refusal, lost-response
   recovery by refetch and sign-out cache clearing. The schedule uses the controller for bookings,
   and Undo/Redo step through the server-held history for the page. History is

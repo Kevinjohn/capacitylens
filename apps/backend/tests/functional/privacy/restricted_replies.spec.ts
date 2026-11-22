@@ -212,7 +212,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning_mutations.store#catalogue.unarchive clients': {
+  'api.planning_mutations.store#catalogue.restore clients': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -222,7 +222,7 @@ const replies: Record<string, Exposure> = {
         entity,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity,
       });
     },
@@ -240,7 +240,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning_mutations.store#catalogue.unarchive projects': {
+  'api.planning_mutations.store#catalogue.restore projects': {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) => {
@@ -250,7 +250,7 @@ const replies: Record<string, Exposure> = {
         entity,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity,
       });
     },
@@ -268,7 +268,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning_mutations.store#resource.unarchive': {
+  'api.planning_mutations.store#resource.restore': {
     write: true,
     carries: [],
     call: async (fixture) => {
@@ -277,7 +277,7 @@ const replies: Record<string, Exposure> = {
         id: fixture.resourceId,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'resource.unarchive',
+        operation: 'resource.restore',
         id: fixture.resourceId,
       });
     },
