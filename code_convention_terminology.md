@@ -173,13 +173,9 @@ These need the owner before the rename lands. Each changes a wire, export or dat
 - Rename `ActivityKind` `repeatable` to `allProjects`.
 - Rename `Resource.role` to `jobTitle`, and its form label "Role" to "Job title".
 - Rename the permission key `viewAs:use` to `masquerade:use`.
-- Unify allocation and booking, or keep the glossary's deliberate pair.
 - Rename the import routes `/api/transfer/*` to import, and `/invites` and `/invites/:token/signup` to
   `/invitations` and `sign-up`.
 - Rename the operation `catalogue.unarchive` to `catalogue.restore`, or keep `unarchive` in code beside
   "Restore" on screen.
 - Fold the error code `IDENTITY_AUTHORITY_DENIED` into the authorization wording, or keep it; the browser
   reads it.
-- Keep "Restore membership" for ending a suspension, or give it its own word. "Restore" on screen already
-  covers archived records, deleted records, backups and memberships.
-- Product **rules** sits beside VineJS's **validation rule**; confirm the pair or pick another word.
