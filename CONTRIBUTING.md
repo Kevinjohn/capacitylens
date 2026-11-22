@@ -125,6 +125,9 @@ pnpm run gate:all
 pnpm run e2e
 ```
 
+With write access you can run this gate on GitHub instead of locally: dispatch the `Validation`
+workflow with `full=true` on the branch. Maintainers do this once for each batch of changes.
+
 A prose-only change needs formatting and a content and link review instead; rebuild the
 documentation when its sources change. Run the focused checks for changed behaviour and preserve
 the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).

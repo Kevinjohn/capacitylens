@@ -43,8 +43,9 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - `DECISIONS.md` states the target; code may lag until the owning issue lands.
 - Record new implementation, design or investigation plans in a GitHub issue; do not add repository Markdown plans. Keep settled scope and existing plans authoritative.
 - Use the Node version in `.nvmrc` and `pnpm` for JavaScript package operations. Do not use npm, npx or yarn.
-- Run focused checks while implementing; the default submission gate is `pnpm run gate:all` plus `pnpm run e2e`, unless the accepted scope defines a narrower required gate. Do not add fixed file-size, test-size, coverage-floor or naming-ratchet requirements. Do not run Docker for routine work.
+- Run focused checks while implementing: `pnpm run check:changed --static origin/<base>` plus the change's focused tests. The submission gate (`pnpm run gate:all` plus `pnpm run e2e`) runs on GitHub, not locally: the pull request's checks, then one `Validation` run with `full=true` for each batch of changes, unless the accepted scope defines a narrower required gate. Do not add fixed file-size, test-size, coverage-floor or naming-ratchet requirements. Do not run Docker for routine work.
 - Commit each feature change with `git commit -s`. Never push task commits to `main`; publish a ready pull request only after review and required checks.
-- A pull request stays open until the user explicitly authorises merging that specific pull request. Preserve unrelated work; never rewrite history without explicit authorisation.
+- Decide implementation questions yourself and record the choice in the pull request. Ask the owner only about product decisions: behaviour users see, scope, public interfaces, breaking changes and data loss.
+- A pull request merges once its review is complete and every check on its head has passed; no separate authorisation is needed. Preserve unrelated work; never rewrite history without explicit authorisation.
 - Do not build or run Docker images or alter Dockerfiles, Compose, Docker workflows or Docker tests unless the task explicitly authorises that Docker work.
 - Before public delivery, inspect all outgoing text and metadata for privacy, secrets and the public naming restrictions in the global instructions.
