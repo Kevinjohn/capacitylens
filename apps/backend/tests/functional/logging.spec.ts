@@ -133,7 +133,9 @@ test.group('general HTTP logging privacy', (group) => {
     for (const setting of ['', '0']) {
       env.set('CAPACITYLENS_LOG', setting);
       try {
-        const { output, result } = await captureLogs(() => client.visit('api.health').send());
+        const { output, result } = await captureLogs(() =>
+          client.visit('api.health_checks.live').send()
+        );
         assert.equal(result.status(), 200);
         assert.equal(output, '');
       } finally {
@@ -290,7 +292,7 @@ test.group('general HTTP logging privacy', (group) => {
     const { output } = await captureLogs(() =>
       Promise.all(
         Array.from({ length: 3 }, () =>
-          client.visit('api.health').header('x-request-id', suppliedId).send()
+          client.visit('api.health_checks.live').header('x-request-id', suppliedId).send()
         )
       )
     );

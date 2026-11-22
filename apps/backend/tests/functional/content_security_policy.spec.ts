@@ -17,7 +17,7 @@ test.group('Shield content security policy', (group) => {
   });
 
   test('a routed response carries the policy once', async ({ client, assert }) => {
-    const response = await client.visit('api.health');
+    const response = await client.visit('api.health_checks.live');
     assert.equal(response.status(), 200);
     assert.equal(response.header('content-security-policy'), policy);
   });

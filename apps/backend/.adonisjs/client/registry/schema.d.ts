@@ -8,7 +8,7 @@ import type { routes } from './index.ts'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
-  'api.health': {
+  'api.health_checks.live': {
     methods: ["GET","HEAD"]
     pattern: '/api/health'
     types: {

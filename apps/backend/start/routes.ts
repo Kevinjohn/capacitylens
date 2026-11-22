@@ -24,7 +24,7 @@ for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
 // Health is registered first, in its own group, so the API throttle does not count it.
 router
   .group(() => {
-    router.get('/health', [controllers.HealthChecks, 'live']).as('health');
+    router.get('/health', [controllers.HealthChecks, 'live']);
   })
   .prefix('/api')
   .as('api');

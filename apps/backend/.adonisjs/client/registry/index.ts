@@ -8,11 +8,11 @@ export type { Route, Path } from './schema.d.ts'
 const placeholder: any = {}
 
 const routes = {
-  'api.health': {
+  'api.health_checks.live': {
     methods: ["GET","HEAD"],
     pattern: '/api/health',
     tokens: [[0,"api"],[0,"health"]],
-    types: placeholder as Registry['api.health']['types'],
+    types: placeholder as Registry['api.health_checks.live']['types'],
   },
   'api.planning.show': {
     methods: ["GET","HEAD"],

@@ -351,7 +351,7 @@ const replies: Record<string, Exposure> = {
   'api.example_data.store': { none: COUNTS },
   'api.getting_started.show': { none: IDENTITY },
   'api.getting_started.update': { none: IDENTITY },
-  'api.health': { none: IDENTITY },
+  'api.health_checks.live': { none: IDENTITY },
   'health_checks.live': { none: IDENTITY },
   'health_checks.ready': { none: IDENTITY },
   'api.first_company_setup.store': { none: IDENTITY },
