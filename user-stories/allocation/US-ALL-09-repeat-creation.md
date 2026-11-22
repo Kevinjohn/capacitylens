@@ -1,6 +1,6 @@
 # US-ALL-09 — Create repeating weekly or monthly allocations
 
-As an Editor, I want to create linked repeating allocations so that a recurring work pattern can be planned in one step.
+As an Editor, I want to create linked repeating allocations so that a repeating work pattern can be planned in one step.
 
 **Status:** Current
 **Access:** Editor, Admin or Owner

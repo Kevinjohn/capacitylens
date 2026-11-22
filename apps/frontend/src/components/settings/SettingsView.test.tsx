@@ -204,7 +204,7 @@ it('warns that calendar changes reinterpret existing allocations without moving 
 
   expect(
     screen.getByText(
-      'New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto recurring non-working days. Time off remains separate.',
+      'New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto non-working days. Time off remains separate.',
       { exact: false },
     ),
   ).toBeInTheDocument();

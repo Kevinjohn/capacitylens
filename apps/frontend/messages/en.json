@@ -94,7 +94,7 @@
   "settings_capacity_overview_access_owner_admin_editor": "Admins & Editors",
   "settings_capacity_overview_access_everyone": "Everyone",
   "settings_working_days_heading": "Company-wide working days",
-  "settings_working_days_intro": "A company-wide setting shared by everyone. Choose the days on which work may start for this company. The order follows the company's selected week start. New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto recurring non-working days. Time off remains separate.",
+  "settings_working_days_intro": "A company-wide setting shared by everyone. Choose the days on which work may start for this company. The order follows the company's selected week start. New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto non-working days. Time off remains separate.",
   "settings_working_days_impact": "Changing company-wide working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
   "settings_working_days_min_one": "At least one company working day is required.",
   "settings_working_days_legend": "Company working days",

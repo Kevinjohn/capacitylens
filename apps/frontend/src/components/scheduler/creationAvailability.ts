@@ -60,7 +60,7 @@ interface IsCreationStartBlockedInput {
   closures: Closure[];
 }
 
-/** Recurring weekdays on which an allocation may start for this resource. Company closures also
+/** Weekdays on which an allocation may start for this resource. Company closures also
  * block tracked resources; externals ignore closures and use only the company working calendar.
  * A week with no effective days returns an empty array, so every start date is blocked. */
 export function resolveEffectiveWorkingDays(
@@ -156,7 +156,8 @@ export function isCreationStartBlockedForEffectiveWeek({
   );
 }
 
-/** Whether recurring company/personal calendars reject an existing allocation's proposed start.
+/** Whether the company and personal working-day calendars reject an existing allocation's
+ * proposed start.
  * The allocation-level override intentionally bypasses both; time off is a separate conflict. */
 export function isAllocationMoveStartBlocked({
   resource,
