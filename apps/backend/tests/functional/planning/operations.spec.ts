@@ -969,7 +969,7 @@ test.group('authenticated planning operations', (group) => {
             id: activityId,
             fields: {
               name: 'All projects planning',
-              kind: 'repeatable',
+              kind: 'allProjects',
               projectId: null,
               phaseId: null,
             },

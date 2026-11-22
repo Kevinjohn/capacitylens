@@ -184,7 +184,7 @@ export default class extends BaseSchema {
       table.timestamp('deleted_at').nullable();
       table.index(['project_id']);
       table.index(['phase_id']);
-      table.check("kind IN ('project','internal','repeatable')");
+      table.check("kind IN ('project','internal','allProjects')");
     });
     this.schema.createTable('allocations', (table) => {
       scoped(table);

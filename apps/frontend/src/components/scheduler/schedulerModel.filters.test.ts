@@ -37,7 +37,7 @@ function buildLensActivitiesData(): AppData {
       createdAt: 't',
       updatedAt: 't',
       name: 'Design',
-      kind: 'repeatable',
+      kind: 'allProjects',
     },
   );
   d.allocations.push(
@@ -116,7 +116,7 @@ describe('buildSchedulerModel', () => {
   });
 
   it('activity lens: "All projects — All" (activityKind) shows only all-projects activity allocations', () => {
-    const bars = buildLens({ ...buildEmptyFilters(), activityKind: 'repeatable' })
+    const bars = buildLens({ ...buildEmptyFilters(), activityKind: 'allProjects' })
       .flatMap((g) => g.rows)
       .flatMap((r) => r.bars)
       .map((b) => b.allocation.id)
@@ -136,7 +136,7 @@ describe('buildSchedulerModel', () => {
   it('activity lens: dims (and by default hides) rows with no work on the filtered activity', () => {
     const rows = buildLens({
       ...buildEmptyFilters(),
-      activityKind: 'repeatable',
+      activityKind: 'allProjects',
     }).flatMap((g) => g.rows);
     expect(rows.map((r) => r.resource.id)).toEqual(['r2']);
   });

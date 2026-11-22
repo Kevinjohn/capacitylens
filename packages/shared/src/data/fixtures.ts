@@ -180,7 +180,7 @@ export const FIXTURE_ACTIVITY: Activity = {
   updatedAt: TS2,
 };
 
-/** The internal & repeatable kinds: project-less by definition, so they omit projectId /
+/** The internal & all-projects kinds: project-less by definition, so they omit projectId /
  * phaseId entirely (not null, absent). Prove all three ActivityKind values round-trip through
  * the server with the optional FK columns left NULL. */
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
@@ -193,13 +193,13 @@ export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   updatedAt: TS2,
 };
 
-/** Complete all-projects (repeatable) activity fixture. */
-export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
+/** Complete all-projects activity fixture. */
+export const FIXTURE_ACTIVITY_ALL_PROJECTS: Activity = {
   ...NULLABLE_FIELDS.activities,
   id: 'fix-t3',
   companyId: 'fix-a1',
-  name: 'Fixture Repeatable Activity',
-  kind: 'repeatable',
+  name: 'Fixture All-projects Activity',
+  kind: 'allProjects',
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -223,11 +223,11 @@ export const FIXTURE_ALLOCATION: Allocation = {
   updatedAt: TS2,
 };
 
-/** Allocation fixture on the repeatable activity, attributed to a project. */
+/** Allocation fixture on the all-projects activity, attributed to a project. */
 export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
   ...FIXTURE_ALLOCATION,
   id: 'fix-al2',
-  activityId: FIXTURE_ACTIVITY_REPEATABLE.id,
+  activityId: FIXTURE_ACTIVITY_ALL_PROJECTS.id,
   projectId: 'fix-p1',
 };
 

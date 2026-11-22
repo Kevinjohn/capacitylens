@@ -47,14 +47,14 @@ describe('AllocationDialog edit', () => {
   it.each([
     {
       caseName: 'attributed All-projects',
-      activityKind: 'repeatable',
+      activityKind: 'allProjects',
       allocationProjectId: 'p1',
       expectedScope: 'Ferris / Lightning',
       activityName: 'Planning',
     },
     {
       caseName: 'legacy unattributed All-projects',
-      activityKind: 'repeatable',
+      activityKind: 'allProjects',
       allocationProjectId: undefined,
       expectedScope: 'No specific project',
       activityName: 'Planning',
@@ -537,7 +537,7 @@ describe('AllocationDialog edit', () => {
       }),
     );
     const gen = await requireCreated(
-      useStore.getState().addActivity({ name: 'Admin', kind: 'repeatable' }),
+      useStore.getState().addActivity({ name: 'Admin', kind: 'allProjects' }),
     );
     const alloc = requireCreated(
       await useStore.getState().addAllocation({
@@ -583,7 +583,7 @@ describe('AllocationDialog edit', () => {
       }),
     );
     const activity = await requireCreated(
-      useStore.getState().addActivity({ name: 'Temporary', kind: 'repeatable' }),
+      useStore.getState().addActivity({ name: 'Temporary', kind: 'allProjects' }),
     );
     const alloc = requireCreated(
       await useStore.getState().addAllocation({

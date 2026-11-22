@@ -101,7 +101,7 @@ describe('store CRUD covers every entity', () => {
     await expect(s().deleteActivity(t.id)).resolves.toMatchObject({ archived });
   });
   it('activities: a general (no-project) activity can be added without a projectId', async () => {
-    const t = await requireCreated(s().addActivity({ name: 'Admin', kind: 'repeatable' }));
+    const t = await requireCreated(s().addActivity({ name: 'Admin', kind: 'allProjects' }));
     expect(t.projectId).toBeNull();
     expect(requireValue(s().data.activities[0], 'activity')).toHaveProperty('projectId', null);
     expect(s().data.activities[0]?.name).toBe('Admin');
@@ -112,8 +112,8 @@ describe('store CRUD covers every entity', () => {
     const t = await requireCreated(
       s().addActivity({ name: 'T', kind: 'project', projectId: p.id }),
     );
-    await s().updateActivity(t.id, { kind: 'repeatable', projectId: null });
-    expect(s().data.activities[0]?.kind).toBe('repeatable');
+    await s().updateActivity(t.id, { kind: 'allProjects', projectId: null });
+    expect(s().data.activities[0]?.kind).toBe('allProjects');
     expect(requireValue(s().data.activities[0], 'activity')).toHaveProperty('projectId', null);
   });
   it('updateActivity preserves the project for a phase-only patch', async () => {

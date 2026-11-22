@@ -29,8 +29,8 @@ describe('AllocationDialog create', () => {
       .addProject({ name: 'Alpha', clientId: zetaClient.id, color: '#123456' });
     await useStore.getState().addActivity({ name: 'Support', kind: 'internal' });
     await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' });
-    await useStore.getState().addActivity({ name: 'Strategy', kind: 'repeatable' });
-    await useStore.getState().addActivity({ name: 'Retrospective', kind: 'repeatable' });
+    await useStore.getState().addActivity({ name: 'Strategy', kind: 'allProjects' });
+    await useStore.getState().addActivity({ name: 'Retrospective', kind: 'allProjects' });
     const barbara = person('Barbara');
     const resource = await requireCreated(
       useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] }),
@@ -173,7 +173,7 @@ describe('AllocationDialog create', () => {
     'derives create attribution for the %s scope',
     async (scope, activityName, expectedProjectId) => {
       await useStore.getState().addActivity({ name: 'Operations', kind: 'internal' });
-      await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
+      await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' });
       const resource = await requireCreated(
         useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
       );
@@ -257,7 +257,7 @@ describe('AllocationDialog create', () => {
 
   it('books an All-projects activity for a bound placeholder under its locked project', async () => {
     const planning = await requireCreated(
-      useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' }),
+      useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' }),
     );
     const ph = await requireCreated(
       useStore.getState().addResource({
@@ -318,7 +318,7 @@ describe('AllocationDialog create', () => {
   });
 
   it('cannot attribute an All-projects activity for an unbound placeholder', async () => {
-    await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
+    await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' });
     const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',

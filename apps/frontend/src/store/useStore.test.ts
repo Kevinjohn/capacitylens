@@ -253,8 +253,8 @@ describe('store scheduler UI', () => {
     expect(s().ui.filters.activityId).toBe('activity-1');
     expect(s().ui.filters.activityKind).toBeNull();
 
-    s().setFilters({ activityKind: 'repeatable' });
-    expect(s().ui.filters.activityKind).toBe('repeatable');
+    s().setFilters({ activityKind: 'allProjects' });
+    expect(s().ui.filters.activityKind).toBe('allProjects');
     expect(s().ui.filters.activityId).toBeNull();
   });
 

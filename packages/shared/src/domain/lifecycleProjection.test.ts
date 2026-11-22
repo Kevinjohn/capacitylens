@@ -384,7 +384,7 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
     expect(out.activities.map(({ id }) => id)).toEqual(['activity-with-null-parents']);
     expect(out.allocations.map(({ id }) => id)).toEqual(['allocation-1']);
   });
-  it('hides a repeatable allocation attributed to an inactive project', () => {
+  it('hides a all-projects allocation attributed to an inactive project', () => {
     const input: AppData = {
       ...createEmptyAppData(),
       projects: [

@@ -98,11 +98,11 @@ export function assertCompanyReferences(data: AppData): void {
         'external allocations must carry zero hours',
       );
     }
-    if (activity.kind !== 'repeatable') {
+    if (activity.kind !== 'allProjects') {
       assert(
         row.projectId === null,
         `data.allocations[${index}].projectId`,
-        'only repeatable activities may carry project attribution',
+        'only all-projects activities may carry project attribution',
       );
     }
     if (row.projectId !== null) {

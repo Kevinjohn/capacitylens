@@ -16,12 +16,14 @@ export type ActivityGroupKey = 'all-projects' | 'project';
 
 /** Maps an activity kind to its toolbar option group. */
 export function resolveGroupKeyForKind(kind: Activity['kind']): ActivityGroupKey {
-  return kind === 'repeatable' ? 'all-projects' : 'project';
+  return kind === 'allProjects' ? 'all-projects' : 'project';
 }
 
 /** Uses the current locale for the toolbar option group label. */
 export function resolveGroupLabelForKind(kind: Activity['kind']): string {
-  return kind === 'repeatable' ? m.scheduler_filter_all_projects() : m.form_activity_kind_project();
+  return kind === 'allProjects'
+    ? m.scheduler_filter_all_projects()
+    : m.form_activity_kind_project();
 }
 
 function resolveGroupOrder(groupKey: Option['groupKey']): number {
@@ -36,7 +38,7 @@ function resolveDuplicateContext(
   const phaseName = activity.phaseId ? phaseById.get(activity.phaseId) : undefined;
   if (phaseName !== undefined) return phaseName;
   if (activity.kind === 'internal') return m.form_activity_kind_internal();
-  if (activity.kind === 'repeatable') return m.form_activity_kind_repeatable();
+  if (activity.kind === 'allProjects') return m.form_activity_kind_all_projects();
   return projectNamesById.get(activity.projectId ?? '') ?? 'Project';
 }
 
@@ -66,7 +68,7 @@ export function buildActivityOptions({
   const groupedProjectScope = kind === 'project' && projectId != null;
   const eligible = activities.filter((activity) =>
     groupedProjectScope
-      ? activity.kind === 'repeatable' ||
+      ? activity.kind === 'allProjects' ||
         (activity.kind === 'project' && activity.projectId === projectId)
       : activity.kind === kind && (kind !== 'project' || activity.projectId === projectId),
   );

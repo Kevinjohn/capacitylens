@@ -33,7 +33,7 @@ describe('planning intent builders', () => {
     const data = makeAppData({
       resources: [makeResource({ id: 'resource-1', companyId })],
       activities: [
-        makeActivity({ id: 'activity-1', companyId, kind: 'repeatable', projectId: null }),
+        makeActivity({ id: 'activity-1', companyId, kind: 'allProjects', projectId: null }),
       ],
     });
 

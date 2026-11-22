@@ -52,7 +52,7 @@ describe('buildActivityListModel', () => {
     const activities = [
       activity({ id: 'internal-z', name: 'Zulu internal', kind: 'internal' }),
       activity({ id: 'project-z', name: 'Zulu task', kind: 'project', projectId: 'project-a' }),
-      activity({ id: 'cross-10', name: 'Workshop 10', kind: 'repeatable' }),
+      activity({ id: 'cross-10', name: 'Workshop 10', kind: 'allProjects' }),
       activity({ id: 'project-a', name: 'Alpha task', kind: 'project', projectId: 'project-a' }),
       activity({
         id: 'missing-project',
@@ -60,7 +60,7 @@ describe('buildActivityListModel', () => {
         kind: 'project',
         projectId: 'missing-project',
       }),
-      activity({ id: 'cross-2', name: 'Workshop 2', kind: 'repeatable' }),
+      activity({ id: 'cross-2', name: 'Workshop 2', kind: 'allProjects' }),
       activity({
         id: 'missing-client',
         name: 'Visible orphan task',
@@ -92,7 +92,7 @@ describe('buildActivityListModel', () => {
       unavailableProject: 'Unavailable project',
     });
 
-    expect(model.kindOrder).toEqual(['internal', 'repeatable', 'project']);
+    expect(model.kindOrder).toEqual(['internal', 'allProjects', 'project']);
     expect(model.internal.map(({ id }) => id)).toEqual(['internal-a', 'internal-b', 'internal-z']);
     expect(model.crossProject.map(({ name }) => name)).toEqual(['Workshop 2', 'Workshop 10']);
     expect(model.clients.map(({ name }) => name)).toEqual([

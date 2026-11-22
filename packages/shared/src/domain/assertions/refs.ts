@@ -139,7 +139,7 @@ function assertActivityKind(context: ScopedRefsContext): void {
       'A project-specific activity must be assigned to a project.',
     );
   }
-  if (record.kind !== 'internal' && record.kind !== 'repeatable') return;
+  if (record.kind !== 'internal' && record.kind !== 'allProjects') return;
   if (isPresent('projectId')) {
     throwDomainError(
       'activity_project_forbidden',
@@ -299,7 +299,7 @@ export function assertScopedRefs(
 }
 
 // An allocation must reference a real resource and activity in the active account. Changed
-// repeatable attribution may reference only a live project, and placeholder allocations must
+// all-projects attribution may reference only a live project, and placeholder allocations must
 // remain effective under their bound project. External resources have no capacity and may carry
 // only zero load. Requiring `hoursPerDay` makes every allocation write check that rule.
 type AllocationRefsArgs = [

@@ -158,7 +158,7 @@ function resolveActivitySublabel(
 ): string | undefined {
   if (activity.kind === 'project') return projectName;
   if (activity.kind === 'internal') return m.palette_activity_internal();
-  return m.palette_activity_repeatable();
+  return m.palette_activity_all_projects();
 }
 
 function buildActivityItems({ data, navigate, onClose }: BuildPaletteItemsInput): PaletteItem[] {
