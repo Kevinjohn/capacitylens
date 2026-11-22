@@ -17,6 +17,20 @@ describe('invitation sign-up client', () => {
   });
 
   it.each([
+    ['a string', 'Themyscira Embassy', 'Themyscira Embassy'],
+    ['missing', undefined, null],
+    ['not a string', 42, null],
+  ])('maps a %s companyName from the preview body', async (_label, companyName, expected) => {
+    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+      Response.json({ data: { email: 'diana@themyscira.example', role: 'editor', companyName } }),
+    );
+    await expect(readInvitationPreview('token-1')).resolves.toEqual({
+      kind: 'ok',
+      preview: { email: 'diana@themyscira.example', role: 'editor', companyName: expected },
+    });
+  });
+
+  it.each([
     [new Response(null, { status: 202 }), { kind: 'signed-up' }],
     [new Response(null, { status: 502 }), { kind: 'uncertain' }],
     [Response.json({ code: 'INVALID_TOKEN' }, { status: 400 }), { kind: 'invalid-token' }],

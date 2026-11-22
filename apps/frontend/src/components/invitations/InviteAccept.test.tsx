@@ -47,6 +47,23 @@ describe('InviteAccept outcomes', () => {
     );
   });
 
+  it('shows the company name from the preview', async () => {
+    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+      Response.json({ data: preview }),
+    );
+    renderPage();
+    expect(await screen.findByTestId('invite-company')).toHaveTextContent('Wayne Enterprises');
+  });
+
+  it('hides the company line when the preview has no company name', async () => {
+    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+      Response.json({ data: { ...preview, companyName: null } }),
+    );
+    renderPage();
+    expect(await screen.findByTestId('invite-role')).toBeInTheDocument();
+    expect(screen.queryByTestId('invite-company')).not.toBeInTheDocument();
+  });
+
   it('sends the person to sign in when the sign-up answer is lost', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
