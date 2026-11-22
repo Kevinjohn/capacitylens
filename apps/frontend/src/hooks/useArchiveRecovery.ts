@@ -29,17 +29,17 @@ export function useArchiveRecovery() {
       }),
     [reload],
   );
-  const accessKey = buildAccessKey(planning.authority);
+  const accessKey = buildAccessKey(planning.access);
   const enabled =
     mayWrite &&
     !!companyId &&
     !!user &&
     permissionStatus === 'resolved' &&
-    planning.authority !== null &&
-    planning.authority.actorId === user.id &&
-    planning.authority.effectiveActorId === user.id &&
-    planning.authority.role === role &&
-    planning.authority.canWrite &&
+    planning.access !== null &&
+    planning.access.actorId === user.id &&
+    planning.access.effectiveActorId === user.id &&
+    planning.access.role === role &&
+    planning.access.canWrite &&
     planning.context?.companyId === companyId &&
     planning.phase.kind === 'ready';
   const scope = {

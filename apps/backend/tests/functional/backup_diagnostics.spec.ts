@@ -150,7 +150,7 @@ test.group('backup diagnostics', (group) => {
         connectivity: 'ok',
         database: { status: 'ok' },
         schema: { migration: latest!.name },
-        backup: { newestSnapshotAt: null },
+        backup: { newestBackupAt: null },
       },
     });
   });
@@ -170,7 +170,7 @@ test.group('backup diagnostics', (group) => {
       const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first();
       const response = await owner.visit('api.diagnostics.show');
       assert.equal(response.status(), 200);
-      assert.deepEqual(warnings, [['Diagnostics could not inspect completed snapshots']]);
+      assert.deepEqual(warnings, [['Diagnostics could not inspect completed backups']]);
       const output = JSON.stringify(warnings);
       assert.notInclude(output, root);
       assert.notInclude(output, 'ENOENT');
@@ -180,7 +180,7 @@ test.group('backup diagnostics', (group) => {
           connectivity: 'ok',
           database: { status: 'ok' },
           schema: { migration: latest!.name },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
     } finally {
@@ -211,7 +211,7 @@ test.group('backup diagnostics', (group) => {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: null },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
       assert.deepEqual(warnings, [
@@ -249,7 +249,7 @@ test.group('backup diagnostics', (group) => {
       const response = await owner.visit('api.diagnostics.show');
       assert.equal(response.status(), 200);
       assert.containsSubset(response.body().data, {
-        server: { backup: { newestSnapshotAt: '2026-10-21T23:00:00.000Z' } },
+        server: { backup: { newestBackupAt: '2026-10-21T23:00:00.000Z' } },
       });
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '');
@@ -267,7 +267,7 @@ test.group('backup diagnostics', (group) => {
       const response = await owner.visit('api.diagnostics.show');
       assert.equal(response.status(), 200);
       assert.containsSubset(response.body().data, {
-        server: { backup: { newestSnapshotAt: null } },
+        server: { backup: { newestBackupAt: null } },
       });
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '');

@@ -3,12 +3,12 @@ import { seed } from './seed.js';
 import {
   COMPANY_EXPORT_FORMAT,
   COMPANY_EXPORT_SCHEMA_VERSION,
-  CompanyDocumentError,
+  CompanyExportError,
   buildCompanyExport,
   parseCompanyExport,
   prepareCompanyImport,
   serializeCompanyExport,
-} from './companyDocument.js';
+} from './companyExport.js';
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import { buildInternalClientId } from './internalClient.js';
 
@@ -186,10 +186,10 @@ describe('beta-native transfer', () => {
     for (const [name, corrupt] of cases) {
       const changed = structuredClone(document);
       corrupt(changed);
-      expect(() => prepareCompanyImport(changed, context), name).toThrow(CompanyDocumentError);
+      expect(() => prepareCompanyImport(changed, context), name).toThrow(CompanyExportError);
     }
     expect(() => parseCompanyExport(JSON.stringify({ schemaVersion: 24, data: original }))).toThrow(
-      CompanyDocumentError,
+      CompanyExportError,
     );
   });
 
@@ -230,7 +230,7 @@ describe('beta-native transfer', () => {
     } catch (caught) {
       error = caught;
     }
-    expect(error).toBeInstanceOf(CompanyDocumentError);
+    expect(error).toBeInstanceOf(CompanyExportError);
     expect((error as Error).message).not.toContain('do not echo');
     expect((error as Error).cause).toBeInstanceOf(SyntaxError);
   });

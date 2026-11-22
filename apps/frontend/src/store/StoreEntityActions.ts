@@ -31,7 +31,7 @@ export type AllocationSaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 
 export type AllocationCreateResult<T> =
   ({ kind: 'created'; value: T } & AllocationSaveAdvisory) | { kind: 'blocked' };
 
-/** Store actions write the active company through the canonical planning transport. Authority
+/** Store actions write the active company through the canonical planning transport. Access
  * restrictions may return a blocked result or no-op; stale IDs are no-ops. Reference and input-integrity
  * failures throw, and callers handling user input must surface them. An edit form passes its row's
  * `updatedAt` from when it opened as `expectedUpdatedAt`; the server refuses the update when the row
@@ -88,10 +88,10 @@ export interface StoreEntityActions {
     input: Draft<Allocation>,
   ) => Promise<AllocationCreateResult<Allocation>>;
   /** Apply an allocation patch and resolve with the save reply's capacity advisory. False means an
-   * authority refusal, a missing target or no change; validation, company scoping and server refusals reject. */
+   * access refusal, a missing target or no change; validation, company scoping and server refusals reject. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<false | AllocationSaveAdvisory>;
   /** Move an allocation onto another resource and dates. The server decides the hours it carries
-   * there; false means an authority refusal or a missing allocation. */
+   * there; false means an access refusal or a missing allocation. */
   reassignAllocation: (
     id: ID,
     placement: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate'>,

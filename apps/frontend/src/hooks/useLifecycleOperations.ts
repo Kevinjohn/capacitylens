@@ -10,7 +10,7 @@ import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy';
 // Archive and restore use typed planning intents. Anonymisation has a named server route;
 // uncertain results require authoritative recovery before another irreversible attempt.
 
-type LifecycleVerb = 'archive' | 'unarchive' | 'anonymise';
+type LifecycleVerb = 'archive' | 'restore' | 'anonymise';
 
 /**
  * The dispatch surface returned by {@link useLifecycleOperations}. Each method runs one lifecycle
@@ -20,7 +20,7 @@ type LifecycleVerb = 'archive' | 'unarchive' | 'anonymise';
  */
 export interface LifecycleOperations {
   archive: (entity: LifecycleEntity, id: string) => Promise<void>;
-  unarchive: (entity: LifecycleEntity, id: string) => Promise<void>;
+  restore: (entity: LifecycleEntity, id: string) => Promise<void>;
   anonymise: (id: string) => Promise<void>;
 }
 
@@ -53,20 +53,20 @@ export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperat
       const execute = async () => {
         try {
           if (!activeCompanyId || useStore.getState().activeCompanyId !== activeCompanyId) return;
-          if (verb === 'archive' || verb === 'unarchive') {
+          if (verb === 'archive' || verb === 'restore') {
             // Archiving from a list is confirmed there and is not offered for undo.
             const intentRequest: PlanningIntentRequest =
               entity === 'resources'
                 ? verb === 'archive'
                   ? { intent: { operation: 'resource.archive', id }, endsHistory: true }
-                  : { intent: { operation: 'resource.unarchive', id }, endsHistory: true }
+                  : { intent: { operation: 'resource.restore', id }, endsHistory: true }
                 : verb === 'archive'
                   ? {
                       intent: { operation: 'catalogue.archive', entity: { entity, id } },
                       endsHistory: true,
                     }
                   : {
-                      intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
+                      intent: { operation: 'catalogue.restore', entity: { entity, id } },
                       endsHistory: true,
                     };
             const receipt = await useStore.getState().sendPlanningIntent(intentRequest);
@@ -98,7 +98,7 @@ export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperat
   return useMemo<LifecycleOperations>(
     () => ({
       archive: (entity, id) => run('archive', entity, id),
-      unarchive: (entity, id) => run('unarchive', entity, id),
+      restore: (entity, id) => run('restore', entity, id),
       anonymise: (id) => run('anonymise', 'resources', id),
     }),
     [run],

@@ -6,21 +6,21 @@ import type { PlanningSnapshot } from './planningCacheTypes';
 
 // Shape and scope checks for server reads and receipts.
 
-function isValidAccess(authority: unknown): boolean {
+function isValidAccess(access: unknown): boolean {
   return (
-    isRecord(authority) &&
-    typeof authority.actorId === 'string' &&
-    typeof authority.effectiveActorId === 'string' &&
-    typeof authority.role === 'string' &&
-    typeof authority.canWrite === 'boolean' &&
-    typeof authority.canSeePrivateNames === 'boolean' &&
-    typeof authority.canSeeTimeOffNote === 'boolean'
+    isRecord(access) &&
+    typeof access.actorId === 'string' &&
+    typeof access.effectiveActorId === 'string' &&
+    typeof access.role === 'string' &&
+    typeof access.canWrite === 'boolean' &&
+    typeof access.canSeePrivateNames === 'boolean' &&
+    typeof access.canSeeTimeOffNote === 'boolean'
   );
 }
 
 function isValidSlice(snapshot: Record<string, unknown>): boolean {
-  if (snapshot.slice === 'unchanged') return !('data' in snapshot);
-  if (snapshot.slice !== undefined && snapshot.slice !== 'full') return false;
+  if (snapshot.content === 'unchanged') return !('data' in snapshot);
+  if (snapshot.content !== undefined && snapshot.content !== 'full') return false;
   const data = snapshot.data;
   return (
     isRecord(data) &&
@@ -38,7 +38,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
     typeof snapshot.revision === 'number' &&
     snapshot.revision >= 0 &&
     isValidSlice(snapshot) &&
-    isValidAccess(snapshot.authority) &&
+    isValidAccess(snapshot.access) &&
     isValidISODate(snapshot.today) &&
     (snapshot.history === undefined ||
       (isRecord(snapshot.history) &&
@@ -48,7 +48,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
 }
 
 export function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: string): boolean {
-  if (snapshot.slice === 'unchanged') return true;
+  if (snapshot.content === 'unchanged') return true;
   return (
     snapshot.data.companies.length === 1 &&
     snapshot.data.companies.every((company) => isRecord(company) && company.id === companyId) &&

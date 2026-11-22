@@ -1,12 +1,12 @@
 import type { AppData } from '../types/entities.js';
 import { INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from './internalClient.js';
 import { resolveEffectiveProjectId, validateAllocationAssignment } from '../lib/integrity.js';
-import { assert } from './companyDocument.errors.js';
+import { assert } from './companyExport.errors.js';
 
 /**
  * Checks references and cross-row invariants without active-only write restrictions.
  *
- * @throws CompanyDocumentError naming the first broken reference.
+ * @throws CompanyExportError naming the first broken reference.
  */
 export function assertCompanyReferences(data: AppData): void {
   const disciplines = new Set(data.disciplines.map((row) => row.id));
