@@ -155,7 +155,7 @@ test.group('upgrade command', () => {
       const init = ace(appRoot, dbPath, 'app:upgrade');
       assert.equal(init.status, 0, init.output);
       const database = new Database(dbPath);
-      database.prepare('DROP TRIGGER clients_account_immutable').run();
+      database.prepare('DROP TRIGGER clients_company_immutable').run();
       database.close();
       const drift = ace(appRoot, dbPath, 'app:upgrade');
       assert.isNotNull(drift.status, drift.output);

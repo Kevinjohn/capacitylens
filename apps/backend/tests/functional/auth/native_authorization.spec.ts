@@ -141,7 +141,7 @@ test.group('native authorization and role projections', (group) => {
     await db.from('memberships').delete();
     await db.from('users').delete();
     await db.from('rate_limits').delete();
-    await db.from('account_getting_started_dismissals').delete();
+    await db.from('company_getting_started_dismissals').delete();
     await resetState(true);
   });
 
@@ -239,12 +239,12 @@ test.group('native authorization and role projections', (group) => {
         `${role} checklist dismissal`
       );
       const dismissalCount = await db
-        .from('account_getting_started_dismissals')
+        .from('company_getting_started_dismissals')
         .where('company_id', companyId)
         .count('* as total');
       assert.equal(dismissalCount[0]?.total, role === 'admin' || role === 'owner' ? 1 : 0);
       if (role === 'admin' || role === 'owner') {
-        await db.from('account_getting_started_dismissals').delete();
+        await db.from('company_getting_started_dismissals').delete();
       }
 
       const target = role === 'owner' ? anonymiseCandidates[1]! : anonymiseCandidates[0]!;
@@ -351,7 +351,7 @@ test.group('native authorization and role projections', (group) => {
     stillReadable.assertStatus(200);
     assert.deepEqual(
       await db
-        .from('account_getting_started_dismissals')
+        .from('company_getting_started_dismissals')
         .where('company_id', companyId)
         .count('* as total'),
       [{ total: 1 }]

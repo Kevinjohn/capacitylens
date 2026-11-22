@@ -388,7 +388,7 @@ test.group('native read-only masquerade', (group) => {
       const saved = await normalWrite;
       saved.assertStatus(200);
       assert.isDefined(
-        await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
+        await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
       );
       const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
       status.assertStatus(200);
@@ -456,7 +456,7 @@ test.group('native read-only masquerade', (group) => {
       refused.assertStatus(403);
       assert.equal((refused.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY');
       assert.isNull(
-        await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
+        await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
       );
     } finally {
       release.resolve();
@@ -678,7 +678,7 @@ test.group('native read-only masquerade', (group) => {
     // The body parser runs before the masquerade route rules, so a malformed write is refused as malformed.
     malformed.assertStatus(400);
     assert.notExists(
-      await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
+      await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
     );
     const signedOut = await asSession(
       client.visit('api.session.destroy').header('sec-fetch-site', 'same-origin'),
@@ -741,7 +741,7 @@ test.group('native read-only masquerade', (group) => {
       .where({ scope_id: 'a-studio', user_id: targetId })
       .update({ status: 'active' });
     const now = new Date().toISOString();
-    await db.table('accounts').insert({
+    await db.table('companies').insert({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#123456',

@@ -46,7 +46,7 @@ export const foreignKeyIndexes = [
 ] as const;
 
 export const baselineTables = [
-  'accounts',
+  'companies',
   'clients',
   'disciplines',
   'projects',
@@ -72,7 +72,7 @@ export const baselineTables = [
   'deleted_groups',
   'deleted_rows',
   'password_confirmations',
-  'account_getting_started_dismissals',
+  'company_getting_started_dismissals',
   'adonis_sessions',
   'password_reset_tokens',
   'account_transaction_lock',
@@ -114,7 +114,7 @@ export function stripLifecycle<T extends { archivedAt?: string | null; deletedAt
 }
 
 export const fullFixtureRows = [
-  ['accounts', [FIXTURE_COMPANY]],
+  ['companies', [FIXTURE_COMPANY]],
   ['clients', [stripLifecycle(FIXTURE_CLIENT)]],
   ['disciplines', [FIXTURE_DISCIPLINE]],
   ['projects', [stripLifecycle(FIXTURE_PROJECT)]],

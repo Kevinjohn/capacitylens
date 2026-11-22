@@ -27,7 +27,7 @@ test.group('disposable development demo', (group) => {
     await assert.rejects(() => prepareDisposableDemo(production), /forbidden in production/);
     await assert.rejects(() => seedDisposableDemo(production), /forbidden in production/);
     assert.lengthOf(await db.from('users'), 0);
-    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('companies'), 0);
   });
 
   test('seed requires the admitted development identity and never adopts another identity', async ({
@@ -38,7 +38,7 @@ test.group('disposable development demo', (group) => {
     await assert.rejects(() => seedDisposableDemo(app), /administrator is missing/);
     await createIdentity(email, { password, admitted: false });
     await assert.rejects(() => seedDisposableDemo(app), /administrator is not admitted/);
-    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('companies'), 0);
     assert.lengthOf(await db.from('memberships'), 0);
   });
 
@@ -57,10 +57,10 @@ test.group('disposable development demo', (group) => {
       env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', originalPassword ?? '');
     }
     const owner = await db.from('users').where('email', email).firstOrFail();
-    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('companies'), 0);
     assert.lengthOf(await db.from('memberships'), 0);
     await seedDisposableDemo(app);
-    const accounts = await db.from('accounts');
+    const accounts = await db.from('companies');
     assert.deepEqual(
       accounts.map((row) => row.id),
       ['a-studio']
@@ -112,7 +112,7 @@ test.group('disposable development demo', (group) => {
     // independent membership check without manufacturing an invalid persisted foreign key.
     const originalFrom = db.from;
     db.from = ((table: string) =>
-      table === 'accounts'
+      table === 'companies'
         ? { first: async () => undefined }
         : originalFrom.call(db, table)) as typeof db.from;
     try {
@@ -135,7 +135,7 @@ test.group('disposable development demo', (group) => {
     try {
       await assert.rejects(() => seedDisposableDemo(app), /staged audit failure/);
       for (const table of [
-        'accounts',
+        'companies',
         'clients',
         'allocations',
         'memberships',
@@ -187,7 +187,7 @@ test.group('disposable development demo', (group) => {
       }
       const database = f.inspect();
       try {
-        for (const table of ['users', 'accounts', 'memberships'])
+        for (const table of ['users', 'companies', 'memberships'])
           assert.lengthOf(database.prepare(`SELECT 1 FROM ${table}`).all(), 0, table);
       } finally {
         database.close();

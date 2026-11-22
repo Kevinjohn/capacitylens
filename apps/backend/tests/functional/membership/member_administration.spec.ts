@@ -490,7 +490,7 @@ test.group('company member administration', (group) => {
         .send();
       second.assertStatus(409);
       second.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
-      assert.deepEqual(await db.from('accounts').select('id'), [{ id: 'a-studio' }]);
+      assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }]);
     } finally {
       Date.now = realNow;
     }

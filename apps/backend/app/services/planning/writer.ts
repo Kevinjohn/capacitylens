@@ -115,9 +115,9 @@ export async function updateSettings(
   // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
   fillNullableFields('accounts', validated);
   await trx
-    .from('accounts')
+    .from('companies')
     .where('id', companyId)
-    .update(encodeRow('accounts', asRecord(validated)));
+    .update(encodeRow('companies', asRecord(validated)));
   const before = { ...existing };
   Object.assign(existing, validated);
   written.push({ entity: 'accounts', id: companyId, before, after: { ...existing } });

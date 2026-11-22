@@ -59,7 +59,7 @@ test.group('app reset command', () => {
       const fresh = new DatabaseSync(destination);
       for (const table of [
         'users',
-        'accounts',
+        'companies',
         'memberships',
         'account_invitations',
         'account_admissions',

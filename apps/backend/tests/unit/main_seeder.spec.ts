@@ -15,12 +15,12 @@ test.group('main seeder', () => {
       const first = fixture.command(['db:seed']);
       assert.equal(first.status, 0, first.output);
       const database = fixture.inspect();
-      const account = database.prepare('SELECT id FROM accounts ORDER BY id LIMIT 1').get() as {
+      const account = database.prepare('SELECT id FROM companies ORDER BY id LIMIT 1').get() as {
         id: string;
       };
       const now = new Date().toISOString();
       database
-        .prepare('UPDATE accounts SET name = ? WHERE id = ?')
+        .prepare('UPDATE companies SET name = ? WHERE id = ?')
         .run('Wayne Operations', account.id);
       database
         .prepare(
@@ -29,7 +29,7 @@ test.group('main seeder', () => {
         .run('seed-survival', account.id, 'operator.note', 'installation', now, now);
       const before = Object.fromEntries(
         [
-          'accounts',
+          'companies',
           'clients',
           'disciplines',
           'projects',
@@ -53,7 +53,7 @@ test.group('main seeder', () => {
       const after = fixture.inspect();
       assert.equal(
         (
-          after.prepare('SELECT name FROM accounts WHERE id = ?').get(account.id) as {
+          after.prepare('SELECT name FROM companies WHERE id = ?').get(account.id) as {
             name: string;
           }
         ).name,

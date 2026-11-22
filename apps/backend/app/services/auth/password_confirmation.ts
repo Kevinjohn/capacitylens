@@ -49,7 +49,7 @@ export async function requirePasswordConfirmationActor(
   refuseWhileViewing(actor);
   // The company id arrives in a request body with no length bound, and the membership lookup
   // rejects an overlong id as a fault. This probe turns any unknown id into the proof refusal.
-  if (!(await trx.from('accounts').where('id', companyId).select('id').first())) {
+  if (!(await trx.from('companies').where('id', companyId).select('id').first())) {
     throw new PasswordConfirmationException();
   }
   if (!canConfirmPassword(await getActiveCompanyRole(actor.userId, companyId, trx), kind)) {

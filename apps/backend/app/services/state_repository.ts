@@ -21,7 +21,7 @@ const buildSnakeKey = (key: string) =>
   key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 const models = {
-  accounts: Company,
+  companies: Company,
   clients: Client,
   disciplines: Discipline,
   projects: Project,

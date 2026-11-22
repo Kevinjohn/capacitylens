@@ -41,7 +41,7 @@ test.group('company export download', (group) => {
     const signedIn = await reset(client);
     client = signedIn.client;
     await archiveResource();
-    await db.from('accounts').where('id', 'a-studio').update({ date_style: 'month-day' });
+    await db.from('companies').where('id', 'a-studio').update({ date_style: 'month-day' });
     for (const role of roles) {
       await setRole(signedIn.userId, role);
       const response = await client

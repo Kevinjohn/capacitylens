@@ -17,7 +17,7 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
   if (!(await db.from('users').where('email', ownerEmail).select('id').first()))
     await createIdentity(ownerEmail, { name: 'Bruce Wayne' });
   const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail);
-  const accounts = await db.from('accounts').select('id');
+  const accounts = await db.from('companies').select('id');
   const now = new Date().toISOString();
   for (const account of accounts)
     await db.table('memberships').insert({
@@ -109,8 +109,8 @@ export async function createFixtureCompanyForOwner(
   await db.transaction(async (trx) => {
     const user = await trx.from('users').where('id', userId).select('id').first();
     if (!user) throw new Error('A fixture company requires an existing native user.');
-    await trx.table('accounts').insert(
-      encodeRow('accounts', {
+    await trx.table('companies').insert(
+      encodeRow('companies', {
         id,
         name: companyName,
         color: FALLBACK_PRESET_COLOR,

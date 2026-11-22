@@ -165,9 +165,9 @@ export async function applyCompanyImport(
   const company = prepared.data.accounts.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one account.');
   await trx
-    .from('accounts')
+    .from('companies')
     .where('id', companyId)
-    .update(encodeRow('accounts', company as unknown as Record<string, unknown>));
+    .update(encodeRow('companies', company as unknown as Record<string, unknown>));
   for (const key of SCOPED_WRITE_ORDER) {
     const rows = prepared.data[key];
     for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {

@@ -40,19 +40,6 @@ export class AccountAdmissionSchema extends BaseModel {
   declare userId: string | null
 }
 
-export class AccountGettingStartedDismissalSchema extends BaseModel {
-  static $columns = ['companyId', 'createdAt', 'id', 'updatedAt'] as const
-  $columns = AccountGettingStartedDismissalSchema.$columns
-  @column()
-  declare companyId: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column({ isPrimary: true })
-  declare id: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-}
-
 export class AccountInvitationSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'role', 'scope', 'tokenHash', 'updatedAt'] as const
   $columns = AccountInvitationSchema.$columns
@@ -121,45 +108,6 @@ export class AccountTransactionLockSchema extends BaseModel {
   declare id: number
   @column()
   declare version: number
-}
-
-export class AccountSchema extends BaseModel {
-  static $columns = ['capacityOverviewAccess', 'color', 'createdAt', 'dateStyle', 'disciplinesEnabled', 'externalEnabled', 'id', 'inlineActivityCreateEnabled', 'language', 'name', 'placeholdersEnabled', 'schedulingMode', 'showTaskFieldInSchedule', 'timezone', 'updatedAt', 'weekStartsOn', 'workingDays'] as const
-  $columns = AccountSchema.$columns
-  @column()
-  declare capacityOverviewAccess: import('@capacitylens/shared/types/entities').CapacityOverviewAccess | null
-  @column()
-  declare color: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare dateStyle: import('@capacitylens/shared/types/entities').DateStyle | null
-  @column()
-  declare disciplinesEnabled: boolean | null
-  @column()
-  declare externalEnabled: boolean | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare inlineActivityCreateEnabled: boolean | null
-  @column()
-  declare language: string | null
-  @column()
-  declare name: string
-  @column()
-  declare placeholdersEnabled: boolean | null
-  @column()
-  declare schedulingMode: import('@capacitylens/shared/types/entities').SchedulingMode | null
-  @column()
-  declare showTaskFieldInSchedule: boolean | null
-  @column()
-  declare timezone: string | null
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-  @column()
-  declare weekStartsOn: 0 | 1 | null
-  @column()
-  declare workingDays: import('@capacitylens/shared/types/entities').Weekday[] | null
 }
 
 export class ActivitySchema extends BaseModel {
@@ -308,6 +256,58 @@ export class ClosureSchema extends BaseModel {
   declare name: string
   @column()
   declare startDate: import('@capacitylens/shared/types/entities').ISODate
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CompanySchema extends BaseModel {
+  static $columns = ['capacityOverviewAccess', 'color', 'createdAt', 'dateStyle', 'disciplinesEnabled', 'externalEnabled', 'id', 'inlineActivityCreateEnabled', 'language', 'name', 'placeholdersEnabled', 'schedulingMode', 'showTaskFieldInSchedule', 'timezone', 'updatedAt', 'weekStartsOn', 'workingDays'] as const
+  $columns = CompanySchema.$columns
+  @column()
+  declare capacityOverviewAccess: import('@capacitylens/shared/types/entities').CapacityOverviewAccess | null
+  @column()
+  declare color: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare dateStyle: import('@capacitylens/shared/types/entities').DateStyle | null
+  @column()
+  declare disciplinesEnabled: boolean | null
+  @column()
+  declare externalEnabled: boolean | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare inlineActivityCreateEnabled: boolean | null
+  @column()
+  declare language: string | null
+  @column()
+  declare name: string
+  @column()
+  declare placeholdersEnabled: boolean | null
+  @column()
+  declare schedulingMode: import('@capacitylens/shared/types/entities').SchedulingMode | null
+  @column()
+  declare showTaskFieldInSchedule: boolean | null
+  @column()
+  declare timezone: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare weekStartsOn: 0 | 1 | null
+  @column()
+  declare workingDays: import('@capacitylens/shared/types/entities').Weekday[] | null
+}
+
+export class CompanyGettingStartedDismissalSchema extends BaseModel {
+  static $columns = ['companyId', 'createdAt', 'id', 'updatedAt'] as const
+  $columns = CompanyGettingStartedDismissalSchema.$columns
+  @column()
+  declare companyId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }

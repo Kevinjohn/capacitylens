@@ -50,7 +50,7 @@ try {
 } catch {
   process.exit(3)
 }
-db.prepare('UPDATE accounts SET name = ? WHERE id = ?').run('Wayne Revised', companyId)
+db.prepare('UPDATE companies SET name = ? WHERE id = ?').run('Wayne Revised', companyId)
 db.prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND scope_id = ?').run('viewer', userId, companyId)
 db.prepare('INSERT INTO company_planning_revisions(company_id, revision) VALUES (?, 1) ON CONFLICT(company_id) DO UPDATE SET revision = 1').run(companyId)
 db.exec('COMMIT')`,

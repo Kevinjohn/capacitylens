@@ -71,7 +71,7 @@ export function seedSmokeViewer(path, { companyId, actorUserId, targetUserId, ta
   assert.notEqual(actorUserId, targetUserId);
   const database = new DatabaseSync(path);
   try {
-    const account = database.prepare('SELECT id FROM accounts WHERE id = ?').get(companyId);
+    const account = database.prepare('SELECT id FROM companies WHERE id = ?').get(companyId);
     const target = database.prepare('SELECT id, email FROM users WHERE id = ?').get(targetUserId);
     assert.ok(account, 'Smoke Viewer fixture account is missing');
     assert.ok(target, 'Smoke Viewer fixture identity is missing');

@@ -11,8 +11,8 @@ test.group('data contract', (group) => {
     const data = seed();
     const account = data.accounts[0]!;
     await db
-      .table('accounts')
-      .insert(encodeRow('accounts', account as unknown as Record<string, unknown>));
+      .table('companies')
+      .insert(encodeRow('companies', account as unknown as Record<string, unknown>));
     const state = await readState(account.id, true);
     assert.property(state.accounts[0], 'timezone');
     assert.isNull(state.accounts[0]?.timezone);

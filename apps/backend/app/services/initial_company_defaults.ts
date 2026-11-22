@@ -21,8 +21,8 @@ export async function createInitialCompany(
   const name = input.name;
   const companyId = crypto.randomUUID();
   const now = input.now ?? new Date().toISOString();
-  await trx.table('accounts').insert(
-    encodeRow('accounts', {
+  await trx.table('companies').insert(
+    encodeRow('companies', {
       ...NULLABLE_FIELDS.accounts,
       id: companyId,
       name,

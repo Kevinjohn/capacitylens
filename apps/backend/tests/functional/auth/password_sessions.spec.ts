@@ -25,7 +25,7 @@ const dismiss = (client: ApiClient, cookie: string) =>
     .timeout({ response: 10000, deadline: 15000 })
     .json({ dismissed: true })
     .send();
-const dismissals = () => db.from('account_getting_started_dismissals');
+const dismissals = () => db.from('company_getting_started_dismissals');
 
 async function owner(options: { verified?: boolean; admitted?: boolean } = {}) {
   const userId = await createIdentity(email, { name: 'Bruce Wayne', password, ...options });

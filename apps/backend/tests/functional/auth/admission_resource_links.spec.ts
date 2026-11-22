@@ -80,7 +80,7 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
     ]);
-    await db.table('accounts').insert({
+    await db.table('companies').insert({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
@@ -198,7 +198,7 @@ test.group('direct member resource association', (group) => {
     const ownerId = (owner.body().data as { user: { id: string } }).user.id;
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const now = new Date().toISOString();
-    await db.table('accounts').insert({
+    await db.table('companies').insert({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',

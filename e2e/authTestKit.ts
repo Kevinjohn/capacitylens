@@ -87,7 +87,7 @@ function openAuthE2EDatabase(): DatabaseSync {
         'account_admissions',
         'audit_entries',
         'account_member_resources',
-        'accounts',
+        'companies',
         'clients',
         'company_planning_revisions',
       ].some((table) => !tableNames.has(table))
@@ -220,7 +220,7 @@ function removeAuthE2EAccount(db: DatabaseSync, companyId: string): void {
   db.prepare('DELETE FROM audit_entries WHERE company_id = ?').run(companyId);
   db.prepare('DELETE FROM account_member_resources WHERE company_id = ?').run(companyId);
   db.prepare('DELETE FROM memberships WHERE scope_id = ?').run(companyId);
-  db.prepare('DELETE FROM accounts WHERE id = ?').run(companyId);
+  db.prepare('DELETE FROM companies WHERE id = ?').run(companyId);
 }
 
 function insertAuthE2ECompany(
@@ -237,7 +237,7 @@ function insertAuthE2ECompany(
   const { companyId, name, ownerId, now, track, recordInitialization } = input;
   const internal = buildInternalClient(companyId, now);
   db.prepare(
-    `INSERT INTO accounts (
+    `INSERT INTO companies (
        id, name, color, scheduling_mode, timezone, week_starts_on, working_days, language,
        disciplines_enabled, placeholders_enabled, external_enabled, inline_activity_create_enabled,
        show_task_field_in_schedule, capacity_overview_access, date_style, created_at, updated_at
@@ -294,16 +294,16 @@ function insertAuthE2ECompany(
 function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
   const rows = db
     .prepare(
-      `SELECT accounts.id
-       FROM accounts
-       JOIN memberships ON memberships.scope_id = accounts.id
+      `SELECT companies.id
+       FROM companies
+       JOIN memberships ON memberships.scope_id = companies.id
        JOIN users ON users.id = memberships.user_id
-       WHERE accounts.name = ?
+       WHERE companies.name = ?
          AND users.email = ?
          AND memberships.role = 'owner'
          AND memberships.status = 'active'
          AND NOT EXISTS (
-           SELECT 1 FROM auth_e2e_fixture_companies WHERE company_id = accounts.id
+           SELECT 1 FROM auth_e2e_fixture_companies WHERE company_id = companies.id
          )`,
     )
     .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<{ id: string }>;
@@ -318,7 +318,7 @@ function removeTemporaryBaselineCompany(db: DatabaseSync): void {
 
 /** Restores the disposable one-company server state after scenario companies are removed. */
 function ensureTemporaryBaselineCompany(db: DatabaseSync): void {
-  if (db.prepare('SELECT id FROM accounts LIMIT 1').get()) return;
+  if (db.prepare('SELECT id FROM companies LIMIT 1').get()) return;
   const owner = db.prepare('SELECT id FROM users WHERE email = ?').get(AUTH_E2E_BASELINE_OWNER) as
     { id: string } | undefined;
   if (!owner) throw new Error('The real Auth E2E baseline owner is unavailable.');
@@ -346,11 +346,11 @@ export function readAuthE2EBaselineSnapshot(): {
   try {
     const baselineRows = db
       .prepare(
-        `SELECT accounts.*
-         FROM accounts
-         JOIN memberships ON memberships.scope_id = accounts.id
+        `SELECT companies.*
+         FROM companies
+         JOIN memberships ON memberships.scope_id = companies.id
          JOIN users ON users.id = memberships.user_id
-         WHERE accounts.name = ? AND users.email = ? AND memberships.role = 'owner' AND memberships.status = 'active'`,
+         WHERE companies.name = ? AND users.email = ? AND memberships.role = 'owner' AND memberships.status = 'active'`,
       )
       .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<Record<string, unknown>>;
     if (baselineRows.length > 1)

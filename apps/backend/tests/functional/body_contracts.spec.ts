@@ -182,7 +182,7 @@ test.group('request body contracts', (group) => {
       captureMail(cleanup);
       const contract = contracts[name];
       const owner = await resetAuthenticatedClient(client);
-      const { id: companyId } = await db.from('accounts').select('id').firstOrFail();
+      const { id: companyId } = await db.from('companies').select('id').firstOrFail();
       const valid = contract.body(companyId);
       const refusals: [string, Record<string, unknown>, string][] = [
         ['unknown key', { ...valid, extra: true }, contract.sentence],

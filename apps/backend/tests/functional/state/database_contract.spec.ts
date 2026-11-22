@@ -77,8 +77,8 @@ test.group('database contract', (group) => {
 
   test('schema checks reject an unknown enum value or reversed date range')
     .with([
-      { table: 'accounts', id: companyIds.dc, values: { scheduling_mode: 'weekly' } },
-      { table: 'accounts', id: companyIds.dc, values: { date_style: 'iso' } },
+      { table: 'companies', id: companyIds.dc, values: { scheduling_mode: 'weekly' } },
+      { table: 'companies', id: companyIds.dc, values: { date_style: 'iso' } },
       { table: 'resources', id: 'm1-dc-resource', values: { kind: 'robot' } },
       { table: 'resources', id: 'm1-dc-resource', values: { employment_type: 'intern' } },
       { table: 'resources', id: 'm1-dc-resource', values: { engagement: 'remote' } },
@@ -107,11 +107,11 @@ test.group('database contract', (group) => {
         id: 'm1-dc-closure',
         values: { start_date: '2026-02-01', end_date: '2026-01-01' },
       },
-      { table: 'accounts', id: companyIds.dc, values: { disciplines_enabled: 'true' } },
-      { table: 'accounts', id: companyIds.dc, values: { placeholders_enabled: 'true' } },
-      { table: 'accounts', id: companyIds.dc, values: { external_enabled: 'true' } },
-      { table: 'accounts', id: companyIds.dc, values: { inline_activity_create_enabled: 'true' } },
-      { table: 'accounts', id: companyIds.dc, values: { show_task_field_in_schedule: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { disciplines_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { placeholders_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { external_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { inline_activity_create_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { show_task_field_in_schedule: 'true' } },
       { table: 'clients', id: 'm1-dc-client', values: { is_private: 'true' } },
       { table: 'clients', id: 'm1-dc-client', values: { builtin: 'true' } },
       { table: 'projects', id: 'm1-dc-project', values: { is_private: 'true' } },
@@ -137,8 +137,8 @@ test.group('database contract', (group) => {
 
   test('each enum CHECK lists exactly the shared runtime list')
     .with([
-      { table: 'accounts', column: 'scheduling_mode', values: SCHEDULING_MODES },
-      { table: 'accounts', column: 'date_style', values: DATE_STYLES },
+      { table: 'companies', column: 'scheduling_mode', values: SCHEDULING_MODES },
+      { table: 'companies', column: 'date_style', values: DATE_STYLES },
       { table: 'resources', column: 'kind', values: RESOURCE_KINDS },
       { table: 'resources', column: 'employment_type', values: EMPLOYMENT_TYPES },
       { table: 'resources', column: 'engagement', values: RESOURCE_ENGAGEMENTS },
@@ -181,7 +181,7 @@ test.group('database contract', (group) => {
       ),
       2
     );
-    await db.from('accounts').where('id', companyIds.dc).delete();
+    await db.from('companies').where('id', companyIds.dc).delete();
     assert.isNull(await db.from('request_receipts').where('id', receipts[0]!.id).first());
     assert.isNotNull(await db.from('request_receipts').where('id', receipts[1]!.id).first());
   });
@@ -465,12 +465,12 @@ test.group('database contract', (group) => {
     }
 
     await db
-      .from('accounts')
+      .from('companies')
       .where('id', companyIds.dc)
       .update({ capacity_overview_access: JSON.stringify('all_users') });
     await assert.rejects(
       () => readState(),
-      /Invalid persisted JSON in accounts\.capacity_overview_access/
+      /Invalid persisted JSON in companies\.capacity_overview_access/
     );
   });
 
@@ -496,7 +496,11 @@ test.group('database contract', (group) => {
     const actual = await readState();
     for (const [table, fixtures] of fullFixtureRows) {
       const rows = actual[
-        table === 'time_off' ? 'timeOff' : (table as keyof typeof actual)
+        table === 'time_off'
+          ? 'timeOff'
+          : table === 'companies'
+            ? 'accounts'
+            : (table as keyof typeof actual)
       ] as unknown as Array<Record<string, unknown>>;
       for (const fixture of fixtures) {
         const actualRow = rows.find((row) => row.id === fixture.id);
@@ -514,7 +518,7 @@ test.group('database contract', (group) => {
     test(`rejects cross-account ${relationship} inserts`, async ({ assert }) => {
       await assert.rejects(
         () => insertInvalidReference(table, column, targetId),
-        /cross-account reference/
+        /cross-company reference/
       );
       assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_check'), []);
     });
@@ -529,7 +533,7 @@ test.group('database contract', (group) => {
           .from('allocations')
           .where('id', 'm1-dc-allocation')
           .update({ resource_id: 'm1-marvel-resource' }),
-      /cross-account reference/
+      /cross-company reference/
     );
     await db
       .from('resources')
@@ -566,7 +570,7 @@ test.group('database contract', (group) => {
       triggers.map((trigger) => [trigger.name as string, String(trigger.sql)])
     );
     for (const table of scopedTables) {
-      const sql = byName.get(`${table}_account_immutable`);
+      const sql = byName.get(`${table}_company_immutable`);
       assert.isDefined(sql, `${table} account immutability trigger exists`);
       assert.match(sql!, /BEFORE\s+UPDATE\s+OF\s+company_id/i);
       assert.match(sql!, /NEW\.company_id\s*<>\s*OLD\.company_id/i);
@@ -598,7 +602,7 @@ test.group('database contract', (group) => {
           new RegExp(`FROM\\s+${target}\\s+WHERE\\s+id\\s*=\\s*NEW\\.${column}`, 'i')
         );
         assert.match(sql!, /company_id\s*=\s*NEW\.company_id/i);
-        assert.match(sql!, /RAISE\s*\(\s*ABORT\s*,\s*'cross-account reference'/i);
+        assert.match(sql!, /RAISE\s*\(\s*ABORT\s*,\s*'cross-company reference'/i);
       }
     }
     const cleanupSql = byName.get('capacitylens_member_resource_kind_cleanup');
@@ -778,7 +782,7 @@ test.group('database contract', (group) => {
   test('account deletion cascades exactly its scoped rows and preserves the other account', async ({
     assert,
   }) => {
-    await db.from('accounts').where('id', companyIds.dc).delete();
+    await db.from('companies').where('id', companyIds.dc).delete();
     for (const table of scopedTables) {
       assert.equal(
         await rowCount(table, { company_id: companyIds.dc }),

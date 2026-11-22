@@ -309,7 +309,7 @@ test.group('company anonymisation', (group) => {
       .from('audit_entries')
       .where('company_id', 'a-loft')
       .select('*');
-    const accountBefore = await db.from('accounts').where('id', companyId).first();
+    const accountBefore = await db.from('companies').where('id', companyId).first();
     const before = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const missing = await asDataOwner(
       client.visit('api.company_anonymisations.store', { companyId }),
@@ -385,7 +385,7 @@ test.group('company anonymisation', (group) => {
         .whereNotNull('note'),
       0
     );
-    assert.deepEqual(await db.from('accounts').where('id', companyId).first(), accountBefore);
+    assert.deepEqual(await db.from('companies').where('id', companyId).first(), accountBefore);
     const memberships = await db.from('memberships').where('scope_id', companyId);
     assert.isAbove(memberships.length, 0);
     assert.deepEqual(memberships, membershipBefore);

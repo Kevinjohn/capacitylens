@@ -13,7 +13,7 @@ export async function readState(
 ): Promise<AppData> {
   const client = db.connection();
   if (companyId !== undefined) return readStateWithClient(client, companyId, includeInactive);
-  const accounts = await client.from('accounts').select('id');
+  const accounts = await client.from('companies').select('id');
   const slices: AppData[] = [];
   for (const account of accounts) {
     slices.push(await readStateWithClient(client, String(account.id), includeInactive));
@@ -38,7 +38,7 @@ export async function resetState(seedRequested: boolean | 'single') {
   await transaction(db, async (trx) => {
     await trx.from('audit_entries').delete();
     // Memberships restrict company deletion, so the package removes them first.
-    for (const account of await trx.from('accounts').select('id')) {
+    for (const account of await trx.from('companies').select('id')) {
       await access.memberships.removeAllForScope({ scopeId: String(account.id), trx });
     }
     for (const table of Object.values(tables).reverse()) await trx.from(table).delete();
