@@ -180,11 +180,11 @@ This is the short, present-tense record of decisions that constrain future work.
 - An online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
   configured number of verified bundles on local storage. Pre-migration bundles and reset archives
   stay outside scheduled retention. Failures are logged or returned by the operator command.
-- Account commands record receipts inside the caller's transaction. Receipts are scoped to one
-  actor's operation, so the same command headers sent by another actor or for another operation run
-  as a new command.
+- Account operations record receipts inside the caller's transaction. Receipts are scoped to one
+  actor's operation, so the same idempotency and command id headers sent by another actor or for another operation run
+  as a new operation.
 - Completed request receipts are deleted 24 hours after their last update, at startup and hourly.
-  Pending receipts stay. A command retried after its receipt is deleted runs as a new command.
+  Pending receipts stay. An operation retried after its receipt is deleted runs as a new operation.
 
 ## Browser data
 
