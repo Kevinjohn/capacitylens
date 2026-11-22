@@ -204,7 +204,7 @@ test.group('authenticated typed planning transactions', (group) => {
     for (const query of fullQueries) {
       const full = await read(query);
       full.assertStatus(200);
-      assert.equal(full.body().data.slice, 'full', JSON.stringify(query));
+      assert.equal(full.body().data.content, 'full', JSON.stringify(query));
       assert.isArray(full.body().data.data.clients, JSON.stringify(query));
     }
     for (const ifRevision of ['-1', '1.5', 'abc']) {
@@ -223,7 +223,7 @@ test.group('authenticated typed planning transactions', (group) => {
     });
     const afterRoleChange = await read({ ifRevision: 1 });
     afterRoleChange.assertStatus(200);
-    assert.equal(afterRoleChange.body().data.slice, 'full');
+    assert.equal(afterRoleChange.body().data.content, 'full');
     assert.equal(afterRoleChange.body().data.access.role, 'viewer');
   });
 
