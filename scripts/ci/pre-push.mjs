@@ -36,6 +36,16 @@ export function pushChecks(input, head) {
   return sent.length > 0 && sent.every(checkedOutBranch) ? 'changed' : 'full';
 }
 
+/**
+ * Decide whether the whole check must run after the changed-files check ended with `status`.
+ *
+ * It passes with 0 and fails a check with 1. Anything else means it could not select or finish,
+ * such as a clone without `origin/main` or a killed process, so nothing has been verified.
+ */
+export function needsFullCheck(status) {
+  return status !== 0 && status !== 1;
+}
+
 function runFullCheck() {
   const result = spawnPnpmSync(['run', 'check:push'], { stdio: ['ignore', 'inherit', 'inherit'] });
   return reportSpawnFailureAndResolveExitStatus('check:push', result);
@@ -54,8 +64,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     [fileURLToPath(new URL('./check-changed.mjs', import.meta.url)), '--push'],
     { stdio: ['ignore', 'inherit', 'inherit'] },
   );
-  // Status 2 means the changed-files check could not select, such as a clone without origin/main.
-  if (changed.status === 0 || changed.status === 1) process.exit(changed.status);
+  if (!needsFullCheck(changed.status)) process.exit(changed.status);
   console.log('pre-push: the changed-files check could not run; running the whole check.');
   process.exit(runFullCheck());
 }

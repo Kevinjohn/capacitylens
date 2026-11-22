@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deletesOnly, pushChecks } from './pre-push.mjs';
+import { deletesOnly, needsFullCheck, pushChecks } from './pre-push.mjs';
 
 const zero = '0'.repeat(40);
 const sha = 'a'.repeat(40);
@@ -61,4 +61,11 @@ test('a tag keeps the whole check, even at the checked-out commit', () => {
 
 test('a push with nothing to update keeps the whole check', () => {
   assert.equal(pushChecks('', head), 'full');
+});
+
+test('a changed-files check that passed or failed is final; one that could not run falls back to the whole check', () => {
+  assert.equal(needsFullCheck(0), false);
+  assert.equal(needsFullCheck(1), false);
+  assert.equal(needsFullCheck(2), true);
+  assert.equal(needsFullCheck(null), true);
 });
