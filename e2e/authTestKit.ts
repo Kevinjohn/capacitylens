@@ -35,11 +35,11 @@ export async function masqueradeTokenHeaders(
   const headers = { 'sec-fetch-site': 'same-origin', ...(cookie ? { cookie } : {}) };
   const response = await request.get(`${origin}/api/masquerade`, { headers });
   expect(response.status(), 'read masquerade context for fixture request').toBe(200);
-  const contextToken = ((await response.json()) as { data?: { contextToken?: unknown } }).data
-    ?.contextToken;
-  if (typeof contextToken !== 'string' || contextToken.length === 0)
+  const masqueradeToken = ((await response.json()) as { data?: { masqueradeToken?: unknown } }).data
+    ?.masqueradeToken;
+  if (typeof masqueradeToken !== 'string' || masqueradeToken.length === 0)
     throw new Error('Authenticated fixture session did not return a masquerade context token.');
-  return { ...headers, 'X-Masquerade-Context': contextToken };
+  return { ...headers, 'X-Masquerade-Context': masqueradeToken };
 }
 
 const AUTH_E2E_DATABASE = fileURLToPath(new URL('../apps/backend/.auth-e2e.db', import.meta.url));
@@ -197,7 +197,7 @@ export function createTestMember(
   }
 }
 
-/** Revokes a disposable E2E user's real session authority without relying on browser cookie timing. */
+/** Revokes a disposable E2E user's real session access without relying on browser cookie timing. */
 export function revokeTestSessions(email: string): void {
   const db = openAuthE2EDatabase();
   try {

@@ -6,7 +6,7 @@ import type { ApiClient } from '@japa/api-client';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '#tests/helpers/identities';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
@@ -191,7 +191,7 @@ test.group('native authorization and role projections', (group) => {
     assert.equal(foreignRow?.company_id, otherCompanyId);
   });
 
-  test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import authority', async ({
+  test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import access', async ({
     client,
     assert,
     cleanup,

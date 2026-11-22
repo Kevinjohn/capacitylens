@@ -152,7 +152,7 @@ test.group('independent typed planning operations', (group) => {
     );
   });
 
-  test('archives and unarchives catalogue and resource rows by their same stable IDs', async ({
+  test('archives and restores catalogue and resource rows by their same stable IDs', async ({
     client,
     assert,
     cleanup,
@@ -172,7 +172,7 @@ test.group('independent typed planning operations', (group) => {
         id: clientId,
       },
       {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity: { entity: 'clients', id: clientId },
         entityTable: 'clients',
         id: clientId,
@@ -183,7 +183,7 @@ test.group('independent typed planning operations', (group) => {
         entityTable: 'resources',
       },
       {
-        operation: 'resource.unarchive',
+        operation: 'resource.restore',
         id: resourceId,
         entityTable: 'resources',
       },
@@ -247,7 +247,7 @@ test.group('independent typed planning operations', (group) => {
 
     const alreadyActive = await session(client.post(route('planning/mutations')), cookie)
       .json(
-        input(0, { operation: 'catalogue.unarchive', entity: { entity: 'clients', id: clientId } })
+        input(0, { operation: 'catalogue.restore', entity: { entity: 'clients', id: clientId } })
       )
       .send();
     alreadyActive.assertStatus(400);
@@ -334,7 +334,7 @@ test.group('independent typed planning operations', (group) => {
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
 
-    for (const operation of ['catalogue.archive', 'catalogue.unarchive'] as const) {
+    for (const operation of ['catalogue.archive', 'catalogue.restore'] as const) {
       const response = await session(client.post(route('planning/mutations')), cookie)
         .json(
           input(0, {

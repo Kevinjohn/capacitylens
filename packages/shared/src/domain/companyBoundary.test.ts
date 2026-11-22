@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScopedEntity } from '../types/entities.js';
-import { isInCompany, byCompany } from './tenancy.js';
+import { isInCompany, byCompany } from './companyBoundary.js';
 
 const rows = [
   { id: 'a-row', companyId: 'a' },

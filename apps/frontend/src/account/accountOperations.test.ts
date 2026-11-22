@@ -101,7 +101,7 @@ describe('browser account api', () => {
     expect(sessionStorage.getItem('capacitylens.unrelated-preference')).toBe('keep');
     expect(
       Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)),
-    ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-command\./));
+    ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-operation\./));
   });
   it('retains same-user recovery but clears a ceremony before a different identity can use it', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
@@ -129,7 +129,7 @@ describe('browser account api', () => {
       '00000000-0000-4000-8000-000000000081',
       '00000000-0000-4000-8000-000000000083',
     ]);
-    expect(sessionStorage.getItem('capacitylens.account-command.identity')).toBe('user-two');
+    expect(sessionStorage.getItem('capacitylens.account-operation.identity')).toBe('user-two');
   });
   it('isolates a surviving stored ceremony when identity-change cleanup cannot enumerate storage', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')

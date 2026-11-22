@@ -1,19 +1,19 @@
 import type { PlanningAccess } from './planningCacheTypes';
 
 /** A stable string for comparing two authorities; never parsed. */
-export function buildAccessKey(authority: PlanningAccess | null): string | null {
-  if (authority === null) return null;
+export function buildAccessKey(access: PlanningAccess | null): string | null {
+  if (access === null) return null;
   return JSON.stringify([
-    authority.actorId,
-    authority.effectiveActorId,
-    authority.role,
-    authority.canWrite,
-    authority.canSeePrivateNames,
-    authority.canSeeTimeOffNote,
+    access.actorId,
+    access.effectiveActorId,
+    access.role,
+    access.canWrite,
+    access.canSeePrivateNames,
+    access.canSeeTimeOffNote,
   ]);
 }
 
-/** Whether the member behind this authority may write planning data. */
-export function canWritePlanning(authority: PlanningAccess | null): boolean {
-  return authority?.canWrite === true;
+/** Whether the member behind this access may write planning data. */
+export function canWritePlanning(access: PlanningAccess | null): boolean {
+  return access?.canWrite === true;
 }

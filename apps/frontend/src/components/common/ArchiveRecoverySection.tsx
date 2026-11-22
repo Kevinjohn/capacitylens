@@ -67,7 +67,7 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
                   aria-label={m.settings_archived_restore_aria({ name: row.label })}
                   onClick={() =>
                     run(
-                      () => actions.unarchive(entity, row.id),
+                      () => actions.restore(entity, row.id),
                       (failure) => setNotice(resolveErrorMessage(failure), 'error'),
                     )
                   }
