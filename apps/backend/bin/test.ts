@@ -59,7 +59,8 @@ ignitor
     app.booting(async () => {
       await import('#start/env');
     });
-    app.listen('SIGTERM', () => app.terminate());
+    // No SIGTERM listener: terminating the application would not stop Japa, and the tests still
+    // to run would fail against a closed database. The default action ends the run at once.
     app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate());
   })
   .testRunner()
@@ -90,4 +91,9 @@ ignitor
     // A failed start never reaches the runner teardown, and the open database pool would keep the
     // process alive.
     await ignitor.terminate();
-  });
+  })
+  // The run is over, but work that outlived its test can query the database after the application
+  // has terminated; that reopens the pool, whose timer keeps the process alive. Both output streams
+  // are flushed first, because a pipe is written asynchronously on some platforms and exiting at
+  // once would cut the summary short.
+  .finally(() => process.stdout.write('', () => process.stderr.write('', () => process.exit())));

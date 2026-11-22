@@ -31,8 +31,7 @@ import { assertSupportedNodeVersion } from '../../apps/backend/bin/node_version.
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const defaultBase = 'origin/main';
-// Japa keeps its process alive after a planner error, so a step that never exits must still fail.
-// The backend test runner turns SIGTERM into a graceful shutdown that can hang too, hence SIGKILL.
+// A step that never exits must still fail, and a hung step may not answer SIGTERM, hence SIGKILL.
 const stepLimits = { timeoutMs: 20 * 60_000, killGraceMs: 10_000 };
 const logTailLines = 40;
 
