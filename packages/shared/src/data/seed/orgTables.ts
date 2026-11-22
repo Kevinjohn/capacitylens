@@ -4,12 +4,12 @@ import { buildDefaultCompanyWorkingDays } from '../../lib/companyWorkingDays.js'
 import { buildInternalClient } from '../internalClient.js';
 import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
 
-type OrgTables = Pick<AppData, 'accounts' | 'disciplines' | 'clients' | 'projects' | 'phases'>;
+type OrgTables = Pick<AppData, 'companies' | 'disciplines' | 'clients' | 'projects' | 'phases'>;
 
 const ORG_TABLES: OrgTables = {
-  accounts: [
+  companies: [
     {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
@@ -18,7 +18,7 @@ const ORG_TABLES: OrgTables = {
       workingDays: buildDefaultCompanyWorkingDays(),
     },
     {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
@@ -154,7 +154,7 @@ const ORG_TABLES: OrgTables = {
 /** Fresh copies of the seed companies, disciplines, clients, projects and phases. */
 export function createOrgTables(): OrgTables {
   return {
-    accounts: ORG_TABLES.accounts.map((company) => ({
+    companies: ORG_TABLES.companies.map((company) => ({
       ...company,
       workingDays: [...(company.workingDays ?? [])],
     })),

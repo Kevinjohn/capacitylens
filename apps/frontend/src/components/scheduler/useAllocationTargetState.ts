@@ -17,7 +17,7 @@ import {
 
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { FieldError } from '@/hooks/useFieldError';
-import type { AllocationModalSeed } from './buildAllocationModalSeed';
+import type { AllocationDialogSeed } from './buildAllocationDialogSeed';
 import { formatProjectLabel } from '@/components/common/projectOptions';
 import {
   isActivityInProjectSelection,
@@ -25,13 +25,13 @@ import {
   ANY_PROJECT_SELECTION,
   resolveAttributedProject,
   INTERNAL_PROJECT_SELECTION,
-} from './allocationModalSelection';
+} from './allocationDialogSelection';
 
 type TargetData = Pick<AppData, 'activities' | 'clients' | 'phases' | 'projects' | 'resources'>;
 
 interface TargetInput {
   data: TargetData;
-  seed: AllocationModalSeed;
+  seed: AllocationDialogSeed;
   resourceById: Map<string, Resource>;
   canEdit: boolean;
   placeholdersEnabled: boolean;
@@ -295,7 +295,7 @@ function useTargetChangeHandlers({
   return { changeAssignee, changeProject };
 }
 
-function useTargetFieldState(seed: AllocationModalSeed) {
+function useTargetFieldState(seed: AllocationDialogSeed) {
   const [resourceId, setResourceId] = useState(seed.initialResourceId);
   const [projectSelection, setProjectSelection] = useState(
     seed.initialLocked ?? INTERNAL_PROJECT_SELECTION,

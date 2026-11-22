@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 
 // Covers US-DIS-01..04.
 test.describe('Disciplines', () => {

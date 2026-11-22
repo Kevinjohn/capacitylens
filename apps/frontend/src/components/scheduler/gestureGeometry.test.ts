@@ -19,7 +19,7 @@ interface PreviewInput {
   geometry: ColumnGeometry;
 }
 
-// Runs the same date-then-pixel steps the gesture controller uses for one preview frame.
+// Runs the same date-then-pixel steps the gesture view model uses for one preview frame.
 function previewPixels(input: PreviewInput): { left: number; width: number } {
   const allocation = makeAllocation({
     startDate: input.startDate,

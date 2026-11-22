@@ -3,14 +3,14 @@ import { allowedFields, fixedMessage } from '#validators/request_rules';
 
 const message = 'Invalid anonymisation request.';
 
-export const resourceValidator = vine.create(
+export const anonymiseResourceValidator = vine.create(
   vine.object({}).use(allowedFields({ fields: [], message }))
 );
-resourceValidator.messagesProvider = fixedMessage(message);
+anonymiseResourceValidator.messagesProvider = fixedMessage(message);
 
-export const companyValidator = vine.create(
+export const anonymiseCompanyValidator = vine.create(
   vine
     .object({ confirmationId: vine.string() })
     .use(allowedFields({ fields: ['confirmationId'], message }))
 );
-companyValidator.messagesProvider = fixedMessage(message);
+anonymiseCompanyValidator.messagesProvider = fixedMessage(message);

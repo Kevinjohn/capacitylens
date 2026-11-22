@@ -1,14 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidCredentialsError, ThrottledError } from '@kevinjohn/adonisjs-account-kit/errors';
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 import { withActor } from '#services/auth/current_actor';
 import { recordMemberSignIn } from '#services/membership/sign_in_tracking';
 import { buildUserProjection } from '#services/auth/user_projection';
 import { managedGuard } from '#services/auth/managed_guard';
 
 function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'throttled') {
-  if (env.get('CAPACITYLENS_LOG') !== '1') return;
+  if (!capacitylens.requestLogging) return;
   try {
     const fields = { event: 'auth.sign_in', outcome };
     if (outcome === 'failure' || outcome === 'throttled') {

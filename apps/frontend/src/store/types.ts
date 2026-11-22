@@ -10,8 +10,8 @@ import type { ThemePreference } from '@/lib/theme';
 import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
 import type { Company, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
-import type { PlanningControllerMetadata } from '@/data/planning/planningCacheTypes';
-import type { PlanningCommand } from '@/data/planning/planningCommands';
+import type { PlanningCacheMetadata } from '@/data/planning/planningCacheTypes';
+import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 
 /** Runtime state for the current masquerade session. */
@@ -35,7 +35,7 @@ export interface Notice {
 }
 
 /** A directory entry for a company the current identity may access. Entries stay separate
- * from the active company slice. An unavailable role stays unresolved until refreshed.
+ * from the active company set. An unavailable role stays unresolved until refreshed.
  */
 export interface CompanySummary {
   id: ID;
@@ -94,8 +94,8 @@ export interface StoreState extends StoreEntityActions {
   hydrated: boolean;
   /** The company currently in view, or null when no company is active. Never persisted. */
   activeCompanyId: ID | null;
-  /** The server-sourced directory of companies this login may access. Set by useCompanySummaries
-   * from the login’s memberships. Separate from `data` because `data` holds only the active slice.
+  /** The server-sourced directory of companies this user may access. Set by useCompanySummaries
+   * from the user’s memberships. Separate from `data` because `data` holds only the active set.
    * Never persisted. */
   companySummaries: CompanySummary[];
   /** Whether the published directory was wholly valid. A partial response cannot prove uniqueness.
@@ -107,12 +107,14 @@ export interface StoreState extends StoreEntityActions {
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   companySummariesRequestId: number;
   /** Planning cache metadata, including the server-reported Undo/Redo availability. Page-local. */
-  planning: PlanningControllerMetadata;
-  /** Advances only when a current planning request confirms that sign-in authority was lost. */
+  planning: PlanningCacheMetadata;
+  /** Advances only when a current planning request confirms that sign-in access was lost. */
   planningAuthLossVersion: number;
-  /** Submit one typed planning command and resolve with the server reply after authoritative
+  /** Submit one typed planning intent and resolve with the server reply after authoritative
    * reconciliation, or with nothing when a viewer is blocked from writing. */
-  sendPlanningCommand: (command: PlanningCommand) => Promise<PlanningMutationSuccess | undefined>;
+  sendPlanningIntent: (
+    intentRequest: PlanningIntentRequest,
+  ) => Promise<PlanningMutationSuccess | undefined>;
   /** Current user notice, or null. Dismissal and treatment follow Notice. */
   notice: Notice | null;
   /** Latest keyboard capacity announcement and sequence token. The token makes equal
@@ -121,7 +123,7 @@ export interface StoreState extends StoreEntityActions {
    */
   srAnnouncement: { text: string; seq: number } | null;
   /** True while any registered form/operation has unsaved work, drives the unsaved-changes guards
-   * (modal backdrop/Escape, beforeunload). Derived from source ownership, never persisted. */
+   * (dialog backdrop/Escape, beforeunload). Derived from source ownership, never persisted. */
   dirtyForm: boolean;
   /** Internal owner set from which dirtyForm is derived. Transient and never persisted. */
   dirtyFormSources: ReadonlySet<symbol>;
@@ -156,7 +158,7 @@ export interface StoreState extends StoreEntityActions {
    * company switch or page reload. Transient: never persisted or included in undo history. */
   membershipRevision: number;
   /** Session-backed read projection. Every non-inactive phase blocks local writes while the
-   * controller establishes or removes the authoritative server projection. */
+   * masquerade model establishes or removes the authoritative server projection. */
   masquerade: MasqueradeRuntimeState;
 
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
@@ -203,7 +205,7 @@ export interface StoreState extends StoreEntityActions {
   /** End the current planning context and discard private planning rows. */
   clearPlanning: () => void;
   /** Atomically claim an out-of-band replacement; release is idempotent for its context. */
-  suspendPlanningCommands: () => (() => void) | null;
+  suspendPlanningIntents: () => (() => void) | null;
   /** Whether the active canonical planning view is settled enough for a bulk replacement. */
   planningReadyForReplacement: () => boolean;
   /** Ask the server to undo this page's latest change, as one planning write. */

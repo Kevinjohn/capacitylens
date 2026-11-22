@@ -10,7 +10,7 @@ As an Editor, I want to change an allocation’s assignee so that work can move 
 
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 
 ## Acceptance criteria
 
@@ -39,8 +39,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationModal edit"] --> B["AllocationTargetFields: assignee selection"]
-  B --> C["useAllocationModalState: resolve selected resource"]
+  A["AllocationDialog edit"] --> B["AllocationTargetFields: assignee selection"]
+  B --> C["useAllocationDialogState: resolve selected resource"]
   C --> D["allocationSubmit validates assignment and placement"]
   D -->|valid| E["updateAllocation with new resourceId"]
   D -->|invalid| F["Resource/activity error; no write"]
@@ -49,8 +49,8 @@ flowchart TD
 
 **Code references:**
 
-- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 - [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx)
-- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

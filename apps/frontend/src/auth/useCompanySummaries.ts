@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { readApiData } from '@/api/readApiData';
 import { useStore } from '@/store/useStore';
 import type { CompanySummary } from '@/store/useStore';
 import { isRole } from '@capacitylens/shared/account/types';
@@ -9,7 +10,7 @@ import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { m } from '@/i18n';
 import { useAuth } from './authContext';
 
-// The company directory is loaded before a tenant is selected because the active company slice
+// The company directory is loaded before a company is selected because the active company set
 // cannot enumerate other memberships.
 
 // Validate directory entries before publication. Unknown roles and malformed grants remain
@@ -61,21 +62,21 @@ function parseCompanySummaryList(body: unknown): CompanySummaryParseOutcome {
   };
 }
 
-type ApplyLiveCompanySummaryEffectsOptions = {
+type ReportCompanySummaryCompletenessOptions = {
   complete: boolean;
   onCompleteness: ((complete: boolean) => void) | undefined;
 };
 
-function applyLiveCompanySummaryEffects(options: ApplyLiveCompanySummaryEffectsOptions): void {
+function reportCompanySummaryCompleteness(options: ReportCompanySummaryCompletenessOptions): void {
   const { complete, onCompleteness } = options;
   onCompleteness?.(complete);
 }
 
-function applyCompanySummaryParseEffects(
+function reportCompanySummaryParse(
   outcome: CompanySummaryParseOutcome,
-  acceptEffects: () => boolean,
+  isCurrent: () => boolean,
 ): void {
-  if (outcome.droppedCount > 0 && acceptEffects()) {
+  if (outcome.droppedCount > 0 && isCurrent()) {
     useStore.getState().setNotice(m.account_directory_incomplete(), 'warning');
   }
 }
@@ -99,7 +100,7 @@ export async function readSoleCompanyOwnership(): Promise<boolean> {
   if (!response.ok) {
     throw new Error('Could not verify company access. Refresh the page to try again.');
   }
-  const companies: unknown = await response.json();
+  const companies: unknown = await readApiData(response);
   const company: unknown = Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
   return isRecord(company) && company.role === 'owner' && typeof company.id === 'string';
 }
@@ -107,25 +108,25 @@ export async function readSoleCompanyOwnership(): Promise<boolean> {
 /** Reads the validated company directory. Null means the read failed; only a genuine empty array means no companies. Mixed responses retain valid rows and log rejected entries. */
 export async function fetchCompanySummaries(requestOptions?: {
   signal?: AbortSignal;
-  acceptEffects?: () => boolean;
+  isCurrent?: () => boolean;
   /** Reports whether the returned live list is complete enough to prove membership absence. */
   onCompleteness?: (complete: boolean) => void;
 }): Promise<CompanySummary[] | null> {
-  const acceptEffects = requestOptions?.acceptEffects ?? (() => true);
+  const isCurrent = requestOptions?.isCurrent ?? (() => true);
   try {
     const res = await sessionRequests.listCompanies(requestOptions?.signal);
     if (!res.ok) {
-      if (res.status === 409 && acceptEffects()) {
+      if (res.status === 409 && isCurrent()) {
         useStore.getState().setCompanySummaries({ list: [], complete: false, ambiguous: true });
         useStore.getState().setNotice(m.account_directory_ambiguous(), 'warning');
       }
       return null;
     }
-    const body: unknown = await res.json();
+    const body: unknown = await readApiData(res);
     const parsed = parseCompanySummaryList(body);
-    applyCompanySummaryParseEffects(parsed, acceptEffects);
+    reportCompanySummaryParse(parsed, isCurrent);
     if (parsed.kind === 'rejected') return null;
-    applyLiveCompanySummaryEffects({
+    reportCompanySummaryCompleteness({
       complete: parsed.complete,
       onCompleteness: requestOptions?.onCompleteness,
     });
@@ -144,22 +145,22 @@ export async function fetchCompanySummaries(requestOptions?: {
  */
 export async function refreshCompanySummaries(requestOptions?: {
   signal?: AbortSignal;
-  acceptEffects?: () => boolean;
+  isCurrent?: () => boolean;
   preserveActiveCompanyIfMissing?: boolean;
 }): Promise<CompanySummary[] | null> {
-  const callerAcceptsEffects = requestOptions?.acceptEffects ?? (() => true);
+  const callerIsCurrent = requestOptions?.isCurrent ?? (() => true);
   const requestId = useStore.getState().beginCompanySummariesRequest();
   const requestIsCurrent = () =>
-    callerAcceptsEffects() && useStore.getState().companySummariesRequestId === requestId;
+    callerIsCurrent() && useStore.getState().companySummariesRequestId === requestId;
   const completeness = { value: false };
   const list = await fetchCompanySummaries({
     ...requestOptions,
-    acceptEffects: requestIsCurrent,
+    isCurrent: requestIsCurrent,
     onCompleteness: (value) => {
       completeness.value = value;
     },
   });
-  if (list !== null && callerAcceptsEffects()) {
+  if (list !== null && callerIsCurrent()) {
     const published = useStore
       .getState()
       .setCompanySummaries({ list, requestId, complete: completeness.value });
@@ -191,14 +192,14 @@ export function useCompanySummaries(): void {
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const { user } = useAuth();
-  const principalId = user?.id ?? null;
+  const userId = user?.id ?? null;
   useEffect(() => {
     if (masqueradeActive || activeCompanyId !== null) return;
     const controller = new AbortController();
     void refreshCompanySummaries({
       signal: controller.signal,
-      acceptEffects: () => !controller.signal.aborted,
+      isCurrent: () => !controller.signal.aborted,
     });
     return () => controller.abort();
-  }, [principalId, activeCompanyId, masqueradeActive, membershipRevision, masqueradeGeneration]);
+  }, [userId, activeCompanyId, masqueradeActive, membershipRevision, masqueradeGeneration]);
 }

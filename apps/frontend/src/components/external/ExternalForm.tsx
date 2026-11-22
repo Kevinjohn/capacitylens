@@ -6,7 +6,7 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
 import { m } from '@/i18n';
-import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FormButtons, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
@@ -15,7 +15,7 @@ import type { Resource } from '@capacitylens/shared/types/entities';
 type ExternalFormFieldsProps = {
   name: string;
   onNameChange: (value: string) => void;
-  role: string;
+  jobTitle: string;
   onRoleChange: (value: string) => void;
   error: string | null;
   errorField: string | null;
@@ -36,10 +36,10 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
       />
       <TextField
         label={m.form_external_descriptor_label()}
-        value={props.role}
+        value={props.jobTitle}
         onChange={props.onRoleChange}
         placeholder={m.form_external_descriptor_placeholder()}
-        invalid={props.errorField === 'role'}
+        invalid={props.errorField === 'jobTitle'}
         describedById={props.errorId}
         layout="label-control"
       />
@@ -61,7 +61,7 @@ export function ExternalForm({
   const add = useStore((state) => state.addResource);
   const update = useStore((state) => state.updateResource);
   const [name, setName] = useState(resource?.name ?? '');
-  const [role, setRole] = useState(resource?.role ?? '');
+  const [jobTitle, setJobTitle] = useState(resource?.jobTitle ?? '');
   const { error, errorField, errorId, fail } = useFieldError();
   const resources = useStore((state) => state.data.resources);
   const { pending, submit } = useEditSubmit({
@@ -80,12 +80,12 @@ export function ExternalForm({
       requiredMessage: m.form_external_err_company_required(),
     });
     if (cleanName === null) return null;
-    const cleanRole = parseText(role, fail, { field: 'role', required: false });
-    if (cleanRole === null) return null;
+    const cleanJobTitle = parseText(jobTitle, fail, { field: 'jobTitle', required: false });
+    if (cleanJobTitle === null) return null;
     const patch = {
       kind: 'external' as const,
       name: cleanName,
-      role: cleanRole,
+      jobTitle: cleanJobTitle,
       // External capacity defaults satisfy the shared Resource validation contract even though capacity views exclude external load.
       ...buildExternalCapacityDefaults(),
       color: NEUTRAL_COLOR,
@@ -94,25 +94,25 @@ export function ExternalForm({
   };
 
   return (
-    <Modal
+    <FormDialog
       title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <ExternalFormFields
           name={name}
           onNameChange={setName}
-          role={role}
-          onRoleChange={setRole}
+          jobTitle={jobTitle}
+          onRoleChange={setJobTitle}
           error={error}
           errorField={errorField}
           errorId={errorId}
         />
       </fieldset>
-    </Modal>
+    </FormDialog>
   );
 }

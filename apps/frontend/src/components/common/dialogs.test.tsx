@@ -2,7 +2,7 @@ import { loadPlanningData } from '@/test/fixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Modal, ConfirmDialog, ColorField, SegmentedControl } from './ui';
+import { FormDialog, ConfirmDialog, ColorField, SegmentedControl } from './ui';
 import { useStore } from '@/store/useStore';
 import { resolveColorName } from '@/lib/palette';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
@@ -21,26 +21,26 @@ function getRequiredElement<T extends HTMLElement>(root: ParentNode, selector: s
   return element;
 }
 
-describe('Modal', () => {
+describe('FormDialog', () => {
   it('renders with the given title as dialog label', () => {
     render(
-      <Modal title="My Modal" onClose={vi.fn()}>
+      <FormDialog title="My Dialog" onClose={vi.fn()}>
         <p>Content</p>
-      </Modal>,
+      </FormDialog>,
     );
-    expect(screen.getByRole('dialog', { name: 'My Modal' })).toHaveClass(
+    expect(screen.getByRole('dialog', { name: 'My Dialog' })).toHaveClass(
       'bg-popover',
       'grid-cols-[minmax(0,1fr)]',
     );
-    expect(screen.getByRole('dialog', { name: 'My Modal' })).not.toHaveClass('bg-background');
+    expect(screen.getByRole('dialog', { name: 'My Dialog' })).not.toHaveClass('bg-background');
     expect(screen.getByText('Content').parentElement).toHaveClass('min-w-0');
   });
 
   it('exposes the title as a navigable heading (aria-labelledby)', () => {
     render(
-      <Modal title="Heady" onClose={vi.fn()}>
+      <FormDialog title="Heady" onClose={vi.fn()}>
         <p>Body</p>
-      </Modal>,
+      </FormDialog>,
     );
     expect(screen.getByRole('heading', { name: 'Heady' })).toBeInTheDocument();
   });
@@ -48,9 +48,9 @@ describe('Modal', () => {
   it('calls onClose when Escape is pressed', () => {
     const onClose = vi.fn();
     render(
-      <Modal title="Esc Modal" onClose={onClose}>
+      <FormDialog title="Esc FormDialog" onClose={onClose}>
         <p>Body</p>
-      </Modal>,
+      </FormDialog>,
     );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
@@ -59,9 +59,9 @@ describe('Modal', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <Modal title="Backdrop Modal" onClose={onClose}>
+      <FormDialog title="Backdrop FormDialog" onClose={onClose}>
         <p>Inner</p>
-      </Modal>,
+      </FormDialog>,
     );
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
@@ -74,9 +74,9 @@ describe('Modal', () => {
   ])('does not treat a %s on the backdrop as a dismissal', async (_gesture, pointer) => {
     const onClose = vi.fn();
     render(
-      <Modal title="Context menu Modal" onClose={onClose}>
+      <FormDialog title="Context menu FormDialog" onClose={onClose}>
         <p>Inner</p>
-      </Modal>,
+      </FormDialog>,
     );
 
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
@@ -89,9 +89,9 @@ describe('Modal', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <Modal title="Backdrop Modal" onClose={onClose}>
+      <FormDialog title="Backdrop FormDialog" onClose={onClose}>
         <p>Inner</p>
-      </Modal>,
+      </FormDialog>,
     );
     await user.click(screen.getByText('Inner'));
     expect(onClose).not.toHaveBeenCalled();
@@ -100,9 +100,9 @@ describe('Modal', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <Modal title="Dirty Modal" onClose={onClose}>
+      <FormDialog title="Dirty FormDialog" onClose={onClose}>
         <input aria-label="field" />
-      </Modal>,
+      </FormDialog>,
     );
 
     fireEvent.input(screen.getByLabelText('field'), { target: { value: 'x' } });
@@ -115,9 +115,14 @@ describe('Modal', () => {
   it('publishes one controlled dirty transition when one edit surfaces as input and change', () => {
     const onDirtyChange = vi.fn();
     render(
-      <Modal title="Controlled dirty" onClose={vi.fn()} dirty={false} onDirtyChange={onDirtyChange}>
+      <FormDialog
+        title="Controlled dirty"
+        onClose={vi.fn()}
+        dirty={false}
+        onDirtyChange={onDirtyChange}
+      >
         <input aria-label="controlled field" />
-      </Modal>,
+      </FormDialog>,
     );
     const field = screen.getByLabelText('controlled field');
     fireEvent.input(field, { target: { value: 'x' } });
@@ -129,9 +134,9 @@ describe('Modal', () => {
   it('guards an immediate Escape before controlled dirty state has re-rendered', () => {
     const onClose = vi.fn();
     render(
-      <Modal title="Controlled dirty" onClose={onClose} dirty={false} onDirtyChange={vi.fn()}>
+      <FormDialog title="Controlled dirty" onClose={onClose} dirty={false} onDirtyChange={vi.fn()}>
         <input aria-label="controlled field" />
-      </Modal>,
+      </FormDialog>,
     );
 
     fireEvent.input(screen.getByLabelText('controlled field'), {
@@ -140,32 +145,32 @@ describe('Modal', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
-  it('keeps one editor globally dirty while a clean overlapping Modal mounts and unmounts', () => {
-    type ModalsOptions = { showCleanOverlay: boolean };
-    const modals = ({ showCleanOverlay }: ModalsOptions) => (
+  it('keeps one editor globally dirty while a clean overlapping FormDialog mounts and unmounts', () => {
+    type DialogsOptions = { showCleanOverlay: boolean };
+    const dialogs = ({ showCleanOverlay }: DialogsOptions) => (
       <>
-        <Modal key="editor" title="Dirty editor" onClose={vi.fn()}>
+        <FormDialog key="editor" title="Dirty editor" onClose={vi.fn()}>
           <input aria-label="edited field" />
-        </Modal>
+        </FormDialog>
         {showCleanOverlay && (
-          <Modal key="overlay" title="Clean overlay" onClose={vi.fn()} guardDirty={false}>
+          <FormDialog key="overlay" title="Clean overlay" onClose={vi.fn()} warnOnDirty={false}>
             <p>Hint only</p>
-          </Modal>
+          </FormDialog>
         )}
       </>
     );
-    const { rerender, unmount } = render(modals({ showCleanOverlay: false }));
+    const { rerender, unmount } = render(dialogs({ showCleanOverlay: false }));
 
     fireEvent.input(screen.getByLabelText('edited field'), {
       target: { value: 'unsaved' },
     });
     expect(useStore.getState().dirtyForm).toBe(true);
 
-    rerender(modals({ showCleanOverlay: true }));
+    rerender(dialogs({ showCleanOverlay: true }));
     expect(screen.getByRole('dialog', { name: 'Clean overlay' })).toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
-    rerender(modals({ showCleanOverlay: false }));
+    rerender(dialogs({ showCleanOverlay: false }));
     expect(screen.queryByRole('dialog', { name: 'Clean overlay' })).not.toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
@@ -175,11 +180,11 @@ describe('Modal', () => {
   it('treats clicking an aria-pressed toggle (e.g. WeekdayPicker) as a dirty edit', () => {
     const onClose = vi.fn();
     render(
-      <Modal title="Toggle Modal" onClose={onClose}>
+      <FormDialog title="Toggle FormDialog" onClose={onClose}>
         <button type="button" aria-pressed={false}>
           Mon
         </button>
-      </Modal>,
+      </FormDialog>,
     );
     // A button-driven toggle fires no input/change event, but the guard must still
     // catch it, otherwise editing working days then pressing Escape loses the change.
@@ -191,7 +196,7 @@ describe('Modal', () => {
   it('does not mark an explicitly-managed segmented control dirty when its value is unchanged', () => {
     const onClose = vi.fn();
     render(
-      <Modal title="No-op segment" onClose={onClose}>
+      <FormDialog title="No-op segment" onClose={onClose}>
         <SegmentedControl
           value="week"
           onChange={vi.fn()}
@@ -201,7 +206,7 @@ describe('Modal', () => {
           ]}
           ariaLabel="Zoom"
         />
-      </Modal>,
+      </FormDialog>,
     );
 
     fireEvent.click(screen.getByRole('radio', { name: 'Week' }));
@@ -274,9 +279,9 @@ describe('Modal', () => {
     const onClose = vi.fn();
     const blue = '#2d75da';
     render(
-      <Modal title="No-op colour" onClose={onClose}>
+      <FormDialog title="No-op colour" onClose={onClose}>
         <ColorField label="Colour" value={blue} onChange={vi.fn()} />
-      </Modal>,
+      </FormDialog>,
     );
 
     fireEvent.click(screen.getByRole('button', { name: `Colour (${resolveColorName(blue)})` }));
@@ -286,9 +291,9 @@ describe('Modal', () => {
   });
   it('renders optional footer', () => {
     render(
-      <Modal title="Footer Modal" onClose={vi.fn()} footer={<span>Footer content</span>}>
+      <FormDialog title="Footer FormDialog" onClose={vi.fn()} footer={<span>Footer content</span>}>
         <p>Body</p>
-      </Modal>,
+      </FormDialog>,
     );
     expect(screen.getByText('Footer content')).toBeInTheDocument();
   });
@@ -305,9 +310,9 @@ describe('Modal', () => {
       </>
     );
     const { rerender, unmount } = render(
-      <Modal title="Churn" onClose={() => {}}>
+      <FormDialog title="Churn" onClose={() => {}}>
         {body}
-      </Modal>,
+      </FormDialog>,
     );
     const first = screen.getByRole('button', { name: 'First' });
     const second = screen.getByRole('button', { name: 'Second' });
@@ -316,9 +321,9 @@ describe('Modal', () => {
     second.focus();
 
     rerender(
-      <Modal title="Churn" onClose={() => {}}>
+      <FormDialog title="Churn" onClose={() => {}}>
         {body}
-      </Modal>,
+      </FormDialog>,
     );
     expect(document.activeElement).toBe(second);
 

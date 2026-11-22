@@ -3,8 +3,8 @@ import test from 'node:test';
 import { E2E_RUN_PRESETS, resolvePlaywrightRunMode } from './playwrightRunMode.mjs';
 import { parseReportPhaseName } from './playwrightServerScope.ts';
 
-test('server API calls use the claimed lane despite an inherited API override', async () => {
-  const previousLane = process.env.CAPACITYLENS_PORT_LANE;
+test('server API calls use the claimed port lane despite an inherited API override', async () => {
+  const previousPortLane = process.env.CAPACITYLENS_PORT_LANE;
   const previousApi = process.env.VITE_CAPACITYLENS_API;
   process.env.CAPACITYLENS_PORT_LANE = '3';
   process.env.VITE_CAPACITYLENS_API = 'http://localhost:9000';
@@ -14,8 +14,8 @@ test('server API calls use the claimed lane despite an inherited API override', 
     assert.equal(serverTarget(3, 1).api, 'http://localhost:10302');
     assert.match(serverTarget(3, 1).databasePath, /\.e2e-l3-w1\.db$/);
   } finally {
-    if (previousLane === undefined) delete process.env.CAPACITYLENS_PORT_LANE;
-    else process.env.CAPACITYLENS_PORT_LANE = previousLane;
+    if (previousPortLane === undefined) delete process.env.CAPACITYLENS_PORT_LANE;
+    else process.env.CAPACITYLENS_PORT_LANE = previousPortLane;
     if (previousApi === undefined) delete process.env.VITE_CAPACITYLENS_API;
     else process.env.VITE_CAPACITYLENS_API = previousApi;
   }

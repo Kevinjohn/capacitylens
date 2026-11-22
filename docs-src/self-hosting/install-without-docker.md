@@ -92,7 +92,7 @@ sudo install -o root -g root -m 0600 \
   /opt/capacitylens/current/capacitylens.env.example /etc/capacitylens.env
 ```
 
-Generate an Adonis application key from the backend directory and copy the printed value into
+Generate an AdonisJS application key from the backend directory and copy the printed value into
 `APP_KEY`:
 
 ```bash
@@ -114,8 +114,8 @@ Fill in the mail settings before inviting anyone else. See
 
 ### 4. Upgrade the database and start the service
 
-Run the upgrade as the service user with the same environment file. It initializes a fresh database;
-for an existing database, it writes and verifies a pre-upgrade snapshot before running pending
+Run the upgrade as the service user with the same environment file. It initialises a fresh database;
+for an existing database, it writes and verifies a pre-upgrade backup before running pending
 migrations.
 
 ```bash
@@ -161,13 +161,13 @@ your company**, enter **Company name** and select **Create company**. Schedule o
 identity as Owner.
 
 The company starts with Monday, Monday–Friday working days, day-based scheduling and the Internal
-client, without a sample schedule. The server blocks additional open signup until the first company
+client, without an example schedule. The server blocks additional open signup until the first company
 exists, even when open signup is enabled in configuration.
 
 Browser setup requires exactly one existing sign-in identity and no company or membership. If
 multiple identities were created before the company, browser setup refuses rather than choosing
 an Owner. Resolving that uncommon state currently needs the hosting operator's stopped-server
-`company:initialize` initializer. This is a limitation, not an extra installation step. A second company is never created.
+`company:initialize` initialiser. This is a limitation, not an extra installation step. A second company is never created.
 
 ## Restore planning from a beta JSON export
 
@@ -183,7 +183,7 @@ Scheduling IDs stay unchanged; the destination company keeps its own ID and sign
 
 Check the imported people, catalogue, schedule and company settings. Add or edit an allocation,
 then reload to check persistence. Invite other members again and link them to imported people as
-needed: JSON transfers do not include identities, passwords, memberships or sessions. Keep the
+needed: JSON exports do not include identities, passwords, memberships or sessions. Keep the
 source installation and export until you have verified the destination.
 
 Continue with [TLS and networking](/self-hosting/tls-and-networking),

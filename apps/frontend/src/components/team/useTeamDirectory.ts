@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { teamAccessClient } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
 import type {
   TeamAccessResult,
   TeamDirectory,
   TeamInvitation,
   TeamMember,
-} from '@/account/teamAccessClient';
+} from '@/account/teamAccessApi';
 import type { FieldError } from '@/hooks/useFieldError';
 import { api, buildScopeQueryKey } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
@@ -64,7 +64,7 @@ export function teamMembersQueryKey(scope: ApiQueryScope, companyId: string | nu
 
 /** Reads the members list for the shared members query. */
 export function readTeamMembers(companyId: string, signal: AbortSignal): Promise<TeamDirectory> {
-  return readOk(teamAccessClient.listMembers(companyId, signal));
+  return readOk(teamAccessApi.listMembers(companyId, signal));
 }
 
 const isAccessRefusal = (error: unknown): boolean =>
@@ -114,18 +114,18 @@ function deriveDirectory(
 function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope) {
   const { enabled, activeCompanyId } = options;
   const companyId = activeCompanyId ?? '';
-  const { principalId, masqueradeGeneration } = scope;
+  const { userId, masqueradeGeneration } = scope;
   // Stable keys, so the reload and replace callbacks keep their identity between renders.
   const { membersKey, invitesKey } = useMemo(() => {
-    const keyScope = { principalId, companyId: activeCompanyId, masqueradeGeneration };
+    const keyScope = { userId, companyId: activeCompanyId, masqueradeGeneration };
     return {
       membersKey: teamMembersQueryKey(keyScope, activeCompanyId),
       invitesKey: buildScopeQueryKey(keyScope, [
         'team-invitations',
-        ...api.api.invites.index.queryKey({ params: { companyId } }),
+        ...api.api.invitations.index.queryKey({ params: { companyId } }),
       ]),
     };
-  }, [principalId, activeCompanyId, masqueradeGeneration, companyId]);
+  }, [userId, activeCompanyId, masqueradeGeneration, companyId]);
   const membersQuery = useQuery<TeamDirectory>({
     queryKey: membersKey,
     enabled: enabled && !!activeCompanyId,
@@ -139,7 +139,7 @@ function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope
     enabled: enabled && !!activeCompanyId && membersQuery.isSuccess,
     refetchOnWindowFocus: false,
     retry: false,
-    queryFn: ({ signal }) => readOk(teamAccessClient.listInvitations(companyId, signal)),
+    queryFn: ({ signal }) => readOk(teamAccessApi.listInvitations(companyId, signal)),
   });
   return { membersKey, membersQuery, invitesKey, invitationsQuery };
 }
@@ -192,7 +192,7 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
   );
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const scope: ApiQueryScope = {
-    principalId: user?.id ?? null,
+    userId: user?.id ?? null,
     companyId: activeCompanyId,
     masqueradeGeneration,
   };

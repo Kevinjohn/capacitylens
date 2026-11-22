@@ -74,7 +74,7 @@ function TextFieldControl({
       value={value}
       placeholder={placeholder}
       autoFocus={autoFocus}
-      // Mark the intended autofocus target so Modal's focus trap honours it instead of
+      // Mark the intended autofocus target so FormDialog's focus trap honours it instead of
       // grabbing the first focusable (often a leading button).
       data-autofocus={autoFocus ? '' : undefined}
       maxLength={maxLength ?? undefined}
@@ -91,7 +91,7 @@ function TextFieldControl({
   );
 }
 
-/** Renders a labelled text input with shared validation and layout behavior. */
+/** Renders a labelled text input with shared validation and layout behaviour. */
 export function TextField(props: TextFieldProps) {
   const { label, description, invalid, required, disabled, layout = 'stacked' } = props;
   const id = useId();
@@ -133,7 +133,7 @@ export function TextField(props: TextFieldProps) {
   );
 }
 
-/** Renders a labelled numeric input with shared validation and layout behavior. */
+/** Renders a labelled numeric input with shared validation and layout behaviour. */
 export function NumberField({
   label,
   value,
@@ -199,7 +199,7 @@ export function NumberField({
   );
 }
 
-/** Renders a labelled date input with shared validation and layout behavior. */
+/** Renders a labelled date input with shared validation and layout behaviour. */
 export function DateField({
   label,
   value,

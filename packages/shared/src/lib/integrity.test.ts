@@ -9,11 +9,11 @@ import {
   validateProjectClient,
   removeAllocationAttribution,
 } from './integrity.js';
-import { makePlaceholder, makeUnboundPlaceholder, makePerson } from './integrity.test.support.js';
+import { makePlaceholder, makeUnboundPlaceholder, makePerson } from './integrityTestKit.js';
 
 describe('isAllocationAttributionAllowed', () => {
-  it('allows allocation-level project attribution only for repeatable activities', () => {
-    expect(isAllocationAttributionAllowed('repeatable')).toBe(true);
+  it('allows allocation-level project attribution only for all-projects activities', () => {
+    expect(isAllocationAttributionAllowed('allProjects')).toBe(true);
     expect(isAllocationAttributionAllowed('project')).toBe(false);
     expect(isAllocationAttributionAllowed('internal')).toBe(false);
     expect(isAllocationAttributionAllowed('unknown')).toBe(false);

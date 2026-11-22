@@ -33,11 +33,11 @@ flowchart TD
 ```mermaid
 flowchart TD
     Screen["MembersSection does not wire changeSignInTracking to a rendered control"] --> NoEntry["No current toggle or Signed in column"]
-    Hook["Retained createSignInTrackingMutation"] --> Client["teamAccessClient.setMemberSignInTracking → memberRequests PUT api.members.tracking"]
-    Client --> Route["membership_routes.ts registers api.members.tracking"]
-    Route --> Controller["MembersController.tracking checks members:signInTracking"]
+    Hook["Retained createSignInTrackingMutation"] --> Client["teamAccessApi.setMemberSignInTracking → memberRequests PUT api.member_sign_in_tracking.update"]
+    Client --> Route["membership_routes.ts registers api.member_sign_in_tracking.update"]
+    Route --> Controller["MemberSignInTrackingController.update checks members:signInTracking"]
     Controller --> Service["setMemberSignInTracking stores or clears company_settings keys"]
     Service --> Directory["readMemberDirectory can project sign-in confirmation state when enabled"]
 ```
 
-**Code references:** [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [membership_routes.ts](../../apps/backend/start/membership_routes.ts), [members_controller.ts](../../apps/backend/app/controllers/members_controller.ts), [sign_in_tracking.ts](../../apps/backend/app/services/membership/sign_in_tracking.ts), [member_directory.ts](../../apps/backend/app/services/membership/member_directory.ts), [access.ts](../../packages/shared/src/domain/access.ts)
+**Code references:** [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [membership_routes.ts](../../apps/backend/start/membership_routes.ts), [member_sign_in_tracking_controller.ts](../../apps/backend/app/controllers/member_sign_in_tracking_controller.ts), [sign_in_tracking.ts](../../apps/backend/app/services/membership/sign_in_tracking.ts), [member_directory.ts](../../apps/backend/app/services/membership/member_directory.ts), [access.ts](../../packages/shared/src/domain/access.ts)

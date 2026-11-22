@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { test } from '@japa/runner';
 import { portInUse, terminateProcessTree } from '../../../../../tooling/devProcesses.mjs';
-import { ports, resolveLane, workerPorts } from '../../../../../tooling/ports.mjs';
+import { ports, resolvePortLane, workerPorts } from '../../../../../tooling/ports.mjs';
 import { E2E_SCRIPT_TEST_SLOTS } from '../../../../../tooling/e2eTestSlots.mjs';
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -65,9 +65,9 @@ test('both E2E server flavours require sign-in and expose no installation reset 
   assert,
 }) => {
   for (const flavour of ['db', 'auth'] as const) {
-    const lane = ports();
+    const portLane = ports();
     const slot = E2E_SCRIPT_TEST_SLOTS.serverBoundary;
-    const port = flavour === 'db' ? workerPorts(resolveLane(), slot).api : lane.authApi;
+    const port = flavour === 'db' ? workerPorts(resolvePortLane(), slot).api : portLane.authApi;
     const args = ['scripts/e2e-server.mjs', flavour];
     if (flavour === 'db') args.push('--slot', String(slot));
     const child = spawn(process.execPath, args, {
@@ -117,8 +117,10 @@ test('both E2E server flavours require sign-in and expose no installation reset 
           headers: { cookie, 'sec-fetch-site': 'same-origin' },
         });
         assert.equal(contextResponse.status, 200, 'signed-in requests resolve their context');
-        const context = (await contextResponse.json()) as { contextToken?: unknown };
-        assert.isString(context.contextToken, 'signed-in requests receive a context token');
+        const { data: context } = (await contextResponse.json()) as {
+          data: { masqueradeToken?: unknown };
+        };
+        assert.isString(context.masqueradeToken, 'signed-in requests receive a masquerade token');
 
         const session = await fetch(`http://127.0.0.1:${port}/api/auth/me`, {
           headers: { cookie },
@@ -135,7 +137,7 @@ test('both E2E server flavours require sign-in and expose no installation reset 
             cookie,
             'content-type': 'application/json',
             'sec-fetch-site': 'same-origin',
-            'X-Masquerade-Context': context.contextToken as string,
+            'X-Masquerade-Context': context.masqueradeToken as string,
           },
           body: JSON.stringify({ seed: true }),
         });

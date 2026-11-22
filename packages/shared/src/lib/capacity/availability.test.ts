@@ -10,7 +10,7 @@ import {
   makeAlloc,
   makeTimeOff,
   makeClosure,
-} from './capacity.test.support.js';
+} from './capacityTestKit.js';
 
 describe('resource availability boundaries', () => {
   const boundedResource = makeResource({

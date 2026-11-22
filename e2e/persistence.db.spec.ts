@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { isPlanningMutation, openApp, selectShadOption } from './browserTestSupport';
+import { isPlanningMutation, openApp, selectShadOption } from './browserTestKit';
 import { serverState, requireStateRows } from './serverTestState';
 
 test.describe('database-backed persistence', () => {

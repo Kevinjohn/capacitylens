@@ -3,8 +3,8 @@ import type { ApiClient } from '@japa/api-client';
 import {
   authenticatedDataClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { request as httpRequest } from 'node:http';
 
 interface RawResponse {
@@ -72,15 +72,16 @@ test.group('HTTP parser regressions', (group) => {
     const fixture = await reset(client, true);
     client = fixture.client;
     const cookie = fixture.cookie;
-    const context = await client.get('/api/masquerade').send();
+    const context = await client.visit('api.masquerade.show').send();
     context.assertStatus(200);
-    const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken;
-    assert.isString(contextToken);
+    const masqueradeToken = (context.body()!.data as unknown as { masqueradeToken?: unknown })
+      .masqueradeToken;
+    assert.isString(masqueradeToken);
     const oversized = await postRaw(
       '/api/companies/a-studio/example-data',
       Buffer.from(`value=${'x'.repeat(1_100_000)}`),
       'application/x-www-form-urlencoded',
-      { 'x-masquerade-context': contextToken as string },
+      { 'x-masquerade-context': masqueradeToken as string },
       cookie
     );
     assert.equal(oversized.statusCode, 413);
@@ -93,7 +94,7 @@ test.group('HTTP parser regressions', (group) => {
       '/api/companies/a-studio/example-data',
       Buffer.from('value=x'),
       'application/x-www-form-urlencoded',
-      { 'content-encoding': 'compress', 'x-masquerade-context': contextToken as string },
+      { 'content-encoding': 'compress', 'x-masquerade-context': masqueradeToken as string },
       cookie
     );
     assert.equal(unsupported.statusCode, 415);

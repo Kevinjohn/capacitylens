@@ -62,14 +62,20 @@ it('resolves and numbers a large duplicate set without rescanning metadata array
 
 it('filters by exact activity kind and sorts labels alphabetically', () => {
   const activities: Activity[] = [
-    { ...NULLABLE_FIELDS.activities, ...row, id: 'repeat-z', name: 'Strategy', kind: 'repeatable' },
+    {
+      ...NULLABLE_FIELDS.activities,
+      ...row,
+      id: 'repeat-z',
+      name: 'Strategy',
+      kind: 'allProjects',
+    },
     { ...NULLABLE_FIELDS.activities, ...row, id: 'internal-z', name: 'Support', kind: 'internal' },
     {
       ...NULLABLE_FIELDS.activities,
       ...row,
       id: 'repeat-a',
       name: 'Retrospective',
-      kind: 'repeatable',
+      kind: 'allProjects',
     },
     { ...NULLABLE_FIELDS.activities, ...row, id: 'internal-a', name: 'Admin', kind: 'internal' },
     {
@@ -87,7 +93,7 @@ it('filters by exact activity kind and sorts labels alphabetically', () => {
     { value: 'internal-z', label: 'Support' },
   ]);
   expect(
-    buildActivityOptions({ activities, phases: [], projects: [], kind: 'repeatable' }),
+    buildActivityOptions({ activities, phases: [], projects: [], kind: 'allProjects' }),
   ).toEqual([
     { value: 'repeat-a', label: 'Retrospective' },
     { value: 'repeat-z', label: 'Strategy' },
@@ -167,7 +173,7 @@ it('does not apply the project id filter to non-project activities', () => {
 
 it.each([
   ['internal', 'Internal'],
-  ['repeatable', 'All projects'],
+  ['allProjects', 'All projects'],
 ] as const)(
   'uses the %s kind as context when duplicate names need disambiguation',
   (kind, context) => {
@@ -308,14 +314,14 @@ it('groups All-projects activities first and disambiguates names across the comb
       ...row,
       id: 'repeat-design',
       name: 'Design',
-      kind: 'repeatable',
+      kind: 'allProjects',
     },
     {
       ...NULLABLE_FIELDS.activities,
       ...row,
       id: 'repeat-admin',
       name: 'Admin',
-      kind: 'repeatable',
+      kind: 'allProjects',
     },
     {
       ...NULLABLE_FIELDS.activities,

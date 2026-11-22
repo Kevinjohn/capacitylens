@@ -100,7 +100,7 @@ function parseDirectoryMembers(rows: readonly unknown[]): TeamMember[] | null {
   for (const row of rows) {
     const member = parseMember(row);
     if (member === null) {
-      console.warn('teamAccessClient: dropped an unsupported member-directory row');
+      console.warn('teamAccessApi: dropped an unsupported member-directory row');
       continue;
     }
     members.push(member);
@@ -167,7 +167,7 @@ export function parseInvitations(value: unknown): TeamInvitation[] | null {
   for (const row of value.invites) {
     const invitation = parseInvitation(row);
     if (invitation === null) {
-      console.warn('teamAccessClient: dropped an unsupported invitation-directory row');
+      console.warn('teamAccessApi: dropped an unsupported invitation-directory row');
       continue;
     }
     invitations.push(invitation);

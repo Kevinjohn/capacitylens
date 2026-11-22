@@ -5,17 +5,17 @@
 // Claim before starting the child because configuration files resolve ports before global setup can run.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assertSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
+import { assertSupportedNodeVersion } from '../../apps/backend/bin/node_version.ts';
 import { mirrorChildExit } from '../../tooling/devProcesses.mjs';
-import { assertLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
+import { assertPortLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
 import {
-  LANE_CLAIM_ENVIRONMENT_KEY,
-  LANE_ENVIRONMENT_KEY,
+  PORT_LANE_CLAIM_ENVIRONMENT_KEY,
+  PORT_LANE_ENVIRONMENT_KEY,
   SHARE_ENVIRONMENT_KEY,
-  portsForLane,
+  portsForPortLane,
 } from '../../tooling/ports.mjs';
 
-// Refuse an unsupported runtime before a lane is claimed, so nothing is left to release.
+// Refuse an unsupported runtime before a port lane is claimed, so nothing is left to release.
 try {
   assertSupportedNodeVersion();
 } catch (error) {
@@ -33,7 +33,7 @@ if (!command) {
   process.exit(2);
 }
 
-// An inherited lane belongs to an outer launcher, which also releases it; a hand-selected lane is
+// An inherited port lane belongs to an outer launcher, which also releases it; a hand-selected port lane is
 // reserved and released here like an automatic one.
 const claim = resolveLaunchClaim({ worktree });
 const { inherited } = claim;
@@ -46,13 +46,13 @@ function release() {
     claim.release();
   } catch (error) {
     // Report release failure without replacing the child’s result; a later claim can inspect and reclaim the stale reservation.
-    console.error(`with-lane: releasing lane ${claim.lane} failed: ${error.message}`);
+    console.error(`with-lane: releasing port lane ${claim.portLane} failed: ${error.message}`);
   }
 }
 
 try {
   if (!inherited) {
-    await assertLaneFree(claim.lane);
+    await assertPortLaneFree(claim.portLane);
   }
 } catch (error) {
   // Release our reservation and surface occupied-port failures before starting a child.
@@ -61,10 +61,10 @@ try {
   process.exit(1);
 }
 
-const lanePorts = portsForLane(claim.lane);
+const portLanePorts = portsForPortLane(claim.portLane);
 if (!inherited) {
   console.error(
-    `with-lane: lane ${claim.lane} — web ${lanePorts.web}, api ${lanePorts.dbApi}, ${claim.share} test worker${claim.share === 1 ? '' : 's'}.`,
+    `with-lane: port lane ${claim.portLane} — web ${portLanePorts.web}, api ${portLanePorts.dbApi}, ${claim.share} test worker${claim.share === 1 ? '' : 's'}.`,
   );
 }
 
@@ -72,8 +72,8 @@ const child = spawn(command, args, {
   stdio: 'inherit',
   env: {
     ...process.env,
-    [LANE_ENVIRONMENT_KEY]: String(claim.lane),
-    [LANE_CLAIM_ENVIRONMENT_KEY]: claim.token,
+    [PORT_LANE_ENVIRONMENT_KEY]: String(claim.portLane),
+    [PORT_LANE_CLAIM_ENVIRONMENT_KEY]: claim.token,
     [SHARE_ENVIRONMENT_KEY]: String(claim.share),
   },
 });

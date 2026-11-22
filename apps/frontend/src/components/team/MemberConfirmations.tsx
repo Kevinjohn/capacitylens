@@ -1,13 +1,13 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { buildMemberConfirmationCopy, resolveMemberLabel } from './memberConfirmationCopy';
 import type { MemberConfirmation } from './memberConfirmationCopy';
 
 export type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy';
 import { resolveRoleSummary } from '@/lib/accessCopy';
-import { ConfirmDialog, Modal, SelectField } from '@/components/common/ui';
+import { ConfirmDialog, FormDialog, SelectField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 
 /** A pending role change for one team member. */
@@ -38,7 +38,7 @@ function MemberRoleEditDialog({
   changeRole(member: TeamMember, role: Role): Promise<void>;
 }) {
   return (
-    <Modal
+    <FormDialog
       title={m.settings_change_role_title()}
       description={resolveMemberLabel(roleEdit.member)}
       onClose={() => setRoleEdit(null)}
@@ -79,7 +79,7 @@ function MemberRoleEditDialog({
           {resolveRoleSummary(roleEdit.nextRole)}
         </p>
       </div>
-    </Modal>
+    </FormDialog>
   );
 }
 

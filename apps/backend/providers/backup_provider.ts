@@ -4,6 +4,7 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, sep } from 'node:path';
 import type { ApplicationService } from '@adonisjs/core/types';
+import logger from '@adonisjs/core/services/logger';
 import type { CreateResult, SqliteBackup } from '@kevinjohn/adonisjs-sqlite-backup';
 import { formatBackupStartupFailure, type BackupConfig } from '#config/backup';
 
@@ -23,15 +24,16 @@ function assertOutsideLiveDatabase(directory: string, livePath: string): void {
  * preparation.
  */
 export default class BackupProvider {
-  private backup?: SqliteBackup;
-  private pending?: Promise<CreateResult>;
-  private cancelSchedule?: () => void;
-  private stopping = false;
+  #backup?: SqliteBackup;
+  #pending?: Promise<CreateResult>;
+  #cancelSchedule?: () => void;
+  #stopping = false;
 
   constructor(protected application: ApplicationService) {}
 
-  protected log(message: string): void {
-    console.log(message);
+  /** Failures and warnings log above `info`, so a quieter `LOG_LEVEL` still shows them. */
+  protected log(message: string, level: 'info' | 'warn' | 'error' = 'info'): void {
+    logger[level](message);
   }
 
   protected schedule(callback: () => void, delayMs: number): () => void {
@@ -41,7 +43,7 @@ export default class BackupProvider {
   }
 
   async ready() {
-    if (this.application.getEnvironment() !== 'web' || this.backup || this.stopping) return;
+    if (this.application.getEnvironment() !== 'web' || this.#backup || this.#stopping) return;
     const config = this.application.config.get<BackupConfig>('backup');
     if (!config.directory) return;
     try {
@@ -49,57 +51,57 @@ export default class BackupProvider {
       backup.checkSource();
       assertOutsideLiveDatabase(config.directory, backup.livePath());
       backup.prepareDirectory();
-      this.backup = backup;
+      this.#backup = backup;
     } catch (error) {
       throw new Error(formatBackupStartupFailure(config.directory, error), { cause: error });
     }
     const run = () => {
-      if (this.pending) {
+      if (this.#pending) {
         this.log('backup skipped — previous backup still in flight');
         return;
       }
       void this.runBackup().catch((error) => {
-        this.log(`backup FAILED — ${String(error)}`);
+        this.log(`backup FAILED — ${String(error)}`, 'error');
         const cleanupError = (error as { cleanupError?: unknown } | null)?.cleanupError;
         if (cleanupError !== undefined) {
-          this.log(`backup temp cleanup failed: ${String(cleanupError)}`);
+          this.log(`backup temp cleanup failed: ${String(cleanupError)}`, 'error');
         }
       });
     };
-    this.cancelSchedule = this.schedule(run, DAY_MS);
+    this.#cancelSchedule = this.schedule(run, DAY_MS);
     run();
   }
 
   runBackup(): Promise<CreateResult> {
-    if (this.stopping) return Promise.reject(new Error('backups stopped during shutdown'));
-    if (this.pending) return this.pending;
-    const backup = this.backup;
+    if (this.#stopping) return Promise.reject(new Error('backups stopped during shutdown'));
+    if (this.#pending) return this.#pending;
+    const backup = this.#backup;
     if (!backup) return Promise.reject(new Error('backups have not started'));
     const run = (async () => {
       const created = await backup.create();
-      for (const warning of created.warnings) this.log(`backup warning: ${warning}`);
+      for (const warning of created.warnings) this.log(`backup warning: ${warning}`, 'warn');
       this.log(`backup written ${created.path}`);
       try {
         const result = await backup.prune();
         for (const failure of result.failed) {
-          this.log(`backup retention could not remove ${failure.name}: ${failure.reason}`);
+          this.log(`backup retention could not remove ${failure.name}: ${failure.reason}`, 'error');
         }
       } catch (error) {
-        this.log(`backup retention failed: ${String(error)}`);
+        this.log(`backup retention failed: ${String(error)}`, 'error');
       }
       return created;
     })();
-    this.pending = run;
+    this.#pending = run;
     const clear = () => {
-      if (this.pending === run) this.pending = undefined;
+      if (this.#pending === run) this.#pending = undefined;
     };
     void run.then(clear, clear);
     return run;
   }
 
   async shutdown() {
-    this.stopping = true;
-    this.cancelSchedule?.();
-    if (this.pending) await Promise.allSettled([this.pending]);
+    this.#stopping = true;
+    this.#cancelSchedule?.();
+    if (this.#pending) await Promise.allSettled([this.#pending]);
   }
 }

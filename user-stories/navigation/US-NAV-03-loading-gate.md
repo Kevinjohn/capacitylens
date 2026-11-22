@@ -14,7 +14,7 @@ As a company member, I want a loading state while company data is read so that i
 
 ## Acceptance criteria
 
-- The page content area shows **Loading…** until the selected data source finishes loading, and again while a member view is starting or ending.
+- The page content area shows **Loading…** until the selected data source finishes loading, and again while a view as another member is starting or ending.
 
 ## User flow
 
@@ -37,7 +37,7 @@ flowchart TD
 flowchart TD
   store["useStore hydration and error state"] --> shell["AppShell passes gate state"]
   shell --> gate["AppEntryGate selects entry stage"]
-  gate -->|not hydrated| loading["LoadingBoundary status"]
+  gate -->|not hydrated| loading["LoadingGate status"]
   gate -->|ready| children["Application children render"]
 ```
 

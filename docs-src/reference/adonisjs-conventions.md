@@ -84,8 +84,8 @@ Some of these words are taken. Do not use them for anything else in new code:
 - **factory** and **seeder** name the Lucid concepts. Test data built by helpers is a fixture.
 - **resource** in a transformer is `this.resource`, the item being transformed. In the product it
   is a scheduled person. Say which one a sentence means.
-- **account** is a person's identity in Account Kit. The `accounts` table stores companies. Say
-  "company" for the tenant and "user" for the person.
+- **account** is a person's identity in Account Kit. Say "company" for the tenant and "user" for
+  the person.
 
 Product words with no framework equivalent keep their meaning: company, member, actor,
 view-as-member, area (the grouping of route files).
@@ -100,6 +100,7 @@ apps/backend/
     exceptions/     the exception handler and custom exceptions
     middleware/     one class per file
     models/         one model per table
+    models_support/ model scopes, hooks and column helpers
     services/       business logic
     transformers/   response shapes
     validators/     VineJS validators
@@ -203,7 +204,7 @@ Source: the Configuration and Folder structure pages of the AdonisJS start guide
   and `commands` are lazy imports, in the starter kit's order. **Open:** #2334 item 14.
 - Resolve paths with `app.makePath()`, `app.publicPath()` and `app.tmpPath()`.
 - `.env.example` lists every variable with a placeholder value. Values for tests belong in
-  `.env.test`. **Open:** #2334 item 12.
+  `.env.test`; `bin/test.ts` keeps only the values computed per port lane or that must override the shell.
 - Product variables use the `CAPACITYLENS_` prefix (departure 5). Framework packages are pinned to
   exact versions (departure 16).
 
@@ -215,7 +216,7 @@ Source: [Routing](https://docs.adonisjs.com/guides/basics/routing) and
 - Routes only map: path, controller action, middleware and name.
 - A route points at a controller as `[controllers.Members, 'index']`.
 - A route with a controller is named by the framework as `controller.method`
-  (`members.index`). Name a route by hand only when it has no controller. **Open:** #2334 item 9.
+  (`members.index`). Name a route by hand only when it has no controller.
 - Put a shared prefix, middleware or name prefix on a `router.group()` with `.prefix()`, `.use()`
   and `.as()`. Do not repeat the prefix on every path.
 - Attach middleware with `.use(middleware.name(options))`, importing `middleware` from
@@ -243,9 +244,9 @@ Source: [Controllers](https://docs.adonisjs.com/guides/basics/controllers) and
 - An operation that is not one of those becomes its own controller, named for the thing it acts
   on and using a resourceful action (the starter kit's `NewAccountController.store`), or a single
   action controller with one `handle` method. Do not grow a controller into a list of verbs.
-  **Open:** #2334 item 4.
 - An action takes the HTTP context first and destructures only what it uses:
-  `async store({ request, response }: HttpContext)`. **Open:** #2334 item 4.
+  `async store({ request, response }: HttpContext)`. **Open:** #2334 item 1. Actions that hand the
+  context to Account Kit or Masquerade keep it whole until that item lands.
 - A controller has no `private` or `protected` methods. A step two actions share moves to a
   service or a model.
 - A controller does not wrap its work in `try`/`catch` to build an error response. It lets the
@@ -290,8 +291,7 @@ Source: [Middleware](https://docs.adonisjs.com/guides/basics/middleware).
 - Authentication and the membership check for a route are named middleware on that route or its
   group. Router middleware does not decide what to do from the route's name. A company permission
   is authorized inside the transaction (departure 11).
-- In the starter kit, body parsing, session, Shield and `initialize_auth` are router middleware.
-  **Open:** #2334 item 10.
+- Body parsing, session, Shield and `initialize_auth` are router middleware, as in the starter kit.
 - A middleware is a class with `handle(ctx, next, options?)`. Code before `await next()` runs on
   the way in; code after it runs on the way out.
 - A middleware refuses by throwing an exception or by sending a response and not calling `next`.
@@ -311,14 +311,15 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
 - Recognise a known error with `instanceof` on its package's `errors` export, such as
   `errors.E_VALIDATION_ERROR` from `@vinejs/vine`, never by its message.
 - A custom exception extends `Exception` from `@adonisjs/core/exceptions`, lives in
-  `app/exceptions/<name>_exception.ts`, and sets `static status` and `static code`. **Open:**
-  #2334 item 2.
+  `app/exceptions/<name>_exception.ts`, and sets `static status` and `static code`. A class whose
+  status or code varies per throw passes them to the constructor instead:
+  `super(message, { status, code })`.
 - Framework exception codes are `E_UPPER_SNAKE`. Product codes on the wire are stable identifiers
   and keep their spelling.
 - The handler shows debug output in development only (departure 19). Every error leaves in the
   flat error contract, and the handler does not call `super.handle` or `super.report`
   (departure 2).
-- A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers. **Open:** #2334 item 11.
+- A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers.
 
 ## Responses and transformers
 
@@ -330,8 +331,7 @@ Source: [Transformers](https://docs.adonisjs.com/guides/frontend/transformers).
 - A transformer shapes output. It is never used to describe input; that is a validator.
 - Never return a Lucid model from an action. Return a plain object or a transformer result.
 - The framework's API response is `serialize(Transformer.transform(model))`, which wraps the
-  result in `{ data }`, with `providers/api_provider.ts` supplying `serialize`. **Open:** #2334
-  item 5.
+  result in `{ data }`, with `providers/api_provider.ts` supplying `serialize`.
 - Columns are `snake_case`; the row transformer produces the camelCase wire format and the state
   transformer projects it for the reader's role (departure 4).
 
@@ -350,7 +350,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
   plural `snake_case` name; set `static table` only when it is not.
 - A model extends its generated schema class, `class Project extends ProjectSchema`, imported from
   `#database/schema`. The model carries relationships, hooks, scopes and behaviour, not column
-  declarations. **Open:** #2345 item 6.1 covers the `accounts` table.
+  declarations.
 - Change a generated type in `database/schema_rules.ts`. Redeclare a column on the model only for
   a one-model refinement or a custom `prepare` or `consume`.
 - Hide a column from output with `serializeAs: null`.
@@ -364,7 +364,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
   on both `beforeFind` and `beforeFetch`. Hooks do not run for bulk `update` and `delete`.
 - A query scope is a static property made with `scope()` and applied with `withScopes`.
 - Avoid native database enums. Store a short string and narrow its type with a schema rule.
-- Product models fail closed without a tenant scope (departure 3).
+- Product models fail closed without a company scope (departure 3).
 
 **Queries and transactions**
 
@@ -435,7 +435,7 @@ Source: [Authentication](https://docs.adonisjs.com/guides/auth/introduction),
   the product transaction through the Access Control package (departure 11).
 - Hash with the `hash` service and encrypt with the `encryption` service. No custom hashing.
 - A rate limit is a named throttle defined in `start/limiter.ts` with `limiter.define` and
-  applied with `.use()`. **Open:** #2334 item 11.
+  applied with `.use()`.
 - `config/cors.ts` lists real origins. Never pair `credentials: true` with a wildcard origin.
 - `config/shield.ts` carries CSP, HSTS, frame and content-type settings. CSRF is the Origin and
   Sec-Fetch-Site check, not Shield's token (departure 8).
@@ -492,8 +492,8 @@ Source: [Testing](https://docs.adonisjs.com/guides/testing/introduction),
   place plugins are registered.
 - Tests use the real database and fake only what leaves the process, such as mail with
   `mail.fake()`.
-- Assert on rows with the `db` assertions the `dbAssertions` plugin adds: `db.assertHas`,
-  `db.assertMissing`, `db.assertCount`.
+- Assert on rows by reading them with the query builder (`db.from(table).where(...)`) and
+  checking the result with `assert`. The `dbAssertions` plugin is not registered.
 - The framework tests a command with `ace.create(Command, args)` and `command.assertSucceeded()`.
   CapacityLens operator commands are tested by starting the CLI (departure 23).
 - An API test calls a route by its name with `client.visit('members.index')`.

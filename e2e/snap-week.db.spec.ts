@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestSupport';
+import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestKit';
 import {
   disableWeekSnap,
   nudgeScheduler as nudge,
@@ -8,7 +8,7 @@ import {
   settledSchedulerLeftDate as settledLeftDate,
   setZoom,
   waitForWeekSnap,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' }, viewport: { width: 1440, height: 800 } });
 

@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamMember } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
 
 const member: TeamMember = {
@@ -24,9 +24,9 @@ afterEach(() => {
 describe('useMemberResourceLinkRequest', () => {
   it('ignores a response that arrives after the company changed', async () => {
     let settle: (
-      value: Awaited<ReturnType<typeof teamAccessClient.setMemberResourceLink>>,
+      value: Awaited<ReturnType<typeof teamAccessApi.setMemberResourceLink>>,
     ) => void = () => {};
-    vi.spyOn(teamAccessClient, 'setMemberResourceLink').mockReturnValue(
+    vi.spyOn(teamAccessApi, 'setMemberResourceLink').mockReturnValue(
       new Promise((resolve) => {
         settle = resolve;
       }),
@@ -55,7 +55,7 @@ describe('useMemberResourceLinkRequest', () => {
   });
 
   it('reports an uncertain outcome and stays pending until its requested read is accepted', async () => {
-    vi.spyOn(teamAccessClient, 'setMemberResourceLink').mockResolvedValue({
+    vi.spyOn(teamAccessApi, 'setMemberResourceLink').mockResolvedValue({
       kind: 'unknown',
       status: 409,
       message: 'The operation may have completed.',

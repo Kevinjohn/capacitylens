@@ -36,21 +36,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Ask["AccessScreens AdmissionStep Ask for access"] --> AuthClient["authClient.requestAdmission → api.admission.request"]
-    AuthClient --> RequestController["AdmissionController.request → AccountAdmission.request"]
+    Ask["AccessScreens AdmissionStep Ask for access"] --> AuthApi["authApi.requestAdmission → api.admission_requests.store"]
+    AuthApi --> RequestController["AdmissionRequestsController.store → AccountAdmission.request"]
     RequestController --> Refresh["AccessScreen onRefresh asks AuthProvider to resolve access again"]
     Check["AccessScreens Check again"] --> Refresh
     Refresh --> Gate{"Current admission and membership gate"}
     Gate -->|"Admission pending"| Wait["AccessScreens keeps waiting state"]
     Gate -->|"Rejected or revoked"| Refused["AccessScreens shows refusal message without request controls"]
-    Gate -->|"Admitted, no membership"| Join["MembershipStep Join company → authClient.completeMembership"]
-    Join --> Complete["AdmissionController.complete → completeMembership"]
+    Gate -->|"Admitted, no membership"| Join["MembershipStep Join company → authApi.completeMembership"]
+    Join --> Complete["MembershipsController.store → completeMembership"]
     Complete --> Company["AuthProvider refreshes access and opens company"]
     Manager["AdmissionRequestsPanel: settings_admission_intro only when requests.length > 0, else settings_admission_empty"] --> Buttons["Approve or Decline"]
-    Buttons --> Client["teamAccessClient.decideAdmission → admissionRequests.decideAdmission"]
-    Client --> Decision["AdmissionController.approve or reject → AccountAdmission decision"]
+    Buttons --> Client["teamAccessApi.decideAdmission → admissionRequests.decideAdmission"]
+    Client --> Decision["AdmissionApprovalsController.store or AdmissionRejectionsController.store → AccountAdmission decision"]
     Decision --> Reload["Panel reloads request list; person refreshes access when ready"]
-    Manager -. "No Revoke control or caller" .-> NoRevoke["api.admission.revoke exists, but this UI does not call it"]
+    Manager -. "No Revoke control or caller" .-> NoRevoke["api.admission_revocations.store exists, but this UI does not call it"]
 ```
 
-**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [admissionRequests.ts](../../apps/frontend/src/account/admissionRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)
+**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [admissionRequests.ts](../../apps/frontend/src/account/admissionRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts), [memberships_controller.ts](../../apps/backend/app/controllers/memberships_controller.ts), [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts), [admission_rejections_controller.ts](../../apps/backend/app/controllers/admission_rejections_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)

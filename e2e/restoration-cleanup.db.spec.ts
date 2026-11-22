@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { expectEditableBar, openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
+import { expectEditableBar, openApp, resetSchedulerScroll, setZoom } from './browserTestKit';
 
 test(
   'privacy cleanup warns once, preserves the cancelled draft and skips warning after Restore is cleared',

@@ -46,4 +46,4 @@ flowchart TD
 - [CompanyClosureSection.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.tsx)
 - [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

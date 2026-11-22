@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
@@ -10,8 +10,7 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
-import { withTransaction } from '#services/with_transaction';
+} from '#tests/functional/planning/helpers';
 import { countRestorableItems } from '#services/planning/restoration';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
@@ -45,8 +44,8 @@ async function deleteTarget(
     phases: { operation: 'catalogue.delete', entity: { entity: target, id } },
     disciplines: { operation: 'catalogue.delete', entity: { entity: target, id } },
   };
-  return session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
-    .json({ mutationId: randomUUID(), baseRevision, intent: intents[target] })
+  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    .json({ mutationId: randomUUID(), baseRevision, intent: intents[target] } as never)
     .send();
 }
 
@@ -133,7 +132,7 @@ test.group('retained restoration reads', (suite) => {
       assert.isFalse(locallyRead[target].some((item) => item.id === ids[target]));
 
       const planning = await session(
-        client.get(`/api/companies/${companyId}/planning`),
+        client.visit('api.planning.show', { companyId }),
         cookie
       ).send();
       planning.assertStatus(200);
@@ -142,7 +141,7 @@ test.group('retained restoration reads', (suite) => {
       assert.notInclude(planning.text(), 'deletion_group_id');
 
       const exported = await session(
-        client.get(`/api/state?companyId=${companyId}&includeInactive=1`),
+        client.visit('api.company_state.show').qs({ companyId, includeInactive: '1' }),
         cookie
       ).send();
       exported.assertStatus(200);
@@ -162,7 +161,7 @@ test.group('retained restoration reads', (suite) => {
     const data = await readState(companyId, true);
     const allocation = { ...newAllocation(data), note: 'Gotham retained note' };
     const created = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -174,15 +173,15 @@ test.group('retained restoration reads', (suite) => {
     created.assertStatus(200);
     const deleted = await deleteTarget(client, cookie, 'allocations', allocation.id, 1);
     deleted.assertStatus(200);
-    const groupId = (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId;
+    const groupId = (deleted.body().data as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
     const restoredRowBeforeReuse = await db.from('allocations').where('id', allocation.id).first();
     assert.exists(restoredRowBeforeReuse);
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId);
 
-    assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 1);
+    assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 1);
     const reused = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -200,10 +199,10 @@ test.group('retained restoration reads', (suite) => {
     const ledgerAfterReuse = await db.from('deleted_rows').where('group_id', groupId).first();
     assert.deepEqual(JSON.parse(ledgerAfterReuse.payload_json), { kind: 'row' });
 
-    assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 0);
+    assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 0);
     const beforeRefusal = await readState(companyId, true);
     const refused = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -238,8 +237,8 @@ test.group('retained restoration reads', (suite) => {
     );
     const deleted = await deleteTarget(client, cookie, 'allocations', allocation.id, 0);
     deleted.assertStatus(200);
-    const groupId = (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId;
+    const groupId = (deleted.body().data as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
     const rowsBefore = await readState(companyId, true);
     const markersBefore = await db
       .from('planning_mutations')
@@ -252,7 +251,7 @@ test.group('retained restoration reads', (suite) => {
     await db.from('deleted_rows').where('group_id', groupId).delete();
 
     const refused = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({

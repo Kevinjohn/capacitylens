@@ -2,14 +2,14 @@ import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 import { SessionProbe } from '@/test/SessionProbe';
 import { createDeferred } from '@/test/createDeferred';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -19,7 +19,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -45,7 +45,7 @@ function RefreshProbe({
 }
 
 describe('AuthProvider — server mode', () => {
-  it('re-checks on planning 401 and swaps to the login screen when the session is gone', async () => {
+  it('re-checks on planning 401 and swaps to the sign-in screen when the session is gone', async () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
@@ -70,7 +70,7 @@ describe('AuthProvider — server mode', () => {
     );
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   });
-  it('warns on the login screen when a mid-session 401 strands unsaved writes', async () => {
+  it('warns on the sign-in screen when a mid-session 401 strands unsaved writes', async () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
@@ -140,7 +140,7 @@ describe('AuthProvider — server mode', () => {
     expect(screen.getByText('user:u1')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
-  it('a STALE refreshAuth resolving after a newer 401 does not overwrite the login status', async () => {
+  it('a STALE refreshAuth resolving after a newer 401 does not overwrite the sign-in status', async () => {
     // A newer confirmed sign-out must win over an earlier authenticated response, or stale credentials would reopen the protected app.
     const slow = createDeferred<Response>();
     const fetchSpy = vi

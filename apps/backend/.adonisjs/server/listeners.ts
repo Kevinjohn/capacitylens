@@ -3,4 +3,6 @@
  * DO NOT EDIT manually
  */
 
-export const listeners = {}
+export const listeners = {
+  ReportQueuedMailError: () => import('#listeners/report_queued_mail_error'),
+}

@@ -40,11 +40,11 @@ characters. Invalid input is rejected; the browser does not silently truncate th
 
 The company starts with Monday–Friday as working days and day-based scheduling. Company name and
 calendar choices are submitted together with the Owner, defaults and built-in Internal client in one
-setup operation. No sample scheduling records are added.
+setup operation. No example scheduling records are added.
 Setup is available only when your identity is the only sign-in and no company or membership exists.
 The server blocks open signup until your company exists, so another signup cannot interrupt this
 first-run setup. If several identities already exist, ask whoever manages hosting to resolve
 access. Setup cannot create a second company or replace an Owner.
-The temporary [demo](/getting-started/try-the-demo) opens a fictional sample company on a disposable local server. Restarting the demo resets its data.
+The temporary [demo](/getting-started/try-the-demo) opens a fictional demo company on a disposable local server. Restarting the demo resets its data.
 
 Next: [Appoint an Admin](/owner/appoint-an-admin) — hand the day-to-day running to someone else.

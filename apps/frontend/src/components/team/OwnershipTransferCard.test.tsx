@@ -5,16 +5,16 @@ import { m } from '@/i18n';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
-import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 const client = vi.hoisted(() => ({ listMembers: vi.fn(), transferOwnership: vi.fn() }));
 const reproject = vi.hoisted(() => vi.fn(async () => true));
 
-vi.mock('@/account/teamAccessClient', () => ({ teamAccessClient: client }));
+vi.mock('@/account/teamAccessApi', () => ({ teamAccessApi: client }));
 vi.mock('@/auth/reprojectAccess', () => ({ reprojectAccess: reproject }));
 vi.mock('@/auth/PasswordConfirmationDialog', () => ({
   PasswordConfirmationDialog: ({
@@ -134,7 +134,7 @@ describe('OwnershipTransferCard', () => {
     await waitFor(() => {
       expect(client.transferOwnership).toHaveBeenCalledWith({
         companyId: DEFAULT_COMPANY_ID,
-        targetPrincipalId: ADMIN.userId,
+        targetUserId: ADMIN.userId,
         confirmationId: 'proof-1',
       });
     });
@@ -166,7 +166,7 @@ describe('OwnershipTransferCard', () => {
     expect(screen.queryByTestId('ownership-transfer-complete')).toBeNull();
   });
 
-  it('retains the same target after an uncertain response and refreshes authority', async () => {
+  it('retains the same target after an uncertain response and refreshes access', async () => {
     client.transferOwnership
       .mockResolvedValueOnce({ kind: 'unknown', status: 503, message: null })
       .mockResolvedValueOnce({
@@ -190,14 +190,14 @@ describe('OwnershipTransferCard', () => {
       [
         {
           companyId: DEFAULT_COMPANY_ID,
-          targetPrincipalId: ADMIN.userId,
+          targetUserId: ADMIN.userId,
           confirmationId: 'proof-1',
         },
       ],
       [
         {
           companyId: DEFAULT_COMPANY_ID,
-          targetPrincipalId: ADMIN.userId,
+          targetUserId: ADMIN.userId,
           confirmationId: 'proof-1',
         },
       ],
@@ -230,7 +230,7 @@ describe('OwnershipTransferCard', () => {
           targetUserId: 'selina',
           targetName: 'Selina Kyle',
           effectiveRole: 'owner',
-          ...viewAsGrantFor('owner'),
+          ...masqueradeGrantFor('owner'),
           startedAt: '2026-09-01T00:00:00.000Z',
           expiresAt: '2999-09-01T00:15:00.000Z',
           token: 'masquerade-token',

@@ -9,14 +9,14 @@ import type { Draft } from '@/store/useStore';
 import { DateField, SelectField } from '@/components/common/ui';
 import type { Option } from '@/components/common/ui';
 
-type RepeatProjection = { repeatUntil: ISODate; drafts: Draft<TimeOff>[] };
+type RepeatExpansion = { repeatUntil: ISODate; drafts: Draft<TimeOff>[] };
 
 interface TimeOffRepeatFieldsProps {
   startDate: ISODate | '';
   repeat: TimeOffRepeatChoice;
   repeatUntil: ISODate | '';
   repeatUntilMaximum: ISODate | undefined;
-  projection: RepeatProjection | null;
+  expansion: RepeatExpansion | null;
   errorField: string | null;
   errorId: string;
   disabled: boolean;
@@ -51,8 +51,8 @@ function buildRepeatOptions(startDate: ISODate | ''): Option[] {
   ];
 }
 
-function TimeOffRepeatPreview({ projection }: { projection: RepeatProjection }) {
-  const finalDraft = projection.drafts.at(-1) as (typeof projection.drafts)[number];
+function TimeOffRepeatPreview({ expansion }: { expansion: RepeatExpansion }) {
+  const finalDraft = expansion.drafts.at(-1) as (typeof expansion.drafts)[number];
   return (
     <div
       className="flex flex-col gap-1 text-xs text-muted-foreground"
@@ -60,14 +60,14 @@ function TimeOffRepeatPreview({ projection }: { projection: RepeatProjection }) 
     >
       <p>
         {m.form_time_off_repeat_preview({
-          count: projection.drafts.length,
+          count: expansion.drafts.length,
           range: formatScheduleDateRange(finalDraft.startDate, finalDraft.endDate),
         })}
       </p>
       <details data-testid="timeoff-repeat-ranges">
         <summary className="cursor-pointer">{m.form_time_off_repeat_show_dates()}</summary>
         <ol className="mt-1 list-decimal pl-5">
-          {projection.drafts.map((draft) => (
+          {expansion.drafts.map((draft) => (
             <li key={draft.startDate}>{formatScheduleDateRange(draft.startDate, draft.endDate)}</li>
           ))}
         </ol>
@@ -110,7 +110,7 @@ export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
           <p className="text-xs text-muted-foreground">{m.form_time_off_repeat_cutoff_hint()}</p>
         </>
       )}
-      {props.projection && <TimeOffRepeatPreview projection={props.projection} />}
+      {props.expansion && <TimeOffRepeatPreview expansion={props.expansion} />}
     </>
   );
 }

@@ -3,15 +3,15 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole } from '@/auth/permissionContext';
 import {
-  fetchInactiveSlice,
-  InactiveSliceHttpError,
-  InactiveSliceShapeError,
-} from '@/data/fetchInactiveSlice';
+  fetchInactiveRecords,
+  InactiveRecordsHttpError,
+  InactiveRecordsShapeError,
+} from '@/data/fetchInactiveRecords';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
-import { buildAuthorityKey } from '@/data/planning/planningAuthority';
+import { buildAccessKey } from '@/data/planning/planningAccess';
 
 /** Keeps inactive data outside the active planning store. */
 export function useInactiveCompanyData(): {
@@ -19,7 +19,7 @@ export function useInactiveCompanyData(): {
   mayViewInactive: boolean;
   reload: () => void;
 } {
-  // The server serves inactive rows only to `members:manage` (exports_controller.ts).
+  // The server serves inactive rows only to `members:manage` (company_state_controller.ts).
   const mayViewInactive = useCan('members:manage');
   const role = useRole();
   const { user } = useAuth();
@@ -27,7 +27,7 @@ export function useInactiveCompanyData(): {
   const masquerade = useStore((state) => state.masquerade);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
-  const authorityKey = buildAuthorityKey(planning.authority);
+  const accessKey = buildAccessKey(planning.access);
   const [serverData, setServerData] = useState<{
     companyId: string;
     reloadKey: number;
@@ -43,9 +43,9 @@ export function useInactiveCompanyData(): {
       mayViewInactive,
       reloadKey,
       role,
-      principalId: user?.id,
+      userId: user?.id,
       context: planning.context,
-      authorityKey,
+      accessKey,
       revision: planning.revision,
       masquerade,
     }),
@@ -56,7 +56,7 @@ export function useInactiveCompanyData(): {
       role,
       user?.id,
       planning.context,
-      authorityKey,
+      accessKey,
       planning.revision,
       masquerade,
     ],
@@ -78,7 +78,7 @@ export function useInactiveCompanyData(): {
     }
     const requestGeneration = ++generation.current;
     const controller = new AbortController();
-    void fetchInactiveSlice(activeCompanyId, controller.signal)
+    void fetchInactiveRecords(activeCompanyId, controller.signal)
       .then((data) => {
         if (
           generation.current === requestGeneration &&
@@ -90,13 +90,13 @@ export function useInactiveCompanyData(): {
       .catch((error: unknown) => {
         if (controller.signal.aborted || generation.current !== requestGeneration) return;
         setServerData(null);
-        if (error instanceof InactiveSliceHttpError && error.status === 403) return;
-        if (error instanceof InactiveSliceHttpError) {
+        if (error instanceof InactiveRecordsHttpError && error.status === 403) return;
+        if (error instanceof InactiveRecordsHttpError) {
           setNotice(
             error.serverMessage ?? m.settings_archived_err_load({ status: error.status }),
             'error',
           );
-        } else if (error instanceof InactiveSliceShapeError) {
+        } else if (error instanceof InactiveRecordsShapeError) {
           setNotice(m.settings_archived_err_incomplete(), 'error');
         } else setNotice(m.settings_err_server({ error: resolveErrorMessage(error) }), 'error');
       });

@@ -1,16 +1,13 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 // Reuse the app's prebundled entry so loading this test module does not trigger a Vite dependency reload.
 import { createStore } from 'zustand';
 import type { StoreApi } from 'zustand/vanilla';
 import type { PlanningIntent } from '@/api/planningContracts';
-import {
-  createPlanningCacheController,
-  createPlanningCacheState,
-} from '@/data/planning/planningCacheController';
+import { createPlanningCache, createPlanningCacheState } from '@/data/planning/planningCache';
 import type {
   PlanningCacheState,
   PlanningPhase,
-  PlanningClientContext,
+  PlanningSessionScope,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { createPlanningTransport } from '@/data/planning/planningTransport';
@@ -18,11 +15,11 @@ import { readPlanningError } from '@/data/planning/planningNotices';
 
 interface Harness {
   store: StoreApi<PlanningCacheState>;
-  controller: ReturnType<typeof createPlanningCacheController>;
+  cache: ReturnType<typeof createPlanningCache>;
   transport: PlanningTransport;
-  /** Every write, undo and redo the controller sent, in order. */
+  /** Every write, undo and redo the cache sent, in order. */
   executions: Array<{ mutationId: string; baseRevision: number; intent?: PlanningIntent }>;
-  drafts: Map<string, ReturnType<ReturnType<typeof createPlanningCacheController>['begin']>>;
+  drafts: Map<string, ReturnType<ReturnType<typeof createPlanningCache>['begin']>>;
   active: Promise<unknown> | null;
 }
 
@@ -81,7 +78,7 @@ function view(state: PlanningCacheState) {
   };
 }
 
-/** Creates a browser-only bridge for exercising the unactivated cache controller against the real API. */
+/** Creates a browser-only bridge for exercising the unactivated cache against the real API. */
 export async function initializePlanningServerHarness(key: string, companyId: string) {
   const existing = harnesses.get(key);
   if (existing) throw new Error(`Planning test harness '${key}' already exists.`);
@@ -104,15 +101,15 @@ export async function initializePlanningServerHarness(key: string, companyId: st
       return realTransport.redo(context, step, signal);
     },
   };
-  const controller = createPlanningCacheController({
-    readMasqueradeContextToken: getMasqueradeContextToken,
+  const cache = createPlanningCache({
+    readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
     setState: store.setState,
     transport,
   });
   const harness: Harness = {
     store,
-    controller,
+    cache,
     transport,
     executions,
     drafts: new Map(),
@@ -120,9 +117,9 @@ export async function initializePlanningServerHarness(key: string, companyId: st
   };
   harnesses.set(key, harness);
 
-  const context: PlanningClientContext = { identity: `browser-session:${key}`, companyId };
-  controller.setContext(context);
-  if (!(await controller.refresh())) {
+  const context: PlanningSessionScope = { identity: `browser-session:${key}`, companyId };
+  cache.setContext(context);
+  if (!(await cache.refresh())) {
     throw new Error('The authenticated planning snapshot could not be loaded.');
   }
   return view(store.getState());
@@ -134,21 +131,21 @@ export function planningHarnessState(key: string) {
 
 export async function planningHarnessRefresh(key: string) {
   const harness = requireHarness(key);
-  return { refreshed: await harness.controller.refresh(), state: view(harness.store.getState()) };
+  return { refreshed: await harness.cache.refresh(), state: view(harness.store.getState()) };
 }
 
 export async function planningHarnessExecute(key: string, intent: PlanningIntent) {
   const harness = requireHarness(key);
-  const draft = harness.controller.begin();
-  const receipt = await harness.controller.execute(draft, intent);
+  const draft = harness.cache.begin();
+  const receipt = await harness.cache.execute(draft, intent);
   return { receipt, state: view(harness.store.getState()) };
 }
 
 export function planningHarnessStart(key: string, intent: PlanningIntent) {
   const harness = requireHarness(key);
   if (harness.active) throw new Error('A planning test request is already running.');
-  const draft = harness.controller.begin();
-  const pending = harness.controller.execute(draft, intent);
+  const draft = harness.cache.begin();
+  const pending = harness.cache.execute(draft, intent);
   const { phase } = harness.store.getState().planning;
   const execution = phase.kind === 'writing' ? phase.write.execution : undefined;
   if (!execution) throw new Error('The planning request did not publish its pending state.');
@@ -185,7 +182,7 @@ export async function planningHarnessFinish(key: string) {
 
 export function planningHarnessCaptureDraft(key: string, token: string) {
   const harness = requireHarness(key);
-  const draft = harness.controller.begin();
+  const draft = harness.cache.begin();
   harness.drafts.set(token, draft);
   return { baseRevision: draft.baseRevision };
 }
@@ -199,7 +196,7 @@ export async function planningHarnessExecuteDraft(
   const draft = harness.drafts.get(token);
   if (!draft) throw new Error(`Planning draft '${token}' was not captured.`);
   try {
-    const receipt = await harness.controller.execute(draft, intent);
+    const receipt = await harness.cache.execute(draft, intent);
     return {
       result: { kind: 'resolved' as const, receipt },
       state: view(harness.store.getState()),
@@ -225,13 +222,13 @@ export async function planningHarnessExecuteDraft(
 
 export async function planningHarnessUndo(key: string) {
   const harness = requireHarness(key);
-  const result = await harness.controller.undo();
+  const result = await harness.cache.undo();
   return { result, executions: harness.executions, state: view(harness.store.getState()) };
 }
 
 export async function planningHarnessRedo(key: string) {
   const harness = requireHarness(key);
-  const result = await harness.controller.redo();
+  const result = await harness.cache.redo();
   return { result, executions: harness.executions, state: view(harness.store.getState()) };
 }
 
@@ -247,6 +244,6 @@ export async function planningHarnessSignOut(key: string) {
     headers: { 'Content-Type': 'application/json' },
     body: '{}',
   });
-  const refreshed = await harness.controller.refresh();
+  const refreshed = await harness.cache.refresh();
   return { signOutStatus: response.status, refreshed, state: view(harness.store.getState()) };
 }

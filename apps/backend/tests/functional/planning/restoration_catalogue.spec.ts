@@ -1,12 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Activity from '#models/activity';
 import Resource from '#models/resource';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, configureAuth, resetPlanningFixture, signIn } from './helpers.js';
+import {
+  companyId,
+  configureAuth,
+  resetPlanningFixture,
+  signIn,
+} from '#tests/functional/planning/helpers';
 import {
   send,
   restore,
@@ -14,7 +19,7 @@ import {
   markers,
   planningAudit,
   consumedAt,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 test.group('typed catalogue and time-off restoration', (suite) => {
   suite.setup(() => freshDatabase());
@@ -54,18 +59,21 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const detachedResource = await db.from('resources').where('id', resource.id).first();
     assert.equal(detachedResource.updated_at, hiddenResource.updated_at);
     assert.equal(detachedResource.deleted_at, childDeletedAt);
-    await db.from('resources').where('id', resource.id).update({ role: 'Updated Gotham role' });
+    await db
+      .from('resources')
+      .where('id', resource.id)
+      .update({ job_title: 'Updated Gotham role' });
     const restored = await restore(
       client,
       cookie,
-      deleted.body().restoration.replacementGroupId,
+      deleted.body().data.restoration.replacementGroupId,
       1
     );
     restored.assertStatus(200);
     const after = await readState(companyId, true);
     assert.equal(after.resources.find((row) => row.id === resource.id)?.disciplineId, disciplineId);
     assert.equal(
-      after.resources.find((row) => row.id === resource.id)?.role,
+      after.resources.find((row) => row.id === resource.id)?.jobTitle,
       'Updated Gotham role'
     );
     const relinkedResource = await db.from('resources').where('id', resource.id).first();
@@ -94,7 +102,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       { operation: 'catalogue.delete', entity: { entity: 'disciplines', id: discipline.id } }
     );
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     await db.from('resources').where('id', children[1]!.id).update({ discipline_id: other.id });
     const auditBefore = await planningAudit();
     const mutationsBefore = await markers();
@@ -138,7 +146,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       }
     );
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const afterDelete = await readState(companyId, true);
     assert.isNull(afterDelete.activities.find((row) => row.id === activity.id)?.phaseId);
     const detachedActivity = await db.from('activities').where('id', activity.id).first();
@@ -208,7 +216,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       { operation: 'catalogue.delete', entity: { entity: 'phases', id: phaseId } }
     );
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     await db.from('projects').where('id', projectId).delete();
     const auditBefore = await planningAudit();
     const mutationsBefore = await markers();
@@ -263,7 +271,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const restored = await restore(
       client,
       cookie,
-      deleted.body().restoration.replacementGroupId,
+      deleted.body().data.restoration.replacementGroupId,
       1
     );
     restored.assertStatus(200);
@@ -295,7 +303,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       {
         operation: 'closure.create',
         id,
-        fields: { name: 'Gotham holiday', startDate: '2026-11-02', endDate: '2026-11-02' },
+        fields: { name: 'Gotham closure', startDate: '2026-11-02', endDate: '2026-11-02' },
       }
     );
     created.assertStatus(200);
@@ -314,7 +322,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     deleted.assertStatus(200);
     const afterDelete = await readState(companyId, true);
     assert.isUndefined(afterDelete.closures.find((row) => row.id === id));
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const restored = await restore(client, cookie, groupId, 2);
     restored.assertStatus(200);
     const afterRestore = await readState(companyId, true);

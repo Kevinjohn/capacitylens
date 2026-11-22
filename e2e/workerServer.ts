@@ -1,4 +1,4 @@
-import { resolveLane } from '../tooling/ports.mjs';
+import { resolvePortLane } from '../tooling/ports.mjs';
 import { startE2eWorkerServer } from '../scripts/e2e/e2eWorkerRuntime.mjs';
 import { configureServerTarget, prepareServerTemplate, serverTarget } from './serverTestState';
 
@@ -7,9 +7,9 @@ export type E2eWorkerServer = Awaited<ReturnType<typeof startE2eWorkerServer>>;
 
 /** Start the real API and Vite proxy associated with this worker's stable parallel index. */
 export async function startWorkerServer(parallelIndex: number): Promise<E2eWorkerServer> {
-  const lane = resolveLane();
-  const target = serverTarget(lane, parallelIndex);
-  const runtime = await startE2eWorkerServer(target, lane, parallelIndex);
+  const portLane = resolvePortLane();
+  const target = serverTarget(portLane, parallelIndex);
+  const runtime = await startE2eWorkerServer(target, portLane, parallelIndex);
   try {
     configureServerTarget(target, {
       controlToken: runtime.controlToken,

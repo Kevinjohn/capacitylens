@@ -24,7 +24,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { assertSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
+import { assertSupportedNodeVersion } from '../../apps/backend/bin/node_version.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const defaultBase = 'origin/main';
@@ -65,9 +65,9 @@ const documentationOnly = /^(?:docs-src\/|docs\/|user-stories\/)|\.md$/;
 // migrations, configuration, test infrastructure and package files. Any change here runs the
 // whole suite.
 const backendSuiteInput =
-  /^apps\/backend\/(?:(?:database|config|start|providers|bin|commands|types|scripts)\/|app\/(?:middleware|exceptions|models)\/|app\/services\/(?:auth|account_kit|access_control|admission|membership)\/|app\/services\/(?:state_repository|with_transaction)\.ts$|tests\/(?!.+\.spec\.ts$)|[^/]+$)/;
+  /^apps\/backend\/(?:(?:database|config|start|providers|bin|commands|types|scripts)\/|app\/(?:middleware|exceptions|models|models_support)\/|app\/services\/(?:auth|account_kit|access_control|admission|membership)\/|app\/services\/state_repository\.ts$|tests\/(?!.+\.spec\.ts$)|[^/]+$)/;
 const backendPermissionFile =
-  /^apps\/backend\/app\/services\/(?:planning\/(?:access_grant|entity_rules)|cors_origins)\.ts$/;
+  /^apps\/backend\/app\/services\/planning\/(?:access_grant|entity_rules)\.ts$/;
 const backendModule = /^apps\/backend\/app\/([^/]+)\/(.+)\.ts$/;
 const backendTests = 'apps/backend/tests/';
 // Application source, tests and prose that no tooling-policy check reads. The Sonner CSP test reads

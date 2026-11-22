@@ -1,6 +1,6 @@
 import type { Group } from '@japa/runner/core';
 import testUtils from '@adonisjs/core/services/test_utils';
-import { freshDatabase } from './fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 
 /**
  * Migrate once for the group, then run each test inside a global transaction that is rolled back

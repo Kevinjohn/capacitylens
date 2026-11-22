@@ -1,6 +1,6 @@
 import { test, expect } from './dbFixtures';
 import type { Locator, Page } from './dbFixtures';
-import { goToSeedWeek, openApp, setZoom } from './browserTestSupport';
+import { goToSeedWeek, openApp, setZoom } from './browserTestKit';
 
 function dated(lane: Locator, testId: string, date: string): Locator {
   return lane.locator(`[data-testid="${testId}"][data-date="${date}"]`);
