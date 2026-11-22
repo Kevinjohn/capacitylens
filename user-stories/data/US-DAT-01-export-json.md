@@ -28,7 +28,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   button["ImportExport Export JSON calls useExportOperation.exportData"] --> fetch["useExportOperation fetches api.export"]
-  fetch --> route["CompanyCompanyStateController.show projects rows and sets completeness"]
+  fetch --> route["CompanyExportsController.show projects rows and sets completeness"]
   route --> file["downloadTextFile saves the server's file"]
 ```
 
