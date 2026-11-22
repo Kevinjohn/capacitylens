@@ -4,8 +4,9 @@ import { transferOwnership } from '#services/membership/ownership_transfer';
 import { withActor } from '#services/auth/current_actor';
 import { transferOwnershipValidator } from '#validators/ownership';
 
-export default class OwnershipController {
-  async transfer(ctx: HttpContext) {
+/** Transfers company ownership to another member. */
+export default class OwnershipTransfersController {
+  async store(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(transferOwnershipValidator, {
       data: ctx.request.body(),
     });

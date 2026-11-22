@@ -40,11 +40,11 @@ flowchart TD
 ```mermaid
 flowchart TD
   forgot["ForgotPassword.submit sends reset request"] --> request["authApi.requestPasswordReset"]
-  request --> kitRequest["CredentialController.requestReset calls Account Kit passwordReset.request"]
+  request --> kitRequest["PasswordResetRequestsController.store calls Account Kit passwordReset.request"]
   kitRequest --> neutral["ForgotPassword shows non-enumerating confirmation"]
   link["ResetPassword.submit sends token and new password"] --> reset["authApi.resetPassword"]
-  reset --> kitReset["CredentialController.resetPassword calls Account Kit passwordReset.reset"]
+  reset --> kitReset["PasswordResetsController.update calls Account Kit passwordReset.reset"]
   kitReset --> outcome["ResetPassword renders success or link error"]
 ```
 
-**Code references:** [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx), [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)
+**Code references:** [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx), [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_reset_requests_controller.ts](../../apps/backend/app/controllers/password_reset_requests_controller.ts), [password_resets_controller.ts](../../apps/backend/app/controllers/password_resets_controller.ts)

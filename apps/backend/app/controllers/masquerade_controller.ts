@@ -24,7 +24,7 @@ async function runWithAuthorizationRefusal<T>(ctx: HttpContext, work: () => Prom
 }
 
 export default class MasqueradeController {
-  async start(ctx: HttpContext) {
+  async store(ctx: HttpContext) {
     const companyId = ctx.params.companyId;
     if (typeof companyId !== 'string' || !companyId) {
       return ctx.response.badRequest({ error: 'Target member is required.' });
@@ -46,7 +46,7 @@ export default class MasqueradeController {
     });
   }
 
-  async status(ctx: HttpContext) {
+  async show(ctx: HttpContext) {
     return runWithAuthorizationRefusal(ctx, async () => {
       try {
         const signIn = await getSignedInSession(ctx);
@@ -72,7 +72,7 @@ export default class MasqueradeController {
     });
   }
 
-  async end(ctx: HttpContext) {
+  async destroy(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(endMasqueradeValidator, {
       data: ctx.request.body(),
     });

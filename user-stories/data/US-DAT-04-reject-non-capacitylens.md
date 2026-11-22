@@ -28,10 +28,10 @@ flowchart TD
 flowchart TD
   file["usePendingImport.readFile reads selected file"] --> json{"JSON?"}
   json -->|"no"| notice["ImportExport reports invalid JSON before any request"]
-  json -->|"yes"| request["TransferController.preview calls readRequestDocument"]
+  json -->|"yes"| request["ImportPreviewsController.store calls readRequestDocument"]
   request --> validate["previewCompanyImport prepares the full import contract"]
   validate -->|"invalid"| refused["ImportPreview shows the server's reason; nothing changes"]
   validate -->|"valid"| preview["ImportPreview shows the summary; apply validates the document again"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [transfer_controller.ts](../../apps/backend/app/controllers/transfer_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)

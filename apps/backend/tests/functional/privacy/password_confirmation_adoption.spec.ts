@@ -77,18 +77,18 @@ test.group('package proof adoption boundaries', (group) => {
         };
       }
       const prove = proofs.confirmPassword;
-      const controller = PasswordConfirmationsController.prototype.password;
+      const controller = PasswordConfirmationsController.prototype.store;
       let reached = 0;
       proofs.confirmPassword = async () => {
         throw new Error('Preflight must refuse before package verification.');
       };
-      PasswordConfirmationsController.prototype.password = function (ctx) {
+      PasswordConfirmationsController.prototype.store = function (ctx) {
         reached++;
         return controller.call(this, ctx);
       };
       cleanup(() => {
         proofs.confirmPassword = prove;
-        PasswordConfirmationsController.prototype.password = controller;
+        PasswordConfirmationsController.prototype.store = controller;
       });
       const response = await issue(client, cookie);
       response.assertStatus(403);
@@ -235,9 +235,9 @@ test.group('package proof adoption boundaries', (group) => {
     cleanup,
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
-    const original = PasswordConfirmationsController.prototype.password;
+    const original = PasswordConfirmationsController.prototype.store;
     let checked = 0;
-    PasswordConfirmationsController.prototype.password = async function (ctx: HttpContext) {
+    PasswordConfirmationsController.prototype.store = async function (ctx: HttpContext) {
       for (const interrupted of [false, true]) {
         let captured: Trx | undefined;
         const sentinel = new Error('INTERRUPTED_CALLBACK');
@@ -260,7 +260,7 @@ test.group('package proof adoption boundaries', (group) => {
       return original.call(this, ctx);
     };
     cleanup(() => {
-      PasswordConfirmationsController.prototype.password = original;
+      PasswordConfirmationsController.prototype.store = original;
     });
     const response = await issue(client, cookie);
     response.assertStatus(200);

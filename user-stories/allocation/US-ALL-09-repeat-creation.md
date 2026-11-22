@@ -67,7 +67,7 @@ flowchart TD
 
 - [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
 - [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 - [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)

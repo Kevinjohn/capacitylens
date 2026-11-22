@@ -26,14 +26,14 @@ C -->|decline pending request| E["Person sees declined access on the next check"
 
 ```mermaid
 flowchart TD
-accept["InviteAccept submits invitation acceptance"] --> kit["InvitationsController.signUp → Account Kit invitations.accept"]
+accept["InviteAccept submits invitation acceptance"] --> kit["InvitationAcceptancesController.store → Account Kit invitations.accept"]
   kit --> hook["Configured onInvitationAccepted hook grants the invited membership"]
-  ask["AccessScreens: Ask for access when required"] --> request["AdmissionController.request records the admission request"]
+  ask["AccessScreens: Ask for access when required"] --> request["AdmissionRequestsController.store records the admission request"]
   request --> panel["AdmissionRequestsPanel loads requests"]
-  panel --> decision["AdmissionController.approve or reject under live product authority"]
+  panel --> decision["AdmissionApprovalsController.store or AdmissionRejectionsController.store under live product authority"]
   decision --> check["AccessScreens checks admission again"]
-  check -->|admitted but no membership| join["Join company → AdmissionController.complete → completeMembership"]
+  check -->|admitted but no membership| join["Join company → MembershipsController.store → completeMembership"]
   check -->|active membership already exists| open["Continue into company data"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [account_kit.ts](../../apps/backend/config/account_kit.ts), [admission_rules.ts](../../apps/backend/app/services/account_kit/admission_rules.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [account_kit.ts](../../apps/backend/config/account_kit.ts), [admission_rules.ts](../../apps/backend/app/services/account_kit/admission_rules.ts), [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts), [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts), [admission_rejections_controller.ts](../../apps/backend/app/controllers/admission_rejections_controller.ts), [memberships_controller.ts](../../apps/backend/app/controllers/memberships_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)

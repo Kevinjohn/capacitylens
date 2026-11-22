@@ -8,13 +8,13 @@ export function registerAnonymiseRoutes() {
   router
     .group(() => {
       router
-        .post('/api/companies/:companyId/anonymise', [controllers.Anonymise, 'company'])
+        .post('/api/companies/:companyId/anonymise', [controllers.CompanyAnonymisations, 'store'])
         .as('api.companies.anonymise')
         .use(asCompanyMember());
       router
         .post('/api/companies/:companyId/resources/:id/anonymise', [
-          controllers.Anonymise,
-          'resource',
+          controllers.ResourceAnonymisations,
+          'store',
         ])
         .as('api.resources.anonymise')
         .use(asCompanyMember());

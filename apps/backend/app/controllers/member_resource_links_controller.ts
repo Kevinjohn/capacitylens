@@ -7,8 +7,8 @@ import { refuseInvalidAdmissionBody } from '#services/admission/errors';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
 
 /** Scoped member/person association. */
-export default class MemberResourcesController {
-  async setLink(ctx: HttpContext) {
+export default class MemberResourceLinksController {
+  async update(ctx: HttpContext) {
     const [validationError, body] = await ctx.request.tryValidateUsing(setLinkValidator, {
       data: ctx.request.body(),
     });
@@ -45,7 +45,7 @@ export default class MemberResourcesController {
     return ctx.response.ok(result);
   }
 
-  async clearLink(ctx: HttpContext) {
+  async destroy(ctx: HttpContext) {
     const [validationError, body] = await ctx.request.tryValidateUsing(clearLinkValidator, {
       data: ctx.request.body(),
     });
