@@ -61,7 +61,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
   return {
     kind: 'person',
     name: 'Test Person',
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio' as const,
     workingHoursPerDay: 8,
@@ -84,7 +84,7 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
     updatedAt: 't',
     kind: 'person',
     name: 'Test Person',
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio',
     workingHoursPerDay: 8,

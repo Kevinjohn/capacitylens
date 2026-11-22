@@ -113,7 +113,7 @@ describe('assertScopedRefs', () => {
         assertScopedRefs(data, A1, 'resources', {
           kind: 'placeholder',
           projectId: 'p1',
-          role: 'Slot',
+          jobTitle: 'Slot',
         }),
       ).toThrow('Placeholder project must belong to this company.');
 

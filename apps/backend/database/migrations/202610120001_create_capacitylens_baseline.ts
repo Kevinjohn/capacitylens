@@ -134,7 +134,7 @@ export default class extends BaseSchema {
       scoped(table);
       table.string('kind').notNullable();
       table.string('name').nullable();
-      table.string('role').notNullable();
+      table.string('job_title').notNullable();
       table.string('avatar_url').nullable();
       table
         .string('discipline_id')

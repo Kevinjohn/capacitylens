@@ -40,9 +40,11 @@ export function resolvePersonScheduleIdentity(resource: Resource, data: AppData)
   const discipline = resource.disciplineId
     ? data.disciplines.find((candidate) => candidate.id === resource.disciplineId)
     : undefined;
-  if (!discipline) return m.scheduler_person_schedule_placeholder_role({ role: resource.role });
+  if (!discipline) {
+    return m.scheduler_person_schedule_placeholder_job_title({ jobTitle: resource.jobTitle });
+  }
   return m.scheduler_person_schedule_placeholder_discipline({
-    role: resource.role,
+    jobTitle: resource.jobTitle,
     discipline: discipline.name,
   });
 }

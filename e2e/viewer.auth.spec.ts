@@ -78,7 +78,7 @@ async function createViewerScenario(request: APIRequestContext) {
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Viewer-visible person',
-    role: 'Designer',
+    jobTitle: 'Designer',
     avatarUrl: VIEWER_AVATAR_URL,
   });
   for (const [who, role] of [

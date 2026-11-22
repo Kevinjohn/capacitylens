@@ -129,7 +129,7 @@ describe('AllocationDialog compact layout', () => {
       useStore.getState().addResource({
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Partner studio',
+        jobTitle: 'Partner studio',
         employmentType: 'permanent',
         engagement: 'studio',
         workingHoursPerDay: 8,
@@ -152,7 +152,7 @@ describe('AllocationDialog compact layout', () => {
     const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio',
         workingHoursPerDay: 8,

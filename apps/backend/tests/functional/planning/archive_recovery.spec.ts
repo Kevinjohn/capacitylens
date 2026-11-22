@@ -108,7 +108,7 @@ async function prepareArchiveFixture(archiveProject = false) {
     });
   await db.from('resources').where({ id: 'r-tyler', company_id: companyId }).update({
     archived_at: stamp,
-    role: 'Secret Designer Role',
+    job_title: 'Secret Designer Role',
     avatar_url: 'private-avatar-sentinel',
   });
   await db.from('resources').where({ id: 'r-alex', company_id: companyId }).update({

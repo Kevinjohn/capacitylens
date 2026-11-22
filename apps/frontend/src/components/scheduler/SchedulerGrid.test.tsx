@@ -66,7 +66,7 @@ function dataset(): AppData {
         companyId: ACC,
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Partner studio',
+        jobTitle: 'Partner studio',
         color: '#999',
       }),
     ],

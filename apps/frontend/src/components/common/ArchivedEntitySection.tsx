@@ -49,7 +49,7 @@ function ArchivedRow({
       <ItemContent className="min-w-0">
         <span className="font-medium">{name}</span>
         {entity === 'resources' && (
-          <span className="text-sm text-muted-foreground">{(row as Resource).role}</span>
+          <span className="text-sm text-muted-foreground">{(row as Resource).jobTitle}</span>
         )}
         {ancestor && <span className="text-xs text-muted-foreground">{ancestor.message}</span>}
       </ItemContent>

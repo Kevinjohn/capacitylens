@@ -261,7 +261,7 @@ describe('buildSchedulerModel', () => {
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
     if (!firstResource) throw new Error('Expected the base scheduler resource.');
-    d.resources[0] = { ...firstResource, name: 'Jose\u0301 Alvarez', role: 'Research Lead' };
+    d.resources[0] = { ...firstResource, name: 'Jose\u0301 Alvarez', jobTitle: 'Research Lead' };
     const search = (query: string) =>
       buildSchedulerModel({
         data: d,

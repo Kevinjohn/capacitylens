@@ -46,7 +46,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
           fields: {
             kind: 'person',
             name: resource.name,
-            role: resource.role,
+            jobTitle: resource.jobTitle,
             avatarUrl: null,
             disciplineId: null,
             employmentType: resource.employmentType,

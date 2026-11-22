@@ -71,7 +71,7 @@ export function mockApi(
                 )
                 .map((resource) => ({
                   resourceId: resource.id,
-                  label: resource.name ?? resource.role,
+                  label: resource.name ?? resource.jobTitle,
                 })),
             },
           }),

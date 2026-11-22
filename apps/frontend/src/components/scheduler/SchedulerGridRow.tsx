@@ -70,7 +70,7 @@ function ResourceIdentity({
       <PersonScheduleTrigger
         resourceId={resource.id}
         scheduleTitle={scheduleTitle}
-        avatarName={resource.name ?? resource.role}
+        avatarName={resource.name ?? resource.jobTitle}
         color={avatarColor}
         placeholder={resource.kind === 'placeholder'}
         {...(imageUrl ? { imageUrl } : {})}
@@ -82,7 +82,7 @@ function ResourceIdentity({
             {resolveResourceDisplayName(resource)}
           </span>
         </div>
-        <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
+        <span className="block truncate text-xs text-muted-foreground">{resource.jobTitle}</span>
       </div>
     </div>
   );

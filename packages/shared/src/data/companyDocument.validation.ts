@@ -176,7 +176,7 @@ function assertDisciplineRow(row: Row, path: string): void {
 function assertResourceRow(row: Row, path: string): void {
   assert(isOneOf(row.kind, RESOURCE_KINDS), `${path}.kind`, 'is invalid');
   assertNullableText(row, 'name', path);
-  assertText(row, 'role', path, { allowEmpty: true });
+  assertText(row, 'jobTitle', path, { allowEmpty: true });
   assert(isNullOr(row.avatarUrl, isString), `${path}.avatarUrl`, 'must be a string or null');
   assertNullableId(row, 'disciplineId', path);
   assert(isOneOf(row.employmentType, EMPLOYMENT_TYPES), `${path}.employmentType`, 'is invalid');

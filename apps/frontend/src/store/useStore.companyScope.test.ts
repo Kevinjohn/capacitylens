@@ -78,7 +78,7 @@ function twoCompanyData(): AppData {
         id: 'rB',
         companyId: B,
         kind: 'person',
-        role: 'Dev',
+        jobTitle: 'Dev',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,

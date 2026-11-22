@@ -437,7 +437,7 @@ test.group('authenticated typed planning transactions', (group) => {
         fields: {
           kind: 'person',
           name: 'Barbara Gordon',
-          role: 'Analyst',
+          jobTitle: 'Analyst',
           avatarUrl: null,
           disciplineId: null,
           employmentType: 'permanent',
@@ -452,7 +452,7 @@ test.group('authenticated typed planning transactions', (group) => {
           lastAvailableDate: null,
         },
       }),
-      () => ({ operation: 'resource.update', id: ids.resource, changes: { role: 'Lead' } }),
+      () => ({ operation: 'resource.update', id: ids.resource, changes: { jobTitle: 'Lead' } }),
       () => ({ operation: 'resource.archive', id: ids.resource }),
       () => ({ operation: 'resource.unarchive', id: ids.resource }),
       () => ({ operation: 'allocation.create', allocation }),

@@ -82,7 +82,8 @@ export async function resetAllocationDialogStore(): Promise<void> {
 }
 
 /** Builds a person fixture with the supplied display name. */
-export const person = (name: string) => makeResourceDraft({ name, role: 'Dev', color: '#2d75da' });
+export const person = (name: string) =>
+  makeResourceDraft({ name, jobTitle: 'Dev', color: '#2d75da' });
 
 /** Enables day scheduling for the test company. */
 export const enableDays = (workingDays?: Weekday[]) =>

@@ -138,7 +138,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
     fields: {
       kind: 'person',
       name,
-      role: 'Planner',
+      jobTitle: 'Planner',
       avatarUrl: null,
       disciplineId: null,
       employmentType: 'permanent',

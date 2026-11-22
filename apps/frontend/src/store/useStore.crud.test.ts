@@ -16,7 +16,7 @@ beforeEach(async () => {
   s().clearFilters();
 });
 
-const personDraft = makeResourceDraft({ name: 'Person', role: 'Dev', color: '#1' });
+const personDraft = makeResourceDraft({ name: 'Person', jobTitle: 'Dev', color: '#1' });
 
 // Omit the shared draft's false default to cover resources without the optional favourite flag.
 const unflaggedDraft = { ...personDraft };
@@ -134,8 +134,8 @@ describe('store CRUD covers every entity', () => {
   });
   it('resources: add / update', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
-    await s().updateResource(r.id, { role: 'Lead' });
-    expect(s().data.resources[0]?.role).toBe('Lead');
+    await s().updateResource(r.id, { jobTitle: 'Lead' });
+    expect(s().data.resources[0]?.jobTitle).toBe('Lead');
   });
   it('resources: defaults legacy people and placeholders to Studio engagement', async () => {
     const legacyPersonDraft = { ...personDraft };

@@ -105,7 +105,7 @@ function buildResourceItems(input: BuildPaletteItemsInput): PaletteItem[] {
     .map((resource) => ({
       id: `res-${resource.id}`,
       label: `${resolveResourceDisplayName(resource)}${isExternalResource(resource) ? m.palette_resource_external_suffix() : ''}`,
-      ...(resource.kind === 'placeholder' || resource.name ? { sublabel: resource.role } : {}),
+      ...(resource.kind === 'placeholder' || resource.name ? { sublabel: resource.jobTitle } : {}),
       section: m.palette_section_people(),
       onSelect: () => {
         void navigate('/');

@@ -218,7 +218,7 @@ const RESOURCE_BASE: Resource = {
   companyId: 'acc-1',
   kind: 'person',
   name: 'Barbara Gordon',
-  role: 'Senior Designer',
+  jobTitle: 'Senior Designer',
   disciplineId: 'disc-1',
   employmentType: 'permanent',
   engagement: 'studio' as const,
@@ -253,7 +253,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(result.id).toBe(input.id);
     expect(result.companyId).toBe(input.companyId);
     expect(result.kind).toBe(input.kind);
-    expect(result.role).toBe('Removed resource');
+    expect(result.jobTitle).toBe('Removed resource');
     expect(result.disciplineId).toBe(input.disciplineId);
     expect(result.employmentType).toBe(input.employmentType);
     expect(result.engagement).toBe(input.engagement);

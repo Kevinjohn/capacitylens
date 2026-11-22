@@ -44,7 +44,7 @@ const person = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Res
   id: 'r1',
   kind: 'person',
   name: 'Bruce Wayne',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio',
   workingHoursPerDay: 8,

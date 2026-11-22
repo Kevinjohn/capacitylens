@@ -146,7 +146,7 @@ export async function insertInvalidReference(table: string, column: string, targ
     resources: {
       ...common,
       kind: 'person',
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,

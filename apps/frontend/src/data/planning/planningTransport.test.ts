@@ -61,7 +61,7 @@ const timeOff = {
 const resource = {
   kind: 'person' as const,
   name: 'Bruce Wayne',
-  role: 'Planner',
+  jobTitle: 'Planner',
   avatarUrl: null,
   disciplineId: null,
   employmentType: 'permanent' as const,
@@ -105,7 +105,7 @@ const cases: Array<{ intent: PlanningIntent; restoration?: Restoration }> = [
     intent: { operation: 'resource.create', id, fields: resource },
   },
   {
-    intent: { operation: 'resource.update', id, changes: { role: 'Designer' } },
+    intent: { operation: 'resource.update', id, changes: { jobTitle: 'Designer' } },
   },
   { intent: { operation: 'timeOff.create', timeOff } },
   {

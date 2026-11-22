@@ -48,12 +48,12 @@ async function createScenario(request: APIRequestContext) {
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Bruce Wayne',
-    role: 'Planner',
+    jobTitle: 'Planner',
   });
   await createTestPerson(request, owner.cookie, companyId, {
     id: secondResourceId,
     name: 'Clark Kent',
-    role: 'Planner',
+    jobTitle: 'Planner',
   });
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',

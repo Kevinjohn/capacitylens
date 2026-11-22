@@ -62,7 +62,7 @@ beforeEach(async () => {
     id: 'resource-archive',
     companyId: DEFAULT_COMPANY_ID,
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
     avatarUrl: 'https://images.example/diana.png',
     archivedAt: '2026-01-01T00:00:00.000Z',
     createdAt: '2025-01-01T00:00:00.000Z',

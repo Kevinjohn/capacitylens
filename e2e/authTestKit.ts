@@ -558,7 +558,7 @@ export async function createTestPerson(
   request: APIRequestContext,
   cookie: string,
   companyId: string,
-  person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
+  person: { id: string; name: string; jobTitle: string; color?: string; avatarUrl?: string | null },
 ): Promise<void> {
   await sendPlanningIntent(request, cookie, companyId, {
     operation: 'resource.create',
@@ -566,7 +566,7 @@ export async function createTestPerson(
     fields: {
       kind: 'person',
       name: person.name,
-      role: person.role,
+      jobTitle: person.jobTitle,
       avatarUrl: person.avatarUrl ?? null,
       disciplineId: null,
       employmentType: 'permanent',

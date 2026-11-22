@@ -54,7 +54,7 @@ test.describe('getting started', () => {
     await expect(card).toHaveCount(0);
     await page.getByRole('button', { name: 'Add resource' }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Bruce Wayne');
-    await page.getByLabel('Role').fill('Designer');
+    await page.getByLabel('Job title').fill('Designer');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByRole('progressbar', { name: 'Getting started' })).toHaveAttribute(
       'aria-valuenow',

@@ -82,7 +82,7 @@ export const makePerson = (id: ID, companyId: ID): Resource => ({
   ...NULLABLE_FIELDS.resources,
   ...makeMeta(id, companyId),
   kind: 'person',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio' as const,
   workingHoursPerDay: 8,

@@ -161,7 +161,7 @@ test.group('authenticated planning operations', (group) => {
     const fields = {
       kind: 'person',
       name: 'Dick Grayson',
-      role: 'Designer',
+      jobTitle: 'Designer',
       avatarUrl: null,
       disciplineId: original.disciplineId,
       employmentType: original.employmentType,
@@ -180,12 +180,12 @@ test.group('authenticated planning operations', (group) => {
       .send();
     created.assertStatus(200);
     const updated = await session(client.post(route('planning/mutations')), cookie)
-      .json(input(1, { operation: 'resource.update', id, changes: { role: 'Lead Designer' } }))
+      .json(input(1, { operation: 'resource.update', id, changes: { jobTitle: 'Lead Designer' } }))
       .send();
     updated.assertStatus(200);
     const state = await readState(companyId, true);
     const resource = state.resources.find((row) => row.id === id);
-    assert.equal(resource?.role, 'Lead Designer');
+    assert.equal(resource?.jobTitle, 'Lead Designer');
     assert.equal(resource?.workingHoursPerDay, original.workingHoursPerDay);
     assert.deepEqual(resource?.workingDays, original.workingDays);
   });
