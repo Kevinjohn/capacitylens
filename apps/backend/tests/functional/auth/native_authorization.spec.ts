@@ -35,13 +35,13 @@ const withSession = asDataOwner;
 
 function configureAuth(cleanup: (callback: () => void) => void) {
   const prior = {
-    openSignup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
+    openSignUp: env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP'),
     rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
   };
-  env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false);
+  env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', false);
   env.set('CAPACITYLENS_RATE_LIMIT', '0');
   cleanup(() => {
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior.openSignup);
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', prior.openSignUp);
     env.set('CAPACITYLENS_RATE_LIMIT', prior.rateLimit ?? '');
   });
 }

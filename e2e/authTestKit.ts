@@ -673,7 +673,7 @@ function operatorFixtureEnvironment(): NodeJS.ProcessEnv {
     APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
     APP_URL: `http://127.0.0.1:${portLane.authApi}`,
     CAPACITYLENS_DB: '.auth-e2e.db',
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+    CAPACITYLENS_ALLOW_OPEN_SIGN_UP: '1',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${portLane.authApi}`,
   };

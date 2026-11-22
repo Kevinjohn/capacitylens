@@ -60,7 +60,7 @@ const env = {
   // membership-free administrator used by recovery/login scenarios.
   CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+  CAPACITYLENS_ALLOW_OPEN_SIGN_UP: '1',
   CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
   CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
 };

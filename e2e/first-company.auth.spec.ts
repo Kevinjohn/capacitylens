@@ -38,7 +38,7 @@ test('operator setup creates the first Owner, one company and its default client
     CAPACITYLENS_DB: join(scratch, 'native.db'),
     CAPACITYLENS_PUBLIC_URL: origin,
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: 'true',
+    CAPACITYLENS_ALLOW_OPEN_SIGN_UP: 'true',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
     CAPACITYLENS_BACKUP_DIR: '',
   };
