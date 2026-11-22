@@ -14,6 +14,7 @@ export const controllers = {
   Exports: () => import('#controllers/exports_controller'),
   FirstCompanySetup: () => import('#controllers/first_company_setup_controller'),
   GettingStarted: () => import('#controllers/getting_started_controller'),
+  HealthChecks: () => import('#controllers/health_checks_controller'),
   Invitations: () => import('#controllers/invitations_controller'),
   Masquerade: () => import('#controllers/masquerade_controller'),
   MemberResources: () => import('#controllers/member_resources_controller'),

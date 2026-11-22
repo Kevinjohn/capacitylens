@@ -326,6 +326,18 @@ const routes = {
     tokens: [[0,"api"],[0,"health"]],
     types: placeholder as Registry['api.health']['types'],
   },
+  'health_checks.live': {
+    methods: ["GET","HEAD"],
+    pattern: '/health/live',
+    tokens: [[0,"health"],[0,"live"]],
+    types: placeholder as Registry['health_checks.live']['types'],
+  },
+  'health_checks.ready': {
+    methods: ["GET","HEAD"],
+    pattern: '/health/ready',
+    tokens: [[0,"health"],[0,"ready"]],
+    types: placeholder as Registry['health_checks.ready']['types'],
+  },
   'api.diagnostics': {
     methods: ["GET","HEAD"],
     pattern: '/api/diagnostics',

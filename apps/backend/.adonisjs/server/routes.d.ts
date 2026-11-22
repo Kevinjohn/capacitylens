@@ -57,6 +57,8 @@ export type ScannedRoutes = {
     'api.masquerade.end': { paramsTuple?: []; params?: {} }
     'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
+    'health_checks.ready': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
     'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
@@ -75,6 +77,8 @@ export type ScannedRoutes = {
     'api.admission.index': { paramsTuple?: []; params?: {} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
+    'health_checks.ready': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
     'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
@@ -93,6 +97,8 @@ export type ScannedRoutes = {
     'api.admission.index': { paramsTuple?: []; params?: {} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
+    'health_checks.ready': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
     'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }

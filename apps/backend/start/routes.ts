@@ -1,7 +1,7 @@
 import '#start/planning_routes';
 import router from '@adonisjs/core/services/router';
 import app from '@adonisjs/core/services/app';
-import { healthChecks } from '#start/health';
+import { controllers } from '#generated/controllers';
 import { middleware } from '#start/kernel';
 import { registerAuthRoutes } from '#start/auth_routes';
 import { registerMembershipRoutes } from '#start/membership_routes';
@@ -32,16 +32,9 @@ registerAdmissionRoutes();
 registerMasqueradeRoutes();
 registerOwnershipRoutes();
 
-router.get('/api/health', () => ({ ok: true })).as('api.health');
-router.get('/health/live', () => ({ ok: true }));
-router.get('/health/ready', async ({ response }) => {
-  try {
-    const report = await healthChecks.run();
-    return report.isHealthy ? response.ok(report) : response.serviceUnavailable(report);
-  } catch {
-    return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] });
-  }
-});
+router.get('/api/health', [controllers.HealthChecks, 'live']).as('api.health');
+router.get('/health/live', [controllers.HealthChecks, 'live']);
+router.get('/health/ready', [controllers.HealthChecks, 'ready']);
 registerDiagnosticsRoutes();
 router
   .get('/api/*', ({ response }) => response.notFound({ error: 'Not found' }))

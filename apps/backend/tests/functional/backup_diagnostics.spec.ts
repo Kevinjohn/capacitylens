@@ -99,8 +99,8 @@ test.group('backup diagnostics', (group) => {
       const check = response
         .body()
         .checks.find((item: { name: string }) => item.name === 'Database health check (sqlite)');
-      assert.equal(check.status, 'error');
-      assert.equal(check.message, 'Database readiness check failed');
+      assert.equal(check!.status, 'error');
+      assert.equal(check!.message, 'Database readiness check failed');
       assert.notInclude(JSON.stringify(response.body()), String(index!.name));
     } finally {
       logger.error = originalError;
@@ -127,8 +127,8 @@ test.group('backup diagnostics', (group) => {
       const check = response
         .body()
         .checks.find((item: { name: string }) => item.name === 'Database health check (sqlite)');
-      assert.equal(check.status, 'error');
-      assert.equal(check.message, 'Database readiness check failed');
+      assert.equal(check!.status, 'error');
+      assert.equal(check!.message, 'Database readiness check failed');
       assert.notInclude(JSON.stringify(response.body()), 'database/migrations/');
       assert.notInclude(JSON.stringify(response.body()), 'adonis_schema');
     } finally {

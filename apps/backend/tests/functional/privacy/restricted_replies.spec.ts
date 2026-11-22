@@ -352,6 +352,8 @@ const replies: Record<string, Exposure> = {
   'api.getting-started.show': { none: IDENTITY },
   'api.getting-started.update': { none: IDENTITY },
   'api.health': { none: IDENTITY },
+  'health_checks.live': { none: IDENTITY },
+  'health_checks.ready': { none: IDENTITY },
   'api.installation.company': { none: IDENTITY },
   'api.invites.create': { none: IDENTITY },
   'api.invites.index': { none: IDENTITY },

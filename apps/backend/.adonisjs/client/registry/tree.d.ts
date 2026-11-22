@@ -87,4 +87,8 @@ export interface ApiDefinition {
     diagnostics: typeof routes['api.diagnostics']
     notFound: typeof routes['api.not-found']
   }
+  healthChecks: {
+    live: typeof routes['health_checks.live']
+    ready: typeof routes['health_checks.ready']
+  }
 }
