@@ -212,8 +212,11 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       # Coverage collection is for scheduled, tagged and manual full validation only.
+      # The half-core ceiling protects a shared developer machine; this runner runs nothing else.
       - name: Run the frontend suite
         run: |
+          CAPACITYLENS_TEST_SHARE="$(nproc)"
+          export CAPACITYLENS_TEST_SHARE
           if [ "$FULL" = true ]; then
             pnpm --dir apps/frontend exec vitest run --coverage
           else
