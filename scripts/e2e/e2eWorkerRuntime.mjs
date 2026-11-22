@@ -5,7 +5,7 @@ import { renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { workerPorts, resolveLane } from '../../tooling/ports.mjs';
+import { workerPorts, resolvePortLane } from '../../tooling/ports.mjs';
 import { portInUse } from '../../tooling/devProcesses.mjs';
 import {
   cleanupResetControlEndpoints,
@@ -17,12 +17,12 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const backend = join(root, 'apps/backend');
 const leaseRoot = join(tmpdir(), 'capacitylens-e2e-workers');
 const readinessTimeoutMs = 120_000;
-const cachePath = (lane, slot) => join(root, 'node_modules', `.vite-e2e-l${lane}-w${slot}`);
+const cachePath = (portLane, slot) => join(root, 'node_modules', `.vite-e2e-l${portLane}-w${slot}`);
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-function leasePaths(lane, slot, ownerName) {
-  const lock = join(leaseRoot, `l${lane}-w${slot}.lock`);
+function leasePaths(portLane, slot, ownerName) {
+  const lock = join(leaseRoot, `l${portLane}-w${slot}.lock`);
   return { lock, owner: ownerName ? join(lock, ownerName) : undefined };
 }
 
@@ -92,9 +92,9 @@ async function releaseLease(paths) {
 }
 
 /** Claim a complete owner directory, recovering only demonstrably dead owners. */
-async function acquireLease(lane, slot) {
+async function acquireLease(portLane, slot) {
   await mkdir(leaseRoot, { recursive: true });
-  const pendingPrefix = `l${lane}-w${slot}.lock.pending-`;
+  const pendingPrefix = `l${portLane}-w${slot}.lock.pending-`;
   for (const entry of await readdir(leaseRoot, { withFileTypes: true })) {
     const pending = entry.name.startsWith(pendingPrefix)
       ? /^(\d+)-[a-f0-9-]+$/.exec(entry.name.slice(pendingPrefix.length))
@@ -103,7 +103,7 @@ async function acquireLease(lane, slot) {
       await rm(join(leaseRoot, entry.name), { recursive: true, force: true });
   }
   const ownerName = `owner-${process.pid}-${randomUUID()}.json`;
-  const paths = leasePaths(lane, slot, ownerName);
+  const paths = leasePaths(portLane, slot, ownerName);
   const candidate = `${paths.lock}.pending-${process.pid}-${randomUUID()}`;
   let recovered = false;
   try {
@@ -141,7 +141,7 @@ async function acquireLease(lane, slot) {
           throw new Error('The E2E worker lease has no valid owner record.', { cause: error });
         if (owners.length !== 1)
           throw new Error('The E2E worker lease has multiple owner records.', { cause: error });
-        const oldPaths = leasePaths(lane, slot, owners[0]);
+        const oldPaths = leasePaths(portLane, slot, owners[0]);
         const owner = await readOwner(oldPaths.owner);
         if (!owner) continue;
         if (processExists(owner.pid))
@@ -333,10 +333,10 @@ async function assertRequestsDrained(apiOrigin) {
 }
 
 /** Starts an isolated API/Vite pair for one Playwright parallelIndex and owns their lifecycle. */
-export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 0) {
-  const ports = workerPorts(lane, slot);
-  const viteCachePath = cachePath(lane, slot);
-  const lease = await acquireLease(lane, slot);
+export async function startE2eWorkerServer(target, portLane = resolvePortLane(), slot = 0) {
+  const ports = workerPorts(portLane, slot);
+  const viteCachePath = cachePath(portLane, slot);
+  const lease = await acquireLease(portLane, slot);
   const { paths } = lease;
   const resetToken = createResetControlToken();
   const processes = [];
@@ -402,7 +402,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
         cwd: root,
         env: {
           ...process.env,
-          CAPACITYLENS_PORT_LANE: String(lane),
+          CAPACITYLENS_PORT_LANE: String(portLane),
           CAPACITYLENS_E2E_WORKER_API: '1',
           CAPACITYLENS_E2E_RESET_TOKEN: resetToken,
         },
@@ -431,7 +431,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
         cwd: root,
         env: {
           ...process.env,
-          CAPACITYLENS_PORT_LANE: String(lane),
+          CAPACITYLENS_PORT_LANE: String(portLane),
           CAPACITYLENS_E2E_WORKER: '1',
           CAPACITYLENS_E2E_RESET_TOKEN: resetToken,
           CAPACITYLENS_VITE_PORT: String(ports.web),
@@ -474,13 +474,13 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
 }
 
 /** Remove files created by a worker after a crash, once its process groups have exited. */
-export async function recoverE2eWorker(target, lane = resolveLane(), slot = 0) {
-  const lease = await acquireLease(lane, slot);
+export async function recoverE2eWorker(target, portLane = resolvePortLane(), slot = 0) {
+  const lease = await acquireLease(portLane, slot);
   try {
-    const ports = workerPorts(lane, slot);
+    const ports = workerPorts(portLane, slot);
     await assertPortsFree(ports.api, ports.web);
     await removeDatabaseFiles(target);
-    await rm(cachePath(lane, slot), { recursive: true, force: true });
+    await rm(cachePath(portLane, slot), { recursive: true, force: true });
   } finally {
     await releaseLease(lease.paths);
   }

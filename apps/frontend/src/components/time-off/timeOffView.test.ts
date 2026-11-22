@@ -21,7 +21,7 @@ function resource(id: string, name: string, kind: Resource['kind'] = 'person'): 
     updatedAt: timestamp,
     kind,
     name,
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio' as const,
     workingHoursPerDay: 8,

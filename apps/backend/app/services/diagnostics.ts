@@ -7,7 +7,7 @@ import { checkDatabase } from '#services/database_health';
 import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
 
 /** Release level and backup timing are administration facts: Owners and Admins only. */
-export async function isAdministratorOfAnyCompany(userId: string, trx: TransactionClientContract) {
+export async function isOwnerOrAdminOfAnyCompany(userId: string, trx: TransactionClientContract) {
   for (const companyId of await listActiveCompanyIds(userId, trx)) {
     const role = await getActiveCompanyRole(userId, companyId, trx);
     if (isOwnerOrAdmin(role)) return true;
@@ -26,13 +26,13 @@ export async function readServerDiagnostics(database: Pick<typeof db, 'from'>, b
     .select('name')
     .orderBy('id', 'desc')
     .first();
-  let newestSnapshotAt: string | null = null;
+  let newestBackupAt: string | null = null;
   if (backupDir) {
     try {
       const times = listBundles(backupDir).map((bundle) => Date.parse(bundle.createdAt));
-      newestSnapshotAt = times.length ? new Date(Math.max(...times)).toISOString() : null;
+      newestBackupAt = times.length ? new Date(Math.max(...times)).toISOString() : null;
     } catch {
-      logger.warn('Diagnostics could not inspect completed snapshots');
+      logger.warn('Diagnostics could not inspect completed backups');
     }
   }
   return {
@@ -40,7 +40,7 @@ export async function readServerDiagnostics(database: Pick<typeof db, 'from'>, b
       connectivity: 'ok',
       database: { status: 'ok' },
       schema: { migration: lastMigration?.name ?? null },
-      backup: { newestSnapshotAt },
+      backup: { newestBackupAt },
     },
   };
 }

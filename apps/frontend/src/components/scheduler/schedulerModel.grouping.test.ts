@@ -13,7 +13,7 @@ import {
   makeDisciplines,
   start,
   makeDatasetWithExternal,
-} from './schedulerModel.testSupport';
+} from './schedulerModelTestKit';
 
 const dataset = () => makeDataset(makeDisciplines());
 
@@ -42,14 +42,14 @@ function makeEngagementOrderingData(): AppData {
       id: 'external-alpha',
       kind: 'external',
       name: 'Ferris',
-      role: 'Print',
+      jobTitle: 'Print',
     },
     {
       ...designTemplate,
       id: 'external-zulu',
       kind: 'external',
       name: 'Zeta',
-      role: 'Studio',
+      jobTitle: 'Studio',
       isFavourite: true,
     },
   ];
@@ -151,7 +151,7 @@ type BuildExtOptions = {
   disciplinesEnabled?: boolean;
   externalEnabled?: boolean;
 };
-describe('external / 3rd-party band', () => {
+describe('external-party band', () => {
   const buildExt = ({
     filters = buildEmptyFilters(),
     disciplinesEnabled = true,
@@ -178,7 +178,7 @@ describe('external / 3rd-party band', () => {
     const last = model[model.length - 1];
     expect(last).toBeDefined();
     if (!last) throw new Error('Expected the external resource group.');
-    expect(last.title).toBe('External / 3rd party');
+    expect(last.title).toBe('External party');
 
     expect(last.color).toBe('#9ca3af');
     expect(last.rows.map((r) => r.resource.id)).toEqual(['ext1']);

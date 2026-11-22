@@ -18,9 +18,9 @@ const sources: Record<string, string> = {
 
 describe("global UI layer tokens", () => {
   it.each([
-    ["dialog", "modal"],
-    ["alert-dialog", "modal"],
-    ["sheet", "modal"],
+    ["dialog", "dialog"],
+    ["alert-dialog", "dialog"],
+    ["sheet", "dialog"],
     ["popover", "popover"],
     ["select", "popover"],
     ["tooltip", "tooltip"],
@@ -30,11 +30,11 @@ describe("global UI layer tokens", () => {
     expect(componentSource).not.toMatch(/\bz-(?:\d+|\[[^\]]+\])/);
   });
 
-  it("orders sticky, drag, modal, popover, tooltip and skip-link tiers", () => {
+  it("orders sticky, drag, dialog, popover, tooltip and skip-link tiers", () => {
     const values = [
       "sticky",
       "drag",
-      "modal",
+      "dialog",
       "popover",
       "tooltip",
       "skip-link",

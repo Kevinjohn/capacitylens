@@ -2,7 +2,7 @@
 //   - the forms reject disallowed input via hasDisallowedChars (so the user fixes it);
 //   - import strips disallowed characters via cleanText;
 //   - ordinary server writes reject disallowed supplied characters before canonicalization
-//     for the same NFC and whitespace normalization as the forms.
+//     for the same NFC and whitespace normalisation as the forms.
 // One source definition is imported by client + server, so the policy cannot drift in code.
 // Unicode property escapes use the executing engine's Unicode tables, however; supported browser
 // and server runtimes must stay within the documented baseline and can briefly classify newly

@@ -12,7 +12,7 @@ import { formatShortDate } from '@/lib/dateDisplay';
 import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
 import type { RepeatSelection } from '@/lib/repeatingAllocations';
 
-// The pure draft boundary returns the first field problem or derived end date, leaving the modal to display the result and commit through the store.
+// The pure draft boundary returns the first field problem or derived end date, leaving the dialog to display the result and commit through the store.
 
 /** The first rule a draft breaks: the field to focus (null = form-level) and what to say. */
 export interface AllocationDraftProblem {

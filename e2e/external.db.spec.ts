@@ -5,7 +5,7 @@ import {
   selectShadOption,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 // External visibility is an account preference that defaults off; toggling it must preserve the underlying bookings.
 
@@ -19,14 +19,14 @@ async function enableExternal(page: import('@playwright/test').Page): Promise<vo
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
 }
 
-test.describe('External / 3rd parties (per-account pref, default off)', () => {
+test.describe('External parties (per-account pref, default off)', () => {
   test('hidden by default: the seeded external is absent from the schedule and the Resources tab', async ({
     page,
   }) => {
     await openApp(page);
     await expect(page.locator('[data-resource-id="r-ext-northstar"]')).toHaveCount(0);
     await expect(
-      page.getByTestId('discipline-group').filter({ hasText: 'External / 3rd party' }),
+      page.getByTestId('discipline-group').filter({ hasText: 'External party' }),
     ).toHaveCount(0);
 
     await page.getByRole('link', { name: 'Resources' }).click();
@@ -71,9 +71,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
       await page.getByTestId('scheduler-grid').evaluate((el) => {
         (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
       });
-      await expect(page.getByTestId('discipline-group').last()).toContainText(
-        'External / 3rd party',
-      );
+      await expect(page.getByTestId('discipline-group').last()).toContainText('External party');
       const extBar = page
         .locator('[data-resource-id="r-ext-northstar"]')
         .getByTestId('allocation-bar')
@@ -84,7 +82,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
         page
           .getByTestId('scheduler-row')
           .filter({ hasText: 'Kord Industries' })
-          .getByTestId('utilization'),
+          .getByTestId('utilisation'),
       ).toHaveCount(0);
     },
   );
@@ -118,7 +116,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     );
   });
   test(
-    'assigns an activity from the row "+": the modal has no Hours field and saves a span-only bar',
+    'assigns an activity from the row "+": the dialog has no Hours field and saves a span-only bar',
     { tag: '@engine' },
     async ({ page }) => {
       await openApp(page);
@@ -133,7 +131,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
       await page.getByRole('button', { name: 'Add allocation for Kord Industries' }).click();
       const dialog = page.getByRole('dialog', { name: 'New allocation' });
       await expect(dialog.getByRole('heading')).toContainText('Kord Industries');
-      // External work has no capacity, so its modal collects only a date span.
+      // External work has no capacity, so its dialog collects only a date span.
       await expect(dialog.getByLabel('Hours / day')).toHaveCount(0);
       // Externals already use literal calendar spans, so the override is hidden.
       await expect(dialog.getByRole('checkbox', { name: 'Ignore working days' })).toHaveCount(0);

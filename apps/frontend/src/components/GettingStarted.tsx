@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useCan, useRole } from '@/auth/permissionContext';
-import { useTourAction } from '@/hooks/useTourAction';
-import { gettingStartedClient } from '@/account/gettingStartedClient';
+import { useTourOperation } from '@/hooks/useTourOperation';
+import { gettingStartedApi } from '@/account/gettingStartedApi';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 import { useStore } from '@/store/useStore';
 import { Button } from './ui/button';
@@ -54,7 +54,7 @@ export function GettingStarted() {
   const companyId = useStore((state) => state.activeCompanyId);
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const canWrite = useCan('planning:write');
-  // Company onboarding is outside the read-only member projection, including its transitions.
+  // Company getting started is outside the read-only member projection, including its transitions.
   if (!companyId || masqueradeKind !== 'inactive') return null;
   // Readers never see the panel, so they must not read its state or receive its load notice.
   if (!canWrite) return null;
@@ -72,7 +72,7 @@ function GettingStartedForCompany({ companyId }: { companyId: string }) {
   const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null);
   const open = openChoice?.path === pathname ? openChoice.open : isChecklistOpenByDefault(pathname);
   const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
-  const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
+  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice);
   const {
     dismissed,
     steps,
@@ -234,7 +234,7 @@ function useCompanyDismissal(
   useEffect(() => {
     if (dismissedRef.current) return;
     const controller = new AbortController();
-    void gettingStartedClient
+    void gettingStartedApi
       .read(companyId, controller.signal)
       .then(({ dismissed: companyDismissed, steps: companySteps }) => {
         if (!controller.signal.aborted && !dismissedRef.current) {
@@ -259,12 +259,12 @@ function useCompanyDismissal(
     if (saving) return;
     setSaving(true);
     try {
-      await gettingStartedClient.dismiss(companyId);
+      await gettingStartedApi.dismiss(companyId);
       dismissedRef.current = true;
       setDismissed(true);
       setConfirmOpen(false);
     } catch {
-      // A failed dismissal must remain visible so onboarding is not presented as durably dismissed.
+      // A failed dismissal must remain visible so getting started is not presented as durably dismissed.
       console.error('GettingStarted: dismissal could not be saved');
       setNotice(m.gs_dismiss_failed(), 'error');
       setConfirmOpen(false);

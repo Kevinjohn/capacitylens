@@ -12,11 +12,11 @@ import {
 } from './SettingsSchedulingSection';
 import { SettingsGroup } from './SettingsGroup';
 import { SettingsSection } from './SettingsSection';
-import { useSettingsViewController } from './useSettingsViewController';
+import { useSettingsViewModel } from './useSettingsViewModel';
 
-type Controller = ReturnType<typeof useSettingsViewController>;
+type ViewModel = ReturnType<typeof useSettingsViewModel>;
 
-function useSettingsOnboardingTarget(ready: boolean) {
+function useSettingsGettingStartedTarget(ready: boolean) {
   useEffect(() => {
     if (!ready) return;
     const id = window.location.hash.slice(1);
@@ -42,14 +42,14 @@ function SettingsImportSection() {
   );
 }
 
-function SettingsBottomSections({ controller }: { controller: Controller }) {
-  const { scheduling } = controller;
+function SettingsBottomSections({ viewModel }: { viewModel: ViewModel }) {
+  const { scheduling } = viewModel;
   return (
     <>
       <SettingsImportSection />
-      {controller.activeCompany && (
+      {viewModel.activeCompany && (
         <SettingsCompanyOptions
-          companyName={controller.activeCompany.name}
+          companyName={viewModel.activeCompany.name}
           weekStartsOn={scheduling.weekStartsOn}
           timezone={scheduling.timezone}
         />
@@ -60,27 +60,27 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
 
 /** Coordinates company, scheduling, data, and security settings for the current role. */
 export function SettingsView() {
-  const controller = useSettingsViewController();
-  useSettingsOnboardingTarget(controller.activeCompany !== null);
-  if (!controller.activeCompany) return null;
-  const { scheduling, display } = controller;
+  const viewModel = useSettingsViewModel();
+  useSettingsGettingStartedTarget(viewModel.activeCompany !== null);
+  if (!viewModel.activeCompany) return null;
+  const { scheduling, display } = viewModel;
   return (
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
         <SettingsGroup title={m.settings_company_setup_heading()} id="getting-started-settings">
           <SettingsCompanySetupSections
-            canEdit={controller.canEdit}
-            canManageCapacityOverviewAccess={controller.canManageCapacityOverviewAccess}
+            canEdit={viewModel.canEdit}
+            canManageCapacityOverviewAccess={viewModel.canManageCapacityOverviewAccess}
             {...scheduling}
-            workingDaysMinimumId={controller.workingDaysMinimumId}
-            updateSetting={controller.updateSetting}
+            workingDaysMinimumId={viewModel.workingDaysMinimumId}
+            updateSetting={viewModel.updateSetting}
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_features_heading()}>
           <CompanyFeaturesSection
-            canEdit={controller.canEdit}
+            canEdit={viewModel.canEdit}
             {...scheduling}
-            updateSetting={controller.updateSetting}
+            updateSetting={viewModel.updateSetting}
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_display_heading()}>
@@ -103,7 +103,7 @@ export function SettingsView() {
           description={m.settings_support_description()}
         >
           <SettingsDataSection />
-          <SettingsBottomSections controller={controller} />
+          <SettingsBottomSections viewModel={viewModel} />
         </SettingsGroup>
       </div>
     </ListPage>

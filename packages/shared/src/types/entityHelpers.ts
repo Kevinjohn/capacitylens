@@ -96,7 +96,7 @@ export function buildPlaceholderCapacityDefaults(): Pick<Resource, 'workingDays'
 /** A fresh, empty dataset, the starting point before seeding. */
 export function createEmptyAppData(): AppData {
   return {
-    accounts: [],
+    companies: [],
     disciplines: [],
     resources: [],
     clients: [],

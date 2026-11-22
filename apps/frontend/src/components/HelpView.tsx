@@ -1,5 +1,5 @@
 import { Link, useOutletContext } from 'react-router-dom';
-import { useTourAction } from '@/hooks/useTourAction';
+import { useTourOperation } from '@/hooks/useTourOperation';
 import { m } from '@/i18n';
 import { useStore } from '@/store/useStore';
 import { Button } from './ui/button';
@@ -16,7 +16,7 @@ export function HelpView() {
   const setNotice = useStore((state) => state.setNotice);
   const shell = useOutletContext<AppOutletContext | null>();
   const diagnosticsAllowed = useDiagnosticsAccessDecision() === 'allowed';
-  const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
+  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice);
 
   return (
     <ListPage title={m.help_title()}>

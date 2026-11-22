@@ -66,19 +66,21 @@ export function ExternalResourceSection({
               <Item size="sm" role="listitem" data-testid="external-row" className="rounded-none">
                 <ItemContent className="flex-row flex-wrap items-center gap-2">
                   <ColorSwatch color={NEUTRAL_COLOR} />
-                  <span className="font-medium">{resource.name ?? resource.role}</span>
-                  {resource.name && resource.role && (
-                    <span className="text-sm text-muted-foreground">· {resource.role}</span>
+                  <span className="font-medium">{resource.name ?? resource.jobTitle}</span>
+                  {resource.name && resource.jobTitle && (
+                    <span className="text-sm text-muted-foreground">· {resource.jobTitle}</span>
                   )}
                 </ItemContent>
                 <ItemActions>
                   <FavouriteButton resource={resource} />
                   <EditButton
-                    label={m.list_edit_aria({ name: resource.name ?? resource.role })}
+                    label={m.list_edit_aria({ name: resource.name ?? resource.jobTitle })}
                     onClick={() => onEdit(resource)}
                   />
                   <DeleteButton
-                    label={m.list_resources_archive_aria({ name: resource.name ?? resource.role })}
+                    label={m.list_resources_archive_aria({
+                      name: resource.name ?? resource.jobTitle,
+                    })}
                     onClick={() => onRequestArchive(resource)}
                   />
                 </ItemActions>

@@ -9,8 +9,8 @@ import { buildGesturePreviewGeometry } from './gestureGeometry';
 import { readLaneSnapshots } from './gestureLanes';
 import type { LaneSnapshot } from './gestureLanes';
 import type { BarLayout } from './schedulerModel';
-import { useAllocationGestureController } from './useAllocationGestureController';
-import type { GestureRuntime } from './useAllocationGestureController';
+import { useAllocationGestureViewModel } from './useAllocationGestureViewModel';
+import type { GestureRuntime } from './useAllocationGestureViewModel';
 
 interface AllocationGestureOptions {
   bar: BarLayout;
@@ -101,7 +101,7 @@ export function useAllocationGesture({
   const isDays = schedulingMode === 'days';
   const isBlocks = !hasHourlyLoad(schedulingMode);
   const runtime = useGestureRuntime(bar.allocation.id);
-  const { preview, onPointerDown, nudge } = useAllocationGestureController(
+  const { preview, onPointerDown, nudge } = useAllocationGestureViewModel(
     { bar, indexAtClientX, isDays, ...(onEdit ? { onEdit } : {}) },
     runtime,
   );

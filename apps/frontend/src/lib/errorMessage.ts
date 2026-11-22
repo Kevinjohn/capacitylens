@@ -2,19 +2,19 @@ import { m } from '@/i18n';
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import type { DomainErrorCode } from '@capacitylens/shared/domain/errors';
 import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 
 // One entry per DomainErrorCode. The values are uncalled message references. This table is built
 // once at import and Paraglide resolves the active locale at call time, so storing resolved strings
 // here would freeze every message to the import-time language. The Record type makes omissions a
 // type error.
 const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
-  record_wrong_account: m.domain_error_record_wrong_account,
-  reference_wrong_account: m.domain_error_reference_wrong_account,
+  record_wrong_company: m.domain_error_record_wrong_company,
+  reference_wrong_company: m.domain_error_reference_wrong_company,
   activity_project_required: m.domain_error_activity_project_required,
   activity_project_forbidden: m.domain_error_activity_project_forbidden,
   activity_phase_forbidden: m.domain_error_activity_phase_forbidden,
-  activity_phase_wrong_account: m.domain_error_activity_phase_wrong_account,
+  activity_phase_wrong_company: m.domain_error_activity_phase_wrong_company,
   activity_phase_project_required: m.domain_error_activity_phase_project_required,
   activity_phase_project_mismatch: m.domain_error_activity_phase_project_mismatch,
   resource_project_forbidden: m.domain_error_resource_project_forbidden,
@@ -52,7 +52,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
 export const resolveDomainErrorMessage = (code: DomainErrorCode): string =>
   DOMAIN_ERROR_MESSAGES[code]();
 
-/** Normalize anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
+/** Normalise anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
  * to a human message, so a non-Error throw never renders a blank screen.
  *
  * @remarks This function returns the localized fallback when an unsupported or hostile value
@@ -61,7 +61,7 @@ export function resolveErrorMessage(error: unknown): string {
   try {
     if (error instanceof DomainError) return resolveDomainErrorMessage(error.code);
     // The change may have saved; the form that is retried must say so, not show the transport text.
-    if (error instanceof PlanningControllerError && error.uncertain) {
+    if (error instanceof PlanningCacheError && error.uncertain) {
       return m.app_planning_unconfirmed();
     }
     if (error instanceof Error && error.message.trim()) return error.message;

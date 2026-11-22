@@ -2,7 +2,7 @@ import app from '@adonisjs/core/services/app';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { isInvitableRole } from '#services/account_kit/admission_rules';
-import { hasNoCompany, getInstallationCompanyId } from '#models/installation_company';
+import { hasNoCompany, getInstallationCompanyId } from '#services/installation_company';
 import { AdmissionException } from '#exceptions/admission_exception';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';

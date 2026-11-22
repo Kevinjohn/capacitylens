@@ -7,7 +7,7 @@ import type {
   Weekday,
 } from '../types/entities.js';
 import type { ValidationResult } from '../lib/integrity.js';
-import { isInCompany } from './tenancy.js';
+import { isInCompany } from './companyBoundary.js';
 import { throwDomainError } from './errors.js';
 import { inspectLifecycleAncestry, resolveLifecycleStatus } from './lifecycle.js';
 import type { LifecycleAncestryRow, LifecycleFields } from './lifecycle.js';
@@ -45,7 +45,7 @@ interface IsEffectivelyActiveOptions {
 /**
  * Optional indexed view used by server batch validation. The browser/store callers keep using the
  * AppData arrays directly; a large transaction can supply these point/reverse lookups so applying
- * many operations does not repeatedly scan the same account slice.
+ * many operations does not repeatedly scan the same account set.
  */
 export interface ValidationDataLookup {
   row(table: AppDataKey, id: ID): (Record<string, unknown> & { id: ID }) | undefined;

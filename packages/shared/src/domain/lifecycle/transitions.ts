@@ -6,8 +6,8 @@ import type { LifecycleFields } from './types.js';
 
 /**
  * May this entity be archived? Pure affordance predicate, true iff the entity is currently
- * `'active'`. Lets a caller gate an "Archive" control without a try/catch; it is the single-source
- * guard the {@link archive} transition itself re-uses, so the affordance and the transition can't
+ * `'active'`. Lets a caller enable an "Archive" control without a try/catch; it is the single-source
+ * check the {@link archive} transition itself re-uses, so the affordance and the transition can't
  * disagree (mirrors access.ts's `can*` predicates).
  *
  * @param entity - the entity to test.
@@ -26,7 +26,7 @@ export function canArchive(entity: LifecycleFields): boolean {
  * @param entity - the entity to test.
  * @returns `true` iff {@link resolveLifecycleStatus} is `'archived'`.
  */
-export function canUnarchive(entity: LifecycleFields): boolean {
+export function canRestore(entity: LifecycleFields): boolean {
   return resolveLifecycleStatus(entity) === 'archived';
 }
 
@@ -82,11 +82,11 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
 /** Restore an archived entity to active without mutating it.
  * Removes archivedAt and any malformed deletedAt; a valid deleted tombstone is rejected.
  * @throws LifecycleTransitionError when the entity is not archived. */
-export function unarchive<T extends LifecycleFields>(entity: T): T {
-  if (!canUnarchive(entity)) {
+export function restore<T extends LifecycleFields>(entity: T): T {
+  if (!canRestore(entity)) {
     throw new LifecycleTransitionError(
       'invalid_transition',
-      `Cannot unarchive: entity is ${resolveLifecycleStatus(entity)}, not archived.`,
+      `Cannot restore: entity is ${resolveLifecycleStatus(entity)}, not archived.`,
     );
   }
   // Remove archivedAt to represent the active state by absence.
@@ -98,7 +98,7 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
 }
 
 /**
- * Scrub a Resource's name and role for anonymisation, preserving all other fields.
+ * Scrub a Resource's name and job title for anonymisation, preserving all other fields.
  * Returns a new Resource with a deterministic token from {@link buildShortIdTag}, for every resource kind.
  * This standalone transform sets no tombstones; callers scrub dependent notes and avatars.
  * Extend this scrub if Resource gains personal fields such as an email address. Authentication-member
@@ -108,6 +108,6 @@ export function obfuscateResource(resource: Resource): Resource {
   return {
     ...resource,
     name: `Removed person #${buildShortIdTag(resource.id)}`,
-    role: 'Removed resource',
+    jobTitle: 'Removed resource',
   };
 }

@@ -1,5 +1,5 @@
 import { expect, test } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 
 test('reviews the four-week capacity ledger and filters available rows', async ({ page }) => {
   await openApp(page);

@@ -9,7 +9,7 @@ import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/tes
 import {
   barFor,
   getStoredAllocation,
-  seedAllocation,
+  createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 
@@ -25,7 +25,7 @@ describe('AllocationBar day-mode resize interactions', () => {
     it('rescales hours/day when the end is resized by keyboard (Shift+arrow)', async () => {
       await enableDays();
 
-      const a = await seedAllocation();
+      const a = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(a)}
@@ -48,7 +48,7 @@ describe('AllocationBar day-mode resize interactions', () => {
 
     it('leaves hours/day untouched on a move (span unchanged)', async () => {
       await enableDays();
-      const a = await seedAllocation();
+      const a = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(a)}
@@ -66,7 +66,7 @@ describe('AllocationBar day-mode resize interactions', () => {
 
     it('rescales hours/day when the end grip is dragged', async () => {
       await enableDays();
-      const a = await seedAllocation();
+      const a = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(a)}
@@ -95,7 +95,7 @@ describe('AllocationBar day-mode resize interactions', () => {
         st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
       );
       const r = await requireCreated(
-        st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+        st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
       );
       // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
       // day would need 48h/day, clamped to 24, so half the volume is lost (the user must be told).
@@ -132,7 +132,7 @@ describe('AllocationBar day-mode resize interactions', () => {
     it('does NOT show the cap notice on a normal in-range resize', async () => {
       await enableDays();
 
-      const a = await seedAllocation();
+      const a = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(a)}
@@ -162,7 +162,7 @@ describe('AllocationBar day-mode resize interactions', () => {
         st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
       );
       const r = await requireCreated(
-        st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+        st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
       );
 
       const a = requireCreated(
@@ -201,7 +201,7 @@ describe('AllocationBar day-mode resize interactions', () => {
     it('keeps the POINTER move confirmation TRANSIENT (info) when nothing is clamped', async () => {
       await enableDays();
 
-      const a = await seedAllocation();
+      const a = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(a)}
@@ -223,7 +223,7 @@ describe('AllocationBar day-mode resize interactions', () => {
     });
 
     it('hourly mode keeps hours/day fixed on resize (regression guard)', async () => {
-      const a = await seedAllocation();
+      const a = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(a)}

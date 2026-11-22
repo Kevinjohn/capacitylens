@@ -25,7 +25,7 @@ export type CapacityAllocationInput = Pick<
 
 /** Existing load in hours, keyed by the ISO day it lands on, for one resource. Building this once
  * is what makes an advisory O(window + load) instead of O(windowDays × allocations), and lets a
- * batch of advisories over the same resource (a repeat projection) share a single bucket instead
+ * batch of advisories over the same resource (a repeat expansion) share a single bucket instead
  * of rebuilding a growing one per generated allocation. Exact addition components stay with buckets
  * produced by `bucketCapacityLoad` and changed through `addCapacityLoad`; do not directly mutate
  * or clone those buckets. Externally supplied scalar entries are treated as exact hourly values. */

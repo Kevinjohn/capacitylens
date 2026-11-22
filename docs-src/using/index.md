@@ -80,7 +80,7 @@ drag a bar to move it, and select **Undo** if you change your mind.
 - [Disciplines](/using/disciplines): the coloured groups for people and schedule rows.
 - [Clients and projects](/using/projects): the organisations and projects behind each booking.
 - [Activities](/using/activities): the kinds of work you book.
-- [Time off](/using/time-off): holidays, absences and company closures.
+- [Time off](/using/time-off): time off and company closures.
 - [Team & access](/using/team-access): your role and, for Owners and Admins, the team's access.
 - [Settings](/using/settings): company planning rules and your own display preferences.
 - [Help](/using/help): a short tour for your role.

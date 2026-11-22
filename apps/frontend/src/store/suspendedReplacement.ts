@@ -3,7 +3,7 @@ import { useStore } from '@/store/useStore';
 
 /**
  * How the page catches up after the server may have replaced company data. `refresh` reads the
- * canonical planning slice again; `reload` keeps planning writes suspended until the page reloads.
+ * canonical planning set again; `reload` keeps planning writes suspended until the page reloads.
  */
 export type ReplacementRecovery = 'refresh' | 'reload';
 
@@ -57,7 +57,7 @@ export async function runSuspendedReplacement({
   isChanged,
 }: SuspendedReplacementInput): Promise<SuspendedReplacementOutcome> {
   if (!useStore.getState().planningReadyForReplacement()) return { kind: 'blocked' };
-  const release = useStore.getState().suspendPlanningCommands();
+  const release = useStore.getState().suspendPlanningIntents();
   if (!release) return { kind: 'blocked' };
   const { activeCompanyId, planning } = useStore.getState();
   const planningContext = planning.context;

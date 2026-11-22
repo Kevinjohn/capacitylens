@@ -5,7 +5,7 @@ import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, resetStoreWithCompany } from '@/test/fixtures';
-import { companyDocument } from '@/test/companyDocument';
+import { companyExport } from '@/test/companyExport';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
 import { permissionValue } from '@/test/permissionGrants';
@@ -15,24 +15,26 @@ const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
 const originalPlanning = {
   refreshPlanning: useStore.getState().refreshPlanning,
   planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
-  suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
+  suspendPlanningIntents: useStore.getState().suspendPlanningIntents,
 };
 
 const companyId = 'a-studio';
 
 function document() {
-  return companyDocument(companyId);
+  return companyExport(companyId);
 }
 
 /** A preview reply as the server sends it for {@link document}. */
 function previewReply(baseRevision: number) {
   const data = document().data;
   return Response.json({
-    baseRevision,
-    imported: 5,
-    changed: true,
-    companyName: 'Wayne Enterprises',
-    counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, data[key].length])),
+    data: {
+      baseRevision,
+      imported: 5,
+      changed: true,
+      companyName: 'Wayne Enterprises',
+      counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, data[key].length])),
+    },
   });
 }
 
@@ -40,7 +42,7 @@ function renderTools() {
   useStore.setState({
     refreshPlanning: async () => refreshOverride.result.kind === 'reloaded',
     planningReadyForReplacement: () => true,
-    suspendPlanningCommands: () => {
+    suspendPlanningIntents: () => {
       planningProbe.suspends += 1;
       return () => {
         planningProbe.releases += 1;
@@ -73,13 +75,13 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
-      if (String(url).endsWith('/api/transfer/preview')) {
+      if (String(url).endsWith('/api/import/preview')) {
         return previewReply(7);
       }
       if (String(url).endsWith('/api/auth/password-confirmation')) {
-        return Response.json({ confirmationId: 'proof-7' });
+        return Response.json({ data: { confirmationId: 'proof-7' } });
       }
-      if (String(url).endsWith('/api/transfer/apply')) return applyResponse;
+      if (String(url).endsWith('/api/import/apply')) return applyResponse;
       throw new Error(`Unexpected request: ${url}`);
     }),
   );
@@ -146,9 +148,9 @@ describe('beta import and export', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(useStore.getState().notice?.tone).toBe('error');
-    const releaseRecovery = useStore.getState().suspendPlanningCommands();
+    const releaseRecovery = useStore.getState().suspendPlanningIntents();
     if (!releaseRecovery) {
-      throw new Error('The selected context was not available for authority recovery.');
+      throw new Error('The selected context was not available for access recovery.');
     }
     releaseRecovery();
   });
@@ -177,7 +179,7 @@ describe('beta import and export', () => {
         useStore.getState().setActiveCompany(companyId);
         await useStore.getState().refreshPlanning();
       }
-      const successorRelease = useStore.getState().suspendPlanningCommands();
+      const successorRelease = useStore.getState().suspendPlanningIntents();
       if (!successorRelease) throw new Error('The successor planning context was not ready.');
       const successorNotice = useStore.getState().notice;
       const refresh = vi.fn(async () => true);
@@ -276,14 +278,14 @@ describe('beta import and export', () => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith('/api/transfer/preview')) {
+        if (path.endsWith('/api/import/preview')) {
           return previewReply(7);
         }
         if (path.endsWith('/api/auth/password-confirmation')) {
-          return Response.json({ confirmationId: 'proof-7' });
+          return Response.json({ data: { confirmationId: 'proof-7' } });
         }
-        if (path.endsWith('/api/transfer/apply')) {
-          return Response.json({ imported: 5, changed: true, revision: 8 });
+        if (path.endsWith('/api/import/apply')) {
+          return Response.json({ data: { imported: 5, changed: true, revision: 8 } });
         }
         throw new Error(`Unexpected request: ${path}`);
       }),
@@ -291,14 +293,14 @@ describe('beta import and export', () => {
     renderTools();
     await previewFile(incoming);
     fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    expect(requests.map((request) => request.url)).toEqual(['/api/transfer/preview']);
+    expect(requests.map((request) => request.url)).toEqual(['/api/import/preview']);
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));
     await waitFor(() =>
       expect(requests.map((request) => request.url)).toEqual([
-        '/api/transfer/preview',
+        '/api/import/preview',
         '/api/auth/password-confirmation',
-        '/api/transfer/apply',
+        '/api/import/apply',
       ]),
     );
     expect(requests[1]?.body).toMatchObject({
@@ -314,21 +316,21 @@ describe('beta import and export', () => {
     expect(requests[2]?.body.document).toEqual(incoming);
   });
 
-  it.each([403, 409])('releases planning commands after a refused %i import', async (status) => {
+  it.each([403, 409])('releases planning intents after a refused %i import', async (status) => {
     await submitServerImport(Response.json({ error: 'Import refused.' }, { status }));
     await waitFor(() => expect(planningProbe.releases).toBe(1));
     expect(useStore.getState().notice).toMatchObject({ tone: 'error', message: 'Import refused.' });
   });
 
-  it('reloads the authoritative slice after an uncertain import response', async () => {
+  it('reloads the authoritative set after an uncertain import response', async () => {
     await submitServerImport(Response.json({ error: 'Unknown outcome.' }, { status: 503 }));
     await waitFor(() => expect(planningProbe.releases).toBe(1));
     expect(useStore.getState().notice?.tone).toBe('warning');
   });
 
-  it('keeps commands suspended and requires reload when a committed import refresh fails', async () => {
+  it('keeps intents suspended and requires reload when a committed import refresh fails', async () => {
     refreshOverride.result = { kind: 'failed' };
-    await submitServerImport(Response.json({ imported: 5, changed: true, revision: 8 }));
+    await submitServerImport(Response.json({ data: { imported: 5, changed: true, revision: 8 } }));
     await screen.findByTestId('import-reload-required');
     expect(planningProbe.releases).toBe(0);
     expect(useStore.getState().notice?.tone).toBe('error');
@@ -337,7 +339,7 @@ describe('beta import and export', () => {
   it("ignores a cancelled file's late preview before confirming a newer selection", async () => {
     const first = document();
     const second = document();
-    const secondCompany = second.data.accounts[0];
+    const secondCompany = second.data.companies[0];
     if (!secondCompany) throw new Error('The second import fixture has no company.');
     secondCompany.name = 'Wayne Enterprises replacement';
     const previews: Array<(response: Response) => void> = [];
@@ -348,14 +350,16 @@ describe('beta import and export', () => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith('/api/transfer/preview')) {
+        if (path.endsWith('/api/import/preview')) {
           return new Promise<Response>((resolve) => previews.push(resolve));
         }
         if (path.endsWith('/api/auth/password-confirmation')) {
-          return Promise.resolve(Response.json({ confirmationId: 'proof-b' }));
+          return Promise.resolve(Response.json({ data: { confirmationId: 'proof-b' } }));
         }
-        if (path.endsWith('/api/transfer/apply')) {
-          return Promise.resolve(Response.json({ imported: 5, changed: true, revision: 23 }));
+        if (path.endsWith('/api/import/apply')) {
+          return Promise.resolve(
+            Response.json({ data: { imported: 5, changed: true, revision: 23 } }),
+          );
         }
         throw new Error(`Unexpected request: ${path}`);
       }),
@@ -378,13 +382,13 @@ describe('beta import and export', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));
     await waitFor(() =>
-      expect(requests.some((request) => request.url.endsWith('/api/transfer/apply'))).toBe(true),
+      expect(requests.some((request) => request.url.endsWith('/api/import/apply'))).toBe(true),
     );
     const proof = requests.find((request) =>
       request.url.endsWith('/api/auth/password-confirmation'),
     );
     expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second });
-    const apply = requests.find((request) => request.url.endsWith('/api/transfer/apply'));
+    const apply = requests.find((request) => request.url.endsWith('/api/import/apply'));
     expect(apply?.body).toMatchObject({ baseRevision: 22, confirmationId: 'proof-b' });
     expect(apply?.body.document).toEqual(second);
   });

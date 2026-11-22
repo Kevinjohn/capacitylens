@@ -35,7 +35,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  trigger["DialogTrigger opens Dialog"] --> primitive["Radix DialogContent manages modal focus"]
+  trigger["DialogTrigger opens Dialog"] --> primitive["Radix DialogContent manages dialog focus"]
   primitive --> trap["focus scope traps Tab and supports Escape"]
   close["close action dismisses Dialog"] --> restore["Radix restores focus to trigger"]
 ```

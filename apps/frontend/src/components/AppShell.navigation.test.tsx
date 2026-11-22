@@ -3,7 +3,7 @@ import { screen, act, waitFor, within } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, makeAppData, makeCompany } from '@/test/fixtures';
 import { m } from '@/i18n';
-import { setUpAppShellTests, renderAppShell } from './AppShell.testSupport';
+import { setUpAppShellTests, renderAppShell } from './AppShellTestKit';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
@@ -46,7 +46,7 @@ describe('AppShell navigation links', () => {
 
     secondLocale = true;
     act(() => {
-      useStore.setState({ data: makeAppData({ accounts: [makeCompany({ language: 'fr' })] }) });
+      useStore.setState({ data: makeAppData({ companies: [makeCompany({ language: 'fr' })] }) });
     });
 
     await waitFor(() =>
@@ -54,16 +54,16 @@ describe('AppShell navigation links', () => {
     );
     expect(document.title).toBe('Ressources · CapacityLens');
   });
-  it("preserves the last locale while a selected company's slice is still loading", async () => {
+  it("preserves the last locale while a selected company's set is still loading", async () => {
     const currentAccount = makeCompany({ language: 'en' });
     const destinationCompany = makeCompany({ id: 'acct-other', name: 'Other Co' });
-    loadPlanningData(makeAppData({ accounts: [currentAccount] }));
+    loadPlanningData(makeAppData({ companies: [currentAccount] }));
     renderAppShell({});
     await waitFor(() => expect(i18nMocks.syncLocaleFromCompany).toHaveBeenCalledWith('en'));
     i18nMocks.syncLocaleFromCompany.mockClear();
 
     // Model the ordinary server switch gap directly: the directory authorizes the destination,
-    // activeCompanyId changes, and the old slice remains until the destination load resolves.
+    // activeCompanyId changes, and the old set remains until the destination load resolves.
     act(() => {
       useStore.setState({
         activeCompanyId: destinationCompany.id,
@@ -74,7 +74,7 @@ describe('AppShell navigation links', () => {
     });
     expect(i18nMocks.syncLocaleFromCompany).not.toHaveBeenCalled();
 
-    act(() => useStore.setState({ data: makeAppData({ accounts: [destinationCompany] }) }));
+    act(() => useStore.setState({ data: makeAppData({ companies: [destinationCompany] }) }));
     await waitFor(() => expect(i18nMocks.syncLocaleFromCompany).toHaveBeenCalledWith(undefined));
   });
   it('renders all expected nav links', () => {

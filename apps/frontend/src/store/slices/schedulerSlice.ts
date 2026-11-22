@@ -36,7 +36,7 @@ export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focu
 }
 
 /** The same pair for the week holding the company's date from the server, read through the
- * account's week start. Used by the tenant-boundary resets in useStore, so a company opens on the week
+ * account's week start. Used by the company-change resets in useStore, so a company opens on the week
  * the server says it is. Undefined while no date has been read; the first read anchors the view. */
 export function readCurrentWeekAnchor(
   data: AppData,

@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import app from '@adonisjs/core/services/app';
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 
 const maxLimit = 1_000_000;
 
 export function readApiLimit(): number {
-  const raw = env.get('CAPACITYLENS_RATE_LIMIT');
+  const raw = capacitylens.rateLimit;
   if (raw === undefined || raw === '') return app.inProduction ? 300 : 0;
   if (!/^\d+$/.test(raw)) return 0;
   const value = Number(raw);

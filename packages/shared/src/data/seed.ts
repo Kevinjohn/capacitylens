@@ -15,9 +15,9 @@ import { createSchedule } from './seed/schedule.js';
 
 /** Build deterministic fictional company, people and scheduling seed data. */
 export function seed(): AppData {
-  const { accounts: companies, disciplines, clients, projects, phases } = createOrgTables();
+  const { companies, disciplines, clients, projects, phases } = createOrgTables();
   return {
-    accounts: companies,
+    companies,
     disciplines,
     resources: createResources(),
     clients,

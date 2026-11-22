@@ -2,8 +2,8 @@ import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import type { ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import { useArchiveRecovery } from '@/hooks/useArchiveRecovery';
-import { useLifecycleActions } from '@/hooks/useLifecycleActions';
-import { useExclusiveAction } from '@/hooks/useExclusiveAction';
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
+import { useExclusiveOperation } from '@/hooks/useExclusiveOperation';
 import { Button } from '@/components/ui/button';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
 import { useStore } from '@/store/useStore';
@@ -26,8 +26,8 @@ const groups = {
 /** Shows only identity labels and existing typed restore actions, without inactive details. */
 export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow['entity'] }) {
   const { data, error } = useArchiveRecovery();
-  const actions = useLifecycleActions();
-  const { busy, run } = useExclusiveAction();
+  const actions = useLifecycleOperations();
+  const { busy, run } = useExclusiveOperation();
   const setNotice = useStore((state) => state.setNotice);
   const rows = data?.rows.filter((row) => row.entity === entity) ?? [];
   if (error) return <p role="alert">{error}</p>;
@@ -67,7 +67,7 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
                   aria-label={m.settings_archived_restore_aria({ name: row.label })}
                   onClick={() =>
                     run(
-                      () => actions.unarchive(entity, row.id),
+                      () => actions.restore(entity, row.id),
                       (failure) => setNotice(resolveErrorMessage(failure), 'error'),
                     )
                   }

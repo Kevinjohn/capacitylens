@@ -24,7 +24,7 @@ import {
 } from '#services/account_kit/membership_effects';
 import { onCredentialsChangedTransaction } from '#services/account_kit/admission_rules';
 import { requireRegistrationDisplayName, users } from '#services/account_kit/users';
-import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry';
+import { SESSION_IDLE_EXPIRY } from '#config/session';
 
 // Access Control decides who may invite, creates the invited membership and removes memberships
 // when an account is deleted; the product adds its audit and planning-revision records.
@@ -43,7 +43,7 @@ export default defineConfig({
   ],
   // Ordinary registration exists only behind the application's own sign-up route, after setup.
   registration: {
-    availability: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') ? 'application' : 'closed',
+    availability: env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP') ? 'application' : 'closed',
     mapFields: (data) => ({ name: requireRegistrationDisplayName(data) }),
   },
   authentication: { strategy: 'session', guard: 'web' },
@@ -64,7 +64,7 @@ export default defineConfig({
     destinations: {
       passwordReset: 'reset-password',
       emailVerification: 'verify-email',
-      invitation: 'invite',
+      invitation: 'invitation',
       emailChange: 'confirm-email-change',
     },
     environment: app.inProduction ? 'production' : app.inTest ? 'test' : 'development',

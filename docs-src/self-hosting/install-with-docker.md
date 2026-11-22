@@ -78,7 +78,7 @@ Check `/health/ready` through the public address before handing the service over
 ## Preserve and recover data
 
 The project name remains `capacitylens`. The `capacitylens-db` and `capacitylens-backups` volumes
-hold the database and snapshots. Ordinary container recreation preserves both. Never use
+hold the database and backups. Ordinary container recreation preserves both. Never use
 `docker compose down --volumes` on an instance whose data you need.
 
 ## Upgrade

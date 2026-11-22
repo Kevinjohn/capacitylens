@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -16,7 +16,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('AuthProvider — server mode', () => {
-  it('a 401 replaces the app with the login screen (password form)', async () => {
+  it('a 401 replaces the app with the sign-in screen (password form)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => makeMeResponse(401, {})),
@@ -84,11 +84,11 @@ describe('AuthProvider — server mode', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    // The body couldn't be trusted at all, so the login wall says its configuration is a guess.
+    // The body couldn't be trusted at all, so the sign-in wall says its configuration is a guess.
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
   it('password invite routes render before sign-in so the token can onboard a new identity', async () => {
-    window.history.pushState({}, '', '/invite/invite-token');
+    window.history.pushState({}, '', '/invitation/invite-token');
     try {
       vi.stubGlobal(
         'fetch',
@@ -107,7 +107,7 @@ describe('AuthProvider — server mode', () => {
     }
   });
   it('invite routes render before sign-in so the acceptance form keeps the token', async () => {
-    window.history.pushState({}, '', '/invite/invite-token');
+    window.history.pushState({}, '', '/invitation/invite-token');
     try {
       vi.stubGlobal(
         'fetch',
@@ -136,7 +136,7 @@ describe('AuthProvider — server mode', () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByTestId('login-setup-needed')).toBeInTheDocument();
+    expect(await screen.findByTestId('sign-in-setup-needed')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });

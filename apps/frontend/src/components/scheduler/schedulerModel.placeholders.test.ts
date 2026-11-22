@@ -13,7 +13,7 @@ import {
   geom,
   makeDisciplines,
   start,
-} from './schedulerModel.testSupport';
+} from './schedulerModelTestKit';
 
 const dataset = () => makeDataset(makeDisciplines());
 
@@ -24,7 +24,7 @@ function buildPlaceholderData(): AppData {
       id: 'ph',
       companyId: 'acct-test',
       kind: 'placeholder',
-      role: 'Designer',
+      jobTitle: 'Designer',
       disciplineId: 'd-design',
       color: '#9',
       projectId: 'p1',
@@ -55,7 +55,7 @@ describe('buildSchedulerModel', () => {
         id: 'ph',
         companyId: 'acct-test',
         kind: 'placeholder',
-        role: 'Designer',
+        jobTitle: 'Designer',
         disciplineId: 'd-design',
         color: '#9',
       }),

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DomainError } from './errors.js';
 import type { Resource, Weekday } from '../types/entities.js';
 import { resolveEffectiveWorkingWeek } from '../lib/effectiveWorkingWeek.js';
-import { makeResource } from '../lib/capacity/capacity.test.support.js';
+import { makeResource } from '../lib/capacity/capacityTestKit.js';
 import { assertAllocationPlacement, reconcileReassignedHours } from './placement.js';
 import type { ReconcileReassignedHoursInput } from './placement.js';
 

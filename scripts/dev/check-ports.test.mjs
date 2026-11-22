@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { GUARDED_FILES, evaluatePortUsage, stripComments } from './check-ports.mjs';
 
-test('every guarded file derives its ports from the lane module', () => {
+test('every guarded file derives its ports from the port lane module', () => {
   const files = GUARDED_FILES.map((path) => ({
     path,
     content: readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'),
@@ -11,7 +11,7 @@ test('every guarded file derives its ports from the lane module', () => {
   assert.deepEqual(evaluatePortUsage(files), []);
 });
 
-test('a hardcoded lane port is reported, and a file that stopped importing the module is too', () => {
+test('a hardcoded port lane port is reported, and a file that stopped importing the module is too', () => {
   assert.deepEqual(
     evaluatePortUsage([
       { path: 'x.ts', content: 'import { ports } from "./ports.mjs";\nconst port = 5173;\n' },
@@ -33,7 +33,7 @@ test('prose about a port is not code, so comments never fail the check', () => {
   assert.ok(!stripComments(content).includes('5173'));
 });
 
-test('single-quoted lane imports are accepted', () => {
+test('single-quoted port lane imports are accepted', () => {
   assert.deepEqual(
     evaluatePortUsage([
       {

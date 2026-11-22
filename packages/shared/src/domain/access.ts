@@ -17,7 +17,7 @@ export const accessPermissions = {
   planning: { read: 'viewer', write: 'editor' },
   members: { list: 'admin', manage: 'admin', signInTracking: 'owner' },
   invitations: { manage: 'admin' },
-  viewAs: { use: 'admin' },
+  masquerade: { use: 'admin' },
   resources: { anonymise: 'admin' },
   ownership: { transfer: 'owner' },
   company: { import: 'owner', anonymise: 'owner' },
@@ -49,13 +49,15 @@ export function can(role: Role, key: PermissionKey): boolean {
 
 /**
  * Reports whether an actor with `actorRole` may view as a member with `targetRole` in the same
- * company: the actor holds `viewAs:use` and the target does not rank above the actor. Unknown roles
+ * company: the actor holds `masquerade:use` and the target does not rank above the actor. Unknown roles
  * return false.
  */
-export function canViewAs(actorRole: Role, targetRole: Role): boolean {
+export function canMasqueradeAs(actorRole: Role, targetRole: Role): boolean {
   const targetRank = accessRoles.indexOf(targetRole);
   return (
-    can(actorRole, 'viewAs:use') && targetRank >= 0 && targetRank <= accessRoles.indexOf(actorRole)
+    can(actorRole, 'masquerade:use') &&
+    targetRank >= 0 &&
+    targetRank <= accessRoles.indexOf(actorRole)
   );
 }
 
@@ -75,7 +77,7 @@ export function canSeeTimeOffNote(role: Role): boolean {
 
 /**
  * Field-level visibility rule for private client/project real names and their stored code-name
- * settings. This is intentionally stricter than time-off notes: the account owner is the sole role
+ * settings. This is intentionally stricter than time-off notes: the Owner is the sole role
  * that receives the real name; admins, editors and viewers receive the quoted code-name projection.
  */
 export function canSeePrivateNames(role: Role): boolean {

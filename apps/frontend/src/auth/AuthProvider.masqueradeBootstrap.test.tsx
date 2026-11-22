@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 import { SessionProbe } from '@/test/SessionProbe';
-import { viewAsGrantFor } from '@/test/permissionGrants';
+import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -18,7 +18,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -26,19 +26,19 @@ afterEach(() => {
 });
 
 describe('AuthProvider — server mode', () => {
-  it('bootstraps an active masquerade from its validated real principal without calling auth/me', async () => {
+  it('bootstraps an active masquerade from its validated real user without calling auth/me', async () => {
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
       companyId: 'a-studio',
       targetUserId: 'target-user',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
-      ...viewAsGrantFor('viewer'),
+      ...masqueradeGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
-      contextToken: 'session-token',
-      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      masqueradeToken: 'session-token',
+      actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -51,7 +51,7 @@ describe('AuthProvider — server mode', () => {
       </AuthProvider>,
     );
 
-    expect(await screen.findByText('user:real-principal')).toBeInTheDocument();
+    expect(await screen.findByText('user:real-user')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(useStore.getState().activeCompanyId).toBe('a-studio');
     expect(useStore.getState().masquerade.kind).toBe('active');
@@ -64,12 +64,12 @@ describe('AuthProvider — server mode', () => {
       targetUserId: 'target-user',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
-      ...viewAsGrantFor('viewer'),
+      ...masqueradeGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
-      contextToken: 'session-token',
-      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      masqueradeToken: 'session-token',
+      actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     vi.doMock('@/data/planning/storePlanningTransport', async () => {
       const { createPlanningTransport } = await import('@/data/planning/planningTransport');
@@ -86,8 +86,8 @@ describe('AuthProvider — server mode', () => {
         return makeMeResponse(200, {
           companyId: 'a-studio',
           revision: 1,
-          authority: {
-            actorId: 'real-principal',
+          access: {
+            actorId: 'real-user',
             effectiveActorId: 'target-user',
             role: 'viewer',
             canWrite: false,
@@ -95,7 +95,7 @@ describe('AuthProvider — server mode', () => {
             canSeeTimeOffNote: false,
           },
           data: makeAppData({
-            accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
+            companies: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
           }),
           today: '2026-06-03',
         });

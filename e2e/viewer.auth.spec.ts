@@ -4,19 +4,19 @@ import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  sendPlanningFixtureCommand,
-  masqueradeContextHeaders,
-  seedFixtureMember,
+  createTestPerson,
+  sendPlanningIntent,
+  masqueradeTokenHeaders,
+  createTestMember,
   signUpUser as signUp,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // The password server on this run’s auth API lane must enforce the same viewer restrictions as the UI.
 
-// Shared auth setup comes from authTestSupport.
+// Shared auth setup comes from authTestKit.
 const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
@@ -43,7 +43,7 @@ async function assertViewerWriteRejected(
 ) {
   const newClientId = crypto.randomUUID();
   const directWrite = await request.post(`${API}/api/companies/${companyId}/planning/mutations`, {
-    headers: await masqueradeContextHeaders(request, cookie),
+    headers: await masqueradeTokenHeaders(request, cookie),
     data: {
       mutationId: crypto.randomUUID(),
       baseRevision: 2,
@@ -60,13 +60,13 @@ async function assertViewerWriteRejected(
   expect(directWrite.status()).toBe(403);
 }
 
-async function seedViewerScenario(request: APIRequestContext) {
+async function createViewerScenario(request: APIRequestContext) {
   const owner = await signUp(OWNER);
   const viewer = await signUp(VIEWER);
   const editor = await signUp(EDITOR);
   const companyId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
   const clientId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -75,17 +75,17 @@ async function seedViewerScenario(request: APIRequestContext) {
     },
   });
   const resourceId = crypto.randomUUID();
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Viewer-visible person',
-    role: 'Designer',
+    jobTitle: 'Designer',
     avatarUrl: VIEWER_AVATAR_URL,
   });
   for (const [who, role] of [
     [viewer, 'viewer'],
     [editor, 'editor'],
   ] as const) {
-    seedFixtureMember(companyId, who.email, role);
+    createTestMember(companyId, who.email, role);
   }
   await assertViewerWriteRejected(request, companyId, viewer.cookie);
   return { resourceId };
@@ -98,7 +98,7 @@ test('a viewer sees no edit affordances; an editor does; a direct viewer write i
   request,
   context,
 }) => {
-  const { resourceId } = await seedViewerScenario(request);
+  const { resourceId } = await createViewerScenario(request);
   await page.route(VIEWER_AVATAR_URL, (route) =>
     route.fulfill({
       contentType: 'image/png',
@@ -118,7 +118,7 @@ test('a viewer sees no edit affordances; an editor does; a direct viewer write i
   const currentAccess = page.getByTestId('current-access');
   await expect(currentAccess).toContainText('Viewer');
   await expect(currentAccess.getByText('View the schedule')).toHaveCount(0);
-  await currentAccess.getByTestId('capabilities-toggle').click();
+  await currentAccess.getByTestId('permissions-toggle').click();
   await expect(currentAccess.getByText('View the schedule')).toBeVisible();
   await expect(currentAccess.getByText('Edit scheduling data')).toHaveClass(/text-muted/);
   await expect(page.getByText(/An Owner or Admin manages invitations/)).toBeVisible();

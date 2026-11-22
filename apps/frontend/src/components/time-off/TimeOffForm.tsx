@@ -10,8 +10,8 @@ import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { m } from '@/i18n';
 import {
   DateField,
-  FormActions,
-  Modal,
+  FormButtons,
+  FormDialog,
   RequiredLegend,
   SelectField,
   TextField,
@@ -134,7 +134,7 @@ function buildTimeOffRepeatFields(options: {
       repeat={repeat}
       repeatUntil={repeatUntil}
       repeatUntilMaximum={maximum}
-      projection={preview}
+      expansion={preview}
       errorField={options.errorField}
       errorId={options.errorId}
       disabled={options.disabled}
@@ -208,14 +208,14 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
     });
 
   return (
-    <Modal
+    <FormDialog
       title={timeOff ? m.form_time_off_edit_title() : m.form_time_off_add_title()}
       onClose={onClose}
       onSubmit={() => {
         submit(prepareSave).catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
       onEdit={clear}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <TimeOffFields
@@ -232,7 +232,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
         {error}
       </FieldError>
       <RequiredLegend />
-    </Modal>
+    </FormDialog>
   );
 }
 

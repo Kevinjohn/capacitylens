@@ -35,7 +35,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationScheduleFields shows task when setting enables it"] --> B["useAllocationModalState supplies task value"]
+  A["AllocationScheduleFields shows task when setting enables it"] --> B["useAllocationDialogState supplies task value"]
   B --> C["allocationSubmit.parseOptionalTask validates and normalizes text"]
   C -->|valid| D["Include task in allocation draft"]
   C -->|invalid| E["Field error; no write"]
@@ -46,5 +46,5 @@ flowchart TD
 **Code references:**
 
 - [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
-- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)

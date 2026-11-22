@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
-import { resolveLane, workerPorts } from '../tooling/ports.mjs';
+import { resolvePortLane, workerPorts } from '../tooling/ports.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, realpathSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
@@ -11,7 +11,7 @@ const backendDirectory = fileURLToPath(new URL('../apps/backend/', import.meta.u
 
 /** All endpoints and files belonging to one stable browser-worker slot. */
 export interface ServerTarget {
-  lane: number;
+  portLane: number;
   slot: number;
   api: string;
   web: string;
@@ -20,11 +20,11 @@ export interface ServerTarget {
 }
 
 /** Resolve isolated browser-worker endpoints and disposable database paths. */
-export function serverTarget(lane: number, slot: number): ServerTarget {
-  const endpoints = workerPorts(lane, slot);
-  const databasePath = resolve(backendDirectory, `.e2e-l${lane}-w${slot}.db`);
+export function serverTarget(portLane: number, slot: number): ServerTarget {
+  const endpoints = workerPorts(portLane, slot);
+  const databasePath = resolve(backendDirectory, `.e2e-l${portLane}-w${slot}.db`);
   return Object.freeze({
-    lane,
+    portLane,
     slot,
     api: `http://localhost:${endpoints.api}`,
     web: `http://localhost:${endpoints.web}`,
@@ -33,7 +33,7 @@ export function serverTarget(lane: number, slot: number): ServerTarget {
   });
 }
 
-let configuredTarget = serverTarget(resolveLane(), 0);
+let configuredTarget = serverTarget(resolvePortLane(), 0);
 let resetControlToken: string | undefined;
 let stopOwnedPair: (() => Promise<void>) | undefined;
 /** Current worker API origin; imports observe configuration before a test starts. */
@@ -124,7 +124,7 @@ function assertDisposableDatabase(target: ServerTarget) {
 }
 
 /** Verify the server bootstrapped its fixture identity; company resets never recreate credentials. */
-export function ensureDbFixtureAdministrator(target: ServerTarget = configuredTarget) {
+export function ensureDbTestAdmin(target: ServerTarget = configuredTarget) {
   assertDisposableDatabase(target);
   const db = new DatabaseSync(target.databasePath, { readOnly: true });
   let found: boolean;
@@ -138,7 +138,7 @@ export function ensureDbFixtureAdministrator(target: ServerTarget = configuredTa
 }
 
 const companyTables = [
-  'accounts',
+  'companies',
   'clients',
   'disciplines',
   'projects',
@@ -156,7 +156,7 @@ const companyTables = [
   'deleted_rows',
   'account_member_resources',
   'company_settings',
-  'account_getting_started_dismissals',
+  'company_getting_started_dismissals',
   'request_receipts',
   'password_confirmations',
 ] as const;
@@ -197,14 +197,14 @@ function bindFixtureOwner(db: DatabaseSync) {
 /** Snapshot the worker's initial company once; identities are never restored from this template. */
 export async function prepareServerTemplate(target: ServerTarget): Promise<void> {
   await withDataListenersPaused(target, () => {
-    ensureDbFixtureAdministrator(target);
+    ensureDbTestAdmin(target);
     const db = new DatabaseSync(target.databasePath);
     try {
       orderedCompanyTables(db);
       db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
       try {
         db.exec(
-          "DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM accounts WHERE id <> 'a-studio'",
+          "DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM companies WHERE id <> 'a-studio'",
         );
         bindFixtureOwner(db);
         db.exec(
@@ -234,7 +234,7 @@ export async function resetServer({
   target = configuredTarget,
 }: ResetServerOptions): Promise<void> {
   await withDataListenersPaused(target, () => {
-    ensureDbFixtureAdministrator(target);
+    ensureDbTestAdmin(target);
     if (
       !existsSync(target.templatePath) ||
       realpathSync(target.templatePath) !== resolve(target.templatePath)
@@ -296,7 +296,7 @@ export async function serverState(
     },
   );
   expect(response.ok()).toBeTruthy();
-  return response.json();
+  return (await response.json()).data;
 }
 /** Returns the named table’s rows without changing the server state.
  * @throws Error when the response omits the table; callers must not treat an omitted table as empty.

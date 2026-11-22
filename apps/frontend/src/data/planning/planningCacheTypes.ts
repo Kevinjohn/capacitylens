@@ -1,17 +1,17 @@
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import type {
-  PlanningAuthority,
+  PlanningAccess,
   PlanningExecution,
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
 
-export type { PlanningAuthority };
+export type { PlanningAccess };
 
 interface PlanningSnapshotBase {
   revision: number;
   /** Who the read was for, and what that member may do and see, as the server verified it. */
-  authority: PlanningAuthority;
+  access: PlanningAccess;
   /** The company's calendar date, resolved by the server in the company time zone. */
   today: ISODate;
   /** The server's per-day capacity figures for the requested window and the overview horizon. */
@@ -22,18 +22,18 @@ interface PlanningSnapshotBase {
 
 /**
  * A canonical read normalized by the typed transport; its wire shape remains transport-owned. A
- * `full` read carries the complete company slice, and a read without `slice` is a full one. An
+ * `full` read carries the complete company data, and a read without `content` is a full one. An
  * `unchanged` read carries no rows: the server confirmed that the revision the reader named is current.
  */
 export type PlanningSnapshot =
-  FullPlanningSnapshot | (PlanningSnapshotBase & { slice: 'unchanged' });
+  FullPlanningSnapshot | (PlanningSnapshotBase & { content: 'unchanged' });
 
-/** A read that carries the complete company slice. */
-export type FullPlanningSnapshot = PlanningSnapshotBase & { slice?: 'full'; data: AppData };
+/** A read that carries the complete company data. */
+export type FullPlanningSnapshot = PlanningSnapshotBase & { content?: 'full'; data: AppData };
 
 /** What a planning read asks for: the capacity window, absent for the server's default, and the
  * page's history id, so the server reports that history's undo and redo availability. The planning
- * controller always names its history; a read outside it names none and is told neither is available.
+ * cache always names its history; a read outside it names none and is told neither is available.
  * `ifRevision` names the revision the reader already holds; the server then leaves the rows out if
  * that revision is current. */
 export interface PlanningReadRequest {
@@ -50,44 +50,44 @@ export interface PlanningHistoryStep {
 }
 
 /** Client identity is deliberately opaque; company id distinguishes its planning projection. */
-export interface PlanningClientContext {
+export interface PlanningSessionScope {
   readonly identity: string | symbol;
   readonly companyId: string;
   /** Mode boundary captured when this planning context is installed. */
-  readonly masqueradeContextToken?: string | null | undefined;
+  readonly masqueradeToken?: string | null | undefined;
 }
 
 /**
- * The server port. Error contract: the controller reads any thrown value for `code`, `status` and
+ * The server port. Error contract: the cache reads any thrown value for `code`, `status` and
  * `message` only. On `execute`, status 401 ends the planning scope; code `MUTATION_ID_REUSED`, status
  * 408, a status of 500 or more, or no status (a network failure) leaves the commit boundary unknown,
- * so the controller refetches and reports the change as unconfirmed; code `STALE_REVISION`
+ * so the cache refetches and reports the change as unconfirmed; code `STALE_REVISION`
  * or status 409 is refused and refreshed; codes `AUTHORIZATION_DENIED`, `VALIDATION_ERROR` and
  * `NO_CHANGE`, and any other status below 500, are refused. Only a server request to confirm cleanup
- * must be a `PlanningControllerError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
- * `restorableItemCount`. A transport must not set `uncertain`; the controller sets it on failures it
+ * must be a `PlanningCacheError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
+ * `restorableItemCount`. A transport must not set `uncertain`; the cache sets it on failures it
  * has already recorded. `undo` and `redo` follow the same contract, except that the server never
  * asks them to confirm cleanup. A `read` failure ends the scope on 401 and is otherwise recorded
  * on the planning state.
  */
 export interface PlanningTransport {
   execute(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     execution: PlanningExecution,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
   undo(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
   redo(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
   read(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     signal: AbortSignal,
     request?: PlanningReadRequest,
   ): Promise<PlanningSnapshot>;
@@ -127,10 +127,10 @@ export type PlanningPhase =
   | { kind: 'failed'; error: unknown; lastWrite: PlanningWriteResult | null }
   | { kind: 'writing'; write: PlanningPendingMutation; readError: unknown | null };
 
-export interface PlanningControllerMetadata {
-  context: PlanningClientContext | null;
-  /** The authority of the last accepted read; null until a read is accepted. */
-  authority: PlanningAuthority | null;
+export interface PlanningCacheMetadata {
+  context: PlanningSessionScope | null;
+  /** The access of the last accepted read; null until a read is accepted. */
+  access: PlanningAccess | null;
   revision: number | null;
   /** The company's calendar date from the last accepted read; null until a read is accepted. */
   today: ISODate | null;
@@ -140,10 +140,10 @@ export interface PlanningControllerMetadata {
   history: PlanningHistory;
 }
 
-/** The controller owns metadata; planning rows remain in the one Zustand `data` value. */
+/** The cache owns metadata; planning rows remain in the one Zustand `data` value. */
 export interface PlanningCacheState {
   data: AppData;
-  planning: PlanningControllerMetadata;
+  planning: PlanningCacheMetadata;
 }
 
 export interface PlanningCacheStore {
@@ -153,18 +153,18 @@ export interface PlanningCacheStore {
 
 export interface PlanningDraft {
   readonly baseRevision: number;
-  readonly context: PlanningClientContext;
+  readonly context: PlanningSessionScope;
   /** Request proof frozen with the action; context changes never replace an admitted write's proof. */
-  readonly requestContext: PlanningClientContext;
+  readonly requestContext: PlanningSessionScope;
   readonly generation: number;
 }
 
-export interface PlanningControllerOptions {
+export interface PlanningCacheOptions {
   getState: PlanningCacheStore['getState'];
   setState: PlanningCacheStore['setState'];
   transport: PlanningTransport;
   /** The current masquerade context proof, captured into each request when it is dispatched. */
-  readMasqueradeContextToken: () => string | null;
+  readMasqueradeToken: () => string | null;
   /** The capacity window each read asks for, captured when the read is sent. */
   readCapacityWindow?: () => CapacityRange | undefined;
   createMutationId?: () => string;

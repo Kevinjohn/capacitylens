@@ -2,9 +2,9 @@ import { test, expect } from './fixtures';
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
-  printFixtureResetLink,
+  printTestResetLink,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -18,7 +18,7 @@ const REPLAY_PASSWORD = 'second-password-reset-2026';
 test('a reset link sets a new password once and retires the old one', async ({ page, request }) => {
   const email = `reset-${Date.now()}@capacitylens.dev`;
   await signUpUser(email, 'Barbara Gordon');
-  const resetPath = printFixtureResetLink(email);
+  const resetPath = printTestResetLink(email);
 
   await page.goto(resetPath);
   await expect(page.getByRole('heading', { name: 'Reset password' })).toBeVisible();

@@ -3,14 +3,14 @@ import type { Dispatch, SetStateAction } from 'react';
 import { m } from '@/i18n';
 import type { InvitationRole } from '@capacitylens/shared/account/types';
 import { isAccountEmail } from '@capacitylens/shared/account/validation';
-import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamInvitation } from '@/account/teamAccessClient';
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamInvitation } from '@/account/teamAccessApi';
 import type { FieldError } from '@/hooks/useFieldError';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import type { MemberActionDependencies } from './MemberActionDependencies';
+import type { MemberOperationDependencies } from './MemberOperationDependencies';
 import type { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
 
-interface MemberInviteDependencies extends MemberActionDependencies {
+interface MemberInviteDependencies extends MemberOperationDependencies {
   clear: FieldError['clear'];
   reloadInvites: () => Promise<void>;
   reconcileUnknownMutation: ReturnType<
@@ -49,7 +49,7 @@ function createSubmitInvite({
     if (!isAccountEmail(email)) return fail('invite', m.identity_err_email());
     await withMemberAction('invite:create', async (companyId) => {
       try {
-        const result = await teamAccessClient.createInvitation({
+        const result = await teamAccessApi.createInvitation({
           companyId,
           role: inviteRole,
           email,
@@ -103,7 +103,7 @@ function createRevokeInvite({
   return (id: string) =>
     withMemberAction(`invite:revoke:${id}`, async (companyId) => {
       try {
-        const result = await teamAccessClient.revokeInvitation(companyId, id);
+        const result = await teamAccessApi.revokeInvitation(companyId, id);
         if (!isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
@@ -112,7 +112,7 @@ function createRevokeInvite({
           }
           fail(
             null,
-            resolveRejectionMessage(
+            resolveRefusalMessage(
               result,
               m.settings_members_err_revoke_invite({ status: result.status }),
             ),
@@ -144,10 +144,10 @@ function createResendInvite({
   return (invitation: TeamInvitation) =>
     withMemberAction(`invite:resend:${invitation.id}`, async (companyId) => {
       try {
-        const result = await teamAccessClient.resendInvitation(companyId, invitation.id);
+        const result = await teamAccessApi.resendInvitation(companyId, invitation.id);
         if (!isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
-          fail(null, resolveRejectionMessage(result, m.settings_invite_resend_failed()));
+          fail(null, resolveRefusalMessage(result, m.settings_invite_resend_failed()));
           return;
         }
         if (result.value.emailed) {

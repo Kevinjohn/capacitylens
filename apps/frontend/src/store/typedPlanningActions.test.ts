@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from './useStore';
 import { makeClient, makeResourceDraft, resetStoreWithCompany } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
@@ -11,7 +11,7 @@ beforeEach(async () => {
 
 function refuseNextPlanningMutation(): void {
   getStubPlanningTransport().failNext(
-    new PlanningControllerError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
+    new PlanningCacheError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
   );
 }
 
@@ -20,11 +20,11 @@ describe('typed planning domain rejections', () => {
     const { activeCompanyId, data } = useStore.getState();
     if (!activeCompanyId) throw new Error('Expected an active account.');
     useStore.setState({
-      data: { ...data, accounts: [] },
+      data: { ...data, companies: [] },
       companySummaries: [{ id: activeCompanyId, name: 'Daily Planet', role: 'owner' }],
     });
     const sent = getStubPlanningTransport().calls.length;
-    // The guard admits a company whose slice is still loading; no command can be built until the
+    // The guard admits a company whose set is still loading; no intent can be built until the
     // company row is published, so the write is refused as no company selected and nothing is sent.
     await expect(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
@@ -40,7 +40,7 @@ describe('typed planning domain rejections', () => {
     await expect(
       useStore.getState().updateClient(foreign.id, { name: 'Changed' }),
     ).rejects.toMatchObject({
-      code: 'record_wrong_account',
+      code: 'record_wrong_company',
     });
     await expect(
       useStore.getState().updateClient('missing', { name: 'Changed' }),
@@ -67,25 +67,25 @@ describe('typed planning domain rejections', () => {
   });
 
   it('rejects an empty company working week before normalization', async () => {
-    const company = useStore.getState().data.accounts[0];
+    const company = useStore.getState().data.companies[0];
     if (!company) throw new Error('Expected account fixture.');
     await expect(
       useStore.getState().updateCompany(company.id, { workingDays: [] }),
     ).rejects.toThrow(/at least one working day/i);
-    expect(useStore.getState().data.accounts[0]?.workingDays).toEqual(company.workingDays);
+    expect(useStore.getState().data.companies[0]?.workingDays).toEqual(company.workingDays);
   });
 
   it('restores the previous working week when the latest settings change is undone', async () => {
-    const company = useStore.getState().data.accounts[0];
+    const company = useStore.getState().data.companies[0];
     if (!company) throw new Error('Expected account fixture.');
     await useStore.getState().updateCompany(company.id, { workingDays: [1, 3, 5] });
     expect(
-      useStore.getState().data.accounts.find((row) => row.id === company.id)?.workingDays,
+      useStore.getState().data.companies.find((row) => row.id === company.id)?.workingDays,
     ).toEqual([1, 3, 5]);
     await useStore.getState().updateCompany(company.id, { workingDays: [2, 4] });
     await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
     expect(
-      useStore.getState().data.accounts.find((row) => row.id === company.id)?.workingDays,
+      useStore.getState().data.companies.find((row) => row.id === company.id)?.workingDays,
     ).toEqual([1, 3, 5]);
   });
 

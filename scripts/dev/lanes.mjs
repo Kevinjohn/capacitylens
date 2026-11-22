@@ -1,6 +1,6 @@
 // Report what is holding the port lanes, and optionally stop leftovers:
 //
-//   pnpm run lanes                  list every lane port in use, its pid, directory and owner
+//   pnpm run lanes                  list every port lane port in use, its pid, directory and owner
 //   pnpm run lanes --stop-orphans   also stop listeners from this repository's worktrees that no
 //                                   live run has claimed
 //
@@ -11,8 +11,13 @@ import { realpathSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { portInUse } from '../../tooling/devProcesses.mjs';
-import { laneDirectory, listenerDirectory, listenerPid, readLiveClaims } from './laneClaims.mjs';
-import { LANE_CEILING, portsForLane } from '../../tooling/ports.mjs';
+import {
+  portLaneDirectory,
+  listenerDirectory,
+  listenerPid,
+  readLiveClaims,
+} from './laneClaims.mjs';
+import { PORT_LANE_CEILING, portsForPortLane } from '../../tooling/ports.mjs';
 
 /** Every worktree path of the repository this script belongs to. */
 export function repositoryWorktrees(run = execFileSync) {
@@ -41,11 +46,11 @@ function insideAny(directory, roots) {
 }
 
 /**
- * One row per occupied lane port. `orphan` is true only for a listener running from one of this
- * repository's worktrees on a lane that no live run has claimed; anything else is reported, never
+ * One row per occupied port lane port. `orphan` is true only for a listener running from one of this
+ * repository's worktrees on a port lane that no live run has claimed; anything else is reported, never
  * a candidate for stopping.
  */
-export async function surveyLanes({
+export async function surveyPortLanes({
   environment = process.env,
   worktrees = repositoryWorktrees(),
   probe = portInUse,
@@ -54,12 +59,12 @@ export async function surveyLanes({
 } = {}) {
   const roots = worktrees.map(canonical);
   const listeners = [];
-  for (let lane = 0; lane < LANE_CEILING; lane += 1) {
-    for (const [service, port] of Object.entries(portsForLane(lane))) {
+  for (let portLane = 0; portLane < PORT_LANE_CEILING; portLane += 1) {
+    for (const [service, port] of Object.entries(portsForPortLane(portLane))) {
       if (!(await probe(port))) continue;
       const pid = owner(port);
       listeners.push({
-        lane,
+        portLane,
         service,
         port,
         pid,
@@ -69,17 +74,17 @@ export async function surveyLanes({
   }
   // Read claims only after the scan: a launcher writes its claim before its server listens, so a run
   // that started during the scan is already claimed here and never mistaken for a leftover.
-  const claims = readLiveClaims(laneDirectory(environment));
+  const claims = readLiveClaims(portLaneDirectory(environment));
   return listeners.map((listener) => {
-    const claim = claims.get(listener.lane) ?? null;
+    const claim = claims.get(listener.portLane) ?? null;
     const orphan = listener.pid !== null && claim === null && insideAny(listener.directory, roots);
     return { ...listener, claim, orphan };
   });
 }
 
 /**
- * The pids safe to stop: a process is stopped only when every lane port it holds is a leftover, so
- * a process that also serves a claimed lane is never touched. Each pid appears once.
+ * The pids safe to stop: a process is stopped only when every port lane port it holds is a leftover, so
+ * a process that also serves a claimed port lane is never touched. Each pid appears once.
  */
 export function leftoverPids(rows) {
   const eligible = new Map();
@@ -100,14 +105,14 @@ function describe(row) {
     : row.orphan
       ? 'no live run — leftover from this repository'
       : 'no live run — not from this repository';
-  return `lane ${row.lane} ${row.service} :${row.port}  ${who}  ${owner}`;
+  return `port lane ${row.portLane} ${row.service} :${row.port}  ${who}  ${owner}`;
 }
 
 async function main() {
   const stopOrphans = process.argv.includes('--stop-orphans');
-  const rows = await surveyLanes();
+  const rows = await surveyPortLanes();
   if (rows.length === 0) {
-    console.log('No lane ports are in use.');
+    console.log('No port lane ports are in use.');
     return;
   }
   for (const row of rows) console.log(describe(row));

@@ -5,11 +5,11 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { PermissionContext } from '@/auth/permissionContext';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { AdmissionRequest } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { AdmissionRequest } from '@/account/teamAccessApi';
 import { TeamAccessView } from './TeamAccessView';
 import { useStore } from '@/store/useStore';
-import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 vi.mock('./MembersSection', () => ({
   MembersSection: () => <div data-testid="member-management">Member controls</div>,
@@ -46,8 +46,8 @@ function renderView({
   );
 }
 
-function showCapabilities(): void {
-  fireEvent.click(screen.getByTestId('capabilities-toggle'));
+function showPermissions(): void {
+  fireEvent.click(screen.getByTestId('permissions-toggle'));
 }
 
 beforeEach(() => {
@@ -57,17 +57,17 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('TeamAccessView access presentation', () => {
-  it('keeps the capability list collapsed until it is asked for', async () => {
+  it('keeps the permission list collapsed until it is asked for', async () => {
     renderView({ role: 'viewer' });
-    const toggle = screen.getByTestId('capabilities-toggle');
+    const toggle = screen.getByTestId('permissions-toggle');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('View the schedule')).not.toBeInTheDocument();
 
-    showCapabilities();
-    expect(screen.getByTestId('capabilities-toggle')).toHaveAttribute('aria-expanded', 'true');
+    showPermissions();
+    expect(screen.getByTestId('permissions-toggle')).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('View the schedule')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('capabilities-toggle'));
+    fireEvent.click(screen.getByTestId('permissions-toggle'));
     expect(screen.queryByText('View the schedule')).not.toBeInTheDocument();
   });
 
@@ -81,10 +81,10 @@ describe('TeamAccessView access presentation', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows every Viewer capability and keeps management understandable but unavailable', () => {
+  it('shows every Viewer permission and keeps management understandable but unavailable', () => {
     renderView({ role: 'viewer' });
     expect(screen.getByTestId('current-access')).toHaveTextContent('Viewer');
-    showCapabilities();
+    showPermissions();
     expect(screen.getByText('View the schedule')).toBeInTheDocument();
     expect(screen.getByText('Edit scheduling data')).toHaveClass('text-muted-foreground');
     expect(screen.getByText('View the schedule').closest('li')).toHaveTextContent('Allowed:');
@@ -95,12 +95,12 @@ describe('TeamAccessView access presentation', () => {
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
   });
 
-  it('lists capabilities from the grant, so viewing as an Editor shows editing as not allowed', () => {
+  it('lists permissions from the grant, so viewing as an Editor shows editing as not allowed', () => {
     render(
       <MemoryRouter>
         <AuthContext.Provider value={auth()}>
           <PermissionContext.Provider
-            value={{ role: 'editor', status: 'resolved', grant: viewAsGrantFor('editor') }}
+            value={{ role: 'editor', status: 'resolved', grant: masqueradeGrantFor('editor') }}
           >
             <TeamAccessView />
           </PermissionContext.Provider>
@@ -108,7 +108,7 @@ describe('TeamAccessView access presentation', () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId('current-access')).toHaveTextContent('Editor');
-    showCapabilities();
+    showPermissions();
     expect(screen.getByText('View the schedule').closest('li')).toHaveTextContent('Allowed:');
     expect(screen.getByText('Edit scheduling data').closest('li')).toHaveTextContent(
       'Not allowed:',
@@ -125,7 +125,7 @@ describe('TeamAccessView access presentation', () => {
           targetUserId: 'target-user',
           targetName: 'Kara Danvers',
           effectiveRole: 'admin',
-          ...viewAsGrantFor('admin'),
+          ...masqueradeGrantFor('admin'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',
@@ -136,7 +136,7 @@ describe('TeamAccessView access presentation', () => {
       <MemoryRouter>
         <AuthContext.Provider value={auth()}>
           <PermissionContext.Provider
-            value={{ role: 'admin', status: 'resolved', grant: viewAsGrantFor('admin') }}
+            value={{ role: 'admin', status: 'resolved', grant: masqueradeGrantFor('admin') }}
           >
             <TeamAccessView />
           </PermissionContext.Provider>
@@ -146,10 +146,12 @@ describe('TeamAccessView access presentation', () => {
 
     const card = screen.getByTestId('current-access');
     expect(card).toHaveTextContent('Admin');
-    expect(card).toHaveTextContent('Masquerade is read-only.');
+    expect(card).toHaveTextContent('View as member is read-only.');
     expect(card).not.toHaveTextContent(/Can edit the schedule/);
     expect(
-      screen.getByText('Invitations and membership changes are not available during a masquerade.'),
+      screen.getByText(
+        'Invitations and membership changes are not available during View as member.',
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/An Owner or Admin manages invitations/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
@@ -207,7 +209,7 @@ describe('TeamAccessView member management', () => {
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
   });
 
-  it.each(['principal', 'company'] as const)(
+  it.each(['user', 'company'] as const)(
     'replaces admission requests when the %s context changes and ignores the old decision',
     async (changedContext) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -224,21 +226,21 @@ describe('TeamAccessView member management', () => {
         email: 'barbara.gordon@example.com',
       };
       let finishDecision!: (
-        value: Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>,
+        value: Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>,
       ) => void;
       let failDecision!: (failure: Error) => void;
-      const oldDecision = new Promise<Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>>(
+      const oldDecision = new Promise<Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>>(
         (resolve, reject) => {
           finishDecision = resolve;
           failDecision = reject;
         },
       );
       const list = vi
-        .spyOn(teamAccessClient, 'listAdmissionRequests')
+        .spyOn(teamAccessApi, 'listAdmissionRequests')
         .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [oldRequest] })
         .mockResolvedValue({ kind: 'ok', status: 200, value: [successorRequest] });
       const decide = vi
-        .spyOn(teamAccessClient, 'decideAdmission')
+        .spyOn(teamAccessApi, 'decideAdmission')
         .mockReturnValueOnce(oldDecision)
         .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
 
@@ -248,10 +250,10 @@ describe('TeamAccessView member management', () => {
       fireEvent.click(screen.getByTestId('admission-approve'));
       const listingCountBeforeContextChange = list.mock.calls.length;
 
-      if (changedContext === 'principal') {
+      if (changedContext === 'user') {
         view.rerender(
           <MemoryRouter>
-            <AuthContext.Provider value={auth('next-principal')}>
+            <AuthContext.Provider value={auth('next-user')}>
               <PermissionContext.Provider value={permissionValue('admin', 'resolved')}>
                 <TeamAccessView />
               </PermissionContext.Provider>
@@ -267,8 +269,8 @@ describe('TeamAccessView member management', () => {
       expect(await screen.findByText(successorRequest.email)).toBeInTheDocument();
 
       await act(async () => {
-        if (changedContext === 'principal') {
-          finishDecision({ kind: 'rejected', status: 403, message: 'Old principal refusal.' });
+        if (changedContext === 'user') {
+          finishDecision({ kind: 'rejected', status: 403, message: 'Old user refusal.' });
         } else {
           failDecision(new Error('Old company decision failed.'));
         }
