@@ -16,7 +16,7 @@ import type {
   Resource,
   TimeOff,
 } from '../../types/entities.js';
-import { isInCompany } from '../tenancy.js';
+import { isInCompany } from '../companyBoundary.js';
 import { throwDomainError } from '../errors.js';
 import type { DomainErrorCode } from '../errors.js';
 import {

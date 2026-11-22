@@ -53,7 +53,7 @@ export function createTypedPlanningActions(
     const { data, planning, masquerade } = get();
     if (
       masquerade.kind === 'inactive' &&
-      planning.authority === null &&
+      planning.access === null &&
       planning.phase.kind === 'failed' &&
       !data.companies.some((row) => row.id === companyId)
     ) {

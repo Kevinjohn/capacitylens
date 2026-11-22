@@ -5,7 +5,7 @@ import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, resetStoreWithCompany } from '@/test/fixtures';
-import { companyDocument } from '@/test/companyDocument';
+import { companyExport } from '@/test/companyExport';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
 import { permissionValue } from '@/test/permissionGrants';
@@ -21,7 +21,7 @@ const originalPlanning = {
 const companyId = 'a-studio';
 
 function document() {
-  return companyDocument(companyId);
+  return companyExport(companyId);
 }
 
 /** A preview reply as the server sends it for {@link document}. */
@@ -150,7 +150,7 @@ describe('beta import and export', () => {
     expect(useStore.getState().notice?.tone).toBe('error');
     const releaseRecovery = useStore.getState().suspendPlanningIntents();
     if (!releaseRecovery) {
-      throw new Error('The selected context was not available for authority recovery.');
+      throw new Error('The selected context was not available for access recovery.');
     }
     releaseRecovery();
   });

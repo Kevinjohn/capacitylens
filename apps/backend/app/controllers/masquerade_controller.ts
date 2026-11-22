@@ -50,7 +50,7 @@ export default class MasqueradeController {
     return runWithAuthorizationRefusal(ctx, async () => {
       try {
         const signIn = await getSignedInSession(ctx);
-        if (!signIn) return ctx.serialize({ active: false, contextToken: null });
+        if (!signIn) return ctx.serialize({ active: false, masqueradeToken: null });
         const input: unknown = ctx.request.input('companyId');
         const companyId = typeof input === 'string' && input ? input : undefined;
         if (companyId) {
@@ -65,7 +65,7 @@ export default class MasqueradeController {
       } catch (error) {
         // Does work: no session is the inactive status, not a refusal.
         if (error instanceof InvalidSessionError) {
-          return ctx.serialize({ active: false, contextToken: null });
+          return ctx.serialize({ active: false, masqueradeToken: null });
         }
         throw error;
       }
@@ -83,7 +83,7 @@ export default class MasqueradeController {
       }
       if (header !== body.token) throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
       const mode = await endMasquerade(ctx, header);
-      return ctx.serialize({ active: false, contextToken: mode.contextToken });
+      return ctx.serialize({ active: false, masqueradeToken: mode.contextToken });
     });
   }
 }

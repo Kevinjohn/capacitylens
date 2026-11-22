@@ -24,7 +24,7 @@ async function loaded(transport: Parameters<typeof createHarness>[0], revision =
   h.cache.setContext(context);
   await h.readSnapshot({
     revision,
-    authority: makePlanningAccess(),
+    access: makePlanningAccess(),
     data: makeCanonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
@@ -58,7 +58,7 @@ describe('planning cache history', () => {
     const h = await loaded({ execute: committing(), read: vi.fn<PlanningTransport['read']>() });
     await h.cache.execute(h.cache.begin(), intent);
     const same = {
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
     };
@@ -80,7 +80,7 @@ describe('planning cache history', () => {
       .fn<PlanningTransport['read']>()
       .mockResolvedValueOnce({
         revision: 2,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -88,7 +88,7 @@ describe('planning cache history', () => {
       })
       .mockResolvedValueOnce({
         revision: 3,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -96,7 +96,7 @@ describe('planning cache history', () => {
       })
       .mockResolvedValueOnce({
         revision: 4,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -156,7 +156,7 @@ describe('planning cache history', () => {
     // The server ends the history after refusing one of its steps; its next read says so.
     h.read.mockResolvedValueOnce({
       revision: 2,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),

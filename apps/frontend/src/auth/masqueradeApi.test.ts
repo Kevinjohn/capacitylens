@@ -30,7 +30,7 @@ const state = {
 const activeStatus = {
   active: true,
   ...state,
-  contextToken: state.token,
+  masqueradeToken: state.token,
   actor: { id: 'u-actor', email: 'actor@example.test' },
 };
 
@@ -143,14 +143,14 @@ describe('masqueradeApi', () => {
   });
 
   it('requires a current idle context token from inactive status', async () => {
-    mocks.status.mockResolvedValue(json({ active: false, contextToken: 'idle-context' }));
+    mocks.status.mockResolvedValue(json({ active: false, masqueradeToken: 'idle-context' }));
     await expect(masqueradeApi.status()).resolves.toEqual({
       active: false,
-      contextToken: 'idle-context',
+      masqueradeToken: 'idle-context',
     });
 
-    mocks.status.mockResolvedValue(json({ active: false, contextToken: null }));
-    await expect(masqueradeApi.status()).resolves.toEqual({ active: false, contextToken: null });
+    mocks.status.mockResolvedValue(json({ active: false, masqueradeToken: null }));
+    await expect(masqueradeApi.status()).resolves.toEqual({ active: false, masqueradeToken: null });
 
     mocks.status.mockResolvedValue(json({ active: false }));
     await expect(masqueradeApi.status()).rejects.toThrow(
@@ -169,7 +169,7 @@ describe('masqueradeApi', () => {
   );
 
   it('rejects a status whose active context proof differs from the active mode token', async () => {
-    mocks.status.mockResolvedValue(json({ ...activeStatus, contextToken: 'stale-context' }));
+    mocks.status.mockResolvedValue(json({ ...activeStatus, masqueradeToken: 'stale-context' }));
     await expect(masqueradeApi.status()).rejects.toThrow(
       'The server returned an invalid masquerade status.',
     );

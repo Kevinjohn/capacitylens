@@ -9,7 +9,7 @@ it.each([true, false, undefined, 'true'])(
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi
       .spyOn(masqueradeApi, 'status')
-      .mockResolvedValue({ active: false, contextToken: 'idle-context' });
+      .mockResolvedValue({ active: false, masqueradeToken: 'idle-context' });
     const request = vi.spyOn(sessionRequests, 'me').mockResolvedValue(
       new Response(JSON.stringify({ passwordResetEmail }), {
         status: 401,
@@ -87,7 +87,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { getMasqueradeToken, setMasqueradeToken } = await import('@/api/masqueradeToken');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
-      contextToken: 'idle-context',
+      masqueradeToken: 'idle-context',
     });
     const request = vi.spyOn(sessionRequests, 'me').mockImplementation(async () => {
       expect(getMasqueradeToken()).toBe('idle-context');
@@ -112,7 +112,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { getMasqueradeToken, setMasqueradeToken } = await import('@/api/masqueradeToken');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
-      contextToken: 'new-idle-context',
+      masqueradeToken: 'new-idle-context',
     });
     const request = vi
       .spyOn(sessionRequests, 'me')
@@ -163,7 +163,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'mode-token',
-      contextToken: 'mode-token',
+      masqueradeToken: 'mode-token',
       actor: { id: '', email: 'real@example.test' },
     });
     const adopt = vi.spyOn(masqueradeModel, 'adoptStatus');
@@ -198,7 +198,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'stale-mode-token',
-      contextToken: 'stale-mode-token',
+      masqueradeToken: 'stale-mode-token',
       actor: { id: 'real-user', email: 'real@example.test' },
     };
     try {

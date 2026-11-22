@@ -181,7 +181,7 @@ export const resourceIntent = vine.union([
   ),
   vine.union.else(
     vine.object({
-      operation: vine.enum(['resource.archive', 'resource.unarchive'] as const),
+      operation: vine.enum(['resource.archive', 'resource.restore'] as const),
       id: entityId(),
     })
   ),

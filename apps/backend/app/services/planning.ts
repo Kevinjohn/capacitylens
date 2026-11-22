@@ -76,7 +76,7 @@ export interface PlanningHistoryStepOptions {
 interface PlanningReadBase {
   companyId: string;
   revision: number;
-  authority: PlanningAccess;
+  access: PlanningAccess;
   /** The company's current calendar date in its own time zone. */
   today: ISODate;
   capacity: CapacitySection;
@@ -84,11 +84,11 @@ interface PlanningReadBase {
   history: PlanningHistoryState;
 }
 
-/** A planning read: the complete projected slice, or none when the reader named the current
+/** A planning read: the complete projected data, or none when the reader named the current
  * revision as the one it already holds. */
 export type PlanningRead =
-  | (PlanningReadBase & { slice: 'full'; data: AppData })
-  | (PlanningReadBase & { slice: 'unchanged' });
+  | (PlanningReadBase & { content: 'full'; data: AppData })
+  | (PlanningReadBase & { content: 'unchanged' });
 
 /** Resolves current planning access, revision, rows and their capacity from the same database
  * snapshot. Capacity covers `window`, or the scheduler's default window when it is absent. The rows
@@ -108,7 +108,7 @@ export async function readPlanning(
   const base: PlanningReadBase = {
     companyId,
     revision,
-    authority: planningAccess,
+    access: planningAccess,
     today,
     // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
     capacity: buildCapacitySection({ data: visible, company, today, window }),
@@ -127,8 +127,8 @@ export async function readPlanning(
           ),
   };
   return page?.ifRevision === revision
-    ? { ...base, slice: 'unchanged' }
-    : { ...base, slice: 'full', data: visible };
+    ? { ...base, content: 'unchanged' }
+    : { ...base, content: 'full', data: visible };
 }
 
 /** Read only recoverable identities under the current transactional write permission. */

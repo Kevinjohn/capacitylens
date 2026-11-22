@@ -11,7 +11,7 @@ export type { PlanningAccess };
 interface PlanningSnapshotBase {
   revision: number;
   /** Who the read was for, and what that member may do and see, as the server verified it. */
-  authority: PlanningAccess;
+  access: PlanningAccess;
   /** The company's calendar date, resolved by the server in the company time zone. */
   today: ISODate;
   /** The server's per-day capacity figures for the requested window and the overview horizon. */
@@ -22,14 +22,14 @@ interface PlanningSnapshotBase {
 
 /**
  * A canonical read normalized by the typed transport; its wire shape remains transport-owned. A
- * `full` read carries the complete company slice, and a read without `slice` is a full one. An
+ * `full` read carries the complete company data, and a read without `content` is a full one. An
  * `unchanged` read carries no rows: the server confirmed that the revision the reader named is current.
  */
 export type PlanningSnapshot =
-  FullPlanningSnapshot | (PlanningSnapshotBase & { slice: 'unchanged' });
+  FullPlanningSnapshot | (PlanningSnapshotBase & { content: 'unchanged' });
 
-/** A read that carries the complete company slice. */
-export type FullPlanningSnapshot = PlanningSnapshotBase & { slice?: 'full'; data: AppData };
+/** A read that carries the complete company data. */
+export type FullPlanningSnapshot = PlanningSnapshotBase & { content?: 'full'; data: AppData };
 
 /** What a planning read asks for: the capacity window, absent for the server's default, and the
  * page's history id, so the server reports that history's undo and redo availability. The planning
@@ -129,8 +129,8 @@ export type PlanningPhase =
 
 export interface PlanningCacheMetadata {
   context: PlanningSessionScope | null;
-  /** The authority of the last accepted read; null until a read is accepted. */
-  authority: PlanningAccess | null;
+  /** The access of the last accepted read; null until a read is accepted. */
+  access: PlanningAccess | null;
   revision: number | null;
   /** The company's calendar date from the last accepted read; null until a read is accepted. */
   today: ISODate | null;
