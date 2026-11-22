@@ -36,7 +36,7 @@ export function closestForm(control: HTMLElement): HTMLFormElement {
   return required(control.closest('form'), 'Expected the allocation control to belong to a form.');
 }
 
-/** Render an ordinary dialog as a resolved Owner; tests may still supply inner authority boundaries. */
+/** Render an ordinary dialog as a resolved Owner; tests may still supply inner access boundaries. */
 export function renderAsOwner(ui: ReactElement, options: Omit<RenderOptions, 'wrapper'> = {}) {
   return render(ui, { ...options, wrapper: OwnerPermissions });
 }

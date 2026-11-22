@@ -1037,7 +1037,7 @@
   "diagnostics_title": "Diagnostics",
   "diagnostics_report_heading": "Support report",
   "diagnostics_description": "Copy this report into a support request. Server values were observed when the page opened. Identifying browser text is omitted.",
-  "diagnostics_help": "A privacy-safe report of the app build, deployment mode, observed server connectivity, database status, schema migration, newest snapshot timestamp, and browser viewport, time zone and language. Identifying browser text is omitted. It contains no names, email addresses, identifiers, company data, secrets, hostnames or raw errors. It is not a live monitor.",
+  "diagnostics_help": "A privacy-safe report of the app build, deployment mode, observed server connectivity, database status, schema migration, newest backup timestamp, and browser viewport, time zone and language. Identifying browser text is omitted. It contains no names, email addresses, identifiers, company data, secrets, hostnames or raw errors. It is not a live monitor.",
   "diagnostics_copy": "Copy diagnostics",
   "diagnostics_copied": "Diagnostics copied.",
   "diagnostics_copy_failed": "Diagnostics could not be copied. Check clipboard permissions and try again.",

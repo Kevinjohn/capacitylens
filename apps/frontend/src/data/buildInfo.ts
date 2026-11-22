@@ -21,7 +21,7 @@ export interface ServerDiagnostics {
     status: DiagnosticsDatabaseStatus;
   };
   schema: { migration: string | null };
-  backup: { newestSnapshotAt: string | null };
+  backup: { newestBackupAt: string | null };
 }
 
 /** Local browser inputs; the report projection omits the caller-controlled user agent. */
@@ -57,7 +57,7 @@ function createUnknownServerDiagnostics(): ServerDiagnostics {
     connectivity: 'unavailable',
     database: { status: 'unavailable' },
     schema: { migration: null },
-    backup: { newestSnapshotAt: null },
+    backup: { newestBackupAt: null },
   };
 }
 
@@ -127,7 +127,7 @@ function readSchemaProjection(
 }
 
 function readBackupProjection(backup: Record<string, unknown> | null) {
-  return { newestSnapshotAt: readTimestamp(backup?.newestSnapshotAt) };
+  return { newestBackupAt: readTimestamp(backup?.newestBackupAt) };
 }
 
 function readMatching(value: string, pattern: RegExp): string {
@@ -181,7 +181,7 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
   const { browser } = report.client;
   return [
     `${APP_NAME} diagnostics`,
-    `Snapshot observed: ${report.observedAt ?? UNKNOWN}`,
+    `Observed at: ${report.observedAt ?? UNKNOWN}`,
     `App version: ${report.appVersion}`,
     `Build revision: ${report.buildRevision ?? UNKNOWN}`,
     `Deployment mode: ${report.deploymentMode}`,
@@ -189,7 +189,7 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
     `Server connectivity: ${server.connectivity}`,
     `Database: ${server.database.status}`,
     `Schema migration: ${server.schema.migration ?? UNKNOWN}`,
-    `Newest snapshot: ${server.backup.newestSnapshotAt ?? UNKNOWN}`,
+    `Newest backup: ${server.backup.newestBackupAt ?? UNKNOWN}`,
     `User agent: ${browser.userAgent}`,
     `Viewport: ${browser.viewport}`,
     `Time zone: ${browser.timeZone}`,

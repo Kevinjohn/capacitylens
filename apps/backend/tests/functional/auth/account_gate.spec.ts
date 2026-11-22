@@ -162,7 +162,7 @@ test.group('account gate', (group) => {
     ).send();
     requested.assertStatus(200);
     // The remaining limited routes pass the gate; their handlers then refuse a person with no
-    // authority, in their own words.
+    // access, in their own words.
     const ownerRow = await db.from('users').where('email', owner).firstOrFail();
     const ownerId = String(ownerRow.id);
     const listed = await get('/api/admission/requests');

@@ -310,15 +310,15 @@ test.group('company initialize command', () => {
         const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } });
         const modeBody = await modeResponse.text();
         assert.equal(modeResponse.status, 200, modeBody);
-        const { data: mode } = JSON.parse(modeBody) as { data: { contextToken?: unknown } };
-        assert.isString(mode.contextToken);
+        const { data: mode } = JSON.parse(modeBody) as { data: { masqueradeToken?: unknown } };
+        assert.isString(mode.masqueradeToken);
         const { seed } = await import('@capacitylens/shared/data/seed');
         const { allocation } = await writeSmokeSchedule(
           origin,
           cookie,
           companyId,
           seed(),
-          mode.contextToken as string
+          mode.masqueradeToken as string
         );
         const persisted = f.inspect();
         assert.equal(

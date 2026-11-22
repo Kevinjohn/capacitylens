@@ -198,7 +198,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
 
   const onRestore = (model: ArchivedRowModel) =>
     run(
-      () => actions.unarchive(entity, model.row.id),
+      () => actions.restore(entity, model.row.id),
       (error) => setNotice(resolveErrorMessage(error), 'error'),
     );
   const onAnonymise = (model: ArchivedRowModel) => {

@@ -192,10 +192,9 @@ export const catalogueIntent = vine.union([
     vine.object({ operation: vine.literal('catalogue.update'), entity: catalogueChanges })
   ),
   vine.union.if(
-    (value) =>
-      hasOperation(value, 'catalogue.archive') || hasOperation(value, 'catalogue.unarchive'),
+    (value) => hasOperation(value, 'catalogue.archive') || hasOperation(value, 'catalogue.restore'),
     vine.object({
-      operation: vine.enum(['catalogue.archive', 'catalogue.unarchive'] as const),
+      operation: vine.enum(['catalogue.archive', 'catalogue.restore'] as const),
       entity: catalogueLifecycleEntity,
     })
   ),
