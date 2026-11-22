@@ -1,21 +1,22 @@
 import { AUDIT_WARNING_HEADER } from '@/lib/auditWarning';
 import { m } from '@/i18n';
 import { useState } from 'react';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import { useCan } from '@/auth/permissionContext';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { companyDataRequests } from '@/data/companyDataRequests';
 import { runSuspendedReplacement } from '@/store/suspendedReplacement';
 import type { SuspendedReplacementOutcome } from '@/store/suspendedReplacement';
 import { useScopedData } from '@/store/useScopedData';
+import { useInactiveCompanyData } from '@/hooks/useInactiveCompanyData';
 import { useStore } from '@/store/useStore';
 import type { SetNotice } from '@/store/types';
 import { Button } from '@/components/ui/button';
 import { SettingsSection } from './SettingsSection';
 import { CompanyAnonymiseSection } from './CompanyAnonymiseSection';
 
-// Ignore the infrastructure Internal client when deciding whether the company has user-created content.
-function useCompanyIsEmpty(): boolean {
-  const data = useScopedData();
+// Ignore the infrastructure Internal client when deciding whether the rows hold user-created content.
+function isEmptyOfUserContent(data: AppData): boolean {
   return (
     data.resources.length === 0 &&
     data.clients.every((client) => client.builtin === true) &&
@@ -106,13 +107,24 @@ function ExampleDataSection() {
   );
 }
 
+/**
+ * Offers example data only once the server's inactive rows are known to be empty too: the server
+ * refuses a company that still holds archived or deleted records. Mounted only for a company with
+ * no active content, so no other company pays for the inactive read.
+ */
+function ExampleDataOffer() {
+  const { data } = useInactiveCompanyData();
+  if (!data || !isEmptyOfUserContent(data)) return null;
+  return <ExampleDataSection />;
+}
+
 /** Exposes export, import, and local data controls allowed by the current mode. */
 export function SettingsDataSection() {
   const canAddExampleData = useCan('members:manage');
-  const companyIsEmpty = useCompanyIsEmpty();
+  const hasNoActiveContent = isEmptyOfUserContent(useScopedData());
   return (
     <>
-      {canAddExampleData && companyIsEmpty && <ExampleDataSection />}
+      {canAddExampleData && hasNoActiveContent && <ExampleDataOffer />}
       <CompanyAnonymiseSection />
     </>
   );
