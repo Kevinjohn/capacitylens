@@ -1,10 +1,7 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
 import db from '@adonisjs/lucid/services/db';
-import {
-  buildCompanyExport,
-  type CompanyExportDocument,
-} from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport, type CompanyExport } from '@capacitylens/shared/data/companyExport';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
 import hash from '@adonisjs/core/services/hash';
@@ -72,7 +69,7 @@ async function proof(client: ApiClient, cookie: string, intent: unknown, action 
 async function apply(
   client: ApiClient,
   cookie: string,
-  documentValue: CompanyExportDocument,
+  documentValue: CompanyExport,
   baseRevision: number,
   confirmationId?: string
 ) {
@@ -93,7 +90,7 @@ test.group('beta import apply', (group) => {
     await db.from('password_confirmations').delete();
   });
 
-  test('restores a full source export into a fresh company and retains destination authority', async ({
+  test('restores a full source export into a fresh company and retains destination access', async ({
     client,
     assert,
   }) => {
@@ -262,7 +259,7 @@ test.group('beta import apply', (group) => {
     assert.equal(await revision(), baseRevision + 1);
   });
 
-  test('invalidates only this company restoration while preserving other company and authority records', async ({
+  test('invalidates only this company restoration while preserving other company and access records', async ({
     client,
     assert,
   }) => {
@@ -472,7 +469,7 @@ test.group('beta import apply', (group) => {
     const clientWithPrototypeKey = JSON.parse(
       `${serializedClient.slice(0, -1)},"__proto__":{"polluted":true}}`
     );
-    const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as CompanyExportDocument;
+    const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as CompanyExport;
     documentWithPrototypeKey.data.clients[0] = clientWithPrototypeKey;
 
     const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)

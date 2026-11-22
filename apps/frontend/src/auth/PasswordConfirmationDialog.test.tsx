@@ -38,7 +38,7 @@ describe('PasswordConfirmationDialog', () => {
   it('submits exactly once with Enter', async () => {
     request.mockResolvedValue(Response.json({ data: { confirmationId: 'confirmation-1' } }));
     const onConfirmed = renderDialog();
-    const password = screen.getByLabelText(m.login_password());
+    const password = screen.getByLabelText(m.sign_in_password());
     await userEvent.type(password, 'current-password');
     await userEvent.keyboard('{Enter}');
 
@@ -49,7 +49,7 @@ describe('PasswordConfirmationDialog', () => {
   it('submits exactly once with the Continue button', async () => {
     request.mockResolvedValue(Response.json({ data: { confirmationId: 'confirmation-2' } }));
     const onConfirmed = renderDialog();
-    fireEvent.change(screen.getByLabelText(m.login_password()), {
+    fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));
@@ -69,7 +69,7 @@ describe('PasswordConfirmationDialog', () => {
 
     fireEvent.submit(form);
     expect(request).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText(m.login_password()), {
+    fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
       target: { value: 'current-password' },
     });
     fireEvent.submit(form);
@@ -85,7 +85,7 @@ describe('PasswordConfirmationDialog', () => {
     async (action) => {
       request.mockImplementation(() => new Promise<Response>(() => {}));
       renderDialog(action);
-      fireEvent.change(screen.getByLabelText(m.login_password()), {
+      fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
         target: { value: 'current-password' },
       });
       fireEvent.click(screen.getByTestId('password-confirmation-submit'));
@@ -100,7 +100,7 @@ describe('PasswordConfirmationDialog', () => {
       .mockResolvedValueOnce(Response.json({ error: 'Rejected.' }, { status: 403 }))
       .mockResolvedValueOnce(Response.json({ data: { confirmationId: 'confirmation-retry' } }));
     const onConfirmed = renderDialog();
-    fireEvent.change(screen.getByLabelText(m.login_password()), {
+    fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));

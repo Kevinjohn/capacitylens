@@ -48,7 +48,7 @@ const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
 assert.ok(setupLink, 'The bootstrap command printed no setup link.');
 const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
 
-const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/signup`, {
+const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
   method: 'POST',
   headers: json,
   body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
@@ -58,12 +58,12 @@ assert.equal(signup.status, 201, 'First-identity setup failed');
 let cookie = await signIn();
 const mode = await fetch(`${baseUrl}/api/masquerade`, { headers: { cookie } });
 assert.equal(mode.status, 200, 'Session context lookup failed');
-const { contextToken } = (await mode.json()).data;
-assert.equal(typeof contextToken, 'string', 'Session context token is missing');
-assert.ok(contextToken, 'Session context token is empty');
+const { masqueradeToken } = (await mode.json()).data;
+assert.equal(typeof masqueradeToken, 'string', 'Session masquerade token is missing');
+assert.ok(masqueradeToken, 'Session masquerade token is empty');
 const company = await fetch(`${baseUrl}/api/installation/company`, {
   method: 'POST',
-  headers: { ...json, cookie, 'X-Masquerade-Context': contextToken },
+  headers: { ...json, cookie, 'X-Masquerade-Context': masqueradeToken },
   body: JSON.stringify({ name: 'Wayne Enterprises' }),
 });
 assert.equal(company.status, 201, 'Company setup failed');

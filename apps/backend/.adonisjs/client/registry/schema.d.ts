@@ -517,7 +517,7 @@ export interface Registry {
   }
   'api.invitation_acceptances.store': {
     methods: ["POST"]
-    pattern: '/api/invitations/:token/signup'
+    pattern: '/api/invitations/:token/sign-up'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').acceptInvitationSignUpValidator)>>
       paramsTuple: [ParamValue]

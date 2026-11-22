@@ -31,7 +31,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Invite["InviteAccept reads token from /invite/:token"] --> Preview["readInvitationPreview"]
+    Invite["InviteAccept reads token from /invitation/:token"] --> Preview["readInvitationPreview"]
     Preview --> PreviewRoute["api.invitation_links.show → InvitationLinksController.show"]
     PreviewRoute --> KitInspect["Account Kit invitations.inspect returns offered email and role"]
     KitInspect --> Form["InviteAccept renders Name and Password fields"]

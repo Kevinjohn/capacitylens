@@ -61,7 +61,7 @@ beforeEach(() => {
           }),
         );
       }
-      return Promise.resolve(Response.json({ active: false, contextToken: 'idle' }));
+      return Promise.resolve(Response.json({ active: false, masqueradeToken: 'idle' }));
     }),
   );
 });
@@ -272,7 +272,7 @@ describe('AppShell product orientation', () => {
           );
         }
         return Promise.resolve(
-          new Response(JSON.stringify({ active: false, contextToken: 'idle' }), {
+          new Response(JSON.stringify({ active: false, masqueradeToken: 'idle' }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
           }),

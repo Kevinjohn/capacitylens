@@ -253,7 +253,7 @@ export async function runPackagedSmoke({
     const { url: setupLink } = JSON.parse(bootstrap.stdout);
     assert.ok(setupLink, 'The packaged bootstrap command printed no setup link.');
     const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
-    const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/signup`, {
+    const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
@@ -286,8 +286,8 @@ export async function runPackagedSmoke({
     const mode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
     ).data;
-    assert.equal(typeof mode.contextToken, 'string');
-    const contextToken = mode.contextToken;
+    assert.equal(typeof mode.masqueradeToken, 'string');
+    const masqueradeToken = mode.masqueradeToken;
     assert.equal(session.companySetupRequired, true);
     const initialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: 'POST',
@@ -295,7 +295,7 @@ export async function runPackagedSmoke({
         cookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({ name: 'Wayne Enterprises' }),
     });
@@ -307,7 +307,7 @@ export async function runPackagedSmoke({
         cookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({ name: 'Stark Industries' }),
     });
@@ -383,11 +383,11 @@ export async function runPackagedSmoke({
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
     ).data;
     assert.equal(idleMode.active, false);
-    assert.equal(typeof idleMode.contextToken, 'string');
+    assert.equal(typeof idleMode.masqueradeToken, 'string');
     const secondIdleMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
     ).data;
-    assert.equal(secondIdleMode.contextToken, idleMode.contextToken);
+    assert.equal(secondIdleMode.masqueradeToken, idleMode.masqueradeToken);
 
     const { seed } = await import(
       pathToFileURL(
@@ -400,7 +400,7 @@ export async function runPackagedSmoke({
       cookie,
       companyId,
       fixture,
-      idleMode.contextToken,
+      idleMode.masqueradeToken,
     );
 
     const started = await fetch(`${baseUrl}/api/companies/${companyId}/masquerade`, {
@@ -409,7 +409,7 @@ export async function runPackagedSmoke({
         cookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': idleMode.contextToken,
+        'X-Masquerade-Context': idleMode.masqueradeToken,
       },
       body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
     });
@@ -434,7 +434,7 @@ export async function runPackagedSmoke({
       'Member view must apply to every signed-in session',
     );
     assert.equal(otherSessionMode.targetUserId, viewerIdentity.user.id);
-    assert.equal(otherSessionMode.contextToken, activeMode.contextToken);
+    assert.equal(otherSessionMode.masqueradeToken, activeMode.masqueradeToken);
     const memberRead = await fetchOk(
       `${baseUrl}/api/state?companyId=${encodeURIComponent(companyId)}`,
       {
@@ -451,7 +451,7 @@ export async function runPackagedSmoke({
         cookie: secondOwnerCookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': activeMode.contextToken,
+        'X-Masquerade-Context': activeMode.masqueradeToken,
       },
       body: JSON.stringify({ mutationId: randomUUID(), baseRevision: 4, intent: {} }),
     });
@@ -464,9 +464,9 @@ export async function runPackagedSmoke({
         cookie: secondOwnerCookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': activeMode.contextToken,
+        'X-Masquerade-Context': activeMode.masqueradeToken,
       },
-      body: JSON.stringify({ token: activeMode.contextToken, reason: 'explicit' }),
+      body: JSON.stringify({ token: activeMode.masqueradeToken, reason: 'explicit' }),
     });
     const { data: endedMode } = await expectJsonStatus(
       ended,
@@ -483,7 +483,7 @@ export async function runPackagedSmoke({
       'Ending in one session must end the shared member view',
     );
 
-    const restartContext = endedInFirstSession.contextToken;
+    const restartContext = endedInFirstSession.masqueradeToken;
     const expiringStart = await fetch(`${baseUrl}/api/companies/${companyId}/masquerade`, {
       method: 'POST',
       headers: {
@@ -513,7 +513,7 @@ export async function runPackagedSmoke({
         cookie: secondOwnerCookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': expiringMode.contextToken,
+        'X-Masquerade-Context': expiringMode.masqueradeToken,
       },
       body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
     });
