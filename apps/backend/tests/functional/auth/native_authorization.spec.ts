@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import type { ApiClient } from '@japa/api-client';
 import env from '#start/env';
@@ -8,8 +8,8 @@ import { resetState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
 import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { readState } from '#tests/helpers/state_fixture';
-import { signUpAndIn, expectStatus } from '../../helpers/identities.js';
-import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
+import { signUpAndIn, expectStatus } from '#tests/helpers/identities';
+import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';

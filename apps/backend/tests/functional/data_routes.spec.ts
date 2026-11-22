@@ -5,8 +5,8 @@ import {
   createFixtureCompanyForOwner,
   grantDataOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { encodeRow } from '#services/state_repository';

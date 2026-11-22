@@ -3,12 +3,12 @@ import router from '@adonisjs/core/services/router';
 import type { ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import db from '@adonisjs/lucid/services/db';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, createIdentity, signIn } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
 
 const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';

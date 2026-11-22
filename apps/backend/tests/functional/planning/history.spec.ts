@@ -4,7 +4,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { HISTORY_LIMIT } from '#services/planning/history';
 import { readState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
@@ -14,13 +14,13 @@ import {
   session,
   signIn,
   signInAgain,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 import {
   listCreatedAllocationIds,
   mutationsUrl,
   planningAudit,
   stored,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 interface Reply {
   revision: number;

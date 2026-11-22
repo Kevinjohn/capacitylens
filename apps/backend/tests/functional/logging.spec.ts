@@ -4,9 +4,9 @@ import {
   createFixtureCompanyForOwner,
   resetAuthenticatedClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import { LoggerFactory } from '@adonisjs/logger/factories';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Company from '#models/company';
 import logger from '@adonisjs/core/services/logger';
@@ -20,7 +20,7 @@ import {
   resetPlanningFixture,
   session as withPlanningSession,
   signIn,
-} from './planning/helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

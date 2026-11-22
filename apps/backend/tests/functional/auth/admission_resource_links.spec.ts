@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import { resetState } from '#tests/helpers/state_fixture';
-import { signUpAndIn } from '../../helpers/identities.js';
+import { signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 const withSession = asDataOwner;

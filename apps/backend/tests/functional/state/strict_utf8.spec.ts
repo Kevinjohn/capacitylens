@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { request as httpRequest } from 'node:http';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 
 function postRawJson(
   body: Buffer,

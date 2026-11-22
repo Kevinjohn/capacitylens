@@ -3,8 +3,8 @@ import db from '@adonisjs/lucid/services/db';
 import { APP_DATA_KEYS } from '@capacitylens/shared/types/entities';
 import { tables } from '#services/product_tables';
 import { readStateWithClient } from '#services/state_repository';
-import { freshDatabase } from '../helpers/fresh_database.js';
-import { resetState } from '../helpers/state_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { resetState } from '#tests/helpers/state_fixture';
 
 test.group('product table map', (group) => {
   group.setup(() => freshDatabase());

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
@@ -14,7 +14,7 @@ import {
   session,
   signIn,
   trusted,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({

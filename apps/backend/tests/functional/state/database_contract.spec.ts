@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { seed } from '@capacitylens/shared/data/seed';
 import { checkDatabase } from '#services/database_health';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import Company from '#models/company';
-import { insertTwoCompanyFixture } from './database_contract_fixtures.js';
+import { insertTwoCompanyFixture } from '#tests/functional/state/database_contract_fixtures';
 import {
   ACTIVITY_KINDS,
   ALLOCATION_STATUSES,
@@ -26,7 +26,7 @@ import {
   foreignKeyIndexes,
   fullFixtureRows,
   insertInvalidReference,
-} from './database_contract_cases.js';
+} from '#tests/functional/state/database_contract_cases';
 
 const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';

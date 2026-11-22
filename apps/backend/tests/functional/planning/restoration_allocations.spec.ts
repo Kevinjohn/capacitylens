@@ -1,7 +1,7 @@
-import { fixtureSession } from '../../helpers/identities.js';
+import { fixtureSession } from '#tests/helpers/identities';
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
 import { encodeRow } from '#services/state_repository';
@@ -13,7 +13,7 @@ import {
   newAllocation,
   resetPlanningFixture,
   signIn,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 import {
   note,
   deleteOne,
@@ -26,7 +26,7 @@ import {
   markers,
   planningAudit,
   consumedAt,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 test.group('session-bound allocation restoration', (suite) => {
   suite.setup(() => freshDatabase());

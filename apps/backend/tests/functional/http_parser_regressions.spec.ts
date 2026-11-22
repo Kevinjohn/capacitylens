@@ -3,8 +3,8 @@ import type { ApiClient } from '@japa/api-client';
 import {
   authenticatedDataClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { request as httpRequest } from 'node:http';
 
 interface RawResponse {

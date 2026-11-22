@@ -14,10 +14,10 @@ import {
   asDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import type { ApiClient } from '@japa/api-client';
-import { signIn } from '../helpers/identities.js';
+import { signIn } from '#tests/helpers/identities';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';

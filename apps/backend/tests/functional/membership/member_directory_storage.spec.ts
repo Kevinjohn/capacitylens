@@ -5,9 +5,9 @@ import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { createIdentity, signUpAndIn } from '../../helpers/identities.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { createIdentity, signUpAndIn } from '#tests/helpers/identities';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 
 const companyId = 'member-directory-storage';
 const ownerEmail = 'bruce.wayne@wayne.example';

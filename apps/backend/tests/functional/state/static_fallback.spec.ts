@@ -1,8 +1,8 @@
 import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { readdir } from 'node:fs/promises';
-import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 
 const strictPolicy =
   "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'";

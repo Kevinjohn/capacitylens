@@ -7,12 +7,12 @@ import { RegistrationEmailAlreadyRegisteredError } from '@kevinjohn/adonisjs-acc
 import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
-import { createIdentity, clearIdentities, signIn } from '../../helpers/identities.js';
+import { createIdentity, clearIdentities, signIn } from '#tests/helpers/identities';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 
 test.group('ordinary authentication request contracts', (group) => {
   group.setup(() => freshDatabase());

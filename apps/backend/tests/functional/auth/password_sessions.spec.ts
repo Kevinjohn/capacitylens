@@ -3,14 +3,14 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, createIdentity, signIn, expectStatus } from '../../helpers/identities.js';
-import { requestBarrier } from '../../helpers/request_barrier.js';
-import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, createIdentity, signIn, expectStatus } from '#tests/helpers/identities';
+import { requestBarrier } from '#tests/helpers/request_barrier';
+import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
 
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';

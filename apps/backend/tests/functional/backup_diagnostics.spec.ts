@@ -1,12 +1,12 @@
 import logger from '@adonisjs/core/services/logger';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
 import { rememberSchemaIntegrity } from '#services/schema_integrity';
 import type { ApiClient } from '@japa/api-client';

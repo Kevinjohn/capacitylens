@@ -1,8 +1,8 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed, resetState } from '#tests/helpers/state_fixture';
-import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import db from '@adonisjs/lucid/services/db';
 
 const securityHeaders = [

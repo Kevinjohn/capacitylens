@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import env from '#start/env';
 import limiter from '@adonisjs/limiter/services/main';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 
 const policy =
   "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'";

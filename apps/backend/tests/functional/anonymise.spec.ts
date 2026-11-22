@@ -1,12 +1,12 @@
-import { fixtureSession, signIn, signUpAndIn } from '../helpers/identities.js';
+import { fixtureSession, signIn, signUpAndIn } from '#tests/helpers/identities';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import type { ApiClient } from '@japa/api-client';
 import { randomUUID } from 'node:crypto';
 import { getPlanningRevision } from '#services/planning_revision';

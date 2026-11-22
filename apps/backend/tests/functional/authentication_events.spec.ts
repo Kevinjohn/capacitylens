@@ -7,9 +7,9 @@ import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import type { AccountUser } from '@kevinjohn/adonisjs-account-kit/types';
 import { DateTime } from 'luxon';
-import { freshDatabase } from '../helpers/fresh_database.js';
-import { createIdentity, clearIdentities } from '../helpers/identities.js';
-import { createFixtureCompanyForOwner } from '../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { createIdentity, clearIdentities } from '#tests/helpers/identities';
+import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 

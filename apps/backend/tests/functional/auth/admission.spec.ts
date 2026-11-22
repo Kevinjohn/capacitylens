@@ -7,18 +7,18 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { PostCommitError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import {
   captureMail,
   clearIdentities,
   createIdentity,
   signIn,
   expectStatus,
-} from '../../helpers/identities.js';
+} from '#tests/helpers/identities';
 
 const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';

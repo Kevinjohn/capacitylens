@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   authenticatedDataClient,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 
 test.group('retired persistence routes', (group) => {
   group.setup(() => freshDatabase());

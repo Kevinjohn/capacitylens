@@ -3,7 +3,7 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import db from '@adonisjs/lucid/services/db';
-import { transactionalDatabase } from '../helpers/transactional_database.js';
+import { transactionalDatabase } from '#tests/helpers/transactional_database';
 
 test.group('data contract', (group) => {
   transactionalDatabase(group);

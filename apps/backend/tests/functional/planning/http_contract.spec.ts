@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
@@ -16,7 +16,7 @@ import {
   session,
   signIn,
   trusted,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 test.group('authenticated typed planning transactions', (group) => {

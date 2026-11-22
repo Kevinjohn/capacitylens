@@ -4,14 +4,14 @@ import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client';
 import router from '@adonisjs/core/services/router';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
   resetPlanningFixture,
   session,
   signIn,
-} from '../planning/helpers.js';
+} from '#tests/functional/planning/helpers';
 
 // Every named route is classified by whether its reply can carry a restricted value. Routes that can
 // are called for every test user, and the raw reply must not contain a value that user's

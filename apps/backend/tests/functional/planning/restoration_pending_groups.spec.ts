@@ -1,17 +1,23 @@
-import { fixtureSession } from '../../helpers/identities.js';
+import { fixtureSession } from '#tests/helpers/identities';
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, configureAuth, resetPlanningFixture, session, signIn } from './helpers.js';
+import {
+  companyId,
+  configureAuth,
+  resetPlanningFixture,
+  session,
+  signIn,
+} from '#tests/functional/planning/helpers';
 import {
   send,
   deleteOne,
   createAllocations,
   currentRevision,
   group,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 test.group('typed catalogue and time-off restoration', (suite) => {
   suite.setup(() => freshDatabase());

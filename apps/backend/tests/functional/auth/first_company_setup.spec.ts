@@ -5,14 +5,14 @@ import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
 import User from '#models/user';
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import {
   bootstrapInvitation,
   createIdentity,
   rememberSessionCookie,
   signIn,
-} from '../../helpers/identities.js';
+} from '#tests/helpers/identities';
 
 const email = 'bruce.wayne@wayne.example';
 const password = 'company-setup-password-2026';

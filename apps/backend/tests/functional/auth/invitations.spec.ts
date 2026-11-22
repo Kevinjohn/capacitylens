@@ -10,20 +10,20 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { bootstrapInvitation, rememberSessionCookie } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { bootstrapInvitation, rememberSessionCookie } from '#tests/helpers/identities';
 import {
   captureMail,
   clearIdentities,
   createIdentity,
   signIn,
   expectStatus,
-} from '../../helpers/identities.js';
-import { requestBarrier } from '../../helpers/request_barrier.js';
+} from '#tests/helpers/identities';
+import { requestBarrier } from '#tests/helpers/request_barrier';
 
 const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';

@@ -5,8 +5,8 @@ import {
   hasNoCompany,
   getInstallationCompanyId,
 } from '#services/installation_company';
-import { freshDatabase } from '../helpers/fresh_database.js';
-import { resetState } from '../helpers/state_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { resetState } from '#tests/helpers/state_fixture';
 
 test.group('installation company', (group) => {
   group.setup(() => freshDatabase());

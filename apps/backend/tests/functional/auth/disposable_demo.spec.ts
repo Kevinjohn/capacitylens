@@ -10,8 +10,8 @@ import {
 } from '#services/disposable_demo';
 import { readState } from '#tests/helpers/state_fixture';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { createIdentity, signIn } from '../../helpers/identities.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { createIdentity, signIn } from '#tests/helpers/identities';
 import { operatorFixture } from '#tests/helpers/operator_command_helpers';
 
 const email = 'admin@admin.admin';

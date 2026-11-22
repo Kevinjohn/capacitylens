@@ -17,14 +17,14 @@ import {
 } from '#services/auth/current_actor';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import {
   clearIdentities,
   createIdentity,
   fixturePassword,
   signIn,
-} from '../../helpers/identities.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+} from '#tests/helpers/identities';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';

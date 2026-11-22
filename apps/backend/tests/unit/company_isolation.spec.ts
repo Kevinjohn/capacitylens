@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { transactionalDatabase } from '../helpers/transactional_database.js';
+import { transactionalDatabase } from '#tests/helpers/transactional_database';
 import Client from '#models/client';
 
 test.group('company isolation', (group) => {

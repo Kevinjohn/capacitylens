@@ -17,8 +17,8 @@ import type {
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { buildCapacitySection } from '#services/planning/capacity_section';
 import { readState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { resetPlanningFixture } from '../../functional/planning/helpers.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { resetPlanningFixture } from '#tests/functional/planning/helpers';
 
 // Each Scheduling-invariants rule (DECISIONS.md) is one case against the read's capacity section.
 // 2026-06-01 is a Monday.

@@ -1,14 +1,14 @@
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import logger from '@adonisjs/core/services/logger';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { resetState } from '#tests/helpers/state_fixture';
-import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js';
-import { signIn, signUpAndIn } from '../../helpers/identities.js';
-import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
+import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
+import { signIn, signUpAndIn } from '#tests/helpers/identities';
+import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
 import app from '@adonisjs/core/services/app';
 import { pruneExpiredMasquerades } from '#services/storage_maintenance';
 import { getMasqueradeService } from '#services/auth/masquerade';

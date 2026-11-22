@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 
 test.group('isolated company fixtures', (group) => {
   group.setup(() => freshDatabase());

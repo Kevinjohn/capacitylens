@@ -4,7 +4,7 @@ import type { ApiClient, ApiRequest } from '@japa/api-client';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { ArchiveRecovery, ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import {
@@ -14,7 +14,7 @@ import {
   session,
   signIn,
   trusted,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const route = (path: string, targetCompanyId = companyId) =>
   `/api/companies/${targetCompanyId}/${path}`;

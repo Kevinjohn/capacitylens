@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -8,8 +8,8 @@ import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { signUpAndIn } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 

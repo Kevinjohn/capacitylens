@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
 import { readState } from '#tests/helpers/state_fixture';
@@ -12,8 +12,8 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
-import { listCreatedAllocationIds } from './restoration_helpers.js';
+} from '#tests/functional/planning/helpers';
+import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers';
 
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
 const body = (response: { body(): unknown; status(): number }) =>

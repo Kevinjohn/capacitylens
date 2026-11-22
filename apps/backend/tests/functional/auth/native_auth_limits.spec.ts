@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import app from '@adonisjs/core/services/app';
 import { defineConfig } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { readState } from '#tests/helpers/state_fixture';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
@@ -10,7 +10,7 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const otherCompanyId = 'a-loft';
 const requestBody = (baseRevision: number, intent: Record<string, unknown>) => ({

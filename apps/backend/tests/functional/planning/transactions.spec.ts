@@ -1,11 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
-import { requestBarrier } from '../../helpers/request_barrier.js';
+import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
+import { requestBarrier } from '#tests/helpers/request_barrier';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { sessionCookieHeader } from '../../helpers/identities.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { sessionCookieHeader } from '#tests/helpers/identities';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { readState } from '#tests/helpers/state_fixture';
@@ -17,7 +17,7 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 test.group('planning snapshot and commit boundaries', (group) => {
   group.setup(() => freshDatabase());

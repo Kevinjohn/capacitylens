@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   authenticatedDataClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 
 test.group('authenticated data fixture', (group) => {
   group.setup(() => freshDatabase());

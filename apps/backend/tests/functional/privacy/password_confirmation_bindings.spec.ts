@@ -3,9 +3,9 @@ import db from '@adonisjs/lucid/services/db';
 import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { getPlanningRevision } from '#services/planning_revision';
 import { readState } from '#tests/helpers/state_fixture';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { createIdentity, fixturePassword, signIn } from '../../helpers/identities.js';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { createIdentity, fixturePassword, signIn } from '#tests/helpers/identities';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';

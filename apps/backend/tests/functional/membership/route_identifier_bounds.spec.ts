@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, signUpAndIn } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, signUpAndIn } from '#tests/helpers/identities';
 
 const owner = {
   email: 'bruce.wayne@wayne.example',

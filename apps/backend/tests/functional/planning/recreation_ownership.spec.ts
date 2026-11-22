@@ -4,7 +4,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import { readState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   planningUrl,
@@ -14,7 +14,7 @@ import {
   session,
   signIn,
   signInAgain,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const mutationsUrl = `/api/companies/${companyId}/planning/mutations`;
 

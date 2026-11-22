@@ -3,12 +3,12 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, createIdentity, signIn, expectStatus } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, createIdentity, signIn, expectStatus } from '#tests/helpers/identities';
 
 const companyId = 'a-studio';
 const owner = { email: 'bruce.wayne@wayne.example', password: 'batman-secret-2026' };

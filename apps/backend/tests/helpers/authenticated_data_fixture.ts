@@ -7,7 +7,7 @@ import { resetState } from '#tests/helpers/state_fixture';
 import { encodeRow } from '#services/state_repository';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
-import { createIdentity, sessionCookieHeader, signIn } from './identities.js';
+import { createIdentity, sessionCookieHeader, signIn } from '#tests/helpers/identities';
 
 const ownerEmail = 'bruce.wayne@wayne.example';
 

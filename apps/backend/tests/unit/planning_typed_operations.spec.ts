@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readStateWithClient } from '#services/state_repository';
 import { readState, resetState } from '#tests/helpers/state_fixture';

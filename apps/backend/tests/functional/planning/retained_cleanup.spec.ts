@@ -3,8 +3,8 @@ import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { captureMail } from '../../helpers/identities.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { captureMail } from '#tests/helpers/identities';
 import {
   companyId,
   configureAuth,
@@ -13,7 +13,7 @@ import {
   session,
   signIn,
   signInAgain,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 import { readState } from '#tests/helpers/state_fixture';
 
 async function revision() {

@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, configureAuth, resetPlanningFixture, session, signIn } from './helpers.js';
+import {
+  companyId,
+  configureAuth,
+  resetPlanningFixture,
+  session,
+  signIn,
+} from '#tests/functional/planning/helpers';
 
 test.group('typed company calendar settings', (group) => {
   group.setup(() => freshDatabase());
