@@ -427,7 +427,7 @@ async function readContextToken(client: ApiClient, cookie: string) {
   const status = await session(client.visit('api.masquerade.show'), cookie).send();
   status.assertStatus(200);
   // The status reply is checked by String(); a missing token fails the masquerade start.
-  return String((status.body()!.data as { contextToken: unknown }).contextToken);
+  return String((status.body()!.data as { masqueradeToken: unknown }).masqueradeToken);
 }
 
 async function startMasqueradeAs(client: ApiClient, viewerCookie: string, targetUserId: string) {

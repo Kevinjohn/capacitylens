@@ -43,8 +43,8 @@ export interface EndMasqueradePayload {
 
 /** Identity-wide mode status plus the proof for requests captured in that context. */
 export type MasqueradeStatus =
-  | { active: false; contextToken: string | null }
-  | ({ active: true; contextToken: string } & MasqueradeState);
+  | { active: false; masqueradeToken: string | null }
+  | ({ active: true; masqueradeToken: string } & MasqueradeState);
 
 /** Stable machine-readable failures shared by server guards and browser recovery. */
 export const MASQUERADE_ERROR_CODES = {

@@ -88,7 +88,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Every undo and redo request, in order, including refused ones. */
   readonly historySteps: Array<'undo' | 'redo'> = [];
   private data = createEmptyAppData();
-  private authority = makePlanningAccess();
+  private access = makePlanningAccess();
   private today: ISODate | null = null;
   private capacity: CapacitySection | null = null;
   /** The capacity window each read asked for; undefined for a read that asked for the default. */
@@ -101,7 +101,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
     this.data = structuredClone(data);
-    this.authority = makePlanningAccess();
+    this.access = makePlanningAccess();
     this.today = null;
     this.capacity = null;
     this.readWindows.length = 0;
@@ -152,9 +152,9 @@ export class StubPlanningTransport implements PlanningTransport {
     this.queued.push({ kind: 'error', error });
   }
 
-  /** Set the canonical authority returned by subsequent reads: an Owner who can write, with these overrides. */
+  /** Set the canonical access returned by subsequent reads: an Owner who can write, with these overrides. */
   setAccess(overrides: Partial<PlanningAccess>): void {
-    this.authority = makePlanningAccess(overrides);
+    this.access = makePlanningAccess(overrides);
   }
 
   /** Set the company date returned by subsequent reads, in place of the one read from the clock. */
@@ -191,17 +191,17 @@ export class StubPlanningTransport implements PlanningTransport {
     const history = this.history(context.companyId).model.report(historyId, revision);
     const base = {
       revision,
-      authority: this.authority,
+      access: this.access,
       today: this.todayFor(context.companyId),
       capacity: this.capacity ?? emptyCapacity(window),
       history: {
-        canUndo: this.authority.canWrite && history.canUndo,
-        canRedo: this.authority.canWrite && history.canRedo,
+        canUndo: this.access.canWrite && history.canUndo,
+        canRedo: this.access.canWrite && history.canRedo,
       },
     };
     return ifRevision === revision
-      ? { ...base, slice: 'unchanged' }
-      : { ...base, slice: 'full', data: this.companyRows(context.companyId) };
+      ? { ...base, content: 'unchanged' }
+      : { ...base, content: 'full', data: this.companyRows(context.companyId) };
   }
 
   async execute(

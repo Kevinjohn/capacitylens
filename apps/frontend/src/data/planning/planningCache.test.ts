@@ -23,7 +23,7 @@ describe('planning cache', () => {
       .mockRejectedValue({ status: 409, code: 'STALE_REVISION' });
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 4,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -32,7 +32,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 3,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -40,7 +40,7 @@ describe('planning cache', () => {
     const draft = h.cache.begin();
     await h.readSnapshot({
       revision: 4,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -62,7 +62,7 @@ describe('planning cache', () => {
       execute,
       read: vi.fn<PlanningTransport['read']>().mockResolvedValue({
         revision: 2,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -71,7 +71,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -79,7 +79,7 @@ describe('planning cache', () => {
     const gesture = h.cache.begin();
     await h.readSnapshot({
       revision: 2,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -99,7 +99,7 @@ describe('planning cache', () => {
       .fn()
       .mockResolvedValueOnce({
         revision: 1,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),

@@ -31,7 +31,7 @@ export function isRole(value: unknown): value is Role {
 }
 /**
  * The lifecycle state of one membership, as the Access Control package stores it. Only `'active'`
- * confers authority; a `'suspended'` membership keeps its role and blocks entry until restored.
+ * confers access; a `'suspended'` membership keeps its role and blocks entry until restored.
  */
 export const MEMBERSHIP_STATUSES = Object.freeze(['active', 'suspended'] as const);
 /** A membership lifecycle state; see {@link MEMBERSHIP_STATUSES}. */
