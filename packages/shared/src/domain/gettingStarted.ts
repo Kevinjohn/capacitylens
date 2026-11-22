@@ -4,7 +4,7 @@ import { resolveLifecycleStatus } from './lifecycle.js';
 
 // Getting-started milestones from a company's active projection; the server sends the result.
 
-/** Which onboarding steps the active account has completed. */
+/** Which getting-started steps the active account has completed. */
 export interface GettingStartedSteps {
   person: boolean;
   client: boolean;
@@ -33,7 +33,7 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
       .filter((client) => resolveLifecycleStatus(client) === 'active')
       .map(({ id }) => id),
   );
-  const onboardingClientIds = new Set(
+  const gettingStartedClientIds = new Set(
     data.clients
       .filter((client) => resolveLifecycleStatus(client) === 'active' && !isBuiltinClient(client))
       .map(({ id }) => id),
@@ -75,8 +75,10 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   });
   return {
     person: people.size > 0,
-    client: onboardingClientIds.size > 0,
-    project: [...projects.values()].some((project) => onboardingClientIds.has(project.clientId)),
+    client: gettingStartedClientIds.size > 0,
+    project: [...projects.values()].some((project) =>
+      gettingStartedClientIds.has(project.clientId),
+    ),
     activity: [...coherentActivities.values()].some(Boolean),
     scheduled,
   };

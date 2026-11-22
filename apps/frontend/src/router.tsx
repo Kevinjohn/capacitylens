@@ -203,7 +203,7 @@ export const router = createBrowserRouter([
   },
   {
     // This public route owns its loading and error boundaries because the tenant shell
-    // cannot wrap onboarding before a company is selected.
+    // cannot wrap invitation acceptance before a company is selected.
     path: PUBLIC_AUTH_ENTRY_PATHS.invitation,
     errorElement: <RouteError />,
     element: (

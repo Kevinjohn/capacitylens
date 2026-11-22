@@ -54,7 +54,7 @@ export function GettingStarted() {
   const companyId = useStore((state) => state.activeCompanyId);
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const canWrite = useCan('planning:write');
-  // Company onboarding is outside the read-only member projection, including its transitions.
+  // Company getting started is outside the read-only member projection, including its transitions.
   if (!companyId || masqueradeKind !== 'inactive') return null;
   // Readers never see the panel, so they must not read its state or receive its load notice.
   if (!canWrite) return null;
@@ -264,7 +264,7 @@ function useCompanyDismissal(
       setDismissed(true);
       setConfirmOpen(false);
     } catch {
-      // A failed dismissal must remain visible so onboarding is not presented as durably dismissed.
+      // A failed dismissal must remain visible so getting started is not presented as durably dismissed.
       console.error('GettingStarted: dismissal could not be saved');
       setNotice(m.gs_dismiss_failed(), 'error');
       setConfirmOpen(false);

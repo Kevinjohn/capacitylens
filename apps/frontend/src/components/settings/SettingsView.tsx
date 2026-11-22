@@ -16,7 +16,7 @@ import { useSettingsViewModel } from './useSettingsViewModel';
 
 type ViewModel = ReturnType<typeof useSettingsViewModel>;
 
-function useSettingsOnboardingTarget(ready: boolean) {
+function useSettingsGettingStartedTarget(ready: boolean) {
   useEffect(() => {
     if (!ready) return;
     const id = window.location.hash.slice(1);
@@ -61,7 +61,7 @@ function SettingsBottomSections({ viewModel }: { viewModel: ViewModel }) {
 /** Coordinates company, scheduling, data, and security settings for the current role. */
 export function SettingsView() {
   const viewModel = useSettingsViewModel();
-  useSettingsOnboardingTarget(viewModel.activeCompany !== null);
+  useSettingsGettingStartedTarget(viewModel.activeCompany !== null);
   if (!viewModel.activeCompany) return null;
   const { scheduling, display } = viewModel;
   return (

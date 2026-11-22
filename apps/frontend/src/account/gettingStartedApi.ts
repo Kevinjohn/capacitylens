@@ -3,10 +3,10 @@ import { fetchApi } from '@/data/requestTimeout';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 
-/** Company-scoped onboarding dismissal. Each call throws an `Error` when the server refuses it. */
+/** Company-scoped getting-started dismissal. Each call throws an `Error` when the server refuses it. */
 export const gettingStartedApi = {
   /**
-   * Reads whether the company dismissed onboarding and which milestones it has reached.
+   * Reads whether the company dismissed getting started and which milestones it has reached.
    *
    * @throws An `Error` for a refused request or an off-spec body.
    */
@@ -42,7 +42,7 @@ export const gettingStartedApi = {
   },
 
   /**
-   * Records that the company dismissed onboarding.
+   * Records that the company dismissed getting started.
    *
    * @throws An `Error` when the server refuses the change.
    */

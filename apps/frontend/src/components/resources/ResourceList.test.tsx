@@ -347,7 +347,7 @@ describe('ResourceList display', () => {
     expect(within(row).queryByRole('button', { name: /favourites/i })).not.toBeInTheDocument();
   });
 
-  it('does not show global first-resource onboarding when only a visible later section has rows', async () => {
+  it('does not show global first-resource getting-started guidance when only a visible later section has rows', async () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );

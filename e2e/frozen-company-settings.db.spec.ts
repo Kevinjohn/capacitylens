@@ -25,7 +25,7 @@ async function visibleScheduleWeekday(page: Page): Promise<number> {
 // The server rejects direct typed updates to frozen account fields. The read-only Settings summary
 // is a convenience; server enforcement also applies when a client bypasses the UI.
 
-test.describe('database-backed onboarding lock (P1.14)', () => {
+test.describe('database-backed frozen company settings (P1.14)', () => {
   test('direct PATCHes of frozen fields are rejected and language-only updates fail schema validation', async ({
     request,
   }) => {

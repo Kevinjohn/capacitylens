@@ -170,7 +170,7 @@ describe('ActivityList', () => {
     expect(row).toHaveTextContent('Design');
   });
 
-  it('does not show global first-activity onboarding when only a later section has rows', async () => {
+  it('does not show global first-activity getting-started guidance when only a later section has rows', async () => {
     await useStore.getState().addActivity({ name: 'Design system', kind: 'repeatable' });
 
     render(<ActivityList />);

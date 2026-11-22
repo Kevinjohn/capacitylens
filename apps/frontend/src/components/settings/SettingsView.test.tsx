@@ -535,7 +535,7 @@ describe('SettingsView — account options selected at creation', () => {
   });
 });
 
-it('opens and focuses the Import section reached from onboarding', () => {
+it('opens and focuses the Import section reached from getting started', () => {
   const previousUrl = window.location.href;
   const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
   try {

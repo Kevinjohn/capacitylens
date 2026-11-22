@@ -145,7 +145,7 @@ describe('Getting started', () => {
   });
 
   it.each(['starting', 'active', 'ending'] as const)(
-    'omits privileged onboarding requests while masquerade is %s',
+    'omits privileged getting-started requests while masquerade is %s',
     (kind) => {
       const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(readReply(false)));
       vi.stubGlobal('fetch', fetchMock);
@@ -177,7 +177,7 @@ describe('Getting started', () => {
     },
   );
 
-  it('aborts pre-projection guidance and reloads normal Editor onboarding after view-as ends', async () => {
+  it('aborts pre-projection guidance and reloads normal Editor getting-started guidance after view-as ends', async () => {
     let rejectRead!: (error: Error) => void;
     const pending = new Promise<Response>((_resolve, reject) => {
       rejectRead = reject;
