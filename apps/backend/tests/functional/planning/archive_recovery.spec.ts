@@ -326,7 +326,7 @@ test.group('identity-only archive recovery', (suite) => {
 
     const owner = await signIn(client, 'owner');
     const target = await signIn(client, 'editor');
-    const contextResponse = await session(client.get('/api/masquerade'), owner.cookie).send();
+    const contextResponse = await session(client.visit('api.masquerade.show'), owner.cookie).send();
     contextResponse.assertStatus(200);
     const contextToken = (contextResponse.body()!.data as { contextToken?: string }).contextToken;
     assert.isString(contextToken);

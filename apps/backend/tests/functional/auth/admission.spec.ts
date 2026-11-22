@@ -64,12 +64,12 @@ test.group('admission and membership completion', (group) => {
   }) => {
     captureMail(cleanup);
     const body = { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED', passwordResetEmail: true };
-    const first = await client.get('/api/auth/me').send();
+    const first = await client.visit('api.session.show').send();
     first.assertStatus(401);
     assert.deepEqual(first.body(), { ...body, needsSetup: true });
 
     await createIdentity(person);
-    const existing = await client.get('/api/auth/me').send();
+    const existing = await client.visit('api.session.show').send();
     existing.assertStatus(401);
     assert.deepEqual(existing.body(), body);
   });
@@ -286,7 +286,7 @@ test.group('address confirmation', (group) => {
     const me = await as(signedIn.cookie).get(api, '/api/auth/me');
     assert.isTrue(me.body().data.emailVerified);
     const old = await api
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email: person, password })
       .send();

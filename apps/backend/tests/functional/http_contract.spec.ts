@@ -337,14 +337,16 @@ test.group('HTTP response envelope', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client, 'owner');
-    const signedIn = await session(client.get('/api/companies'), cookie).send();
+    const signedIn = await session(client.visit('api.companies.index'), cookie).send();
     signedIn.assertStatus(200);
     const body = signedIn.body() as Record<string, unknown>;
     assert.deepEqual(Object.keys(body), ['data']);
     assert.isArray(body.data);
     assert.lengthOf(body.data as unknown[], 1);
 
-    const signedOut = await client.get('/api/companies').header('sec-fetch-site', 'same-origin');
+    const signedOut = await client
+      .visit('api.companies.index')
+      .header('sec-fetch-site', 'same-origin');
     signedOut.assertStatus(401);
     assert.deepEqual(signedOut.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
   });

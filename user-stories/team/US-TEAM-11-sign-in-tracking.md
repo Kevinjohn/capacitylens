@@ -33,8 +33,8 @@ flowchart TD
 ```mermaid
 flowchart TD
     Screen["MembersSection does not wire changeSignInTracking to a rendered control"] --> NoEntry["No current toggle or Signed in column"]
-    Hook["Retained createSignInTrackingMutation"] --> Client["teamAccessApi.setMemberSignInTracking → memberRequests PUT api.members.tracking"]
-    Client --> Route["membership_routes.ts registers api.members.tracking"]
+    Hook["Retained createSignInTrackingMutation"] --> Client["teamAccessApi.setMemberSignInTracking → memberRequests PUT api.member_sign_in_tracking.update"]
+    Client --> Route["membership_routes.ts registers api.member_sign_in_tracking.update"]
     Route --> Controller["MemberSignInTrackingController.update checks members:signInTracking"]
     Controller --> Service["setMemberSignInTracking stores or clears company_settings keys"]
     Service --> Directory["readMemberDirectory can project sign-in confirmation state when enabled"]

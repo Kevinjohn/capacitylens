@@ -37,7 +37,10 @@ test.group('company route identifier bounds', (group) => {
       const response = await asDataOwner(request, cookie).send();
       response.assertStatus(404);
     }
-    const listed = await asDataOwner(client.get('/api/companies/a-studio/members'), cookie).send();
+    const listed = await asDataOwner(
+      client.visit('api.members.index', { companyId: 'a-studio' }),
+      cookie
+    ).send();
     listed.assertStatus(200);
   });
 });

@@ -115,7 +115,7 @@ db.exec('COMMIT')`,
     knex.on('query', count);
     try {
       const updated = await session(
-        client.post(`/api/companies/${companyId}/planning/mutations`),
+        client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
         .json({
@@ -150,7 +150,7 @@ db.exec('COMMIT')`,
     );
     try {
       const failed = await session(
-        client.post(`/api/companies/${companyId}/planning/mutations`),
+        client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
         .json({
@@ -179,7 +179,7 @@ db.exec('COMMIT')`,
     const allocations = [newAllocation(data), newAllocation(data)];
     const replies = await Promise.all(
       allocations.map((allocation) =>
-        session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
+        session(client.visit('api.planning_mutations.store', { companyId }), cookie)
           .json({
             mutationId: randomUUID(),
             baseRevision: 0,
@@ -189,7 +189,10 @@ db.exec('COMMIT')`,
       )
     );
     assert.deepEqual(replies.map((reply) => reply.status()).sort(), [200, 409]);
-    assert.equal(replies.find((reply) => reply.status() === 409)!.body().code, 'STALE_REVISION');
+    assert.equal(
+      (replies.find((reply) => reply.status() === 409)!.body() as unknown as { code: string }).code,
+      'STALE_REVISION'
+    );
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
       await db.from('allocations').whereIn(
@@ -218,14 +221,14 @@ db.exec('COMMIT')`,
     };
     const replies = await Promise.all(
       [1, 2].map(() =>
-        session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
-          .json(input)
+        session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+          .json(input as never)
           .send()
       )
     );
     assert.deepEqual(replies.map((reply) => reply.status()).sort(), [200, 409]);
     assert.equal(
-      replies.find((reply) => reply.status() === 409)!.body().code,
+      (replies.find((reply) => reply.status() === 409)!.body() as unknown as { code: string }).code,
       'MUTATION_ID_REUSED'
     );
     assert.lengthOf(
@@ -243,7 +246,7 @@ db.exec('COMMIT')`,
     configureAuth(cleanup);
     const owner = await signIn(client);
     const target = await signIn(client, 'editor');
-    const start = await session(client.post(`/api/companies/${companyId}/masquerade`), owner.cookie)
+    const start = await session(client.visit('api.masquerade.store', { companyId }), owner.cookie)
       .json({ targetUserId: target.userId })
       .send();
     start.assertStatus(200);
@@ -253,7 +256,7 @@ db.exec('COMMIT')`,
     assert.isFalse(snapshot.body().data.authority.canWrite);
     const allocation = newAllocation(await readState(companyId, true));
     const refused = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       owner.cookie
     )
       .json({
@@ -279,13 +282,14 @@ db.exec('COMMIT')`,
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
       const started = await session(
-        client.post(`/api/companies/${companyId}/masquerade`),
+        client.visit('api.masquerade.store', { companyId }),
         owner.cookie
       )
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = (started.body().data as { contextToken: string }).contextToken;
+      const contextToken = ((started.body() as { data: unknown }).data as { contextToken: string })
+        .contextToken;
       const capturedPlanningRead = async () => {
         const response = await fetch(
           `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`,
@@ -336,13 +340,14 @@ db.exec('COMMIT')`,
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
       const started = await session(
-        client.post(`/api/companies/${companyId}/masquerade`),
+        client.visit('api.masquerade.store', { companyId }),
         owner.cookie
       )
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = started.body().data.contextToken as string;
+      const contextToken = (started.body() as unknown as { data: { contextToken: string } }).data
+        .contextToken;
       const headers = {
         'cookie': sessionCookieHeader(owner.cookie),
         'X-Masquerade-Context': contextToken,

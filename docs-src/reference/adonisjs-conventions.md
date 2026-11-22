@@ -216,7 +216,7 @@ Source: [Routing](https://docs.adonisjs.com/guides/basics/routing) and
 - Routes only map: path, controller action, middleware and name.
 - A route points at a controller as `[controllers.Members, 'index']`.
 - A route with a controller is named by the framework as `controller.method`
-  (`members.index`). Name a route by hand only when it has no controller. **Open:** #2334 item 9.
+  (`members.index`). Name a route by hand only when it has no controller.
 - Put a shared prefix, middleware or name prefix on a `router.group()` with `.prefix()`, `.use()`
   and `.as()`. Do not repeat the prefix on every path.
 - Attach middleware with `.use(middleware.name(options))`, importing `middleware` from

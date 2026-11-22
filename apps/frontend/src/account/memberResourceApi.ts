@@ -5,7 +5,7 @@ import { buildOperationRequestInit, runOperation } from './operationRequest';
 
 /** Build the account-owned URL for one member/person association. */
 export function buildMemberResourceLinkUrl(companyId: string, userId: string): string {
-  return buildApiRouteUrl('api.member-resources.set', {
+  return buildApiRouteUrl('api.member_resource_links.update', {
     params: { companyId, userId },
   });
 }
@@ -46,7 +46,7 @@ export function buildMemberResourceLinkRequest(
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.member-resources.set', {
+      body: buildJsonBody('api.member_resource_links.update', {
         resourceId: input.resourceId,
         expectedRevision: input.expectedRevision,
       }),
@@ -66,7 +66,7 @@ export function clearMemberResourceLinkRequest(
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.member-resources.clear', { expectedRevision }),
+      body: buildJsonBody('api.member_resource_links.destroy', { expectedRevision }),
     },
   ];
 }

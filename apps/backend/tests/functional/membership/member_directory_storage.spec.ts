@@ -84,7 +84,10 @@ async function createFixture(client: Parameters<typeof signUpAndIn>[0]) {
       updated_at: now,
     });
   });
-  const contextResponse = await asDataOwner(client.get('/api/masquerade'), ownerCookie).send();
+  const contextResponse = await asDataOwner(
+    client.visit('api.masquerade.show'),
+    ownerCookie
+  ).send();
   contextResponse.assertStatus(200);
   const contextBody: unknown = contextResponse.body()!.data;
   const contextToken =

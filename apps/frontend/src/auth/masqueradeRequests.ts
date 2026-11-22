@@ -11,16 +11,16 @@ import type {
  */
 export const masqueradeRequests = {
   startMasquerade(companyId: string, body: StartMasqueradePayload): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.masquerade.start', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.masquerade.store', { params: { companyId } }), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.masquerade.start', body),
+      body: buildJsonBody('api.masquerade.store', body),
     });
   },
 
   masqueradeStatus(companyId?: string): Promise<Response> {
-    const route = buildApiRouteUrl('api.masquerade.status', {});
+    const route = buildApiRouteUrl('api.masquerade.show', {});
     const url = companyId
       ? `${route}${route.includes('?') ? '&' : '?'}companyId=${encodeURIComponent(companyId)}`
       : route;
@@ -28,11 +28,11 @@ export const masqueradeRequests = {
   },
 
   endMasquerade(body: EndMasqueradePayload): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.masquerade.end', {}), {
+    return fetchApi(buildApiRouteUrl('api.masquerade.destroy', {}), {
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.masquerade.end', body),
+      body: buildJsonBody('api.masquerade.destroy', body),
     });
   },
 };

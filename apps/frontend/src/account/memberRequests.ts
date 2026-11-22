@@ -48,12 +48,15 @@ export const memberRequests = {
     companyId,
     enabled,
   }: SetMemberSignInTrackingOptions): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.members.tracking', { params: { companyId } }), {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.members.tracking', { enabled }),
-    });
+    return fetchApi(
+      buildApiRouteUrl('api.member_sign_in_tracking.update', { params: { companyId } }),
+      {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: buildJsonBody('api.member_sign_in_tracking.update', { enabled }),
+      },
+    );
   },
 
   changeMemberRole({
@@ -67,12 +70,12 @@ export const memberRequests = {
       explicit: operation,
       request: (resolved) =>
         fetchApi(
-          buildApiRouteUrl('api.members.role', {
+          buildApiRouteUrl('api.members.update', {
             params: { companyId, userId },
           }),
           buildJsonOperationRequestInit(
             'PATCH',
-            buildJsonBody('api.members.role', { role }),
+            buildJsonBody('api.members.update', { role }),
             resolved,
           ),
         ),
@@ -90,12 +93,12 @@ export const memberRequests = {
       explicit: operation,
       request: (resolved) =>
         fetchApi(
-          buildApiRouteUrl('api.members.status', {
+          buildApiRouteUrl('api.member_status.update', {
             params: { companyId, userId },
           }),
           buildJsonOperationRequestInit(
             'PATCH',
-            buildJsonBody('api.members.status', { status }),
+            buildJsonBody('api.member_status.update', { status }),
             resolved,
           ),
         ),
@@ -113,10 +116,10 @@ export const memberRequests = {
       explicit: operation,
       request: (resolved) =>
         fetchApi(
-          buildApiRouteUrl('api.ownership.transfer', { params: { companyId } }),
+          buildApiRouteUrl('api.ownership_transfers.store', { params: { companyId } }),
           buildJsonOperationRequestInit(
             'POST',
-            buildJsonBody('api.ownership.transfer', {
+            buildJsonBody('api.ownership_transfers.store', {
               toUserId: targetUserId,
               confirmationId,
             }),

@@ -44,8 +44,8 @@ async function deleteTarget(
     phases: { operation: 'catalogue.delete', entity: { entity: target, id } },
     disciplines: { operation: 'catalogue.delete', entity: { entity: target, id } },
   };
-  return session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
-    .json({ mutationId: randomUUID(), baseRevision, intent: intents[target] })
+  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    .json({ mutationId: randomUUID(), baseRevision, intent: intents[target] } as never)
     .send();
 }
 
@@ -132,7 +132,7 @@ test.group('retained restoration reads', (suite) => {
       assert.isFalse(locallyRead[target].some((item) => item.id === ids[target]));
 
       const planning = await session(
-        client.get(`/api/companies/${companyId}/planning`),
+        client.visit('api.planning.show', { companyId }),
         cookie
       ).send();
       planning.assertStatus(200);
@@ -141,7 +141,7 @@ test.group('retained restoration reads', (suite) => {
       assert.notInclude(planning.text(), 'deletion_group_id');
 
       const exported = await session(
-        client.get(`/api/state?companyId=${companyId}&includeInactive=1`),
+        client.visit('api.company_state.show').qs({ companyId, includeInactive: '1' }),
         cookie
       ).send();
       exported.assertStatus(200);
@@ -161,7 +161,7 @@ test.group('retained restoration reads', (suite) => {
     const data = await readState(companyId, true);
     const allocation = { ...newAllocation(data), note: 'Gotham retained note' };
     const created = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -181,7 +181,7 @@ test.group('retained restoration reads', (suite) => {
 
     assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 1);
     const reused = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -202,7 +202,7 @@ test.group('retained restoration reads', (suite) => {
     assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 0);
     const beforeRefusal = await readState(companyId, true);
     const refused = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -251,7 +251,7 @@ test.group('retained restoration reads', (suite) => {
     await db.from('deleted_rows').where('group_id', groupId).delete();
 
     const refused = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({

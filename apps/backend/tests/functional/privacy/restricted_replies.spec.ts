@@ -164,13 +164,13 @@ const replies: Record<string, Exposure> = {
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('planning')), fixture.cookie).send(),
   },
-  'api.planning.archive': {
+  'api.planning_archive.show': {
     write: false,
     carries: [MARKER_ARCHIVED_CLIENT],
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('planning/archive')), fixture.cookie).send(),
   },
-  'api.export': {
+  'api.company_exports.show': {
     write: false,
     carries: (testUser) => [
       MARKER_CLIENT,
@@ -181,7 +181,7 @@ const replies: Record<string, Exposure> = {
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('export')), fixture.cookie).send(),
   },
-  'api.state': {
+  'api.company_state.show': {
     write: false,
     carries: (testUser) => [
       MARKER_CLIENT,
@@ -192,14 +192,14 @@ const replies: Record<string, Exposure> = {
     call: (fixture, testUser) => {
       const inactive = canReadInactive(testUser.effective);
       return session(
-        fixture.client.get(
-          `/api/state?companyId=${companyId}${inactive ? '&includeInactive=1' : ''}`
-        ),
+        fixture.client
+          .visit('api.company_state.show')
+          .qs({ companyId, ...(inactive ? { includeInactive: '1' as const } : {}) }),
         fixture.cookie
       ).send();
     },
   },
-  'api.planning.mutate#catalogue.update clients': {
+  'api.planning_mutations.store#catalogue.update clients': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) =>
@@ -212,7 +212,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning.mutate#catalogue.unarchive clients': {
+  'api.planning_mutations.store#catalogue.unarchive clients': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -227,7 +227,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning.mutate#catalogue.update projects': {
+  'api.planning_mutations.store#catalogue.update projects': {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) =>
@@ -240,7 +240,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning.mutate#catalogue.unarchive projects': {
+  'api.planning_mutations.store#catalogue.unarchive projects': {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) => {
@@ -255,7 +255,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning.mutate#timeOff.update': {
+  'api.planning_mutations.store#timeOff.update': {
     write: true,
     carries: [MARKER_NOTE],
     call: async (fixture) => {
@@ -268,7 +268,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning.mutate#resource.unarchive': {
+  'api.planning_mutations.store#resource.unarchive': {
     write: true,
     carries: [],
     call: async (fixture) => {
@@ -282,7 +282,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning.mutate#planning.restoreGroup': {
+  'api.planning_mutations.store#planning.restoreGroup': {
     write: true,
     carries: [MARKER_NOTE],
     call: async (fixture) => {
@@ -306,7 +306,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning.undo': {
+  'api.planning_undo.store': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -315,7 +315,7 @@ const replies: Record<string, Exposure> = {
       return stepHistory(fixture, 'undo', historyId);
     },
   },
-  'api.planning.redo': {
+  'api.planning_redo.store': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -325,56 +325,56 @@ const replies: Record<string, Exposure> = {
       return stepHistory(fixture, 'redo', historyId);
     },
   },
-  'api.companies.anonymise': { none: COUNTS },
+  'api.company_anonymisations.store': { none: COUNTS },
   'api.companies.index': { none: IDENTITY },
-  'api.admission.approve': { none: IDENTITY },
-  'api.admission.complete': { none: IDENTITY },
-  'api.admission.index': { none: IDENTITY },
-  'api.admission.reject': { none: IDENTITY },
-  'api.admission.request': { none: IDENTITY },
-  'api.admission.revoke': { none: IDENTITY },
+  'api.admission_approvals.store': { none: IDENTITY },
+  'api.memberships.store': { none: IDENTITY },
+  'api.admission_requests.index': { none: IDENTITY },
+  'api.admission_rejections.store': { none: IDENTITY },
+  'api.admission_requests.store': { none: IDENTITY },
+  'api.admission_revocations.store': { none: IDENTITY },
   'api.admission.show': { none: IDENTITY },
-  'api.auth.change-password': { none: IDENTITY },
-  'api.auth.delete-account': { none: IDENTITY },
-  'api.auth.inspect-reset': { none: IDENTITY },
-  'api.auth.me': { none: IDENTITY },
-  'api.auth.password-confirmation': { none: IDENTITY },
-  'api.auth.request-reset': { none: IDENTITY },
-  'api.auth.reset-password': { none: IDENTITY },
-  'api.auth.sign-in': { none: IDENTITY },
-  'api.auth.sign-out': { none: IDENTITY },
-  'api.auth.sign-up': { none: IDENTITY },
-  'api.auth.verification.complete': { none: IDENTITY },
-  'api.auth.verification.inspect': { none: IDENTITY },
-  'api.auth.verification.send': { none: IDENTITY },
-  'api.diagnostics': { none: IDENTITY },
-  'api.example-data': { none: COUNTS },
-  'api.getting-started.show': { none: IDENTITY },
-  'api.getting-started.update': { none: IDENTITY },
+  'api.password.update': { none: IDENTITY },
+  'api.account.destroy': { none: IDENTITY },
+  'api.password_resets.show': { none: IDENTITY },
+  'api.session.show': { none: IDENTITY },
+  'api.password_confirmations.store': { none: IDENTITY },
+  'api.password_reset_requests.store': { none: IDENTITY },
+  'api.password_resets.update': { none: IDENTITY },
+  'api.session.store': { none: IDENTITY },
+  'api.session.destroy': { none: IDENTITY },
+  'api.new_account.store': { none: IDENTITY },
+  'api.email_verifications.update': { none: IDENTITY },
+  'api.email_verifications.show': { none: IDENTITY },
+  'api.email_verification_requests.store': { none: IDENTITY },
+  'api.diagnostics.show': { none: IDENTITY },
+  'api.example_data.store': { none: COUNTS },
+  'api.getting_started.show': { none: IDENTITY },
+  'api.getting_started.update': { none: IDENTITY },
   'api.health': { none: IDENTITY },
   'health_checks.live': { none: IDENTITY },
   'health_checks.ready': { none: IDENTITY },
-  'api.installation.company': { none: IDENTITY },
-  'api.invites.create': { none: IDENTITY },
-  'api.invites.index': { none: IDENTITY },
-  'api.invites.preview': { none: IDENTITY },
-  'api.invites.resend': { none: IDENTITY },
-  'api.invites.revoke': { none: IDENTITY },
-  'api.invites.sign-up': { none: IDENTITY },
-  'api.masquerade.end': { none: IDENTITY },
-  'api.masquerade.start': { none: IDENTITY },
-  'api.masquerade.status': { none: IDENTITY },
-  'api.member-resources.clear': { none: IDENTITY },
-  'api.member-resources.set': { none: IDENTITY },
+  'api.first_company_setup.store': { none: IDENTITY },
+  'api.invitations.store': { none: IDENTITY },
+  'api.invitations.index': { none: IDENTITY },
+  'api.invitation_links.show': { none: IDENTITY },
+  'api.invitation_deliveries.store': { none: IDENTITY },
+  'api.invitations.destroy': { none: IDENTITY },
+  'api.invitation_acceptances.store': { none: IDENTITY },
+  'api.masquerade.destroy': { none: IDENTITY },
+  'api.masquerade.store': { none: IDENTITY },
+  'api.masquerade.show': { none: IDENTITY },
+  'api.member_resource_links.destroy': { none: IDENTITY },
+  'api.member_resource_links.update': { none: IDENTITY },
   'api.members.index': { none: IDENTITY },
-  'api.members.role': { none: IDENTITY },
-  'api.members.status': { none: IDENTITY },
-  'api.members.tracking': { none: IDENTITY },
-  'api.not-found': { none: IDENTITY },
-  'api.ownership.transfer': { none: IDENTITY },
-  'api.resources.anonymise': { none: COUNTS },
-  'api.transfer.apply': { none: COUNTS },
-  'api.transfer.preview': { none: PREVIEW },
+  'api.members.update': { none: IDENTITY },
+  'api.member_status.update': { none: IDENTITY },
+  'api.member_sign_in_tracking.update': { none: IDENTITY },
+  'api.not_found': { none: IDENTITY },
+  'api.ownership_transfers.store': { none: IDENTITY },
+  'api.resource_anonymisations.store': { none: COUNTS },
+  'api.imports.store': { none: COUNTS },
+  'api.import_previews.store': { none: PREVIEW },
 };
 
 /** Marks one client, project and time-off note, and adds an archived private client. */
@@ -424,7 +424,7 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
 }
 
 async function readContextToken(client: ApiClient, cookie: string) {
-  const status = await session(client.get('/api/masquerade'), cookie).send();
+  const status = await session(client.visit('api.masquerade.show'), cookie).send();
   status.assertStatus(200);
   // The status reply is checked by String(); a missing token fails the masquerade start.
   return String((status.body()!.data as { contextToken: unknown }).contextToken);
@@ -495,7 +495,7 @@ test.group('restricted values in replies', (group) => {
         if (exposure.write) {
           const refused = testUser.masquerade || testUser.effective === 'viewer';
           assert.equal(reply.status(), refused ? 403 : 200, where);
-        } else if (name === 'api.planning.archive') {
+        } else if (name === 'api.planning_archive.show') {
           if (testUser.masquerade) assert.equal(reply.status(), 403, where);
           else if (testUser.effective === 'owner' || testUser.effective === 'admin')
             assert.equal(reply.status(), 200, where);
@@ -513,13 +513,13 @@ test.group('restricted values in replies', (group) => {
           }
         }
         // The export is labelled full only for an effective Owner, whoever is signed in.
-        if (name === 'api.export' && reply.status() === 200) {
+        if (name === 'api.company_exports.show' && reply.status() === 200) {
           const { completeness } = JSON.parse(text) as { completeness: string };
           assert.equal(completeness, testUser.effective === 'owner' ? 'full' : 'redacted', where);
         }
       }
       if (viewToken) {
-        const ended = await session(client.delete('/api/masquerade'), cookie)
+        const ended = await session(client.visit('api.masquerade.destroy'), cookie)
           .json({ token: viewToken, reason: 'explicit' })
           .send();
         ended.assertStatus(200);

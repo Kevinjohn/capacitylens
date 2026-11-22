@@ -44,7 +44,7 @@ async function readContextToken(
   client: Parameters<typeof resetAuthenticatedData>[0],
   cookie: string
 ) {
-  const response = await asDataOwner(client.get('/api/masquerade'), cookie).send();
+  const response = await asDataOwner(client.visit('api.masquerade.show'), cookie).send();
   response.assertStatus(200);
   const token = (response.body()!.data as { contextToken?: unknown }).contextToken;
   if (typeof token !== 'string' || !token)

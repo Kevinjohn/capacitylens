@@ -28,7 +28,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["DisciplineList Delete control"] --> B["ConfirmDialog onConfirm → useConfirmDelete"] --> C["useStore.deleteDiscipline"]
-  C --> D["createTypedPlanningActions.deleteDiscipline → catalogue.delete"] --> E["createPlanningTransport → api.planning.mutate"]
+  C --> D["createTypedPlanningActions.deleteDiscipline → catalogue.delete"] --> E["createPlanningTransport → api.planning_mutations.store"]
   E --> F["PlanningMutationsController.store → mutatePlanning begins scoped transaction"] --> G["executePlanningIntent.deleteRows retains discipline and detached-resource links"] --> K["mutatePlanning records revision/audit and commits"]
   K --> I["selectors.buildDisciplineGroups render remaining resources ungrouped"]
   H --> I

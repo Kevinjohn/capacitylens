@@ -84,10 +84,10 @@ test.group('read path', (group) => {
     client,
     assert,
   }) => {
-    const state = await client.get('/api/state');
+    const state = await client.visit('api.company_state.show');
     state.assertStatus(401);
     client = await resetAuthenticatedClient(client, true);
-    const identity = await client.get('/api/auth/me');
+    const identity = await client.visit('api.session.show');
     identity.assertStatus(200);
     assert.equal(identity.body().data.user.email, 'bruce.wayne@wayne.example');
   });

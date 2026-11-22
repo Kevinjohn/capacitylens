@@ -9,25 +9,16 @@ import { controllers } from '#generated/controllers';
 export function registerPlanningRoutes() {
   router
     .group(() => {
+      router.get('/companies/:companyId/planning', [controllers.Planning, 'show']);
       router
-        .get('/api/companies/:companyId/planning', [controllers.Planning, 'show'])
-        .as('api.planning.show');
-      router
-        .get('/api/companies/:companyId/planning/archive', [controllers.PlanningArchive, 'show'])
-        .as('api.planning.archive')
+        .get('/companies/:companyId/planning/archive', [controllers.PlanningArchive, 'show'])
         .use(sensitive());
-      router
-        .post('/api/companies/:companyId/planning/mutations', [
-          controllers.PlanningMutations,
-          'store',
-        ])
-        .as('api.planning.mutate');
-      router
-        .post('/api/companies/:companyId/planning/undo', [controllers.PlanningUndo, 'store'])
-        .as('api.planning.undo');
-      router
-        .post('/api/companies/:companyId/planning/redo', [controllers.PlanningRedo, 'store'])
-        .as('api.planning.redo');
+      router.post('/companies/:companyId/planning/mutations', [
+        controllers.PlanningMutations,
+        'store',
+      ]);
+      router.post('/companies/:companyId/planning/undo', [controllers.PlanningUndo, 'store']);
+      router.post('/companies/:companyId/planning/redo', [controllers.PlanningRedo, 'store']);
     })
     .use([middleware.accountGate({ access: 'admitted' }), ...asPlanningMember()]);
 }

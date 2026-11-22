@@ -36,7 +36,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Ask["AccessScreens AdmissionStep Ask for access"] --> AuthApi["authApi.requestAdmission → api.admission.request"]
+    Ask["AccessScreens AdmissionStep Ask for access"] --> AuthApi["authApi.requestAdmission → api.admission_requests.store"]
     AuthApi --> RequestController["AdmissionRequestsController.store → AccountAdmission.request"]
     RequestController --> Refresh["AccessScreen onRefresh asks AuthProvider to resolve access again"]
     Check["AccessScreens Check again"] --> Refresh
@@ -50,7 +50,7 @@ flowchart TD
     Buttons --> Client["teamAccessApi.decideAdmission → admissionRequests.decideAdmission"]
     Client --> Decision["AdmissionApprovalsController.store or AdmissionRejectionsController.store → AccountAdmission decision"]
     Decision --> Reload["Panel reloads request list; person refreshes access when ready"]
-    Manager -. "No Revoke control or caller" .-> NoRevoke["api.admission.revoke exists, but this UI does not call it"]
+    Manager -. "No Revoke control or caller" .-> NoRevoke["api.admission_revocations.store exists, but this UI does not call it"]
 ```
 
 **Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [admissionRequests.ts](../../apps/frontend/src/account/admissionRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts), [memberships_controller.ts](../../apps/backend/app/controllers/memberships_controller.ts), [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts), [admission_rejections_controller.ts](../../apps/backend/app/controllers/admission_rejections_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)

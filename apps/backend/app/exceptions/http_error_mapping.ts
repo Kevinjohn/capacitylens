@@ -45,17 +45,31 @@ interface SharedRefusal {
 }
 
 /**
- * The routes that word a shared refusal differently. `planning` is every `api.planning.*` route and
- * the export download, which reads through planning access; `admission` is the member-resource
+ * The routes that word a shared refusal differently. `planning` is every planning route and the
+ * export download, which reads through planning access; `admission` is the member-resource link
  * routes; `product` is every other route.
  */
 export type RefusalSurface = 'product' | 'planning' | 'admission';
 
-/** Reads the refusal surface from the matched route's name. Pure. */
+const PLANNING_ROUTE_NAMES = new Set([
+  'api.planning.show',
+  'api.planning_archive.show',
+  'api.planning_mutations.store',
+  'api.planning_undo.store',
+  'api.planning_redo.store',
+  'api.company_exports.show',
+]);
+
+const ADMISSION_ROUTE_NAMES = new Set([
+  'api.member_resource_links.update',
+  'api.member_resource_links.destroy',
+]);
+
+/** Reads the refusal surface from the matched route's generated name. Pure. */
 export function readRefusalSurface(ctx: HttpContext): RefusalSurface {
   const name = ctx.route?.name ?? '';
-  if (name.startsWith('api.planning.') || name === 'api.export') return 'planning';
-  if (name.startsWith('api.member-resources.')) return 'admission';
+  if (PLANNING_ROUTE_NAMES.has(name)) return 'planning';
+  if (ADMISSION_ROUTE_NAMES.has(name)) return 'admission';
   return 'product';
 }
 

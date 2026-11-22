@@ -96,7 +96,7 @@ test.group('ordinary authentication request contracts', (group) => {
     assert,
   }) => {
     const response = await client
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email: 'clark@wayne.example', password: '' })
       .send();
@@ -122,21 +122,21 @@ test.group('ordinary authentication request contracts', (group) => {
     await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio');
     const { cookie } = await signIn(client, 'bruce.wayne@wayne.example');
     for (const query of [
-      '',
-      '?status=pending',
-      '?status=approved',
-      '?status=rejected',
-      '?status=revoked',
-      '?extra=ignored',
+      {},
+      { status: 'pending' },
+      { status: 'approved' },
+      { status: 'rejected' },
+      { status: 'revoked' },
+      { extra: 'ignored' },
     ]) {
       const response = await asDataOwner(
-        client.get(`/api/admission/requests${query}`),
+        client.visit('api.admission_requests.index').qs(query as never),
         cookie
       ).send();
-      assert.equal(response.status(), 200, query);
+      assert.equal(response.status(), 200, JSON.stringify(query));
     }
     const emptyCursor = await asDataOwner(
-      client.get('/api/admission/requests?cursor='),
+      client.visit('api.admission_requests.index').qs({ cursor: '' }),
       cookie
     ).send();
     // The HTTP scalar shape is valid; the Kit refuses an empty opaque cursor.
@@ -163,7 +163,7 @@ test.group('ordinary authentication request contracts', (group) => {
   }) => {
     for (const password of ['a'.repeat(15), '😀'.repeat(15), '😀'.repeat(128)]) {
       const response = await client
-        .post('/api/auth/sign-up')
+        .visit('api.new_account.store')
         .header('sec-fetch-site', 'same-origin')
         .json({
           email: '  Clark.Kent@Wayne.example  ',
@@ -195,7 +195,7 @@ test.group('ordinary authentication request contracts', (group) => {
     });
 
     const response = await client
-      .post('/api/auth/sign-up')
+      .visit('api.new_account.store')
       .header('sec-fetch-site', 'same-origin')
       .json({
         email: 'clark.kent@wayne.example',

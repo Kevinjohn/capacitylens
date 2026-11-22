@@ -20,27 +20,32 @@ import { registerDiagnosticsRoutes } from '#start/diagnostics_routes';
 // identifier matches no route and answers 404 instead of reaching the package.
 for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
 
-registerPlanningRoutes();
-registerCompanyRoutes();
-registerTransferRoutes();
-registerExportRoutes();
-registerAnonymiseRoutes();
-registerExampleDataRoutes();
-registerGettingStartedRoutes();
-registerAuthRoutes();
-registerMembershipRoutes();
-registerAdmissionRoutes();
-registerMasqueradeRoutes();
-registerOwnershipRoutes();
+router
+  .group(() => {
+    registerPlanningRoutes();
+    registerCompanyRoutes();
+    registerTransferRoutes();
+    registerExportRoutes();
+    registerAnonymiseRoutes();
+    registerExampleDataRoutes();
+    registerGettingStartedRoutes();
+    registerAuthRoutes();
+    registerMembershipRoutes();
+    registerAdmissionRoutes();
+    registerMasqueradeRoutes();
+    registerOwnershipRoutes();
+    router.get('/health', [controllers.HealthChecks, 'live']).as('health');
+    registerDiagnosticsRoutes();
+    router
+      .get('/*', ({ response }) => response.notFound({ error: 'Not found' }))
+      .use(middleware.accountGate({ access: 'limited' }))
+      .as('not_found');
+  })
+  .prefix('/api')
+  .as('api');
 
-router.get('/api/health', [controllers.HealthChecks, 'live']).as('api.health');
 router.get('/health/live', [controllers.HealthChecks, 'live']);
 router.get('/health/ready', [controllers.HealthChecks, 'ready']);
-registerDiagnosticsRoutes();
-router
-  .get('/api/*', ({ response }) => response.notFound({ error: 'Not found' }))
-  .as('api.not-found')
-  .use(middleware.accountGate({ access: 'limited' }));
 router.get('*', async ({ request, response }) => {
   const path = request.url().split('?', 1)[0];
   const lastSegment = path.slice(path.lastIndexOf('/') + 1);

@@ -108,7 +108,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
 
     const signIn = () =>
       client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email: 'clark.kent@wayne.example', password })
         .send();

@@ -55,9 +55,12 @@ test.group('authenticated typed planning transactions', (group) => {
         .body()
         .data.data.clients.every((row: { companyId: string }) => row.companyId === companyId)
     );
-    const foreign = await session(client.get('/api/companies/a-loft/planning'), cookie).send();
+    const foreign = await session(
+      client.visit('api.planning.show', { companyId: 'a-loft' }),
+      cookie
+    ).send();
     foreign.assertStatus(403);
-    assert.equal(foreign.body().code, 'ACCOUNT_MEMBERSHIP_LOST');
+    assert.equal((foreign.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
     const anonymous = await trusted(client.get(planningUrl)).send();
     anonymous.assertStatus(401);
   });
@@ -150,7 +153,7 @@ test.group('authenticated typed planning transactions', (group) => {
         hoursPerDay: 24,
       };
       const created = await session(
-        client.post(`/api/companies/${companyId}/planning/mutations`),
+        client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
         .json({
@@ -281,10 +284,10 @@ test.group('authenticated typed planning transactions', (group) => {
       intent: { operation: 'allocation.create', allocation },
     };
     const created = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     created.assertStatus(200);
     assert.equal(created.body().data.revision, 1);
@@ -313,17 +316,14 @@ test.group('authenticated typed planning transactions', (group) => {
       read.body().data.data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
     const duplicate = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     duplicate.assertStatus(409);
-    assert.equal(duplicate.body().code, 'MUTATION_ID_REUSED');
-    const stale = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
-      cookie
-    )
+    assert.equal((duplicate.body() as unknown as { code: string }).code, 'MUTATION_ID_REUSED');
+    const stale = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 0,
@@ -335,11 +335,8 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     stale.assertStatus(409);
-    assert.equal(stale.body().code, 'STALE_REVISION');
-    const moved = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
-      cookie
-    )
+    assert.equal((stale.body() as unknown as { code: string }).code, 'STALE_REVISION');
+    const moved = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 1,
@@ -510,10 +507,10 @@ test.group('authenticated typed planning transactions', (group) => {
     for (const [revision, build] of operations.entries()) {
       const intent = build();
       const reply = await session(
-        client.post(`/api/companies/${companyId}/planning/mutations`),
+        client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
-        .json({ mutationId: randomUUID(), baseRevision: revision, intent })
+        .json({ mutationId: randomUUID(), baseRevision: revision, intent } as never)
         .send();
       assert.equal(reply.status(), 200, `${String(intent.operation)}: ${reply.text()}`);
       assert.equal(reply.body().data.status, 'committed');
@@ -599,10 +596,10 @@ test.group('authenticated typed planning transactions', (group) => {
       },
     };
     const response = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     response.assertStatus(200);
     assert.equal(response.body().data.revision, 1);
@@ -629,13 +626,13 @@ test.group('authenticated typed planning transactions', (group) => {
       source
     );
     const replay = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     replay.assertStatus(409);
-    assert.equal(replay.body().code, 'MUTATION_ID_REUSED');
+    assert.equal((replay.body() as unknown as { code: string }).code, 'MUTATION_ID_REUSED');
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -720,7 +717,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const { cookie } = await signIn(client);
     const allocation = newAllocation(await readState(companyId, true));
     const created = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -732,7 +729,7 @@ test.group('authenticated typed planning transactions', (group) => {
     created.assertStatus(200);
     const before = await readState(companyId, true);
     const occupied = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -742,10 +739,10 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     occupied.assertStatus(400);
-    assert.equal(occupied.body().code, 'VALIDATION_ERROR');
+    assert.equal((occupied.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
     const missingId = randomUUID();
     const missing = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -759,7 +756,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     missing.assertStatus(400);
-    assert.equal(missing.body().code, 'VALIDATION_ERROR');
+    assert.equal((missing.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
@@ -779,7 +776,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const allocation = data.allocations.find((row) => row.companyId === companyId)!;
     const before = await readState(companyId, true);
     const response = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -793,7 +790,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     response.assertStatus(400);
-    assert.equal(response.body().code, 'NO_CHANGE');
+    assert.equal((response.body() as unknown as { code: string }).code, 'NO_CHANGE');
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(

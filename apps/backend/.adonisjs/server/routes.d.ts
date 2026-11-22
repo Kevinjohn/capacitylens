@@ -5,149 +5,149 @@ type ParamValue = string | number | bigint | boolean
 export type ScannedRoutes = {
   ALL: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.archive': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.mutate': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.undo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.redo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.installation.company': { paramsTuple?: []; params?: {} }
+    'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_mutations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_undo.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_redo.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.first_company_setup.store': { paramsTuple?: []; params?: {} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
-    'api.transfer.preview': { paramsTuple?: []; params?: {} }
-    'api.transfer.apply': { paramsTuple?: []; params?: {} }
-    'api.state': { paramsTuple?: []; params?: {} }
-    'api.export': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.companies.anonymise': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.example-data': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.auth.me': { paramsTuple?: []; params?: {} }
-    'api.auth.sign-up': { paramsTuple?: []; params?: {} }
-    'api.auth.sign-in': { paramsTuple?: []; params?: {} }
-    'api.auth.sign-out': { paramsTuple?: []; params?: {} }
-    'api.auth.password-confirmation': { paramsTuple?: []; params?: {} }
-    'api.auth.request-reset': { paramsTuple?: []; params?: {} }
-    'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
-    'api.auth.reset-password': { paramsTuple?: []; params?: {} }
-    'api.auth.change-password': { paramsTuple?: []; params?: {} }
-    'api.auth.delete-account': { paramsTuple?: []; params?: {} }
-    'api.auth.verification.send': { paramsTuple?: []; params?: {} }
-    'api.auth.verification.inspect': { paramsTuple?: []; params?: {} }
-    'api.auth.verification.complete': { paramsTuple?: []; params?: {} }
+    'api.import_previews.store': { paramsTuple?: []; params?: {} }
+    'api.imports.store': { paramsTuple?: []; params?: {} }
+    'api.company_state.show': { paramsTuple?: []; params?: {} }
+    'api.company_exports.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.company_anonymisations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.resource_anonymisations.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
+    'api.example_data.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.getting_started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.getting_started.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.session.show': { paramsTuple?: []; params?: {} }
+    'api.new_account.store': { paramsTuple?: []; params?: {} }
+    'api.session.store': { paramsTuple?: []; params?: {} }
+    'api.session.destroy': { paramsTuple?: []; params?: {} }
+    'api.password_confirmations.store': { paramsTuple?: []; params?: {} }
+    'api.password_reset_requests.store': { paramsTuple?: []; params?: {} }
+    'api.password_resets.show': { paramsTuple?: []; params?: {} }
+    'api.password_resets.update': { paramsTuple?: []; params?: {} }
+    'api.password.update': { paramsTuple?: []; params?: {} }
+    'api.account.destroy': { paramsTuple?: []; params?: {} }
+    'api.email_verification_requests.store': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.show': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.update': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.members.tracking': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.invites.create': { paramsTuple?: []; params?: {} }
-    'api.invites.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.invites.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.invites.sign-up': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.member_sign_in_tracking.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.members.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_status.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.invitations.store': { paramsTuple?: []; params?: {} }
+    'api.invitations.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.invitation_deliveries.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
+    'api.invitations.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
+    'api.invitation_links.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.invitation_acceptances.store': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }
-    'api.admission.request': { paramsTuple?: []; params?: {} }
-    'api.admission.complete': { paramsTuple?: []; params?: {} }
-    'api.admission.index': { paramsTuple?: []; params?: {} }
-    'api.admission.approve': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'api.admission.reject': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'api.admission.revoke': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.masquerade.status': { paramsTuple?: []; params?: {} }
-    'api.masquerade.end': { paramsTuple?: []; params?: {} }
-    'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.admission_requests.store': { paramsTuple?: []; params?: {} }
+    'api.memberships.store': { paramsTuple?: []; params?: {} }
+    'api.admission_requests.index': { paramsTuple?: []; params?: {} }
+    'api.admission_approvals.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission_rejections.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission_revocations.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.member_resource_links.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_resource_links.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.masquerade.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.masquerade.show': { paramsTuple?: []; params?: {} }
+    'api.masquerade.destroy': { paramsTuple?: []; params?: {} }
+    'api.ownership_transfers.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'api.diagnostics.show': { paramsTuple?: []; params?: {} }
+    'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
     'health_checks.ready': { paramsTuple?: []; params?: {} }
-    'api.diagnostics': { paramsTuple?: []; params?: {} }
-    'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.archive': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
-    'api.state': { paramsTuple?: []; params?: {} }
-    'api.export': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.auth.me': { paramsTuple?: []; params?: {} }
+    'api.company_state.show': { paramsTuple?: []; params?: {} }
+    'api.company_exports.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.getting_started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.session.show': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.invites.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.invitations.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.invitation_links.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }
-    'api.admission.index': { paramsTuple?: []; params?: {} }
-    'api.masquerade.status': { paramsTuple?: []; params?: {} }
+    'api.admission_requests.index': { paramsTuple?: []; params?: {} }
+    'api.masquerade.show': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'api.diagnostics.show': { paramsTuple?: []; params?: {} }
+    'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
     'health_checks.ready': { paramsTuple?: []; params?: {} }
-    'api.diagnostics': { paramsTuple?: []; params?: {} }
-    'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.archive': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
-    'api.state': { paramsTuple?: []; params?: {} }
-    'api.export': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.auth.me': { paramsTuple?: []; params?: {} }
+    'api.company_state.show': { paramsTuple?: []; params?: {} }
+    'api.company_exports.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.getting_started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.session.show': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.invites.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.invitations.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.invitation_links.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }
-    'api.admission.index': { paramsTuple?: []; params?: {} }
-    'api.masquerade.status': { paramsTuple?: []; params?: {} }
+    'api.admission_requests.index': { paramsTuple?: []; params?: {} }
+    'api.masquerade.show': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'api.diagnostics.show': { paramsTuple?: []; params?: {} }
+    'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
     'health_checks.ready': { paramsTuple?: []; params?: {} }
-    'api.diagnostics': { paramsTuple?: []; params?: {} }
-    'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
-    'api.planning.mutate': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.undo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.redo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.installation.company': { paramsTuple?: []; params?: {} }
-    'api.transfer.preview': { paramsTuple?: []; params?: {} }
-    'api.transfer.apply': { paramsTuple?: []; params?: {} }
-    'api.companies.anonymise': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.example-data': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.auth.sign-up': { paramsTuple?: []; params?: {} }
-    'api.auth.sign-in': { paramsTuple?: []; params?: {} }
-    'api.auth.sign-out': { paramsTuple?: []; params?: {} }
-    'api.auth.password-confirmation': { paramsTuple?: []; params?: {} }
-    'api.auth.request-reset': { paramsTuple?: []; params?: {} }
-    'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
-    'api.auth.reset-password': { paramsTuple?: []; params?: {} }
-    'api.auth.change-password': { paramsTuple?: []; params?: {} }
-    'api.auth.delete-account': { paramsTuple?: []; params?: {} }
-    'api.auth.verification.send': { paramsTuple?: []; params?: {} }
-    'api.auth.verification.inspect': { paramsTuple?: []; params?: {} }
-    'api.auth.verification.complete': { paramsTuple?: []; params?: {} }
-    'api.invites.create': { paramsTuple?: []; params?: {} }
-    'api.invites.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.invites.sign-up': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.admission.request': { paramsTuple?: []; params?: {} }
-    'api.admission.complete': { paramsTuple?: []; params?: {} }
-    'api.admission.approve': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'api.admission.reject': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'api.admission.revoke': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_mutations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_undo.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning_redo.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.first_company_setup.store': { paramsTuple?: []; params?: {} }
+    'api.import_previews.store': { paramsTuple?: []; params?: {} }
+    'api.imports.store': { paramsTuple?: []; params?: {} }
+    'api.company_anonymisations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.resource_anonymisations.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
+    'api.example_data.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.new_account.store': { paramsTuple?: []; params?: {} }
+    'api.session.store': { paramsTuple?: []; params?: {} }
+    'api.session.destroy': { paramsTuple?: []; params?: {} }
+    'api.password_confirmations.store': { paramsTuple?: []; params?: {} }
+    'api.password_reset_requests.store': { paramsTuple?: []; params?: {} }
+    'api.password_resets.show': { paramsTuple?: []; params?: {} }
+    'api.password_resets.update': { paramsTuple?: []; params?: {} }
+    'api.password.update': { paramsTuple?: []; params?: {} }
+    'api.account.destroy': { paramsTuple?: []; params?: {} }
+    'api.email_verification_requests.store': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.show': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.update': { paramsTuple?: []; params?: {} }
+    'api.invitations.store': { paramsTuple?: []; params?: {} }
+    'api.invitation_deliveries.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
+    'api.invitation_acceptances.store': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.admission_requests.store': { paramsTuple?: []; params?: {} }
+    'api.memberships.store': { paramsTuple?: []; params?: {} }
+    'api.admission_approvals.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission_rejections.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission_revocations.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.masquerade.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.ownership_transfers.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
   }
   PUT: {
-    'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.members.tracking': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.getting_started.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.member_sign_in_tracking.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.member_resource_links.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
   }
   PATCH: {
-    'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.members.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_status.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
   }
   DELETE: {
-    'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.masquerade.end': { paramsTuple?: []; params?: {} }
+    'api.invitations.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
+    'api.member_resource_links.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.masquerade.destroy': { paramsTuple?: []; params?: {} }
   }
 }
 declare module '@adonisjs/core/types/http' {

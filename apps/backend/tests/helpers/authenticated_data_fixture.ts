@@ -52,7 +52,7 @@ export function asDataOwner<T extends ApiRequest>(request: T, cookie: string): T
 
 /** Preserves an API client's normal request methods while adding a proved native session. */
 export function authenticatedDataClient(client: ApiClient, cookie: string): ApiClient {
-  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options']);
+  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'visit']);
   return new Proxy(client, {
     get(target, key) {
       const value = Reflect.get(target, key);

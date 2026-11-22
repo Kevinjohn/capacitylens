@@ -16,7 +16,7 @@ export interface AuthApiResult<T> {
   error: AuthApiError | null;
 }
 
-type PasswordCredentials = RequestArgs<(typeof registry.routes)['api.auth.sign-in']>['body'];
+type PasswordCredentials = RequestArgs<(typeof registry.routes)['api.session.store']>['body'];
 
 interface PasswordChangeInput {
   currentPassword: string;
@@ -31,12 +31,22 @@ function readErrorMessage(value: unknown, status: number): AuthApiError {
   return { message, ...metadata, status };
 }
 
-type AuthRoute = Exclude<
-  Extract<
-    keyof ProductRoutes,
-    `api.auth.${string}` | 'api.admission.show' | 'api.admission.request' | 'api.admission.complete'
-  >,
-  'api.auth.sign-in' | 'api.auth.sign-up'
+type AuthRoute = Extract<
+  keyof ProductRoutes,
+  | 'api.session.show'
+  | 'api.session.destroy'
+  | 'api.password_confirmations.store'
+  | 'api.password_reset_requests.store'
+  | 'api.password_resets.show'
+  | 'api.password_resets.update'
+  | 'api.password.update'
+  | 'api.account.destroy'
+  | 'api.email_verification_requests.store'
+  | 'api.email_verifications.show'
+  | 'api.email_verifications.update'
+  | 'api.admission.show'
+  | 'api.admission_requests.store'
+  | 'api.memberships.store'
 >;
 
 async function request<Name extends AuthRoute>(
@@ -65,7 +75,7 @@ export const authApi = {
     email: async (input: PasswordCredentials) => {
       const received: { response?: { ok: boolean; status: number; payload: unknown } } = {};
       const [data, error] = await client
-        .request('api.auth.sign-in', {
+        .request('api.session.store', {
           body: input,
           responseType: 'json',
           hooks: {
@@ -96,22 +106,22 @@ export const authApi = {
       throw error;
     },
   },
-  signOut: () => post('api.auth.sign-out', {}),
-  requestPasswordReset: (email: string) => post('api.auth.request-reset', { email }),
-  inspectPasswordReset: (token: string) => post('api.auth.inspect-reset', { token }),
+  signOut: () => post('api.session.destroy', {}),
+  requestPasswordReset: (email: string) => post('api.password_reset_requests.store', { email }),
+  inspectPasswordReset: (token: string) => post('api.password_resets.show', { token }),
   resetPassword: (input: { token: string; newPassword: string }) =>
-    post('api.auth.reset-password', input),
+    post('api.password_resets.update', input),
   /** Ends every sign-in, this one included, once the password changes. */
-  changePassword: (input: PasswordChangeInput) => post('api.auth.change-password', input),
+  changePassword: (input: PasswordChangeInput) => post('api.password.update', input),
   /** Deletes the signed-in identity after re-entering its password; the server ends the sign-in. */
-  deleteAccount: (input: { currentPassword: string }) => post('api.auth.delete-account', input),
-  sendEmailVerification: () => post('api.auth.verification.send', {}),
-  inspectEmailVerification: (token: string) => post('api.auth.verification.inspect', { token }),
+  deleteAccount: (input: { currentPassword: string }) => post('api.account.destroy', input),
+  sendEmailVerification: () => post('api.email_verification_requests.store', {}),
+  inspectEmailVerification: (token: string) => post('api.email_verifications.show', { token }),
   /** Confirms the address and sets the password the person chose. */
   completeEmailVerification: (input: { token: string; password: string }) =>
-    post('api.auth.verification.complete', input),
+    post('api.email_verifications.update', input),
   admissionStatus: () => request('GET', 'api.admission.show', null),
-  requestAdmission: () => post('api.admission.request', {}),
+  requestAdmission: () => post('api.admission_requests.store', {}),
   /** Creates the admitted identity's company membership; never reactivates disabled access. */
-  completeMembership: () => post('api.admission.complete', {}),
+  completeMembership: () => post('api.memberships.store', {}),
 };

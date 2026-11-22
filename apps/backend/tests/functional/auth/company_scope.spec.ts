@@ -31,17 +31,20 @@ async function outsider(client: any) {
 }
 
 async function refusals(client: any, cookie: string) {
-  const status = await client.get('/api/masquerade').withCookie('adonis-session', cookie).send();
+  const status = await client
+    .visit('api.masquerade.show')
+    .withCookie('adonis-session', cookie)
+    .send();
   status.assertStatus(200);
   const company = await client
-    .put('/api/companies/a-studio/getting-started')
+    .visit('api.getting_started.update', { companyId: 'a-studio' })
     .header('sec-fetch-site', 'same-origin')
     .header('X-Masquerade-Context', (status.body().data as { contextToken: string }).contextToken)
     .withCookie('adonis-session', cookie)
     .json({ dismissed: true })
     .send();
   const planning = await client
-    .get('/api/companies/a-studio/planning')
+    .visit('api.planning.show', { companyId: 'a-studio' })
     .withCookie('adonis-session', cookie)
     .send();
   return { company, planning };

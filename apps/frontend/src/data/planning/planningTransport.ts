@@ -61,7 +61,7 @@ async function sendOperation(
   signal: AbortSignal,
 ): Promise<PlanningMutationSuccess> {
   return requireReply(
-    await apiClient.request('api.planning.mutate', {
+    await apiClient.request('api.planning_mutations.store', {
       params: { companyId: context.companyId },
       body: execution,
       signal,
@@ -137,7 +137,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
       try {
         return requireReply(
           await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
-            'api.planning.undo',
+            'api.planning_undo.store',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
         ).data;
@@ -149,7 +149,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
       try {
         return requireReply(
           await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
-            'api.planning.redo',
+            'api.planning_redo.store',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
         ).data;

@@ -5,87 +5,141 @@ export interface ApiDefinition {
   api: {
     planning: {
       show: typeof routes['api.planning.show']
-      archive: typeof routes['api.planning.archive']
-      mutate: typeof routes['api.planning.mutate']
-      undo: typeof routes['api.planning.undo']
-      redo: typeof routes['api.planning.redo']
     }
-    installation: {
-      company: typeof routes['api.installation.company']
+    planningArchive: {
+      show: typeof routes['api.planning_archive.show']
+    }
+    planningMutations: {
+      store: typeof routes['api.planning_mutations.store']
+    }
+    planningUndo: {
+      store: typeof routes['api.planning_undo.store']
+    }
+    planningRedo: {
+      store: typeof routes['api.planning_redo.store']
+    }
+    firstCompanySetup: {
+      store: typeof routes['api.first_company_setup.store']
     }
     companies: {
       index: typeof routes['api.companies.index']
-      anonymise: typeof routes['api.companies.anonymise']
     }
-    transfer: {
-      preview: typeof routes['api.transfer.preview']
-      apply: typeof routes['api.transfer.apply']
+    importPreviews: {
+      store: typeof routes['api.import_previews.store']
     }
-    state: typeof routes['api.state']
-    export: typeof routes['api.export']
-    resources: {
-      anonymise: typeof routes['api.resources.anonymise']
+    imports: {
+      store: typeof routes['api.imports.store']
     }
-    exampleData: typeof routes['api.example-data']
+    companyState: {
+      show: typeof routes['api.company_state.show']
+    }
+    companyExports: {
+      show: typeof routes['api.company_exports.show']
+    }
+    companyAnonymisations: {
+      store: typeof routes['api.company_anonymisations.store']
+    }
+    resourceAnonymisations: {
+      store: typeof routes['api.resource_anonymisations.store']
+    }
+    exampleData: {
+      store: typeof routes['api.example_data.store']
+    }
     gettingStarted: {
-      show: typeof routes['api.getting-started.show']
-      update: typeof routes['api.getting-started.update']
+      show: typeof routes['api.getting_started.show']
+      update: typeof routes['api.getting_started.update']
     }
-    auth: {
-      me: typeof routes['api.auth.me']
-      signUp: typeof routes['api.auth.sign-up']
-      signIn: typeof routes['api.auth.sign-in']
-      signOut: typeof routes['api.auth.sign-out']
-      passwordConfirmation: typeof routes['api.auth.password-confirmation']
-      requestReset: typeof routes['api.auth.request-reset']
-      inspectReset: typeof routes['api.auth.inspect-reset']
-      resetPassword: typeof routes['api.auth.reset-password']
-      changePassword: typeof routes['api.auth.change-password']
-      deleteAccount: typeof routes['api.auth.delete-account']
-      verification: {
-        send: typeof routes['api.auth.verification.send']
-        inspect: typeof routes['api.auth.verification.inspect']
-        complete: typeof routes['api.auth.verification.complete']
-      }
+    session: {
+      show: typeof routes['api.session.show']
+      store: typeof routes['api.session.store']
+      destroy: typeof routes['api.session.destroy']
+    }
+    newAccount: {
+      store: typeof routes['api.new_account.store']
+    }
+    passwordConfirmations: {
+      store: typeof routes['api.password_confirmations.store']
+    }
+    passwordResetRequests: {
+      store: typeof routes['api.password_reset_requests.store']
+    }
+    passwordResets: {
+      show: typeof routes['api.password_resets.show']
+      update: typeof routes['api.password_resets.update']
+    }
+    password: {
+      update: typeof routes['api.password.update']
+    }
+    account: {
+      destroy: typeof routes['api.account.destroy']
+    }
+    emailVerificationRequests: {
+      store: typeof routes['api.email_verification_requests.store']
+    }
+    emailVerifications: {
+      show: typeof routes['api.email_verifications.show']
+      update: typeof routes['api.email_verifications.update']
     }
     members: {
       index: typeof routes['api.members.index']
-      tracking: typeof routes['api.members.tracking']
-      role: typeof routes['api.members.role']
-      status: typeof routes['api.members.status']
+      update: typeof routes['api.members.update']
     }
-    invites: {
-      create: typeof routes['api.invites.create']
-      index: typeof routes['api.invites.index']
-      resend: typeof routes['api.invites.resend']
-      revoke: typeof routes['api.invites.revoke']
-      preview: typeof routes['api.invites.preview']
-      signUp: typeof routes['api.invites.sign-up']
+    memberSignInTracking: {
+      update: typeof routes['api.member_sign_in_tracking.update']
+    }
+    memberStatus: {
+      update: typeof routes['api.member_status.update']
+    }
+    invitations: {
+      store: typeof routes['api.invitations.store']
+      index: typeof routes['api.invitations.index']
+      destroy: typeof routes['api.invitations.destroy']
+    }
+    invitationDeliveries: {
+      store: typeof routes['api.invitation_deliveries.store']
+    }
+    invitationLinks: {
+      show: typeof routes['api.invitation_links.show']
+    }
+    invitationAcceptances: {
+      store: typeof routes['api.invitation_acceptances.store']
     }
     admission: {
       show: typeof routes['api.admission.show']
-      request: typeof routes['api.admission.request']
-      complete: typeof routes['api.admission.complete']
-      index: typeof routes['api.admission.index']
-      approve: typeof routes['api.admission.approve']
-      reject: typeof routes['api.admission.reject']
-      revoke: typeof routes['api.admission.revoke']
     }
-    memberResources: {
-      set: typeof routes['api.member-resources.set']
-      clear: typeof routes['api.member-resources.clear']
+    admissionRequests: {
+      store: typeof routes['api.admission_requests.store']
+      index: typeof routes['api.admission_requests.index']
+    }
+    memberships: {
+      store: typeof routes['api.memberships.store']
+    }
+    admissionApprovals: {
+      store: typeof routes['api.admission_approvals.store']
+    }
+    admissionRejections: {
+      store: typeof routes['api.admission_rejections.store']
+    }
+    admissionRevocations: {
+      store: typeof routes['api.admission_revocations.store']
+    }
+    memberResourceLinks: {
+      update: typeof routes['api.member_resource_links.update']
+      destroy: typeof routes['api.member_resource_links.destroy']
     }
     masquerade: {
-      start: typeof routes['api.masquerade.start']
-      status: typeof routes['api.masquerade.status']
-      end: typeof routes['api.masquerade.end']
+      store: typeof routes['api.masquerade.store']
+      show: typeof routes['api.masquerade.show']
+      destroy: typeof routes['api.masquerade.destroy']
     }
-    ownership: {
-      transfer: typeof routes['api.ownership.transfer']
+    ownershipTransfers: {
+      store: typeof routes['api.ownership_transfers.store']
     }
     health: typeof routes['api.health']
-    diagnostics: typeof routes['api.diagnostics']
-    notFound: typeof routes['api.not-found']
+    diagnostics: {
+      show: typeof routes['api.diagnostics.show']
+    }
+    notFound: typeof routes['api.not_found']
   }
   healthChecks: {
     live: typeof routes['health_checks.live']
