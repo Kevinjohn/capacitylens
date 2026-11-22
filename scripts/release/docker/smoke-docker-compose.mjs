@@ -48,7 +48,7 @@ const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
 assert.ok(setupLink, 'The bootstrap command printed no setup link.');
 const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
 
-const signup = await fetch(`${baseUrl}/api/invites/${setupToken}/signup`, {
+const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/signup`, {
   method: 'POST',
   headers: json,
   body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),

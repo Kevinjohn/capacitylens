@@ -33,8 +33,8 @@ const reviewedUnclassified = [
   'POST /api/auth/verification/send [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/auth/verification/inspect [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/auth/verification/complete [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
-  'GET,HEAD /api/invites/:token/preview [UNCLASSIFIED READ] (Account Kit blocker registered)',
-  'POST /api/invites/:token/signup [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
+  'GET,HEAD /api/invitations/:token/preview [UNCLASSIFIED READ] (Account Kit blocker registered)',
+  'POST /api/invitations/:token/signup [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'GET,HEAD /api/masquerade [UNCLASSIFIED READ]',
   'GET,HEAD /api/health [UNCLASSIFIED READ]',
   'GET,HEAD /health/live [UNCLASSIFIED READ]',
@@ -49,7 +49,7 @@ const sensitiveReads = [
   'GET,HEAD /api/companies [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/companies/:companyId/getting-started [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/companies/:companyId/members [BUSINESS READ] (sensitive)',
-  'GET,HEAD /api/companies/:companyId/invites [BUSINESS READ] (sensitive)',
+  'GET,HEAD /api/companies/:companyId/invitations [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/admission [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/admission/requests [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/diagnostics [BUSINESS READ] (sensitive)',
@@ -96,7 +96,9 @@ test.group('view-as route classification', () => {
       .map((route) => route.pattern);
     const ownAccount = reviewedUnclassified
       .map((line) => line.split(' ')[1]!)
-      .filter((pattern) => pattern.startsWith('/api/auth/') || pattern.startsWith('/api/invites/'))
+      .filter(
+        (pattern) => pattern.startsWith('/api/auth/') || pattern.startsWith('/api/invitations/')
+      )
       .filter((pattern) => pattern !== '/api/auth/sign-out');
     assert.sameMembers(blocked, ownAccount);
   });

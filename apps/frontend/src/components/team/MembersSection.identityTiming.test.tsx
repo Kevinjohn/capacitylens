@@ -35,7 +35,7 @@ beforeEach(async () => {
       if (holdDirectory) return holdDirectory;
       return directory();
     },
-    'GET /invites': () =>
+    'GET /invitations': () =>
       jsonResponse({
         data: {
           invites: [
@@ -49,7 +49,7 @@ beforeEach(async () => {
           ],
         },
       }),
-    'POST /api/invites': () => {
+    'POST /api/invitations': () => {
       writes += 1;
       return heldMutation ?? jsonResponse({ data: { emailed: true } }, 201);
     },
@@ -70,7 +70,7 @@ beforeEach(async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).endsWith('/invites') && (init?.method ?? 'GET') === 'GET') {
+      if (String(url).endsWith('/invitations') && (init?.method ?? 'GET') === 'GET') {
         invitationReads += 1;
       }
       if (String(url).includes('/api/masquerade')) {

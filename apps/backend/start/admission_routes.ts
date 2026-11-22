@@ -12,20 +12,25 @@ import { controllers } from '#generated/controllers';
 /** Registers invitation, admission and member resource routes. */
 export function registerAdmissionRoutes() {
   router
-    .post('/invites', [controllers.Invitations, 'store'])
+    .post('/invitations', [controllers.Invitations, 'store'])
     .use([middleware.accountGate({ access: 'admitted' }), ...asMember()]);
   router
-    .get('/companies/:companyId/invites', [controllers.Invitations, 'index'])
+    .get('/companies/:companyId/invitations', [controllers.Invitations, 'index'])
     .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMemberOnly()]);
   router
-    .post('/companies/:companyId/invites/:id/resend', [controllers.InvitationDeliveries, 'store'])
+    .post('/companies/:companyId/invitations/:id/resend', [
+      controllers.InvitationDeliveries,
+      'store',
+    ])
     .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
   router
-    .delete('/companies/:companyId/invites/:id', [controllers.Invitations, 'destroy'])
+    .delete('/companies/:companyId/invitations/:id', [controllers.Invitations, 'destroy'])
     .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
-  router.get('/invites/:token/preview', [controllers.InvitationLinks, 'show']).use(asOwnAccount());
   router
-    .post('/invites/:token/signup', [controllers.InvitationAcceptances, 'store'])
+    .get('/invitations/:token/preview', [controllers.InvitationLinks, 'show'])
+    .use(asOwnAccount());
+  router
+    .post('/invitations/:token/signup', [controllers.InvitationAcceptances, 'store'])
     .use(asOwnAccount());
 
   router

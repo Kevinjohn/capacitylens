@@ -18,7 +18,7 @@ test.describe('invitation page', () => {
   test('a maximum-length address wraps within a narrow invitation page', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 1000 });
     const email = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(57)}.test`;
-    await page.route('**/api/invites/*/preview', (route) =>
+    await page.route('**/api/invitations/*/preview', (route) =>
       route.fulfill({
         json: {
           data: { companyId: 'a-studio', companyName: 'Wayne Enterprises', role: 'editor', email },

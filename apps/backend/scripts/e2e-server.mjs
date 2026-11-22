@@ -130,7 +130,7 @@ child.on('exit', (code, signal) => {
 
 async function establishAuthFixtureBaseline(signal) {
   const origin = env.CAPACITYLENS_PUBLIC_URL;
-  const setup = await fetch(`${origin}/api/invites/${baselineToken}/signup`, {
+  const setup = await fetch(`${origin}/api/invitations/${baselineToken}/signup`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
     signal,

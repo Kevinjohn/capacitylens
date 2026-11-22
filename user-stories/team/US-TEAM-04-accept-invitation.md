@@ -6,7 +6,7 @@ As an invited person, I want to accept my email invitation so that I can request
 **Access:** Person with a valid invitation
 **Entry:** Invitation email → Accept invitation
 **Documentation:** [Join your team](../../docs-src/using/join-your-team.md#accept-an-invitation)
-**Source:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx)
+**Source:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx)
 
 ## Acceptance criteria
 
@@ -42,4 +42,4 @@ flowchart TD
     PreviewRoute -. "Invalid or expired token" .-> Error["InviteAccept shows invitation error"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)

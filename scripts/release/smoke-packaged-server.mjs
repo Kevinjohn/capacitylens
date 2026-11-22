@@ -253,7 +253,7 @@ export async function runPackagedSmoke({
     const { url: setupLink } = JSON.parse(bootstrap.stdout);
     assert.ok(setupLink, 'The packaged bootstrap command printed no setup link.');
     const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
-    const signup = await fetch(`${baseUrl}/api/invites/${setupToken}/signup`, {
+    const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/signup`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
