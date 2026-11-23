@@ -1,6 +1,8 @@
 # Standing decisions
 
-This is the short, present-tense record of decisions that constrain future work.
+This is the short, present-tense record of the product rules the owner has set and of the places
+the code still differs from the framework. How a behaviour works in detail is in the user stories
+and the tests, not here.
 
 ## Product
 
@@ -105,26 +107,14 @@ This is the short, present-tense record of decisions that constrain future work.
   same transaction; reusing a committed identity returns 409. When a write's reply is lost, the
   browser refetches, shows the server's state, clears undo history and asks the person to check
   that their change is there. It never replays the write.
-- Undo and redo are held on the server in one history row per company for its last writer, keyed
-  to that writer's sign-in, the page's history id and the company revision. The row holds up to 50
-  changes, and its stored inverses never leave the server. Deleted planning rows remain in their
-  own tables under package-managed soft deletion, bound to a session, actor and company through the
-  recovery ledger. Restore is one atomic operation under current authorization;
-  internal deletion fields and hidden values never leave the server.
-  Restoration groups are removed in the same transaction as anonymisation and import.
-  A change to a client or project privacy or code-name field, or to an activity kind, also clears that company's
-  pending tombstones in the change transaction. Those retained records can contain names or
-  relationships that should no longer be restorable under the new visibility rules. Unchanged
-  privacy fields and ordinary settings edits keep the groups. Changing this rule later requires
-  a way to prove old hidden recovery data remains safe to restore.
-  Before a change clears pending recovery data, one confirmation shows the number of saved
-  deleted records: “This change clears N restorable items”. Links to surviving rows are excluded.
-  Zero-item and no-change saves skip the warning. Cancellation leaves data and recovery unchanged;
-  confirmation stays bound to the original company revision and current cleanup count.
-  Undo and redo write audit rows. History survives a same-revision refetch and is cleared by anyone
-  else's change, a context change, a reload, a lost reply, a privacy, code-name or activity-kind
-  change, anonymisation, import, a change with no inverse and a refused step. There is no
-  cross-device undo.
+- Undo and redo are held on the server, per company, for its last writer. Stored inverses never
+  leave the server, undo and redo write audit rows, and there is no cross-device undo.
+- Deleted planning rows stay restorable through package-managed soft deletion. Restore is one
+  atomic operation under current authorisation; internal deletion fields and hidden values never
+  leave the server. A change to a client or project privacy or code-name field, or to an activity
+  kind, clears that company's restorable rows in the same transaction, after one confirmation that
+  states how many; anonymisation and import clear them too. Relaxing this needs a way to prove
+  old hidden recovery data is still safe to restore.
 - Ordinary writes reject invalid supplied input; nothing is repaired on the way in. Blind writers
   cannot echo hidden names or notes, so an unrelated edit preserves protected stored values.
   Unknown request fields are stripped by the validator. Identity, membership and import routes
@@ -153,11 +143,13 @@ This is the short, present-tense record of decisions that constrain future work.
   sessions and tokens, every membership and the member/person link. An Owner must transfer
   ownership first. Invitations the person sent stay acceptable with their inviter cleared. The person
   resource and audit rows keep the former user id as history.
-- Editor and up may change company-wide planning and display configuration (company name,
-  scheduling mode, disciplines, colour mode, feature visibility). Identity, membership, privacy,
+- Editor and up may change company-wide planning and display configuration (scheduling mode,
+  disciplines, colour mode, feature visibility). Identity, membership, privacy,
   lifecycle, import and erasure keep their Owner/Admin gates.
 - Time zone and week start are chosen when the company is created and cannot be changed
-  afterwards; a field that was never stored accepts its first value.
+  afterwards; a field that was never stored accepts its first value. The company name is set at
+  setup and shown in Settings, which has no rename control; the settings update on the server
+  still accepts a name (#2461, deferred).
 - Colours come from the preset palette. Ordinary writes reject anything else.
 - Client/project privacy is opt-in and Owner-managed. Real names remain stored; only Owners receive
   them. Every other role receives the quoted code name, and non-Owner writes preserve the protected
@@ -176,15 +168,13 @@ This is the short, present-tense record of decisions that constrain future work.
   behind the sign-in wall.
 - Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
   an online backup before migrating; the backup is the rollback. There are no down migrations and
-  no checksum ledger.
-- An online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
-  configured number of verified bundles on local storage. Pre-migration bundles and reset archives
-  stay outside scheduled retention. Failures are logged or returned by the operator command.
-- Account operations record receipts inside the caller's transaction. Receipts are scoped to one
-  actor's operation, so the same idempotency and command id headers sent by another actor or for another operation run
-  as a new operation.
-- Completed request receipts are deleted 24 hours after their last update, at startup and hourly.
-  Pending receipts stay. An operation retried after its receipt is deleted runs as a new operation.
+  no checksum ledger (#2437 reduces the startup schema check to the migration record).
+- An online SQLite backup runs at startup and on a schedule, with count-based retention of
+  verified bundles on local storage. Pre-migration bundles and reset archives stay outside
+  scheduled retention. Failures are logged or returned by the operator command.
+- Account operations record receipts inside the caller's transaction, scoped to one actor's
+  operation. Completed receipts are pruned on a schedule; an operation retried after its receipt
+  is gone runs as a new operation.
 
 ## Browser data
 
@@ -192,11 +182,10 @@ This is the short, present-tense record of decisions that constrain future work.
   slice is a non-persisted cache replaced from server reads, or advanced by the rows a committed
   write's receipt returns; it is never authoritative.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
-- Each server dataset has one home in the browser. The store owns the planning cache and every
-  dataset that store logic reads, such as the company directory. TanStack Query owns server reads
-  that one screen reads and no store logic reads: archive recovery, the ownership transfer
-  candidates, and the team members and invitations. No dataset is held in both. Undo history is
-  held by the server; the planning cache keeps only the page's history id.
+- Each server dataset has one home in the browser. TanStack Query owns server reads. The store
+  owns the planning cache and the company directory, which store logic reads. No dataset is held
+  in both (#2447 moves the remaining hand-written reads). Undo history is held by the server; the
+  planning cache keeps only the page's history id.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.
 
@@ -241,62 +230,42 @@ This is the short, present-tense record of decisions that constrain future work.
   members are deferred; the operator's kit commands cover recovery.
 - Ownership transfer, whole-company import and company-wide people anonymisation each require a
   password confirmation for that action; no time-based fresh-session window replaces it.
-- A password confirmation is single-use, lasts five minutes and binds the real user, Kit
-  session, live credential revision, company, action and exact intent. It verifies the current
-  password and is spent in the same transaction as the change, including ownership transfer's
-  idempotency execution boundary.
-- Both the check before confirming and the check inside the transaction require a confirmed
-  address, admission, a live Owner and no view-as mode. Credential writes stay with Account Kit.
-- Wrong passwords are limited per account before hashing: five failures per minute, then a
-  20-minute block. A successful confirmation resets only that account's budget.
-- Cleaning up old confirmations never fails the confirmation being issued.
+- A password confirmation is single-use and short-lived, and binds the real user, Kit session,
+  live credential revision, company, action and exact intent. It verifies the current password
+  and is spent in the same transaction as the change. Wrong passwords are rate-limited per
+  account. Credential writes stay with Account Kit.
 - Deleting an account also requires a password confirmation for that action, scoped to the person
   with no company permission and spent just before the deletion.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
 - Production requires an HTTPS public URL; plain HTTP is accepted only for loopback development.
-- The first identity comes from the operator's bootstrap invitation. Accepting it sets that person's
-  password; on an empty installation the sole admitted identity then enters a company name in the
-  browser and becomes its Owner. The current session, absence of companies/memberships and
-  sole-user identity are checked under the transaction lock, and defaults, Internal client,
-  membership, revision and audit commit together. The server refuses open sign-up until the first
-  company exists, even when open sign-up is enabled in configuration, and rechecks this under the
-  transaction lock used by identity creation. The controlled first identity can still sign in and
-  finish setup. Once the first company exists, the configured sign-up rules apply. The
-  stopped-server operator initialiser remains a recovery option, never the normal install path, and
-  also requires an admitted identity. Neither path creates credentials or changes identity
-  admission. No environment variable grants company ownership.
-  A development-only demo command may, on an empty disposable database, create the demo company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
-- The development bootstrap identity is the one account created outside the kit, already
-  confirmed and with a known password; the kit creates an account only unconfirmed, with a mailed
-  proof. Production refuses the setting that enables it.
+- The first identity comes from the operator's bootstrap invitation. On an empty installation
+  that sole admitted identity names the company in the browser and becomes its Owner, in one
+  transaction. Open sign-up is refused until the first company exists, whatever the
+  configuration. The stopped-server operator initialiser is a recovery option, never the install
+  path, and also requires an admitted identity. Neither path creates credentials or changes
+  identity admission. No environment variable grants company ownership.
+- A development-only demo command may create the demo company on an empty disposable database
+  and make the development bootstrap identity its Owner. That identity is the one account created
+  outside the kit. Production refuses both the command and the setting that enables the identity.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.
 - Members and schedulable Resources are separate records linked explicitly. Adding a Resource never
   grants access; inviting a member never creates a person. Team & access is visible to every role;
   only Owner/Admin see invitation and access-management controls.
-- View as member is identity-wide and read-only, with durable lifecycle audit and a fixed 15-minute
-  expiry. Every signed-in session observes the same mode on its next request; focus and visibility
-  reconciliation refresh the browser. Company navigation ends the mode globally; signing out ends
-  only the current session. Each company request checks both real-actor and target permissions. No
-  failed target check falls back to actor permissions. A member may be viewed only by someone whose
-  role in that company ranks at or above theirs, so an Admin cannot view as the Owner. The rank is
-  rechecked on every request; a target promoted above the viewer ends the view for that company.
-- The product transaction revalidates the real actor/session and the company/target access
-  captured before it. Already-admitted operator requests may finish after start; already-admitted
-  target requests remain read-only after stop. Covered writes require the context captured for the
-  action, including idle-mode writes; stale actions are refused and never automatically replayed.
+- View as member is identity-wide, read-only, audited and time-limited. A member may be viewed
+  only by someone whose role in that company ranks at or above theirs, so an Admin cannot view as
+  the Owner; the rank is rechecked on every request. Each company request checks both the real
+  actor's and the target's permissions, and a failed target check never falls back to the
+  actor's. No route allows a write under view-as, and a request carrying a stale view-as context
+  is refused, reads included.
 - Every route is gated by name before its handler runs: public routes pass, limited routes need a
   valid sign-in, and every other route also needs a confirmed address and admission. A named route
-  in no list gets the strictest check; unnamed routes (the health probes and the application shell)
-  have no gate. The gate adds an early refusal; it does not replace the check inside the product
-  transaction.
-- Each route declares its view-as rule where it is registered. No route allows writes under
-  view-as; some reads are refused outright, and a request carrying a stale view-as context is
-  refused, reads included.
-- View-as control state and events stay in database backups, outside scheduling exports.
-- View-as events are kept for 365 days; a regular pass ends expired modes and deletes older events.
+  in no list gets the strictest check. The gate adds an early refusal; it does not replace the
+  check inside the product transaction.
+- View-as control state and events stay in database backups, outside scheduling exports. Events
+  are pruned on a schedule.
 - Unsafe requests are accepted only from the public URL's origin or a configured extra origin;
   outside production with none configured, the local development origins are trusted. A refusal
   still carries the security headers. HSTS is sent only when the public URL is HTTPS. There is no
@@ -309,28 +278,39 @@ This is the short, present-tense record of decisions that constrain future work.
   password resets only.
 - Errors on data paths are surfaced, not swallowed.
 
+## Data design
+
+These are the product's own data choices. They are not views on the framework, and a later product
+does not inherit them.
+
+- Ordinary planning edits go through one mutation route whose validated intent names the
+  operation, plus undo and redo, because each edit carries the company revision and writes one
+  audit row and one history step. Import, anonymisation and example data have their own routes.
+  There are no per-entity resource routes for planning edits.
+- Planning entities, companies and users have string primary keys; the browser mints the id of
+  a row a person creates. Bookkeeping and package-owned tables keep their own keys.
+
 ## AdonisJS framework departures
 
-The AdonisJS documentation is the structural reference. These choices deliberately differ from
-framework defaults; any other departure needs a decision recorded here first. An entry that ends
-with "Revisit" was recorded on 2026-11-21 after the framework comparison in #2334 and may be
-reopened there.
+The AdonisJS documentation is the reference. A departure is a cost every later product built
+from this codebase inherits, so prefer aligning. A new departure needs the owner's ruling. An
+entry marked **Aligning** is being removed by the issue it names; the code may still differ until
+that issue lands. Every other entry is kept for the reason it gives. Numbers are stable: a
+removed entry retires its number.
 
 1. The shared package is imported by the backend and the SPA. It contains pure domain rules and wire
    types, never backend code.
-2. Every error leaves in the product's flat error contract, not the framework's default body; the
-   exception handler maps each error itself and does not call `super.handle` or `super.report`,
-   because they would log the error message and answer in a second shape. Empty strings are not
-   converted to null; empty optionals are `null` on the wire, in storage and in the export.
-   Revisit: #2334 item 3.
+2. **Aligning (#2457).** The exception handler maps every error itself and does not call
+   `super.handle` or `super.report`. Kept from this entry: empty strings are not converted to
+   null; empty optionals are `null` on the wire, in storage and in the export.
 3. Product models fail closed without an explicit company scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
 4. Columns are snake_case. The row transformer produces the camelCase wire format from each
    model's column serialisation and the state transformer projects it for the reader's role.
-   Calendar dates are date-only strings and flags are boolean columns. Product instants are Lucid
-   date-time columns that store and serialise the canonical UTC ISO string with milliseconds, not
-   Lucid's SQLite date-time format.
+   Calendar dates are date-only strings and flags are boolean columns. Product instants are
+   stored and sent as the canonical UTC ISO string with milliseconds. **Aligning (#2442):** the
+   hand-written column helpers give way to Lucid's own wherever Lucid produces that value.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
 6. The backend serves the SPA with the product security headers and a history fallback rather than
@@ -338,24 +318,19 @@ reopened there.
 7. The SQLite pool is one connection, configured when it is created. Network, mail and password
    hashing stay outside transactions.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
-9. The TanStack Query cache is used for account and admin reads only; planning data lives in the
-   planning slice (see Browser data).
-10. Product services are modules of exported functions and do not use `@inject`. A mutating
-    service receives its transaction as an argument; package services are resolved with
-    `app.container.make` where they are used. Service files carry no `_service` suffix.
-    Revisit: #2334 item 6.
+9. Retired. See Browser data.
+10. **Aligning (#2458).** Product services are modules of exported functions without `@inject`
+    or a `_service` suffix, and package services are resolved with `app.container.make`. Kept
+    from this entry: a mutating service receives its transaction as an argument.
 11. A company permission is authorised inside the product transaction through the Access
     Control package, after the route middleware has checked membership. Controllers do not
     call Bouncer and the product has no policies or abilities of its own.
-12. Reads of planning tables that have a company-scoped model go through that model. Writes,
-    eligibility checks inside a write, checks that must see other companies or soft-deleted
-    rows, and tables without a model use the query builder on the caller's connection. Account
-    Kit creates identities through the `User` model.
-13. Ordinary planning edits go through one mutation route whose validated intent names the
-    operation, plus undo and redo. Import, anonymisation and example data have their own
-    routes. There are no per-entity resource routes.
-14. Planning entities, companies and users have string primary keys. Bookkeeping and
-    package-owned tables keep their own keys.
+12. **Aligning (#2459).** Reads of planning tables that have a company-scoped model go through
+    that model, while writes use the query builder on the caller's connection. Kept from this
+    entry: checks that must see other companies or soft-deleted rows, and tables without a
+    model, use the query builder. Account Kit creates identities through the `User` model.
+13. Retired. See Data design.
+14. Retired. See Data design.
 15. The Node server is created by `bin/server.ts` with fixed connection limits, and a
     client-supplied request id is discarded (`start/resource_limits.ts`).
 16. The backend's runtime framework packages are pinned to exact versions; it is not published.
@@ -363,30 +338,29 @@ reopened there.
     never reach Account Kit then run each test inside a global transaction; the rest reset rows
     through fixture helpers, because Account Kit refuses a connection already in a transaction and
     the rate limiter's database store waits for the one pooled connection the transaction holds.
-18. Routes are registered from one file per area in `start/`. Prettier keeps semicolons.
+18. Retired. One routes file per area is not a departure, and formatting belongs to the
+    Prettier configuration.
 19. The exception handler shows debug output in development only (`debug = app.inDev`), so the
     test environment answers with the same error bodies as production.
 20. A type used by one file stays in it. A type shared across files goes in the feature's
-    `types.ts` or `app/types/`; there is no `types/` folder for every declaration. Revisit: #2334
-    item 7.
+    `types.ts` or `app/types/`; there is no `types/` folder for every declaration.
 21. Before the first release there is one baseline migration without `down()`, and it is edited
     in place: no installed database exists, and the alpha tags that carried it do not make it
     released (#2345 decision D4). Released migrations are append-only. Production refuses rollbacks
-    (`disableRollbacksInProduction`). Revisit: #2334 item 8.
+    (`disableRollbacksInProduction`).
 22. A validator reads one request source: the body for a write and the query string for a read,
     passed as `validateUsing(validator, { data })`. It never validates the merged `request.all()`,
-    so a credential is never accepted from a URL. Revisit: #2334 item 15.
+    so a credential is never accepted from a URL.
 23. Operator commands are tested by starting the CLI in its own process, with its own database
     file, environment and exit code, because their lock and exit-code contract is a process
-    boundary. They are not tested in process with `ace.create`. Revisit: #2334 item 17.
-24. Account Kit checks credentials. The `User` model does not compose `withAuthFinder`, and no
-    product code calls `verifyCredentials`: sign-in, sessions and password checks are the kit's.
-    Provisional: accepted on 2026-11-21 so work can proceed, and to be reviewed again before the
-    first release. Revisit: #2334 item 1.
+    boundary. They are not tested in process with `ace.create`.
+24. **Aligning (#2352, waiting on package releases).** Account Kit checks credentials. The
+    `User` model does not compose `withAuthFinder`, and no product code calls
+    `verifyCredentials`: sign-in, sessions and password checks are the kit's.
 25. The view-as control actions (`store`, `show`, `destroy` in `masquerade_controller.ts`) take the
     whole HTTP context and pass it to the Masquerade service. The service treats the context as the
     request: it admits each request once, authenticates through its guard and reads its route
-    parameters. Every other controller action destructures. Revisit: #2334 item 4.
+    parameters. Every other controller action destructures.
 
 ## Installation
 
@@ -424,9 +398,9 @@ reopened there.
   of them is a separate product decision supported by validation, never a side effect of updating a
   package.
 - Keep formatting, type checking, lint, dependency security checks, product builds and meaningful
-  unit, functional and browser tests. No coverage floor, file-size cap, test-size cap, suppression
-  ratchet or custom structural rule. Add a focused check only when experience shows it protects a
-  concrete invariant.
+  unit, functional and browser tests. No coverage floor, file-size cap, test-size cap or
+  suppression ratchet. A mechanical check is added only for a rule the owner has set (the
+  terminology check, #2435, is one) or when experience shows it protects a concrete invariant.
 - Local commands and CI validate the same behaviour. A test run passes only when its process exits.
 - The browser-test reset switch stays: it is the only switch that loads the browser-test worker
   reset harness, and production refuses to start with it set. There is no HTTP reset route.
@@ -436,12 +410,6 @@ reopened there.
 - A module owns one named behaviour. Follow the framework's and the surrounding code's conventions
   for structure and names. Preserve visible orchestration, transaction order and failure
   propagation when extracting.
-- Public wire fields, stable identifiers and shipped data formats are not renamed as part of
-  structural cleanup.
-
-## Open for review
-
-Decisions taken during delivery that the owner has not yet confirmed; an entry leaves this section
-when confirmed or reversed.
-
-- None recorded.
+- External names (wire fields, route paths, error codes, the export format, table and column
+  names) follow the terminology dictionary. Once a release is tagged, renaming one is a breaking
+  change and needs the owner's ruling.
