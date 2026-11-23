@@ -19,7 +19,6 @@ import {
   writeFileSync,
   renameSync,
   rmdirSync,
-  statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -38,8 +37,6 @@ import {
 import { portInUse } from '../../tooling/devProcesses.mjs';
 
 const MUTEX_STALE_MS = 30_000;
-// File-format mutexes need a grace period because the owner can be written after the path becomes visible.
-const LEGACY_PUBLISH_GRACE_MS = 5_000;
 const MUTEX_WAIT_ARRAY = new Int32Array(new SharedArrayBuffer(4));
 let claimSequence = 0;
 
@@ -103,24 +100,7 @@ function withMutex(directory, body) {
       releaseMutex(temporary, ownerName);
       if (!['EEXIST', 'ENOTEMPTY', 'EISDIR', 'ENOTDIR'].includes(error.code)) throw error;
       const holder = readMutexOwner(path);
-      // An empty file-format mutex may still belong to a paused publisher; allow the publication grace period before reaping it.
-      if (holder?.legacy && (holder.corrupt || !Number.isInteger(holder.pid) || holder.pid <= 0)) {
-        if (legacyMutexAbandoned(path)) {
-          removeLegacyMutex(path);
-          continue;
-        }
-        if (Date.now() > deadline)
-          throw new Error(`lane: the legacy claim mutex at ${path} has no valid owner.`, {
-            cause: error,
-          });
-        Atomics.wait(MUTEX_WAIT_ARRAY, 0, 0, 10);
-        continue;
-      }
       if (holder && !processAlive(holder.pid)) {
-        if (holder.legacy) {
-          removeLegacyMutex(path);
-          continue;
-        }
         // A second reaper can remove only this dead owner's unique file. A successor's different
         // owner file keeps its directory nonempty, so rmdir cannot remove the successor's lock.
         releaseMutex(path, holder.name);
@@ -146,27 +126,6 @@ function withMutex(directory, body) {
   }
 }
 
-function legacyMutexAbandoned(path) {
-  try {
-    return Date.now() - statSync(path).mtimeMs > LEGACY_PUBLISH_GRACE_MS;
-  } catch (error) {
-    // A vanished mutex is no longer reapable; rethrow other stat failures because owner safety remains unknown.
-    if (error.code === 'ENOENT') return false;
-    throw error;
-  }
-}
-
-// Unlinking a file-format mutex cannot remove a directory-format successor.
-function removeLegacyMutex(path) {
-  try {
-    unlinkSync(path);
-  } catch (error) {
-    // Ignore missing paths and directory-unlink errors; other failures surface.
-    // EPERM is accepted because platforms may use it for directory unlink.
-    if (!['ENOENT', 'EISDIR', 'EPERM'].includes(error.code)) throw error;
-  }
-}
-
 function readMutexOwner(path) {
   try {
     const [name] = readdirSync(path);
@@ -174,12 +133,8 @@ function readMutexOwner(path) {
     const claim = readClaim(join(path, name));
     return claim ? { ...claim, name } : null;
   } catch (error) {
-    // A disappeared path is unowned; inspect regular-file claims for compatibility and rethrow every other directory-read failure.
+    // A disappeared path is unowned; rethrow every other directory-read failure.
     if (error.code === 'ENOENT') return null;
-    if (error.code === 'ENOTDIR') {
-      const claim = readClaim(path);
-      return claim ? { ...claim, legacy: true } : null;
-    }
     throw error;
   }
 }
