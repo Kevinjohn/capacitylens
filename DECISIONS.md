@@ -390,13 +390,14 @@ reopened there.
 
 ## Installation
 
-- Installation is one runnable release archive, and the installed server runs with production
-  defaults. Its install script, which runs the manual steps as root on a systemd host, is the
-  default path. It never rewrites an existing environment file; running a newer release's script
-  without arguments is the upgrade. Backup scheduling stays in the web provider. The manual steps
-  remain the documented fallback. Company naming then happens in the browser. The hosting operator
-  owns upgrades, backups and service maintenance; the company Owner is not expected to maintain
-  hosting alone.
+- Installation is from the repository: clone it at a release tag, install, build and run. The
+  installed server runs with production defaults. There is no release archive and no install
+  script (#2436 removes them); the documented steps are the installation. The upgrade is the same
+  steps at a newer tag, then `app:upgrade`. Backup scheduling stays in the web provider. Company
+  naming then happens in the browser. The hosting operator owns upgrades, backups and service
+  maintenance; the company Owner is not expected to maintain hosting alone.
+- The repository and the tagged container images are the only distribution channels. Another
+  channel, packaging format or platform build needs an owner decision recorded here first.
 - Native Node with a loopback TLS proxy on the same machine is the expected installation. The
   operator owns that proxy; the server's HSTS header is host-only. Container images are optional
   and are a release output only: they are built, smoke-tested and published when a release is
