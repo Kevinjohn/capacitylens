@@ -7,6 +7,11 @@ import {
 } from '#services/installation_company';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
+import {
+  authenticatedDataClient,
+  createFixtureCompanyForOwner,
+  resetAuthenticatedData,
+} from '#tests/helpers/authenticated_data_fixture';
 
 test.group('installation company', (group) => {
   group.setup(() => freshDatabase());
@@ -41,5 +46,16 @@ test.group('installation company', (group) => {
           'This installation has more than one company. Accounts need a single-company database.',
       });
     }
+  });
+
+  test('fails closed on a multi-company directory without offering a selection', async ({
+    client,
+  }) => {
+    const session = await resetAuthenticatedData(client, false);
+    await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises');
+    await createFixtureCompanyForOwner(session.userId, 'Stark Industries');
+    const owner = authenticatedDataClient(client, session.cookie);
+    const directory = await owner.visit('api.companies.index').send();
+    directory.assertStatus(409);
   });
 });

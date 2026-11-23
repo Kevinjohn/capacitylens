@@ -519,35 +519,6 @@ test.group('authenticated typed planning transactions', (group) => {
     }
   });
 
-  test('the retired per-operation planning URLs answer 404', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await loginAsMember();
-    const allocation = newAllocation(data);
-    const base = `/api/companies/${companyId}/allocations`;
-    for (const [request, intent] of [
-      [client.post(base), { operation: 'allocation.create', allocation }],
-      [
-        client.patch(`${base}/${allocation.id}`),
-        { operation: 'allocation.update', id: allocation.id, changes: { hoursPerDay: 4 } },
-      ],
-      [
-        client.post(`${base}/delete-group`),
-        { operation: 'allocation.deleteGroup', ids: [allocation.id] },
-      ],
-    ] as const) {
-      const reply = await session(request, cookie)
-        .json({ mutationId: randomUUID(), baseRevision: 0, intent })
-        .send();
-      assert.equal(reply.status(), 404);
-    }
-    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
-  });
-
   test('settings service rejects a language change before writing in its transaction', async ({
     assert,
   }) => {

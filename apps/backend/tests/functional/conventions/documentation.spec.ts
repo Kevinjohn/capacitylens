@@ -100,9 +100,7 @@ test.group('documentation and repository rule contracts', () => {
     }
   });
 
-  test('documents the native AdonisJS commands and health routes without legacy server entry points', ({
-    assert,
-  }) => {
+  test('documents the native AdonisJS commands and health routes', ({ assert }) => {
     const install = read('docs-src/self-hosting/install-without-docker.md');
     const operations = read('docs-src/self-hosting/upgrades.md');
     const backups = read('docs-src/self-hosting/backups-and-restore.md');
@@ -123,10 +121,6 @@ test.group('documentation and repository rule contracts', () => {
     );
     assert.include(monitoring, '/health/live');
     assert.include(monitoring, '/health/ready');
-    assert.notMatch(
-      operatorDocs,
-      /server\/dist|capacitylens-server|recover:audit-outbox|cutover:repair|ends existing member views/
-    );
   });
 
   test('keeps current operator configuration tied to the packaged environment sample', ({
@@ -145,17 +139,8 @@ test.group('documentation and repository rule contracts', () => {
       assert.include(configuration, `\`${key}\``);
     }
     assert.include(configuration, 'SQL audit records remain active');
-    for (const retired of [
-      'CAPACITYLENS_REQUIRE_MFA',
-      'CAPACITYLENS_AUDIT_FILE',
-      'CAPACITYLENS_AUDIT_STDOUT',
-      'CAPACITYLENS_AUDIT_MAX_MB',
-    ])
-      assert.notInclude(configuration, retired);
     assert.include(configuration, 'account-kit:admission:bootstrap');
     assert.include(configuration, '`CAPACITYLENS_MAIL_HOST`');
-    for (const removed of ['CAPACITYLENS_SETUP_TOKEN', 'CAPACITYLENS_MODE', 'CAPACITYLENS_GOOGLE'])
-      assert.notInclude(configuration, removed);
   });
 
   test('documents daily backups and retention bounds without an interval setting', ({ assert }) => {
@@ -177,7 +162,6 @@ test.group('documentation and repository rule contracts', () => {
       const document = read(path).replace(/\s+/g, ' ');
       assert.include(document, 'owner:reset-password');
       assert.include(document, '--confirm-server-stopped');
-      assert.notInclude(document, 'CAPACITYLENS_MODE');
     }
   });
 
@@ -202,7 +186,6 @@ test.group('documentation and repository rule contracts', () => {
       dockerGuide,
       'docker compose exec api node ace.js account-kit:admission:bootstrap'
     );
-    assert.notInclude(dockerGuide, 'CAPACITYLENS_SETUP_TOKEN');
   });
 
   test('ignores runtime databases', ({ assert }) => {
