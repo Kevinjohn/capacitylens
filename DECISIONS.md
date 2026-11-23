@@ -168,7 +168,8 @@ and the tests, not here.
   behind the sign-in wall.
 - Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
   an online backup before migrating; the backup is the rollback. There are no down migrations and
-  no checksum ledger (#2437 reduces the startup schema check to the migration record).
+  no checksum ledger. Startup, readiness, diagnostics and the operator commands refuse a database
+  that has not recorded every migration the running build ships; nothing compares the schema itself.
 - An online SQLite backup runs at startup and on a schedule, with count-based retention of
   verified bundles on local storage. Pre-migration bundles and reset archives stay outside
   scheduled retention. Failures are logged or returned by the operator command.

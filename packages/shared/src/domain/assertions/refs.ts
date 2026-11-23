@@ -21,8 +21,7 @@ import {
   resolveOwnedRow,
   assertValid,
   isEffectivelyActive,
-} from '../validationLookup.js';
-import type { ValidationDataLookup } from '../validationLookup.js';
+} from '../validationRows.js';
 
 const knownResourceKinds: ReadonlySet<unknown> = new Set(RESOURCE_KINDS);
 
@@ -46,7 +45,6 @@ type ScopedRefsArgs = [
   key: ScopedEntityKey,
   record: Record<string, unknown>,
   existing?: ScopedEntity | Record<string, unknown>,
-  lookup?: ValidationDataLookup,
   options?: { fullRow?: boolean },
 ];
 
@@ -55,7 +53,6 @@ type ScopedRefsContext = {
   companyId: ID;
   record: Record<string, unknown>;
   previous: Record<string, unknown> | undefined;
-  lookupOptions: { lookup?: ValidationDataLookup };
   isPresent: (field: string) => boolean;
   isSupplied: (field: string) => boolean;
   isUnchanged: (field: string) => boolean;
@@ -63,15 +60,13 @@ type ScopedRefsContext = {
 };
 
 function createScopedRefsContext(
-  ...[data, companyId, record, existing, lookup]: [
+  ...[data, companyId, record, existing]: [
     AppData,
     ID,
     Record<string, unknown>,
     ScopedEntity | Record<string, unknown> | undefined,
-    ValidationDataLookup | undefined,
   ]
 ): ScopedRefsContext {
-  const lookupOptions = lookup === undefined ? {} : { lookup };
   const isPresent = (field: string) => record[field] !== undefined && record[field] !== null;
   const isSupplied = (field: string) => Object.prototype.hasOwnProperty.call(record, field);
   // Reading loose field names off the stored row is safe: an absent field is undefined and can
@@ -84,8 +79,7 @@ function createScopedRefsContext(
     if (!isPresent(field)) return;
     const resolved =
       typeof record[field] === 'string'
-        ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as
-            ScopedEntity | undefined)
+        ? (resolveValidationRow({ data, table, id: record[field] }) as ScopedEntity | undefined)
         : undefined;
     if (isUnchanged(field) && (resolved === undefined || isInCompany(resolved, companyId))) {
       return;
@@ -93,7 +87,7 @@ function createScopedRefsContext(
     if (
       resolved === undefined ||
       !isInCompany(resolved, companyId) ||
-      !isEffectivelyActive({ data, table, row: resolved, ...lookupOptions })
+      !isEffectivelyActive({ data, table, row: resolved })
     ) {
       throwDomainError('reference_wrong_company', message);
     }
@@ -103,7 +97,6 @@ function createScopedRefsContext(
     companyId,
     record,
     previous,
-    lookupOptions,
     isPresent,
     isSupplied,
     isUnchanged,
@@ -155,11 +148,11 @@ function assertActivityKind(context: ScopedRefsContext): void {
 }
 
 function assertActivityPhase(context: ScopedRefsContext): void {
-  const { data, companyId, record, lookupOptions, isPresent, isUnchanged } = context;
+  const { data, companyId, record, isPresent, isUnchanged } = context;
   if (!isPresent('phaseId')) return;
   const phase =
     typeof record.phaseId === 'string'
-      ? (resolveValidationRow({ data, table: 'phases', id: record.phaseId, ...lookupOptions }) as
+      ? (resolveValidationRow({ data, table: 'phases', id: record.phaseId }) as
           AppData['phases'][number] | undefined)
       : undefined;
   const ownedPhase = phase && isInCompany(phase, companyId) ? phase : undefined;
@@ -251,9 +244,9 @@ function assertResourceKindImmutable(
  * Ordinary resource updates cannot change kind.
  * @throws DomainError on a violation; callers must not persist the write. */
 export function assertScopedRefs(
-  ...[data, companyId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
+  ...[data, companyId, key, record, existing, options = {}]: ScopedRefsArgs
 ): void {
-  const context = createScopedRefsContext(data, companyId, record, existing, lookup);
+  const context = createScopedRefsContext(data, companyId, record, existing);
   if (key === 'resources') assertResourceKindImmutable(context.previous, record);
   switch (key) {
     case 'projects':
@@ -310,7 +303,6 @@ type AllocationRefsArgs = [
   hoursPerDay: number,
   projectId?: ID | null,
   existing?: Pick<Allocation, 'resourceId' | 'activityId'> & Partial<Pick<Allocation, 'projectId'>>,
-  lookup?: ValidationDataLookup,
 ];
 
 type AllocationRefsContext = {
@@ -320,14 +312,13 @@ type AllocationRefsContext = {
   existing:
     | (Pick<Allocation, 'resourceId' | 'activityId'> & Partial<Pick<Allocation, 'projectId'>>)
     | undefined;
-  lookupOptions: { lookup?: ValidationDataLookup };
 };
 
 function assertAllocationProject(
   context: AllocationRefsContext,
   activity: Activity,
 ): ID | undefined {
-  const { data, companyId, projectId, existing, lookupOptions } = context;
+  const { data, companyId, projectId, existing } = context;
   if (projectId != null && !isAllocationAttributionAllowed(activity.kind)) {
     throwDomainError(
       'allocation_project_forbidden',
@@ -344,7 +335,6 @@ function assertAllocationProject(
         table: 'projects',
         id: resolvedProjectId,
         companyId,
-        ...lookupOptions,
       })
     : undefined;
   const projectMissing = resolvedProjectId !== undefined && project === undefined;
@@ -352,7 +342,7 @@ function assertAllocationProject(
   const projectInactive =
     projectChanged &&
     project !== undefined &&
-    !isEffectivelyActive({ data, table: 'projects', row: project, ...lookupOptions });
+    !isEffectivelyActive({ data, table: 'projects', row: project });
   if (projectMissing || projectInactive) {
     throwDomainError(
       'allocation_project_inactive',
@@ -364,31 +354,19 @@ function assertAllocationProject(
 
 /** Assert an allocation's resource, activity, project and hours are valid for `companyId`. Throws a `DomainError` on a violation. */
 export function assertAllocationRefs(
-  ...[
-    data,
-    companyId,
-    resourceId,
-    activityId,
-    hoursPerDay,
-    projectId,
-    existing,
-    lookup,
-  ]: AllocationRefsArgs
+  ...[data, companyId, resourceId, activityId, hoursPerDay, projectId, existing]: AllocationRefsArgs
 ): void {
-  const lookupOptions = lookup === undefined ? {} : { lookup };
   const resource = resolveOwnedRow<Resource>({
     data,
     table: 'resources',
     id: resourceId,
     companyId,
-    ...lookupOptions,
   });
   const activity = resolveOwnedRow<Activity>({
     data,
     table: 'activities',
     id: activityId,
     companyId,
-    ...lookupOptions,
   });
   if (!resource || !activity) {
     throwDomainError(
@@ -398,7 +376,7 @@ export function assertAllocationRefs(
   }
   if (
     existing?.resourceId !== resourceId &&
-    !isEffectivelyActive({ data, table: 'resources', row: resource, ...lookupOptions })
+    !isEffectivelyActive({ data, table: 'resources', row: resource })
   ) {
     throwDomainError(
       'allocation_resource_inactive',
@@ -410,12 +388,12 @@ export function assertAllocationRefs(
   // for corrupt state. Treat a missing or cross-company project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
   const resolvedProjectId = assertAllocationProject(
-    { data, companyId, projectId, existing, lookupOptions },
+    { data, companyId, projectId, existing },
     activity,
   );
   if (
     existing?.activityId !== activityId &&
-    !isEffectivelyActive({ data, table: 'activities', row: activity, ...lookupOptions })
+    !isEffectivelyActive({ data, table: 'activities', row: activity })
   ) {
     throwDomainError(
       'allocation_activity_inactive',

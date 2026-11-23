@@ -1,4 +1,3 @@
-export type { ValidationDataLookup } from './validationLookup.js';
 export { getOwned, assertScopedRefs, assertAllocationRefs } from './assertions/refs.js';
 export {
   assertResourceKindAllowsDependents,

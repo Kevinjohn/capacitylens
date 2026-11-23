@@ -18,14 +18,13 @@ import {
   validateResourceAvailabilityPair,
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
-import type { AppData, Resource, ScopedEntityKey } from '@capacitylens/shared/types/entities';
+import type { AppData, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 import { asRecord } from '#services/planning/writer';
 import { getWeekday } from '@capacitylens/shared/lib/dateMath';
 import {
   resolveEffectiveWorkingWeek,
   hasEffectiveWeekDay,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { isUnavailable } from '@capacitylens/shared/lib/capacity';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
@@ -43,8 +42,7 @@ export type EntityWrite = {
 export function assertEntityDomain(
   write: EntityWrite,
   state: AppData,
-  lookup: ValidationDataLookup,
-  hasOtherBuiltinClient: (companyId: string, clientId: string) => boolean
+  companyWorkingDays: Weekday[]
 ) {
   const { table } = write;
   // The checks shared by several tables read fields by name.
@@ -72,7 +70,10 @@ export function assertEntityDomain(
   const ancestry = inspectLifecycleAncestry(
     table,
     row as LifecycleAncestryRow,
-    (parentTable, parentId) => lookup.row(parentTable, parentId) as LifecycleAncestryRow | undefined
+    (parentTable, parentId) => {
+      const rows: readonly { id: string }[] = state[parentTable];
+      return rows.find((parent) => parent.id === parentId) as LifecycleAncestryRow | undefined;
+    }
   );
   if (ancestry.kind === 'hidden') {
     throw new EntityWriteException(
@@ -92,14 +93,19 @@ export function assertEntityDomain(
     ) {
       throw new EntityWriteException('The built-in Internal client has a fixed name and colour.');
     }
-    if (row.builtin === true && hasOtherBuiltinClient(companyId, id)) {
+    if (
+      row.builtin === true &&
+      state.clients.some(
+        (client) => client.companyId === companyId && client.id !== id && client.builtin === true
+      )
+    ) {
       throw new EntityWriteException('This company already has its built-in Internal client.');
     }
     return;
   }
   if (table === 'disciplines') return;
   if (table !== 'allocations' && table !== 'timeOff' && table !== 'closures') {
-    assertScopedRefs(state, companyId, table, row, existing, lookup, { fullRow: true });
+    assertScopedRefs(state, companyId, table, row, existing, { fullRow: true });
   }
   if (
     table === 'phases' &&
@@ -127,14 +133,12 @@ export function assertEntityDomain(
       resourceId: id,
       merged: resource,
       existing: previous,
-      lookup,
     });
     assertResourceKindAllowsDependents({
       data: state,
       companyId,
       resourceId: id,
       mergedKind: resource.kind,
-      lookup,
     });
     const availability = validateResourceAvailabilityPair(
       resource.firstAvailableDate ?? undefined,
@@ -154,7 +158,6 @@ export function assertEntityDomain(
       activityId: id,
       merged: write.row,
       existing: write.existing,
-      lookup,
     });
   } else if (write.table === 'allocations') {
     const allocation = write.row;
@@ -165,17 +168,16 @@ export function assertEntityDomain(
       allocation.activityId,
       allocation.hoursPerDay,
       allocation.projectId ?? undefined,
-      write.existing,
-      lookup
+      write.existing
     );
     assertDateRange(allocation.startDate, allocation.endDate);
-    const resource = lookup.row('resources', allocation.resourceId) as Resource | undefined;
+    const resource = state.resources.find((item) => item.id === allocation.resourceId);
     if (resource) {
       assertAllocationPlacement({
         allocation,
         existing: write.existing,
         resource,
-        companyWorkingDays: lookup.companyWorkingDays(companyId),
+        companyWorkingDays,
       });
     }
   } else if (write.table === 'timeOff') {
@@ -185,7 +187,6 @@ export function assertEntityDomain(
       companyId,
       resourceId: timeOff.resourceId,
       existing: write.existing,
-      lookup,
     });
     assertDateRange(timeOff.startDate, timeOff.endDate);
   } else if (write.table === 'closures') {
@@ -200,15 +201,15 @@ export function assertEntityDomain(
 export function assertAllocationStartsOnWorkingDay(
   row: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  lookup: ValidationDataLookup,
-  companyId: string
+  data: Pick<AppData, 'resources'>,
+  companyWorkingDays: Weekday[]
 ) {
   if (existing && (existing.resourceId === row.resourceId || row.ignoreWorkingDays === true)) {
     return;
   }
-  const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
+  const resource = data.resources.find((item) => item.id === String(row.resourceId));
   if (!resource || typeof row.startDate !== 'string') return;
-  const effectiveWeek = resolveEffectiveWorkingWeek(resource, lookup.companyWorkingDays(companyId));
+  const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
   if (!hasEffectiveWeekDay(effectiveWeek, getWeekday(row.startDate))) {
     throw new PlanningOperationException(
       400,
@@ -226,12 +227,11 @@ export function assertAllocationStartsOnWorkingDay(
 export function assertAllocationStartIsAvailable(
   row: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  lookup: ValidationDataLookup,
-  data: Pick<AppData, 'timeOff' | 'closures'>,
+  data: Pick<AppData, 'resources' | 'timeOff' | 'closures'>,
   companyId: string
 ) {
   if (existing && existing.resourceId === row.resourceId) return;
-  const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
+  const resource = data.resources.find((item) => item.id === String(row.resourceId));
   if (!resource || typeof row.startDate !== 'string') return;
   const unavailable = isUnavailable({
     resource,

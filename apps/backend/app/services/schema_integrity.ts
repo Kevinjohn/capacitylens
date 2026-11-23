@@ -1,273 +1,49 @@
+import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
-import { SCOPED_WRITE_ORDER } from '@capacitylens/shared/types/entities';
-import { tables } from '#services/product_tables';
+import { sourceFiles } from '@adonisjs/lucid/utils';
 
-const baselineMigration = 'database/migrations/202610120001_create_capacitylens_baseline';
-
-const relationships = [
-  ['projects', 'client_id', 'clients'],
-  ['phases', 'project_id', 'projects'],
-  ['resources', 'discipline_id', 'disciplines'],
-  ['resources', 'project_id', 'projects'],
-  ['activities', 'project_id', 'projects'],
-  ['activities', 'phase_id', 'phases'],
-  ['allocations', 'resource_id', 'resources'],
-  ['allocations', 'activity_id', 'activities'],
-  ['allocations', 'project_id', 'projects'],
-  ['time_off', 'resource_id', 'resources'],
-] as const;
-
-const scopedTables = SCOPED_WRITE_ORDER.map((key) => tables[key]);
-
-const companyIndexedTables = [
-  ...scopedTables,
-  'account_member_resources',
-  'audit_entries',
-] as const;
-
-/** Account Kit storage, including the empty tables its pruning and checks still visit. */
-const accountKitTables = [
-  'account_sessions',
-  'account_invitations',
-  'account_admissions',
-  'account_transaction_lock',
-  'password_reset_tokens',
-  'email_verification_tokens',
-  'login_link_tokens',
-  'social_identities',
-  'social_transactions',
-  'social_sensitive_proofs',
-  'social_handoff_codes',
-] as const;
-
-/** Refuses a database missing Account Kit storage. */
-async function assertAccountKitStorage() {
-  const rows = (await db.from('sqlite_master').where('type', 'table').select('name')) as Array<{
-    name: string;
-  }>;
-  const existingTables = new Set(rows.map((row) => row.name));
-  const missing = accountKitTables.filter((table) => !existingTables.has(table));
-  if (missing.length) {
-    throw new Error(
-      `Database schema drift: Account Kit storage is missing (${missing.join(', ')})`
-    );
-  }
+function readMigrationsConfig() {
+  const connection = db.getRawConnection(db.primaryConnectionName);
+  if (!connection) throw new Error(`Database connection ${db.primaryConnectionName} is missing`);
+  return connection.config.migrations ?? {};
 }
 
-async function assertBaselineMigrationRecord() {
-  const rows = await db.from('adonis_schema').select('batch').where('name', baselineMigration);
-  if (
-    rows.length !== 1 ||
-    typeof rows[0]?.batch !== 'number' ||
-    !Number.isSafeInteger(rows[0].batch) ||
-    rows[0].batch < 1
-  ) {
-    throw new Error('Database schema drift: baseline migration record is missing or invalid');
-  }
+/**
+ * The migrations shipped with this build, named as Lucid records them in `adonis_schema`: read
+ * from the configured migration directories the way Lucid's migrator reads them.
+ */
+async function listShippedMigrations() {
+  const config = readMigrationsConfig();
+  const directories = config.paths?.length
+    ? config.paths
+    : [`./${app.relativePath(app.migrationsPath())}`];
+  const sources = await Promise.all(
+    directories.map((directory) => sourceFiles(app.appRoot, directory, config.naturalSort ?? false))
+  );
+  return sources.flatMap(({ files }) => files.map((file) => file.name));
 }
 
-const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim().replace(/;$/, '');
-
-async function assertIndex(table: string, column: string) {
-  const indexes = (await db.rawQuery(`PRAGMA index_list(${table})`)) as Array<{
-    name: string;
-    partial: number;
-  }>;
-  for (const { name, partial } of indexes) {
-    if (partial !== 0) continue;
-    const columns = (await db.rawQuery(`PRAGMA index_info(${name})`)) as Array<{
-      seqno: number;
-      name: string;
-    }>;
-    if (columns.sort((left, right) => left.seqno - right.seqno)[0]?.name === column) return;
-  }
-  throw new Error(`Database schema drift: ${table}.${column} index is missing`);
-}
-
-async function assertTrigger(name: string, expectedSql: string) {
-  const row = await db.from('sqlite_master').select('sql').where({ type: 'trigger', name }).first();
-  if (typeof row?.sql !== 'string' || normalize(row.sql) !== normalize(expectedSql)) {
-    throw new Error(`Database schema drift: trigger ${name} differs from the baseline`);
-  }
-}
-
-async function assertProofStorage(table: string) {
-  const references = (await db.rawQuery(`PRAGMA foreign_key_list(${table})`)) as Array<{
-    table: string;
-    from: string;
-    to: string;
-    on_delete: string;
-  }>;
-  if (
-    !references.some(
-      (reference) =>
-        reference.table === 'users' &&
-        reference.from === 'tokenable_id' &&
-        reference.to === 'id' &&
-        reference.on_delete === 'CASCADE'
-    )
-  ) {
-    throw new Error(`Database schema drift: ${table} user cascade is missing`);
-  }
-  const indexes = (await db.rawQuery(`PRAGMA index_list(${table})`)) as Array<{
-    name: string;
-    unique: number;
-    partial: number;
-  }>;
-  const uniqueColumns = new Set<string>();
-  for (const index of indexes) {
-    if (index.unique !== 1 || index.partial !== 0) continue;
-    const indexed = (await db.rawQuery(`PRAGMA index_info(${index.name})`)) as Array<{
-      name: string;
-    }>;
-    const only = indexed.at(0);
-    if (indexed.length === 1 && only) uniqueColumns.add(only.name);
-  }
-  if (!uniqueColumns.has('tokenable_id') || !uniqueColumns.has('hash')) {
-    throw new Error(`Database schema drift: ${table} proof uniqueness is missing`);
-  }
-}
-
-/** Package storage: only that the table exists and has the columns product code reads or joins on. */
-async function assertPackageColumns(table: string, readColumns: readonly string[]) {
-  const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-  if (columns.length === 0) throw new Error(`Database schema drift: ${table} is missing`);
-  const present = new Set(columns.map(({ name }) => name));
-  for (const column of readColumns) {
-    if (!present.has(column)) {
-      throw new Error(`Database schema drift: ${table}.${column} column is missing`);
-    }
-  }
-}
-
+/**
+ * Refuses a database that has not recorded every migration shipped with the running build, such
+ * as an older backup restored under newer code. Migrations are the only writer of the schema, so
+ * the record is the one fact checked; tables, columns, indexes and triggers are not compared.
+ */
 export async function assertSchemaIntegrity() {
-  await assertAccountKitStorage();
-  await assertBaselineMigrationRecord();
-  await assertPackageColumns('memberships', [
-    'id',
-    'scope_id',
-    'user_id',
-    'role',
-    'status',
-    'created_at',
-  ]);
-  await assertPackageColumns('masquerade_modes', []);
-  await assertPackageColumns('masquerade_events', []);
-  await assertPackageColumns('password_confirmations', []);
-  await assertPackageColumns('account_sessions', ['id', 'expires_at']);
-  await assertProofStorage('login_link_tokens');
-  await assertProofStorage('password_reset_tokens');
-  await assertProofStorage('email_verification_tokens');
-  for (const table of companyIndexedTables) await assertIndex(table, 'company_id');
-  const auditColumns = (await db.rawQuery('PRAGMA table_info(audit_entries)')) as Array<{
-    name: string;
-    notnull: number;
-  }>;
-  if (auditColumns.find((column) => column.name === 'company_id')?.notnull !== 1) {
-    throw new Error('Database schema drift: audit company_id must be required');
+  const shipped = await listShippedMigrations();
+  if (shipped.length === 0) {
+    throw new Error('Database schema drift: this build ships no migrations to compare');
   }
-  const auditReferences = (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
-    table: string;
-  }>;
-  if (auditReferences.some((reference) => reference.table === 'companies')) {
-    throw new Error('Database schema drift: deleted-company audit history must be retained');
+  const tableName = readMigrationsConfig().tableName ?? 'adonis_schema';
+  if (!(await db.connection().schema.hasTable(tableName))) {
+    throw new Error('Database schema drift: the migration record is missing');
   }
-  for (const [table, column] of relationships) await assertIndex(table, column);
-  for (const table of scopedTables) {
-    await assertTrigger(
-      `${table}_company_immutable`,
-      `CREATE TRIGGER ${table}_company_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`
+  const rows = (await db.from(tableName).select('name')) as Array<{ name: unknown }>;
+  const recorded = new Set(rows.map((row) => String(row.name)));
+  const unrecorded = shipped.filter((name) => !recorded.has(name));
+  if (unrecorded.length > 0) {
+    throw new Error(
+      `Database schema drift: shipped migrations are not recorded (${unrecorded.join(', ')})`
     );
-  }
-  for (const [table, column, target] of relationships) {
-    for (const operation of ['INSERT', 'UPDATE']) {
-      await assertTrigger(
-        `${table}_${column}_${operation.toLowerCase()}`,
-        `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND company_id = NEW.company_id) BEGIN SELECT RAISE(ABORT, 'cross-company reference'); END`
-      );
-    }
-  }
-  await assertTrigger(
-    'capacitylens_member_resource_kind_cleanup',
-    "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE company_id = OLD.company_id AND resource_id = OLD.id; END"
-  );
-  await assertIndex('company_getting_started_dismissals', 'company_id');
-  for (const table of ['allocations', 'time_off', 'closures', 'phases', 'disciplines']) {
-    const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-    if (
-      !columns.some((column) => column.name === 'deleted_at') ||
-      !columns.some((column) => column.name === 'deletion_group_id')
-    ) {
-      throw new Error(`Database schema drift: ${table} deletion ownership columns are missing`);
-    }
-    const references = (await db.rawQuery(`PRAGMA foreign_key_list(${table})`)) as Array<{
-      id: number;
-      table: string;
-      from: string;
-      to: string;
-      on_delete: string;
-    }>;
-    if (
-      !references.some(
-        (reference) =>
-          reference.table === 'deleted_groups' &&
-          reference.from === 'deletion_group_id' &&
-          reference.to === 'group_id' &&
-          reference.on_delete === 'CASCADE'
-      )
-    ) {
-      throw new Error(`Database schema drift: ${table} deletion ownership foreign key is missing`);
-    }
-    for (const operation of ['insert', 'update']) {
-      await assertTrigger(
-        `${table}_deletion_group_${operation}`,
-        `CREATE TRIGGER ${table}_deletion_group_${operation} BEFORE ${operation.toUpperCase()} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND company_id = NEW.company_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
-      );
-    }
-  }
-  await assertTrigger(
-    'deleted_groups_active_row_abort',
-    `CREATE TRIGGER deleted_groups_active_row_abort BEFORE DELETE ON deleted_groups WHEN ${['allocations', 'time_off', 'closures', 'phases', 'disciplines'].map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
-  );
-  await assertTrigger(
-    'deleted_groups_company_immutable',
-    "CREATE TRIGGER deleted_groups_company_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"
-  );
-  for (const [table, columns] of [
-    [
-      'deleted_groups',
-      [
-        'group_id',
-        'company_id',
-        'actor_id',
-        'session_id',
-        'mutation_id',
-        'created_at',
-        'consumed_at',
-      ],
-    ],
-    ['deleted_rows', ['id', 'group_id', 'entity', 'row_id', 'payload_json']],
-    [
-      'planning_mutations',
-      [
-        'company_id',
-        'mutation_id',
-        'actor_id',
-        'revision',
-        'restoration_group_id',
-        'origin_session_id',
-      ],
-    ],
-    [
-      'planning_histories',
-      ['company_id', 'session_id', 'actor_id', 'history_id', 'revision', 'entries_json'],
-    ],
-    ['company_getting_started_dismissals', ['id', 'company_id', 'created_at', 'updated_at']],
-  ] as const) {
-    const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-    if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns)) {
-      throw new Error(`Database schema drift: ${table} columns differ from the baseline`);
-    }
   }
 }
 

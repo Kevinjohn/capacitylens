@@ -1,9 +1,10 @@
-import { args, BaseCommand, flags } from '@adonisjs/core/ace';
+import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
 import { resetInstallation } from '#services/operator/reset_installation';
+import { OperatorCommand } from './_operator_command.js';
 
 /** Preserve the stopped installation before creating an empty replacement. */
-export default class AppReset extends BaseCommand {
+export default class AppReset extends OperatorCommand {
   static commandName = 'app:reset';
   static description =
     'Back up and archive the stopped installation, then initialize a new database path';
@@ -15,21 +16,11 @@ export default class AppReset extends BaseCommand {
   @flags.boolean({ description: 'Confirm this is a disposable non-production installation' })
   declare disposable: boolean;
 
-  #reported = false;
-
   async run() {
-    try {
-      this.logger.log(JSON.stringify(await resetInstallation(this)));
-    } catch (error) {
-      this.logger.error(error instanceof Error ? error.message : 'Installation reset failed');
-      this.error = error;
-      this.#reported = true;
-      this.exitCode = 1;
-    }
+    this.logger.log(JSON.stringify(await resetInstallation(this)));
   }
 
-  /** Marks a caught error as already reported, so Ace does not print it raw. */
-  async completed() {
-    return this.#reported;
+  protected buildFailureMessage(error: unknown) {
+    return error instanceof Error ? error.message : 'Installation reset failed';
   }
 }

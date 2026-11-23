@@ -20,7 +20,7 @@ export class DatabaseReadinessCheck extends BaseCheck {
       return Result.ok('Database and schema are ready');
     } catch (error) {
       // The public readiness report must not expose database paths or schema details, so the
-      // operator log carries the reason: drift messages name only tables and columns.
+      // operator log carries the reason: drift messages name only migration files.
       const reason =
         error instanceof Error && error.message.startsWith('Database schema drift:')
           ? error.message

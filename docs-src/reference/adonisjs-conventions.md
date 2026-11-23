@@ -473,7 +473,8 @@ Source: [Creating commands](https://docs.adonisjs.com/guides/ace/creating-comman
 - The name is `namespace:action`.
 - A command that touches models or services sets `static options = { startApp: true }`.
 - Declare inputs with `@args` and `@flags`, each with a description.
-- A command that catches its own error sets `this.error` and `this.exitCode = 1`.
+- A command lets its error reach Ace, which sets `this.error` and `this.exitCode = 1`.
+  `completed()` logs one safe line and returns `true` so Ace does not print the raw error.
 - Run another command with `this.kernel.exec`.
 - A command calls the same service a controller would. It holds no business rule of its own.
 

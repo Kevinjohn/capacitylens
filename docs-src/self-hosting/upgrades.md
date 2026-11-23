@@ -47,8 +47,8 @@ node ace.js app:upgrade
 
 For an existing database, this command writes and verifies an online pre-upgrade backup before
 running `migration:run --force --no-schema-generate`. A fresh database is initialised without a
-pre-upgrade backup. Schema drift refuses the upgrade. Do not start the new
-service after a failed upgrade; retain the source database and recovery files and investigate the
+pre-upgrade backup. The upgrade fails if a migration fails or if any migration this release ships
+is still unrecorded afterwards. Do not start the new service after a failed upgrade; retain the source database and recovery files and investigate the
 reported refusal.
 
 After a successful upgrade, start the service and check `/health/ready`. Keep the backup until the
@@ -72,12 +72,14 @@ Check all imported records and settings, make an allocation edit, and reload bef
 source installation. This imports only full `capacitylens-beta` version `2` documents. It does
 not convert alpha exports or migrate authentication. Redacted and malformed documents are refused.
 
-## Databases the upgrade refuses
+## Databases that cannot be upgraded
 
-A database created before the move to password-only sign-in, or before a later change to the
-baseline schema such as the invitation `scope` column or the Access Control memberships table,
-cannot be upgraded in place: `app:upgrade`
-and startup refuse it with a `Database schema drift` message. Start a fresh database instead:
+Startup and the operator commands refuse a database that has not recorded every migration this
+release ships, with a `Database schema drift` message; run `app:upgrade` to apply them. They do
+not compare the schema itself. A database created before the move to password-only sign-in, or
+before a later change to the baseline schema such as the invitation `scope` column or the Access
+Control memberships table, records the same baseline, so it passes that check but cannot be
+upgraded in place. Start a fresh database instead:
 
 1. Stop the service and keep the old database file where it is.
 2. Point `CAPACITYLENS_DB` at a new, unused path.
