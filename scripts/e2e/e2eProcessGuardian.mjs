@@ -8,12 +8,6 @@ let service;
 let stopTimer;
 
 function terminateGroup(signal) {
-  if (process.platform === 'win32') {
-    if (!service?.pid) return;
-    const args = ['/pid', String(service.pid), '/T', ...(signal === 'SIGKILL' ? ['/F'] : [])];
-    spawn('taskkill', args, { stdio: 'ignore' });
-    return;
-  }
   try {
     process.kill(-process.pid, signal);
   } catch (error) {
@@ -43,7 +37,6 @@ function stop() {
   stopTimer = setTimeout(() => {
     try {
       terminateGroup('SIGKILL');
-      if (process.platform === 'win32') process.exit(0);
     } catch (error) {
       process.stderr.write(`${error.stack ?? error.message}\n`);
       process.exitCode = 1;

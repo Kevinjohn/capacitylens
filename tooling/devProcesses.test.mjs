@@ -41,7 +41,6 @@ test('a graceful POSIX tree exit avoids force escalation', async () => {
   const child = new StubChild();
   const signals = [];
   await terminateProcessTree(child, {
-    platform: 'darwin',
     graceMs: 5,
     forceMs: 5,
     kill: (pid, signal) => {
@@ -56,7 +55,6 @@ test('an unresponsive POSIX tree escalates from SIGTERM to SIGKILL', async () =>
   const child = new StubChild();
   const signals = [];
   await terminateProcessTree(child, {
-    platform: 'linux',
     graceMs: 1,
     forceMs: 5,
     kill: (pid, signal) => {
@@ -71,9 +69,6 @@ test('an unresponsive POSIX tree escalates from SIGTERM to SIGKILL', async () =>
 });
 
 test('a POSIX group is escalated when its root exits but a descendant ignores SIGTERM', async (t) => {
-  if (process.platform === 'win32')
-    return t.skip('POSIX process groups are unavailable on Windows');
-
   const root = spawn(
     process.execPath,
     [
@@ -153,35 +148,12 @@ test('a POSIX group is escalated when its root exits but a descendant ignores SI
   assert.fail(`owned descendant ${descendantPid} survived cleanup (root output: ${output.trim()})`);
 });
 
-test('an unresponsive Windows tree escalates to forced taskkill', async () => {
-  const child = new StubChild(4321);
-  const invocations = [];
-  await terminateProcessTree(child, {
-    platform: 'win32',
-    graceMs: 1,
-    forceMs: 5,
-    spawnProcess: (command, args) => {
-      invocations.push([command, args]);
-      if (args.includes('/F')) child.exit('SIGKILL');
-      return new StubChild();
-    },
-  });
-  assert.deepEqual(invocations, [
-    ['taskkill', ['/pid', '4321', '/T']],
-    ['taskkill', ['/pid', '4321', '/T', '/F']],
-  ]);
-});
-
 test('a child that failed to start has no PID to signal', async () => {
   const child = new StubChild();
   child.pid = undefined;
   const invocations = [];
   await terminateProcessTree(child, {
-    platform: 'win32',
-    spawnProcess: (...args) => {
-      invocations.push(args);
-      return new StubChild();
-    },
+    kill: (...args) => invocations.push(args),
   });
   assert.deepEqual(invocations, []);
 });

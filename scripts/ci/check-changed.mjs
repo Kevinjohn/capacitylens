@@ -596,8 +596,7 @@ export function changedPaths(base, cwd = root) {
 
 function stopGroup(child, signal) {
   try {
-    if (process.platform === 'win32') child.kill(signal);
-    else process.kill(-child.pid, signal);
+    process.kill(-child.pid, signal);
   } catch (error) {
     // The group may already have exited between the timeout firing and the signal.
     if (error.code !== 'ESRCH') throw error;
@@ -613,7 +612,7 @@ export async function runStep(step, limits = stepLimits) {
       cwd: root,
       env: { ...nonColourEnvironment(), ...step.env },
       stdio: ['ignore', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32',
+      detached: true,
     };
     const child =
       step.command === 'node'

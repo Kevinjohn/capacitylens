@@ -21,7 +21,6 @@ function assertToken(token: string): void {
 
 export function resetControlEndpoint(token: string, role: ResetControlRole): string {
   assertToken(token);
-  if (process.platform === 'win32') return `\\\\.\\pipe\\clreset-${token}-${role}`;
   const endpoint = join(tmpdir(), `clr-${token}-${role}.sock`);
   if (Buffer.byteLength(endpoint) >= 100) {
     throw new Error('The temporary directory path is too long for a reset control socket.');
@@ -173,8 +172,7 @@ export function createResetControlServer(
     };
     const onListening = () => {
       server.off('error', onError);
-      if (process.platform === 'win32') resolve();
-      else void chmod(endpoint, 0o600).then(resolve, reject);
+      void chmod(endpoint, 0o600).then(resolve, reject);
     };
     server.once('error', onError);
     server.once('listening', onListening);
@@ -274,9 +272,6 @@ export async function cleanupResetControlEndpoints(token: string): Promise<void>
 }
 
 async function cleanupResetControlEndpoint(token: string, role: ResetControlRole): Promise<void> {
-  if (process.platform === 'win32') {
-    return;
-  }
   const endpoint = resetControlEndpoint(token, role);
   try {
     const entry = await lstat(endpoint);

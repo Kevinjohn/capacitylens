@@ -29,6 +29,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 
 ## Set up
 
+macOS and Linux are the supported development platforms.
+
 ```bash
 nvm use
 corepack enable
