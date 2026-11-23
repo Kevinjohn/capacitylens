@@ -15,6 +15,7 @@ As an Editor, I want toolbar Undo and Redo controls so that I can reverse or rea
 ## Acceptance criteria
 
 - **Undo** and **Redo** reverse and reapply acknowledged planning changes.
+- History belongs to one page and sign-in. It survives a refetch at the same revision and ends on a reload, another person's change, a lost reply, a refused step, a change that cannot be reversed, a privacy, code-name or activity-kind change, anonymisation and import. There is no cross-device undo.
 - The buttons appear only for Editor or higher. Each is disabled while planning history is not ready or when it has nothing to undo or redo.
 
 ## User flow
