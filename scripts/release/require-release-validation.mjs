@@ -1,22 +1,21 @@
-// Publication waits for proof. A release publishes archives and images on a different GitHub event
-// from the tag push that validates them, so starting checks on the tag does not make publication
-// wait for them. This script makes it wait:
+// Publication waits for proof. A release is published on a different GitHub event from the tag
+// push that validates it, so starting checks on the tag does not make publication wait for them.
+// This script makes it wait:
 //
 //   RELEASE_TAG=v1.2.3 GH_REPO=owner/repo node scripts/release/require-release-validation.mjs
 //
 // It passes only when the latest push run of every required workflow, for that tag and the commit
 // the tag names, completed successfully. It waits while a run is queued or in progress or has not
-// appeared yet, and fails on any other conclusion or at the deadline.
+// appeared yet, and fails on any other conclusion or at the deadline. The Docker workflow is not
+// required: its publish job builds and smokes the images it pushes, and its own tag run cannot
+// wait for itself.
 
 import { execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
 /** Workflows whose tag-push run must succeed before a release is published. */
-export const REQUIRED_WORKFLOWS = Object.freeze([
-  { file: 'validation.yml', name: 'Validation' },
-  { file: 'docker.yml', name: 'Docker smoke' },
-]);
+export const REQUIRED_WORKFLOWS = Object.freeze([{ file: 'validation.yml', name: 'Validation' }]);
 
 /**
  * Judge one workflow's runs for a tag push: `pass`, `wait` or `fail`, with the reason.
@@ -62,10 +61,11 @@ export async function requireValidation({
   now = Date.now,
   wait = sleep,
   log = console.log,
+  workflows = REQUIRED_WORKFLOWS,
 }) {
   const stopAt = now() + deadlineMs;
   for (;;) {
-    const judgements = REQUIRED_WORKFLOWS.map((workflow) =>
+    const judgements = workflows.map((workflow) =>
       judgeRuns(readRuns(workflow.file), { tag, sha, name: workflow.name }),
     );
     for (const judgement of judgements) log(`${judgement.state}  ${judgement.reason}`);

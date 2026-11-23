@@ -6,7 +6,7 @@ const structuralChecks = [
   'policy:ports:test',
   'policy:e2e-workers:test',
   'policy:sonner-csp:test',
-  'package:managed-release:test',
+  'docker:release:test',
   'security:screenshot-publication',
   'security:screenshot-publication:test',
 ].map((name) => ['run', name]);

@@ -1,6 +1,6 @@
 ---
 title: Install without Docker
-description: Install the native CapacityLens archive on a Linux host with one command, or by hand with systemd and an HTTPS proxy.
+description: Clone CapacityLens at a release tag, build it and run it under systemd behind an HTTPS proxy on a Linux host.
 prev:
   text: Install CapacityLens
   link: /self-hosting/install
@@ -11,92 +11,61 @@ next:
 
 # Install without Docker
 
-The native release archive runs on a Linux host with systemd and Node 24.19.0 or later within the
-24.x line, behind an HTTPS proxy on the same machine. Whoever manages hosting installs it and
-remains responsible for backups, upgrades and service health. Replace `X.Y.Z`, hostnames and
-addresses with your own.
+CapacityLens installs from the repository: clone it at a release tag, install, build and run it
+under a process manager behind an HTTPS proxy on the same machine. These steps use a Linux host
+with systemd, Git, Node 24.19.0 or later within the 24.x line, and pnpm at the version named in the
+`packageManager` field of `package.json` (`corepack enable` provides it). Whoever manages hosting
+installs it and remains responsible for backups, upgrades and service health. Replace `X.Y.Z`,
+hostnames and addresses with your own.
 
-## Install with one command
+Before you start, point your domain name's DNS at the host and open ports 80 and 443. Install an
+HTTPS proxy such as [Caddy](https://caddyserver.com/docs/install) on the same machine.
 
-Before you start, install Node 24 system-wide, point your domain name's DNS at the host and open
-ports 80 and 443. Install [Caddy](https://caddyserver.com/docs/install) too, unless the host
-already runs another HTTPS proxy. The archive contains a native SQLite addon and must match the
-host operating system and architecture.
-
-Download the archive and its checksum from the same GitHub release, verify and unpack it into
-`/opt/capacitylens`, then run its install command with your domain name and the Owner's email
-address:
-
-```bash
-sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
-sudo install -d -m 0755 /opt/capacitylens
-sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
-sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
-```
-
-The command runs the steps under [Install by hand](#install-by-hand):
-
-- creates the `capacitylens` service user and `/var/lib/capacitylens` if they are missing
-- writes `/etc/capacitylens.env`, readable by root only, with your address and a generated
-  `APP_KEY`; an existing file is kept unchanged
-- points `/opt/capacitylens/current` at the release, runs the database upgrade, then installs and
-  starts the systemd unit
-- when Caddy is installed, writes `/etc/caddy/capacitylens.caddy`, imports it from
-  `/etc/caddy/Caddyfile`, validates the result and reloads Caddy; otherwise it prints the address
-  to point your proxy at
-- prints the one-time setup link for the Owner
-
-Verified backups run when the service starts and every 24 hours; see
-[Backups and restore](/self-hosting/backups-and-restore). Mail is left unset: add the
-`CAPACITYLENS_MAIL_*` settings with `sudoedit /etc/capacitylens.env` and restart the service before
-inviting anyone else ([step 3](#_3-configure-the-installation) says what works without them). Then
-continue at [step 5](#_5-open) to hand over the setup link. Until the Owner has signed up, running the same
-command again finishes an interrupted install and prints a fresh link. Running a newer release's
-command without arguments upgrades; see [Upgrades](/self-hosting/upgrades).
-
-## Install by hand
-
-Follow these five steps when the command does not suit the host.
+## Install
 
 ### 1. Create the service and data directories
 
-Keep writable state outside the release folder so a version change cannot remove it.
+Keep writable state outside the clone so a version change cannot remove it.
 
 ```bash
 sudo useradd --system --home /var/lib/capacitylens --shell /usr/sbin/nologin capacitylens
-sudo install -d -m 0755 /opt/capacitylens
 sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens /var/lib/capacitylens/backups
 ```
 
-Install Node 24.19.0 or a later 24.x release on the host and verify it with `node --version`. The
-archive contains a native SQLite addon and must match the host operating system and architecture.
+Install Node 24.19.0 or a later 24.x release on the host and verify it with `node --version`.
 
-### 2. Download and unpack a release
+### 2. Clone, install and build
 
-Download the archive and its checksum from the same GitHub release. Verify it before extracting:
+Clone the repository at the release tag, install the locked dependencies and build. The build starts
+the production configuration, which needs an HTTPS origin and an application key; these values are
+used only while building and are not the runtime settings.
 
 ```bash
-sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
-sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
-sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
+sudo git clone --branch vX.Y.Z --depth 1 https://github.com/Kevinjohn/capacitylens.git /opt/capacitylens
+cd /opt/capacitylens
+sudo pnpm install --frozen-lockfile
+sudo env NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error \
+  APP_KEY=capacitylens-build-key-0123456789abcdef \
+  APP_URL=https://127.0.0.1 CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
 ```
 
-The archive has `backend/` plus the example environment file and proxy/service templates.
+The server runs from `/opt/capacitylens/apps/backend/build`, which serves the web app and the API.
+The service user needs read access to `/opt/capacitylens`.
 
 ### 3. Configure the installation
 
-Create a private environment file outside the release and edit it for your host:
+Create a private environment file outside the clone and edit it for your host:
 
 ```bash
 sudo install -o root -g root -m 0600 \
-  /opt/capacitylens/current/capacitylens.env.example /etc/capacitylens.env
+  /opt/capacitylens/packaging/release/capacitylens.env.example /etc/capacitylens.env
 ```
 
-Generate an AdonisJS application key from the backend directory and copy the printed value into
+Generate an AdonisJS application key from the build directory and copy the printed value into
 `APP_KEY`:
 
 ```bash
-cd /opt/capacitylens/current/backend
+cd /opt/capacitylens/apps/backend/build
 sudo -u capacitylens node ace.js generate:key --show
 ```
 
@@ -120,7 +89,7 @@ migrations.
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
-  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
   -p EnvironmentFile=/etc/capacitylens.env \
   -p Environment=NODE_ENV=production \
   /usr/bin/env node ace.js app:upgrade
@@ -129,26 +98,26 @@ sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
 Install the service unit and start it:
 
 ```bash
-sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/capacitylens.service
+sudo cp /opt/capacitylens/packaging/release/capacitylens.service /etc/systemd/system/capacitylens.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now capacitylens
 ```
 
 The supplied unit runs one backend process as `capacitylens` and serves both the web app and API.
-Put the supplied Caddy or nginx configuration at the network edge, adjusting the hostname and
-certificate details. Do not expose the loopback application port publicly.
+Put the Caddy or nginx configuration from `packaging/release/` at the network edge, adjusting the
+hostname and certificate details; [TLS and networking](/self-hosting/tls-and-networking) has the
+details. Do not expose the loopback application port publicly.
 
 ### 5. Open
 
 Check `https://capacity.example.com/health/ready`: it answers HTTP 200 with `"isHealthy":true`
 when the service is ready, and HTTP 503 when the database checks fail
-([Monitoring](/self-hosting/monitoring)). The install command has already printed the
-one-time setup link after `Open this setup link at https://capacity.example.com:`; by hand, print
-it for the Owner's email address:
+([Monitoring](/self-hosting/monitoring)). Print the one-time setup link for the Owner's
+email address:
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
-  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
   -p EnvironmentFile=/etc/capacitylens.env \
   -p Environment=NODE_ENV=production \
   /usr/bin/env node ace.js account-kit:admission:bootstrap owner@example.com --role=viewer

@@ -103,7 +103,7 @@ test('a failed workflow stops polling at once', async () => {
   const state = await requireValidation({
     tag,
     sha,
-    readRuns: (file) => [run(file === 'docker.yml' ? { conclusion: 'failure' } : {})],
+    readRuns: () => [run({ conclusion: 'failure' })],
     deadlineMs: 60_000,
     now,
     wait: async (ms) => {
@@ -114,4 +114,20 @@ test('a failed workflow stops polling at once', async () => {
   });
   assert.equal(state, 'fail');
   assert.equal(waited, 0);
+});
+
+test('only Validation is required, so a failed Docker run cannot block a later publication', async () => {
+  const asked = [];
+  const state = await requireValidation({
+    tag,
+    sha,
+    readRuns: (file) => {
+      asked.push(file);
+      return [run(file === 'validation.yml' ? {} : { conclusion: 'failure' })];
+    },
+    deadlineMs: 60_000,
+    log: () => {},
+  });
+  assert.equal(state, 'pass');
+  assert.deepEqual(asked, ['validation.yml']);
 });

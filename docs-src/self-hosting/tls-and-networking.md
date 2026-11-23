@@ -13,7 +13,7 @@ Set both `APP_URL` and `CAPACITYLENS_PUBLIC_URL` to the exact public HTTPS origi
 forward the original host and overwrite the forwarded client address headers. Set
 `CAPACITYLENS_TRUST_PROXY_HEADERS=1` only when the application listener accepts connections solely
 from that trusted proxy. The application trusts forwarded headers from loopback connections only,
-so the proxy must run on the same host. The provided native archive includes Caddy and nginx examples; review them
+so the proxy must run on the same host. The repository's `packaging/release/` folder has Caddy and nginx examples; review them
 for your hostname, certificate paths and network before installation.
 
 For the native installation, a proxy on a separate machine or in a separate container is not
@@ -24,24 +24,23 @@ forwarded headers.
 
 ## Caddy
 
-The [install command](/self-hosting/install-without-docker#install-with-one-command) writes the
-release's `Caddyfile.example` with your hostname to `/etc/caddy/capacitylens.caddy`, imports it from
-`/etc/caddy/Caddyfile` and reloads Caddy. By hand, use the same example, replacing the hostname. Caddy obtains and renews public
+Add the block from `packaging/release/Caddyfile.example` to `/etc/caddy/Caddyfile` with your
+hostname, then reload Caddy. Caddy obtains and renews public
 certificates and proxies the whole site to the loopback application listener. Caddy adds no HSTS
 header; the application sends its own for the HTTPS public URL. If you add access
 logging, exclude request paths that contain single-use invitation and password-reset secrets.
 
 ## nginx
 
-Use the release's `capacitylens.nginx.conf` as a complete site file. Replace the hostname and
+Use `packaging/release/capacitylens.nginx.conf` as a complete site file. Replace the hostname and
 certificate paths, run `nginx -t`, then reload nginx. The file serves static assets from the
-release's `backend/public` directory and proxies API and `/health/` requests to the local backend.
+built `apps/backend/build/public` directory and proxies API and `/health/` requests to the local backend.
 Keep its secret-bearing sign-in and invitation paths out of access logs. Do not add a second proxy
 hop that appends untrusted `X-Forwarded-*` values.
 
 ## Listener and firewall
 
-The release example binds to `127.0.0.1:8787`. Permit inbound public traffic only to the edge's
+The example binds to `127.0.0.1:8787`. Permit inbound public traffic only to the edge's
 HTTPS port (and HTTP only when used for HTTPS redirection). Keep the application listener and the
 SQLite/backup directories private to the host.
 

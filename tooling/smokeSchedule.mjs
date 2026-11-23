@@ -1,4 +1,4 @@
-// The packaged smoke's schedule write, shared with the backend's company initialisation test.
+// A schedule write used by the backend's company initialisation test.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 

@@ -305,29 +305,6 @@ and [upgrades](docs-src/self-hosting/upgrades.md). State the required sequence a
 operators can actually use. Do not copy historical compatibility investigations into the install
 steps or treat experimental checks as a new support commitment.
 
-## Native production dialog acceptance
-
-After building and packaging with `pnpm run build` and `pnpm run package:managed-release`, copy
-`production/` outside the checkout and run:
-
-```bash
-pnpm run smoke:packaged-dialogs /absolute/path/to/copied-production/backend
-```
-
-Use the Node version in `.nvmrc`, an installed Playwright Chromium browser and `openssl`. This runs
-against the packaged native production server with disposable SQLite data and password sign-in,
-not the development server. A temporary loopback HTTPS edge preserves secure session cookies;
-only the test browser accepts its self-signed certificate. On macOS a process-only preference makes
-scrollbars visible without changing OS preferences. It runs the existing HTTP installation,
-scheduling, backup and restore smoke as well as desktop/narrow dialog scrolling, background locking,
-scrollbar compensation, nested dialogs and selection, Escape, focus restoration and lock cleanup.
-A separate page proves that the shipped CSP blocks an injected stylesheet and that the violation
-guard detects it. Runtime style violations or uncaught browser exceptions fail acceptance.
-
-Set `CAPACITYLENS_BROWSER_ARTIFACT_DIR` to a scratch directory to retain the two fictional-data
-after screenshots. Browser contexts, TLS connections, server processes and disposable state are
-closed or removed on success and failure. This command does not build, publish or deploy a release.
-
 ## Reference records
 
 - The [AdonisJS review record](docs-src/security/reviews.md#adonisjs-review-record)

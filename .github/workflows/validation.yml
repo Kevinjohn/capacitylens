@@ -4,7 +4,7 @@ name: Validation
 # - a main push checks that the merged app works: build, full application tests and the
 #   Chromium journey, unless a manual run already passed the identical tree (the `select` job);
 # - the weekly schedule, a `v*` tag and manual dispatch run full validation: every tooling check,
-#   frontend coverage, the native packages and every browser.
+#   frontend coverage and every browser.
 # Release publication waits for this workflow's tag run (scripts/release/require-release-validation.mjs).
 on:
   push:

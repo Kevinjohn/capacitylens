@@ -9,7 +9,7 @@ Each release publishes an API image and a web image to GitHub Container Registry
 Compose file runs them as separate containers and sends API requests across the private Compose
 network. The API trusts forwarded client addresses from that network
 (`CAPACITYLENS_TRUST_PROXY_HEADERS=private`), so each client keeps its own request limits. Docker is
-optional; the [native release archive](/self-hosting/install-without-docker) remains the expected
+optional; the [repository install](/self-hosting/install-without-docker) remains the expected
 installation.
 
 Use Docker Compose on a Linux host. You do not need the source code or a build. The published
