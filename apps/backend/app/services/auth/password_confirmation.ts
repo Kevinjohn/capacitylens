@@ -1,4 +1,4 @@
-// `@kevinjohn/adonisjs-confirm-action-with-password` 0.2.1, used with exactly Account Kit 0.4.1,
+// `@kevinjohn/adonisjs-confirm-action-with-password`, used with the Account Kit release it pins,
 // owns issuance, credential/session/request binding, expiry and transactional consumption. Product
 // code owns live company access and the response contract; its pre-flight and transactional
 // rules require a confirmed email, admission, a live Owner and no view-as mode. Credential writes
