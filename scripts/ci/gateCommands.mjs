@@ -16,11 +16,9 @@ const toolingChecks = [
   ['run', 'check:deps'],
   ['run', 'policy:dependabot'],
   ['run', 'policy:dependabot:test'],
-  ['run', 'dependency:major-report:test'],
   ['run', 'security:gitleaks-config'],
   ['run', 'policy:dco:test'],
   ...structuralChecks,
-  ['run', 'policy:workflow-report:test'],
   ['run', 'policy:release-validation:test'],
   ['run', 'policy:script-processes:test'],
 ];

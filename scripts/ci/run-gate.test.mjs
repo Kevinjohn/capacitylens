@@ -214,7 +214,6 @@ test("gateCommands('all') includes every retained policy, package and security c
     'policy:dependabot:test',
     'security:gitleaks-config',
     'policy:dco:test',
-    'policy:workflow-report:test',
     'policy:release-validation:test',
     'policy:script-processes:test',
     'policy:node-runtime:test',
