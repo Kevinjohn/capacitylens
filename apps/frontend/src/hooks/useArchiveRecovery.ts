@@ -1,17 +1,15 @@
-import { useCallback, useEffect, useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import { client, buildScopeQueryKey } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
-import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
 import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { buildAccessKey } from '@/data/planning/planningAccess';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 
-/** Reads recovery identities with a fresh cache fence for every user/access transition. */
+/** Reads recovery identities; the scoped query key and the cache lifecycle keep one projection's rows from another. */
 export function useArchiveRecovery() {
   const { user } = useAuth();
   const role = useRole();
@@ -20,15 +18,6 @@ export function useArchiveRecovery() {
   const companyId = useStore((state) => state.activeCompanyId);
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);
-  const [reloadKey, setReloadKey] = useState(0);
-  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
-  useEffect(
-    () =>
-      subscribeToInactiveDataChanges((changedCompanyId) => {
-        if (changedCompanyId === useStore.getState().activeCompanyId) reload();
-      }),
-    [reload],
-  );
   const accessKey = buildAccessKey(planning.access);
   const enabled =
     mayWrite &&
@@ -47,33 +36,10 @@ export function useArchiveRecovery() {
     companyId,
     masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };
-  const signature = JSON.stringify([
-    scope,
-    role,
-    permissionStatus,
-    enabled,
-    accessKey,
-    planning.revision,
-    reloadKey,
-  ]);
-  const [fence, setFence] = useState({ signature, context: planning.context, epoch: 0 });
-  const transitioned = fence.signature !== signature || fence.context !== planning.context;
-  const epoch = transitioned ? fence.epoch + 1 : fence.epoch;
-  if (transitioned) setFence({ signature, context: planning.context, epoch });
-  const instance = useId();
   const masqueradeToken = getMasqueradeToken();
   const query = useQuery<ArchiveRecovery>({
-    queryKey: buildScopeQueryKey(scope, [
-      'archive-recovery',
-      instance,
-      epoch,
-      role,
-      accessKey,
-      planning.revision,
-      reloadKey,
-    ]),
+    queryKey: buildScopeQueryKey(scope, ['archive-recovery', role, accessKey, planning.revision]),
     enabled,
-    gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
@@ -88,10 +54,9 @@ export function useArchiveRecovery() {
       return recovery;
     },
   });
-  if (!enabled) return { data: null, error: null, reload };
+  if (!enabled) return { data: null, error: null };
   return {
     data: query.isError ? null : (query.data ?? null),
     error: query.error ? resolveErrorMessage(query.error) : null,
-    reload,
   };
 }

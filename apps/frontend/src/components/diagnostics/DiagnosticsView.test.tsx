@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
+import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext } from '@/auth/authContext';
@@ -97,6 +98,8 @@ describe('DiagnosticsView — observation', () => {
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
+        // TanStack Query hands results to React on a timer.
+        await vi.advanceTimersByTimeAsync(0);
       });
       expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`);
     } finally {
@@ -135,6 +138,8 @@ describe('DiagnosticsView — observation', () => {
         });
         await Promise.resolve();
         await Promise.resolve();
+        // TanStack Query hands results to React on a timer.
+        await vi.advanceTimersByTimeAsync(0);
       });
       expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`);
       expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`);

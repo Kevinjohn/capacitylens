@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 import { MemoryRouter } from 'react-router-dom';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { PermissionContext } from '@/auth/permissionContext';

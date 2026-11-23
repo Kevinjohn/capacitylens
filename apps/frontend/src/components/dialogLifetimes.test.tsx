@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   act,
   fireEvent,
@@ -71,8 +72,16 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
 });
 const companyId = DEFAULT_COMPANY_ID;
 
+const queryClient = new QueryClient();
+
 function render(ui: ReactNode) {
-  return renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+  return renderTestingLibrary(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>
+        <OwnerPermissions>{children}</OwnerPermissions>
+      </QueryClientProvider>
+    ),
+  });
 }
 
 beforeAll(async () => {

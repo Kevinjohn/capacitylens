@@ -1,5 +1,8 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { buildScopeQueryKey } from '@/api/queryClient';
+import { useQueryScope } from '@/api/useQueryScope';
 import { Link, useLocation } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useCan, useRole } from '@/auth/permissionContext';
@@ -221,47 +224,40 @@ function useCompanyDismissal(
   pathname: string,
   setNotice: (message: string, tone: 'error') => void,
 ) {
-  const [dismissed, setDismissed] = useState(false);
-  const [steps, setSteps] = useState(NO_STEPS);
+  const [dismissedHere, setDismissedHere] = useState(false);
   // Every committed or refetched planning change advances the revision, so milestones refetch.
   const planningRevision = useStore((state) => state.planning.revision);
-  const [loaded, setLoaded] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
+  const scope = useQueryScope();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const dismissedRef = useRef(dismissed);
+  const query = useQuery({
+    queryKey: buildScopeQueryKey(scope, ['getting-started', companyId, planningRevision]),
+    enabled: !dismissedHere,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: ({ signal }) => gettingStartedApi.read(companyId, signal),
+  });
+  const { refetch, error, errorUpdatedAt } = query;
   useEffect(() => {
-    if (dismissedRef.current) return;
-    const controller = new AbortController();
-    void gettingStartedApi
-      .read(companyId, controller.signal)
-      .then(({ dismissed: companyDismissed, steps: companySteps }) => {
-        if (!controller.signal.aborted && !dismissedRef.current) {
-          setDismissed(companyDismissed);
-          setSteps(companySteps);
-          dismissedRef.current = companyDismissed;
-          setLoadFailed(false);
-          setLoaded(true);
-        }
-      })
-      .catch(() => {
-        if (controller.signal.aborted || dismissedRef.current) return;
-        console.error('GettingStarted: company state could not be loaded');
-        setLoadFailed(true);
-        setLoaded(true);
-        setNotice(m.gs_load_failed(), 'error');
-      });
-    return () => controller.abort();
-  }, [companyId, pathname, loadAttempt, planningRevision, setNotice]);
+    if (!error || dismissedHere) return;
+    console.error('GettingStarted: company state could not be loaded');
+    setNotice(m.gs_load_failed(), 'error');
+  }, [error, errorUpdatedAt, dismissedHere, setNotice]);
+  const dismissed = dismissedHere || (query.data?.dismissed ?? false);
+  // Navigating re-reads the milestones; the read already in flight at mount is joined, not restarted.
+  useEffect(() => {
+    if (!dismissed) void refetch({ cancelRefetch: false });
+  }, [pathname, dismissed, refetch]);
+  const steps = query.data?.steps ?? NO_STEPS;
+  const loaded = query.isFetched;
+  const loadFailed = query.isError || (query.isFetched && query.data === undefined);
 
   const dismiss = async () => {
     if (saving) return;
     setSaving(true);
     try {
       await gettingStartedApi.dismiss(companyId);
-      dismissedRef.current = true;
-      setDismissed(true);
+      setDismissedHere(true);
       setConfirmOpen(false);
     } catch {
       // A failed dismissal must remain visible so getting started is not presented as durably dismissed.
@@ -277,7 +273,7 @@ function useCompanyDismissal(
     steps,
     loaded,
     loadFailed,
-    retryLoad: () => setLoadAttempt((attempt) => attempt + 1),
+    retryLoad: () => void refetch(),
     confirmOpen,
     setConfirmOpen,
     saving,

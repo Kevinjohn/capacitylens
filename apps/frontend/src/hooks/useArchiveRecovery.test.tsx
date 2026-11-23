@@ -6,7 +6,8 @@ import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
-import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
+import { invalidateInactiveReads } from '@/api/queryClient';
+import { QueryCacheLifecycle } from '@/api/QueryCacheLifecycle';
 import { useArchiveRecovery } from './useArchiveRecovery';
 import { permissionValue } from '@/test/permissionGrants';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
@@ -37,6 +38,7 @@ function view(cache: QueryClient, role: Role = 'editor', userId: string | null =
         }}
       >
         <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
+          <QueryCacheLifecycle cache={cache} />
           <Probe />
         </PermissionContext.Provider>
       </AuthContext.Provider>
@@ -69,10 +71,11 @@ describe('archive recovery request boundaries', () => {
     request
       .mockResolvedValueOnce({ data: payload('a-studio', 'First') })
       .mockResolvedValueOnce({ data: payload('a-studio', 'Second') });
-    render(view(new QueryClient()));
+    const cache = new QueryClient();
+    render(view(cache));
     expect(await screen.findByText('First')).toBeInTheDocument();
     expect(request.mock.calls[0]?.[0]).toBe('api.planning_archive.show');
-    act(() => notifyInactiveDataChanged('a-studio'));
+    act(() => void invalidateInactiveReads(cache));
     expect(await screen.findByText('Second')).toBeInTheDocument();
     expect(request.mock.calls.every(([name]) => name === 'api.planning_archive.show')).toBe(true);
   });
@@ -137,7 +140,7 @@ describe('archive recovery request boundaries', () => {
     expect(request).not.toHaveBeenCalled();
     rendered.rerender(view(cache));
     expect(await screen.findByText('First')).toBeInTheDocument();
-    act(() => notifyInactiveDataChanged('a-studio'));
+    act(() => void invalidateInactiveReads(cache));
     expect(await screen.findByText('Archive read failed')).toBeInTheDocument();
     expect(screen.queryByText('First')).not.toBeInTheDocument();
   });

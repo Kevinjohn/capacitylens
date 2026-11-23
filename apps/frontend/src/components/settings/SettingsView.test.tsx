@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render as rtlRender, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { SettingsView } from './SettingsView';
 import { AuthContext } from '@/auth/authContext';
@@ -11,7 +12,12 @@ import { resolveDateStyle } from '@/store/selectors';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { permissionValue } from '@/test/permissionGrants';
 
-const render = (ui: ReactNode) => rtlRender(<OwnerPermissions>{ui}</OwnerPermissions>);
+const render = (ui: ReactNode) =>
+  rtlRender(
+    <QueryClientProvider client={new QueryClient()}>
+      <OwnerPermissions>{ui}</OwnerPermissions>
+    </QueryClientProvider>,
+  );
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
