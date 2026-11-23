@@ -47,5 +47,6 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - Commit each feature change with `git commit -s`. Never push task commits to `main`; publish a ready pull request only after review and required checks.
 - Decide implementation questions yourself and record the choice in the pull request. Ask the owner only about product decisions: behaviour users see, scope, public interfaces, breaking changes and data loss.
 - A pull request merges once its review is complete and every check on its head has passed; no separate authorisation is needed. Preserve unrelated work; never rewrite history without explicit authorisation.
+- The repository is the distribution: clone, install, build, run. Docker is a release output only: images are built, smoke-tested and published when a release is tagged, and no Docker work runs on pull requests or pushes to `main`. Do not add a distribution channel, packaging format or platform build to cover a case nobody asked for; a new one needs an owner decision recorded in `DECISIONS.md` first.
 - Do not build or run Docker images or alter Dockerfiles, Compose, Docker workflows or Docker tests unless the task explicitly authorises that Docker work.
 - Before public delivery, inspect all outgoing text and metadata for privacy, secrets and the public naming restrictions in the global instructions.
