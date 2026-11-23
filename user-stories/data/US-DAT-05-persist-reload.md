@@ -27,7 +27,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  draft["Typed planning action passes its intent through allocationSlice to planningCache"] --> send["planningTransport sends the planning mutation"]
+  draft["Typed planning action supplies the intent to planningSessionSlice.sendPlanningIntent"] --> cacheWrite["Check write availability, then execute through planningCache"]
+  cacheWrite --> send["planningTransport sends the planning mutation"]
   send --> server["PlanningMutationsController invokes the authorized mutatePlanning transaction"]
   server -->|Commit| receipt["acceptReceipt validates the receipt and applies its rows if its base matches the cache"]
   receipt -->|Valid| read["Read authoritative planning state and server history"]
@@ -43,4 +44,4 @@ flowchart TD
   snapshot --> cache["Hydrate planningCache"]
 ```
 
-**Code references:** [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L1) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L1) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L469) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L525) · [planning.ts](../../apps/backend/app/services/planning.ts#L243) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts#L1) · [access.ts](../../apps/backend/app/services/planning/access.ts#L16) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L124)
+**Code references:** [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L87) · [planningSessionSlice.ts](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L469) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L525) · [planning.ts](../../apps/backend/app/services/planning.ts#L243) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts#L1) · [access.ts](../../apps/backend/app/services/planning/access.ts#L16) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L124)
