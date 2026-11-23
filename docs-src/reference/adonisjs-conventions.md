@@ -246,8 +246,7 @@ Source: [Controllers](https://docs.adonisjs.com/guides/basics/controllers) and
   action controller with one `handle` method. Do not grow a controller into a list of verbs.
 - An action takes the HTTP context first and destructures only what it uses:
   `async store({ request, response }: HttpContext)`. The view-as control actions keep the whole
-  context because the Masquerade service takes it as its request, and the planning mutation action
-  keeps it to record its operation for the request log (see `DECISIONS.md`).
+  context because the Masquerade service takes it as its request (see `DECISIONS.md`).
 - A controller has no `private` or `protected` methods. A step two actions share moves to a
   service or a model.
 - A controller does not wrap its work in `try`/`catch` to build an error response. It lets the

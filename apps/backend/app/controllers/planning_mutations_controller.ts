@@ -6,12 +6,12 @@ import { withActor } from '#services/auth/current_actor';
 /** The one planning mutation route. */
 export default class PlanningMutationsController {
   /** Runs one planning operation; the validated intent, not the URL, names it. */
-  async store(ctx: HttpContext) {
-    const input = await ctx.request.validateUsing(planningMutationValidator);
-    ctx.planningOperation = input.intent.operation;
-    const companyId = String(ctx.params.companyId);
-    return ctx.serialize(
-      await withActor(ctx.auth, (actor, trx) => mutatePlanning({ trx, actor, companyId, input }))
+  async store({ request, params, auth, requestLog, serialize }: HttpContext) {
+    const input = await request.validateUsing(planningMutationValidator);
+    requestLog.planningOperation = input.intent.operation;
+    const companyId = String(params.companyId);
+    return serialize(
+      await withActor(auth, (actor, trx) => mutatePlanning({ trx, actor, companyId, input }))
     );
   }
 }
