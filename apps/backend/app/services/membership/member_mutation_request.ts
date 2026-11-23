@@ -19,13 +19,16 @@ export interface SemanticMutationInput<T> {
 }
 
 /** Runs a member operation as an account operation under live management permission. */
-export async function runMemberMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
+export async function runMemberMutation<T>(
+  { auth, request }: Pick<HttpContext, 'auth' | 'request'>,
+  input: SemanticMutationInput<T>
+) {
   const { companyId, operation, payload, work } = input;
   const command = parseAccountOperation(
-    ctx.request.header('x-account-operation-id'),
-    ctx.request.header('idempotency-key')
+    request.header('x-account-operation-id'),
+    request.header('idempotency-key')
   );
-  return withActor(ctx, async (currentActor, trx) => {
+  return withActor(auth, async (currentActor, trx) => {
     let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
     return runAccountOperation(trx, {
       name: operation,

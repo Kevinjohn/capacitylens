@@ -8,8 +8,8 @@ import CompanySummaryTransformer from '#transformers/company_summary_transformer
 
 /** Returns the companies this user may enter, or 409 while the installation has more than one. */
 export default class CompaniesController {
-  async index(ctx: HttpContext) {
-    const summaries = await withActor(ctx, async (actor, trx) => {
+  async index({ auth, response, serialize }: HttpContext) {
+    const summaries = await withActor(auth, async (actor, trx) => {
       if (await hasMultipleCompanies(trx)) return null;
       const rows = await trx
         .from(`${access.config.membershipsTable} as member`)
@@ -28,12 +28,12 @@ export default class CompaniesController {
         }));
     });
     if (summaries === null) {
-      return ctx.response.conflict({
+      return response.conflict({
         error:
           'This installation has more than one company. Contact the administrator to resolve it.',
         code: 'MULTIPLE_COMPANIES',
       });
     }
-    return ctx.serialize(CompanySummaryTransformer.transform(summaries));
+    return serialize(CompanySummaryTransformer.transform(summaries));
   }
 }

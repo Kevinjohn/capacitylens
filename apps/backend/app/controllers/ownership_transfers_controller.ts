@@ -6,20 +6,20 @@ import { transferOwnershipValidator } from '#validators/ownership';
 
 /** Transfers company ownership to another member. */
 export default class OwnershipTransfersController {
-  async store(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(transferOwnershipValidator, {
-      data: ctx.request.body(),
+  async store({ auth, params, request, serialize }: HttpContext) {
+    const body = await request.validateUsing(transferOwnershipValidator, {
+      data: request.body(),
     });
     const command = parseAccountOperation(
-      ctx.request.header('x-account-operation-id'),
-      ctx.request.header('idempotency-key')
+      request.header('x-account-operation-id'),
+      request.header('idempotency-key')
     );
-    const companyId = ctx.params.companyId;
+    const companyId = params.companyId;
     const { toUserId } = body;
     const confirmationId = body.confirmationId ?? '';
-    const receipt = await withActor(ctx, (actor, trx) =>
+    const receipt = await withActor(auth, (actor, trx) =>
       transferOwnership({ trx, actor, companyId, toUserId, confirmationId, command })
     );
-    return ctx.serialize(receipt);
+    return serialize(receipt);
   }
 }

@@ -19,19 +19,19 @@ export default class NewAccountController {
    * Open sign-up, when the operator enables it, creates a limited identity that still needs
    * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
    */
-  async store(ctx: HttpContext) {
-    const [validationError, body] = await ctx.request.tryValidateUsing(signUpValidator, {
-      data: ctx.request.body(),
+  async store({ auth, request, response, logger, serialize }: HttpContext) {
+    const [validationError, body] = await request.tryValidateUsing(signUpValidator, {
+      data: request.body(),
     });
     // Route wording: sign-up answers a Vine failure with its own sentence and no code.
     if (validationError) {
-      return ctx.response.badRequest({
+      return response.badRequest({
         error: requireAuthRequestMessage(validationError, 'sign-up'),
       });
     }
     const { email, name } = body;
     if (!capacitylens.allowOpenSignUp || (await hasNoCompany(db))) {
-      return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
+      return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
     }
     try {
       await accountKit.registration.register({
@@ -43,39 +43,37 @@ export default class NewAccountController {
       // Route wording: sign-up words these refusals for this route; invitations word them
       // differently.
       if (error instanceof FirstCompanyPendingException) {
-        return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
+        return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
       }
       if (error instanceof RegistrationEmailAlreadyRegisteredError) {
-        return ctx.response.conflict({
+        return response.conflict({
           error: 'An account already uses this email. Sign in or reset your password.',
           code: 'EMAIL_IN_USE',
         } satisfies ProductHttpErrorBody);
       }
       // The account exists; only the confirmation email may be missing, and it can be resent.
       if (!isCommittedFailure(error)) throw error;
-      ctx.logger.warn({ code: 'SIGN_UP_FOLLOW_UP_FAILED' }, 'Sign-up follow-up failed');
+      logger.warn({ code: 'SIGN_UP_FOLLOW_UP_FAILED' }, 'Sign-up follow-up failed');
     }
     try {
-      return ctx.response.created(
-        await ctx.serialize({
-          user: await signInWithPassword(ctx, {
+      return response.created(
+        await serialize({
+          user: await signInWithPassword(auth, logger, {
             email,
             password: body.password,
-            clientAddress: ctx.request.ip(),
-            userAgent: ctx.request.header('user-agent'),
+            clientAddress: request.ip(),
+            userAgent: request.header('user-agent'),
           }),
         })
       );
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
-      ctx.logger.warn(
+      logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
         'Sign-in after registration failed'
       );
-      return ctx.response.accepted(
-        await ctx.serialize({ accountCreated: true, signInRequired: true })
-      );
+      return response.accepted(await serialize({ accountCreated: true, signInRequired: true }));
     }
   }
 }

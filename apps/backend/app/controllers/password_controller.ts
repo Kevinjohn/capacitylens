@@ -5,18 +5,17 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { readCurrentAccount } from '#services/auth/current_actor';
-import { managedGuard } from '#services/auth/managed_guard';
 import { credentialUpdateCommitted } from '#services/auth/credential_answers';
 import { changePasswordValidator } from '#validators/credentials';
 
 /** The signed-in identity's password. */
 export default class PasswordController {
   /** Changes the password and ends every sign-in, this one included. */
-  async update(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(changePasswordValidator, {
-      data: ctx.request.body(),
+  async update({ auth, request, response, serialize }: HttpContext) {
+    const body = await request.validateUsing(changePasswordValidator, {
+      data: request.body(),
     });
-    const account = await readCurrentAccount(ctx);
+    const account = await readCurrentAccount(auth);
     let outcome: 'changed' | 'committed' = 'changed';
     try {
       await accountKit.emailPasswordManagement.changePassword({
@@ -27,7 +26,7 @@ export default class PasswordController {
     } catch (error) {
       // Does work: a committed change is recorded before the session ends.
       if (error instanceof IdentityNotConfirmedError) {
-        return ctx.response.forbidden({
+        return response.forbidden({
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
         });
@@ -35,8 +34,8 @@ export default class PasswordController {
       if (!isCommittedFailure(error)) throw error;
       outcome = 'committed';
     }
-    await managedGuard.forRequest(ctx).terminate();
-    if (outcome === 'committed') return ctx.response.serviceUnavailable(credentialUpdateCommitted);
-    return ctx.serialize({ ok: true, signedOut: true });
+    await auth.use('web').forRequest().terminate();
+    if (outcome === 'committed') return response.serviceUnavailable(credentialUpdateCommitted);
+    return serialize({ ok: true, signedOut: true });
   }
 }

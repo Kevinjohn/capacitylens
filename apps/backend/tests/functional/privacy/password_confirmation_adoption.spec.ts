@@ -245,7 +245,7 @@ test.group('package proof adoption boundaries', (group) => {
         let captured: Trx | undefined;
         const sentinel = new Error('INTERRUPTED_CALLBACK');
         try {
-          await withActor(ctx, async (actor, trx) => {
+          await withActor(ctx.auth, async (actor, trx) => {
             captured = trx;
             assert.equal(String(requireKitContext(trx).account.id), actor.userId);
             assert.equal(requireKitContext(trx).signInId, actor.sessionId);

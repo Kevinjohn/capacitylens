@@ -8,7 +8,6 @@ import {
 import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import { users } from '#services/account_kit/users';
-import { managedGuard } from '#services/auth/managed_guard';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-password';
@@ -29,8 +28,8 @@ export interface CurrentActor {
 }
 
 /** The signed-in Account Kit account, checked in the Kit's own transaction. */
-export async function readCurrentAccount(ctx: HttpContext) {
-  return accountKit.authentication.current(await managedGuard.current(ctx));
+export async function readCurrentAccount(auth: HttpContext['auth']) {
+  return accountKit.authentication.current(await auth.use('web').current());
 }
 
 /** The Kit's admission decision for an account, read under the lock `trx` already holds. */
@@ -52,18 +51,6 @@ export async function requireConfirmedAdmission(account: KitContext['account'], 
 }
 
 /**
- * The view-as context the Masquerade package admitted for this request, or `undefined` on a route
- * that does not use the effective guard. The package caches one admission per request, and this
- * reads it before the product transaction opens.
- */
-async function admitMasqueradeContext(ctx: HttpContext): Promise<ResolvedContext | undefined> {
-  const runtime = await ctx.containerResolver.make('masquerade.runtime');
-  if (runtime.selectGuard(ctx).kind !== 'effective') return undefined;
-  const admitted = await runtime.admit(ctx);
-  return admitted.context;
-}
-
-/**
  * Runs `run` in the Account Kit's transaction after it has verified the session, its credential
  * revision and its registry row under the account lock; a concurrent revocation or credential
  * change waits for the commit or is observed first. Product access additionally requires a
@@ -71,12 +58,17 @@ async function admitMasqueradeContext(ctx: HttpContext): Promise<ResolvedContext
  * SQLite may retry it.
  */
 export async function withActor<T>(
-  ctx: HttpContext,
+  auth: HttpContext['auth'],
   run: (actor: CurrentActor, trx: Trx) => Promise<T>,
   options: { limited?: boolean } = {}
 ): Promise<T> {
-  const input = await managedGuard.current(ctx);
-  const masqueradeContext = await admitMasqueradeContext(ctx);
+  const input = await auth.use('web').current();
+  // The view-as context the Masquerade package admitted for this request, or `undefined` on a route
+  // that does not use the effective guard. The package admits once per request, and this reads it
+  // before the product transaction opens.
+  const effective = auth.use('web_effective');
+  if (!effective.authenticationAttempted) await effective.authenticate();
+  const masqueradeContext = effective.context;
   return accountKit.authentication.withCurrent(input, async (context) => {
     const { account, signInId, trx } = context;
     if (signInId === undefined) throw new InvalidSessionError();
@@ -128,10 +120,13 @@ export function requireKitContext(trx: Trx): KitContext {
  * The caller's verified sign-in for request-wide checks, or null when the request carries none or
  * it is no longer valid. Route handlers still authorize through `withActor`.
  */
-export async function getSignedInSession(ctx: HttpContext) {
-  if (!ctx.session.get(handleKey)) return null;
+export async function getSignedInSession(
+  auth: HttpContext['auth'],
+  session: HttpContext['session']
+) {
+  if (!session.get(handleKey)) return null;
   try {
-    return await withActor(ctx, async (actor) => actor, { limited: true });
+    return await withActor(auth, async (actor) => actor, { limited: true });
   } catch (error) {
     if (error instanceof InvalidSessionError) return null;
     throw error;

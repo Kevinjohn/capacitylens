@@ -11,10 +11,9 @@ import {
 import { updateGettingStartedValidator } from '#validators/getting_started';
 
 export default class GettingStartedController {
-  async show(ctx: HttpContext) {
-    const { params, serialize } = ctx;
+  async show({ auth, params, serialize }: HttpContext) {
     return serialize(
-      await withActor(ctx, async (_actor, trx) => {
+      await withActor(auth, async (_actor, trx) => {
         await assertCompanyPermission(params.companyId, 'planning:read', trx);
         return {
           dismissed: await isGettingStartedDismissed(trx, params.companyId),
@@ -24,15 +23,14 @@ export default class GettingStartedController {
     );
   }
 
-  async update(ctx: HttpContext) {
-    const { params, request, response, serialize } = ctx;
+  async update({ auth, params, request, response, serialize }: HttpContext) {
     const [validationError] = await request.tryValidateUsing(updateGettingStartedValidator, {
       data: request.body(),
     });
     // Route wording: this route answers a Vine failure with its own sentence and no code.
     if (validationError) return response.badRequest({ error: 'dismissed must be true.' });
     const now = new Date().toISOString();
-    await withActor(ctx, async (_actor, trx) => {
+    await withActor(auth, async (_actor, trx) => {
       const { role } = await assertCompanyPermission(params.companyId, 'planning:write', trx);
       if (!isOwnerOrAdmin(role)) {
         throw new IdentityAuthorizationException('Forbidden.');

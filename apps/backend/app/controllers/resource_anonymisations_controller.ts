@@ -7,10 +7,10 @@ import { IdentityAuthorizationException } from '#exceptions/identity_authorizati
 
 /** Anonymises one person. */
 export default class ResourceAnonymisationsController {
-  async store(ctx: HttpContext) {
-    await ctx.request.validateUsing(anonymiseResourceValidator, { data: ctx.request.body() });
-    const { companyId, id } = ctx.params;
-    const applied = await withActor(ctx, async (actor, trx) => {
+  async store({ auth, params, request, response }: HttpContext) {
+    await request.validateUsing(anonymiseResourceValidator, { data: request.body() });
+    const { companyId, id } = params;
+    const applied = await withActor(auth, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
       try {
         await assertCompanyPermission(companyId, 'resources:anonymise', trx);
@@ -21,8 +21,8 @@ export default class ResourceAnonymisationsController {
       }
       return anonymiseResources(trx, companyId, actor.userId, id);
     });
-    if (applied === 'forbidden') return ctx.response.forbidden({ error: 'Forbidden.' });
-    if (!applied) return ctx.response.notFound({ error: 'Not found.' });
-    return ctx.response.noContent();
+    if (applied === 'forbidden') return response.forbidden({ error: 'Forbidden.' });
+    if (!applied) return response.notFound({ error: 'Not found.' });
+    return response.noContent();
   }
 }

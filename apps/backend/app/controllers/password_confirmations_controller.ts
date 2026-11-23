@@ -11,25 +11,24 @@ import { withActor } from '#services/auth/current_actor';
 import { classifyLogError } from '#config/logger';
 import { reportPrivateFailure } from '#services/logging_safety';
 import { parseRequestDocument } from '#services/company_import';
-import { managedGuard } from '#services/auth/managed_guard';
 import { confirmPasswordValidator } from '#validators/password_confirmations';
 
 export default class PasswordConfirmationsController {
-  async store(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(confirmPasswordValidator, {
-      data: ctx.request.body(),
+  async store({ auth, request, response, logger, serialize }: HttpContext) {
+    const body = await request.validateUsing(confirmPasswordValidator, {
+      data: request.body(),
     });
     let intent: unknown = body.intent;
     if (body.action === 'import') {
       const document = parseRequestDocument(body.intent.document);
-      if (!document) return ctx.response.badRequest({ error: 'Invalid password confirmation.' });
+      if (!document) return response.badRequest({ error: 'Invalid password confirmation.' });
       intent = { baseRevision: body.intent.baseRevision, document };
     }
-    await withActor(ctx, async (_actor, trx) =>
+    await withActor(auth, async (_actor, trx) =>
       requirePasswordConfirmationActor(body.companyId, trx, body.action)
     );
     const { confirmationId } = await passwordConfirmations.confirmPassword(
-      await managedGuard.current(ctx),
+      await auth.use('web').current(),
       {
         action: body.action,
         scope: body.companyId,
@@ -42,11 +41,11 @@ export default class PasswordConfirmationsController {
     } catch (error) {
       // Does work: pruning is best effort, so its failure is logged and the confirmation stands.
       reportPrivateFailure(
-        ctx,
+        logger,
         { event: 'password_confirmation.prune', errorType: classifyLogError(error) },
         'Password confirmation pruning failed'
       );
     }
-    return ctx.serialize({ confirmationId });
+    return serialize({ confirmationId });
   }
 }

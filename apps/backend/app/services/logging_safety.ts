@@ -40,7 +40,7 @@ export function describeFailure(error: unknown): {
 
 /** Report private account failures without exception text or changing the HTTP outcome. */
 export function reportPrivateFailure(
-  ctx: HttpContext,
+  logger: HttpContext['logger'],
   fields: {
     event: string;
     errorType: string;
@@ -54,7 +54,7 @@ export function reportPrivateFailure(
   message: string
 ) {
   try {
-    ctx.logger.error(fields, message);
+    logger.error(fields, message);
   } catch {
     console.error('Private diagnostic logger failed');
   }

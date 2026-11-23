@@ -4,10 +4,10 @@ import { runPlanningHistoryStep } from '#services/planning/history_step';
 
 /** The planning page's redo. */
 export default class PlanningRedoController {
-  async store(ctx: HttpContext) {
-    return ctx.serialize(
-      await runPlanningHistoryStep(ctx, 'redo', () =>
-        ctx.request.validateUsing(planningHistoryStepValidator)
+  async store({ auth, params, request, serialize }: HttpContext) {
+    return serialize(
+      await runPlanningHistoryStep({ auth, params }, 'redo', () =>
+        request.validateUsing(planningHistoryStepValidator)
       )
     );
   }

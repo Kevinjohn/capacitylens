@@ -7,7 +7,6 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
-import { managedGuard } from '#services/auth/managed_guard';
 import { deleteAccountValidator } from '#validators/credentials';
 
 const deletionCommitted = {
@@ -26,19 +25,19 @@ export default class AccountController {
    * Kit's own current-password check stays because it cannot be turned off. An Owner transfers
    * ownership first.
    */
-  async destroy(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(deleteAccountValidator, {
-      data: ctx.request.body(),
+  async destroy({ auth, request, response, serialize }: HttpContext) {
+    const body = await request.validateUsing(deleteAccountValidator, {
+      data: request.body(),
     });
-    const input = await managedGuard.current(ctx);
-    const request = { action: 'delete-account', scope: String(input.userId), intent: {} };
+    const input = await auth.use('web').current();
+    const confirmation = { action: 'delete-account', scope: String(input.userId), intent: {} };
     const { confirmationId } = await passwordConfirmations.confirmPassword(input, {
-      ...request,
+      ...confirmation,
       password: body.currentPassword,
     });
     await passwordConfirmations.withConfirmation(
       input,
-      { ...request, confirmationId },
+      { ...confirmation, confirmationId },
       async () => {}
     );
     let outcome: 'deleted' | 'committed' = 'deleted';
@@ -50,19 +49,19 @@ export default class AccountController {
     } catch (error) {
       // Does work: a committed deletion is recorded before the session ends.
       if (error instanceof IdentityNotConfirmedError) {
-        return ctx.response.forbidden({
+        return response.forbidden({
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
         });
       }
       if (error instanceof AccessControlError && error.code === 'E_ACCESS_CONTROL_LAST_OWNER') {
-        return ctx.response.conflict({ error: 'Transfer ownership first.', code: 'LAST_OWNER' });
+        return response.conflict({ error: 'Transfer ownership first.', code: 'LAST_OWNER' });
       }
       if (!isCommittedFailure(error)) throw error;
       outcome = 'committed';
     }
-    await managedGuard.forRequest(ctx).terminate();
-    if (outcome === 'committed') return ctx.response.serviceUnavailable(deletionCommitted);
-    return ctx.serialize({ ok: true, signedOut: true });
+    await auth.use('web').forRequest().terminate();
+    if (outcome === 'committed') return response.serviceUnavailable(deletionCommitted);
+    return serialize({ ok: true, signedOut: true });
   }
 }

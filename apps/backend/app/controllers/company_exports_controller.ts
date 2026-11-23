@@ -16,9 +16,9 @@ export default class CompanyExportsController {
    * for the effective member's role, includes inactive rows only for `members:manage`, and labels
    * the document `full` only for a reader who may see private names.
    */
-  async show(ctx: HttpContext) {
-    const companyId = String(ctx.params.companyId);
-    const text = await withActor(ctx, async (_actor, trx) => {
+  async show({ auth, params, response, serialize }: HttpContext) {
+    const companyId = String(params.companyId);
+    const text = await withActor(auth, async (_actor, trx) => {
       const { planningAccess } = await resolvePlanningAccess(trx, companyId);
       const rows = await readStateWithClient(
         trx,
@@ -32,8 +32,8 @@ export default class CompanyExportsController {
         })
       );
     });
-    ctx.response.header('Content-Type', 'application/json; charset=utf-8');
-    ctx.response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
-    return ctx.response.send(await ctx.serialize.withoutWrapping(text));
+    response.header('Content-Type', 'application/json; charset=utf-8');
+    response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
+    return response.send(await serialize.withoutWrapping(text));
   }
 }

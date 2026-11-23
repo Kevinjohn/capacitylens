@@ -4,10 +4,8 @@ import { withActor } from '#services/auth/current_actor';
 
 /** The planning page's archive recovery read. */
 export default class PlanningArchiveController {
-  async show(ctx: HttpContext) {
-    const companyId = String(ctx.params.companyId);
-    return ctx.serialize(
-      await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, companyId))
-    );
+  async show({ auth, params, serialize }: HttpContext) {
+    const companyId = String(params.companyId);
+    return serialize(await withActor(auth, (_actor, trx) => readArchiveRecovery(trx, companyId)));
   }
 }

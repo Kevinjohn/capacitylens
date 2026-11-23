@@ -8,17 +8,17 @@ import { clearLinkValidator, setLinkValidator } from '#validators/member_resourc
 
 /** Scoped member/person association. */
 export default class MemberResourceLinksController {
-  async update(ctx: HttpContext) {
-    const [validationError, body] = await ctx.request.tryValidateUsing(setLinkValidator, {
-      data: ctx.request.body(),
+  async update({ auth, params, request, serialize }: HttpContext) {
+    const [validationError, body] = await request.tryValidateUsing(setLinkValidator, {
+      data: request.body(),
     });
     if (validationError) refuseInvalidAdmissionBody(validationError);
     const command = parseAccountOperation(
-      ctx.request.header('x-account-operation-id'),
-      ctx.request.header('idempotency-key')
+      request.header('x-account-operation-id'),
+      request.header('idempotency-key')
     );
-    const { companyId, userId } = ctx.params;
-    const result = await withActor(ctx, async (currentActor, trx) => {
+    const { companyId, userId } = params;
+    const result = await withActor(auth, async (currentActor, trx) => {
       let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
       return runAccountOperation(trx, {
         name: 'set-member-resource-link',
@@ -42,20 +42,20 @@ export default class MemberResourceLinksController {
         command,
       });
     });
-    return ctx.serialize(result);
+    return serialize(result);
   }
 
-  async destroy(ctx: HttpContext) {
-    const [validationError, body] = await ctx.request.tryValidateUsing(clearLinkValidator, {
-      data: ctx.request.body(),
+  async destroy({ auth, params, request, response }: HttpContext) {
+    const [validationError, body] = await request.tryValidateUsing(clearLinkValidator, {
+      data: request.body(),
     });
     if (validationError) refuseInvalidAdmissionBody(validationError);
     const command = parseAccountOperation(
-      ctx.request.header('x-account-operation-id'),
-      ctx.request.header('idempotency-key')
+      request.header('x-account-operation-id'),
+      request.header('idempotency-key')
     );
-    const { companyId, userId } = ctx.params;
-    await withActor(ctx, async (currentActor, trx) => {
+    const { companyId, userId } = params;
+    await withActor(auth, async (currentActor, trx) => {
       let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
       return runAccountOperation(trx, {
         name: 'clear-member-resource-link',
@@ -78,6 +78,6 @@ export default class MemberResourceLinksController {
         command,
       });
     });
-    return ctx.response.noContent();
+    return response.noContent();
   }
 }

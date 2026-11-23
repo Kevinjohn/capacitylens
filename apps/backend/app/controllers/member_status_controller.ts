@@ -5,27 +5,30 @@ import { changeStatusValidator } from '#validators/members';
 
 /** A member's status, changed under live management permission. */
 export default class MemberStatusController {
-  async update(ctx: HttpContext) {
-    const { status } = await ctx.request.validateUsing(changeStatusValidator, {
-      data: ctx.request.body(),
+  async update({ auth, params, request, serialize }: HttpContext) {
+    const { status } = await request.validateUsing(changeStatusValidator, {
+      data: request.body(),
     });
-    const companyId = readRouteParam(ctx.params.companyId);
-    const userId = readRouteParam(ctx.params.userId);
-    const result = await runMemberMutation(ctx, {
-      companyId,
-      operation: 'change-member-status',
-      payload: {
-        userId,
-        status,
-      },
-      work: (trx, actor) =>
-        changeMemberStatus(trx, {
-          companyId,
-          actorId: actor.actorId,
+    const companyId = readRouteParam(params.companyId);
+    const userId = readRouteParam(params.userId);
+    const result = await runMemberMutation(
+      { auth, request },
+      {
+        companyId,
+        operation: 'change-member-status',
+        payload: {
           userId,
           status,
-        }),
-    });
-    return ctx.serialize(result);
+        },
+        work: (trx, actor) =>
+          changeMemberStatus(trx, {
+            companyId,
+            actorId: actor.actorId,
+            userId,
+            status,
+          }),
+      }
+    );
+    return serialize(result);
   }
 }
