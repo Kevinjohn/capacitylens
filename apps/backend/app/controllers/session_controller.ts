@@ -14,7 +14,6 @@ import { buildUserProjection } from '#services/auth/user_projection';
 import { requireAdmissionDecision, withActor } from '#services/auth/current_actor';
 import { signInValidator } from '#validators/auth_requests';
 import { hasAnyIdentity } from '#services/installation_company';
-import { requireAuthRequestMessage } from '#services/auth/auth_request_message';
 
 /** The caller's sign-in: who is signed in, signing in with a password, and signing out. */
 export default class SessionController {
@@ -57,15 +56,7 @@ export default class SessionController {
   }
 
   async store({ auth, request, response, logger, serialize }: HttpContext) {
-    const [validationError, body] = await request.tryValidateUsing(signInValidator, {
-      data: request.body(),
-    });
-    // Route wording: sign-in answers a Vine failure with its own sentence and no code.
-    if (validationError) {
-      return response.badRequest({
-        error: requireAuthRequestMessage(validationError, 'sign-in'),
-      });
-    }
+    const body = await request.validateUsing(signInValidator, { data: request.body() });
     const { email } = body;
     try {
       const user = await signInWithPassword(auth, logger, {
@@ -76,7 +67,8 @@ export default class SessionController {
       });
       return serialize({ user });
     } catch (error) {
-      // Route wording: sign-in names a credential failure; the handler sends the Kit's generic one.
+      // Keeps the 401 without a code and the actionable sentence: the Kit's code for this failure
+      // is one the browser's error reader does not list, and its sentence names nothing to fix.
       if (error instanceof InvalidCredentialsError) {
         return response.unauthorized({ error: 'Invalid email or password.' });
       }

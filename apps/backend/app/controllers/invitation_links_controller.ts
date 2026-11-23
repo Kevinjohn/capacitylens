@@ -3,7 +3,7 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import db from '@adonisjs/lucid/services/db';
 import { setProofHeaders } from '#services/request_helpers';
 import { getInstallationCompany } from '#services/installation_company';
-import { invalidInvitationLink } from '#services/admission/invitation_answers';
+import { invalidLinkAnswer } from '#services/auth/credential_answers';
 
 /** What an invitation link offers. */
 export default class InvitationLinksController {
@@ -11,7 +11,7 @@ export default class InvitationLinksController {
   async show({ params, response, serialize }: HttpContext) {
     setProofHeaders(response);
     const invitation = await accountKit.invitations.inspect({ token: params.token });
-    if (!invitation) return response.notFound(invalidInvitationLink);
+    if (!invitation) return response.notFound(invalidLinkAnswer);
     const { companyId, companyName } = await getInstallationCompany(db);
     return serialize({
       companyId,

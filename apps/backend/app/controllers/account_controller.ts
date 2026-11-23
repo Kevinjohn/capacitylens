@@ -6,7 +6,6 @@ import {
   IdentityNotConfirmedError,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
-import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { deleteAccountValidator } from '#validators/credentials';
 
 const deletionCommitted = {
@@ -53,9 +52,6 @@ export default class AccountController {
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
         });
-      }
-      if (error instanceof AccessControlError && error.code === 'E_ACCESS_CONTROL_LAST_OWNER') {
-        return response.conflict({ error: 'Transfer ownership first.', code: 'LAST_OWNER' });
       }
       if (!isCommittedFailure(error)) throw error;
       outcome = 'committed';

@@ -9,9 +9,8 @@ import capacitylens from '#config/capacitylens';
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { signUpValidator } from '#validators/auth_requests';
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
+import { emailInUseAnswer } from '#services/auth/credential_answers';
 import { hasNoCompany } from '#services/installation_company';
-import { requireAuthRequestMessage } from '#services/auth/auth_request_message';
 
 /** Open sign-up of a new account. */
 export default class NewAccountController {
@@ -20,15 +19,7 @@ export default class NewAccountController {
    * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
    */
   async store({ auth, request, response, logger, serialize }: HttpContext) {
-    const [validationError, body] = await request.tryValidateUsing(signUpValidator, {
-      data: request.body(),
-    });
-    // Route wording: sign-up answers a Vine failure with its own sentence and no code.
-    if (validationError) {
-      return response.badRequest({
-        error: requireAuthRequestMessage(validationError, 'sign-up'),
-      });
-    }
+    const body = await request.validateUsing(signUpValidator, { data: request.body() });
     const { email, name } = body;
     if (!capacitylens.allowOpenSignUp || (await hasNoCompany(db))) {
       return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
@@ -40,16 +31,13 @@ export default class NewAccountController {
         registrationData: { name },
       });
     } catch (error) {
-      // Route wording: sign-up words these refusals for this route; invitations word them
-      // differently.
+      // Keeps the product codes `SIGN_UP_CLOSED` and `EMAIL_IN_USE`, which the Kit's own codes
+      // do not carry and the browser reads.
       if (error instanceof FirstCompanyPendingException) {
         return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
       }
       if (error instanceof RegistrationEmailAlreadyRegisteredError) {
-        return response.conflict({
-          error: 'An account already uses this email. Sign in or reset your password.',
-          code: 'EMAIL_IN_USE',
-        } satisfies ProductHttpErrorBody);
+        return response.conflict(emailInUseAnswer);
       }
       // The account exists; only the confirmation email may be missing, and it can be resent.
       if (!isCommittedFailure(error)) throw error;

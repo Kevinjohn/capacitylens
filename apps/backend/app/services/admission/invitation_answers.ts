@@ -22,12 +22,6 @@ export function buildInvitationView(invitation: Invitation) {
   };
 }
 
-/** The refusal for an invitation link that is invalid or has expired. */
-export const invalidInvitationLink = {
-  error: 'This invitation is invalid or has expired.',
-  code: 'INVALID_TOKEN',
-};
-
 /** Answers 503 when invitations cannot be emailed. */
 export function answerMailUnavailable(response: HttpContext['response']) {
   return response.serviceUnavailable({

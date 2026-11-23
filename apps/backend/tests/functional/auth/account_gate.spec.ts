@@ -122,19 +122,13 @@ test.group('account gate', (group) => {
     const { cookie, cookieHeader } = await signIn(client, waiting);
     const get = (path: string) => client.get(path).header('cookie', cookieHeader).send();
 
-    // Planning routes word the refusal their own way; the gate keeps each route's body.
-    const planningRefusal = 'Company access needs admission.';
-    const productRefusal = 'Your access to this company is waiting on admission.';
-    for (const [path, error] of [
-      [`/api/companies/${companyId}/planning`, planningRefusal],
-      ['/api/companies', productRefusal],
-      ['/api/state', productRefusal],
-    ] as const) {
+    const refusal = 'Your access to this company is waiting on admission.';
+    for (const path of [`/api/companies/${companyId}/planning`, '/api/companies', '/api/state']) {
       const refused = await get(path);
       refused.assertStatus(403);
       const body = refused.body() as { code?: string; error?: string; decision?: unknown };
       assert.equal(body.code, 'ADMISSION_REQUIRED');
-      assert.equal(body.error, error);
+      assert.equal(body.error, refusal);
       assert.isObject(body.decision);
     }
     // The body is invalid; the gate answers before the handler reads it.
@@ -146,7 +140,7 @@ test.group('account gate', (group) => {
       .send();
     write.assertStatus(403);
     assert.equal((write.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
-    assert.equal((write.body() as { error?: string }).error, planningRefusal);
+    assert.equal((write.body() as { error?: string }).error, refusal);
 
     for (const [path, status] of [
       ['/api/admission', 200],
