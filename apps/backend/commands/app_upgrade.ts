@@ -1,14 +1,12 @@
-import { BaseCommand } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
+import { OperatorCommand } from './_operator_command.js';
 
 /** Run the package's backup-then-migrate command, then check the migrated schema. */
-export default class AppUpgrade extends BaseCommand {
+export default class AppUpgrade extends OperatorCommand {
   static commandName = 'app:upgrade';
   static description = 'Back up the SQLite database, then run pending migrations';
   static options: CommandOptions = { startApp: true };
-
-  #reported = false;
 
   async run() {
     const upgrade = await this.kernel.exec('db:upgrade', ['--no-schema-generate']);
@@ -17,18 +15,10 @@ export default class AppUpgrade extends BaseCommand {
       this.exitCode = upgrade.exitCode ?? 1;
       return;
     }
-    try {
-      await assertSchemaIntegrity();
-    } catch (error) {
-      this.logger.error(`Upgrade failed: ${String(error)}`);
-      this.error = error;
-      this.#reported = true;
-      this.exitCode = 1;
-    }
+    await assertSchemaIntegrity();
   }
 
-  /** Marks a caught error as already reported, so Ace does not print it raw. */
-  async completed() {
-    return this.#reported;
+  protected buildFailureMessage(error: unknown) {
+    return `Upgrade failed: ${String(error)}`;
   }
 }

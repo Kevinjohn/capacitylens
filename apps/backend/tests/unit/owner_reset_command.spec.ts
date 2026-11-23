@@ -1,5 +1,6 @@
 import { test } from '@japa/runner';
 import {
+  assertSafeFailure,
   operatorFixture,
   insertOwner,
   withOperatorServer,
@@ -77,8 +78,7 @@ test.group('owner reset command', () => {
       assert.notEqual(f.command(args.slice(0, -1)).status, 0);
       database.exec('BEGIN IMMEDIATE');
       const locked = f.command(args);
-      assert.notEqual(locked.status, 0, locked.output);
-      assert.match(locked.output, /Another process holds/);
+      assertSafeFailure(assert, locked, /Another process holds/);
       database.exec('ROLLBACK');
       database.prepare("UPDATE memberships SET role='admin'").run();
       database.close();

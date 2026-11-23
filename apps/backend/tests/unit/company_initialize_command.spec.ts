@@ -1,5 +1,9 @@
 import { test } from '@japa/runner';
-import { operatorFixture, withOperatorServer } from '#tests/helpers/operator_command_helpers';
+import {
+  assertSafeFailure,
+  operatorFixture,
+  withOperatorServer,
+} from '#tests/helpers/operator_command_helpers';
 import { writeSmokeSchedule } from '../../../../tooling/smokeSchedule.mjs';
 
 const args = [
@@ -90,8 +94,7 @@ test.group('company initialize command', () => {
       insertUser(database);
       database.exec('BEGIN IMMEDIATE');
       const locked = f.command(args);
-      assert.notEqual(locked.status, 0);
-      assert.match(locked.output, /Another process holds/);
+      assertSafeFailure(assert, locked, /Another process holds/);
       database.exec('ROLLBACK');
       assert.equal(database.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0);
       database.close();
