@@ -148,7 +148,8 @@ and the tests, not here.
   lifecycle, import and erasure keep their Owner/Admin gates.
 - Time zone and week start are chosen when the company is created and cannot be changed
   afterwards; a field that was never stored accepts its first value. The company name is set at
-  setup and shown in Settings; there is no rename control (#2461, deferred).
+  setup and shown in Settings, which has no rename control; the settings update on the server
+  still accepts a name (#2461, deferred).
 - Colours come from the preset palette. Ordinary writes reject anything else.
 - Client/project privacy is opt-in and Owner-managed. Real names remain stored; only Owners receive
   them. Every other role receives the quoted code name, and non-Owner writes preserve the protected
@@ -167,7 +168,7 @@ and the tests, not here.
   behind the sign-in wall.
 - Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
   an online backup before migrating; the backup is the rollback. There are no down migrations and
-  no checksum ledger.
+  no checksum ledger (#2437 reduces the startup schema check to the migration record).
 - An online SQLite backup runs at startup and on a schedule, with count-based retention of
   verified bundles on local storage. Pre-migration bundles and reset archives stay outside
   scheduled retention. Failures are logged or returned by the operator command.
@@ -242,8 +243,8 @@ and the tests, not here.
   that sole admitted identity names the company in the browser and becomes its Owner, in one
   transaction. Open sign-up is refused until the first company exists, whatever the
   configuration. The stopped-server operator initialiser is a recovery option, never the install
-  path. No path creates credentials, changes identity admission or grants company ownership
-  through an environment variable.
+  path, and also requires an admitted identity. Neither path creates credentials or changes
+  identity admission. No environment variable grants company ownership.
 - A development-only demo command may create the demo company on an empty disposable database
   and make the development bootstrap identity its Owner. That identity is the one account created
   outside the kit. Production refuses both the command and the setting that enables the identity.
@@ -286,8 +287,8 @@ does not inherit them.
   operation, plus undo and redo, because each edit carries the company revision and writes one
   audit row and one history step. Import, anonymisation and example data have their own routes.
   There are no per-entity resource routes for planning edits.
-- Planning entities, companies and users have string primary keys, minted by the client for
-  planning rows. Bookkeeping and package-owned tables keep their own keys.
+- Planning entities, companies and users have string primary keys; the browser mints the id of
+  a row a person creates. Bookkeeping and package-owned tables keep their own keys.
 
 ## AdonisJS framework departures
 

@@ -27,7 +27,8 @@ Three rules decide every case:
    departures" in
    [`DECISIONS.md`](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md). This page
    cites it as "departure 10". A new difference needs the owner's ruling first. An entry marked
-   **Aligning** there is being removed; do not copy it into new code.
+   **Aligning** there is being removed by the issue it names; until that issue lands, match the
+   surrounding code.
 3. **An existing difference is debt.** Code that differs without a departure is tracked in
    [#2334](https://github.com/Kevinjohn/capacitylens/issues/2334). It is not a pattern to copy.
    Rules marked **Open** wait for a decision in that issue; until then, match the surrounding
@@ -431,7 +432,7 @@ Source: [Authentication](https://docs.adonisjs.com/guides/auth/introduction),
   `web`, which is Account Kit's session guard.
 - In the framework, an action reads the user with `auth.getUserOrFail()` and the `User` model
   composes `withAuthFinder`. In CapacityLens, Account Kit owns sign-in, sessions and credential
-  checks, and an action receives the verified actor (departure 24, provisional). Account Kit's
+  checks, and an action receives the verified actor (departure 24). Account Kit's
   session guard sets `auth.user`; an action that writes still takes its actor from `withActor`,
   which re-checks the session inside the product transaction.
 - Authorization in the framework is a Bouncer ability in `app/abilities/main.ts` or a policy in
@@ -519,7 +520,7 @@ Source: [API client](https://docs.adonisjs.com/guides/frontend/api-client) and
 - With TanStack Query, a read is `useQuery(api.route.queryOptions(...))`, a write is
   `useMutation(api.route.mutationOptions(...))`, and cache keys come from the adapter.
 - TanStack Query owns server reads. The store owns the planning cache and the company directory
-  (`DECISIONS.md`, Browser data).
+  (`DECISIONS.md`, Browser data; #2447 moves the remaining hand-written reads).
 
 ## Lint, format and tooling
 

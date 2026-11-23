@@ -7,8 +7,8 @@ of every implementation guarantee.
 
 ## Differences requiring reconciliation
 
-None. Company name, time zone and week start are read-only after setup by decision; a rename
-control is deferred in [#2461](https://github.com/Kevinjohn/capacitylens/issues/2461).
+None. Time zone and week start are fixed after setup by decision. Settings shows the company name
+without a rename control; one is deferred in [#2461](https://github.com/Kevinjohn/capacitylens/issues/2461).
 
 ### Guide discrepancy
 
