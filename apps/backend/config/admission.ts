@@ -7,7 +7,6 @@
 
 import env from '#start/env';
 import { defineAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { admissionAuthorize } from '#services/account_kit/admission_rules';
 
 // Comma-separated, for example `example.com,example.org`; unset leaves the domain requirement off.
 const domains = (env.get('CAPACITYLENS_ALLOWED_EMAIL_DOMAINS') ?? '')
@@ -19,5 +18,5 @@ const domains = (env.get('CAPACITYLENS_ALLOWED_EMAIL_DOMAINS') ?? '')
 export default defineAdmission({
   ...(domains.length > 0 ? { domain: { allowed: domains } } : {}),
   invitation: { required: true },
-  approval: { required: true, authorize: admissionAuthorize },
+  approval: { required: true },
 });

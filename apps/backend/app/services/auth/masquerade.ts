@@ -11,7 +11,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { MasqueradeError as PackageMasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade';
 import app from '@adonisjs/core/services/app';
-import { nativeAdapter } from '#config/masquerade';
+import { nativeAdapter } from '#services/auth/masquerade_authority';
 import { requireActor } from '#services/auth/current_actor';
 import type {
   QueryClientContract,
