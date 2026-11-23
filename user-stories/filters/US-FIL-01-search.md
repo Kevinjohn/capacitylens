@@ -34,19 +34,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarFilters search input"] --> B["useToolbarSearch debounces committed query"]
-  B --> C["schedulerSlice.setFilters updates local filter state"]
-  C --> D["createAllocationFilters.resourceVisible matches name and role"]
-  D --> E["SchedulerGrid renders filtered resources"]
-  E --> F["No planning write or server mutation"]
+  OPEN["Show filters mounts SchedulerToolbarFilters"] --> INPUT{"Search people input event"}
+  INPUT -->|Paste would exceed 256 UTF-16 units| ERROR["rejectOverlongQueryPaste prevents paste and FieldError appears"]
+  INPUT -->|Change accepted, including clear| DRAFT["useToolbarSearch.changeSearch updates draft, clears error and starts a 180 ms timer"]
+  DRAFT --> TIMER{"Pending search outcome"}
+  TIMER -->|Timer fires with same filter object| COMMIT["setFilters commits search"]
+  TIMER -->|Another toolbar filter changes| BOTH["setToolbarFilters cancels timer and commits patch with draft search"]
+  TIMER -->|Clear, external filter replacement or company change| CANCEL["Cancel pending search and reset draft from current filters"]
+  COMMIT --> MATCH["createAllocationFilters.resourceVisible folds and matches name and job title"]
+  BOTH --> MATCH
+  MATCH --> ROWS["buildSchedulerModel retains matching eligible rows and drops empty groups"]
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. Clearing only the input keeps the other filter choices. The predicate folds the trimmed term and a combined string containing the display name, stored name and job title.
 
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L221) · [localQueryInput.ts](../../apps/frontend/src/lib/localQueryInput.ts#L5) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L22) · [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts#L26) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208) · [SchedulerToolbar.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.test.tsx#L552)

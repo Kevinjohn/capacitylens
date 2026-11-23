@@ -33,12 +33,16 @@ flowchart TD
 
 ## Code flow
 
+This focus trace applies to forms that call useFieldErrorFocus. The Add client browser test checks field-to-alert association, independently of whether the form calls that hook.
+
 ```mermaid
 flowchart TD
-  form["form calls useFieldError.fail(field, message)"] --> state["error and errorField state"]
-  state --> field["TextField sets aria-invalid and aria-describedby"]
-  state --> message["FieldError renders matching id"]
-  focus["useFieldErrorFocus focuses associated control"] --> field
+  submit["AllocationDialog submit invokes validation or write handling"] --> fail["fail from useFieldError stores message and optional field key"]
+  fail --> kind{"Does the error name a field?"}
+  kind -->|yes| field["Field sets aria-invalid and refers to the matching FieldError ID"]
+  kind -->|no| alert["FieldError is a form-level alert with a focus target"]
+  field --> focus["useFieldErrorFocus locates the described control and scrolls/focuses it"]
+  alert --> focusAlert["useFieldErrorFocus locates the alert by ID and scrolls/focuses it"]
 ```
 
-**Code references:** [useFieldError.ts](../../apps/frontend/src/hooks/useFieldError.ts); [textFields.tsx](../../apps/frontend/src/components/common/fields/textFields.tsx); [field.tsx](../../apps/frontend/src/components/ui/field.tsx)
+**Code references:** [allocationSubmit.ts:222](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L222) · [useAllocationDialogState.ts:123](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts#L123) · [AllocationScheduleFields.tsx:270](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx#L270) · [textFields.tsx:60](../../apps/frontend/src/components/common/fields/textFields.tsx#L60) · [useFieldError.ts:18](../../apps/frontend/src/hooks/useFieldError.ts#L18) · [useFieldError.ts:34](../../apps/frontend/src/hooks/useFieldError.ts#L34) · [dialog-layout.db.spec.ts:124](../../e2e/dialog-layout.db.spec.ts#L124)

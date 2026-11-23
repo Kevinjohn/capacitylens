@@ -35,9 +35,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  trigger["DialogTrigger opens Dialog"] --> primitive["Radix DialogContent manages dialog focus"]
-  primitive --> trap["focus scope traps Tab and supports Escape"]
-  close["close action dismisses Dialog"] --> restore["Radix restores focus to trigger"]
+  open["A dialog owner opens its Radix content"] --> type{"Which owner handles close?"}
+  type -->|trigger-backed Dialog| plain["DialogContent relies on the primitive focus scope and close behavior"]
+  plain --> restore["On close, the primitive can restore an available trigger"]
+  type -->|FormDialog Escape| policy["requestClose checks warnOnDirty and dirtyRef"]
+  type -->|FormDialog outside pointer| outside{"Nested overlay or right or Ctrl-click?"}
+  outside -->|yes| keep["Ignore the outside dismissal"]
+  outside -->|no| policy
+  policy -->|dirty and warned| warn["Publish unsaved-changes notice; keep the form open"]
+  policy -->|otherwise| close["Call onClose"]
+  close --> custom["FormDialog cancels default close autofocus; on unmount restoreFocus tries invoker then main"]
+  type -->|PersonScheduleSheet| sheet["Controlled Sheet onOpenChange; onCloseAutoFocus calls onRestoreFocus"]
 ```
 
-**Code references:** [dialog.tsx](../../apps/frontend/src/components/ui/dialog.tsx); [alert-dialog.tsx](../../apps/frontend/src/components/ui/alert-dialog.tsx)
+**Code references:** [dialog.tsx:54](../../apps/frontend/src/components/ui/dialog.tsx#L54) · [dialogs.tsx:73](../../apps/frontend/src/components/common/dialogs.tsx#L73) · [dialogs.tsx:109](../../apps/frontend/src/components/common/dialogs.tsx#L109) · [dialogs.tsx:152](../../apps/frontend/src/components/common/dialogs.tsx#L152) · [PersonScheduleSheet.tsx:30](../../apps/frontend/src/components/person-schedule/PersonScheduleSheet.tsx#L30)

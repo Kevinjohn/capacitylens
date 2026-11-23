@@ -25,11 +25,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  entry["AccountView or AccessScreen calls auth.signOut"] --> provider["AuthProvider signOut delegates to signOutAndReload"]
-  provider --> client["authApi.signOut posts sign-out"]
-  client --> route["auth_routes maps sign-out to SessionController.destroy"]
-  route --> kit["Account Kit authentication.logout ends this session"]
-  kit --> reload["signOutAndReload reloads the page"]
+  entry["AccountView, AccessScreen or CompanySetup triggers auth.signOut"] --> request["AuthProvider calls signOutAndReload and authApi.signOut"]
+  request --> logout["SessionController.destroy uses Account Kit to end this managed session"]
+  request -->|Unconfirmed| error["Show an inline error and allow retry"]
+  logout -->|Confirmed| cleanup["Best-effort clear query, planning and stored account-operation state"]
+  cleanup --> signal["Best-effort write non-secret invalidation marker for sibling tabs"]
+  signal --> reload["Reload this tab even if cleanup or notification failed"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [signOut.ts](../../apps/frontend/src/auth/signOut.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts)
+**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L25) · [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx#L131) · [SignOutButton.tsx](../../apps/frontend/src/auth/SignOutButton.tsx#L14) · [signOut.ts](../../apps/frontend/src/auth/signOut.ts#L17) · [Cleanup and notification](../../apps/frontend/src/auth/signOut.ts#L24) · [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L88) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L44)

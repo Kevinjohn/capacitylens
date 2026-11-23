@@ -34,16 +34,29 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["TimeOffList: Delete time-off entry"] --> B["useConfirmDelete: confirmation dialog"]
-  B -->|cancel| C["Keep time-off entry"]
-  B -->|confirm| D["deleteTimeOff(id)"]
-  D --> E["typedPlanningActions.deleteTimeOff; planning reconciliation"]
-  E --> F["List and schedule refresh"]
+  Row["TimeOffList Delete for planning writers"] --> Prompt["ConfirmDialog for selected entry"]
+  Prompt -->|Cancel or Escape before confirming| Close["Dismiss prompt"]
+  Prompt -->|confirm| Send["useConfirmDelete awaits deleteTimeOff"]
+  Send -->|row already missing locally or viewer guard| Close
+  Send --> Commit["timeOff.delete checks live write access and revision; deleteRows retains one restoration group"]
+  Commit -->|committed and reconciled| Close
+  Commit -->|known refusal| Error["Error notice; prompt stays mounted"]
+  Commit -->|lost or invalid reply| Uncertain["Canonical read can remove row; request still reports error"]
+  Uncertain --> Error
+  Error -->|confirm again| Send
+  Error -->|Cancel or Escape| Held["confirmingRef suppresses onCancel"]
 ```
+
+An eligible Undo restores that individual row. The mounted prompt suppresses dismissal after a failed confirmed request, including a stale refusal that caused a refetch.
 
 **Code references:**
 
-- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx)
-- [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx#L171)
+- [dialogs.tsx](../../apps/frontend/src/components/common/dialogs.tsx#L219)
+- [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts#L4)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L288)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L395)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [TimeOffList.test.tsx](../../apps/frontend/src/components/time-off/TimeOffList.test.tsx#L283)

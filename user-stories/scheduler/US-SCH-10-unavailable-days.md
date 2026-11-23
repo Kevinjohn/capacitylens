@@ -32,9 +32,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useSchedulerGridModel resolves day states and geometry"] --> B["buildSchedulerModel marks unavailable days"]
-  B --> C["ResourceLane CalendarLayers checks perDayColumns"]
-  C --> D["Unavailable day cells render the neutral tint"]
+  Read["schedulerRowCapacity supplies server day availability"] --> State["buildDayStates combines server availability with the effective calendar and absence"]
+  State -->|blocked or tracked availability zero| Unavailable["Set unavailable"]
+  State -->|tracked, available and half day| Half["Set partialCapacity"]
+  State -->|ordinary available day| None["No tint"]
+  Unavailable --> Geometry{"Column geometry enables perDayColumns?"}
+  Half --> Geometry
+  Geometry -->|yes| Layers["CalendarLayers renders full or bottom-half tint"]
+  Geometry -->|no| Coarse["Skip daily tint; keep separate absence block"]
 ```
 
-**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+Fine-column tint starts at the 18 px base width. The local calendar and absence check supplies `creationBlocked`. External rows use the company calendar and have no personal absence or closure shading. Pointer-down draw eligibility uses `creationBlocked`.
+
+**Code references:**
+
+- [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts#L33)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L120)
+- [schedulerConfig.ts](../../apps/frontend/src/lib/schedulerConfig.ts#L20)
+- [columnGeometry.ts](../../apps/frontend/src/components/scheduler/columnGeometry.ts#L232)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L52)
+- [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L113)

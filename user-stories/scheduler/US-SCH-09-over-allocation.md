@@ -37,9 +37,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["The server's planning read computes each resource day's over flag for the grid's window"] --> B["buildSchedulerModel reads the flag for each timeline date"]
-  B --> D["DayState marks over-capacity or time-off conflict"]
-  D --> E["ResourceLane ScheduleSignals renders over-marker"]
+  Read["readPlanning → buildCapacitySection computes scoped capacity for tracked resources"] --> Day["Compute over and timeOffConflict independently"]
+  Day -->|measured modes| Measured["Strict excess sets over; absence with excess sets timeOffConflict"]
+  Day -->|Blocks| Blocks["Overlapping allocation plus closure or time off sets timeOffConflict"]
+  Measured --> Model["schedulerRowCapacity and buildDayStates consume server flags"]
+  Blocks --> Model
+  Model -->|flag present| Marker["ScheduleSignals draws marker; hasTimeOff selects stronger fill"]
+  Model -->|no flag, unread date or external row| None["No marker"]
 ```
 
-**Code references:** [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts), [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+Capacity uses tracked bookings independently of bar display filters. A missing server day has no marker until a covering read arrives.
+
+**Code references:**
+
+- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L115)
+- [primitives.ts](../../packages/shared/src/lib/capacity/primitives.ts#L29)
+- [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts#L33)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L120)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L122)

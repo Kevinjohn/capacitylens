@@ -38,11 +38,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ActivityForm.ActivityForm.submit"] --> B["useStore.updateActivity → createTypedPlanningActions.updateActivity"]
-  B --> C["updateCatalogue → allocationSlice.send"]
-  C --> D["createPlanningCache.execute"] --> E{"createStorePlanningTransport"}
-  E --> F["createPlanningTransport.sendOperation → api.planning_mutations.store"] --> G["PlanningMutationsController.store → mutatePlanning begins the scoped transaction"]
-  G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ActivityList renders"]
+  ENTRY["ActivityList → EditButton opens ActivityForm"] --> ACTION{"Form action"}
+  ACTION -->|Cancel| CLOSE["Close form"]
+  ACTION -->|Save| FORM{"useEditSubmit runs prepareSave"}
+  FORM -->|Invalid draft| FIELD["Show field error and keep draft"]
+  FORM -->|Valid draft| STALE{"Opening row still current?"}
+  STALE -->|No| REOPEN["Show stale error. Reopen the form before applying edits"]
+  STALE -->|Yes| DIFF{"updateActivity → buildCatalogueUpdate produces a change?"}
+  DIFF -->|No| CLOSE
+  DIFF -->|Yes| SEND["sendPlanningIntent sends catalogue.update with opening updatedAt"]
+  SEND --> SERVER{"PlanningMutationsController.store → mutatePlanning authorizes and checks revision, then executes intent"}
+  SERVER -->|Rejected| ERROR["Keep draft and show error"]
+  SERVER -->|Valid| WRITE["writeEntity writes the activity. executePlanningIntent clears linked allocation project ids when the resulting kind disallows attribution"]
+  WRITE --> CLEAN{"Actual change invalidates pending restoration?"}
+  CLEAN -->|Change with pending items| PROMPT{"Rollback first attempt. Planning cache asks for counted cleanup consent"}
+  PROMPT -->|Cancel| KEEP["Keep unsaved draft"]
+  PROMPT -->|Save change| RETRY{"Resend original attempt with confirmedRestorationCount"}
+  RETRY -->|Changed count, revision or refused| ERROR
+  RETRY -->|Accepted| DISCARD["Discard recovery groups in the transaction and end previous history"]
+  CLEAN -->|Trigger changed, no pending items| DISCARD
+  DISCARD --> COMMIT["Commit row changes, revision and audit. Return role-projected receipt"]
+  CLEAN -->|No trigger change| COMMIT
+  COMMIT --> DONE["acceptReceipt refreshes planning. Close form. ActivitySections and Schedule use active data."]
 ```
 
-**Code references:** [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+Owner, Admin and Editor can write planning data. Viewer and view-as-member lack write authority. The write goes through `POST /api/companies/:companyId/planning/mutations` with admitted company access. The planning cache refreshes on a stale revision and reconciles an uncertain write before another attempt. Footer Cancel closes the form, including during a pending save. The dispatched save can still settle. The form seeds the current project and phase. Changing the project clears the phase, and switching away from Project-specific clears both links. The active list excludes hidden ancestry. The write can refuse a change that would invalidate existing placeholder placements. Any actual kind change invalidates pending deleted-item recovery.
+
+**Code references:** [ActivityList.tsx](../../apps/frontend/src/components/activities/ActivityList.tsx#L190) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx#L154) · [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L157) · [domain.ts](../../apps/backend/app/services/planning/entity_validation/domain.ts#L43) · [projection.ts](../../packages/shared/src/domain/lifecycle/projection.ts#L36) · [execute.ts](../../apps/backend/app/services/planning/execute.ts#L284) · [restoration_pending_groups.spec.ts](../../apps/backend/tests/functional/planning/restoration_pending_groups.spec.ts#L124) · [Write controls](../../apps/frontend/src/components/common/crudButtons.tsx#L7) · [Cancel button](../../apps/frontend/src/components/common/FormButtons.tsx#L17) · [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44) · [Row checks](../../apps/backend/app/services/planning/entity_write.ts#L97) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L194) · [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L502) · [sendPlanningIntent](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [Planning transport](../../apps/frontend/src/data/planning/planningTransport.ts#L64) · [Planning route](../../apps/backend/start/planning_routes.ts#L16) · [Mutation controller](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9) · [Planning transaction](../../apps/backend/app/services/planning.ts#L198) · [Company write authority](../../apps/backend/app/services/planning/access.ts#L16) · [Receipt and refresh](../../apps/frontend/src/data/planning/planningCache.ts#L469) · [usePrivateNameFields.ts](../../apps/frontend/src/components/common/usePrivateNameFields.ts#L27) · [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L21) · [mutation_changes.ts](../../apps/backend/app/services/planning/mutation_changes.ts#L74) · [Confirmation retry](../../apps/frontend/src/data/planning/planningCache.ts#L420) · [Role projection](../../apps/backend/app/transformers/state_transformer.ts#L46)

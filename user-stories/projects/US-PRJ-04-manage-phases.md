@@ -34,10 +34,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ProjectList opens ProjectForm"] --> B["ProjectForm contains no phase add, edit or delete controls"]
-  B --> C["No current UI call path to addPhase, updatePhase or deletePhase"]
-  D["typedPlanningActions retains phase catalogue actions"] --> E["planningTransport maps phase create, update and delete routes"]
-  E --> F["PlanningMutationsController.store / phaseUpdate / phaseDelete"]
+  UI["ProjectList opens ProjectForm through Add or Edit"] --> ABSENT["ProjectForm has no phase add, rename or remove controls"]
+  CALLER["Retained store actions addPhase, updatePhase and deletePhase"] --> INTENT["Build catalogue.create, catalogue.update or catalogue.delete for phases"]
+  INTENT --> SERVER{"PlanningMutationsController.store → mutatePlanning checks permission, revision and intent"}
+  SERVER -->|Create or update| ROW["writeEntity validates scope and project references and saves phase"]
+  SERVER -->|Delete| DELETE["deleteRows records recovery links, clears linked activity phaseId values and soft-deletes phase"]
+  SERVER -->|Refused| ERROR["Return failure without committing phase changes"]
+  ROW --> RESULT["Commit revision and audit. Return scoped receipt"]
+  DELETE --> RESULT
+  ALLOC["Allocation activity selector reads retained activity phase metadata"] --> LABEL["activityOptions uses phase name to disambiguate duplicate activity labels"]
 ```
 
-**Code references:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+Phase management is hidden in the normal project journey. The retained store actions use the same admitted, company-scoped planning endpoint and write authority as catalogue forms. An unchanged update can produce no intent. The allocation form offers no independent Phase selector.
+
+**Code references:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx#L69) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx#L151) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L190) · [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L456) · [domain.ts](../../apps/backend/app/services/planning/entity_validation/domain.ts#L43) · [execute.ts](../../apps/backend/app/services/planning/execute.ts#L319) · [restoration.ts](../../apps/backend/app/services/planning/restoration.ts#L52) · [activityOptions.ts](../../apps/frontend/src/components/scheduler/activityOptions.ts#L33) · [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx#L106) · [restoration_catalogue.spec.ts](../../apps/backend/tests/functional/planning/restoration_catalogue.spec.ts#L121) · [sendPlanningIntent](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [Planning transport](../../apps/frontend/src/data/planning/planningTransport.ts#L64) · [Planning route](../../apps/backend/start/planning_routes.ts#L16) · [Mutation controller](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9) · [Planning transaction](../../apps/backend/app/services/planning.ts#L198) · [Company write authority](../../apps/backend/app/services/planning/access.ts#L16) · [Receipt and refresh](../../apps/frontend/src/data/planning/planningCache.ts#L469)

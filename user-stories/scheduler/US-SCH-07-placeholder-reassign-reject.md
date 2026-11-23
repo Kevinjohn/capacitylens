@@ -32,12 +32,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationBar begins pointer gesture"] --> B["useAllocationGestureViewModel previews target lane"]
-  B --> C["isPreviewDropBlocked checks working-day compatibility only"]
-  C -->|blocked| D["Preview stays on source lane; commit is refused"]
-  C -->|allowed| E["Release calls updateAllocation with the target resourceId"]
-  E --> F["Shared domain assertion rejects a placeholder bound to another project when the allocation is saved"]
-  F --> G["The drag gesture shows the refusal as an error notice; the allocation is unchanged"]
+  Bar["Editable Work-mode allocation moves toward a placeholder row"] --> Preview["previewGesture checks target calendar for placement preview"]
+  Preview -->|cancel| None["Clear gesture"]
+  Preview --> Release["commitPointerGesture repeats lane hit test and placement preflight"]
+  Release -->|different row, calendar rejected| Notice["Show drop error; no request"]
+  Release -->|different row, calendar accepted| Send["savePointerCommit → reassignAllocation sends allocation.reassign"]
+  Release -->|no different target| Other["Same-row branch"]
+  Send --> Commit["commit checks live write access and revision; writeEntity runs assertAllocationRefs"]
+  Commit -->|effective project mismatch| Refuse["Refuse reassignment; preserve original dates and resource"]
+  Commit -->|valid and committed| Done["Apply projected row and show receipt outcome"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read; no fallback date write"]
 ```
 
-**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts), [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts), [gestureWorkingWeeks.ts](../../apps/frontend/src/components/scheduler/gestureWorkingWeeks.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+The effective project can come from a Project-specific activity or the allocation’s attribution to an All-projects activity. A stale refusal refreshes the cache.
+
+**Code references:**
+
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L131)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L200)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L240)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L154)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L220)
+- [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L366)
+- [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L410)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [AllocationBar.pointerDrag.interaction.test.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.pointerDrag.interaction.test.tsx#L202)

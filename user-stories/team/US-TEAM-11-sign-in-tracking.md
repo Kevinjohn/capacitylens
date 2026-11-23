@@ -32,12 +32,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Screen["MembersSection does not wire changeSignInTracking to a rendered control"] --> NoEntry["No current toggle or Signed in column"]
-    Hook["Retained createSignInTrackingMutation"] --> Client["teamAccessApi.setMemberSignInTracking → memberRequests PUT api.member_sign_in_tracking.update"]
-    Client --> Route["membership_routes.ts registers api.member_sign_in_tracking.update"]
-    Route --> Controller["MemberSignInTrackingController.update checks members:signInTracking"]
-    Controller --> Service["setMemberSignInTracking stores or clears company_settings keys"]
-    Service --> Directory["readMemberDirectory can project sign-in confirmation state when enabled"]
+  screen["MembersSection renders member controls and directory"] --> hidden["The current browser renders neither a tracking toggle nor a Signed in column"]
+  api["Separate retained PUT member_sign_in_tracking endpoint"] --> auth["MemberSignInTrackingController checks members:signInTracking"]
+  auth -->|Denied| refusal["Refuse request"]
+  auth -->|Allowed| tracking["changeMemberSignInTracking stores setting and audits changed value as company"]
+  tracking -->|Newly enabled| window["Begin observation window and confirm the enabling Owner"]
+  tracking -->|Disabled| remove["Erase retained observations"]
+  login["Successful password sign-in calls recordMemberSignIn"] --> producer["Record an observation for active memberships where tracking is enabled"]
+  status["Changed member status"] --> erase["resetMemberSignIn clears that member's observation"]
+  window --> directory["readMemberDirectory can return Boolean or null for confirmation"]
+  remove --> directory
+  producer --> directory
+  erase --> directory
 ```
 
-**Code references:** [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [membership_routes.ts](../../apps/backend/start/membership_routes.ts), [member_sign_in_tracking_controller.ts](../../apps/backend/app/controllers/member_sign_in_tracking_controller.ts), [sign_in_tracking.ts](../../apps/backend/app/services/membership/sign_in_tracking.ts), [member_directory.ts](../../apps/backend/app/services/membership/member_directory.ts), [access.ts](../../packages/shared/src/domain/access.ts)
+**Code references:** [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L143) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L260) · [member_sign_in_tracking_controller.ts](../../apps/backend/app/controllers/member_sign_in_tracking_controller.ts#L10) · [sign_in_tracking.ts](../../apps/backend/app/services/membership/sign_in_tracking.ts#L14) · [sign_in_tracking.ts](../../apps/backend/app/services/membership/sign_in_tracking.ts#L75) · [password_sign_in.ts](../../apps/backend/app/services/auth/password_sign_in.ts#L62) · [member_directory.ts](../../apps/backend/app/services/membership/member_directory.ts#L88) · [member_mutations.ts](../../apps/backend/app/services/membership/member_mutations.ts#L70) · [tracking_lifecycle.spec.ts](../../apps/backend/tests/functional/membership/tracking_lifecycle.spec.ts#L36)

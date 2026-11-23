@@ -33,10 +33,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  grid["SchedulerGrid declares grid and column count"] --> rows["SchedulerGridRows renders resource rows"]
-  rows --> row["SchedulerGridRow renders rowheader and gridcell"]
-  row --> summary["buildRowScreenReaderSummary creates sr-only summary"]
-  summary --> capacity["schedulerRowCapacity supplies capacity conditions"]
+  model["SchedulerGrid supplies grid semantics and two columns from the row model"] --> rows["SchedulerGridRows passes group and row data to SchedulerGridRow"]
+  rows --> header["SchedulerGridRowHeader renders rowheader in column one"]
+  header --> summary["buildRowScreenReaderSummary reads row capacity, conflicts, half days and time-off count"]
+  summary --> conditional["Include personal utilisation when enabled and tracked; omit allocation count in Time off mode"]
+  conditional --> text["Render nonempty summary parts in sr-only text"]
+  rows --> cell["ResourceLane provides gridcell in column two"]
 ```
 
-**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx); [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx); [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx); [buildRowScreenReaderSummary.ts](../../apps/frontend/src/components/scheduler/buildRowScreenReaderSummary.ts); [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts)
+**Code references:** [SchedulerGrid.tsx:349](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L349) · [SchedulerGridRows.tsx:87](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx#L87) · [SchedulerGridRow.tsx:187](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L187) · [buildRowScreenReaderSummary.ts:17](../../apps/frontend/src/components/scheduler/buildRowScreenReaderSummary.ts#L17) · [ResourceLane.tsx:220](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L220)

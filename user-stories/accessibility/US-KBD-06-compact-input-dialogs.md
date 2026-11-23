@@ -33,12 +33,16 @@ flowchart TD
 
 ## Code flow
 
+Resource is the layout reference. The comparison tests exercise Client, Project, Activity, External party, Discipline and Time off forms.
+
 ```mermaid
 flowchart TD
-  form["management form renders shared fields"] --> field["TextField accepts ProductFieldLayout"]
-  field --> layout["buildProductFieldLayoutProps selects layout classes"]
-  layout --> css["index.css responsive field layout"]
-  forms["Resource Client Project Activity TimeOff and External forms"] --> field
+  form["A management form renders a shared field with label-control layout"] --> layout["buildProductFieldLayoutProps adds the compact marker and responsive classes"]
+  layout --> width{"At the small breakpoint or wider?"}
+  width -->|yes| columns["Render label and control in a one-to-three grid"]
+  width -->|no| stacked["Render the same label and control in stacked order"]
+  columns --> labels["TextField keeps the same htmlFor and input ID"]
+  stacked --> labels
 ```
 
-**Code references:** [textFields.tsx](../../apps/frontend/src/components/common/fields/textFields.tsx); [buildProductFieldLayoutProps.ts](../../apps/frontend/src/components/common/fields/buildProductFieldLayoutProps.ts); [fieldLayout.tsx](../../apps/frontend/src/components/common/fields/fieldLayout.tsx); [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx); [ExternalForm.tsx](../../apps/frontend/src/components/external/ExternalForm.tsx); [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx); [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx); [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx); [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx); [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx); [index.css](../../apps/frontend/src/index.css)
+**Code references:** [buildProductFieldLayoutProps.ts:4](../../apps/frontend/src/components/common/fields/buildProductFieldLayoutProps.ts#L4) · [textFields.tsx:95](../../apps/frontend/src/components/common/fields/textFields.tsx#L95) · [dialog-layout.db.spec.ts:33](../../e2e/dialog-layout.db.spec.ts#L33) · [dialog-layout.db.spec.ts:65](../../e2e/dialog-layout.db.spec.ts#L65) · [dialog-layout.db.spec.ts:124](../../e2e/dialog-layout.db.spec.ts#L124)

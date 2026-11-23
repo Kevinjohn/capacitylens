@@ -26,10 +26,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["DisciplineList sorts management rows with byName"] --> B["Alphabetical list renders"]
-  C["DisciplineForm.submit sends name and colour"] --> D["Server entity_write appends after the highest stored order"]
-  E["selectors.compareByDisciplineOrder / buildDisciplineGroups sort schedule bands"]
-  D --> E
+  READ["Scoped company data contains saved disciplines"] --> PAGE{"DisciplineRoute sees Use disciplines enabled?"}
+  PAGE -->|No| REDIRECT["Redirect Disciplines page to Schedule"]
+  PAGE -->|Yes| LIST["DisciplineList reads active data and sorts byName"]
+  READ --> SCHEDULE{"buildSchedulerModel sees disciplinesEnabled?"}
+  SCHEDULE -->|No| FALLBACK["buildResourceGroups uses resource or engagement grouping"]
+  SCHEDULE -->|Yes| GROUP["buildDisciplineGroups uses compareByDisciplineOrder"]
+  GROUP --> VISIBLE["buildSchedulerModel drops groups without eligible rows"]
+  READ --> OPTIONS["buildFilterOptions uses the same comparator for discipline choices"]
+  CREATE["writeEntity assigns sortOrder on create"] --> READ
 ```
 
-**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx) · [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+The read surfaces are available to company readers under their settings gates. DisciplineList write controls require edit authority. Schedule ordering uses stored `sortOrder`, then name and id. The filter picker can include a discipline with zero visible scheduled rows when the picker is available.
+
+**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx#L23) · [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx#L44) · [router.tsx](../../apps/frontend/src/router.tsx#L115) · [displayOrder.ts](../../apps/frontend/src/lib/displayOrder.ts#L116) · [selectors.ts](../../apps/frontend/src/store/selectors.ts#L129) · [selectors.ts](../../apps/frontend/src/store/selectors.ts#L147) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208) · [toolbarFilterOptions.ts](../../apps/frontend/src/components/scheduler/toolbarFilterOptions.ts#L16) · [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L39)

@@ -33,10 +33,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  loc["useLocation reads pathname"] --> menu["NavMenu maps links"]
-  menu --> nav["NavLink computes aria-current and active style"]
-  nav --> root["end=true for Schedule root route"]
-  help["HelpMenuItem matchPath on help and diagnostics routes"] --> nav
+  loc["AppSidebar reads useLocation pathname"] --> menu["NavMenu calculates matchPath for each destination"]
+  menu --> root["Schedule uses exact matching for matchPath and NavLink end"]
+  menu --> other["Other listed routes use their destination match"]
+  root --> paint["SidebarMenuButton isActive sets data-active for styling"]
+  other --> paint
+  loc --> help["HelpMenuItem tests Help or Diagnostics"]
+  help --> paint
+  help --> semantics["Help NavLink still points to /help and owns its link semantics"]
 ```
 
-**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts)
+**Code references:** [AppSidebar.tsx:36](../../apps/frontend/src/components/AppSidebar.tsx#L36) · [AppSidebar.tsx:156](../../apps/frontend/src/components/AppSidebar.tsx#L156) · [AppSidebar.tsx:189](../../apps/frontend/src/components/AppSidebar.tsx#L189) · [sidebar.tsx:641](../../apps/frontend/src/components/ui/sidebar.tsx#L641)

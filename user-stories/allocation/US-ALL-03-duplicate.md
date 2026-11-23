@@ -39,18 +39,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog edit footer: Duplicate"] --> B["allocationSubmit duplicateAllocation validates draft"]
-  B -->|valid| C["allocationSlice.duplicateAllocation(source id, draft)"]
-  B -->|invalid| D["Field error; no copy"]
-  C --> E["allocationSlice typed write and reconciliation"]
-  E -->|created| F["Close dialog; independent copy rendered"]
-  E -->|failure| G["Form error; original remains"]
+  Edit["AllocationFooter offers Duplicate for a writable non-series allocation"] --> Check["createAllocationIntents validates duplicate draft and new placement"]
+  Check -->|invalid| Field["Field error, draft remains"]
+  Check --> Dup["duplicateAllocation → buildAllocationDuplicate"]
+  Dup -->|source copy fields match| Copy["allocation.duplicate sends source ID and new ID and dates"]
+  Dup -->|copy fields changed| Create["allocation.create sends the new draft"]
+  Copy --> Commit["commit checks live write access, mutation identity and base revision"]
+  Create --> Commit
+  Commit --> Write["executePlanningIntent → writeEntity applies create placement checks"]
+  Write -->|committed and reconciled| Close["Close, then show any save advisory"]
+  Commit -->|refused| Refusal["Form error; stale revision refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read and history reset; check whether the copy exists"]
 ```
+
+The server duplicate copies the scoped source fields and clears `seriesId`. The draft stays available before any acknowledged creation.
 
 **Code references:**
 
-- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
-- [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx#L38)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L256)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L119)
+- [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L122)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L249)
+- [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L140)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [http_contract.spec.ts](../../apps/backend/tests/functional/planning/http_contract.spec.ts#L579)

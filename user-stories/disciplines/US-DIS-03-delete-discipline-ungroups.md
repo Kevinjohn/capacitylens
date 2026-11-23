@@ -27,11 +27,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["DisciplineList Delete control"] --> B["ConfirmDialog onConfirm → useConfirmDelete"] --> C["useStore.deleteDiscipline"]
-  C --> D["createTypedPlanningActions.deleteDiscipline → catalogue.delete"] --> E["createPlanningTransport → api.planning_mutations.store"]
-  E --> F["PlanningMutationsController.store → mutatePlanning begins scoped transaction"] --> G["executePlanningIntent.deleteRows retains discipline and detached-resource links"] --> K["mutatePlanning records revision/audit and commits"]
-  K --> I["selectors.buildDisciplineGroups render remaining resources ungrouped"]
-  H --> I
+  PAGE["DisciplineRoute enables page. DisciplineList DeleteButton opens ConfirmDialog"] --> CHOICE{"Confirmation action"}
+  CHOICE -->|Cancel before confirmation| CLOSE["Dismiss dialog"]
+  CHOICE -->|Delete| SEND["useConfirmDelete → deleteDiscipline → sendPlanningIntent catalogue.delete"]
+  SEND --> SERVER{"mutatePlanning checks planning authority, revision and scoped discipline"}
+  SERVER -->|Refused| ERROR["Show notice. Confirmation stays open for retry"]
+  ERROR -->|Retry| SEND
+  SERVER -->|Accepted| DELETE["deleteRows saves restoration group and links, clears disciplineId on linked resources, then soft-deletes discipline"]
+  DELETE --> COMMIT["Commit revision, audit and history. acceptReceipt refreshes planning and useConfirmDelete closes"]
+  COMMIT --> UNDO{"Schedule Undo available and selected?"}
+  UNDO -->|No| LIST["Resource rows regroup using active discipline data"]
+  UNDO -->|Yes| RESTORE{"stepPlanningHistory executes planning.restoreGroup"}
+  RESTORE -->|Accepted| JOIN["Restore discipline and saved links in one transaction"]
+  RESTORE -->|Ownership, expiry or relink conflict| REFUSE["Refuse Undo without partially restoring links"]
 ```
 
-**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+Owner, Admin and Editor can write planning data. Viewer and view-as-member lack write authority. The route uses Use disciplines. After a failure the mounted `ConfirmDialog` has its confirmation ref set, so Cancel and Escape cannot dismiss that prompt. Undo requires the originating usable history and restoration group. A missing locally owned discipline can short-circuit deletion and close the confirmation.
+
+**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx#L23) · [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx#L44) · [router.tsx](../../apps/frontend/src/router.tsx#L115) · [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts#L5) · [dialogs.tsx](../../apps/frontend/src/components/common/dialogs.tsx#L219) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L183) · [restoration.ts](../../apps/backend/app/services/planning/restoration.ts#L52) · [restoration.ts](../../apps/backend/app/services/planning/restoration.ts#L159) · [planning.ts](../../apps/backend/app/services/planning.ts#L154) · [restoration_catalogue.spec.ts](../../apps/backend/tests/functional/planning/restoration_catalogue.spec.ts#L84) · [sendPlanningIntent](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [Planning transport](../../apps/frontend/src/data/planning/planningTransport.ts#L64) · [Planning route](../../apps/backend/start/planning_routes.ts#L16) · [Mutation controller](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9) · [Planning transaction](../../apps/backend/app/services/planning.ts#L198) · [Company write authority](../../apps/backend/app/services/planning/access.ts#L16) · [Receipt and refresh](../../apps/frontend/src/data/planning/planningCache.ts#L469)

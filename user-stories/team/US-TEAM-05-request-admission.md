@@ -36,21 +36,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Ask["AccessScreens AdmissionStep Ask for access"] --> AuthApi["authApi.requestAdmission → api.admission_requests.store"]
-    AuthApi --> RequestController["AdmissionRequestsController.store → AccountAdmission.request"]
-    RequestController --> Refresh["AccessScreen onRefresh asks AuthProvider to resolve access again"]
-    Check["AccessScreens Check again"] --> Refresh
-    Refresh --> Gate{"Current admission and membership gate"}
-    Gate -->|"Admission pending"| Wait["AccessScreens keeps waiting state"]
-    Gate -->|"Rejected or revoked"| Refused["AccessScreens shows refusal message without request controls"]
-    Gate -->|"Admitted, no membership"| Join["MembershipStep Join company → authApi.completeMembership"]
-    Join --> Complete["MembershipsController.store → completeMembership"]
-    Complete --> Company["AuthProvider refreshes access and opens company"]
-    Manager["AdmissionRequestsPanel: settings_admission_intro only when requests.length > 0, else settings_admission_empty"] --> Buttons["Approve or Decline"]
-    Buttons --> Client["teamAccessApi.decideAdmission → admissionRequests.decideAdmission"]
-    Client --> Decision["AdmissionApprovalsController.store or AdmissionRejectionsController.store → AccountAdmission decision"]
-    Decision --> Reload["Panel reloads request list; person refreshes access when ready"]
-    Manager -. "No Revoke control or caller" .-> NoRevoke["api.admission_revocations.store exists, but this UI does not call it"]
+  session["SessionController.show issues admission and membership state"] --> gate["readAuthResponse selects the first applicable gate"]
+  gate -->|Address unconfirmed| verify["AuthProvider renders confirmation gate"]
+  gate -->|Admission incomplete| admission["AdmissionStep explains the current decision"]
+  admission -->|Declined, withdrawn or prerequisites missing| reason["Show reason and keep Sign out available"]
+  admission -->|Request offered| request["authApi.requestAdmission calls AdmissionRequestsController.store"]
+  request --> kit["Account Kit checks prerequisites and records the request"]
+  kit -->|Accepted| refresh["onRefresh checks the current session again"]
+  kit -->|Refusal or request failure| error["Limited screen shows error"]
+  admission -->|Check again, before request or while waiting| refresh
+  refresh --> session
+  gate -->|Admitted and no membership| join["MembershipStep calls authApi.completeMembership"]
+  join --> service["MembershipsController.store runs completeMembership under withActor"]
+  service -->|Missing member| write["Grant invited role or Viewer; record audit and revision"]
+  write --> refresh
+  service -->|Already active| refresh
+  service -->|Suspended on direct or stale Join, or another refusal| error
+  gate -->|Admitted with membership| app["Open the router; suspended membership cannot open company data"]
 ```
 
-**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [admissionRequests.ts](../../apps/frontend/src/account/admissionRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts), [memberships_controller.ts](../../apps/backend/app/controllers/memberships_controller.ts), [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts), [admission_rejections_controller.ts](../../apps/backend/app/controllers/admission_rejections_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)
+The manager’s decision controls are documented in [Approve or decline company admission](../settings/US-SET-19-company-admission.md#code-flow).
+
+**Code references:** [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L26) · [authResponse.ts](../../apps/frontend/src/auth/authResponse.ts#L73) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L142) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L192) · [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts#L12) · [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts#L17) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L77)

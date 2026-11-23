@@ -54,31 +54,33 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog create dialog"] --> B["allocationSubmit validates draft and assignment"]
-  B -->|valid| C["allocationSlice.addAllocation"]
-  B -->|invalid| I["Field/form error; dialog remains open"]
-  C --> D["Planning cache executes command"]
-  D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends api.planning_mutations.store"]
-  F --> J["Request refusal or transport failure returns to allocationSubmit"]
-  J --> I["Form error; draft remains available"]
-  F --> G["PlanningMutationsController.store executes scoped writeRow"]
-  G --> H["Acknowledgement reconciles store; Schedule redraws"]
+  Row["ResourceActions with planning write access and Work mode"] --> Seed["SchedulerDialog seeds AllocationDialog"]
+  Draw["Work-mode draw through openDrawDialog"] -->|accepted start| Seed
+  Draw -->|blocked| Closed["No dialog"]
+  Seed --> Form["createAllocationIntents runs Save exclusively"]
+  Form -->|Cancel before dispatch| Closed
+  Form --> Check["parseAllocationIntentDraft and isNewPlacementRejected"]
+  Check -->|invalid| Field["Field error, draft remains"]
+  Check -->|single allocation| Send["addAllocation sends allocation.create"]
+  Check -->|repeat selected| Repeat["addRepeatedAllocation sends allocation.createGroup"]
+  Send --> Commit["PlanningMutationsController.store → commit rechecks write access and revision"]
+  Commit --> Write["executePlanningIntent → writeEntity checks working day and availability before writing"]
+  Write -->|committed receipt| Receipt["planningCache.acceptReceipt applies eligible changes and refreshes"]
+  Receipt --> End["Close form, then showSaveAdvisory if supplied"]
+  Commit -->|refused, including placement| Refusal["Form error, draft stays open; stale revision refreshes"]
+  Commit -->|lost or invalid reply| Unknown["settleUnconfirmed clears history and refetches without replay"]
 ```
+
+The repeat branch continues in [US-ALL-09](US-ALL-09-repeat-creation.md). A blocked or stale context can stop dispatch or prevent a pending response from applying to this form.
 
 **Code references:**
 
-- [writer.ts](../../apps/backend/app/services/planning/writer.ts)
-
-- [execute.ts](../../apps/backend/app/services/planning/execute.ts)
-
-- [planning.ts](../../apps/backend/app/services/planning.ts)
-
-- [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
-- [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
-- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
-- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L130)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L116)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L142)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L80)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L173)
+- [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L132)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)

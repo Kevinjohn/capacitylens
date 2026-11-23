@@ -25,9 +25,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  server["Server import completes and useServerImport refreshes planning"] --> revision["planningCache accepts canonical replacement revision"]
-  revision --> clear["External revision leaves page-local undo history cleared"]
-  clear --> controls["Undo and Redo have no import inverse to apply"]
+  submit["useServerImport sends the reviewed document, revision and proof"] --> tx["ImportsController.store checks the current Owner and consumes proof in the apply transaction"]
+  tx --> check["applyCompanyImport checks base revision, destination and portable fingerprint"]
+  check -->|Rejected| refused["Roll back; proof and history stay available"]
+  check -->|Unchanged| noop["Commit proof spend and return existing revision without changing history"]
+  noop --> resume["runSuspendedReplacement resumes writes without a replacement refresh"]
+  check -->|Changed| remove["discardRestorationGroups and discardHistory for the company"]
+  remove --> commit["Replace rows, write audit and advance planning revision"]
+  commit --> refresh["runSuspendedReplacement requests a fresh planning read"]
+  submit -->|Commit uncertain| refresh
+  refresh -->|Read accepted| cache["planningCache uses server history availability for Undo and Redo"]
+  refresh -->|Read failed| reload["Keep writes suspended and require reload"]
 ```
 
-**Code references:** [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx)
+**Code references:** [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts#L46) · [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts#L17) · [company_import.ts](../../apps/backend/app/services/company_import.ts#L145) · [suspendedReplacement.ts](../../apps/frontend/src/store/suspendedReplacement.ts#L101) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L224) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L194) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L262)

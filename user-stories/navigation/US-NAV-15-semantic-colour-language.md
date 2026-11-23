@@ -31,9 +31,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  action["Button receives variant and visual intent"] --> styles["button.tsx assigns semantic classes"]
-  styles --> tokens["index.css resolves semantic color tokens"]
-  tokens --> ui["rendered control communicates intent"]
+  action["Button receives a variant"] --> styles["buttonVariants selects semantic utility classes"]
+  styles --> tokens["index.css supplies semantic colour tokens"]
+  tokens --> ui["Button applies the selected variant, including default, danger-soft and destructive"]
+  header["SidebarHeaderContent renders APP_NAME"] --> brand["Brand row supplies data-visual-intent brand"]
+  menu["NavMenu computes active destination"] --> nav["SidebarMenuButton supplies data-active for navigation styling"]
 ```
 
-**Code references:** [button.tsx](../../apps/frontend/src/components/ui/button.tsx); [index.css](../../apps/frontend/src/index.css)
+**Code references:** [button.tsx:15](../../apps/frontend/src/components/ui/button.tsx#L15) · [AppSidebar.tsx:84](../../apps/frontend/src/components/AppSidebar.tsx#L84) · [AppSidebar.tsx:189](../../apps/frontend/src/components/AppSidebar.tsx#L189) · [sidebar.tsx:641](../../apps/frontend/src/components/ui/sidebar.tsx#L641) · [index.css:1](../../apps/frontend/src/index.css#L1)

@@ -30,11 +30,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  ui["ClientForm or ProjectForm builds ordinary update"] --> client["typed planning client sends mutation"]
-  client --> server["mutatePlanning resolves authorization and executes intent"]
-  server --> rules["entity_rules keeps stored private-name fields for non-Owners"]
-  rules --> writer["planning writer persists allowed changes"]
-  server --> response["transformState redacts private response"]
+  edit["ClientForm or ProjectForm submits an ordinary create or edit"] --> mutate["mutatePlanning checks company write authorization"]
+  mutate --> restricted["writeEntity calls assertMayWriteRestrictedFields before preparing the write"]
+  restricted -->|Non-Owner names isPrivate or codeName unless empty on create| refused["AUTHORIZATION_DENIED"]
+  restricted -->|Allowed, including empty privacy defaults on create| prepare["prepareEntityWrite preserves the stored real name on a private row for a non-Owner, even if a name was supplied"]
+  prepare -->|Invalid| validation["Reject invalid values without persisting"]
+  prepare -->|Valid| persist["Persist allowed changes in the planning transaction"]
+  persist --> reply["transformState projects the role-safe receipt"]
 ```
 
-**Code references:** [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx); [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx); [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts); [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts); [planning.ts](../../apps/backend/app/services/planning.ts); [entity_rules.ts](../../apps/backend/app/services/planning/entity_rules.ts); [writer.ts](../../apps/backend/app/services/planning/writer.ts); [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts)
+For separate lifecycle operations, see [Archive and anonymise records](../settings/US-SET-12-archived-deleted.md#code-flow).
+
+**Code references:** [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx#L108) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx#L191) · [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L95) · [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L21) · [entity_rules.ts](../../apps/backend/app/services/planning/entity_rules.ts#L64) · [Preserve hidden values](../../apps/backend/app/services/planning/entity_rules.ts#L87) · [entity_rules.ts](../../apps/backend/app/services/planning/entity_rules.ts#L303) · [planning.ts](../../apps/backend/app/services/planning.ts#L299) · [operations.spec.ts](../../apps/backend/tests/functional/planning/operations.spec.ts#L287)

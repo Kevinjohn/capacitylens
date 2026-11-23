@@ -34,17 +34,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections Show unallocated checkbox"] --> B["schedulerSlice.setFilters stores showUnmatched"]
-  B --> C["schedulerModel includes unmatched resources as dimmed rows"]
-  C --> D["Capacity calculation continues to use all work"]
-  D --> E["No planning write or server mutation"]
+  VIEW{"ViewFilters.hasLensFilter?"} -->|No| HIDDEN["Show unallocated omitted. Stored flag can survive lens changes"]
+  VIEW -->|Yes| BOX["Checkbox reads showUnmatched, initially false"]
+  BOX --> STORE["setToolbarFilters → setFilters updates showUnmatched"]
+  STORE --> ELIGIBLE{"createAllocationFilters.resourceVisible?"}
+  ELIGIBLE -->|No| OMIT["Exclude resource"]
+  ELIGIBLE -->|Yes| MATCH{"createRowBuilder finds a renderable work match in the model timeline?"}
+  MATCH -->|Yes| NORMAL["Keep normal row with matching bars"]
+  MATCH -->|No| RETAIN{"buildSchedulerModel sees showUnmatched?"}
+  RETAIN -->|No| OMIT
+  RETAIN -->|Yes| DIM["SchedulerGridRow dims row with other in-timeline bars allowed by Tentative"]
+  RESET["clearFilters → buildEmptyFilters resets flag"] --> VIEW
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. The resource predicate applies enabled kinds, search and any applicable discipline. Server capacity remains a separate row-builder input. Clearing the last lens hides the checkbox; a later lens can show it checked until Clear Filters resets it.
 
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L152) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L47) · [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L80) · [filters.ts](../../apps/frontend/src/store/filters.ts#L23) · [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts#L11) · [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L164) · [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L66) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208) · [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L241) · [schedulerModel.filters.test.ts](../../apps/frontend/src/components/scheduler/schedulerModel.filters.test.ts#L186)

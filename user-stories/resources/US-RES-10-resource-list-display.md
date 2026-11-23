@@ -30,10 +30,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ResourceList calls useResourceListModel"] --> B["partitionResources separates people, placeholders and externals"]
-  B --> C["engagement grouping and favourite comparators order rows"]
-  C --> D["ResourceListContent renders grouped sections and empty state"]
-  D --> E["FavouriteButton shown only for editable people and external rows"]
+  LIST["ResourceList → useResourceListModel reads useActiveScopedData and company settings"] --> GROUP["hasResourceEngagementGrouping → partitionResources → createResourceComparator"]
+  GROUP --> PEOPLE{"PeopleSections sees active Supplementary grouping?"}
+  PEOPLE -->|Yes| SPLIT["Show Studio and Supplementary sections"]
+  PEOPLE -->|No| COMBINED["Render people rows together"]
+  GROUP --> KINDS["ResourceListContent renders PlaceholderSection or ExternalResourceSection when each setting allows"]
+  COMBINED --> EMPTY{"Every enabled section empty?"}
+  EMPTY -->|Yes| ACTION["ResourceRows renders Add your first resource for writers"]
+  EMPTY -->|No| ROWS["Render available rows or section-specific empty message"]
+  SPLIT --> ROWS
+  KINDS --> ROWS
 ```
 
-**Code references:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts) · [ResourceListContent.tsx](../../apps/frontend/src/components/resources/ResourceListContent.tsx) · [FavouriteButton.tsx](../../apps/frontend/src/components/resources/FavouriteButton.tsx)
+Viewer and view-as-member can read the same roster and ordering. Edit authority gates row mutations and empty-state create actions. `ResourceRow` renders the resolved name, placeholder badge and available job title or discipline metadata. External rows show their company and descriptor. People and external rows rank favourites before display name within the applicable section. Placeholder sorting does not use favourites.
+
+**Code references:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx#L15) · [ResourceListContent.tsx](../../apps/frontend/src/components/resources/ResourceListContent.tsx#L31) · [ResourceListContent.tsx](../../apps/frontend/src/components/resources/ResourceListContent.tsx#L48) · [ResourceListContent.tsx](../../apps/frontend/src/components/resources/ResourceListContent.tsx#L172) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts#L16) · [selectors.ts](../../apps/frontend/src/store/selectors.ts#L57) · [resourceGrouping.ts](../../apps/frontend/src/lib/resourceGrouping.ts#L117) · [ExternalResourceSection.tsx](../../apps/frontend/src/components/resources/ExternalResourceSection.tsx#L28) · [ResourceList.test.tsx](../../apps/frontend/src/components/resources/ResourceList.test.tsx#L213)

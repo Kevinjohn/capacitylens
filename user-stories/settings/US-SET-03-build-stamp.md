@@ -25,9 +25,12 @@ B -->|no| D["Build details row is omitted"]
 
 ```mermaid
 flowchart TD
-  entry["HelpView Diagnostics link or palette Diagnostics item opens /diagnostics"] --> view["DiagnosticsBuildDetails renders"] --> info["buildInfo.readBuildStamp reads configured build SHA"]
-  info --> stamp["buildInfo formats build stamp and mode"]
-  stamp --> row["DiagnosticsBuildDetails shows or omits row"]
+  route["DiagnosticsRoute checks access before rendering DiagnosticsView"] --> view["DiagnosticsBuildDetails reads build stamp and feedback URL"]
+  view --> checks{"At least one usable value?"}
+  checks -->|neither| omitted["Omit the section"]
+  checks -->|yes| section["Render DiagnosticsBuildDetails section"]
+  section -->|valid trimmed 7 to 64 digit hexadecimal SHA| display["Render the preformatted build SHA · server stamp"]
+  section -->|valid feedback href| feedback["Render feedback link independently of stamp"]
 ```
 
-**Code references:** [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx), [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx), [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts)
+**Code references:** [router.tsx:145](../../apps/frontend/src/router.tsx#L145) · [DiagnosticsBuildDetails.tsx:6](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx#L6) · [buildInfo.ts:64](../../apps/frontend/src/data/buildInfo.ts#L64) · [buildInfo.ts:208](../../apps/frontend/src/data/buildInfo.ts#L208)

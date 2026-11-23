@@ -36,20 +36,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Row["MemberRow opens role edit or More actions"] --> RoleDialog["MemberConfirmations role dialog calls changeRole"]
-    RoleDialog --> RoleMutation["createRoleMutation → teamAccessApi.changeMemberRole"]
-    RoleMutation --> RoleAPI["memberRequests PATCH api.members.update"]
-    RoleAPI --> RoleServer["MembersController.update → changeMemberRole → Access Control membership update"]
-    RoleServer --> RoleResult{"Role update succeeded?"}
-    RoleResult -->|"Yes"| RefreshRole["useMembersOrchestration refreshDirectory updates role row"]
-    RoleResult -->|"No"| RoleError["useFieldError presents the role update error"]
-    Row --> StatusConfirm["MemberConfirmations confirms Suspend or Restore"]
-    StatusConfirm --> StatusMutation["createStatusMutation → teamAccessApi.changeMemberStatus"]
-    StatusMutation --> StatusAPI["memberRequests PATCH api.member_status.update"]
-    StatusAPI --> StatusServer["MemberStatusController.update → changeMemberStatus → Access Control membership status"]
-    StatusServer --> StatusResult{"Status update succeeded?"}
-    StatusResult -->|"Yes"| RefreshStatus["useMembersOrchestration refreshDirectory updates active group"]
-    StatusResult -->|"No"| StatusError["useFieldError presents the access update error"]
+  directory["Authorized member directory supplies the row's manage flag"] --> row["MemberRow enables actions for manageable targets"]
+  row -->|Active member role edit| role["MemberConfirmations opens role dialog with current role"]
+  row -->|Suspend or restore| status["MemberConfirmations shows the status confirmation"]
+  role -->|Cancel| close["Close without sending"]
+  role -->|Save| save["Close role dialog; createRoleMutation skips unchanged role"]
+  status -->|Cancel| close
+  status -->|Confirm| confirmed["confirmedMemberAction dispatches changeMemberStatus"]
+  save -->|Changed| transaction["MembersController or MemberStatusController runs the scoped Access Control mutation"]
+  confirmed --> transaction
+  transaction -->|Denied| error["Show action refusal"]
+  transaction -->|Role changed| revision["Advance planning revision and record membership audit"]
+  transaction -->|Status changed| reset["Clear retained sign-in observation"]
+  reset --> revision
+  revision --> reload["Refresh the directory"]
+  transaction -->|Unknown result| reload
 ```
 
-**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx), [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [membership_routes.ts](../../apps/backend/start/membership_routes.ts), [members_controller.ts](../../apps/backend/app/controllers/members_controller.ts), [member_status_controller.ts](../../apps/backend/app/controllers/member_status_controller.ts), [member_mutations.ts](../../apps/backend/app/services/membership/member_mutations.ts)
+**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx#L19) · [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx#L40) · [buildMemberDirectoryPresentation.ts](../../apps/frontend/src/components/team/buildMemberDirectoryPresentation.ts#L50) · [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts#L56) · [member_directory.ts](../../apps/backend/app/services/membership/member_directory.ts#L88) · [member_mutations.ts](../../apps/backend/app/services/membership/member_mutations.ts#L21) · [member_administration.spec.ts](../../apps/backend/tests/functional/membership/member_administration.spec.ts#L355)

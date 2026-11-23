@@ -41,12 +41,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  nav["AppSidebar renders HELP_LINK"] --> route["router renders HelpView at help route"]
-  help["HelpView calls useTourOperation"] --> action["useTourOperation checks permission readiness"]
-  action --> start["startTour builds role tour and navigates"]
-  start --> guide["driver.js presents tour steps"]
-  help --> orient["button calls showOrientation from Outlet context"]
-  help --> diag["useDiagnosticsAccessDecision allowed renders Diagnostics link"]
+  route["Help link opens HelpView"] --> tour["HelpView reads useTourOperation"]
+  tour --> availability{"Permission resolved or not applicable, and no tour in flight?"}
+  availability -->|no| disabled["Show tour control stays disabled"]
+  availability -->|yes and selected| start["showTour marks busy and calls startTour with current role"]
+  start --> run["Reuse an active tour or runTour navigates to Schedule before importing driver.js"]
+  run -->|launch| driver["driver renders steps from buildRoleTour"]
+  driver --> destroyed["Tour closes and driver-active clears; startTour resolves"]
+  run -->|rejection| notice["showTour sets an error notice"]
+  destroyed --> release["finally clears the in-flight flag and busy state"]
+  notice --> release
+  route --> orientation["Orientation button calls Outlet context showOrientation"]
+  route --> guides["User guides link opens the documentation"]
+  route -->|diagnostics decision allowed| diag["HelpView renders Diagnostics link"]
 ```
 
-**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [router.tsx](../../apps/frontend/src/router.tsx); [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx); [useDiagnosticsAccessDecision.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsAccessDecision.ts); [useTourOperation.ts](../../apps/frontend/src/hooks/useTourOperation.ts); [tour.ts](../../apps/frontend/src/lib/tour.ts); [tourSteps.ts](../../apps/frontend/src/lib/tourSteps.ts)
+**Code references:** [HelpView.tsx:15](../../apps/frontend/src/components/HelpView.tsx#L15) · [useTourOperation.ts:8](../../apps/frontend/src/hooks/useTourOperation.ts#L8) · [tour.ts:70](../../apps/frontend/src/lib/tour.ts#L70) · [router.tsx:199](../../apps/frontend/src/router.tsx#L199)

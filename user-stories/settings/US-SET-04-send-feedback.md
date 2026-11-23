@@ -25,9 +25,14 @@ B -->|no| E["No feedback action is shown"]
 
 ```mermaid
 flowchart TD
-  view["DiagnosticsBuildDetails calls readFeedbackMailto"] --> info["buildInfo builds configured mailto and optional stamp"]
-  info --> link["DiagnosticsBuildDetails renders mailto anchor when configured"]
-  link --> mail["Browser opens the user's mail app"]
+  view["DiagnosticsBuildDetails calls readFeedbackMailto"] --> valid{"Configured address passes isAccountEmail?"}
+  valid -->|no| skip["Return null; no feedback link"]
+  valid -->|yes| stamp{"readBuildStamp returns a stamp?"}
+  stamp -->|yes| decorated["Include the build stamp after the feedback subject"]
+  stamp -->|no| plain["Use the standard feedback subject"]
+  decorated --> link["Percent-encode recipient parts and subject; render mailto anchor"]
+  plain --> link
+  link --> click["Activation hands mailto to the browser or configured handler"]
 ```
 
-**Code references:** [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx), [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts)
+**Code references:** [DiagnosticsBuildDetails.tsx:19](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx#L19) · [buildInfo.ts:210](../../apps/frontend/src/data/buildInfo.ts#L210) · [buildInfo.ts:219](../../apps/frontend/src/data/buildInfo.ts#L219)

@@ -28,15 +28,17 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ## Code flow
 
+The [company setting write path](../REFERENCE.md#company-setting-writes) traces the common no-op, server commit, refusal and reconciliation branches.
+
 ```mermaid
 flowchart TD
-  control["SettingsWorkingDaysSection calls updateSetting({ workingDays })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
-  view --> action["typedPlanningActions.updateCompany builds settings.update intent"]
-  action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
-  execute --> transport["planningTransport sends api.planning_mutations.store"]
-  transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]
-  route --> reply["Planning cache reconciles the response into the company projection"]
-  reply --> read["store selectors.listCompanyWorkingDays supplies setting to views"]
+  view["SettingsCompanySetupSections supplies company week order, current working days and canEdit"] --> inputs["SettingsWorkingDaysSection renders WorkingDayCheckbox controls"]
+  inputs --> guard{"Editable and not the last checked day?"}
+  guard -->|no| disabled["Disabled checkbox sends nothing; last day references minimum explanation"]
+  guard -->|yes and changed| patch["WorkingDayCheckbox calls updateSetting with the added or removed day"]
+  patch --> commit["Shared write path normalizes and validates workingDays"]
+  commit -->|accepted state| read["listCompanyWorkingDays reads the new company pattern"]
+  read --> capacity["Calendar and schedule use the new pattern for availability and capacity"]
 ```
 
-**Code references:** [SettingsWorkingDaysSection.tsx](../../apps/frontend/src/components/settings/SettingsWorkingDaysSection.tsx), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [SettingsSchedulingSection.tsx:210](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx#L210) · [SettingsWorkingDaysSection.tsx:26](../../apps/frontend/src/components/settings/SettingsWorkingDaysSection.tsx#L26) · [SettingsWorkingDaysSection.tsx:91](../../apps/frontend/src/components/settings/SettingsWorkingDaysSection.tsx#L91) · [typedPlanningActions.ts:331](../../apps/frontend/src/store/typedPlanningActions.ts#L331) · [selectors.ts:94](../../apps/frontend/src/store/selectors.ts#L94)

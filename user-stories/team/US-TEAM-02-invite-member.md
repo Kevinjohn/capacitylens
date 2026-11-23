@@ -37,15 +37,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Panel["InviteMemberPanel opens FormDialog with settings_invite_intro description, then submit"] --> Hook["useMemberInvites submitInvite validates email"]
-    Hook --> Client["teamAccessApi.createInvitation → invitationRequests.createInvitation"]
-    Client --> Route["api.invitations.store → InvitationsController.store"]
-    Route --> MailConfig{"CAPACITYLENS_MAIL_HOST configured?"}
-    MailConfig -- "No" --> Refused["MAIL_UNAVAILABLE; UI shows failure"]
-    MailConfig -- "Yes" --> Kit["Account Kit invitations.send stores invitation and sends mail"]
-    Kit -->|"Created and emailed"| Saved["UI shows emailed notice and reloads invites"]
-    Kit -->|"Committed, delivery failed"| Stored["202 emailed=false; UI shows saved but not emailed"]
-    Stored --> Resend["Outstanding invites exposes Resend"]
+  panel["InviteMemberPanel opens Invite someone dialog"] -->|Cancel| close["Close the dialog"]
+  panel -->|Submit| validate["useMemberInvites trims and checks the email"]
+  validate -->|Invalid| error["Show invite field error"]
+  validate -->|Valid| request["teamAccessApi calls InvitationsController.store"]
+  request --> auth["Validate request and require current invitation manager"]
+  auth -->|Allowed| mail{"Mail configured?"}
+  auth -->|Refused| error
+  mail -->|No| error
+  mail -->|Yes| kit["Account Kit rechecks current transaction authority and saves invitation before mail delivery"]
+  kit -->|Refused| error
+  kit -->|Saved and emailed| completed["Show emailed notice; clear the email draft"]
+  kit -->|Saved but delivery failed| warning["HTTP 202: show warning; clear the email draft"]
+  completed --> reload["Reload invitations"]
+  warning --> reload
+  request -->|Unknown outcome| reconcile["Reconcile directory before inviting again"]
 ```
 
-**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [invitationRequests.ts](../../apps/frontend/src/account/invitationRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts)
+**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx#L35) · [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts#L31) · [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts#L19) · [account_kit.ts](../../apps/backend/config/account_kit.ts#L53) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L363)

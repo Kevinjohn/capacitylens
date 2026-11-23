@@ -44,31 +44,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationScheduleFields repeat preview"] --> B["allocationSubmit validates the repeat fields"]
-  B -->|valid| C["allocationSlice.addRepeatedAllocation sends the first allocation, the pattern and the occurrence ids"]
-  B -->|invalid| I["Repeat/date error; no write"]
-  C --> D["Planning cache executes group command"]
-  D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends api.planning_mutations.store"]
-  F --> J["Request refusal or transport failure returns to allocationSubmit"]
-  J --> I["Repeat error; draft remains available"]
-  F --> G["mutatePlanning → executePlanningIntent writes the first allocation, then repeat_occurrences expands and writes the rest"]
-  G --> H["Acknowledgement reconciles separate occurrences"]
+  Form["Writable AllocationDialog create mode shows repeat preview"] --> Save["createAllocationIntents validates cutoff and first placement"]
+  Form -->|Cancel| Discard["Close without submitting"]
+  Save -->|invalid| Field["Field error, draft remains"]
+  Save --> Send["addRepeatedAllocation sends first allocation and repeat in allocation.createGroup"]
+  Send --> Commit["commit checks live write access, identity and base revision"]
+  Commit --> First["executePlanningIntent mints series ID and writes first row with create checks"]
+  First --> Later["Expand repeat; mint later IDs and write with permissiveRepeatStart in same transaction"]
+  Later -->|committed receipt| Reconcile["Apply projected rows and refresh history"]
+  Reconcile --> Done["Close, then show any advisory for the whole written group"]
+  Commit -->|known refusal| Error["Form error; transaction rolls back and stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read may contain batch; reset history without replay"]
 ```
+
+The client mints the first ID. The advisory counts affected occurrences across the entire batch. Eligible Undo deletes the recorded group and Redo restores that deletion group.
 
 **Code references:**
 
-- [writer.ts](../../apps/backend/app/services/planning/writer.ts)
-
-- [execute.ts](../../apps/backend/app/services/planning/execute.ts)
-- [repeat_occurrences.ts](../../apps/backend/app/services/planning/repeat_occurrences.ts)
-
-- [planning.ts](../../apps/backend/app/services/planning.ts)
-
-- [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
-- [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
-- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
-- [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx#L201)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L195)
+- [allocationDraft.ts](../../apps/frontend/src/components/scheduler/allocationDraft.ts#L144)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L91)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L182)
+- [save_advisory.ts](../../apps/backend/app/services/planning/save_advisory.ts#L16)
+- [inverse.ts](../../apps/backend/app/services/planning/inverse.ts#L33)
+- [inverse.ts](../../apps/backend/app/services/planning/inverse.ts#L138)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [history.spec.ts](../../apps/backend/tests/functional/planning/history.spec.ts#L395)

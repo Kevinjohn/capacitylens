@@ -23,12 +23,17 @@ C --> D["Company data and exports are unaffected"]
 
 ## Code flow
 
+The company settings mutation follows the [shared write path](../REFERENCE.md#company-setting-writes), outside these device preferences.
+
 ```mermaid
 flowchart TD
-  settings["SettingsAppearanceSection renders device preferences"] --> runtime["runtimeSlice setters update in-memory preference state"]
-  runtime --> storage["displayPrefs writes display keys to localStorage"]
-  settings --> companySettings["SettingsView separately reads company settings through useSettingsViewModel"]
-  companySettings --> company["Company writes use typedPlanningActions and sendPlanningIntent"]
+  view["SettingsView renders My display using useDisplayPreferences"] --> source{"Which device preference changed?"}
+  source -->|Appearance| theme["setTheme calls writeStoredTheme and applyThemeToDom, then updates store"]
+  source -->|Bar labels or utilisation| maps["setBarLabelPref or setUtilisationPref writes the corresponding map, then publishes it"]
+  source -->|Minimise weekends| weekends["setMinimiseWeekends attempts persistence before publishing the display flag"]
+  theme --> storage["Storage errors only lose persistence; in-memory changes still apply"]
+  maps --> storage
+  weekends --> storage
 ```
 
-**Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx), [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts), [displayPrefs.ts](../../apps/frontend/src/lib/displayPrefs.ts), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
+**Code references:** [SettingsView.tsx:86](../../apps/frontend/src/components/settings/SettingsView.tsx#L86) · [runtimeSlice.ts:111](../../apps/frontend/src/store/slices/runtimeSlice.ts#L111) · [displayPrefs.ts:32](../../apps/frontend/src/lib/displayPrefs.ts#L32) · [theme.ts:25](../../apps/frontend/src/lib/theme.ts#L25) · [DECISIONS.md:165](../../DECISIONS.md#L165)

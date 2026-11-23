@@ -34,18 +34,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Dialog["MemberResourceDialog renders eligible choices"] --> Select["MemberResourceEditor change calls the member's request from useMemberResourceLinkRequests, owned by useMembersOrchestration"]
-    Select --> Choose{"Person selected?"}
-    Choose -->|"Yes"| SetClient["teamAccessApi.setMemberResourceLink → memberRequests PUT resource-link"]
-    SetClient --> SetRoute["api.member_resource_links.update → MemberResourceLinksController.update"]
-    SetRoute --> SetLink["setMemberResourceLink updates account_member_resources"]
-    Choose -->|"None"| ClearClient["teamAccessApi.clearMemberResourceLink → memberRequests DELETE resource-link"]
-    ClearClient --> ClearRoute["api.member_resource_links.destroy → MemberResourceLinksController.destroy"]
-    ClearRoute --> ClearLink["clearMemberResourceLink removes account_member_resources row"]
-    SetLink --> Reload["Request hook reloads directory"]
-    ClearLink --> Reload
-    Reload --> Fence["useTeamDirectory accepts the requested read generation only from a successful members read"]
-    Fence --> Row["Member row shows refreshed link or a visible error; the editor is available again"]
+  row["MemberResourceDialog shows eligible choices and any retained link"] -->|Close| close["Dismiss dialog; a request or reread in progress continues"]
+  row -->|Select active person for active member| set["Send link PUT with userId and expected link revision"]
+  row -->|Remove retained link| remove["Send link DELETE with userId and expected link revision"]
+  set --> tx["MemberResourceLinksController runs operation in a company transaction"]
+  remove --> tx
+  tx --> checks["Require company authority and check link revision; setting also checks member and Resource eligibility"]
+  checks -->|Changed| write["Write or delete the link, advance planning revision and record membership audit"]
+  checks -->|No-op| retain["Keep matching link's revision"]
+  checks -->|Refused or conflict| error["Preserve refusal for the editor"]
+  write --> reread["Request authoritative member directory refresh"]
+  retain --> reread
+  error --> reread
+  tx -->|Unknown result| reread
+  reread -->|Successful newer directory read| unlock["Show canonical link and re-enable editing"]
+  reread -->|Read failed| retry["Keep editing blocked and offer Retry"]
+  retry --> reread
 ```
 
-**Code references:** [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx), [useMemberResourceLinkRequest.ts](../../apps/frontend/src/components/team/useMemberResourceLinkRequest.ts), [useTeamDirectory.ts](../../apps/frontend/src/components/team/useTeamDirectory.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [member_resource_links_controller.ts](../../apps/backend/app/controllers/member_resource_links_controller.ts), [links.ts](../../apps/backend/app/services/member_resources/links.ts)
+**Code references:** [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx#L27) · [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx#L89) · [useMemberResourceLinkRequest.ts](../../apps/frontend/src/components/team/useMemberResourceLinkRequest.ts#L100) · [useTeamDirectory.ts](../../apps/frontend/src/components/team/useTeamDirectory.ts#L206) · [member_resource_links_controller.ts](../../apps/backend/app/controllers/member_resource_links_controller.ts#L11) · [links.ts](../../apps/backend/app/services/member_resources/links.ts#L37) · [admission_resource_links.spec.ts](../../apps/backend/tests/functional/auth/admission_resource_links.spec.ts#L187)

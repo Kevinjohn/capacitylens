@@ -26,12 +26,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["FavouriteButton click toggles isFavourite"] --> B["useStore.updateResource"] --> C["createTypedPlanningActions.updateResource → resource.update"]
-  C --> D{{"Typed server transport"}}
-  D --> E["PlanningMutationsController.store → mutatePlanning → executePlanningIntent.writeRow"] --> E2["writeRow persists isFavourite"]
-  E2 --> G["acceptReceipt updates planning state"]
-  F --> G
-  G --> H["useResourceListModel comparator moves favourite row"]
+  ROSTER["ResourceRow for people and ExternalResourceSection mount FavouriteButton"] --> AUTH{"useCanEdit?"}
+  AUTH -->|No| READ["Star omitted. Shared order stays visible"]
+  AUTH -->|Yes| BTN["FavouriteButton reads isFavourite for aria-pressed and accessible toggle label"]
+  BTN --> SEND["updateResource with inverse isFavourite → buildResourceUpdate → resource.update"]
+  SEND --> SERVER{"mutatePlanning checks planning access, revision and scoped resource"}
+  SERVER -->|Accepted| COMMIT["Persist flag, revision and audit. acceptReceipt refreshes planning"]
+  SERVER -->|Confirmed refusal| ERROR["FavouriteButton shows notice. Stored flag unchanged"]
+  SERVER -->|Uncertain reply| RELOAD["Planning cache reconciles with authoritative read and surfaces error"]
+  COMMIT --> ORDER["createResourceComparator uses shared favourite rank in roster and Schedule groups"]
+  RELOAD --> ORDER
 ```
 
-**Code references:** [FavouriteButton.tsx](../../apps/frontend/src/components/resources/FavouriteButton.tsx) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+Only Owner, Admin and Editor see the star. Placeholder rows omit it. This is a company-wide persisted flag; every reader sees the projected order. A stale revision triggers a planning refresh. An uncertain reply can have committed, so the canonical read, when available, determines the resulting flag.
+
+**Code references:** [FavouriteButton.tsx](../../apps/frontend/src/components/resources/FavouriteButton.tsx#L12) · [ResourceListContent.tsx](../../apps/frontend/src/components/resources/ResourceListContent.tsx#L193) · [ExternalResourceSection.tsx](../../apps/frontend/src/components/resources/ExternalResourceSection.tsx#L75) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L222) · [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L364) · [resourceGrouping.ts](../../apps/frontend/src/lib/resourceGrouping.ts#L117) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L213) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L547) · [sendPlanningIntent](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [Planning transport](../../apps/frontend/src/data/planning/planningTransport.ts#L64) · [Planning route](../../apps/backend/start/planning_routes.ts#L16) · [Mutation controller](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9) · [Planning transaction](../../apps/backend/app/services/planning.ts#L198) · [Company write authority](../../apps/backend/app/services/planning/access.ts#L16) · [Receipt and refresh](../../apps/frontend/src/data/planning/planningCache.ts#L469) · [ResourceList.test.tsx](../../apps/frontend/src/components/resources/ResourceList.test.tsx#L136)

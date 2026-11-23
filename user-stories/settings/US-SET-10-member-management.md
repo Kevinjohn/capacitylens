@@ -27,11 +27,19 @@ B -->|schedule link| E["Link, change or remove the person's schedule link"]
 
 ```mermaid
 flowchart TD
-  team["TeamAccessView renders MembersSection for managers"] --> section["MembersSection delegates invite and member row controls"]
-  team --> approval["AdmissionRequestsPanel shows its explanation only when requests are listed"]
-  section --> invite["InviteMemberPanel calls invitation controller actions"]
-  section --> member["Member row actions call teamAccessApi membership methods"]
-  member --> list["MembersSection refreshes directory projection"]
+  team["TeamAccessView resolves access for the current identity and company"] -->|members:manage| section["MembersSection requests its authorized directory"]
+  team -->|Pending or restricted| hidden["Management actions stay unavailable"]
+  section -->|Read failed| retry["Show directory error and Retry"]
+  retry --> section
+  section -->|Read accepted| rows["Expose Members and Invite someone; bind actions to the loaded rows"]
+  rows --> boundary["Delegate writes and reconciliation to each Team action"]
+  team -->|Real Owner or Admin| admission["AdmissionRequestsPanel loads Waiting for approval independently"]
+  admission -->|No requests| empty["Show its empty state"]
+  admission -->|Read failed| admissionError["Show its own Retry"]
+  admissionError --> admission
+  admission -->|Rows| decisions["Expose Approve, and Decline for pending rows"]
 ```
 
-**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts)
+See the [Team actions](../team/US-TEAM-01-check-access.md#code-flow) and [admission decisions](US-SET-19-company-admission.md#code-flow) for write boundaries.
+
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L131) · [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L188) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L28) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L260) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L74)

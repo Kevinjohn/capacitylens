@@ -26,13 +26,19 @@ flowchart TD
 
 ## Code flow
 
+The keyboard guard identifies a dialog by its open aria-modal marker. See [US-NAV-09](US-NAV-09-mobile-affordances.md#code-flow) for the mobile sheet.
+
 ```mermaid
 flowchart TD
-  button["SidebarTrigger calls toggleSidebar"] --> state["SidebarProvider updates open state"]
-  key["useSidebarKeyboardShortcut handles Cmd/Ctrl+B"] --> filter["shortcutFilters checks text entry IME and dialog"]
-  filter -->|allowed| state
-  filter -->|filtered| context["keyboard event remains with active context"]
-  state --> pref["setSidebarOpen persists device preference"]
+  pref["readRuntimeInitialState chooses stored sidebarOpen or first-run default"] --> provider["GatedApp passes controlled open and setSidebarOpen to SidebarProvider"]
+  provider --> button["SidebarTrigger shows the current Expand or Collapse label"]
+  button -->|click| toggle["toggleSidebar selects the desktop setOpen path"]
+  key["useSidebarKeyboardShortcut receives Cmd or Ctrl+B"] --> guard{"Text entry, composition or marked open modal?"}
+  guard -->|yes| skip["Leave the keyboard event to its context"]
+  guard -->|no| toggle
+  toggle --> state["SidebarProvider onOpenChange invokes setSidebarOpen"]
+  state --> persist["writeStoredSidebarOpen persists best-effort and runtime publishes the new state"]
+  persist --> provider
 ```
 
-**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [sidebar.tsx](../../apps/frontend/src/components/ui/sidebar.tsx); [shortcutFilters.ts](../../apps/frontend/src/lib/shortcutFilters.ts); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)
+**Code references:** [AppSidebar.tsx:76](../../apps/frontend/src/components/AppSidebar.tsx#L76) · [AppShell.tsx:110](../../apps/frontend/src/components/AppShell.tsx#L110) · [sidebar.tsx:76](../../apps/frontend/src/components/ui/sidebar.tsx#L76) · [sidebar.tsx:123](../../apps/frontend/src/components/ui/sidebar.tsx#L123) · [shortcutFilters.ts:18](../../apps/frontend/src/lib/shortcutFilters.ts#L18) · [runtimeSlice.ts:72](../../apps/frontend/src/store/slices/runtimeSlice.ts#L72) · [runtimeSlice.ts:130](../../apps/frontend/src/store/slices/runtimeSlice.ts#L130)

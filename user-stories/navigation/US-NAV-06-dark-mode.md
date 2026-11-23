@@ -28,12 +28,18 @@ flowchart TD
 
 ## Code flow
 
+The CSS uses the resolved scheme. Reduced-motion CSS responds independently to the OS motion preference.
+
 ```mermaid
 flowchart TD
-  settings["SettingsAppearanceSection onChange"] --> action["runtimeSlice setTheme"]
-  action --> storage["writeStoredTheme saves device preference"]
-  action --> dom["applyThemeToDom applies resolved theme"]
-  system["subscribeToSystemScheme"] --> resolved["resolveTheme follows OS for system choice"]
+  read["readRuntimeInitialState loads readStoredTheme with light fallback"] --> boot["main applies theme at boot and installs watchSystemTheme"]
+  control["SettingsAppearanceSection passes the selected theme to setTheme"] --> save["writeStoredTheme attempts localStorage and preserves the in-memory choice"]
+  save --> paint["applyThemeToDom uses resolveTheme and sets html data-theme"]
+  save --> state["Runtime store retains the selected preference"]
+  boot --> paint
+  boot -->|OS scheme changes| watch{"watchSystemTheme sees system selected?"}
+  watch -->|yes| paint
+  watch -->|no| keep["Keep the explicit scheme"]
 ```
 
-**Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [theme.ts](../../apps/frontend/src/lib/theme.ts)
+**Code references:** [SettingsAppearanceSection.tsx:55](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx#L55) · [runtimeSlice.ts:72](../../apps/frontend/src/store/slices/runtimeSlice.ts#L72) · [runtimeSlice.ts:111](../../apps/frontend/src/store/slices/runtimeSlice.ts#L111) · [main.tsx:20](../../apps/frontend/src/main.tsx#L20) · [theme.ts:25](../../apps/frontend/src/lib/theme.ts#L25) · [theme.ts:49](../../apps/frontend/src/lib/theme.ts#L49)

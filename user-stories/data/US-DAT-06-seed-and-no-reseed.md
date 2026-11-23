@@ -31,11 +31,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  launcher["dev-demo runs the shared development stack"] --> migrate["Migrate the disposable database"]
-  migrate --> identity["Explicitly prepare the admitted development identity"]
-  identity --> seed["Guarded demo seed writes one company graph and its access"]
-  seed --> api["Wait for API readiness"]
-  api --> web["Start Vite and print sign-in when ready"]
+  launch["dev:demo invokes runDevelopmentStack with demo enabled"] --> ports["Check API and web ports"]
+  ports -->|In use| early["Exit with a startup error"]
+  ports -->|Free| storage["Create a new disposable database path and development environment"]
+  storage --> setup["Build shared package; migrate; run demo:prepare then demo:seed with disposable-path checks"]
+  setup --> seed["Prepare admitted dev identity and seed company graph, Owner grant, revision and company.initialized audit"]
+  seed --> api["Start API and wait for /health/ready"]
+  api --> web["Start web server and wait for proxied /health/ready"]
+  web --> ready["Print demo URL and development Owner sign-in"]
+  ready --> data["Use the normal server-backed planning path for this run"]
+  setup -->|Preparation failed| stop["Shutdown attempts to terminate this invocation's process trees"]
+  api -->|Probe failed| stop
+  web -->|Probe failed| stop
+  data -->|Exit| stop
+  stop -->|Process exit verified| cleanup["Remove this invocation's disposable storage"]
+  stop -->|Exit unverified| retain["Report and retain its storage"]
 ```
 
-**Code references:** [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs); [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts); [demo_seed.ts](../../apps/backend/commands/demo_seed.ts); [development_bootstrap.ts](../../apps/backend/app/services/development_bootstrap.ts); [initial_company_access.ts](../../apps/backend/app/services/initial_company_access.ts); [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts)
+**Code references:** [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L38) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L61) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L124) · [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts#L11) · [demo_seed.ts](../../apps/backend/commands/demo_seed.ts#L11) · [disposable_demo.ts](../../apps/backend/app/services/disposable_demo.ts#L49) · [initial_company_access.ts](../../apps/backend/app/services/initial_company_access.ts#L14) · [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts#L108)

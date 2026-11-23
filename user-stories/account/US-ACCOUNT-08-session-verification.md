@@ -27,10 +27,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  error["AuthProvider renders AuthError for failed check"] --> retry["AuthError retry sets checking and calls checkAuth"]
-  retry --> fetch["checkAuth runs fetchAuthStatus"]
-  fetch --> me["fetchAuthStatus reads sessionRequests.me"]
-  me --> status["AuthProvider renders pass, sign-in or retryable error state"]
+  retry["AuthError Try again calls AuthProvider checkAuth"] --> status["fetchAuthStatus checks masqueradeApi.status first"]
+  status -->|Active| projected["Validate the actor and adopt the read-only projection"]
+  status -->|Inactive| me["Adopt inactive status and read sessionRequests.me"]
+  status -->|Transport failure| fallback["Probe sessionRequests.me while projection is unknown"]
+  status -->|Other failure| error["Render AuthError and retain Try again"]
+  fallback -->|401| signIn["Show the sign-in screen"]
+  fallback -->|Success or another failure| error
+  me -->|401| signIn
+  me -->|Failed or malformed| error
+  me -->|Pass| gates["AuthProvider renders the applicable account or setup gate, or opens the router"]
+  projected -->|Adopted| gates
+  projected -->|Failed| error
 ```
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts), [sessionRequests.ts](../../apps/frontend/src/account/sessionRequests.ts)
+**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L172) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L238) · [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L11) · [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L67) · [authResponse.ts](../../apps/frontend/src/auth/authResponse.ts#L120)

@@ -26,12 +26,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  file["usePendingImport.readFile reads selected file"] --> json{"JSON?"}
-  json -->|"no"| notice["ImportExport reports invalid JSON before any request"]
-  json -->|"yes"| request["ImportPreviewsController.store calls readRequestDocument"]
-  request --> validate["previewCompanyImport prepares the full import contract"]
-  validate -->|"invalid"| refused["ImportPreview shows the server's reason; nothing changes"]
-  validate -->|"valid"| preview["ImportPreview shows the summary; apply validates the document again"]
+  entry["ImportExport offers import with company:import"] --> file["usePendingImport reads the file and parses JSON"]
+  file -->|Cannot read or parse| notice["Show a notice before requesting a preview"]
+  file -->|Current parsed selection| request["Request the server preview"]
+  request --> contract["ImportPreviewsController.store calls readRequestDocument"]
+  contract -->|Malformed or unsupported| refusal["ImportPreview shows refusal without Continue"]
+  contract -->|Document parsed| access["withActor checks current Owner access"]
+  access -->|Refused| refusal
+  access -->|Allowed| destination["previewCompanyImport calls prepareCompanyImport and checks foreign scheduling IDs"]
+  destination -->|Redacted, invalid full data or destination conflict| refusal
+  destination -->|Valid| valid["Return read-only preview summary and base revision"]
+  valid --> review["Continue toward confirmed apply"]
+  review --> boundary["ImportsController.store rechecks proof and applyCompanyImport rechecks revision and destination in its transaction"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [companyExport.ts](../../packages/shared/src/data/companyExport.ts), [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+See [Preview and replace company data](US-DAT-02-import-json.md#code-flow) for the apply outcomes.
+
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx#L160) · [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts#L32) · [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx#L14) · [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts#L9) · [company_import.ts](../../apps/backend/app/services/company_import.ts#L113) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L161) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L147) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L168)

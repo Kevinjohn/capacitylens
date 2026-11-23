@@ -31,13 +31,25 @@ flowchart TD
 
 ## Code flow
 
+The dialog shortcut check only recognizes open elements marked aria-modal. The shared alert-dialog wrapper does not supply that marker.
+
 ```mermaid
 flowchart TD
-  key["useGlobalShortcuts handles Cmd/Ctrl+K"] --> state["AppShell paletteOpen state"]
-  state --> items["buildPaletteItems lists LINKS, ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, ACCOUNT_LINK"]
-  items --> palette["CommandPalette filters available items"]
-  palette --> navigate["useNavigate opens selected destination"]
-  palette --> close["Escape closes palette"]
+  key["useGlobalShortcuts receives Cmd or Ctrl+K"] --> guard{"handlePaletteShortcut allows toggle?"}
+  guard -->|composition or marked modal| exit["Leave palette state unchanged"]
+  guard -->|dirty form| notice["Prevent default and publish Unsaved changes once per non-repeated keydown"]
+  guard -->|repeat with clean form| repeated["Prevent default without toggling"]
+  guard -->|allowed| open["Toggle paletteOpen; GatedApp mounts CommandPalette while clean"]
+  open --> build["usePaletteItems calls buildPaletteItems with visible routes and active scoped data"]
+  build -->|empty query| base["Offer Today and visible pages"]
+  build -->|query| search["Filter actions, pages and entities; add date action for valid ISO date"]
+  base --> pick["PaletteResults invokes the selected onSelect"]
+  search --> pick
+  pick -->|page or activity| nav["navigate to route or encoded activity hash"]
+  pick -->|Today, date, resource, project or client| schedule["Navigate to Schedule then run the corresponding date, jump or filter action"]
+  nav --> close["onClose clears paletteOpen"]
+  schedule --> close
+  open -->|Escape or backdrop| close
 ```
 
-**Code references:** [buildPaletteItems.ts](../../apps/frontend/src/components/buildPaletteItems.ts); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts); [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [CommandPalette.tsx](../../apps/frontend/src/components/CommandPalette.tsx)
+**Code references:** [globalShortcuts.ts:19](../../apps/frontend/src/components/app-shell/globalShortcuts.ts#L19) · [shortcutFilters.ts:18](../../apps/frontend/src/lib/shortcutFilters.ts#L18) · [AppShell.tsx:124](../../apps/frontend/src/components/AppShell.tsx#L124) · [CommandPalette.tsx:49](../../apps/frontend/src/components/CommandPalette.tsx#L49) · [CommandPalette.tsx:165](../../apps/frontend/src/components/CommandPalette.tsx#L165) · [buildPaletteItems.ts:54](../../apps/frontend/src/components/buildPaletteItems.ts#L54) · [buildPaletteItems.ts:101](../../apps/frontend/src/components/buildPaletteItems.ts#L101) · [buildPaletteItems.ts:164](../../apps/frontend/src/components/buildPaletteItems.ts#L164)

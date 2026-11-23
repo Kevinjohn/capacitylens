@@ -27,11 +27,15 @@ A["Planning read fails"] --> B["Shell shows the planning alert"]
 
 ## Code flow
 
+The dedicated company-load recovery screen was removed. See [US-NAV-04](US-NAV-04-persist-error-banner.md#code-flow) for the current notice paths.
+
 ```mermaid
 flowchart TD
-  read["planningCache read fails"] --> phase["planning phase: failed"]
-  phase --> notice["readPlanningProblem returns unavailable"]
-  notice --> shell["AppShell renders the alert"]
+  read["Planning cache refresh receives a read failure"] --> scope{"Authentication scope lost?"}
+  scope -->|401| clear["loseScope clears planning state"]
+  scope -->|other current failure| problem["readPlanningProblem classifies the recorded error"]
+  problem -->|403| refused["GatedMain renders refusal Alert"]
+  problem -->|other failed read| unavailable["GatedMain renders unavailable Alert"]
 ```
 
-**Code references:** [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts); [planningNotices.ts](../../apps/frontend/src/data/planning/planningNotices.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
+**Code references:** [planningCache.ts:304](../../apps/frontend/src/data/planning/planningCache.ts#L304) · [planningNotices.ts:11](../../apps/frontend/src/data/planning/planningNotices.ts#L11) · [AppShell.tsx:163](../../apps/frontend/src/components/AppShell.tsx#L163) · [AppEntryGate.tsx:43](../../apps/frontend/src/components/AppEntryGate.tsx#L43)

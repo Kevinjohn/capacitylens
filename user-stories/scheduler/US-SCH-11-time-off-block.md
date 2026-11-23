@@ -31,9 +31,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useSchedulerGridModel reads scoped time off"] --> B["buildSchedulerModel creates TimeOffBlock layout"]
-  B --> C["SchedulerGridRows passes blocks to ResourceLane"]
-  C --> D["ScheduleSignals renders labelled hatched time-off blocks"]
+  Read["Authorized active planning projection contains personal time off and closures"] --> Model["createRowBuilder intersects personal intervals with materialized timeline"]
+  Model -->|outside range or external row| None["No personal block"]
+  Model -->|tracked row and overlap| Render["ResourceLane → ScheduleSignals draws hatched block with spoken type"]
+  Render -->|over 44 px| Label["Show visible type"]
+  Render -->|at most 44 px| Compact["Spoken type only"]
+  Read --> Closure["SchedulerGridFooter draws separate company closure band"]
 ```
 
-**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+Allocation bars remain a distinct layer. Company closures use the separate footer band.
+
+**Code references:**
+
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L44)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L193)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L103)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L167)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L269)
+- [SchedulerGrid.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.test.tsx#L238)

@@ -27,9 +27,12 @@ B --> C["Schedule bars use those labels in this browser"]
 
 ```mermaid
 flowchart TD
-  settings["SettingsAppearanceSection renders label switches"] --> setter["runtimeSlice.setBarLabelPref updates store state"]
-  setter --> storage["displayPrefs.writeStoredBarLabelPrefs writes localStorage"]
-  setter --> bar["buildBarLabels in AllocationBar.tsx applies showClient and showProject"]
+  initial["readRuntimeInitialState reads barLabelPrefs with both labels enabled by default"] --> controls["SettingsAppearanceSection renders Client and Project switches"]
+  controls --> action["setBarLabelPref receives preference key and value"]
+  action --> storage["writeStoredBarLabelPrefs attempts device persistence before store publication"]
+  storage --> bar["buildBarLabels assembles the visible and editor label from enabled available Client and Project, then Activity"]
+  scope["AllocationBar reads current projected bar names"] --> bar
+  scope --> aria["Read-only accessible label uses independently built viewerLabel"]
 ```
 
-**Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx), [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts), [displayPrefs.ts](../../apps/frontend/src/lib/displayPrefs.ts), [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx)
+**Code references:** [displayPrefs.ts:135](../../apps/frontend/src/lib/displayPrefs.ts#L135) · [runtimeSlice.ts:74](../../apps/frontend/src/store/slices/runtimeSlice.ts#L74) · [runtimeSlice.ts:124](../../apps/frontend/src/store/slices/runtimeSlice.ts#L124) · [SettingsAppearanceSection.tsx:28](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx#L28) · [AllocationBar.tsx:155](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L155) · [AllocationBar.tsx:194](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L194)

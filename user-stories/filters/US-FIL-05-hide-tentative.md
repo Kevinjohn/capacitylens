@@ -32,18 +32,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections Tentative TogglePill"] --> B["schedulerSlice.setFilters stores hideTentative"]
-  B --> C["createAllocationFilters.allocVisible hides tentative bars"]
-  C --> D["schedulerModel uses full allocation data for capacity"]
-  D --> E["Schedule changes visible bars; capacity remains inclusive"]
-  E --> F["No planning write or server mutation"]
+  PILL["ViewFilters Tentative defaults to pressed"] --> STORE["setToolbarFilters → setFilters stores the inverse as hideTentative"]
+  STORE --> MATCH["createWorkVisibility excludes tentative allocations while hideTentative is true"]
+  MATCH --> LENS{"Work lens active with zero renderable matches in the model timeline?"}
+  LENS -->|No| NORMAL["createRowBuilder uses the remaining matching bars"]
+  LENS -->|Yes| SHOW{"showUnmatched enabled?"}
+  SHOW -->|Yes| DIM["Retain dimmed row with other bars allowed by Tentative"]
+  SHOW -->|No| HIDE["buildSchedulerModel omits row"]
+  CAP["useSchedulerModelProjection passes server capacity"] --> STATS["createRowBuilder derives capacity cues from full-work figures"]
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. Pressing Tentative again restores bars eligible under the other filters. The toolbar commits any draft search with the toggle.
 
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L152) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L47) · [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L138) · [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts#L31) · [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L164) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208) · [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L114) · [schedulerModel.filters.test.ts](../../apps/frontend/src/components/scheduler/schedulerModel.filters.test.ts#L86) · [schedulerModel.filters.test.ts](../../apps/frontend/src/components/scheduler/schedulerModel.filters.test.ts#L231)

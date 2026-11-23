@@ -33,11 +33,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  app["AppShell calls useProductOrientation"] --> subject["resolveProductOrientationSubject scopes identity and company"]
-  subject --> pref["hasDismissedProductOrientation reads device preference"]
-  pref --> view["ProductOrientation renders guidance"]
-  click["HelpView How CapacityLens works button"] --> ctx["AppShell Outlet context showOrientation"] --> reopen["orientation.show focuses guidance"]
-  view --> dismiss["orientation.dismiss stores scoped preference"]
+  shell["AppShell calls useProductOrientation with user and company IDs"] --> subject["resolveProductOrientationSubject selects the identity"]
+  subject --> scope["Hook scopes the versioned browser preference to identity and company or no-company"]
+  scope -->|Not dismissed| render["ProductOrientation renders the guidance"]
+  scope -->|Dismissed| hidden["Keep guidance hidden"]
+  help["HelpView offers How CapacityLens works"] --> show["Outlet showOrientation makes it visible and records the triggering button"]
+  show --> render
+  render -->|Focus requested| focus["ProductOrientation scrolls to and focuses its heading"]
+  render -->|Got it| dismiss["Attempt to persist dismissal and hide for the current mount"]
+  dismiss --> restore["Return focus to the Help button when it opened the guidance"]
 ```
 
-**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useProductOrientation.ts](../../apps/frontend/src/components/useProductOrientation.ts); [ProductOrientation.tsx](../../apps/frontend/src/components/ProductOrientation.tsx); [productOrientation.ts](../../apps/frontend/src/lib/productOrientation.ts); [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx)
+**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx#L95) · [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx#L218) · [useProductOrientation.ts](../../apps/frontend/src/components/useProductOrientation.ts#L10) · [ProductOrientation.tsx](../../apps/frontend/src/components/ProductOrientation.tsx#L17) · [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx#L34) · [productOrientation.ts](../../apps/frontend/src/lib/productOrientation.ts#L9) · [AppShell.productOrientation.test.tsx](../../apps/frontend/src/components/AppShell.productOrientation.test.tsx#L118) · [AppShell.productOrientation.test.tsx](../../apps/frontend/src/components/AppShell.productOrientation.test.tsx#L146)

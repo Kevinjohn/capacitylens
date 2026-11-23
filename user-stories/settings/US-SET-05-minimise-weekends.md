@@ -26,9 +26,13 @@ B --> C["Weekend columns change width without hiding dates"]
 
 ```mermaid
 flowchart TD
-  view["SettingsSchedulingSection renders ScheduleViewSection"] --> setter["runtimeSlice.setMinimiseWeekends updates state"]
-  setter --> pref["displayPrefs writes device preference"]
-  setter --> viewport["useSchedulerViewport consumes minimiseWeekends for column geometry"]
+  read["Runtime reads the minimiseWeekends device preference"] --> view["SettingsView passes it to ScheduleViewSection"]
+  view --> setter["SwitchField calls setMinimiseWeekends"]
+  setter --> pref["Runtime attempts localStorage persistence, then publishes the preference"]
+  pref --> viewport["useSchedulerViewport resolves column fit for current zoom"]
+  viewport --> branch{"Preference on, per-day columns and a narrower weekend width?"}
+  branch -->|yes| narrow["buildColumnGeometry uses narrower weekend columns"]
+  branch -->|no| uniform["Keep the normal fit without special weekend narrowing"]
 ```
 
-**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts), [displayPrefs.ts](../../apps/frontend/src/lib/displayPrefs.ts), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts)
+**Code references:** [SettingsView.tsx:86](../../apps/frontend/src/components/settings/SettingsView.tsx#L86) · [SettingsSchedulingSection.tsx:106](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx#L106) · [runtimeSlice.ts:133](../../apps/frontend/src/store/slices/runtimeSlice.ts#L133) · [displayPrefs.ts:200](../../apps/frontend/src/lib/displayPrefs.ts#L200) · [useSchedulerViewport.ts:114](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L114) · [columnGeometry.ts:232](../../apps/frontend/src/components/scheduler/columnGeometry.ts#L232)

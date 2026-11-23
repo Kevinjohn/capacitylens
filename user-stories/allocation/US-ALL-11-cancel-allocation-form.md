@@ -29,13 +29,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog onClose"] --> B["useAllocationDialogState close handler"]
-  B --> C["Clear local form state and close dialog"]
-  C --> D["No addAllocation or updateAllocation call"]
-  D --> E["Existing Schedule data remains unchanged"]
+  Dialog["SchedulerDialogHost mounts AllocationDialog with grid close callback"] --> Footer["AllocationFooter Cancel calls onClose"]
+  Dialog --> Passive["FormDialog Escape or outside dismissal calls requestClose"]
+  Passive -->|clean| Close["useFormLifetimeClose closes grid dialog and unmounts local draft"]
+  Passive -->|dirty| Notice["Unsaved-changes notice; keep dialog open"]
+  Footer --> Close
+  Close -->|draft unsent| None["No allocation mutation"]
+  Close -->|write already dispatched| Pending["Planning cache can still reconcile the write"]
 ```
+
+The separately saved inline activity survives allocation form dismissal.
 
 **Code references:**
 
-- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
-- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L196)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx#L24)
+- [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx#L59)
+- [dialogs.tsx](../../apps/frontend/src/components/common/dialogs.tsx#L72)
+- [dialogs.tsx](../../apps/frontend/src/components/common/dialogs.tsx#L154)
+- [useFormLifetimeClose.ts](../../apps/frontend/src/hooks/useFormLifetimeClose.ts#L4)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L246)

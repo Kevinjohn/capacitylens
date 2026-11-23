@@ -27,14 +27,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  action["createTypedPlanningActions builds a typed intent"] --> slice["allocationSlice.sendPlanningIntent enters planningCache"]
-  slice --> cache["planningCache executes through PlanningTransport"]
-  cache --> transport["planningTransport sends the generated planning route"]
-  transport --> endpoint["PlanningMutationsController validates and calls mutatePlanning"]
-  endpoint --> persist["mutatePlanning calls executePlanningIntent and writer in the request transaction"]
-  persist --> refresh["planningCache refresh reads the canonical planning snapshot"]
-  refresh --> reload["Reloaded app reads PlanningController.show into planning state"]
-  endpoint --> refusal["Server refusal returns through planningCache to visible planning state"]
+  draft["Typed planning action supplies the intent to planningSessionSlice.sendPlanningIntent"] --> cacheWrite["Check write availability, then execute through planningCache"]
+  cacheWrite --> send["planningTransport sends the planning mutation"]
+  send --> server["PlanningMutationsController invokes the authorized mutatePlanning transaction"]
+  server -->|Commit| receipt["acceptReceipt validates the receipt and applies its rows if its base matches the cache"]
+  receipt -->|Valid| read["Read authoritative planning state and server history"]
+  receipt -->|Invalid| unknown["settleUnconfirmed rotates page history, clears undo availability and never resends"]
+  server -->|Stale conflict| stale["Mark refusal and reread without replay"]
+  stale --> read
+  server -->|Ordinary denial or validation refusal| refuse["Keep visible refusal"]
+  send -->|Unknown commit| unknown
+  unknown --> read
+  read -->|Recovered after unknown result| check["Ask the person to check the change before trying again"]
+  read -->|Failed| retryRead["Show planning read error"]
+  reload["Page reload starts a new page history"] --> snapshot["PlanningController.show reads persisted company state for an authorized effective member"]
+  snapshot --> cache["Hydrate planningCache"]
 ```
 
-**Code references:** [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+**Code references:** [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L87) · [planningSessionSlice.ts](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L469) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L525) · [planning.ts](../../apps/backend/app/services/planning.ts#L243) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts#L1) · [access.ts](../../apps/backend/app/services/planning/access.ts#L16) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L124)

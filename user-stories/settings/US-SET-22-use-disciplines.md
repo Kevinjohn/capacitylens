@@ -26,15 +26,18 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ## Code flow
 
+The [company setting write path](../REFERENCE.md#company-setting-writes) traces the common no-op, server commit, refusal and reconciliation branches.
+
 ```mermaid
 flowchart TD
-  control["CompanyFeaturesSection calls updateSetting({ disciplinesEnabled })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
-  view --> action["typedPlanningActions.updateCompany builds settings.update intent"]
-  action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
-  execute --> transport["planningTransport sends api.planning_mutations.store"]
-  transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]
-  route --> reply["Planning cache reconciles the response into the company projection"]
-  reply --> read["store selectors.hasDisciplinesEnabled supplies setting to views"]
+  flags["useSettingsViewModel reads hasDisciplinesEnabled and canEdit"] --> switch["CompanyFeaturesSection renders the disciplinesEnabled switch"]
+  switch --> access{"Editable?"}
+  access -->|no| disabled["Read-only control dispatches no request"]
+  access -->|changed| command["updateSetting passes disciplinesEnabled to the shared company setting write path"]
+  command -->|accepted state| saved["hasDisciplinesEnabled reads the accepted company setting"]
+  saved --> route["useVisibleRoutes hides the route link when disabled; DisciplineRoute redirects direct entry"]
+  saved --> form["ResourceForm shows Discipline only when the flag is on and options exist"]
+  saved --> grid["Schedule model uses or skips discipline grouping"]
 ```
 
-**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [useSettingsViewModel.ts:55](../../apps/frontend/src/components/settings/useSettingsViewModel.ts#L55) · [SettingsSchedulingSection.tsx:151](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx#L151) · [selectors.ts:40](../../apps/frontend/src/store/selectors.ts#L40) · [initial_company_defaults.ts:34](../../apps/backend/app/services/initial_company_defaults.ts#L34) · [router.tsx:113](../../apps/frontend/src/router.tsx#L113) · [ResourceForm.tsx:96](../../apps/frontend/src/components/resources/ResourceForm.tsx#L96) · [ResourceForm.tsx:207](../../apps/frontend/src/components/resources/ResourceForm.tsx#L207) · [useSchedulerGridModel.ts:159](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L159)

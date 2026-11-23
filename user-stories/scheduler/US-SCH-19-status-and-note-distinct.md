@@ -32,9 +32,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useSchedulerGridModel supplies allocation status and note"] --> B["AllocationBar derives label and status presentation"]
-  B --> C["AllocationBarView renders status class and note marker"]
-  C --> D["Status and note cues show on the Schedule"]
+  Model["schedulerRowModel builds BarLayout from projected allocation"] --> Status["BarTrigger in AllocationBarView sets data-status"]
+  Status -->|Tentative| Tentative["Render hatching and dashed inline border"]
+  Status -->|Completed| Completed["Render check glyph"]
+  Status -->|Confirmed| Standard["Render standard bar"]
+  Model --> Note["AllocationBarView renders bullet when a Note exists"]
+  Model --> Name["AllocationBar builds role-specific accessible name"]
+  Name -->|editable| Presence["Announce Note presence"]
+  Name -->|read-only| Text["Include Note text"]
 ```
 
-**Code references:** [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx)
+The accessible label names Tentative and Completed where applicable. Confirmed uses the ordinary label.
+
+**Code references:**
+
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L93)
+- [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx#L56)
+- [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx#L111)
+- [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L50)
+- [metadata.ts](../../apps/frontend/src/lib/metadata.ts#L69)

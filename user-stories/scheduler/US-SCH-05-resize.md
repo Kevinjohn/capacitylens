@@ -32,14 +32,35 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationBar calls useAllocationGesture"] --> B["useAllocationGestureViewModel resolves gesture and preview"]
-  B --> C["resolveGesture applies snapped dates and mode-specific load rules"]
-  C --> D["Commit gate checks destination and start date"]
-  D --> E["savePointerCommit calls updateAllocation once"]
-  E --> F["allocationSlice creates allocation.update intent"]
-  F --> G["PlanningTransport sends the typed server request"]
-  G --> H["Server: PlanningMutationsController.store executes writer transaction"]
-  G --> I["Server receipt reconciles into SchedulerGrid"]
+  Bar["Editable Work-mode AllocationBar grip arms useDragResize"] --> Gesture["Preview resize-start or resize-end on source row"]
+  Gesture -->|below drag threshold| Edit["Click activation can open edit"]
+  Gesture -->|Escape, pointer cancel or lost capture| Cancel["Clear preview; no request"]
+  Gesture -->|release| Guard["commitPointerGesture stops zero delta and checks effective days"]
+  Guard -->|unchanged| Cancel
+  Guard -->|no effective days without override| Notice["Show error; no request"]
+  Guard -->|valid| Dates["resolveGesture keeps range ordered and derives Days-mode load"]
+  Dates --> Diff["savePointerCommit → updateAllocation"]
+  Diff -->|no diff| Cancel
+  Diff -->|changes| Commit["commit checks live access and revision; allocation.update writes dates and any load change"]
+  Commit -->|committed and reconciled| Done["Show advisory and cap warning when work could not be preserved"]
+  Commit -->|refused| Error["Show refusal; stale revision refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read can show saved span"]
 ```
 
-**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts), [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts), [allocationDrag.ts](../../apps/frontend/src/components/scheduler/allocationDrag.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+The grip keeps the source row. Hours mode preserves daily load. A measured Days-mode resize can cap the derived load at 24 hours per day and show a warning after a usable receipt.
+
+**Code references:**
+
+- [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L193)
+- [useDragResize.ts](../../apps/frontend/src/hooks/useDragResize.ts#L69)
+- [useDragResize.ts](../../apps/frontend/src/hooks/useDragResize.ts#L126)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L80)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L200)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L240)
+- [allocationDrag.ts](../../apps/frontend/src/components/scheduler/allocationDrag.ts#L24)
+- [gestureMath.ts](../../apps/frontend/src/lib/gestureMath.ts#L81)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L211)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [AllocationBar.resize.interaction.test.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.resize.interaction.test.tsx#L155)

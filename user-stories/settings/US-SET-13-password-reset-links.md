@@ -27,10 +27,15 @@ E -->|no| G["Read the error; request a new link if it expired"]
 
 ```mermaid
 flowchart TD
-  forgot["ForgotPassword submits email to authApi"] --> request["authApi.requestPasswordReset calls auth endpoint"]
-  request --> email["PasswordResetRequestsController.store issues reset email without disclosing account existence"]
-  link["ResetPassword reads bearer from route"] --> submit["authApi.resetPassword submits new password"]
-  submit --> session["Account Kit credential change ends sessions"]
+  entry["SignInScreen offers Forgot password? when reset email is available"] --> request["ForgotPassword calls PasswordResetRequestsController.store through authApi"]
+  request -->|Accepted| acknowledgement["Show neutral email acknowledgement"]
+  request -->|Refused or failed| error["Show delivery-request error"]
+  link["Emailed bearer opens ResetPassword form"] -->|Submit valid draft| apply["PasswordResetsController.update asks Account Kit to spend bearer, change password and end all sessions"]
+  apply -->|Accepted| done["Show reset complete"]
+  apply -->|Ordinary refusal| field["Show link or request error"]
+  apply -->|Timeout, server error or no response| check["Ask the person to try the new password before requesting another link"]
 ```
 
-**Code references:** [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_reset_requests_controller.ts](../../apps/backend/app/controllers/password_reset_requests_controller.ts), [password_resets_controller.ts](../../apps/backend/app/controllers/password_resets_controller.ts)
+See [Recover a forgotten password](../account/US-ACCOUNT-03-password-reset.md#code-flow) for the separate inspection API and detailed reset outcomes.
+
+**Code references:** [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx#L83) · [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx#L18) · [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx#L164) · [password_reset_requests_controller.ts](../../apps/backend/app/controllers/password_reset_requests_controller.ts#L15) · [password_resets_controller.ts](../../apps/backend/app/controllers/password_resets_controller.ts#L22) · [recovery.spec.ts](../../apps/backend/tests/functional/auth/recovery.spec.ts#L77)

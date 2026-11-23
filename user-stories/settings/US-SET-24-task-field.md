@@ -26,15 +26,17 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ## Code flow
 
+The [company setting write path](../REFERENCE.md#company-setting-writes) traces the common no-op, server commit, refusal and reconciliation branches.
+
 ```mermaid
 flowchart TD
-  control["CompanyFeaturesSection calls updateSetting({ showTaskFieldInSchedule })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
-  view --> action["typedPlanningActions.updateCompany builds settings.update intent"]
-  action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
-  execute --> transport["planningTransport sends api.planning_mutations.store"]
-  transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]
-  route --> reply["Planning cache reconciles the response into the company projection"]
-  reply --> read["store selectors.hasVisibleTaskFieldInSchedule supplies setting to views"]
+  flags["useSettingsViewModel reads hasVisibleTaskFieldInSchedule and canEdit"] --> switch["CompanyFeaturesSection renders the showTaskFieldInSchedule switch"]
+  switch --> access{"Editable?"}
+  access -->|no| disabled["Read-only control dispatches no request"]
+  access -->|changed| command["updateSetting passes showTaskFieldInSchedule to the shared company setting write path"]
+  command -->|accepted state| saved["hasVisibleTaskFieldInSchedule reads the accepted company setting"]
+  saved --> field["AllocationScheduleFields TaskField uses the flag to show or omit the form input"]
+  saved --> bar["AllocationBar uses Task in the accessible name and AllocationBarView uses it in the popover when enabled"]
 ```
 
-**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [useSettingsViewModel.ts:55](../../apps/frontend/src/components/settings/useSettingsViewModel.ts#L55) · [SettingsSchedulingSection.tsx:183](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx#L183) · [selectors.ts:76](../../apps/frontend/src/store/selectors.ts#L76) · [AllocationScheduleFields.tsx:45](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx#L45) · [AllocationBar.tsx:72](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L72) · [AllocationBarView.tsx:214](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx#L214)

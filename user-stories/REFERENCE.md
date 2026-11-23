@@ -93,3 +93,28 @@ These apply across stories without repeating a technical checklist in every form
 
 For full rules and any departures, follow [DECISIONS.md](../DECISIONS.md). For runnable validation
 use the existing tests and [testing guide](../docs-src/reference/how-it-is-tested.md).
+
+### Company setting writes
+
+1. An editable Settings control calls
+   [`useSettingsViewModel.updateSetting`](../apps/frontend/src/components/settings/useSettingsViewModel.ts#L55).
+   It passes the patch to [`updateCompany`](../apps/frontend/src/store/typedPlanningActions.ts#L331)
+   for the active company. The store stops a read-only write with a notice and rejects invalid
+   working days. [`buildSettingsUpdate`](../apps/frontend/src/data/planning/planningIntents.ts#L568)
+   limits the patch to settings fields and returns no intent when the supplied values have not changed.
+2. [`sendPlanningIntent`](../apps/frontend/src/store/slices/planningSessionSlice.ts#L139)
+   checks the planning context and write readiness through the cache before
+   [the transport](../apps/frontend/src/data/planning/planningTransport.ts#L57) sends
+   `settings.update` with the base revision. [`PlanningMutationsController.store`](../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+   validates the request and calls `mutatePlanning` inside the actor transaction.
+   [The commit path](../apps/backend/app/services/planning.ts#L198) checks live write access, mutation
+   identity and base revision before [`executePlanningIntent`](../apps/backend/app/services/planning/execute.ts#L423)
+   dispatches to [`updateSettings`](../apps/backend/app/services/planning/writer.ts#L88).
+   The writer validates and updates the company row. It additionally requires Owner or Admin for
+   Overview access and refuses changes to established calendar fields. A changed commit advances
+   the revision and records audit and history before returning its projected receipt.
+3. [The planning cache](../apps/frontend/src/data/planning/planningCache.ts#L469) reconciles a
+   committed receipt and refreshes the company read. A stale revision triggers refresh after a
+   refusal. A lost or invalid reply triggers a canonical read without resending the write.
+   [`readPlanningProblem`](../apps/frontend/src/data/planning/planningNotices.ts#L29)
+   classifies the shell notice, and `updateSetting` catches thrown errors for its store notice.

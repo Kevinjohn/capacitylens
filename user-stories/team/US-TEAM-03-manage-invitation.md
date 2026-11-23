@@ -31,18 +31,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Row["InviteMemberPanel renders outstanding invite row"] --> Action{"Resend or Revoke?"}
-    Action -->|"Resend"| ResendHook["useMemberInvites resendInvite"]
-    ResendHook --> ResendClient["teamAccessApi.resendInvitation → invitationRequests.resendInvitation"]
-    ResendClient --> ResendRoute["api.invitation_deliveries.store → InvitationDeliveriesController.store"]
-    ResendRoute --> KitResend["Account Kit resend replaces invitation link and emails it"]
-    KitResend --> Reload["reloadInvites refreshes the directory; UI shows outcome"]
-    Action -->|"Revoke"| RevokeHook["useMemberInvites revokeInvite"]
-    RevokeHook --> RevokeClient["teamAccessApi.revokeInvitation → invitationRequests.revokeInvitation"]
-    RevokeClient --> RevokeRoute["api.invitations.destroy → InvitationsController.destroy"]
-    RevokeRoute --> KitRevoke["Account Kit revokes the invitation"]
-    KitRevoke --> Reload
-    ResendRoute -. "Mail unavailable or delivery failure is shown" .-> Error["Resend notice or error"]
+  row["InviteMemberPanel renders outstanding invitations"] -->|Resend, including expired row| resend["useMemberInvites calls InvitationDeliveriesController.store"]
+  resend --> check["Require invitation manager and configured mail"]
+  check -->|Refused| error["Show action error"]
+  check -->|Allowed| replace["Kit invalidates the prior link by replacing the token, then attempts delivery"]
+  replace -->|Emailed| sent["Show resend notice"]
+  replace -->|Saved with failed delivery| warned["Show saved-but-not-emailed warning"]
+  sent --> list["Reload invitations"]
+  warned --> list
+  resend -->|Unknown or refused result| error
+  row -->|Revoke, unexpired row| revoke["useMemberInvites calls InvitationsController.destroy"]
+  revoke --> kit["Check current manager; Account Kit revokes invitation"]
+  kit -->|Confirmed| list
+  kit -->|Refused| error
+  revoke -->|Unknown| reconcile["Reconcile directory before another attempt"]
 ```
 
-**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [invitationRequests.ts](../../apps/frontend/src/account/invitationRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitation_deliveries_controller.ts](../../apps/backend/app/controllers/invitation_deliveries_controller.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts)
+**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx#L141) · [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx#L178) · [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts#L95) · [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts#L137) · [invitation_deliveries_controller.ts](../../apps/backend/app/controllers/invitation_deliveries_controller.ts#L15) · [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts#L64) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L310)

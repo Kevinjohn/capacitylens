@@ -32,10 +32,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ToolbarDateNavigation invokes panDays(-7 or 7)"] --> B["schedulerSlice.panDays changes originDate"]
-  B --> C["useSchedulerViewport regenerates dates and geometry"]
-  C --> D["useViewportAlignment snaps navigation to company week start"]
-  D --> E["SchedulerGrid displays the shifted window"]
+  Nav["ToolbarDateNavigation Prev or Next invokes panDays with minus or plus seven"] --> Origin["schedulerSlice changes ui.originDate"]
+  Origin --> View["useViewportAlignment re-anchors changed materialized range to configured week start"]
+  Origin --> Window["useStore subscription schedules a quiet capacity read when Today is known"]
+  Window -->|origin changes again| Reschedule["Clear previous timer and schedule latest window"]
+  Window -->|window settles| Read["refreshPlanning requests server figures for new window"]
+  Read -->|success| Cues["Apply capacity and refresh row cues"]
+  Read -->|failure| Gap["Planning read error; uncovered days lack server cues"]
 ```
 
-**Code references:** [ToolbarDateNavigation.tsx](../../apps/frontend/src/components/scheduler/ToolbarDateNavigation.tsx), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+Prev and Next are available to Schedule readers. The action changes display state and requests planning data when the window settles.
+
+**Code references:**
+
+- [ToolbarDateNavigation.tsx](../../apps/frontend/src/components/scheduler/ToolbarDateNavigation.tsx#L35)
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L195)
+- [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L183)
+- [useStore.ts](../../apps/frontend/src/store/useStore.ts#L63)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L120)

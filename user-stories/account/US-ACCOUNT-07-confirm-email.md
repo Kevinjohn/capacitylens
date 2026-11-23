@@ -34,12 +34,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  access["AccessScreen sends confirmation request"] --> send["authApi.sendEmailVerification"]
-  send --> mail["EmailVerificationRequestsController.store calls Account Kit emailVerification.send"]
-  link["VerifyEmail inspects link and displays password form"] --> inspect["authApi.inspectEmailVerification"]
-  inspect --> kitInspect["EmailVerificationsController.show calls Account Kit emailVerification.inspect"]
-  form["VerifyEmail.submit sends token and password"] --> complete["EmailVerificationsController.update calls Account Kit emailVerification.complete"]
-  complete --> result["VerifyEmail renders success, invalid, unavailable or uncertain result"]
+  gate["AuthProvider renders AccessScreen with the confirmation gate"] --> send["authApi.sendEmailVerification calls EmailVerificationRequestsController.store"]
+  send --> kitMail["Account Kit issues and sends the verification link"]
+  kitMail -->|Accepted| sent["Show delivery acknowledgement"]
+  kitMail -->|Mail missing or saved but delivery failed| admin["Show contact-admin message"]
+  send -->|Other error| sendError["Show request error"]
+  link["VerifyEmail opens the token URL"] --> inspect["authApi.inspectEmailVerification calls EmailVerificationsController.show"]
+  inspect -->|Unavailable| retry["Try again reruns inspection"]
+  retry --> inspect
+  inspect -->|Invalid or expired| invalid["Show invalid link"]
+  inspect -->|Valid| form["Show password form"]
+  form -->|Valid submit| complete["authApi.completeEmailVerification calls EmailVerificationsController.update"]
+  complete --> kit["Account Kit spends the proof and confirms the address with the supplied password"]
+  kit -->|Success or VERIFICATION_COMMITTED| done["Show confirmation complete"]
+  kit -->|INVALID_TOKEN| invalid
+  kit -->|Ordinary refusal| form
+  kit -->|Other 5xx| uncertain["Explain which passwords to try before requesting a fresh link"]
+  complete -->|No response| uncertain
 ```
 
-**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [email_verification_requests_controller.ts](../../apps/backend/app/controllers/email_verification_requests_controller.ts), [email_verifications_controller.ts](../../apps/backend/app/controllers/email_verifications_controller.ts)
+**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L257) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L115) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L37) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L66) · [email_verification_requests_controller.ts](../../apps/backend/app/controllers/email_verification_requests_controller.ts#L9) · [email_verifications_controller.ts](../../apps/backend/app/controllers/email_verifications_controller.ts#L14) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L296)

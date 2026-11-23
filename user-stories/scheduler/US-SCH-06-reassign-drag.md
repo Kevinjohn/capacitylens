@@ -36,14 +36,33 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationBar calls useAllocationGesture"] --> B["useAllocationGestureViewModel resolves gesture and preview"]
-  B --> C["resolveGesture applies snapped dates and mode-specific load rules"]
-  C --> D["Commit gate checks destination and start date"]
-  D --> E["savePointerCommit calls updateAllocation once"]
-  E --> F["allocationSlice creates allocation.update intent"]
-  F --> G["PlanningTransport sends the typed server request"]
-  G --> H["Server: PlanningMutationsController.store executes writer transaction"]
-  G --> I["Server receipt reconciles into SchedulerGrid"]
+  Bar["Editable Work-mode AllocationBar starts a body move"] --> Preview["previewGesture tests destination lane and provides a visual preview"]
+  Preview -->|cancel or lost capture| None["Clear gesture without write"]
+  Preview -->|click or source-row drop| Other["Click-to-edit or same-row movement"]
+  Preview -->|different resource at final hit test| Dates["commitPointerGesture resolves proposed dates for target calendar"]
+  Dates -->|calendar preflight fails| Notice["Show working-day drop error; no request"]
+  Dates -->|accepted| Send["savePointerCommit → reassignAllocation sends allocation.reassign"]
+  Send --> Commit["commit checks live access and revision; executePlanningIntent reconciles target load"]
+  Commit --> Verify["writeEntity checks target assignment, working day and availability"]
+  Verify -->|committed and reconciled| Done["Show reassignment notice and any advisory"]
+  Commit -->|known refusal| Error["Show refusal; no horizontal-only fallback"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read can show complete reassignment; no replay"]
 ```
 
-**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts), [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts), [allocationDrag.ts](../../apps/frontend/src/components/scheduler/allocationDrag.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+A zero-column drop can still reassign. It offers the original start and re-places the measured source duration against the target calendar before the drop check.
+
+**Code references:**
+
+- [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L193)
+- [useDragResize.ts](../../apps/frontend/src/hooks/useDragResize.ts#L126)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L131)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L200)
+- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L240)
+- [gestureMath.ts](../../apps/frontend/src/lib/gestureMath.ts#L110)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L154)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L220)
+- [domain.ts](../../apps/backend/app/services/planning/entity_validation/domain.ts#L200)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [AllocationBar.pointerDrag.interaction.test.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.pointerDrag.interaction.test.tsx#L202)

@@ -32,18 +32,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["buildSchedulerModel applies active filters"] --> B["SchedulerGrid detects no visible resources"]
-  B --> C["Empty state offers Clear filters action"]
-  C --> D["schedulerSlice.clearFilters resets local filters"]
-  D --> E["SchedulerGrid renders matching rows"]
-  E --> F["No planning write or server mutation"]
+  GRID["useSchedulerGridModel returns model and hasActiveFilters result"] --> EMPTY{"SchedulerGridContents sees an empty model?"}
+  EMPTY -->|No| ROWS["Render scheduler rows"]
+  EMPTY -->|Yes| ACTIVE{"SchedulerEmptyRow sees active filters?"}
+  ACTIVE -->|Yes| CLEAR["No resources match the current filters → Clear filters"]
+  CLEAR --> STORE["SchedulerGrid calls clearFilters directly → buildEmptyFilters"]
+  STORE --> GRID
+  ACTIVE -->|No| RESOURCES["No resources yet → Go to Resources"]
+  RESOURCES --> NAV["navigateToResources"]
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. Recomputing after Clear filters produces eligible rows or the unfiltered empty state. The grid’s store action replaces the filter object, so the toolbar reconciles its draft and cancels its pending debounce.
 
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
+**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L220) · [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L208) · [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L68) · [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L378) · [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L138) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L25) · [SchedulerGrid.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.test.tsx#L457)

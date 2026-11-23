@@ -39,12 +39,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  forgot["ForgotPassword.submit sends reset request"] --> request["authApi.requestPasswordReset"]
-  request --> kitRequest["PasswordResetRequestsController.store calls Account Kit passwordReset.request"]
-  kitRequest --> neutral["ForgotPassword shows non-enumerating confirmation"]
-  link["ResetPassword.submit sends token and new password"] --> reset["authApi.resetPassword"]
-  reset --> kitReset["PasswordResetsController.update calls Account Kit passwordReset.reset"]
-  kitReset --> outcome["ResetPassword renders success or link error"]
+  signIn["SignInScreen offers Forgot password? when reset email is available"] --> request["ForgotPassword validates and submits through authApi.requestPasswordReset"]
+  request --> issue["PasswordResetRequestsController.store delegates reset email to Account Kit"]
+  issue -->|Accepted| neutral["Show neutral acknowledgement"]
+  issue -->|Refused or unavailable| deliveryError["Show request error"]
+  request -->|No response| deliveryError
+  link["Emailed reset URL opens the empty ResetPassword form"] -->|Valid submit| apply["authApi.resetPassword sends token and new password"]
+  link -->|Invalid draft| field["Show field or link error"]
+  apply --> kit["PasswordResetsController.update asks Account Kit to spend the bearer, set the password and end all sessions"]
+  kit -->|Success| done["Show completion"]
+  kit -->|Invalid token or other ordinary refusal| field
+  kit -->|408 or 5xx, including committed warning| unknown["Ask the person to try the new password before seeking another link"]
+  apply -->|No response| unknown
+
+  inspect["Separate client calls PasswordResetsController.show"] --> unspent["Account Kit inspects the bearer without spending it"]
 ```
 
-**Code references:** [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx), [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_reset_requests_controller.ts](../../apps/backend/app/controllers/password_reset_requests_controller.ts), [password_resets_controller.ts](../../apps/backend/app/controllers/password_resets_controller.ts)
+**Code references:** [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx#L83) · [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx#L18) · [password_reset_requests_controller.ts](../../apps/backend/app/controllers/password_reset_requests_controller.ts#L15) · [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx#L164) · [password_resets_controller.ts](../../apps/backend/app/controllers/password_resets_controller.ts#L11) · [recovery.spec.ts](../../apps/backend/tests/functional/auth/recovery.spec.ts#L77)

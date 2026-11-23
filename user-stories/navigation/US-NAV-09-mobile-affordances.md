@@ -31,12 +31,16 @@ flowchart TD
 
 ## Code flow
 
+The desktop open preference is a separate path in [US-NAV-22](US-NAV-22-desktop-sidebar-toggle.md#code-flow).
+
 ```mermaid
 flowchart TD
-  shell["AppShell SidebarProvider sets responsive context"] --> sidebar["AppSidebar renders Sidebar"]
-  sidebar --> trigger["SidebarTrigger toggles mobile open state"]
-  sidebar --> nav["NavMenu invokes closeOnMobile after navigation"]
-  nav --> route["NavLink changes route"]
+  provider["SidebarProvider reads useIsMobile and initializes openMobile false"] --> trigger["GatedMain renders MobileSidebarTrigger at narrow widths"]
+  trigger --> action["SidebarTrigger calls toggleSidebar"]
+  action --> state["Mobile branch changes openMobile"]
+  state --> sheet["MobileSidebar renders controlled Sheet"]
+  sheet -->|dismiss| close["Sheet onOpenChange updates openMobile"]
+  sheet -->|select link| nav["AppSidebar closeOnMobile sets openMobile false as NavLink navigates"]
 ```
 
-**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [sidebar.tsx](../../apps/frontend/src/components/ui/sidebar.tsx)
+**Code references:** [AppShell.tsx:27](../../apps/frontend/src/components/AppShell.tsx#L27) · [AppShell.tsx:165](../../apps/frontend/src/components/AppShell.tsx#L165) · [sidebar.tsx:73](../../apps/frontend/src/components/ui/sidebar.tsx#L73) · [sidebar.tsx:246](../../apps/frontend/src/components/ui/sidebar.tsx#L246) · [sidebar.tsx:371](../../apps/frontend/src/components/ui/sidebar.tsx#L371) · [AppSidebar.tsx:36](../../apps/frontend/src/components/AppSidebar.tsx#L36)

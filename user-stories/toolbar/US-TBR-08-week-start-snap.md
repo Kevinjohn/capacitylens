@@ -32,10 +32,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerGrid onScroll calls useSchedulerViewport.onScroll"] --> B["useViewportScrolling waits for idle interval"]
-  B --> C["resolveWeekStartSnapTarget chooses company week edge"]
-  C --> D["setScrollLeft aligns viewport"]
-  E["Toolbar navigation changes dates or zoom"] --> F["useViewportAlignment anchors navigation to week start"]
+  Pan["Prev, Next or zoom updates navigation state"] --> Align["useViewportAlignment uses configured week start when navigation changes geometry"]
+  Today["goToToday sets company-week focus and recenter token"] --> Center["Recenter effect aligns to focus even when date matches"]
+  Scroll["useViewportScrolling observes horizontal scroll"] --> Idle["Sample left-edge date; schedule 120 ms idle snap"]
+  Scroll -->|dragging or no horizontal change| None["No free-scroll snap"]
+  Idle -->|geometry or week settings change; drag still active at expiry| None
+  Idle --> Target["resolveWeekStartSnapTarget finds boundary of left-edge week"]
+  Target -->|already at boundary or no target| None
+  Target -->|offset differs| Snap["setScrollLeft aligns to available boundary"]
 ```
 
-**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [resolveWeekStartSnapTarget.ts](../../apps/frontend/src/components/scheduler/resolveWeekStartSnapTarget.ts), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
+Production enables free-scroll snapping. The switch is a test override.
+
+**Code references:**
+
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L199)
+- [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L156)
+- [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L216)
+- [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L279)
+- [resolveWeekStartSnapTarget.ts](../../apps/frontend/src/components/scheduler/resolveWeekStartSnapTarget.ts#L19)
+- [schedulerConfig.ts](../../apps/frontend/src/lib/schedulerConfig.ts#L33)
+- [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L169)
+- [useSchedulerViewport.test.tsx](../../apps/frontend/src/components/scheduler/useSchedulerViewport.test.tsx#L182)

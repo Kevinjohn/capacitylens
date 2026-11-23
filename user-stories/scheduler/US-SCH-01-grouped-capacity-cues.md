@@ -33,10 +33,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["Schedule opens"] --> B["useSchedulerGridModel builds grid model"]
-  B --> C["buildSchedulerModel groups resources and derives day states"]
-  C --> D["applyVisibleUtilisation updates visible-window utilisation and lanes"]
-  D --> E["SchedulerGridRows renders resource rows and ResourceLane cues"]
+  Read["readPlanning authorizes and returns active projected data plus capacity"] --> Grid["useSchedulerGridPreferences reads scoped data and company settings"]
+  Grid --> Group["buildSchedulerModel → buildResourceGroups"]
+  Group -->|disciplines enabled| Discipline["Discipline and fallback groups"]
+  Group -->|disciplines disabled| Engagement["Staffing or default grouping"]
+  Discipline --> Filter["Apply feature visibility and row filters; omit empty groups"]
+  Engagement --> Filter
+  Filter --> View["applyVisibleUtilisation samples current visible dates"]
+  View --> Row["SchedulerGridRow renders utilisation cues and ResourceLane day cues"]
 ```
 
-**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+Supplementary people can introduce staffing subgroups. Placeholder and External visibility apply independently. An empty projected schedule can offer Clear filters or a Resources action depending on filter and edit state.
+
+**Code references:**
+
+- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L102)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L132)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208)
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L130)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L167)

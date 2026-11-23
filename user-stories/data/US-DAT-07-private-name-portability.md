@@ -28,12 +28,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  fetch["useExportOperation fetches api.company_exports.show"] --> role["CompanyExportsController.show projects rows and sets completeness"]
-  role --> project["transformState redacts private names for non-Owners"]
-  project --> beta["buildCompanyExport validates and serializes portable data"]
-  beta --> file["downloadTextFile saves the server's file"]
-  file --> import["prepareCompanyImport accepts only full exports and validates private fields"]
-  import --> replace["Import service replaces company rows only after preparation"]
+  fetch["useExportOperation requests the current company's export"] --> access["CompanyExportsController.show resolves the live effective reader"]
+  access -->|Refused| error["Report export error"]
+  access -->|Allowed| project["transformState uses projectForReader before portable serialization"]
+  project -->|Owner| full["Full export keeps real name, isPrivate and codeName"]
+  project -->|Other reader| redact["Redacted export quotes replacement name, keeps isPrivate and serializes codeName as null"]
+  full --> file["Download server response"]
+  redact --> file
+  file -->|Chosen for import by Owner| preview["prepareCompanyImport requires a full export and validates private names and destination"]
+  preview -->|Refused| invalid["Show validation reason; no replacement"]
+  preview -->|Accepted| boundary["Protected import requires exact document/revision proof before transactional apply"]
 ```
 
-**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyExport.ts](../../packages/shared/src/data/companyExport.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+See [Confirm the exact import operation](US-DAT-08-preview-exact-import.md#code-flow) for the apply proof and outcomes.
+
+**Code references:** [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts#L19) · [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L21) · [privateNames.ts](../../packages/shared/src/domain/privateNames.ts#L64) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L104) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L161) · [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts#L17) · [company_export.spec.ts](../../apps/backend/tests/functional/company_export.spec.ts#L71) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L410)
