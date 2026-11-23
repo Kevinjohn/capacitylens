@@ -5,6 +5,7 @@ import {
   type Company,
   type AppData,
   type ScopedEntityKey,
+  type Weekday,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import {
@@ -12,7 +13,6 @@ import {
   areHalfDaysWithinWorkingDays,
   isSameWeekdays,
 } from '@capacitylens/shared/domain/resourceWorkingPattern';
-import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { cleanText } from '@capacitylens/shared/lib/strings';
 import { hasUsablePrivateCodeName } from '@capacitylens/shared/domain/privateNames';
 import { DomainError } from '@capacitylens/shared/domain/errors';
@@ -275,8 +275,8 @@ function assertRequired(table: ScopedEntityKey, candidate: Record<string, unknow
 }
 
 export interface EntityWriteOptions {
-  lookup: ValidationDataLookup;
-  hasOtherBuiltinClient(companyId: string, clientId: string): boolean;
+  /** The company's canonical working-day set, read once by the caller. */
+  companyWorkingDays: Weekday[];
 }
 
 /** Prepare one complete entity row for a typed write against the current transaction projection. */
@@ -364,7 +364,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
     // `table` is the key `validated` and `stored` were read for; the compiler cannot relate a
     // generic key to the table-keyed union, so name the pairing once here.
     const write = { table, row: validated, existing: stored } as EntityWrite;
-    assertEntityDomain(write, state, options.lookup, options.hasOtherBuiltinClient);
+    assertEntityDomain(write, state, options.companyWorkingDays);
   } catch (error) {
     if (error instanceof EntityWriteException) throw error;
     if (error instanceof DomainError) {

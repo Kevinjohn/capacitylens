@@ -24,8 +24,7 @@ import {
   listValidationAllocations,
   assertValid,
   isEffectivelyActive,
-} from '../validationLookup.js';
-import type { ValidationDataLookup } from '../validationLookup.js';
+} from '../validationRows.js';
 
 interface AssertAllocationPairStaysValidOptions {
   data: AppData;
@@ -36,7 +35,6 @@ interface AssertAllocationPairStaysValidOptions {
     | { side: 'activity'; merged: Activity; existing?: Activity };
   code: DomainErrorCode;
   message: string;
-  lookup?: ValidationDataLookup | undefined;
 }
 
 interface AssertResourceKindAllowsDependentsOptions {
@@ -44,7 +42,6 @@ interface AssertResourceKindAllowsDependentsOptions {
   companyId: ID;
   resourceId: ID;
   mergedKind: unknown;
-  lookup?: ValidationDataLookup | undefined;
 }
 
 interface AssertResourceProjectAllowsDependentsOptions {
@@ -53,7 +50,6 @@ interface AssertResourceProjectAllowsDependentsOptions {
   resourceId: ID;
   merged: Resource;
   existing?: Resource | undefined;
-  lookup?: ValidationDataLookup | undefined;
 }
 
 interface AssertActivityProjectAllowsDependentsOptions {
@@ -62,7 +58,6 @@ interface AssertActivityProjectAllowsDependentsOptions {
   activityId: ID;
   merged: Activity;
   existing?: Activity | undefined;
-  lookup?: ValidationDataLookup | undefined;
 }
 
 interface AssertResourceExistsOptions {
@@ -70,7 +65,6 @@ interface AssertResourceExistsOptions {
   companyId: ID;
   resourceId: ID;
   existing?: Pick<TimeOff, 'resourceId'> | undefined;
-  lookup?: ValidationDataLookup | undefined;
 }
 
 // Converting a resource to external must not hide existing loaded allocations or time off.
@@ -82,7 +76,6 @@ function assertResourceKindAllowsDependents({
   companyId,
   resourceId,
   mergedKind,
-  lookup,
 }: AssertResourceKindAllowsDependentsOptions): void {
   if (!isExternalResource({ kind: mergedKind as Resource['kind'] })) return;
   // A loaded allocation or any time-off both vanish from the scheduler once the resource is external.
@@ -90,14 +83,10 @@ function assertResourceKindAllowsDependents({
   // allocation is allowed on an external, so it doesn't block the flip).
   const isOwnedByResource = (entity: Allocation | TimeOff) =>
     entity.resourceId === resourceId && isInCompany(entity, companyId);
-  const hasLoadedAllocation = lookup
-    ? lookup.resourceHasLoadedAllocation(companyId, resourceId)
-    : data.allocations.some(
-        (allocation) => isOwnedByResource(allocation) && allocation.hoursPerDay !== 0,
-      );
-  const hasTimeOff = lookup
-    ? lookup.resourceHasTimeOff(companyId, resourceId)
-    : data.timeOff.some((timeOff) => isOwnedByResource(timeOff));
+  const hasLoadedAllocation = data.allocations.some(
+    (allocation) => isOwnedByResource(allocation) && allocation.hoursPerDay !== 0,
+  );
+  const hasTimeOff = data.timeOff.some((timeOff) => isOwnedByResource(timeOff));
   if (hasLoadedAllocation || hasTimeOff) {
     throwDomainError(
       'resource_external_dependents',
@@ -120,7 +109,6 @@ function assertResourceProjectAllowsDependents({
   resourceId,
   merged,
   existing,
-  lookup,
 }: AssertResourceProjectAllowsDependentsOptions): void {
   // The resource side short-circuits only when neither kind nor projectId moved: both feed the
   // placeholder rule, so either one changing can newly invalidate an allocation.
@@ -138,7 +126,6 @@ function assertResourceProjectAllowsDependents({
     edit: { side: 'resource', merged, ...(existing === undefined ? {} : { existing }) },
     code: 'placeholder_project_dependents',
     message: 'Reassign or remove this placeholder’s work before changing its bound project.',
-    ...(lookup === undefined ? {} : { lookup }),
   });
 }
 
@@ -151,15 +138,12 @@ function assertAllocationPairStaysValid({
   edit,
   code,
   message,
-  lookup,
 }: AssertAllocationPairStaysValidOptions): void {
-  const lookupOptions = lookup === undefined ? {} : { lookup };
   for (const allocation of listValidationAllocations({
     data,
     companyId,
     side: edit.side,
     id,
-    ...lookupOptions,
   })) {
     let before: ValidationResult | undefined;
     let after: ValidationResult;
@@ -169,7 +153,6 @@ function assertAllocationPairStaysValid({
         table: 'activities',
         id: allocation.activityId,
         companyId,
-        ...lookupOptions,
       });
       if (!activity) continue;
       const projectId = resolveEffectiveProjectId(allocation, activity);
@@ -181,7 +164,6 @@ function assertAllocationPairStaysValid({
         table: 'resources',
         id: allocation.resourceId,
         companyId,
-        ...lookupOptions,
       });
       if (!resource) continue;
       before =
@@ -214,7 +196,6 @@ function assertActivityProjectAllowsDependents({
   activityId,
   merged,
   existing,
-  lookup,
 }: AssertActivityProjectAllowsDependentsOptions): void {
   // Kind changes can change whether allocation-level attribution is effective, so both fields feed
   // the placeholder rule on this side.
@@ -232,7 +213,6 @@ function assertActivityProjectAllowsDependents({
     edit: { side: 'activity', merged, ...(existing === undefined ? {} : { existing }) },
     code: 'activity_project_dependents',
     message: 'Reassign placeholder work before changing this activity’s project.',
-    ...(lookup === undefined ? {} : { lookup }),
   });
 }
 
@@ -254,15 +234,12 @@ function assertResourceExists({
   companyId,
   resourceId,
   existing,
-  lookup,
 }: AssertResourceExistsOptions): void {
-  const lookupOptions = lookup === undefined ? {} : { lookup };
   const resource = resolveOwnedRow<Resource>({
     data,
     table: 'resources',
     id: resourceId,
     companyId,
-    ...lookupOptions,
   });
   if (!resource) {
     throwDomainError(
@@ -272,7 +249,7 @@ function assertResourceExists({
   }
   if (
     existing?.resourceId !== resourceId &&
-    !isEffectivelyActive({ data, table: 'resources', row: resource, ...lookupOptions })
+    !isEffectivelyActive({ data, table: 'resources', row: resource })
   ) {
     throwDomainError(
       'time_off_resource_inactive',

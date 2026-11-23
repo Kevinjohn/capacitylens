@@ -85,7 +85,7 @@ describe('InviteAccept outcomes', () => {
 
   it('keeps the form and shows existing-account guidance for EMAIL_IN_USE', async () => {
     const registered = {
-      error: 'An account already uses this email. Sign in instead.',
+      error: 'An account already uses this email. Sign in or reset your password.',
       code: 'EMAIL_IN_USE',
     } satisfies ProductHttpErrorBody;
     vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(

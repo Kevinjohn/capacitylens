@@ -72,7 +72,7 @@ test.group('documentation and repository rule contracts', () => {
   test('keeps the README install commands and success check in step with the guide', ({
     assert,
   }) => {
-    const installBlock = (text: string) => /```bash\n(sha256sum -c[\s\S]*?)```/.exec(text)?.[1];
+    const installBlock = (text: string) => /```bash\n(sudo git clone[\s\S]*?)```/.exec(text)?.[1];
     const guide = read('docs-src/self-hosting/install-without-docker.md');
     const readme = read('README.md');
     assert.isString(installBlock(readme));
@@ -116,10 +116,10 @@ test.group('documentation and repository rule contracts', () => {
       'node ace.js app:reset',
     ])
       assert.include(operatorDocs, command);
-    // nginx site files are copied by hand, so an upgrade must point at the release's copy.
+    // nginx site files are copied by hand, so an upgrade must point at the tag's copy.
     assert.match(
       operations,
-      /`capacitylens\.nginx\.conf`, compare that copy\s+with the new release's file and copy over any changed `location` blocks[\s\S]*`\/api\/invitations\/<token>\/\.\.\.` and\s+`\/invitation\/<token>`/
+      /capacitylens\.nginx\.conf`, compare\s+that\s+copy\s+with the new tag's file and copy over any changed `location` blocks[\s\S]*`\/api\/invitations\/<token>\/\.\.\.` and\s+`\/invitation\/<token>`/
     );
     assert.include(monitoring, '/health/live');
     assert.include(monitoring, '/health/ready');

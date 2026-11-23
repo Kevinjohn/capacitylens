@@ -46,8 +46,7 @@ describe('SPA content security policy', () => {
     expect(nginx).not.toMatch(/proxy_ssl_|capacitylens-internal-tls/);
     for (const declaration of [
       'location /api/ {',
-      'location ~ ^/api/invitations/[^/]+/(accept|sign-up|preview)$ {',
-      'location ~ ^/api/auth/(callback|oauth2/callback)/ {',
+      'location ~ ^/api/invitations/[^/]+/(sign-up|preview)$ {',
     ]) {
       const block = locationBlock(nginx, declaration);
       expect(block).toContain('proxy_set_header Host $http_host;');

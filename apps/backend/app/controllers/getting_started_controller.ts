@@ -23,12 +23,8 @@ export default class GettingStartedController {
     );
   }
 
-  async update({ auth, params, request, response, serialize }: HttpContext) {
-    const [validationError] = await request.tryValidateUsing(updateGettingStartedValidator, {
-      data: request.body(),
-    });
-    // Route wording: this route answers a Vine failure with its own sentence and no code.
-    if (validationError) return response.badRequest({ error: 'dismissed must be true.' });
+  async update({ auth, params, request, serialize }: HttpContext) {
+    await request.validateUsing(updateGettingStartedValidator, { data: request.body() });
     const now = new Date().toISOString();
     await withActor(auth, async (_actor, trx) => {
       const { role } = await assertCompanyPermission(params.companyId, 'planning:write', trx);

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { Assert } from '@japa/assert';
 
 export function operatorFixture() {
   const root = mkdtempSync(join(tmpdir(), 'capacitylens-operator-'));
@@ -49,6 +50,23 @@ export function operatorFixture() {
       rmSync(root, { recursive: true, force: true });
     },
   };
+}
+
+/**
+ * Asserts a failed operator command exited 1 and reported exactly one error line matching
+ * `message`, with no stack trace anywhere in its output.
+ */
+export function assertSafeFailure(
+  assert: Assert,
+  result: { status: number | null; stderr: string; output: string },
+  message: RegExp
+) {
+  assert.equal(result.status, 1, result.output);
+  const lines = result.stderr.split('\n').filter((line) => line.trim() !== '');
+  assert.lengthOf(lines, 1, result.output);
+  assert.match(lines[0]!, message);
+  // Ace and Youch indent stack frames, Youch behind a `⁃` marker.
+  assert.notMatch(result.output, /^[\s⁃]*at \S/m, result.output);
 }
 
 export function insertOwner(database: DatabaseSync) {

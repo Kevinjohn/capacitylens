@@ -41,7 +41,7 @@ from missing controls. See [the template](TEMPLATE.md#diagram-conventions) for m
   Task and Overview. An absence caused by a configured switch is not a removed feature.
 
 Source of role permissions: [shared permissions](../packages/shared/src/domain/access.ts)
-[company abilities](../apps/backend/app/services/auth/authorization.ts) and each action's server
+[company authorization](../apps/backend/app/services/auth/authorization.ts) and each action's server
 handler. A story's role label is descriptive; the server owns enforcement.
 
 ## Screens and source map

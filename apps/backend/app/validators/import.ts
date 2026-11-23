@@ -1,16 +1,13 @@
 import vine from '@vinejs/vine';
-import { allowedFields, fixedMessage, isSupplied } from '#validators/request_rules';
+import { allowedFields, isSupplied } from '#validators/request_rules';
 
 // The document keeps its own parser and error type; the validator only requires the key.
-const previewMessage = 'Invalid beta import document.';
 export const previewImportValidator = vine.create(
   vine
     .object({ companyId: vine.string().minLength(1), document: vine.any().nullable() })
-    .use(allowedFields({ fields: ['companyId', 'document'], message: previewMessage }))
+    .use(allowedFields({ fields: ['companyId', 'document'] }))
 );
-previewImportValidator.messagesProvider = fixedMessage(previewMessage);
 
-const applyMessage = 'Invalid beta import request.';
 export const applyImportValidator = vine.create(
   vine
     .object({
@@ -23,11 +20,5 @@ export const applyImportValidator = vine.create(
         .max(Number.MAX_SAFE_INTEGER),
       confirmationId: vine.string().optional().requiredWhen(isSupplied),
     })
-    .use(
-      allowedFields({
-        fields: ['companyId', 'document', 'baseRevision', 'confirmationId'],
-        message: applyMessage,
-      })
-    )
+    .use(allowedFields({ fields: ['companyId', 'document', 'baseRevision', 'confirmationId'] }))
 );
-applyImportValidator.messagesProvider = fixedMessage(applyMessage);

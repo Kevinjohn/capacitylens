@@ -135,7 +135,7 @@ one exception is a library's own wording, which a test pins.
 Wrap the boundaries where the world is untrusted or fallible: parsing, storage, the network,
 request bodies, environment lookups and the browser file operations. Do not wrap pure functions
 on the render path, the store's deliberate integrity throws, or the server's rollback-and-rethrow
-points; each of those carries a guard comment saying why. When a pure path needs "more safety",
+points; each of those carries a comment saying why it is not wrapped. When a pure path needs "more safety",
 clamp or return early inside the pure function with a why comment, as the day-span and
 utilisation helpers in `packages/shared/src/lib/` do.
 
@@ -165,8 +165,8 @@ numbered so a review can cite one.
    No types inside tags; the signature carries them. Add `@param` and `@returns` only when the
    name and type cannot say it. `@deprecated` names the replacement.
 4. **Internal code uses `//` above the line, in full sentences.** No trailing comments.
-5. **Catch and guard comments are mandatory.** Every `catch` says what is swallowed or surfaced
-   and why. Every "do not wrap" point carries its guard comment.
+5. **Catch and do-not-wrap comments are mandatory.** Every `catch` says what is swallowed or
+   surfaced and why. Every "do not wrap" point carries a comment saying why.
 6. **Emphasis comes from wording, never from capitals.** Say "must" or "never" in a normal
    sentence. Acronyms stay upper-case.
 7. **No plan or ticket references, and no history.** Cite a `DECISIONS.md` heading or an issue URL

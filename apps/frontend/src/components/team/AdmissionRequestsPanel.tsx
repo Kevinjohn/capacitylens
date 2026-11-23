@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { buildScopeQueryKey } from '@/api/queryClient';
+import { useQueryScope } from '@/api/useQueryScope';
 import { isRole } from '@capacitylens/shared/account/types';
 import { m } from '@/i18n';
 import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
@@ -7,18 +10,15 @@ import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-type Listing =
-  { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; requests: AdmissionRequest[] };
-
-async function fetchListing(signal: AbortSignal): Promise<Listing> {
+async function fetchRequests(signal: AbortSignal): Promise<AdmissionRequest[]> {
   try {
     const result = await teamAccessApi.listAdmissionRequests(signal);
-    return result.kind === 'ok' ? { kind: 'ready', requests: result.value } : { kind: 'failed' };
+    if (result.kind === 'ok') return result.value;
   } catch (failure) {
-    // A retired panel cannot surface a late read failure to its successor context.
     if (!signal.aborted) console.warn('AdmissionRequestsPanel: listing failed', failure);
-    return { kind: 'failed' };
+    throw failure;
   }
+  throw new Error('The admission requests could not be listed.');
 }
 
 /**
@@ -26,48 +26,47 @@ async function fetchListing(signal: AbortSignal): Promise<Listing> {
  * and revoked people stay listed so a mistaken decision can be reversed.
  */
 export function AdmissionRequestsPanel() {
-  const [listing, setListing] = useState<Listing>({ kind: 'loading' });
+  const scope = useQueryScope();
+  const queryClient = useQueryClient();
+  const queryKey = buildScopeQueryKey(scope, ['admission-requests']);
+  const query = useQuery({
+    queryKey,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: ({ signal }) => fetchRequests(signal),
+  });
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const controllerRef = useRef<AbortController | null>(null);
-
-  const load = useCallback((signal: AbortSignal) => {
-    return fetchListing(signal).then((next) => {
-      if (!signal.aborted) setListing(next);
-    });
-  }, []);
-
+  // A retired panel must not surface a late decision outcome in a successor context.
+  const live = useRef(true);
   useEffect(() => {
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    void load(controller.signal);
+    live.current = true;
     return () => {
-      controller.abort();
-      if (controllerRef.current === controller) controllerRef.current = null;
+      live.current = false;
     };
-  }, [load]);
+  }, []);
+  const [error, setError] = useState<string | null>(null);
+  const listing = query.isError
+    ? ({ kind: 'failed' } as const)
+    : query.data
+      ? ({ kind: 'ready', requests: query.data } as const)
+      : ({ kind: 'loading' } as const);
 
   const decide = async (request: AdmissionRequest, decision: 'approve' | 'reject') => {
-    const controller = controllerRef.current;
-    // A retired panel has no listing lifetime to own another action.
-    if (!controller) return;
-    const signal = controller.signal;
     setBusy(true);
     setError(null);
     try {
       const result = await teamAccessApi.decideAdmission(request.userId, decision);
-      if (controllerRef.current !== controller) return;
+      if (!live.current) return;
       if (result.kind !== 'ok') {
         setError(resolveRefusalMessage(result, m.settings_admission_failed()));
       }
-      await load(signal);
+      await queryClient.invalidateQueries({ queryKey, exact: true });
     } catch (failure) {
-      // A retired panel must not surface a late decision failure in a successor context.
-      if (controllerRef.current !== controller) return;
+      if (!live.current) return;
       console.warn('AdmissionRequestsPanel: decision failed', failure);
       setError(m.settings_admission_failed());
     } finally {
-      if (controllerRef.current === controller) setBusy(false);
+      if (live.current) setBusy(false);
     }
   };
 
@@ -92,15 +91,7 @@ export function AdmissionRequestsPanel() {
             <p role="alert" className="text-sm text-danger">
               {m.settings_admission_load_failed()}
             </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setListing({ kind: 'loading' });
-                const signal = controllerRef.current?.signal;
-                if (signal && !signal.aborted) void load(signal);
-              }}
-            >
+            <Button size="sm" variant="outline" onClick={() => void query.refetch()}>
               {m.settings_admission_retry()}
             </Button>
           </div>

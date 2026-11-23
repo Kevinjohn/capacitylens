@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useRef } from 'react';
+import { invalidateInactiveReads, queryClient } from '@/api/queryClient';
 import { useStore } from '@/store/useStore';
 import type { LifecycleEntity } from '@/lib/entityDrafts';
 import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { runResourceAnonymisation } from '@/store/resourceAnonymisation';
-import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy';
 
 // Archive and restore use typed planning intents. Anonymisation has a named server route;
@@ -41,7 +41,7 @@ export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperat
       }
       const reloaded = await runResourceAnonymisation(activeCompanyId, id, setNotice);
       if (reloaded) {
-        notifyInactiveDataChanged(activeCompanyId);
+        void invalidateInactiveReads(queryClient);
         onReloaded?.();
       }
     },
@@ -70,7 +70,7 @@ export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperat
                       endsHistory: true,
                     };
             const receipt = await useStore.getState().sendPlanningIntent(intentRequest);
-            if (activeCompanyId) notifyInactiveDataChanged(activeCompanyId);
+            void invalidateInactiveReads(queryClient);
             if (entity !== 'resources' && verb === 'archive' && receipt?.archived) {
               const notice = buildArchiveImpactNotice(entity, receipt.archived);
               if (notice) setNotice(notice);

@@ -1,3 +1,5 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { requireCreated } from '@/test/requireCreated';
@@ -23,16 +25,19 @@ import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { permissionValue } from '@/test/permissionGrants';
 
 function TestProviders({ children }: { children: ReactNode }) {
+  const [cache] = useState(() => new QueryClient());
   return (
-    <AuthContext.Provider
-      value={{
-        user: { id: 'test-user' },
-        refreshAuth: async () => {},
-        signOut: async () => {},
-      }}
-    >
-      <OwnerPermissions>{children}</OwnerPermissions>
-    </AuthContext.Provider>
+    <QueryClientProvider client={cache}>
+      <AuthContext.Provider
+        value={{
+          user: { id: 'test-user' },
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <OwnerPermissions>{children}</OwnerPermissions>
+      </AuthContext.Provider>
+    </QueryClientProvider>
   );
 }
 

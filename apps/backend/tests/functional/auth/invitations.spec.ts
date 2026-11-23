@@ -300,7 +300,7 @@ test.group('company invitations', (group) => {
 
     response.assertStatus(409);
     assert.deepEqual(response.body(), {
-      error: 'An account already uses this email. Sign in instead.',
+      error: 'An account already uses this email. Sign in or reset your password.',
       code: 'EMAIL_IN_USE',
     });
     assert.equal(response.header('cache-control'), 'no-store');

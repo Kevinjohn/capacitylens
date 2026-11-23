@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { queryClient as queryCache } from '@/api/queryClient';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '@/store/useStore';
 import {
@@ -47,6 +48,19 @@ describe('named lifecycle actions', () => {
       },
     ]);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('marks the inactive-row reads stale after an archive, and no other query', async () => {
+    useStore.setState({ sendPlanningIntent: vi.fn(async () => undefined) });
+    const key = (route: string) => ['capacitylens', 'bruce', DEFAULT_COMPANY_ID, 0, route];
+    for (const route of ['archive-recovery', 'inactive-company-data', 'team-directory']) {
+      queryCache.setQueryData(key(route), route);
+    }
+    const { result } = renderHook(() => useLifecycleOperations());
+    await act(async () => result.current.archive('clients', 'c-1'));
+    const stale = (route: string) => queryCache.getQueryState(key(route))?.isInvalidated;
+    expect([stale('archive-recovery'), stale('inactive-company-data')]).toEqual([true, true]);
+    expect(stale('team-directory')).toBe(false);
   });
 
   it('reports what the server says a client archive hid', async () => {

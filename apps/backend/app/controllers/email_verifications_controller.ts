@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidTokenError, isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
+import { invalidLinkAnswer } from '#services/auth/credential_answers';
 import {
   completeVerificationValidator,
   inspectVerificationValidator,
@@ -37,12 +38,9 @@ export default class EmailVerificationsController {
       });
       return serialize({ result: 'verified' });
     } catch (error) {
-      // Route wording: completion answers INVALID_TOKEN where the handler sends the Kit's own code.
+      // Keeps `INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
       if (error instanceof InvalidTokenError) {
-        return response.badRequest({
-          error: 'This link is invalid or expired.',
-          code: 'INVALID_TOKEN',
-        });
+        return response.badRequest(invalidLinkAnswer);
       }
       if (isCommittedFailure(error)) {
         return response.serviceUnavailable({

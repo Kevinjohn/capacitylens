@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 import { teamAccessApi } from '@/account/teamAccessApi';
 import type { AdmissionRequest } from '@/account/teamAccessApi';
 import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';

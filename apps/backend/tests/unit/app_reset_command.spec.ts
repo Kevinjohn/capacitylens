@@ -5,6 +5,7 @@ import { cpSync, existsSync, readFileSync, readdirSync, symlinkSync, writeFileSy
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import {
+  assertSafeFailure,
   operatorFixture,
   scratchBackendFilter,
   insertOwner,
@@ -244,8 +245,7 @@ test.group('app reset command', () => {
           CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test',
         }
       );
-      assert.notEqual(result.status, 0);
-      assert.include(result.output, 'app:reset is unavailable in production');
+      assertSafeFailure(assert, result, /app:reset is unavailable in production/);
       const unchanged = f.inspect();
       assert.equal(tableCount(unchanged, 'users'), 1);
       unchanged.close();

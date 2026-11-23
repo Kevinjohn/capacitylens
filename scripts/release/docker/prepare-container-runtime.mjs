@@ -1,11 +1,78 @@
-import { cp, readdir, rename, rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { carryBuildPolicy } from '../package-managed-release.mjs';
 import {
-  assertInternalDependencyLinks,
-  repairBackendSelfLinks,
-} from '../deploy-managed-runtime.mjs';
+  cp,
+  lstat,
+  readdir,
+  readFile,
+  readlink,
+  realpath,
+  rename,
+  rm,
+  symlink,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import YAML from 'yaml';
+
+/** Carry the approved native build policy without deploy paths that escape the artifact. */
+export async function carryBuildPolicy(backend, repositoryRoot) {
+  const committed = YAML.parse(await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8'));
+  const policy = committed?.allowBuilds;
+  if (
+    !policy ||
+    typeof policy !== 'object' ||
+    Array.isArray(policy) ||
+    Object.keys(policy).length === 0 ||
+    Object.values(policy).some((approved) => typeof approved !== 'boolean')
+  ) {
+    throw new Error('Committed build-script policy must be a nonempty map of boolean approvals.');
+  }
+  await writeFile(join(backend, 'pnpm-workspace.yaml'), YAML.stringify({ allowBuilds: policy }));
+}
+
+/** Redirect package self references to the final compiled backend rather than source-only files. */
+export async function repairBackendSelfLinks(modules, backend) {
+  const visit = async (directory) => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await visit(path);
+      else if (
+        entry.isSymbolicLink() &&
+        entry.name === 'backend' &&
+        dirname(path).endsWith('/@capacitylens')
+      ) {
+        const finalPath = join(backend, 'node_modules', relative(modules, path));
+        await unlink(path);
+        await symlink(relative(dirname(finalPath), backend), path);
+      }
+    }
+  };
+  await visit(modules);
+}
+
+/** Reject dependency links that escape the final artifact, including absolute paths and broken links. */
+export async function assertInternalDependencyLinks(root) {
+  const canonicalRoot = await realpath(root);
+  const visit = async (directory) => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await visit(path);
+      else if ((await lstat(path)).isSymbolicLink()) {
+        const target = await readlink(path);
+        const resolved = await realpath(path);
+        if (
+          target.startsWith('/') ||
+          (resolved !== canonicalRoot && !resolved.startsWith(`${canonicalRoot}/`))
+        )
+          throw new Error(
+            `Production dependency link escapes the artifact: ${relative(root, path)}`,
+          );
+      }
+    }
+  };
+  await visit(root);
+}
 
 async function removeSourceMaps(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {

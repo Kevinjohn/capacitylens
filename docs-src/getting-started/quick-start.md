@@ -18,19 +18,17 @@ may provide controls for these steps; check that they support the required proce
 
 <div class="steps">
 
-1. **Download** the release archive from the
-   [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
+1. **Clone** the repository at the tag of the
+   [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) into
+   `/opt/capacitylens`, then run `pnpm install --frozen-lockfile` and `pnpm run build`.
 
-2. **Run the install command** from the archive unpacked into `/opt/capacitylens`, with
-   `sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com`,
-   giving your domain name and the Owner's email address. It sets up the service, daily backups
-   and, when Caddy is installed, HTTPS. The
-   [installation guide](/self-hosting/install-without-docker#install-with-one-command) gives the
-   exact commands and the manual steps.
+2. **Configure and start it.** Write the environment file, run `node ace.js app:upgrade` and start
+   the service under systemd behind your HTTPS proxy. The
+   [installation guide](/self-hosting/install-without-docker) gives the exact commands.
 
-3. **Hand over the setup link.** The command ends with `Open this setup link at
-   https://capacity.example.com:` followed by a one-time link. If you are the Owner, open it in your
-   browser. Otherwise, send it privately to the Owner, who opens it.
+3. **Hand over the setup link.** Print a one-time setup link with the bootstrap command in the
+   guide. If you are the Owner, open it in your browser. Otherwise, send it privately to the Owner,
+   who opens it.
 
 </div>
 

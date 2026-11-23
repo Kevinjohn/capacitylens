@@ -75,15 +75,13 @@ test('Compose upgrades before API startup and preserves the private persistent d
   const workflow = YAML.parse(
     await readFile(new URL('../../../.github/workflows/docker.yml', import.meta.url), 'utf8'),
   );
-  assert.deepEqual(workflow.on.push.branches, ['main']);
-  // Pull requests run the smoke only when they change container or runtime inputs (#1970), never
-  // on every push to every branch (#194), and never with write access.
-  assert.ok(workflow.on.pull_request.paths.includes('Dockerfile'));
-  assert.ok(workflow.on.pull_request.paths.includes('docker-compose.yml'));
+  // Docker work runs on a release tag or by hand, never on pull requests or pushes to main (#2436).
+  assert.deepEqual(Object.keys(workflow.on).sort(), ['push', 'release', 'workflow_dispatch']);
+  assert.deepEqual(workflow.on.push, { tags: ['v*'] });
   assert.deepEqual(workflow.permissions, { contents: 'read' });
-  for (const job of ['validated', 'publish'])
-    assert.doesNotMatch(workflow.jobs[job].if, /pull_request/, job);
-  assert.equal(Object.hasOwn(workflow.on, 'workflow_dispatch'), true);
+  // A tag push builds and smokes first; publication waits for the validation check, then publishes.
+  assert.ok(workflow.jobs.validated.needs === 'smoke');
+  assert.ok(workflow.jobs.publish.needs === 'validated');
 });
 
 test('Compose runs the published release images by default and can still build them', async () => {
