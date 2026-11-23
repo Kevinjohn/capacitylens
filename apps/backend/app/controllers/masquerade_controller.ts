@@ -49,7 +49,7 @@ export default class MasqueradeController {
   async show(ctx: HttpContext) {
     return runWithAuthorizationRefusal(ctx, async () => {
       try {
-        const signIn = await getSignedInSession(ctx);
+        const signIn = await getSignedInSession(ctx.auth, ctx.session);
         if (!signIn) return ctx.serialize({ active: false, masqueradeToken: null });
         const input: unknown = ctx.request.input('companyId');
         const companyId = typeof input === 'string' && input ? input : undefined;

@@ -4,10 +4,9 @@ import { addExampleData } from '#services/example_data';
 import { assertCompanyPermission } from '#services/auth/authorization';
 
 export default class ExampleDataController {
-  async store(ctx: HttpContext) {
-    const { params, response, logger, serialize } = ctx;
+  async store({ auth, params, response, logger, serialize }: HttpContext) {
     const companyId = params.companyId;
-    const added = await withActor(ctx, async (_actor, trx) => {
+    const added = await withActor(auth, async (_actor, trx) => {
       const actor = await assertCompanyPermission(companyId, 'members:manage', trx);
       return addExampleData(trx, companyId, actor.actorId);
     });

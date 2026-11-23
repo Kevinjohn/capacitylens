@@ -12,19 +12,19 @@ import {
 
 /** Sends an open invitation again with a new link. */
 export default class InvitationDeliveriesController {
-  async store(ctx: HttpContext) {
-    const id = parseInvitationId(ctx.params.id);
+  async store({ auth, params, response, serialize }: HttpContext) {
+    const id = parseInvitationId(params.id);
     if (!id) refuseInvalidAdmission();
-    const actorId = await requireInvitationManager(ctx, ctx.params.companyId);
+    const actorId = await requireInvitationManager(auth, params.companyId);
     // Resending replaces the link, so without mail it would only invalidate a printed one.
-    if (!isMailConfigured()) return answerMailUnavailable(ctx.response);
+    if (!isMailConfigured()) return answerMailUnavailable(response);
     try {
       const invitation = await accountKit.invitations.resend({ actorId, invitationId: id });
-      return ctx.serialize({ ...buildInvitationView(invitation), emailed: true });
+      return serialize({ ...buildInvitationView(invitation), emailed: true });
     } catch (error) {
       // Does work: a committed resend whose email failed is answered 202.
       if (!isCommittedFailure(error)) throw error;
-      return ctx.response.accepted(await ctx.serialize({ committed: true, emailed: false }));
+      return response.accepted(await serialize({ committed: true, emailed: false }));
     }
   }
 }

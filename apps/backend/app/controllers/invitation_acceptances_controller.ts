@@ -19,18 +19,18 @@ export default class InvitationAcceptancesController {
    * already has an account; a repeated request after a lost response gets the invalid-link answer
    * and the person signs in instead.
    */
-  async store(ctx: HttpContext) {
-    setProofHeaders(ctx.response);
-    const [validationError, body] = await ctx.request.tryValidateUsing(
+  async store({ auth, params, request, response, logger, serialize }: HttpContext) {
+    setProofHeaders(response);
+    const [validationError, body] = await request.tryValidateUsing(
       acceptInvitationSignUpValidator,
-      { data: ctx.request.body() }
+      { data: request.body() }
     );
     if (validationError) refuseInvalidAdmissionBody(validationError);
     const { name } = body;
     let email: string;
     try {
       const user = await accountKit.invitations.accept({
-        token: ctx.params.token,
+        token: params.token,
         password: body.password,
         registrationData: { name },
       });
@@ -38,38 +38,38 @@ export default class InvitationAcceptancesController {
     } catch (error) {
       // Route wording: acceptance words these refusals for this route; sign-up words them
       // differently.
-      if (error instanceof InvalidTokenError) return ctx.response.badRequest(invalidInvitationLink);
+      if (error instanceof InvalidTokenError) return response.badRequest(invalidInvitationLink);
       if (error instanceof RegistrationEmailAlreadyRegisteredError) {
-        return ctx.response.conflict({
+        return response.conflict({
           error: 'An account already uses this email. Sign in instead.',
           code: 'EMAIL_IN_USE',
         } satisfies ProductHttpErrorBody);
       }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
       if (isCommittedFailure(error)) {
-        return ctx.response.accepted(await ctx.serialize({ accepted: true, signInRequired: true }));
+        return response.accepted(await serialize({ accepted: true, signInRequired: true }));
       }
       throw error;
     }
     try {
-      return ctx.response.created(
-        await ctx.serialize({
-          user: await signInWithPassword(ctx, {
+      return response.created(
+        await serialize({
+          user: await signInWithPassword(auth, logger, {
             email,
             password: body.password,
-            clientAddress: ctx.request.ip(),
-            userAgent: ctx.request.header('user-agent'),
+            clientAddress: request.ip(),
+            userAgent: request.header('user-agent'),
           }),
         })
       );
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
-      ctx.logger.warn(
+      logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
         'Sign-in after invitation acceptance failed'
       );
-      return ctx.response.accepted(await ctx.serialize({ accepted: true, signInRequired: true }));
+      return response.accepted(await serialize({ accepted: true, signInRequired: true }));
     }
   }
 }

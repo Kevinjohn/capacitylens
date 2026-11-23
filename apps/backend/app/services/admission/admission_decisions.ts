@@ -13,11 +13,19 @@ export function parseUserIdParam(value: unknown) {
 }
 
 /** Applies an Owner or Admin admission decision to the route's user. */
-export async function decideAdmission(ctx: HttpContext, decision: 'approve' | 'reject' | 'revoke') {
-  const userId = parseUserIdParam(ctx.params.userId);
-  if (!userId) return ctx.response.badRequest({ error: 'Invalid admission request.' });
-  const actor = await readCurrentAccount(ctx);
+export async function decideAdmission(
+  {
+    auth,
+    params,
+    response,
+    serialize,
+  }: Pick<HttpContext, 'auth' | 'params' | 'response' | 'serialize'>,
+  decision: 'approve' | 'reject' | 'revoke'
+) {
+  const userId = parseUserIdParam(params.userId);
+  if (!userId) return response.badRequest({ error: 'Invalid admission request.' });
+  const actor = await readCurrentAccount(auth);
   const service = await resolveAdmission();
   const record = await service[decision]({ actorId: actor.id, userId });
-  return ctx.serialize({ userId: String(record.userId), approval: record.approval });
+  return serialize({ userId: String(record.userId), approval: record.approval });
 }

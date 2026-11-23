@@ -1,4 +1,4 @@
-import type { ApiClient, ApiRequest } from '@japa/api-client';
+import { ApiClient, type ApiRequest } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
@@ -8,6 +8,7 @@ import { encodeRow } from '#services/state_repository';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { createIdentity, sessionCookieHeader, signIn } from '#tests/helpers/identities';
+import type User from '#models/user';
 
 const ownerEmail = 'bruce.wayne@wayne.example';
 
@@ -44,6 +45,25 @@ export function asDataOwner<T extends ApiRequest>(request: T, cookie: string): T
       });
       if (!status.ok) throw new Error(`Could not capture masquerade context: ${status.status}`);
       const { data: body } = (await status.json()) as { data: { masqueradeToken?: unknown } };
+      if (typeof body.masqueradeToken === 'string' && body.masqueradeToken)
+        prepared.header('X-Masquerade-Context', body.masqueradeToken);
+    })
+    .header('sec-fetch-site', 'same-origin') as T;
+}
+
+/** Signs `user` in with `loginAs` and applies their current write context to a Japa request. */
+export function asLoggedInDataOwner<T extends ApiRequest>(request: T, user: User): T {
+  return request
+    .loginAs(user)
+    .setup(async (prepared) => {
+      // The context token is the identity's, so a separate sign-in may read it.
+      const status = await new ApiClient(prepared.config.baseUrl)
+        .get('/api/masquerade')
+        .loginAs(user)
+        .header('sec-fetch-site', 'same-origin');
+      if (status.status() !== 200)
+        throw new Error(`Could not capture masquerade context: ${status.status()}`);
+      const { data: body } = status.body() as { data: { masqueradeToken?: unknown } };
       if (typeof body.masqueradeToken === 'string' && body.masqueradeToken)
         prepared.header('X-Masquerade-Context', body.masqueradeToken);
     })

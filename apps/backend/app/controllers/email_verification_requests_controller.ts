@@ -6,23 +6,23 @@ import { readCurrentAccount } from '#services/auth/current_actor';
 
 /** Address confirmation for a signed-in identity, reachable before admission: sending the link. */
 export default class EmailVerificationRequestsController {
-  async store(ctx: HttpContext) {
+  async store({ auth, response, logger, serialize }: HttpContext) {
     if (!isMailConfigured()) {
-      return ctx.response.serviceUnavailable({
+      return response.serviceUnavailable({
         error: 'Email delivery is not configured. Ask your administrator.',
         code: 'MAIL_UNAVAILABLE',
       });
     }
-    const account = await readCurrentAccount(ctx);
+    const account = await readCurrentAccount(auth);
     try {
-      return ctx.serialize({
+      return serialize({
         result: await accountKit.emailVerification.send({ userId: account.id }),
       });
     } catch (error) {
       // Does work: a committed address whose email failed is logged and answered 503.
       if (!isCommittedFailure(error)) throw error;
-      ctx.logger.warn({ code: 'VERIFICATION_DELIVERY_FAILED' }, 'Verification delivery failed');
-      return ctx.response.serviceUnavailable({
+      logger.warn({ code: 'VERIFICATION_DELIVERY_FAILED' }, 'Verification delivery failed');
+      return response.serviceUnavailable({
         error: 'The confirmation email could not be sent. Try again later.',
         code: 'MAIL_UNAVAILABLE',
       });

@@ -8,36 +8,39 @@ import { changeRoleValidator } from '#validators/members';
 
 /** Lists company members and applies member operations under live management permission. */
 export default class MembersController {
-  async index(ctx: HttpContext) {
-    const companyId = readRouteParam(ctx.params.companyId);
-    const directory = await withActor(ctx, async (_actor, trx) => {
+  async index({ auth, params, serialize }: HttpContext) {
+    const companyId = readRouteParam(params.companyId);
+    const directory = await withActor(auth, async (_actor, trx) => {
       const actor = await assertCompanyPermission(companyId, 'members:manage', trx);
       return readMemberDirectory(trx, companyId, actor);
     });
-    return ctx.serialize(directory);
+    return serialize(directory);
   }
 
-  async update(ctx: HttpContext) {
-    const { role } = await ctx.request.validateUsing(changeRoleValidator, {
-      data: ctx.request.body(),
+  async update({ auth, params, request, serialize }: HttpContext) {
+    const { role } = await request.validateUsing(changeRoleValidator, {
+      data: request.body(),
     });
-    const companyId = readRouteParam(ctx.params.companyId);
-    const userId = readRouteParam(ctx.params.userId);
-    const result = await runMemberMutation(ctx, {
-      companyId,
-      operation: 'change-member-role',
-      payload: {
-        userId,
-        role,
-      },
-      work: (trx, actor) =>
-        changeMemberRole(trx, {
-          companyId,
-          actorId: actor.actorId,
+    const companyId = readRouteParam(params.companyId);
+    const userId = readRouteParam(params.userId);
+    const result = await runMemberMutation(
+      { auth, request },
+      {
+        companyId,
+        operation: 'change-member-role',
+        payload: {
           userId,
           role,
-        }),
-    });
-    return ctx.serialize(result);
+        },
+        work: (trx, actor) =>
+          changeMemberRole(trx, {
+            companyId,
+            actorId: actor.actorId,
+            userId,
+            role,
+          }),
+      }
+    );
+    return serialize(result);
   }
 }

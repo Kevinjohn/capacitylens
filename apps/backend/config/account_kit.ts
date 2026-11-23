@@ -10,28 +10,12 @@ import {
   defineConfig,
 } from '@kevinjohn/adonisjs-account-kit';
 import {
-  withAdmissionCleanup,
-  withInvitationEvidence,
-} from '@kevinjohn/adonisjs-account-kit/admission';
-import {
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_INPUT_CODE_UNITS,
 } from '@capacitylens/shared/domain/password';
-import { accessControlKitCallbacks } from '@kevinjohn/adonisjs-access-control/account-kit';
-import {
-  recordInvitationAccepted,
-  withDeletionRecords,
-} from '#services/account_kit/membership_effects';
-import { onCredentialsChangedTransaction } from '#services/account_kit/admission_rules';
-import { requireRegistrationDisplayName, users } from '#services/account_kit/users';
 import { SESSION_IDLE_EXPIRY } from '#config/session';
 
-// Access Control decides who may invite, creates the invited membership and removes memberships
-// when an account is deleted; the product adds its audit and planning-revision records.
-const memberships = accessControlKitCallbacks({ onInvitationAccepted: recordInvitationAccepted });
-
 export default defineConfig({
-  users,
   enabled: [
     'passwordReset',
     'emailVerification',
@@ -44,7 +28,6 @@ export default defineConfig({
   // Ordinary registration exists only behind the application's own sign-up route, after setup.
   registration: {
     availability: env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP') ? 'application' : 'closed',
-    mapFields: (data) => ({ name: requireRegistrationDisplayName(data) }),
   },
   authentication: { strategy: 'session', guard: 'web' },
   // Invitations a deleted person sent stay acceptable; the Kit clears their inviter instead.
@@ -57,7 +40,6 @@ export default defineConfig({
   limiterSecret: env.get('APP_KEY'),
   limiterNamespace: 'capacitylens',
   ...(app.inTest ? { throttle: { requests: 100, duration: '15m' } } : {}),
-  authorize: memberships.authorize,
   urls: createActionUrls({
     backendOrigin: publicOrigin.origin,
     appFrontendUrl: publicOrigin.origin,
@@ -74,9 +56,4 @@ export default defineConfig({
     brandName: 'CapacityLens',
   }),
   delivery: 'best-effort',
-  onInvitationAccepted: withInvitationEvidence(memberships.onInvitationAccepted),
-  onAccountDeletingTransaction: withAdmissionCleanup(
-    withDeletionRecords(memberships.onAccountDeletingTransaction)
-  ),
-  onCredentialsChangedTransaction,
 });

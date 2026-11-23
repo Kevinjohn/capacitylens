@@ -16,14 +16,14 @@ import { createInvitationValidator } from '#validators/invitations';
  * The Kit re-checks the sender's access inside the transaction that stores the invitation.
  */
 export default class InvitationsController {
-  async store(ctx: HttpContext) {
-    const [validationError, body] = await ctx.request.tryValidateUsing(createInvitationValidator, {
-      data: ctx.request.body(),
+  async store({ auth, request, response, logger, serialize }: HttpContext) {
+    const [validationError, body] = await request.tryValidateUsing(createInvitationValidator, {
+      data: request.body(),
     });
     if (validationError) refuseInvalidAdmissionBody(validationError);
     const { email } = body;
-    const actorId = await requireInvitationManager(ctx, body.companyId);
-    if (!isMailConfigured()) return answerMailUnavailable(ctx.response);
+    const actorId = await requireInvitationManager(auth, body.companyId);
+    if (!isMailConfigured()) return answerMailUnavailable(response);
     try {
       const invitation = await accountKit.invitations.send({
         actorId,
@@ -31,19 +31,19 @@ export default class InvitationsController {
         role: body.role,
         scope: body.companyId,
       });
-      return ctx.response.created(
-        await ctx.serialize({ ...buildInvitationView(invitation), emailed: true })
+      return response.created(
+        await serialize({ ...buildInvitationView(invitation), emailed: true })
       );
     } catch (error) {
       // Does work: a committed invitation whose email failed is logged and answered 202.
       if (!isCommittedFailure(error)) throw error;
-      ctx.logger.warn({ code: 'INVITATION_DELIVERY_FAILED' }, 'Invitation delivery failed');
-      return ctx.response.accepted(await ctx.serialize({ committed: true, emailed: false }));
+      logger.warn({ code: 'INVITATION_DELIVERY_FAILED' }, 'Invitation delivery failed');
+      return response.accepted(await serialize({ committed: true, emailed: false }));
     }
   }
 
-  async index(ctx: HttpContext) {
-    const actorId = await requireInvitationManager(ctx, ctx.params.companyId);
+  async index({ auth, params, serialize }: HttpContext) {
+    const actorId = await requireInvitationManager(auth, params.companyId);
     // The Kit pages at 100; a small company's open invitations are read in full.
     const invites = [];
     let cursor: string | undefined;
@@ -52,19 +52,19 @@ export default class InvitationsController {
         actorId,
         limit: 100,
         cursor,
-        scope: ctx.params.companyId as string,
+        scope: params.companyId as string,
       });
       invites.push(...page.items.map(buildInvitationView));
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
-    return ctx.serialize({ invites });
+    return serialize({ invites });
   }
 
-  async destroy(ctx: HttpContext) {
-    const id = parseInvitationId(ctx.params.id);
+  async destroy({ auth, params, response }: HttpContext) {
+    const id = parseInvitationId(params.id);
     if (!id) refuseInvalidAdmission();
-    const actorId = await requireInvitationManager(ctx, ctx.params.companyId);
+    const actorId = await requireInvitationManager(auth, params.companyId);
     await accountKit.invitations.revoke({ actorId, invitationId: id });
-    return ctx.response.noContent();
+    return response.noContent();
   }
 }

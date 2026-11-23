@@ -11,7 +11,8 @@ membership-management rules and the Bouncer abilities for each permission key. C
 companies, the permission declaration in `packages/shared/src/domain/access.ts` and every scheduling
 table. The integration uses the Kit's configuration in
 `apps/backend/config/account_kit.ts` and `apps/backend/config/admission.ts`, and the callbacks in
-`apps/backend/app/services/account_kit/`, as well as ordinary calls to the Kit's public API from
+`apps/backend/app/services/account_kit/`, registered by
+`apps/backend/providers/package_callbacks_provider.ts`, as well as ordinary calls to the Kit's public API from
 application controllers and services.
 
 Both sides share one process, one SQLite file and one migration ledger. There is no separate

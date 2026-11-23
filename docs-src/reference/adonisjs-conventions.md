@@ -201,7 +201,7 @@ Source: the Configuration and Folder structure pages of the AdonisJS start guide
 - A config file that defines a named list (hash drivers, mailers, limiter stores, loggers, guards)
   also carries the `declare module` block that types it.
 - `adonisrc.ts` stays free of environment checks and application logic. `providers`, `preloads`
-  and `commands` are lazy imports, in the starter kit's order. **Open:** #2334 item 14.
+  and `commands` are lazy imports, in the starter kit's order.
 - Resolve paths with `app.makePath()`, `app.publicPath()` and `app.tmpPath()`.
 - `.env.example` lists every variable with a placeholder value. Values for tests belong in
   `.env.test`; `bin/test.ts` keeps only the values computed per port lane or that must override the shell.
@@ -245,8 +245,9 @@ Source: [Controllers](https://docs.adonisjs.com/guides/basics/controllers) and
   on and using a resourceful action (the starter kit's `NewAccountController.store`), or a single
   action controller with one `handle` method. Do not grow a controller into a list of verbs.
 - An action takes the HTTP context first and destructures only what it uses:
-  `async store({ request, response }: HttpContext)`. **Open:** #2334 item 1. Actions that hand the
-  context to Account Kit or Masquerade keep it whole until that item lands.
+  `async store({ request, response }: HttpContext)`. The view-as control actions keep the whole
+  context because the Masquerade service takes it as its request, and the planning mutation action
+  keeps it to record its operation for the request log (see `DECISIONS.md`).
 - A controller has no `private` or `protected` methods. A step two actions share moves to a
   service or a model.
 - A controller does not wrap its work in `try`/`catch` to build an error response. It lets the
@@ -426,10 +427,13 @@ Source: [Authentication](https://docs.adonisjs.com/guides/auth/introduction),
 
 - Guards are defined in `config/auth.ts`. The session guard is named `web`.
 - Protect a route with the named `auth` middleware: `.use(middleware.auth({ guards: ['web'] }))`.
-  CapacityLens member routes use the `web_effective` guard (#2334 item 1).
+  CapacityLens member routes use the `web_effective` guard, Masquerade's effective guard around
+  `web`, which is Account Kit's session guard.
 - In the framework, an action reads the user with `auth.getUserOrFail()` and the `User` model
   composes `withAuthFinder`. In CapacityLens, Account Kit owns sign-in, sessions and credential
-  checks, and an action receives the verified actor (departure 24, provisional).
+  checks, and an action receives the verified actor (departure 24, provisional). Account Kit's
+  session guard sets `auth.user`; an action that writes still takes its actor from `withActor`,
+  which re-checks the session inside the product transaction.
 - Authorization in the framework is a Bouncer ability in `app/abilities/main.ts` or a policy in
   `app/policies`, called from the controller. CapacityLens authorizes a company permission inside
   the product transaction through the Access Control package (departure 11).
@@ -499,8 +503,8 @@ Source: [Testing](https://docs.adonisjs.com/guides/testing/introduction),
 - An API test calls a route by its name with `client.visit('members.index')`.
 - Every database group starts from wipe and migrate, and only groups that send no HTTP request
   use the global transaction (departure 17).
-- Sign-in in a test goes through the real endpoint, because Account Kit owns the session.
-  **Open:** #2334 item 1.
+- A test signs in with `loginAs` unless sign-in or a session lasting across requests is what it
+  tests; then it calls the real endpoint.
 
 ## The frontend API client
 

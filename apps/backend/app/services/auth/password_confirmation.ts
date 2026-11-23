@@ -9,7 +9,15 @@ import { PasswordConfirmationException } from '#exceptions/password_confirmation
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { getActiveCompanyRole } from '#services/auth/authorization';
-import { requireActor, type CurrentActor } from '#services/auth/current_actor';
+import {
+  requireActor,
+  requireConfirmedAdmission,
+  type CurrentActor,
+} from '#services/auth/current_actor';
+import type {
+  ConfirmationRequest,
+  KitContext,
+} from '@kevinjohn/adonisjs-confirm-action-with-password/types';
 
 export const PASSWORD_CONFIRMATION_KINDS = ['transfer-ownership', 'import', 'anonymise'] as const;
 export type PasswordConfirmationKind = (typeof PASSWORD_CONFIRMATION_KINDS)[number];
@@ -28,6 +36,17 @@ export const PASSWORD_CONFIRMATION_PERMISSIONS = {
 export function canConfirmPassword(role: Role | null, action: string): boolean {
   if (role === null || !Object.hasOwn(PASSWORD_CONFIRMATION_PERMISSIONS, action)) return false;
   return access.can(role, PASSWORD_CONFIRMATION_PERMISSIONS[action as PasswordConfirmationKind]);
+}
+
+/** The confirmation package's `authorize` callback, run under the Account Kit lock. */
+export async function authorizePasswordConfirmation(
+  { account, trx }: KitContext,
+  { action, scope }: ConfirmationRequest
+) {
+  // Deleting one's own account needs no company permission, as the deletion route needs none.
+  if (action === 'delete-account') return scope === String(account.id);
+  await requireConfirmedAdmission(account, trx);
+  return canConfirmPassword(await getActiveCompanyRole(String(account.id), scope, trx), action);
 }
 
 /**

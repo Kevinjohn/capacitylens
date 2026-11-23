@@ -5,16 +5,18 @@ import capacitylens from '#config/capacitylens';
 import { withActor } from '#services/auth/current_actor';
 import { recordMemberSignIn } from '#services/membership/sign_in_tracking';
 import { buildUserProjection } from '#services/auth/user_projection';
-import { managedGuard } from '#services/auth/managed_guard';
 
-function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'throttled') {
+function logSignInOutcome(
+  logger: HttpContext['logger'],
+  outcome: 'success' | 'failure' | 'throttled'
+) {
   if (!capacitylens.requestLogging) return;
   try {
     const fields = { event: 'auth.sign_in', outcome };
     if (outcome === 'failure' || outcome === 'throttled') {
-      ctx.logger.warn(fields, 'Authentication outcome');
+      logger.warn(fields, 'Authentication outcome');
     } else {
-      ctx.logger.info(fields, 'Authentication outcome');
+      logger.info(fields, 'Authentication outcome');
     }
   } catch {
     // Logging must not change the authentication outcome or skip member tracking.
@@ -31,12 +33,10 @@ export interface PasswordSignInInput {
   userAgent: string | undefined;
 }
 
-/**
- * Signs in through Account Kit and records the observed sign-in for tracked companies. The context
- * is handed only to the packages bound to the request (the session guard and the actor helper).
- */
+/** Signs in through Account Kit and records the observed sign-in for tracked companies. */
 export async function signInWithPassword(
-  ctx: HttpContext,
+  auth: HttpContext['auth'],
+  logger: HttpContext['logger'],
   { email, password, clientAddress, userAgent }: PasswordSignInInput
 ) {
   try {
@@ -47,17 +47,17 @@ export async function signInWithPassword(
         clientKey: clientAddress,
         sessionLabel: userAgent?.slice(0, 200),
       },
-      managedGuard.forRequest(ctx)
+      auth.use('web').forRequest()
     );
   } catch (error) {
     // Record expected credential refusals, then preserve the original package failure.
-    if (error instanceof InvalidCredentialsError) logSignInOutcome(ctx, 'failure');
-    if (error instanceof ThrottledError) logSignInOutcome(ctx, 'throttled');
+    if (error instanceof InvalidCredentialsError) logSignInOutcome(logger, 'failure');
+    if (error instanceof ThrottledError) logSignInOutcome(logger, 'throttled');
     throw error;
   }
-  logSignInOutcome(ctx, 'success');
+  logSignInOutcome(logger, 'success');
   return withActor(
-    ctx,
+    auth,
     async (actor, trx) => {
       await recordMemberSignIn(actor.userId, trx);
       return buildUserProjection(actor);

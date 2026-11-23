@@ -6,7 +6,7 @@ import { decideAdmission } from '#services/admission/admission_decisions';
  * sends no notification.
  */
 export default class AdmissionRejectionsController {
-  async store(ctx: HttpContext) {
-    return decideAdmission(ctx, 'reject');
+  async store({ auth, params, response, serialize }: HttpContext) {
+    return decideAdmission({ auth, params, response, serialize }, 'reject');
   }
 }

@@ -12,15 +12,15 @@ import {
  * installation. The Kit's account transaction serialises competing setups.
  */
 export default class FirstCompanySetupController {
-  async store(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(createFirstCompanyValidator, {
-      data: ctx.request.body(),
+  async store({ auth, request, response, serialize }: HttpContext) {
+    const body = await request.validateUsing(createFirstCompanyValidator, {
+      data: request.body(),
     });
     const input = parseFirstCompanyInput(body);
     if (input === null) {
-      return ctx.response.badRequest({ error: firstCompanySetupMessage, code: 'VALIDATION_ERROR' });
+      return response.badRequest({ error: firstCompanySetupMessage, code: 'VALIDATION_ERROR' });
     }
-    const result = await withActor(ctx, async (actor, trx) => {
+    const result = await withActor(auth, async (actor, trx) => {
       if (!(await isFirstCompanySetupRequired(actor.userId, trx))) return null;
       return createInitialCompany(trx, {
         name: input.name,
@@ -31,11 +31,11 @@ export default class FirstCompanySetupController {
       });
     });
     if (!result) {
-      return ctx.response.conflict({
+      return response.conflict({
         error: 'First company setup is unavailable for this installation.',
         code: 'COMPANY_SETUP_UNAVAILABLE',
       });
     }
-    return ctx.response.created(await ctx.serialize({ companyId: result.companyId }));
+    return response.created(await serialize({ companyId: result.companyId }));
   }
 }

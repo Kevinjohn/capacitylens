@@ -1,8 +1,10 @@
-import { fixtureSession, signIn, signUpAndIn } from '#tests/helpers/identities';
+import { createIdentity, fixtureSession } from '#tests/helpers/identities';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
@@ -618,14 +620,10 @@ test.group('company anonymisation', (group) => {
       })
       .send();
     unknown.assertStatus(403);
-    const { cookie: otherSession } = await signIn(
-      client,
-      'bruce.wayne@wayne.example',
-      'fixture-password-2026'
-    );
-    const foreignSession = await asDataOwner(
+    const sameOwner = await User.findByOrFail('email', 'bruce.wayne@wayne.example');
+    const foreignSession = await asLoggedInDataOwner(
       client.visit('api.planning_mutations.store', { companyId }),
-      otherSession
+      sameOwner
     )
       .json({
         mutationId: randomUUID(),
@@ -648,15 +646,10 @@ test.group('company anonymisation', (group) => {
     wrongCompany.assertStatus(403);
     assert.equal((wrongCompany.body() as unknown as { code: string }).code, 'AUTHORIZATION_DENIED');
 
-    const otherActorSignUp = await signUpAndIn(client, {
-      email: 'diana.prince@wayne.example',
+    const otherActorId = await createIdentity('diana.prince@wayne.example', {
       password,
       name: 'Diana Prince',
     });
-    otherActorSignUp.assertStatus(200);
-    const otherActorCookie = otherActorSignUp.cookie('adonis-session')?.value;
-    assert.isString(otherActorCookie);
-    const otherActorId = String((otherActorSignUp.body().data as { user: { id: string } }).user.id);
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: companyId,
@@ -666,9 +659,9 @@ test.group('company anonymisation', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const otherActor = await asDataOwner(
+    const otherActor = await asLoggedInDataOwner(
       client.visit('api.planning_mutations.store', { companyId }),
-      otherActorCookie!
+      await User.findOrFail(otherActorId)
     )
       .json({
         mutationId: randomUUID(),

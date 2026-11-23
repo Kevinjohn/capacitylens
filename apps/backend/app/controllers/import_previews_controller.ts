@@ -6,17 +6,17 @@ import { previewImportValidator } from '#validators/import';
 
 /** Previews what importing a company export would change. */
 export default class ImportPreviewsController {
-  async store(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(previewImportValidator, {
-      data: ctx.request.body(),
+  async store({ auth, request, serialize }: HttpContext) {
+    const body = await request.validateUsing(previewImportValidator, {
+      data: request.body(),
     });
     const companyId = body.companyId;
     // The preview names why a document is refused, so the browser never validates it itself.
     const document = readRequestDocument(body.document);
-    const result = await withActor(ctx, async (_actor, trx) => {
+    const result = await withActor(auth, async (_actor, trx) => {
       await requirePasswordConfirmationActor(companyId, trx, 'import');
       return previewCompanyImport(trx, companyId, document);
     });
-    return ctx.serialize(result);
+    return serialize(result);
   }
 }

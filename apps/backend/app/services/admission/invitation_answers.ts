@@ -37,9 +37,9 @@ export function answerMailUnavailable(response: HttpContext['response']) {
 }
 
 /** Confirms the caller manages invitations for this installation's company. */
-export async function requireInvitationManager(ctx: HttpContext, companyId: unknown) {
+export async function requireInvitationManager(auth: HttpContext['auth'], companyId: unknown) {
   if (typeof companyId !== 'string' || !companyId) refuseInvalidAdmission();
-  return withActor(ctx, async (_actor, trx) => {
+  return withActor(auth, async (_actor, trx) => {
     const { actorId } = await assertCompanyPermission(companyId, 'invitations:manage', trx);
     if ((await getInstallationCompanyId(trx)) !== companyId) {
       refuseMissingAdmission('Company not found.');

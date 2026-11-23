@@ -7,14 +7,14 @@ import { applyImportValidator } from '#validators/import';
 
 /** Imports a company export after a password confirmation. */
 export default class ImportsController {
-  async store(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(applyImportValidator, {
-      data: ctx.request.body(),
+  async store({ auth, request, response, serialize }: HttpContext) {
+    const body = await request.validateUsing(applyImportValidator, {
+      data: request.body(),
     });
     const { companyId, baseRevision, confirmationId = '' } = body;
     const document = parseRequestDocument(body.document);
-    if (!document) return ctx.response.badRequest({ error: 'Invalid beta import request.' });
-    const result = await withActor(ctx, async (_actor, trx) => {
+    if (!document) return response.badRequest({ error: 'Invalid beta import request.' });
+    const result = await withActor(auth, async (_actor, trx) => {
       const actor = await requirePasswordConfirmationActor(companyId, trx, 'import');
       await passwordConfirmations.consume(requireKitContext(trx), {
         confirmationId,
@@ -24,6 +24,6 @@ export default class ImportsController {
       });
       return applyCompanyImport(trx, companyId, document, baseRevision, actor.userId);
     });
-    return ctx.serialize(result);
+    return serialize(result);
   }
 }

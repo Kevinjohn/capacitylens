@@ -6,16 +6,15 @@ import { withActor } from '#services/auth/current_actor';
 import { isOwnerOrAdminOfAnyCompany, readServerDiagnostics } from '#services/diagnostics';
 
 export default class DiagnosticsController {
-  async show(ctx: HttpContext) {
-    const { response } = ctx;
-    const administers = await withActor(ctx, (actor, trx) =>
+  async show({ auth, response, serialize }: HttpContext) {
+    const administers = await withActor(auth, (actor, trx) =>
       isOwnerOrAdminOfAnyCompany(actor.userId, trx)
     );
     if (!administers) {
       return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' });
     }
     try {
-      return ctx.serialize(await readServerDiagnostics(db, capacitylens.backupDirectory));
+      return serialize(await readServerDiagnostics(db, capacitylens.backupDirectory));
     } catch (error) {
       // Only the error's class is logged: its message can carry a database path.
       logger.warn(

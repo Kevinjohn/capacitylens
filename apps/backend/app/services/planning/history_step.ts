@@ -7,16 +7,16 @@ import { EmptyHistoryException } from '#exceptions/empty_history_exception';
 
 /** Each action passes its own validateUsing call so the route registry can type the body. */
 export async function runPlanningHistoryStep(
-  ctx: HttpContext,
+  { auth, params }: Pick<HttpContext, 'auth' | 'params'>,
   step: 'undo' | 'redo',
   validate: () => Promise<PlanningHistoryStepInput>
 ) {
-  const companyId = String(ctx.params.companyId);
+  const companyId = String(params.companyId);
   let historyId: string | undefined;
   try {
     const input = await validate();
     historyId = input.historyId;
-    return await withActor(ctx, (actor, trx) =>
+    return await withActor(auth, (actor, trx) =>
       stepPlanningHistory({ trx, actor, companyId, input, step })
     );
   } catch (error) {
@@ -29,7 +29,7 @@ export async function runPlanningHistoryStep(
       error.code !== 'MUTATION_ID_REUSED'
     ) {
       const refused = historyId;
-      await withActor(ctx, (actor, trx) =>
+      await withActor(auth, (actor, trx) =>
         abandonPlanningHistory({ trx, actor, companyId, historyId: refused })
       );
     }

@@ -40,7 +40,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     if (!mapped?.report && failure.errorType !== 'unexpected') return;
 
     reportPrivateFailure(
-      ctx,
+      ctx.logger,
       {
         event: 'http.request.error',
         errorType: failure.errorType,

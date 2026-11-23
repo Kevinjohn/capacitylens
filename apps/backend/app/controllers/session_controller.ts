@@ -14,7 +14,6 @@ import { buildUserProjection } from '#services/auth/user_projection';
 import { requireAdmissionDecision, withActor } from '#services/auth/current_actor';
 import { signInValidator } from '#validators/auth_requests';
 import { hasAnyIdentity } from '#services/installation_company';
-import { managedGuard } from '#services/auth/managed_guard';
 import { requireAuthRequestMessage } from '#services/auth/auth_request_message';
 
 /** The caller's sign-in: who is signed in, signing in with a password, and signing out. */
@@ -23,11 +22,11 @@ export default class SessionController {
    * The signed-in identity and what it may reach: a confirmed address, admission, company setup
    * and membership decide between the limited screens and the schedule.
    */
-  async show(ctx: HttpContext) {
+  async show({ auth, response, serialize }: HttpContext) {
     try {
-      return ctx.serialize(
+      return serialize(
         await withActor(
-          ctx,
+          auth,
           async (actor, trx) => {
             const admission = await requireAdmissionDecision(actor.userId, trx);
             const admitted = actor.emailVerified && admission.admitted;
@@ -48,7 +47,7 @@ export default class SessionController {
       // Does work: a missing session reads whether any identity exists for the 401 body.
       if (!(error instanceof InvalidSessionError)) throw error;
       const hasUsers = await hasAnyIdentity(db);
-      return ctx.response.unauthorized({
+      return response.unauthorized({
         error: 'Sign-in required.',
         code: 'SIGN_IN_REQUIRED',
         passwordResetEmail: isMailConfigured(),
@@ -57,44 +56,44 @@ export default class SessionController {
     }
   }
 
-  async store(ctx: HttpContext) {
-    const [validationError, body] = await ctx.request.tryValidateUsing(signInValidator, {
-      data: ctx.request.body(),
+  async store({ auth, request, response, logger, serialize }: HttpContext) {
+    const [validationError, body] = await request.tryValidateUsing(signInValidator, {
+      data: request.body(),
     });
     // Route wording: sign-in answers a Vine failure with its own sentence and no code.
     if (validationError) {
-      return ctx.response.badRequest({
+      return response.badRequest({
         error: requireAuthRequestMessage(validationError, 'sign-in'),
       });
     }
     const { email } = body;
     try {
-      const user = await signInWithPassword(ctx, {
+      const user = await signInWithPassword(auth, logger, {
         email,
         password: body.password,
-        clientAddress: ctx.request.ip(),
-        userAgent: ctx.request.header('user-agent'),
+        clientAddress: request.ip(),
+        userAgent: request.header('user-agent'),
       });
-      return ctx.serialize({ user });
+      return serialize({ user });
     } catch (error) {
       // Route wording: sign-in names a credential failure; the handler sends the Kit's generic one.
       if (error instanceof InvalidCredentialsError) {
-        return ctx.response.unauthorized({ error: 'Invalid email or password.' });
+        return response.unauthorized({ error: 'Invalid email or password.' });
       }
       throw error;
     }
   }
 
   /** Ends this sign-in while leaving the identity-wide view active in its other sessions. */
-  async destroy(ctx: HttpContext) {
+  async destroy({ auth, serialize }: HttpContext) {
     let current: CurrentAccountInput | undefined;
     try {
-      current = await managedGuard.current(ctx);
+      current = await auth.use('web').current();
     } catch (error) {
       // Does work: signing out without a session is a normal outcome, not a refusal.
       if (!(error instanceof InvalidSessionError)) throw error;
     }
-    await accountKit.authentication.logout(managedGuard.forRequest(ctx), undefined, current);
-    return ctx.serialize({ ok: true });
+    await accountKit.authentication.logout(auth.use('web').forRequest(), undefined, current);
+    return serialize({ ok: true });
   }
 }

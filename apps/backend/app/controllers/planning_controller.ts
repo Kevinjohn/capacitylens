@@ -5,17 +5,14 @@ import { withActor } from '#services/auth/current_actor';
 
 /** Planning reads. */
 export default class PlanningController {
-  async show(ctx: HttpContext) {
-    const companyId = String(ctx.params.companyId);
-    const { from, to, historyId, ifRevision } = await ctx.request.validateUsing(
-      planningReadValidator,
-      {
-        data: ctx.request.qs(),
-      }
-    );
+  async show({ auth, params, request, serialize }: HttpContext) {
+    const companyId = String(params.companyId);
+    const { from, to, historyId, ifRevision } = await request.validateUsing(planningReadValidator, {
+      data: request.qs(),
+    });
     const window = from !== undefined && to !== undefined ? { from, to } : undefined;
-    return ctx.serialize(
-      await withActor(ctx, (actor, trx) =>
+    return serialize(
+      await withActor(auth, (actor, trx) =>
         readPlanning(trx, companyId, window, {
           sessionId: actor.sessionId,
           historyId,

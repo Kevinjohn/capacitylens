@@ -1,13 +1,14 @@
 import { defineConfig } from '@adonisjs/auth';
 import type { InferAuthenticators } from '@adonisjs/auth/types';
-import { sessionGuard, sessionUserProvider } from '@adonisjs/auth/session';
+import { sessionUserProvider } from '@adonisjs/auth/session';
+import { accountKitSessionGuard } from '@kevinjohn/adonisjs-account-kit/auth';
 import { effectiveSessionGuard } from '@kevinjohn/adonisjs-masquerade/auth';
 import type User from '#models/user';
 
 /** The raw session provider shared with the Masquerade Account Kit adapter. */
 export const sessionUsers = sessionUserProvider({ model: () => import('#models/user') });
 
-const webGuard = sessionGuard({ useRememberMeTokens: false, provider: sessionUsers });
+const webGuard = accountKitSessionGuard({ provider: sessionUsers });
 const effectiveGuard: ReturnType<typeof effectiveSessionGuard<User>> =
   effectiveSessionGuard(webGuard);
 

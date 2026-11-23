@@ -383,6 +383,12 @@ reopened there.
     product code calls `verifyCredentials`: sign-in, sessions and password checks are the kit's.
     Provisional: accepted on 2026-11-21 so work can proceed, and to be reviewed again before the
     first release. Revisit: #2334 item 1.
+25. The view-as control actions (`store`, `show`, `destroy` in `masquerade_controller.ts`) take the
+    whole HTTP context and pass it to the Masquerade service. The service treats the context as the
+    request: it admits each request once, authenticates through its guard and reads its route
+    parameters. `PlanningMutationsController.store` also keeps the context, because it records the
+    planning operation on it for the request log. Every other controller action destructures.
+    Revisit: #2334 item 4.
 
 ## Installation
 

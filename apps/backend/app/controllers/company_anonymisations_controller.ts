@@ -7,12 +7,12 @@ import { anonymiseCompanyValidator } from '#validators/anonymise';
 
 /** Anonymises every person in the company after a password confirmation. */
 export default class CompanyAnonymisationsController {
-  async store(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(anonymiseCompanyValidator, {
-      data: ctx.request.body(),
+  async store({ auth, params, request, response }: HttpContext) {
+    const body = await request.validateUsing(anonymiseCompanyValidator, {
+      data: request.body(),
     });
-    const { companyId } = ctx.params;
-    await withActor(ctx, async (_actor, trx) => {
+    const { companyId } = params;
+    await withActor(auth, async (_actor, trx) => {
       const actor = await requirePasswordConfirmationActor(companyId, trx, 'anonymise');
       await passwordConfirmations.consume(requireKitContext(trx), {
         confirmationId: body.confirmationId,
@@ -22,6 +22,6 @@ export default class CompanyAnonymisationsController {
       });
       await anonymiseResources(trx, companyId, actor.userId);
     });
-    return ctx.response.noContent();
+    return response.noContent();
   }
 }
