@@ -33,7 +33,7 @@ flowchart TD
   pref["readRuntimeInitialState chooses stored sidebarOpen or first-run default"] --> provider["GatedApp passes controlled open and setSidebarOpen to SidebarProvider"]
   provider --> button["SidebarTrigger shows the current Expand or Collapse label"]
   button -->|click| toggle["toggleSidebar selects the desktop setOpen path"]
-  key["useSidebarKeyboardShortcut receives Cmd or Ctrl+B"] --> guard{"Text entry, composition or marked open modal?"}
+  key["useSidebarKeyboardShortcut receives Cmd or Ctrl+B"] --> guard{"Text entry, composition or an open aria-modal dialog?"}
   guard -->|yes| skip["Leave the keyboard event to its context"]
   guard -->|no| toggle
   toggle --> state["SidebarProvider onOpenChange invokes setSidebarOpen"]

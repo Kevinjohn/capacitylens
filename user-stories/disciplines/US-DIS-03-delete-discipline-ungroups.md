@@ -30,7 +30,7 @@ flowchart TD
   PAGE["DisciplineRoute enables page. DisciplineList DeleteButton opens ConfirmDialog"] --> CHOICE{"Confirmation action"}
   CHOICE -->|Cancel before confirmation| CLOSE["Dismiss dialog"]
   CHOICE -->|Delete| SEND["useConfirmDelete → deleteDiscipline → sendPlanningIntent catalogue.delete"]
-  SEND --> SERVER{"mutatePlanning checks planning authority, revision and scoped discipline"}
+  SEND --> SERVER{"mutatePlanning checks planning authorization, revision and scoped discipline"}
   SERVER -->|Refused| ERROR["Show notice. Confirmation stays open for retry"]
   ERROR -->|Retry| SEND
   SERVER -->|Accepted| DELETE["deleteRows saves restoration group and links, clears disciplineId on linked resources, then soft-deletes discipline"]

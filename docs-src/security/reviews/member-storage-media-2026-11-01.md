@@ -15,7 +15,7 @@ Final test commands, results and the delivery revision are recorded in the PR.
 ## Malformed member storage
 
 The real SQLite regression suite covers invalid membership role, invalid membership status and
-invalid restriction-only role. A valid Owner reads another principal, so a failed authorization
+invalid restriction-only role. A valid Owner reads another user, so a failed authorization
 cannot substitute for the intended guard. Each case checks its exact service error and an actual
 authenticated directory GET: generic `500 { error: 'Internal server error.' }`, without a partial
 successful directory, raw corrupt value or stack under the existing debug-off policy. Healthy and
@@ -31,7 +31,7 @@ This is a test-only corruption fixture, not a repair capability.
 Snapshots cover membership, restrictions, settings, planning revision, audit and command receipts:
 directory reads neither repair the malformed row nor write those product states. Normal session
 bookkeeping is outside that assertion. Foreign-company malformed membership role/status and
-restriction-only role do not poison the authorized directory. A membership-backed principal's
+restriction-only role do not poison the authorized directory. A membership-backed user's
 overlapping restriction is skipped when projecting restriction-only entries, preserving the
 existing membership role and disabled-access flag. Existing compile-time negative cases remain.
 

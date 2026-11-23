@@ -29,7 +29,7 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - Give icon-only buttons accessible names. Use native `title` for simple hover hints; use the local Radix tooltip only for styled, delayed or keyboard-accessible rich content. Use the shared z-index tokens for global layers.
 - Local UI primitives are source-owned. Before updating one from shadcn, inspect the dry-run diff and preserve documented local behaviour.
 - Follow `docs-src/reference/code-standards.md` for names, errors, comments and TSDoc; lint and Prettier own the rest.
-- Use the words in [code_convention_terminology.md](code_convention_terminology.md): one word per concept, and framework words only for the framework concept.
+- Use the words in [code_convention_terminology.md](code_convention_terminology.md): one word per concept, and framework words only for the framework concept; `pnpm run policy:terminology` fails on a rejected synonym.
 - Follow `docs-src/reference/adonisjs-conventions.md` for backend layout, file names, framework vocabulary and per-layer rules.
 - `DECISIONS.md` records the owner's product rules and the framework departures still open. Where it and the code disagree, raise it; do not assume either is right. Behaviour detail belongs in the user stories and tests, not there. User-facing documentation is sourced from `docs-src/`; `docs/` is build output and is not committed, so run `pnpm run docs:build` to check a change. Update affected stories and their guide links when user-visible behaviour changes.
 - Use fictional DC/Marvel identities in demo data, examples and tests; never use a real customer or colleague's name.

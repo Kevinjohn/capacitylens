@@ -16,7 +16,7 @@ import type { ISODate, Resource, SchedulingMode } from '../types/entities.js';
 // the save.
 
 /** The allocation fields a repeat expansion reads; every other field is copied unchanged. */
-interface RepeatableAllocation {
+interface RepeatingAllocation {
   resourceId: string;
   startDate: ISODate;
   endDate: ISODate;
@@ -40,7 +40,7 @@ export interface RepeatExpansionInput {
  * working days, or an expanded range leaves the supported ISO-date domain. Record-creation callers
  * reject an empty effective week before expansion so copy is routed to the assignee/form surface.
  */
-export function buildRepeatedAllocationDrafts<T extends RepeatableAllocation>(
+export function buildRepeatedAllocationDrafts<T extends RepeatingAllocation>(
   baseDraft: T,
   startDates: readonly ISODate[],
   context: RepeatExpansionInput,
@@ -67,7 +67,7 @@ export function buildRepeatedAllocationDrafts<T extends RepeatableAllocation>(
 }
 
 function assertRepeatExpansion(
-  baseDraft: RepeatableAllocation,
+  baseDraft: RepeatingAllocation,
   startDates: readonly ISODate[],
   context: RepeatExpansionInput,
 ): void {

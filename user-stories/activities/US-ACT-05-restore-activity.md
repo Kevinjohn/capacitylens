@@ -34,7 +34,7 @@ flowchart TD
   ROW -->|Directly archived, Restore clicked| SEND["useExclusiveOperation → useLifecycleOperations.restore sends catalogue.restore"]
   ROW -->|Available archived parent link clicked| PARENT["Open parent list at archived row hash"]
   ROW -->|Hidden only by ancestor| ANCESTOR["No Restore on child. Use available parent link"]
-  SEND --> SERVER{"mutatePlanning checks planning authority and revision. transitionLifecycle requires a scoped archived row"}
+  SEND --> SERVER{"mutatePlanning checks planning authorization and revision. transitionLifecycle requires a scoped archived row"}
   SERVER -->|Refused| ERROR["Show error. Planning cache refreshes on conflict"]
   SERVER -->|Accepted| WRITE["Clear archivedAt on target row. Commit revision and audit with projected receipt"]
   WRITE --> NEXT["acceptReceipt refreshes planning. notifyInactiveDataChanged refreshes archive read"]

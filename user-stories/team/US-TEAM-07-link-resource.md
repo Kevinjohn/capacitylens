@@ -39,7 +39,7 @@ flowchart TD
   row -->|Remove retained link| remove["Send link DELETE with userId and expected link revision"]
   set --> tx["MemberResourceLinksController runs operation in a company transaction"]
   remove --> tx
-  tx --> checks["Require company authority and check link revision; setting also checks member and Resource eligibility"]
+  tx --> checks["Require company authorization and check link revision; setting also checks member and Resource eligibility"]
   checks -->|Changed| write["Write or delete the link, advance planning revision and record membership audit"]
   checks -->|No-op| retain["Keep matching link's revision"]
   checks -->|Refused or conflict| error["Preserve refusal for the editor"]

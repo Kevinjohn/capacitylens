@@ -36,7 +36,7 @@ The dialog shortcut check only recognizes open elements marked aria-modal. The s
 ```mermaid
 flowchart TD
   key["useGlobalShortcuts receives Cmd or Ctrl+K"] --> guard{"handlePaletteShortcut allows toggle?"}
-  guard -->|composition or marked modal| exit["Leave palette state unchanged"]
+  guard -->|composition or an aria-modal dialog| exit["Leave palette state unchanged"]
   guard -->|dirty form| notice["Prevent default and publish Unsaved changes once per non-repeated keydown"]
   guard -->|repeat with clean form| repeated["Prevent default without toggling"]
   guard -->|allowed| open["Toggle paletteOpen; GatedApp mounts CommandPalette while clean"]
