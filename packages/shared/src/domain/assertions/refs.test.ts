@@ -127,7 +127,7 @@ function scoped(
   existing?: ScopedEntity | Record<string, unknown>,
   options?: { fullRow?: boolean },
 ) {
-  return codeOf(() => assertScopedRefs(data(), A1, key, record, existing, undefined, options));
+  return codeOf(() => assertScopedRefs(data(), A1, key, record, existing, options));
 }
 
 describe('assertScopedRefs required references', () => {
