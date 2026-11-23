@@ -300,8 +300,8 @@ Backend test paths are relative to `apps/backend/`.
 
 ## Lucid soft-delete integration
 
-The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.2.1` by the asset URL of its
-[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.2.1).
+The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.3.2` by the asset URL of its
+[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.3.2).
 Every `@kevinjohn/*` package is consumed the same way, from its own repository's release; the
 lockfile records each archive's integrity. To change a pin, update the backend manifest URL and the
 lockfile together; pnpm records the new archive's integrity.
