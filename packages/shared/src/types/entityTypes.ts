@@ -86,7 +86,7 @@ export interface Entity {
   updatedAt: ISOTimestamp;
 }
 
-/** A company, the tenant. Top-level: not scoped to any other company. */
+/** A company: top-level, not scoped to any other company. */
 export interface Company extends Entity {
   name: string;
   color: string;

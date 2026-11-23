@@ -608,9 +608,12 @@ test('--push runs format, lint and the type-check and leaves tests and the docs 
   assert.ok(steps.every((item) => item.prepare || item.skip || item.owner === 'static'));
 });
 
-test('--push on a documentation-only change runs the formatter alone', () => {
+test('--push on a documentation-only change runs the formatter and the terminology check', () => {
   const steps = planChecks(['AGENTS.md', 'CONTRIBUTING.md'], everything, noImporters, pushOnly);
-  assert.deepEqual(labels(steps.filter((item) => item.args)), ['format: 2 file(s)']);
+  assert.deepEqual(labels(steps.filter((item) => item.args)), [
+    'format: 2 file(s)',
+    'terminology: 2 file(s)',
+  ]);
 });
 
 test('--push executes only the steps its plan selects', async (t) => {
@@ -622,8 +625,40 @@ test('--push executes only the steps its plan selects', async (t) => {
   await main(['--push'], () => paths, execute);
   assert.deepEqual(
     execute.mock.calls.map(({ arguments: [item] }) => item.label),
-    ['format: 1 file(s)', 'lint: 1 file(s)', 'typecheck'],
+    ['format: 1 file(s)', 'terminology: 1 file(s)', 'lint: 1 file(s)', 'typecheck'],
   );
+});
+
+test('changed files run the terminology check on their own paths and nothing else', () => {
+  const steps = planChecks(
+    ['user-stories/a/US-1.md', 'apps/frontend/messages/en.json', 'gone.ts'],
+    (path) => path !== 'gone.ts',
+    noImporters,
+  );
+  const terminology = step(steps, 'terminology: 2 file(s)');
+  assert.deepEqual(terminology.args, [
+    'scripts/maintenance/check-terminology.mjs',
+    'user-stories/a/US-1.md',
+    'apps/frontend/messages/en.json',
+  ]);
+  assert.equal(terminology.owner, 'static');
+});
+
+test('a change to the terminology list, its checker or the dictionary checks the whole tree', () => {
+  for (const path of [
+    'tooling/terminology.mjs',
+    'scripts/maintenance/check-terminology.mjs',
+    'code_convention_terminology.md',
+  ]) {
+    const steps = planChecks([path], everything, noImporters);
+    assert.deepEqual(step(steps, 'terminology: whole tree').args, [
+      'scripts/maintenance/check-terminology.mjs',
+    ]);
+    assert.ok(
+      steps.find((item) => item.args[0] === '--test').args.includes('tooling/terminology.test.mjs'),
+      path,
+    );
+  }
 });
 
 test('--tests-only leaves format, lint, the type-check and the docs build to their own workflows', () => {

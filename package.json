@@ -43,6 +43,8 @@
     "policy:ports": "node scripts/dev/check-ports.mjs",
     "policy:ports:test": "node --test scripts/dev/check-ports.test.mjs tooling/ports.test.mjs scripts/dev/laneClaims.test.mjs scripts/dev/lanes.test.mjs scripts/e2e/playwrightRunMode.test.mjs",
     "policy:dco:test": "node --test scripts/maintenance/check-dco.test.mjs",
+    "policy:terminology": "node scripts/maintenance/check-terminology.mjs",
+    "policy:terminology:test": "node --test scripts/maintenance/check-terminology.test.mjs tooling/terminology.test.mjs",
     "policy:workflow-report:test": "node --test scripts/ci/report-workflow-outcome.test.mjs",
     "policy:release-validation:test": "node --test scripts/release/require-release-validation.test.mjs",
     "policy:script-processes:test": "node --test tooling/devProcesses.test.mjs scripts/shared/pnpmSpawn.test.mjs scripts/e2e/run-preset.test.mjs scripts/build/bundleBudget.test.mjs scripts/e2e/serve-dist.test.mjs scripts/e2e/playwrightFixturesPolicy.test.mjs",

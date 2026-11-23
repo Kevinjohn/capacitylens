@@ -410,6 +410,7 @@ removed entry retires its number.
 - A module owns one named behaviour. Follow the framework's and the surrounding code's conventions
   for structure and names. Preserve visible orchestration, transaction order and failure
   propagation when extracting.
-- External names (wire fields, route paths, error codes, the export format, table and column
-  names) follow the terminology dictionary. Once a release is tagged, renaming one is a breaking
-  change and needs the owner's ruling.
+- External names (wire fields, route paths, environment variables, storage keys, error codes, the
+  export format, table and column names) follow the terminology dictionary. They are frozen at the
+  first beta release: after it, a rename needs a functional reason and a migration, never wording
+  alone, and is a breaking change that needs the owner's ruling.

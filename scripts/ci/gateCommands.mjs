@@ -19,6 +19,7 @@ const toolingChecks = [
   ['run', 'dependency:major-report:test'],
   ['run', 'security:gitleaks-config'],
   ['run', 'policy:dco:test'],
+  ['run', 'policy:terminology:test'],
   ...structuralChecks,
   ['run', 'policy:workflow-report:test'],
   ['run', 'policy:release-validation:test'],
@@ -26,6 +27,7 @@ const toolingChecks = [
 ];
 const staticChecks = [
   ['run', 'check:ui'],
+  ['run', 'policy:terminology'],
   ['run', 'format:check'],
   ['run', 'typecheck'],
   ['run', 'lint'],

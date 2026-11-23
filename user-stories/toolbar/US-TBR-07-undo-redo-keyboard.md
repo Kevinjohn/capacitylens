@@ -45,7 +45,7 @@ flowchart TD
   History -->|rejects outside existing planning notice| Error["Shortcut handler sets error notice"]
 ```
 
-The modal guard matches an explicit `aria-modal="true"` marker. The shared confirmation wrapper supplies no such marker. [US-TBR-06](US-TBR-06-undo-redo-buttons.md) traces `runPlanningHistoryStep` through the committed receipt, refusal and unconfirmed recovery.
+The dialog check matches an explicit `aria-modal="true"` marker. The shared confirmation wrapper supplies no such marker. [US-TBR-06](US-TBR-06-undo-redo-buttons.md) traces `runPlanningHistoryStep` through the committed receipt, refusal and unconfirmed recovery.
 
 **Code references:**
 

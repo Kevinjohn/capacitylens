@@ -32,7 +32,7 @@ flowchart TD
   ENTRY["ActivityList archive button opens ConfirmDialog"] --> CHOICE{"Confirmation action"}
   CHOICE -->|Cancel| CLOSE["Close dialog"]
   CHOICE -->|Archive| SEND["deleteActivity sends catalogue.archive and closes dialog immediately"]
-  SEND --> SERVER{"mutatePlanning checks planning authority and revision. transitionLifecycle requires an active scoped row"}
+  SEND --> SERVER{"mutatePlanning checks planning authorization and revision. transitionLifecycle requires an active scoped row"}
   SERVER -->|Refused| ERROR["Show error. Planning cache refreshes on conflict"]
   SERVER -->|Accepted| WRITE["Set archivedAt on the target row. Commit revision and audit with projected receipt"]
   WRITE --> NEXT["acceptReceipt refreshes active data. Active activity and its linked bookings leave the views."]

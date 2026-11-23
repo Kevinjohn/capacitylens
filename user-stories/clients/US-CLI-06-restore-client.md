@@ -32,7 +32,7 @@ flowchart TD
   FULL --> ROW{"Eligible archived row in this read?"}
   REDACTED --> ROW
   ROW -->|Directly archived, Restore clicked| SEND["useExclusiveOperation → useLifecycleOperations.restore sends catalogue.restore"]
-  SEND --> SERVER{"mutatePlanning checks planning authority and revision. transitionLifecycle requires a scoped archived row"}
+  SEND --> SERVER{"mutatePlanning checks planning authorization and revision. transitionLifecycle requires a scoped archived row"}
   SERVER -->|Refused| ERROR["Show error. Planning cache refreshes on conflict"]
   SERVER -->|Accepted| WRITE["Clear archivedAt on target row. Commit revision and audit with projected receipt"]
   WRITE --> NEXT["acceptReceipt refreshes planning. notifyInactiveDataChanged refreshes archive read"]

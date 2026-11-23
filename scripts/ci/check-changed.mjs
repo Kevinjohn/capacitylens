@@ -90,6 +90,11 @@ const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
 // Vitest and Japa summarise as "Tests  12 passed (12)"; node --test reports "tests 12".
 const testCounts = [/^\s*Tests\s+(\d+) passed/m, /^(?:# |ℹ )tests (\d+)$/m];
 
+// The terminology list, its checker and the dictionary it enforces: a change to any of them can fail
+// files the branch never touched, so the whole tree is checked.
+const terminologyInput =
+  /^(?:tooling\/terminology\.mjs|scripts\/maintenance\/check-terminology\.mjs|code_convention_terminology\.md)$/;
+
 const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 
 /** List the script and tooling test files that import a changed `.mjs` file, whatever they are called. */
@@ -305,9 +310,10 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
         !path.startsWith('apps/frontend/src/') &&
         !path.endsWith('.md'),
     );
+  const terminologyChanged = paths.some((path) => terminologyInput.test(path));
   const scriptTests = [
     ...new Set(
-      paths
+      [...paths, ...(terminologyChanged ? ['tooling/terminology.mjs'] : [])]
         .filter((path) => /^(?:scripts|tooling)\/.+\.(?:mjs|ts)$/.test(path))
         .flatMap((path) => {
           if (path.endsWith('.test.mjs')) return [path];
@@ -382,6 +388,18 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
         '--no-error-on-unmatched-pattern',
         ...present,
       ],
+    });
+  if (present.length)
+    steps.push({
+      label: terminologyChanged
+        ? 'terminology: whole tree'
+        : `terminology: ${present.length} file(s)`,
+      command: 'node',
+      args: ['scripts/maintenance/check-terminology.mjs', ...(terminologyChanged ? [] : present)],
+      owner: 'static',
+      reason: terminologyChanged
+        ? 'the terminology list, its checker or the dictionary changed'
+        : 'changed files',
     });
   // Each package's own lint script decides whether warnings fail: the backend's allows them.
   const eslint = ['exec', 'eslint', '--no-warn-ignored'];
