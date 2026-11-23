@@ -10,7 +10,7 @@ import { formatBackupStartupFailure, type BackupConfig } from '#config/backup';
 
 const DAY_MS = 24 * 60 * 60_000;
 
-/** The package refuses this layout only when a backup runs; refuse it before startup changes anything. */
+/** The package refuses this layout too; this check runs first so startup reports one short, stable message. */
 function assertOutsideLiveDatabase(directory: string, livePath: string): void {
   if (!existsSync(directory)) return;
   const path = relative(realpathSync(directory), realpathSync(livePath));
