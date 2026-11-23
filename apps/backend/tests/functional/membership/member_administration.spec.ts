@@ -268,13 +268,11 @@ test.group('company member administration', (group) => {
       {
         name: 'invalid role',
         send: () => signed(client.patch(memberPath), ownerCookie).json({ role: 'operator' }).send(),
-        error: 'Invalid member role.',
       },
       {
         name: 'unknown role field',
         send: () =>
           signed(client.patch(memberPath), ownerCookie).json({ role: 'admin', extra: true }).send(),
-        error: 'Invalid member role.',
       },
       {
         name: 'invalid status',
@@ -283,7 +281,6 @@ test.group('company member administration', (group) => {
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ status: 'removed' } as never)
             .send(),
-        error: 'Invalid member status.',
       },
       {
         name: 'unknown status field',
@@ -292,7 +289,6 @@ test.group('company member administration', (group) => {
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ status: 'suspended', extra: true } as never)
             .send(),
-        error: 'Invalid member status.',
       },
       {
         name: 'invalid tracking value',
@@ -303,7 +299,6 @@ test.group('company member administration', (group) => {
           )
             .json({ enabled: 'true' })
             .send(),
-        error: 'enabled must be a Boolean.',
       },
       {
         name: 'unknown tracking field',
@@ -314,7 +309,6 @@ test.group('company member administration', (group) => {
           )
             .json({ enabled: true, extra: true } as never)
             .send(),
-        error: 'enabled must be a Boolean.',
       },
     ];
 
@@ -322,11 +316,7 @@ test.group('company member administration', (group) => {
     for (const request of requests) {
       const response = await request.send();
       response.assertStatus(400);
-      assert.deepEqual(
-        response.body(),
-        { error: request.error, code: 'VALIDATION_ERROR' },
-        request.name
-      );
+      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR', request.name);
     }
 
     const member = await db

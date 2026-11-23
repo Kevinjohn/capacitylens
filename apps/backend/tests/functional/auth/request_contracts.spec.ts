@@ -68,18 +68,18 @@ test.group('ordinary authentication request contracts', (group) => {
     assert.throws(() => requireRegistrationDisplayName({ name: '𐐀'.repeat(101) }));
   });
 
-  test('sign-in preserves shape and detail refusals before authentication', async ({
+  test('sign-in refuses a malformed body with 400 VALIDATION_ERROR before authentication', async ({
     client,
     assert,
   }) => {
-    for (const [body, error] of [
-      [[], 'Invalid sign-in request.'],
-      [{ extra: true }, 'Invalid sign-in request.'],
-      [{ email: 'clark@wayne.example', password: '', extra: true }, 'Invalid sign-in request.'],
-      [{ email: 'invalid', password: '' }, 'Invalid email or password.'],
-      [{ email: 'clark@wayne.example', password: null }, 'Invalid email or password.'],
-      [{ password: 'secret' }, 'Invalid email or password.'],
-      [{ email: 'clark@wayne.example', password: 123 }, 'Invalid email or password.'],
+    for (const body of [
+      [],
+      { extra: true },
+      { email: 'clark@wayne.example', password: '', extra: true },
+      { email: 'invalid', password: '' },
+      { email: 'clark@wayne.example', password: null },
+      { password: 'secret' },
+      { email: 'clark@wayne.example', password: 123 },
     ] as const) {
       const response = await client
         .post<string>('/api/auth/sign-in')
@@ -87,7 +87,7 @@ test.group('ordinary authentication request contracts', (group) => {
         .json(body)
         .send();
       response.assertStatus(400);
-      assert.deepEqual(response.body(), { error });
+      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR');
     }
   });
 
@@ -153,7 +153,7 @@ test.group('ordinary authentication request contracts', (group) => {
         cookie
       ).send();
       response.assertStatus(400);
-      response.assertBody({ error: 'Invalid admission list request.' });
+      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR');
     }
   });
 
@@ -211,33 +211,18 @@ test.group('ordinary authentication request contracts', (group) => {
     });
   });
 
-  test('sign-up rejects unknown fields and invalid details without changing flat errors', async ({
+  test('sign-up refuses unknown fields and invalid details with 400 VALIDATION_ERROR', async ({
     client,
     assert,
   }) => {
-    for (const [body, error] of [
-      [
-        { email: 'clark@wayne.example', password: 'a'.repeat(15), name: 'Clark Kent', extra: 1 },
-        'Invalid sign-up request.',
-      ],
-      [[], 'Invalid sign-up request.'],
-      [{ email: 'clark@wayne.example', password: 'a'.repeat(15) }, 'Invalid sign-up details.'],
-      [
-        { email: 'invalid', password: 'a'.repeat(15), name: 'Clark Kent' },
-        'Invalid sign-up details.',
-      ],
-      [
-        { email: 'clark@wayne.example', password: '😀'.repeat(14), name: 'Clark Kent' },
-        'Invalid sign-up details.',
-      ],
-      [
-        { email: 'clark@wayne.example', password: '😀'.repeat(129), name: 'Clark Kent' },
-        'Invalid sign-up details.',
-      ],
-      [
-        { email: 'clark@wayne.example', password: 'a'.repeat(15), name: '  ' },
-        'Invalid sign-up details.',
-      ],
+    for (const body of [
+      { email: 'clark@wayne.example', password: 'a'.repeat(15), name: 'Clark Kent', extra: 1 },
+      [],
+      { email: 'clark@wayne.example', password: 'a'.repeat(15) },
+      { email: 'invalid', password: 'a'.repeat(15), name: 'Clark Kent' },
+      { email: 'clark@wayne.example', password: '😀'.repeat(14), name: 'Clark Kent' },
+      { email: 'clark@wayne.example', password: '😀'.repeat(129), name: 'Clark Kent' },
+      { email: 'clark@wayne.example', password: 'a'.repeat(15), name: '  ' },
     ] as const) {
       const response = await client
         .post<string>('/api/auth/sign-up')
@@ -245,7 +230,7 @@ test.group('ordinary authentication request contracts', (group) => {
         .json(body)
         .send();
       response.assertStatus(400);
-      assert.deepEqual(response.body(), { error });
+      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR');
     }
   });
 });

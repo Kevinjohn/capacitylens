@@ -1,8 +1,6 @@
 import vine from '@vinejs/vine';
 import { USER_ID_PATTERN } from '#services/request_helpers';
-import { allowedFields, fixedMessage, isSupplied } from '#validators/request_rules';
-
-const message = 'An eligible target user is required.';
+import { allowedFields, isSupplied } from '#validators/request_rules';
 
 export const transferOwnershipValidator = vine.create(
   vine
@@ -14,6 +12,5 @@ export const transferOwnershipValidator = vine.create(
         .optional()
         .requiredWhen(isSupplied),
     })
-    .use(allowedFields({ fields: ['toUserId', 'confirmationId'], message }))
+    .use(allowedFields({ fields: ['toUserId', 'confirmationId'] }))
 );
-transferOwnershipValidator.messagesProvider = fixedMessage(message);

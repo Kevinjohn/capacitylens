@@ -3,7 +3,7 @@ import type { NextFn } from '@adonisjs/core/types/http';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import ScopeMiddleware from '@kevinjohn/adonisjs-access-control/middleware';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { membershipUnavailable } from '#exceptions/planning_operation_exception';
 
 const scope = new ScopeMiddleware();
 
@@ -14,6 +14,10 @@ const scope = new ScopeMiddleware();
  * authentication. The refusal matches what the handler's own check answers: the package's
  * `memberships.authorize` inside the product transaction, which still runs and is the only check
  * on a route that takes the company id from the body.
+ *
+ * A planning route answers a missing membership with `ACCOUNT_MEMBERSHIP_LOST`, which the browser
+ * reads to drop its planning projection; `membershipUnavailable` builds it, and the central mapper
+ * knows no route.
  */
 export default class CompanyScopeMiddleware {
   async handle(ctx: HttpContext, next: NextFn, options: { planning?: boolean } = {}) {
@@ -27,11 +31,7 @@ export default class CompanyScopeMiddleware {
         throw error;
       }
       if (!options.planning) throw new IdentityAuthorizationException('Forbidden.');
-      throw new PlanningOperationException(
-        403,
-        'ACCOUNT_MEMBERSHIP_LOST',
-        'Company membership is unavailable.'
-      );
+      throw membershipUnavailable();
     }
     return next();
   }

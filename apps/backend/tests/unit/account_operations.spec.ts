@@ -21,7 +21,7 @@ test('package refusals for an account operation retain the exact HTTP status and
       { error: 'Operation id already used.', code: 'IDEMPOTENCY_CONFLICT' },
     ],
   ] as const) {
-    assert.deepEqual(mapHttpError(mapAccountOperationError(error), 'admission'), { status, body });
+    assert.deepEqual(mapHttpError(mapAccountOperationError(error)), { status, body });
   }
   const unexpected = new Error('Database unavailable.');
   assert.strictEqual(mapAccountOperationError(unexpected), unexpected);

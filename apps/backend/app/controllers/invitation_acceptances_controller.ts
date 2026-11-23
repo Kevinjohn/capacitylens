@@ -7,9 +7,8 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
 import { refuseInvalidAdmissionBody } from '#services/admission/errors';
-import { invalidInvitationLink } from '#services/admission/invitation_answers';
+import { emailInUseAnswer, invalidLinkAnswer } from '#services/auth/credential_answers';
 import { signInWithPassword } from '#services/auth/password_sign_in';
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { acceptInvitationSignUpValidator } from '#validators/invitations';
 
 /** Accepting an invitation by creating the invited identity. */
@@ -36,14 +35,11 @@ export default class InvitationAcceptancesController {
       });
       email = user.email;
     } catch (error) {
-      // Route wording: acceptance words these refusals for this route; sign-up words them
-      // differently.
-      if (error instanceof InvalidTokenError) return response.badRequest(invalidInvitationLink);
+      // Keeps the product codes `INVALID_TOKEN` and `EMAIL_IN_USE`, which the browser reads and
+      // the Kit's own codes do not carry.
+      if (error instanceof InvalidTokenError) return response.badRequest(invalidLinkAnswer);
       if (error instanceof RegistrationEmailAlreadyRegisteredError) {
-        return response.conflict({
-          error: 'An account already uses this email. Sign in instead.',
-          code: 'EMAIL_IN_USE',
-        } satisfies ProductHttpErrorBody);
+        return response.conflict(emailInUseAnswer);
       }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
       if (isCommittedFailure(error)) {

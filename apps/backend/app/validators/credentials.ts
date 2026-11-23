@@ -4,26 +4,18 @@ import {
   accountEmail,
   allowedFields,
   bearerToken,
-  fixedMessage,
   passwordLength,
 } from '#validators/request_rules';
-
-const recoveryMessage = 'Invalid recovery request.';
-const credentialMessage = 'Invalid credential request.';
 
 export const requestResetValidator = vine.create(
   vine
     .object({ email: vine.string().use(accountEmail()).transform(normalizeAccountEmail) })
-    .use(allowedFields({ fields: ['email'], message: recoveryMessage }))
+    .use(allowedFields({ fields: ['email'] }))
 );
-requestResetValidator.messagesProvider = fixedMessage(recoveryMessage);
 
 export const inspectResetValidator = vine.create(
-  vine
-    .object({ token: vine.string().use(bearerToken()) })
-    .use(allowedFields({ fields: ['token'], message: recoveryMessage }))
+  vine.object({ token: vine.string().use(bearerToken()) }).use(allowedFields({ fields: ['token'] }))
 );
-inspectResetValidator.messagesProvider = fixedMessage(recoveryMessage);
 
 export const resetPasswordValidator = vine.create(
   vine
@@ -31,9 +23,8 @@ export const resetPasswordValidator = vine.create(
       token: vine.string().use(bearerToken()),
       newPassword: vine.string().use(passwordLength()),
     })
-    .use(allowedFields({ fields: ['token', 'newPassword'], message: recoveryMessage }))
+    .use(allowedFields({ fields: ['token', 'newPassword'] }))
 );
-resetPasswordValidator.messagesProvider = fixedMessage(recoveryMessage);
 
 export const changePasswordValidator = vine.create(
   vine
@@ -41,13 +32,11 @@ export const changePasswordValidator = vine.create(
       currentPassword: vine.string(),
       newPassword: vine.string().use(passwordLength()),
     })
-    .use(allowedFields({ fields: ['currentPassword', 'newPassword'], message: credentialMessage }))
+    .use(allowedFields({ fields: ['currentPassword', 'newPassword'] }))
 );
-changePasswordValidator.messagesProvider = fixedMessage(credentialMessage);
 
 export const deleteAccountValidator = vine.create(
   vine
     .object({ currentPassword: vine.string() })
-    .use(allowedFields({ fields: ['currentPassword'], message: credentialMessage }))
+    .use(allowedFields({ fields: ['currentPassword'] }))
 );
-deleteAccountValidator.messagesProvider = fixedMessage(credentialMessage);

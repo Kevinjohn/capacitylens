@@ -1,19 +1,9 @@
 import vine from '@vinejs/vine';
-import {
-  allowedFields,
-  bearerToken,
-  fixedMessage,
-  passwordLength,
-} from '#validators/request_rules';
-
-const message = 'Invalid confirmation request.';
+import { allowedFields, bearerToken, passwordLength } from '#validators/request_rules';
 
 export const inspectVerificationValidator = vine.create(
-  vine
-    .object({ token: vine.string().use(bearerToken()) })
-    .use(allowedFields({ fields: ['token'], message }))
+  vine.object({ token: vine.string().use(bearerToken()) }).use(allowedFields({ fields: ['token'] }))
 );
-inspectVerificationValidator.messagesProvider = fixedMessage(message);
 
 export const completeVerificationValidator = vine.create(
   vine
@@ -21,6 +11,5 @@ export const completeVerificationValidator = vine.create(
       token: vine.string().use(bearerToken()),
       password: vine.string().use(passwordLength()),
     })
-    .use(allowedFields({ fields: ['token', 'password'], message }))
+    .use(allowedFields({ fields: ['token', 'password'] }))
 );
-completeVerificationValidator.messagesProvider = fixedMessage(message);

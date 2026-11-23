@@ -1,27 +1,22 @@
 import vine from '@vinejs/vine';
-import type { FieldContext, MessagesProviderContact } from '@vinejs/vine/types';
+import type { FieldContext } from '@vinejs/vine/types';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password';
 import { MAX_NAME_LENGTH, countUnicodeCharacters } from '@capacitylens/shared/lib/strings';
 
-/** Refuses a body that carries a key outside `fields`, reporting the route's own sentence. */
+/** Refuses a body that carries a key outside `fields`. */
 export const allowedFields = vine.createRule(
-  (value, options: { fields: string[]; message: string }, field) => {
+  (value, options: { fields: string[]; message?: string }, field) => {
     if (
       value &&
       typeof value === 'object' &&
       !Array.isArray(value) &&
       Object.keys(value).some((key) => !options.fields.includes(key))
     ) {
-      field.report(options.message, 'unknownField', field);
+      field.report(options.message ?? 'Unsupported field.', 'unknownField', field);
     }
   }
 );
-
-/** Answers every failure of a validator with one sentence, the one its route has always sent. */
-export function fixedMessage(sentence: string): MessagesProviderContact {
-  return { getMessage: () => sentence };
-}
 
 /**
  * Pass to `requiredWhen` on an optional field: the key may be left out, but a supplied `null`

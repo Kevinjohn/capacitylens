@@ -34,8 +34,8 @@ export default class AccountGateMiddleware {
       // The check runs alone, so a refusal raised later by the handler is not mistaken for it.
       await checks[options.access](ctx, async () => undefined);
     } catch (error) {
-      // Route wording: the gate answers a missing session as SIGN_IN_REQUIRED, where the
-      // handler sends the Kit's own code; every other refusal reaches the handler.
+      // Keeps `SIGN_IN_REQUIRED`, which the browser reads, where the handler sends the Kit's own
+      // code; every other refusal reaches the handler.
       if (error instanceof InvalidSessionError) {
         return ctx.response.unauthorized({
           error: 'Sign-in required.',
