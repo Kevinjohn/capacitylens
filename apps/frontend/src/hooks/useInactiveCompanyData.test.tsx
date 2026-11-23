@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
-import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { invalidateInactiveReads } from '@/api/queryClient';
+import { QueryCacheLifecycle } from '@/api/QueryCacheLifecycle';
 import { useStore } from '@/store/useStore';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -35,6 +37,8 @@ function Probe() {
   return <div>{data?.clients.map((client) => client.name).join(',') ?? 'hidden'}</div>;
 }
 
+let cache = new QueryClient();
+
 function view(
   role: 'owner' | 'admin' | 'editor',
   userId = 'bruce',
@@ -49,13 +53,17 @@ function view(
       }}
     >
       <PermissionContext.Provider value={permissions}>
-        <Probe />
+        <QueryClientProvider client={cache}>
+          <QueryCacheLifecycle cache={cache} />
+          <Probe />
+        </QueryClientProvider>
       </PermissionContext.Provider>
     </AuthContext.Provider>
   );
 }
 
 beforeEach(() => {
+  cache = new QueryClient();
   useStore.setState({ activeCompanyId: 'a1' });
 });
 
@@ -97,7 +105,7 @@ describe('useInactiveCompanyData', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(view('admin'));
     expect(await screen.findByText(/First/)).toBeInTheDocument();
-    notifyInactiveDataChanged('a1');
+    await act(async () => void invalidateInactiveReads(cache));
     expect(await screen.findByText(/Refreshed/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

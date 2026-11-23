@@ -101,3 +101,14 @@ export function clearQueryCacheForScopeChange(
   cache.clear();
   return true;
 }
+
+/** Route keys of the reads that show rows hidden from the planning cache (archived or soft-deleted). */
+export const INACTIVE_READ_ROUTES = ['archive-recovery', 'inactive-company-data'] as const;
+
+/** Mark every inactive-row read stale after a lifecycle change so mounted readers refetch. */
+export function invalidateInactiveReads(cache: QueryClient): Promise<void> {
+  // The route key follows the four scope segments of buildScopeQueryKey.
+  return cache.invalidateQueries({
+    predicate: ({ queryKey }) => (INACTIVE_READ_ROUTES as readonly unknown[]).includes(queryKey[4]),
+  });
+}

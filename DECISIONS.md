@@ -185,8 +185,8 @@ and the tests, not here.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
 - Each server dataset has one home in the browser. TanStack Query owns server reads. The store
   owns the planning cache and the company directory, which store logic reads. No dataset is held
-  in both (#2447 moves the remaining hand-written reads). Undo history is held by the server; the
-  planning cache keeps only the page's history id.
+  in both. Undo history is held by the server; the planning cache keeps only the page's history
+  id.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.
 
