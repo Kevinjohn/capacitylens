@@ -59,6 +59,9 @@ const appBuildEnvironment = {
 // A rule or ignore change can fail files the branch never touched.
 const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/;
 const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
+// `check:ui` pins the source-owned shadcn primitives and the tooling that fetches them.
+const uiPrimitiveInput =
+  /^(?:apps\/frontend\/src\/components\/ui\/|\.mcp\.json$|scripts\/maintenance\/(?:check-ui-primitives|ui-registry)\.mjs$)/;
 // Dependency and workspace changes can break any package without touching its sources.
 const workspaceInput = /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/;
 // Paths that format:check covers but lint and the type-check do not.
@@ -418,6 +421,13 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
       args: [...strictEslint, ...rootLint],
       owner: 'static',
       reason: 'changed script, end-to-end or shared code',
+    });
+  if (paths.some((path) => uiPrimitiveInput.test(path)))
+    steps.push({
+      label: 'check:ui',
+      args: ['run', 'check:ui'],
+      owner: 'static',
+      reason: 'a shadcn primitive or its tooling changed',
     });
   if (workspaceChanged || paths.some((path) => codeFile.test(path) || typeInput.test(path)))
     steps.push({

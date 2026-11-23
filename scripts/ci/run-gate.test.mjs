@@ -210,8 +210,6 @@ test("gateCommands('all') includes every retained policy, package and security c
     'package:managed-release:test',
     'security:screenshot-publication',
     'security:screenshot-publication:test',
-    'policy:dependabot',
-    'policy:dependabot:test',
     'security:gitleaks-config',
     'policy:dco:test',
     'policy:release-validation:test',

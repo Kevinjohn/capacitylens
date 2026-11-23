@@ -193,14 +193,14 @@ test('a changed script runs its own test file when one exists', () => {
 test('a changed script also runs the differently named test files that import it', () => {
   const steps = planChecks(['scripts/ci/gateCommands.mjs'], everything, (path) =>
     path === 'scripts/ci/gateCommands.mjs'
-      ? ['scripts/ci/run-gate.test.mjs', 'scripts/maintenance/check-dependabot.test.mjs']
+      ? ['scripts/ci/run-gate.test.mjs', 'scripts/shared/pnpmSpawn.test.mjs']
       : [],
   );
   assert.deepEqual(step(steps, 'test: 3 script test').args, [
     '--test',
     'scripts/ci/gateCommands.test.mjs',
     'scripts/ci/run-gate.test.mjs',
-    'scripts/maintenance/check-dependabot.test.mjs',
+    'scripts/shared/pnpmSpawn.test.mjs',
   ]);
   assert.deepEqual(
     step(
@@ -210,8 +210,15 @@ test('a changed script also runs the differently named test files that import it
       ),
       'test:',
     ).args,
-    ['--test', 'scripts/ci/run-gate.test.mjs', 'scripts/maintenance/check-dependabot.test.mjs'],
+    ['--test', 'scripts/ci/run-gate.test.mjs'],
   );
+});
+
+test('a changed shadcn primitive runs the pinned-hash check before merge', () => {
+  const steps = planChecks(['apps/frontend/src/components/ui/button.tsx'], everything);
+  assert.deepEqual(step(steps, 'check:ui').args, ['run', 'check:ui']);
+  assert.equal(step(steps, 'check:ui').owner, 'static');
+  assert.equal(step(planChecks(['apps/frontend/src/App.tsx'], everything), 'check:ui'), undefined);
 });
 
 test('a lint or format configuration change checks the whole repository', () => {

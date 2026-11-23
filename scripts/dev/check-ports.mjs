@@ -5,6 +5,7 @@
 // legitimately carry numbers, and failing on those would teach people to work around this check.
 import { readFileSync, realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { portsForPortLane } from '../../tooling/ports.mjs';
 
 // Each guarded file must import its ports from tooling/ports.mjs and must not spell one out.
 /** Authored launch/configuration files that must derive their endpoints from the port registry. */
@@ -21,8 +22,8 @@ export const GUARDED_FILES = Object.freeze([
   'apps/backend/scripts/e2e-server.mjs',
 ]);
 
-// The port lane bases and fixed access-lab ports that tooling/ports.mjs also owns.
-const GUARDED_PORTS = Object.freeze([4173, 5173, 5273, 5373, 5473, 5900, 5910, 8787, 8887, 8897]);
+// Port lane 0 holds each base port, so the registry is the only list.
+const GUARDED_PORTS = Object.freeze(Object.values(portsForPortLane(0)));
 
 /**
  * Drop comments so prose about a port never fails the check; only executable text is inspected.
