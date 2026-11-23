@@ -1,6 +1,6 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { buildScopeQueryKey } from '@/api/queryClient';
 import { useQueryScope } from '@/api/useQueryScope';
 import { Link, useLocation } from 'react-router-dom';
@@ -224,6 +224,7 @@ function useCompanyDismissal(
   pathname: string,
   setNotice: (message: string, tone: 'error') => void,
 ) {
+  // Once dismissed, here or by the server, the company is never read again in this mount.
   const [dismissedHere, setDismissedHere] = useState(false);
   // Every committed or refetched planning change advances the revision, so milestones refetch.
   const planningRevision = useStore((state) => state.planning.revision);
@@ -233,6 +234,8 @@ function useCompanyDismissal(
   const query = useQuery({
     queryKey: buildScopeQueryKey(scope, ['getting-started', companyId, planningRevision]),
     enabled: !dismissedHere,
+    // A revision change keeps the current milestones on screen until the new read lands.
+    placeholderData: keepPreviousData,
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) => gettingStartedApi.read(companyId, signal),
@@ -243,13 +246,16 @@ function useCompanyDismissal(
     console.error('GettingStarted: company state could not be loaded');
     setNotice(m.gs_load_failed(), 'error');
   }, [error, errorUpdatedAt, dismissedHere, setNotice]);
-  const dismissed = dismissedHere || (query.data?.dismissed ?? false);
+  const serverDismissed = query.data?.dismissed === true;
+  // Adjusting state while rendering: the next render disables the query before any re-read.
+  if (serverDismissed && !dismissedHere) setDismissedHere(true);
+  const dismissed = dismissedHere || serverDismissed;
   // Navigating re-reads the milestones; the read already in flight at mount is joined, not restarted.
   useEffect(() => {
     if (!dismissed) void refetch({ cancelRefetch: false });
   }, [pathname, dismissed, refetch]);
   const steps = query.data?.steps ?? NO_STEPS;
-  const loaded = query.isFetched;
+  const loaded = query.data !== undefined || query.isError;
   const loadFailed = query.isError || (query.isFetched && query.data === undefined);
 
   const dismiss = async () => {
