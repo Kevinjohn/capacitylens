@@ -83,11 +83,10 @@ jobs:
         if: always()
         run: docker compose --profile caddy down --volumes --remove-orphans
 
-  # Images publish only after Validation and this workflow's smoke both succeeded on the push of the
-  # same tag, at the commit it names. A tag push has just passed its own smoke, so it waits for
-  # Validation alone; a release or manual run waits for both runs of the tag push. A failed or
-  # missing run stops publication here. Images that are already published skip the wait, so
-  # `publish` can re-run them without building.
+  # Images publish only after Validation succeeded on the push of the same tag, at the commit it
+  # names. A tag push reaches this job only after its own smoke passed; `publish` builds and smokes
+  # the images it pushes on every event. A failed or missing Validation run stops publication here.
+  # Images that are already published skip the wait, so `publish` can re-run them without building.
   validated:
     name: Require validation of the release tag
     needs: smoke
@@ -124,14 +123,12 @@ jobs:
         if: steps.images.outputs.present != 'true'
         with:
           node-version-file: .nvmrc
-      - name: Wait for successful validation and smoke checks of the tag
+      - name: Wait for successful validation of the tag
         if: steps.images.outputs.present != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
-          # This run's own smoke job has already passed.
-          SKIP_WORKFLOW_FILES: ${{ github.event_name == 'push' && 'docker.yml' || '' }}
         run: node scripts/release/require-release-validation.mjs
 
   publish:

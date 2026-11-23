@@ -36,7 +36,7 @@ own server, and the only cost is that server
 
 ## Get started
 
-**Manage the hosting?** Install it with one command on a host that runs Node 24, ending with
+**Manage the hosting?** Clone a release tag and build it on a host that runs Node 24, ending with
 opening the setup link. You manage HTTPS, backups and upgrades:
 [install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/index.html).
 

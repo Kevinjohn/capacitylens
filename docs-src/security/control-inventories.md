@@ -116,9 +116,9 @@ access, retention, time synchronisation, alerting and any external log collectio
   packages on compatible patched releases where needed. GitHub actions are full-commit pinned;
   Dependabot covers npm and Actions.
 - pnpm lifecycle-script policy is fail closed; `allowBuilds` permits only reviewed install scripts.
-- CI performs dependency review, production audit, secret scanning, CodeQL, SBOM generation,
-  vulnerability scanning, DAST and release provenance. Published releases attach the packaged build,
-  SPDX SBOM and GitHub-issued provenance bundle as release assets. The blocking DAST baseline scans
+- CI performs dependency review, production audit, secret scanning, CodeQL, source SBOM
+  generation, vulnerability scanning and DAST. A tagged release publishes the two container images;
+  no build, SBOM or provenance asset is attached to it. The blocking DAST baseline scans
   the only supported posture, password sign-in, as the deployment guide configures it. The
   public-repository workflows run automatically on their documented events and remain manually
   runnable for deliberate reruns.

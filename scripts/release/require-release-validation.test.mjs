@@ -1,11 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  combine,
-  judgeRuns,
-  REQUIRED_WORKFLOWS,
-  requireValidation,
-} from './require-release-validation.mjs';
+import { combine, judgeRuns, requireValidation } from './require-release-validation.mjs';
 
 const tag = 'v1.2.3';
 const sha = 'a'.repeat(40);
@@ -108,7 +103,7 @@ test('a failed workflow stops polling at once', async () => {
   const state = await requireValidation({
     tag,
     sha,
-    readRuns: (file) => [run(file === 'docker.yml' ? { conclusion: 'failure' } : {})],
+    readRuns: () => [run({ conclusion: 'failure' })],
     deadlineMs: 60_000,
     now,
     wait: async (ms) => {
@@ -121,18 +116,17 @@ test('a failed workflow stops polling at once', async () => {
   assert.equal(waited, 0);
 });
 
-test('a skipped workflow is not required', async () => {
+test('only Validation is required, so a failed Docker run cannot block a later publication', async () => {
   const asked = [];
   const state = await requireValidation({
     tag,
     sha,
     readRuns: (file) => {
       asked.push(file);
-      return [run()];
+      return [run(file === 'validation.yml' ? {} : { conclusion: 'failure' })];
     },
     deadlineMs: 60_000,
     log: () => {},
-    workflows: REQUIRED_WORKFLOWS.filter((workflow) => workflow.file !== 'docker.yml'),
   });
   assert.equal(state, 'pass');
   assert.deepEqual(asked, ['validation.yml']);

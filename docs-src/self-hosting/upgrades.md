@@ -11,9 +11,11 @@ running the migration command.
 
 ## Upgrade to a new tag
 
-Fetch the new tag, install the locked dependencies, build, then stop the service:
+Stop the service first: the build replaces the directory the running server reads. Then fetch
+the new tag, install the locked dependencies and build:
 
 ```bash
+sudo systemctl stop capacitylens
 cd /opt/capacitylens
 sudo git fetch --tags
 sudo git checkout vX.Y.Z
@@ -21,7 +23,6 @@ sudo pnpm install --frozen-lockfile
 sudo env NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error \
   APP_KEY=capacitylens-build-key-0123456789abcdef \
   APP_URL=https://127.0.0.1 CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
-sudo systemctl stop capacitylens
 ```
 
 Then upgrade the database from the build directory, with the same environment used by the service,
