@@ -223,6 +223,15 @@ test.group('admission and membership completion', (group) => {
     await expectStatus(as(cookie).post(api, `/api/admission/${userId}/approve`), 403);
   });
 
+  test('a decision on a malformed account id answers a bad request', async ({ client: api }) => {
+    const ownerSession = await company(api);
+    for (const decision of ['approve', 'reject', 'revoke']) {
+      const response = await as(ownerSession.cookie).post(api, `/api/admission/bad.id/${decision}`);
+      response.assertStatus(400);
+      response.assertBody({ error: 'Invalid admission request.' });
+    }
+  });
+
   test('Editors and Viewers cannot list or decide admission', async ({ client: api }) => {
     await company(api);
     const userId = await invitedIdentity('viewer');
