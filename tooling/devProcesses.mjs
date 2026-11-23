@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import { closeSync, openSync, unlinkSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 
@@ -34,8 +33,7 @@ function processTreeRunning(child) {
 }
 
 function processGroupRunning(child, options) {
-  if (options.platform === 'win32' || (options.kill !== undefined && options.kill !== process.kill))
-    return processTreeRunning(child);
+  if (options.kill !== undefined && options.kill !== process.kill) return processTreeRunning(child);
   try {
     process.kill(-child.pid, 0);
     return true;
@@ -46,27 +44,10 @@ function processGroupRunning(child, options) {
   }
 }
 
-function signalProcessTree(
-  child,
-  signal,
-  { platform = process.platform, kill = process.kill, spawnProcess = spawn } = {},
-) {
-  if (!processGroupRunning(child, { platform, kill })) return;
+function signalProcessTree(child, signal, { kill = process.kill } = {}) {
+  if (!processGroupRunning(child, { kill })) return;
   try {
-    if (platform === 'win32') {
-      const terminator = spawnProcess(
-        'taskkill',
-        ['/pid', String(child.pid), '/T', ...(signal === 'SIGKILL' ? ['/F'] : [])],
-        {
-          stdio: 'ignore',
-        },
-      );
-      terminator.on?.('error', (error) => {
-        console.error(`dev: taskkill could not signal process tree ${child.pid}: ${error.message}`);
-      });
-    } else {
-      kill(-child.pid, signal);
-    }
+    kill(-child.pid, signal);
   } catch (error) {
     // The process may exit after the liveness check and before it receives the signal.
     if (error.code !== 'ESRCH') throw error;
@@ -88,7 +69,7 @@ function waitForExit(child, timeoutMs) {
 }
 
 function waitForProcessTreeExit(child, timeoutMs, options) {
-  if (options.platform === 'win32' || (options.kill !== undefined && options.kill !== process.kill))
+  if (options.kill !== undefined && options.kill !== process.kill)
     return waitForExit(child, timeoutMs);
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs;
@@ -102,10 +83,10 @@ function waitForProcessTreeExit(child, timeoutMs, options) {
   });
 }
 
-/** Check the owned POSIX process group, or the root process on Windows. */
+/** Check the owned POSIX process group. */
 export function isProcessTreeRunning(child, options = {}) {
   if (!Number.isInteger(child.pid) || child.pid <= 0) return false;
-  return processGroupRunning(child, { ...options, platform: options.platform ?? process.platform });
+  return processGroupRunning(child, options);
 }
 
 /**
@@ -115,14 +96,13 @@ export function isProcessTreeRunning(child, options = {}) {
  */
 export async function terminateProcessTree(child, options = {}) {
   if (!Number.isInteger(child.pid) || child.pid <= 0) return;
-  const platformOptions = { ...options, platform: options.platform ?? process.platform };
-  if (!processGroupRunning(child, platformOptions)) return;
-  const graceMs = platformOptions.graceMs ?? 2_000;
-  const forceMs = platformOptions.forceMs ?? 1_000;
-  signalProcessTree(child, 'SIGTERM', platformOptions);
-  if (await waitForProcessTreeExit(child, graceMs, platformOptions)) return;
-  signalProcessTree(child, 'SIGKILL', platformOptions);
-  await waitForProcessTreeExit(child, forceMs, platformOptions);
+  if (!processGroupRunning(child, options)) return;
+  const graceMs = options.graceMs ?? 2_000;
+  const forceMs = options.forceMs ?? 1_000;
+  signalProcessTree(child, 'SIGTERM', options);
+  if (await waitForProcessTreeExit(child, graceMs, options)) return;
+  signalProcessTree(child, 'SIGKILL', options);
+  await waitForProcessTreeExit(child, forceMs, options);
 }
 
 /**

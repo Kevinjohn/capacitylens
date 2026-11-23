@@ -39,7 +39,6 @@ function processExists(pid) {
 
 function processGroupExists(group) {
   if (!Number.isInteger(group) || group <= 0) return false;
-  if (process.platform === 'win32') return processExists(group);
   try {
     process.kill(-group, 0);
     return true;
@@ -165,7 +164,7 @@ async function acquireLease(portLane, slot) {
 
 function makeChild(label) {
   const child = spawn(process.execPath, [join(root, 'scripts/e2e/e2eProcessGuardian.mjs')], {
-    detached: process.platform !== 'win32',
+    detached: true,
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });
   let stderr = '';

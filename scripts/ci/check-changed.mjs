@@ -59,6 +59,9 @@ const appBuildEnvironment = {
 // A rule or ignore change can fail files the branch never touched.
 const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/;
 const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
+// `check:ui` pins the source-owned shadcn primitives and the tooling that fetches them.
+const uiPrimitiveInput =
+  /^(?:apps\/frontend\/src\/components\/ui\/|\.mcp\.json$|scripts\/maintenance\/(?:check-ui-primitives|ui-registry)\.mjs$)/;
 // Dependency and workspace changes can break any package without touching its sources.
 const workspaceInput = /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/;
 // Paths that format:check covers but lint and the type-check do not.
@@ -419,6 +422,13 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
       owner: 'static',
       reason: 'changed script, end-to-end or shared code',
     });
+  if (paths.some((path) => uiPrimitiveInput.test(path)))
+    steps.push({
+      label: 'check:ui',
+      args: ['run', 'check:ui'],
+      owner: 'static',
+      reason: 'a shadcn primitive or its tooling changed',
+    });
   if (workspaceChanged || paths.some((path) => codeFile.test(path) || typeInput.test(path)))
     steps.push({
       label: 'typecheck',
@@ -596,8 +606,7 @@ export function changedPaths(base, cwd = root) {
 
 function stopGroup(child, signal) {
   try {
-    if (process.platform === 'win32') child.kill(signal);
-    else process.kill(-child.pid, signal);
+    process.kill(-child.pid, signal);
   } catch (error) {
     // The group may already have exited between the timeout firing and the signal.
     if (error.code !== 'ESRCH') throw error;
@@ -613,7 +622,7 @@ export async function runStep(step, limits = stepLimits) {
       cwd: root,
       env: { ...nonColourEnvironment(), ...step.env },
       stdio: ['ignore', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32',
+      detached: true,
     };
     const child =
       step.command === 'node'

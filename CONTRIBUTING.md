@@ -29,6 +29,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 
 ## Set up
 
+macOS and Linux are the supported development platforms.
+
 ```bash
 nvm use
 corepack enable
@@ -281,9 +283,8 @@ or browser target, make that a separate launch-compatibility decision supported 
 ([issue #1731](https://github.com/Kevinjohn/capacitylens/issues/1731)).
 
 The intended registry policy in [Dependabot configuration](.github/dependabot.yml) is separate
-weekly groups for npm patch and minor updates, with majors reviewed manually from the
-[monthly major report](.github/workflows/major-dependency-report.yml). GitHub Actions and Docker
-updates stay monthly and patch-only. Advisories are checked by
+weekly groups for npm patch and minor updates, with majors reviewed manually from `pnpm outdated`.
+GitHub Actions and Docker updates stay monthly and patch-only. Advisories are checked by
 `pnpm run check:deps`. Keep [pnpm-workspace.yaml](pnpm-workspace.yaml) overrides only for a specific
 advisory when consumers still allow the affected version; explain the reason beside the override
 and remove it when no longer needed. Track a wider security upgrade and any exception in the issue
