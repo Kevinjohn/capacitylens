@@ -52,7 +52,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/health/ready',{signal:AbortSignal.timeout(4000)}).then(r=>{if(!r.ok)process.exitCode=1}).catch(()=>{process.exitCode=1})"]
 CMD ["node", "bin/server.js"]
 
-FROM ghcr.io/nginx/nginx-unprivileged:1.31.8-alpine@sha256:16de44aff58d6a3906f4eb1499d930378b7f0fa96fdebc7d10962d2b2a4e794b AS web-runtime
+FROM ghcr.io/nginx/nginx-unprivileged:1.31.10-alpine@sha256:86628f2c9eaa5e84e3b98d25e26563c4a4f9b0ead9cf5656da4731d86e0621de AS web-runtime
 LABEL org.opencontainers.image.source="https://github.com/Kevinjohn/capacitylens"
 USER root
 # The base installs curl for its generic entrypoint, which this image deliberately does not use.
