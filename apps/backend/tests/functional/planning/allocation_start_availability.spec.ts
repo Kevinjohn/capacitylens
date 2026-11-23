@@ -9,7 +9,8 @@ import {
   newAllocation,
   resetPlanningFixture,
   session,
-  signIn,
+  type Credential,
+  loginAsMember,
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
@@ -26,7 +27,7 @@ const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   intent,
 });
 
-function mutate(client: ApiClient, cookie: string, revision: number, intent: object) {
+function mutate(client: ApiClient, cookie: Credential, revision: number, intent: object) {
   return session(client.post(route('planning/mutations')), cookie)
     .json(input(revision, intent as Record<string, unknown>))
     .send();
@@ -44,7 +45,7 @@ test.group('allocation start availability', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const allocation = newAllocation(await readState(companyId, true));
     const timeOff = await mutate(client, cookie, 0, {
       operation: 'timeOff.create',
@@ -78,7 +79,7 @@ test.group('allocation start availability', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const allocation = newAllocation(await readState(companyId, true));
     const closure = await mutate(client, cookie, 0, {
       operation: 'closure.create',
@@ -98,7 +99,7 @@ test.group('allocation start availability', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const state = await readState(companyId, true);
     const allocation = newAllocation(state);
     const other = state.resources.find(

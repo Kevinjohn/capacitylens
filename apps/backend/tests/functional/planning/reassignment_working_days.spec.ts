@@ -10,7 +10,7 @@ import {
   planningUrl,
   resetPlanningFixture,
   session,
-  signIn,
+  loginAsMember,
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
@@ -44,7 +44,7 @@ test.group('reassignment working-day override', (group) => {
       .from('allocations')
       .where('id', allocation.id)
       .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: false });
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const patch = (revision: number, changes: Record<string, unknown>) =>
       session(client.post(route('planning/mutations')), cookie)
         .json(input(revision, { operation: 'allocation.update', id: allocation.id, changes }))

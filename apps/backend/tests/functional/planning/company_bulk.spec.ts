@@ -9,6 +9,7 @@ import {
   newAllocation,
   resetPlanningFixture,
   session,
+  loginAsMember,
   signIn,
 } from '#tests/functional/planning/helpers';
 
@@ -70,7 +71,7 @@ test.group('typed bulk writer company isolation', (group) => {
       cleanup,
     }) => {
       configureAuth(cleanup);
-      const { cookie } = await signIn(client);
+      const { cookie } = await loginAsMember();
       const beforeOwn = await readState(companyId, true);
       const intent = scenario.intent(beforeOwn);
       const beforeOther = await readState(otherCompanyId, true);

@@ -8,7 +8,7 @@ import {
   newAllocation,
   resetPlanningFixture,
   session,
-  signIn,
+  loginAsMember,
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
@@ -30,7 +30,7 @@ test.group('typed resource availability', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const allocation = before.allocations[0]!;
     const boundary = await session(client.post(route('planning/mutations')), cookie)
@@ -68,7 +68,7 @@ test.group('typed resource availability', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const resourceId = newAllocation(data).resourceId;
     const calendar = await session(client.post(route('planning/mutations')), cookie)
@@ -123,7 +123,7 @@ test.group('typed resource availability', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const resourceId = newAllocation(data).resourceId;
     const bounded = await session(client.post(route('planning/mutations')), cookie)

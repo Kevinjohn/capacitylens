@@ -10,7 +10,8 @@ import {
   createIdentity,
   signIn as signInIdentity,
 } from '#tests/helpers/identities';
-import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import User from '#models/user';
 
 export const companyId = 'a-studio';
 export const planningUrl = `/api/companies/${companyId}/planning`;
@@ -19,8 +20,13 @@ const password = 'batman-secret-2026';
 export const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin');
 
-export function session<T extends ApiRequest>(request: T, cookie: string): T {
-  return asDataOwner(request, cookie);
+/** A real session cookie, or a user each request signs in afresh with `loginAs`. */
+export type Credential = string | User;
+
+export function session<T extends ApiRequest>(request: T, cookie: Credential): T {
+  return typeof cookie === 'string'
+    ? asDataOwner(request, cookie)
+    : asLoggedInDataOwner(request, cookie);
 }
 
 export function configureAuth(cleanup: (callback: () => void) => void) {
@@ -29,14 +35,29 @@ export function configureAuth(cleanup: (callback: () => void) => void) {
   cleanup(() => env.set('CAPACITYLENS_RATE_LIMIT', prior as never));
 }
 
+type Role = 'owner' | 'admin' | 'editor' | 'viewer';
+
 /** A real password sign-in establishes the Account Kit session; membership is fixture data. */
-export async function signIn(
-  client: ApiClient,
-  role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner'
-) {
+export async function signIn(client: ApiClient, role: Role = 'owner') {
   const email = `bruce-${randomUUID()}@wayne.example`;
   const userId = await createIdentity(email, { name: 'Bruce Wayne', password });
   const cookie = await signInAgain(client, email);
+  await joinCompany(userId, role);
+  return { cookie, userId, email };
+}
+
+/**
+ * The same member as `signIn` without the password round trip: `session` signs `cookie` in with
+ * `loginAs` on every request, so nothing bound to one session lasts from one request to the next.
+ */
+export async function loginAsMember(role: Role = 'owner') {
+  const email = `bruce-${randomUUID()}@wayne.example`;
+  const userId = await createIdentity(email, { name: 'Bruce Wayne', password });
+  await joinCompany(userId, role);
+  return { cookie: await User.findOrFail(userId), userId, email };
+}
+
+async function joinCompany(userId: string, role: Role) {
   const now = new Date().toISOString();
   await db.table('memberships').insert({
     scope_id: companyId,
@@ -46,7 +67,6 @@ export async function signIn(
     created_at: now,
     updated_at: now,
   });
-  return { cookie, userId, email };
 }
 
 /** A real password sign-in opens another native session for an existing user. */

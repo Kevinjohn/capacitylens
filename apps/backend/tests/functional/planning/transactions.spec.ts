@@ -16,6 +16,7 @@ import {
   newAllocation,
   resetPlanningFixture,
   session,
+  loginAsMember,
   signIn,
 } from '#tests/functional/planning/helpers';
 
@@ -31,7 +32,7 @@ test.group('planning snapshot and commit boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie, userId } = await signIn(client);
+    const { cookie, userId } = await loginAsMember();
     const before = await readState(companyId, true);
     // Another process tries to commit while the planning read holds its snapshot. A connection in
     // this process could not stand in: a second SQLite copy does not see this process's locks.
@@ -98,7 +99,7 @@ db.exec('COMMIT')`,
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const state = await readState(companyId, true);
     const stored = state.allocations[0]!;
     const knex = db.connection().getReadClient();
@@ -141,7 +142,7 @@ db.exec('COMMIT')`,
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const allocation = newAllocation(before);
     const mutationId = randomUUID();
@@ -174,7 +175,7 @@ db.exec('COMMIT')`,
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const allocations = [newAllocation(data), newAllocation(data)];
     const replies = await Promise.all(
@@ -211,7 +212,7 @@ db.exec('COMMIT')`,
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const mutationId = randomUUID();
     const allocation = newAllocation(await readState(companyId, true));
     const input = {

@@ -9,7 +9,7 @@ import { terminateProcessTree } from '../../../../tooling/devProcesses.mjs';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { clearIdentities } from '#tests/helpers/identities';
-import { configureAuth, session, signIn } from '#tests/functional/planning/helpers';
+import { configureAuth, session, loginAsMember } from '#tests/functional/planning/helpers';
 
 // Proxy trust, HSTS and cookie security are read once at boot, so each case starts its own server.
 const backendRoot = new URL('../../', import.meta.url);
@@ -336,7 +336,7 @@ test.group('HTTP response envelope', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client, 'owner');
+    const { cookie } = await loginAsMember('owner');
     const signedIn = await session(client.visit('api.companies.index'), cookie).send();
     signedIn.assertStatus(200);
     const body = signedIn.body() as Record<string, unknown>;

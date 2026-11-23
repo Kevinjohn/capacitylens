@@ -14,6 +14,7 @@ import {
   newAllocation,
   resetPlanningFixture,
   session,
+  loginAsMember,
   signIn,
   trusted,
 } from '#tests/functional/planning/helpers';
@@ -31,7 +32,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie, userId } = await signIn(client, 'editor');
+    const { cookie, userId } = await loginAsMember('editor');
     const hidden = await db
       .from('clients')
       .where({ company_id: companyId })
@@ -75,7 +76,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const pinned = env.get('CAPACITYLENS_FIXED_TODAY');
     cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
     env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
-    const { cookie } = await signIn(client, 'viewer');
+    const { cookie } = await loginAsMember('viewer');
     const data = await readState(companyId, false);
 
     const read = await session(client.get(planningUrl), cookie).send();
@@ -115,7 +116,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const pinned = env.get('CAPACITYLENS_FIXED_TODAY');
     cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
     env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const stored = await readState(companyId, true);
     const { resourceId } = newAllocation(stored);
     // One allocation is deleted; the other is hidden by archiving its activity, because allocations
@@ -187,7 +188,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie, userId } = await signIn(client, 'editor');
+    const { cookie, userId } = await loginAsMember('editor');
     await db.transaction((trx) => advancePlanningRevision(trx, companyId));
     const read = (query: Record<string, string | number>) =>
       session(client.get(planningUrl).qs(query), cookie).send();
@@ -233,7 +234,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client, 'viewer');
+    const { cookie } = await loginAsMember('viewer');
     const refusals: Array<[Record<string, string>, string]> = [
       [{ from: '2026-06-02', to: '2026-06-01' }, 'The to date must be on or after the from date.'],
       [{ from: '2026-01-01', to: '2027-01-02' }, 'The range may cover at most 366 days.'],
@@ -275,7 +276,7 @@ test.group('authenticated typed planning transactions', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const allocation = newAllocation(data);
     const mutationId = randomUUID();
     const input = {
@@ -525,7 +526,7 @@ test.group('authenticated typed planning transactions', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const allocation = newAllocation(data);
     const base = `/api/companies/${companyId}/allocations`;
     for (const [request, intent] of [
@@ -582,7 +583,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const source = before.allocations.find((row) => row.companyId === companyId)!;
     const id = randomUUID();
@@ -646,8 +647,8 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie, userId } = await signIn(client, 'viewer');
-    const { userId: suspendedUserId } = await signIn(client);
+    const { cookie, userId } = await loginAsMember('viewer');
+    const { userId: suspendedUserId } = await loginAsMember();
     const people = await db
       .from('resources')
       .where({ company_id: companyId, kind: 'person' })
@@ -714,7 +715,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const allocation = newAllocation(await readState(companyId, true));
     const created = await session(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -771,7 +772,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const allocation = data.allocations.find((row) => row.companyId === companyId)!;
     const before = await readState(companyId, true);

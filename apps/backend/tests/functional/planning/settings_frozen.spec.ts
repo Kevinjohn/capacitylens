@@ -7,7 +7,7 @@ import {
   configureAuth,
   resetPlanningFixture,
   session,
-  signIn,
+  loginAsMember,
 } from '#tests/functional/planning/helpers';
 
 test.group('typed company calendar settings', (group) => {
@@ -22,7 +22,7 @@ test.group('typed company calendar settings', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     let revision = 0;
     for (const [field, initial, replacement] of [
       ['weekStartsOn', 0, 1],
