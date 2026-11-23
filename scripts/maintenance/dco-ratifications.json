@@ -6,5 +6,13 @@
   "fb54f6a79f33fdb93c2ab5ab6d8a003f4ce509fd": {
     "ratifierEmail": "kevinjohngallagher@hotmail.com",
     "attestationCommit": "bc2e3a050a4a2a74f4f9b83206ff520617d57398"
+  },
+  "5e7d92e9205b16b2cf8939d0ef68a0199c14f082": {
+    "ratifierEmail": "kevinjohngallagher@hotmail.com",
+    "attestationCommit": "2b64c80e1e1e3df2192ad7239cb9995361ad5f90"
+  },
+  "8f53b001de04a64e5e016ee8d53ce65779da13c2": {
+    "ratifierEmail": "kevinjohngallagher@hotmail.com",
+    "attestationCommit": "2b64c80e1e1e3df2192ad7239cb9995361ad5f90"
   }
 }
