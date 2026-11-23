@@ -94,7 +94,7 @@ test.group('account operation retries', (group) => {
     assert.lengthOf(await db.from('request_receipts'), 0, 'invitations record no receipt');
   });
 
-  test('a repeated invitation revocation with a fresh key changes nothing further', async ({
+  test('a repeated invitation revocation, with the same or a fresh key, is not found', async ({
     client,
     assert,
     cleanup,
@@ -113,10 +113,14 @@ test.group('account operation retries', (group) => {
 
     const revoked = await revoke(1);
     revoked.assertStatus(204);
-    const repeat = await revoke(2);
-    repeat.assertStatus(404);
-    assert.equal(codeOf(repeat), 'E_ACCOUNT_KIT_INVITATION_NOT_FOUND');
+    // The route records no receipt, so even the same key is answered afresh, never replayed.
+    for (const n of [1, 2]) {
+      const repeat = await revoke(n);
+      repeat.assertStatus(404);
+      assert.equal(codeOf(repeat), 'E_ACCOUNT_KIT_INVITATION_NOT_FOUND');
+    }
     assert.lengthOf(await db.from('account_invitations'), 0);
+    assert.lengthOf(await db.from('request_receipts'), 0, 'revocation records no receipt');
   });
 
   test('a repeated status change with a fresh key answers the same result without a second effect', async ({
