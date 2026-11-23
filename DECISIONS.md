@@ -398,8 +398,10 @@ reopened there.
   owns upgrades, backups and service maintenance; the company Owner is not expected to maintain
   hosting alone.
 - Native Node with a loopback TLS proxy on the same machine is the expected installation. The
-  operator owns that proxy; the server's HSTS header is host-only. Existing container support is
-  optional. A proxy on a separate machine is unsupported for the first release. The Compose stack's
+  operator owns that proxy; the server's HSTS header is host-only. Container images are optional
+  and are a release output only: they are built, smoke-tested and published when a release is
+  tagged, never on pull requests or pushes to `main` (#2436 brings the workflows into line). A
+  proxy on a separate machine is unsupported for the first release. The Compose stack's
   own nginx hop is supported: its API trusts forwarded headers from private-network peers, so each
   client keeps its own request limits.
 - Account Kit's empty tables for capabilities the product does not use stay: the kit visits them
