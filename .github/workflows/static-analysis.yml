@@ -25,6 +25,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
+      # Rejected synonyms fail here, before review, whatever the change touches (#2435).
+      - name: Check terminology
+        run: pnpm run policy:terminology
       - name: Select the static checks for the change
         id: scope
         env:
