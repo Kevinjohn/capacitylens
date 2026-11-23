@@ -31,12 +31,16 @@ flowchart TD
 
 ## Code flow
 
+The axe cases cover Schedule and Time off draw modes, dark theme, the allocation editor, resource form, destructive confirmation, empty Schedule and Diagnostics. This chart traces existing test definitions.
+
 ```mermaid
 flowchart TD
-  spec["e2e/a11y.db.spec.ts audit cases"] --> render["Playwright opens schedule or Resource dialog"]
-  render --> axe["AxeBuilder scans rendered DOM with WCAG tags"]
-  axe --> assert["test asserts no serious or critical violations"]
-  ui["AppShell and scheduler render product UI"] -. audited by .-> render
+  spec["e2e/a11y.db.spec.ts opens the actual seeded app surfaces"] --> kind{"Which assertion?"}
+  kind -->|axe| settle["settledAxe disables CSS motion"]
+  settle --> scan["AxeBuilder analyzes rendered DOM with four WCAG A and AA tags"]
+  scan --> assert["Assert zero serious or critical violations"]
+  kind -->|reflow| narrow["At 320 CSS px assert toolbar does not overflow horizontally"]
+  kind -->|focused allocation| focus["Focus the obscured bar and assert it clears sticky header and resource column"]
 ```
 
-**Code references:** [a11y.spec.ts](../../e2e/a11y.db.spec.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx); [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx)
+**Code references:** [a11y.db.spec.ts:14](../../e2e/a11y.db.spec.ts#L14) · [a11y.db.spec.ts:74](../../e2e/a11y.db.spec.ts#L74) · [a11y.db.spec.ts:136](../../e2e/a11y.db.spec.ts#L136) · [a11y.db.spec.ts:156](../../e2e/a11y.db.spec.ts#L156) · [a11y.db.spec.ts:188](../../e2e/a11y.db.spec.ts#L188) · [a11y.db.spec.ts:214](../../e2e/a11y.db.spec.ts#L214) · [a11y.db.spec.ts:225](../../e2e/a11y.db.spec.ts#L225) · [a11y.db.spec.ts:251](../../e2e/a11y.db.spec.ts#L251)

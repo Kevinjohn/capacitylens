@@ -35,12 +35,28 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  file["ImportExport selects JSON file"] --> parse["usePendingImport.readFile reads JSON"]
-  parse --> serverBoundary["ImportPreviewsController.store validates the document and replies with the reason or the summary and base revision"]
-  serverBoundary --> preview["ImportPreview renders the reply without replacing"]
-  preview --> confirm["Continue opens the replace confirmation, then PasswordConfirmationDialog"]
-  confirm --> apply["useServerImport posts api.imports.store; ImportsController.store consumes confirmation and calls applyCompanyImport"]
-  apply --> refresh["useServerImport refreshes canonical planning data"]
+  entry["ImportExport offers file selection with company:import"] --> parse["usePendingImport reads and parses the selected JSON"]
+  parse -->|Read or parse failure| notice["Show an error notice"]
+  parse -->|Parsed| preview["ImportPreviewsController.store validates full v2 document and live Owner access, then reads destination compatibility and revision"]
+  preview -->|Refused| refusedPreview["ImportPreview shows the reason with no Continue"]
+  preview -->|Accepted| continueButton["ImportPreview shows counts; Continue opens Replace data"]
+  continueButton -->|Cancel or close| clear["Clear selection"]
+  continueButton -->|Replace| proof["PasswordConfirmationDialog requests proof for the document and preview revision"]
+  proof -->|Cancel| continueButton
+  proof -->|Refused| proofError["Keep the password dialog open with the error"]
+  proof -->|confirmationId| suspend["useServerImport uses runSuspendedReplacement"]
+  suspend -->|Planning not ready| notice
+  suspend -->|Ready| dispatch["companyDataRequests.applyImport sends the document, preview revision and confirmation ID"]
+  dispatch --> apply["ImportsController.store rechecks Owner, consumes proof and calls applyCompanyImport in the same transaction"]
+  apply -->|Unchanged| resume["Resume writes with current revision and history"]
+  apply -->|Changed| replace["Replace scoped rows and portable settings under the destination ID; commit audit and new revision"]
+  apply -->|Refused or stale| retry["Resume writes and show the refusal; stale import needs another preview"]
+  replace --> refresh["Read canonical planning data"]
+  dispatch -->|Reply lost, timeout or server error| refresh
+  refresh -->|Succeeded| report["Resume writes and report success or uncertain outcome"]
+  refresh -->|Failed| reload["Keep writes suspended and require reload"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [import_routes.ts](../../apps/backend/start/import_routes.ts), [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts), [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
+The current replacement writes the portable company settings, including time zone and week start. The [ordinary company edit guard](../../apps/backend/app/services/planning/entity_rules.ts#L235) is a separate path.
+
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx#L202) · [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts#L46) · [suspendedReplacement.ts](../../apps/frontend/src/store/suspendedReplacement.ts#L54) · [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts#L9) · [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts#L10) · [company_import.ts](../../apps/backend/app/services/company_import.ts#L136) · [Portable company fields](../../packages/shared/src/data/companyExport.fields.ts#L5) · [Scope rebinding](../../packages/shared/src/data/companyExport.ts#L170) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L93)

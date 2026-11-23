@@ -39,18 +39,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog edit"] --> B["AllocationTargetFields: assignee selection"]
-  B --> C["useAllocationDialogState: resolve selected resource"]
-  C --> D["allocationSubmit validates assignment and placement"]
-  D -->|valid| E["updateAllocation with new resourceId"]
-  D -->|invalid| F["Resource/activity error; no write"]
-  E --> G["allocationSlice planning reconciliation updates Schedule row"]
+  Edit["AllocationTargetFields renders edit-only Assignee choices from useAllocationTargetState"] --> Change["changeAssignee updates the form draft"]
+  Change -->|bound placeholder| Reset["Set bound project and clear Activity"]
+  Reset --> Submit["createAllocationIntents checks opening basis, parses and preflights new assignment"]
+  Change -->|other resource| Submit
+  Edit -->|Cancel| Closed["Close form without sending draft"]
+  Submit -->|stale or invalid| Field["Show form or field error"]
+  Submit --> Update["updateAllocation → buildAllocationUpdate"]
+  Update -->|unchanged| Closed
+  Update -->|changed| Commit["commit checks live write access and revision before allocation.update"]
+  Commit --> Write["writeEntity checks assignment; changed resource enforces availability and applicable working day"]
+  Write -->|committed and reconciled| Saved["Close after accepted receipt; show any advisory"]
+  Commit -->|refused| Refusal["Form error; stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read may already show new assignee; no replay"]
 ```
+
+Ignore working days can bypass the working-day check for a reassignment. Availability dates, time off and applicable closures still constrain the new start. The pointer gesture uses [allocation.reassign](../scheduler/US-SCH-06-reassign-drag.md).
 
 **Code references:**
 
-- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
-- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx)
-- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx#L26)
+- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts#L54)
+- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts#L279)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L142)
+- [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L177)
+- [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L140)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [allocation_start_availability.spec.ts](../../apps/backend/tests/functional/planning/allocation_start_availability.spec.ts#L95)

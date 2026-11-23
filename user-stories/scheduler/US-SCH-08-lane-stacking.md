@@ -32,11 +32,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useSchedulerGridModel supplies visible dates"] --> B["buildSchedulerModel creates resource bars"]
-  B --> C["applyVisibleUtilisation calls projectVisibleLanes"]
-  C --> D["packLanes assigns lanes to overlapping bars"]
-  D --> E["resolveRowHeightForLanes sizes the row"]
-  E --> F["SchedulerGridRows renders bars in ResourceLane"]
+  View["useSchedulerGridModel derives visible dates from zoom and scroll"] --> Range["projectVisibleLanes filters materialized bars to visible inclusive window"]
+  Range -->|partial next column| Extend["Include that day in packing range"]
+  Range -->|aligned| Pack["packLanes sorts and packs"]
+  Extend --> Pack
+  Pack -->|overlap, including equal endpoint| Stack["Assign another lane"]
+  Pack -->|no overlap| Reuse["Reuse lane"]
+  Stack --> Height["resolveRowHeightForLanes and resolveLaneTop set layout"]
+  Reuse --> Height
+  Height --> Render["SchedulerGridRow renders resulting height and bars"]
 ```
 
-**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+**Code references:**
+
+- [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L188)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L62)
+- [lanePacking.ts](../../apps/frontend/src/lib/lanePacking.ts#L41)
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L245)
+- [schedulerModel.visibleLanes.test.ts](../../apps/frontend/src/components/scheduler/schedulerModel.visibleLanes.test.ts#L1)

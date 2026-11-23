@@ -38,15 +38,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections sets drawMode=timeOff"] --> B["ResourceLane draw reaches SchedulerGrid.openDrawDialog"]
-  B --> C["SchedulerDialog renders TimeOffForm with resource and dates"]
-  C --> D["TimeOffForm calls saveTimeOff, which invokes the addTimeOff store action"]
-  D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends timeOff.create API operation"]
-  F --> G["PlanningMutationsController.store calls mutatePlanning"]
-  G --> H["executePlanningIntent and writer persist in transaction"]
-  H --> J["planningCache publishes returned snapshot"]
-  I --> J
+  Grid["SchedulerGridRow provides onDraw for planning writers; Time off mode makes work bars inert"] --> Down["beginGesture checks the original down day, including company closures"]
+  Down -->|blocked or no callback| None["No drawing or form"]
+  Down --> Preview["GestureLayers shows selected span"]
+  Preview -->|Escape, pointer cancel or geometry changes| None
+  Preview --> Up["finishGesture rechecks original day, then returns click date or sorted span"]
+  Up -->|blocked| None
+  Up --> GridCheck["openDrawDialog checks sorted start without closures in Time off mode"]
+  GridCheck -->|missing, external or blocked| None
+  GridCheck -->|allowed| Form["SchedulerDialog seeds TimeOffForm"]
 ```
 
-**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx), [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+A reverse draw can reach a closure at its sorted start if the original pointer-down day was eligible. This flow ends at the seeded `TimeOffForm`. [US-TOF-01](../time-off/US-TOF-01-book-time-off.md) and [US-TOF-07](../time-off/US-TOF-07-repeat-time-off.md) trace the single and repeated saves.
+
+**Code references:**
+
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L260)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L34)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L120)
+- [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts#L34)
+- [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts#L53)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L116)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L39)

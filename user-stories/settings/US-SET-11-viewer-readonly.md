@@ -24,9 +24,12 @@ B --> C["Expand or collapse See all permissions"]
 
 ```mermaid
 flowchart TD
-  team["TeamAccessView reads role and permission context"] --> copy["resolveAccessLabel and resolveAccessSummary build role explanation"]
-  team --> caps["listPermissions maps role through shared can() rules"]
-  caps --> render["CurrentAccessCard renders expandable permission list"]
+  route["Team & access renders TeamAccessView"] --> grant["Read resolved effective access grant, role and visibility flags"]
+  grant -->|Waiting| pending["Defer permission and management controls"]
+  grant -->|Resolved| card["CurrentAccessCard renders effective role and summary"]
+  card -->|View as member| projected["Use target role and read-only summary; management is unavailable"]
+  card -->|See all permissions| list["PermissionList uses listPermissions on the issued grant"]
+  list -->|Hide all permissions| card
 ```
 
-**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [accessCopy.ts](../../apps/frontend/src/lib/accessCopy.ts), [access.ts](../../packages/shared/src/domain/access.ts)
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L42) · [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L81) · [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L154) · [masquerade.ts](../../apps/backend/app/services/auth/masquerade.ts#L93)

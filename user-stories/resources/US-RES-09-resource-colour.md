@@ -25,10 +25,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["DisciplineForm updates discipline colour"] --> B["Discipline update publishes current discipline data"]
-  B --> C["useResourceListModel.resolveSwatchColor reads discipline colour"]
-  B --> D["schedulerModel builds discipline group colour"]
-  E["ResourceForm exposes no Colour field"] --> F["No per-resource colour edit path"]
+  DATA["Active scoped data supplies disciplines and resources"] --> ROSTER["ResourceList receives useResourceListModel"]
+  ROSTER --> RESOLVE{"resolveSwatchColor with Use disciplines enabled?"}
+  RESOLVE -->|Assigned coloured discipline| DISCIPLINE["Use discipline colour"]
+  RESOLVE -->|Unassigned person| GREY["Use neutral grey"]
+  RESOLVE -->|Disabled, unresolved colour or unassigned placeholder| STORED["Use saved resource colour"]
+  ROSTER --> EXTERNAL["ExternalResourceSection always uses neutral grey"]
+  DATA --> SCHEDULE["buildResourceGroups forms discipline, fallback and external Schedule bands"]
+  SCHEDULE --> AVATAR["ResourceIdentity uses band colour or saved fallback. Unassigned placeholder keeps its own colour"]
+  EDIT["DisciplineForm writes a preset colour through catalogue.update"] --> DATA
+  FORM["ResourceFields and ExternalFormFields have no colour control"]
 ```
 
-**Code references:** [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx) · [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
+Company readers see these cues. The discipline edit is available to Owner, Admin and Editor with Use disciplines enabled. The typed resource write contract still has a `color` field. Schedule’s fallback groups depend on discipline setting and engagement and the roster’s swatch resolves its own fallback.
+
+**Code references:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx#L15) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts#L64) · [ExternalResourceSection.tsx](../../apps/frontend/src/components/resources/ExternalResourceSection.tsx#L68) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L132) · [selectors.ts](../../apps/frontend/src/store/selectors.ts#L147) · [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L61) · [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx#L58) · [ExternalForm.tsx](../../apps/frontend/src/components/external/ExternalForm.tsx#L25) · [resource.ts](../../apps/backend/app/validators/planning/resource.ts#L54) · [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx#L23) · [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx#L44) · [router.tsx](../../apps/frontend/src/router.tsx#L115) · [useResourceListModel.test.tsx](../../apps/frontend/src/components/resources/useResourceListModel.test.tsx#L30)

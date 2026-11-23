@@ -35,16 +35,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationScheduleFields shows task when setting enables it"] --> B["useAllocationDialogState supplies task value"]
-  B --> C["allocationSubmit.parseOptionalTask validates and normalizes text"]
-  C -->|valid| D["Include task in allocation draft"]
-  C -->|invalid| E["Field error; no write"]
-  D --> F["addAllocation/updateAllocation planning intent"]
-  F --> G["Reconciled allocation renders task"]
+  Form["useAllocationScheduleState seeds a blank create Task or saved edit value"] --> Flag{"AllocationScheduleFields sees showTaskFieldInSchedule?"}
+  Flag -->|enabled| Text["Task input may be entered or cleared"]
+  Flag -->|disabled| Retain["Input absent; draft retains saved value"]
+  Text --> Parse["parseAllocationIntentDraft → parseOptionalTask"]
+  Retain --> Parse
+  Parse -->|invalid| Field["Task field error"]
+  Parse -->|valid| Diff["Task text or null enters the ordinary create/edit draft"]
+  Diff -->|unchanged edit| Close["Close without dispatch"]
+  Diff -->|changed| Commit["Scoped planning mutation authorizes and validates before persistence"]
+  Commit -->|committed and reconciled| Display["AllocationBar and AllocationBarView include Task when enabled"]
+  Commit -->|refused| Error["Form error; stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read verifies saved value without replay"]
 ```
+
+Save follows the [create](US-ALL-01-create.md) or [edit](US-ALL-02-edit.md) validation and placement path. Cancel discards the unsent Task change.
 
 **Code references:**
 
-- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
-- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
+- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx#L45)
+- [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts#L109)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L69)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L127)
+- [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L177)
+- [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L72)
+- [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx#L214)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [AllocationDialog.activity-and-task.test.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.activity-and-task.test.tsx#L259)

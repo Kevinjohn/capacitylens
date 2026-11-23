@@ -33,9 +33,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["The planning read carries each resource's overSoon flag, computed by the server for today to today + 13"] --> B["buildSchedulerModel copies overSoon onto each row"]
-  B --> C["SchedulerGridRow reads row.overSoon"]
-  C --> D["UtilisationCell renders red emphasis and 14-day hint"]
+  Read["buildCapacitySection computes over for tracked rows"] --> Fixed["overSoon samples company Today through Today plus 13"]
+  Read --> Window["applyVisibleUtilisation → resolveServerUtilisation reads visible server day figures"]
+  Window --> Ratio["Sum allocated and available for positive-availability dates; zero when none"]
+  Fixed --> Render["ResourceActions gates UtilisationCell by personal preference and tracked row"]
+  Ratio --> Render
+  Render -->|hidden or external| Omit["No utilisation cell"]
+  Render -->|shown| Value["Render percent and fixed overSoon cue when true"]
 ```
 
-**Code references:** [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts), [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx)
+Zoom and pan can change the visible date sample. Blocks-mode absence conflict markers use their own flag.
+
+**Code references:**
+
+- [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L84)
+- [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L137)
+- [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts#L60)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L98)
+- [capacity.ts](../../packages/shared/src/lib/capacity.ts#L117)
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L91)

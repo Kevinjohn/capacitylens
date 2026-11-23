@@ -45,16 +45,35 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog submit"] --> B["allocationSubmit.parseAllocationIntentDraft"]
-  B --> C["validateAllocationDraft checks date range and mode quantity"]
-  C -->|invalid| D["fail(field, message); return without mutation"]
-  C -->|valid| E["assignment and placement checks"]
-  E -->|valid| F["Typed addAllocation/updateAllocation"]
-  E -->|invalid| D
+  Save["createAllocationIntents: Save or Duplicate from editable form"] -->|Save edit basis stale| Stale["Reopen changed draft"]
+  Save --> Check["parseAllocationIntentDraft owns field, date span and assignment validation"]
+  Check -->|invalid| Field["Correct field and retry"]
+  Check --> Placement["isNewPlacementRejected classifies the operation"]
+  Placement -->|create or duplicate| First["Require effective working day and available start"]
+  Placement -->|changed assignee| Reassign["Require available start and working day unless overridden"]
+  Placement -->|same assignee| Diff["buildAllocationUpdate can return no diff"]
+  First -->|blocked| Field
+  Reassign -->|blocked| Field
+  First -->|accepted| Commit["commit authorizes and checks revision before server validation and write"]
+  Reassign -->|accepted| Diff
+  Diff -->|unchanged| Closed["Close without request"]
+  Diff -->|changed| Commit
+  Commit -->|committed and reconciled| Saved["Close and show any advisory"]
+  Commit -->|refused| Error["Form error; stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Read canonical state and reset history"]
 ```
+
+Later occurrences use the [repeat policy](US-ALL-09-repeat-creation.md). The server independently validates an accepted client draft. An unsent draft can also be canceled.
 
 **Code references:**
 
-- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [allocationDraft.ts](../../apps/frontend/src/components/scheduler/allocationDraft.ts)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L80)
+- [allocationDraft.ts](../../apps/frontend/src/components/scheduler/allocationDraft.ts#L66)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L233)
+- [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L177)
+- [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L95)
+- [domain.ts](../../apps/backend/app/services/planning/entity_validation/domain.ts#L200)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [allocation_start_availability.spec.ts](../../apps/backend/tests/functional/planning/allocation_start_availability.spec.ts#L41)

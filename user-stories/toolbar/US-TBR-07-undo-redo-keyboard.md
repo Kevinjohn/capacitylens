@@ -32,11 +32,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useAppShellViewModel installs useGlobalShortcuts key listener"] --> B["handleHistoryShortcut checks key, composition, text entry, open dialog and unsaved form"]
-  B -->|blocked| C["No history action runs"]
-  B -->|allowed| D["undoPlanning or redoPlanning"]
-  D --> E["planningCache executes history intent through PlanningTransport"]
-  E --> F["Accepted result updates planning history and Schedule"]
+  Shell["useAppShellViewModel installs useGlobalShortcuts for the signed-in shell"] --> Key["handleHistoryShortcut matches Ctrl or Meta and Z"]
+  Key -->|composition, text entry, aria-modal marker or dirty form| Yield["Return before preventDefault"]
+  Key -->|eligible chord| Dispatch["preventDefault; Shift chooses redoPlanning, otherwise undoPlanning"]
+  Dispatch -->|Viewer or suspended intents| None["Store returns false"]
+  Dispatch --> Cache["planningCache.step checks revision, context and ready server history"]
+  Cache -->|unready| None
+  Cache -->|Undo ready| Undo["api.planning_undo.store"]
+  Cache -->|Redo ready| Redo["api.planning_redo.store"]
+  Undo --> History["runPlanningHistoryStep executes the stored intent"]
+  Redo --> History
+  History -->|rejects outside existing planning notice| Error["Shortcut handler sets error notice"]
 ```
 
-**Code references:** [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts), [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
+The modal guard matches an explicit `aria-modal="true"` marker. The shared confirmation wrapper supplies no such marker. [US-TBR-06](US-TBR-06-undo-redo-buttons.md) traces `runPlanningHistoryStep` through the committed receipt, refusal and unconfirmed recovery.
+
+**Code references:**
+
+- [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts#L50)
+- [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts#L33)
+- [shortcutFilters.ts](../../apps/frontend/src/lib/shortcutFilters.ts#L19)
+- [dialogs.tsx](../../apps/frontend/src/components/common/dialogs.tsx#L81)
+- [alert-dialog.tsx](../../apps/frontend/src/components/ui/alert-dialog.tsx#L61)
+- [AppShell.keyboard.test.tsx](../../apps/frontend/src/components/AppShell.keyboard.test.tsx#L98)
+- [planningSessionSlice.ts](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L200)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L624)
+- [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts#L136)
+- [history_step.ts](../../apps/backend/app/services/planning/history_step.ts#L8)

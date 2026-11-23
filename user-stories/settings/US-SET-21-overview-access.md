@@ -26,15 +26,19 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ## Code flow
 
+The [company setting write path](../REFERENCE.md#company-setting-writes) traces the common no-op, server commit, refusal and reconciliation branches. The setting affects entry to the page. During a view-as Admin projection the control can look enabled while the store refuses the action.
+
 ```mermaid
 flowchart TD
-  control["CapacityOverviewAccessSection calls updateSetting({ capacityOverviewAccess })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
-  view --> action["typedPlanningActions.updateCompany builds settings.update intent"]
-  action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
-  execute --> transport["planningTransport sends api.planning_mutations.store"]
-  transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]
-  route --> reply["Planning cache reconciles the response into the company projection"]
-  reply --> read["store selectors.resolveCapacityOverviewAccess supplies setting to views"]
+  reader["resolveCapacityOverviewAccess supplies saved choice; useSettingsViewModel reads effective role"] --> control{"CapacityOverviewAccessSection enabled for Owner or Admin role?"}
+  control -->|no| off["Show selection without edit"]
+  control -->|yes and changed| store["updateSetting calls updateCompany"]
+  store -->|view-as or read-only| block["isBlockedByViewer shows notice before any send"]
+  store -->|writable| write["Shared company write path reaches updateSettings"]
+  write -->|server role not Owner or Admin| refuse["updateSettings refuses the change"]
+  write -->|accepted state| routes["useVisibleRoutes and CapacityOverviewRoute reevaluate page access"]
+  routes -->|allowed| page["Show Overview link and render Overview through CompanyDateRoute"]
+  routes -->|denied| fallback["Hide link; direct route replaces URL with Schedule"]
 ```
 
-**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [useSettingsViewModel.ts:55](../../apps/frontend/src/components/settings/useSettingsViewModel.ts#L55) · [SettingsSchedulingSection.tsx:36](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx#L36) · [PermissionProvider.tsx:93](../../apps/frontend/src/auth/PermissionProvider.tsx#L93) · [storeRules.ts:27](../../apps/frontend/src/store/storeRules.ts#L27) · [writer.ts:88](../../apps/backend/app/services/planning/writer.ts#L88) · [useVisibleRoutes.ts:37](../../apps/frontend/src/components/useVisibleRoutes.ts#L37) · [router.tsx:120](../../apps/frontend/src/router.tsx#L120)

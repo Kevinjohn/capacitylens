@@ -26,14 +26,21 @@ C -->|decline pending request| E["Person sees declined access on the next check"
 
 ```mermaid
 flowchart TD
-accept["InviteAccept submits invitation acceptance"] --> kit["InvitationAcceptancesController.store → Account Kit invitations.accept"]
-  kit --> hook["Configured onInvitationAccepted hook grants the invited membership"]
-  ask["AccessScreens: Ask for access when required"] --> request["AdmissionRequestsController.store records the admission request"]
-  request --> panel["AdmissionRequestsPanel loads requests"]
-  panel --> decision["AdmissionApprovalsController.store or AdmissionRejectionsController.store under live product authorization"]
-  decision --> check["AccessScreens checks admission again"]
-  check -->|admitted but no membership| join["Join company → MembershipsController.store → completeMembership"]
-  check -->|active membership already exists| open["Continue into company data"]
+  team["TeamAccessView mounts Waiting for approval for real Owner or Admin"] --> list["AdmissionRequestsPanel fetches the authorized paged list"]
+  list -->|No rows| empty["Show empty state"]
+  list -->|Read failed| retry["Show Retry"]
+  retry --> list
+  list -->|Pending, declined or revoked rows| buttons["Approve any returned row; offer Decline on pending rows"]
+  buttons --> submit["teamAccessApi sends selected userId to the approval or rejection controller"]
+  submit --> service["decideAdmission calls Account Kit with current actor and target"]
+  service -->|Authorized| persist["Persist the decision; the person observes it on a later request"]
+  service -->|Returned refusal| error["Show refusal"]
+  error --> list
+  persist --> list
+  submit -->|Transport failure| uncertain["Show decision failure"]
+  retained["Separate revocation route"] --> api["Eligible API clients can request revoke through the same service"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [account_kit.ts](../../apps/backend/config/account_kit.ts), [admission_rules.ts](../../apps/backend/app/services/account_kit/admission_rules.ts), [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts), [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts), [admission_rejections_controller.ts](../../apps/backend/app/controllers/admission_rejections_controller.ts), [memberships_controller.ts](../../apps/backend/app/controllers/memberships_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)
+See [Request company access and check the decision](../team/US-TEAM-05-request-admission.md#code-flow) for the person’s next session check.
+
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L196) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L50) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L74) · [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts#L126) · [admission_decisions.ts](../../apps/backend/app/services/admission/admission_decisions.ts#L15) · [admission_rules.ts](../../apps/backend/app/services/account_kit/admission_rules.ts#L41) · [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts#L4) · [admission_routes.ts](../../apps/backend/start/admission_routes.ts#L45) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L167)

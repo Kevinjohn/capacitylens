@@ -28,12 +28,22 @@ C -->|no| E["Read the clipboard error and retry when available"]
 
 ```mermaid
 flowchart TD
-  entry["HelpView Diagnostics link (useDiagnosticsAccessDecision allowed) or palette item DIAGNOSTICS_LINK"] --> route["DiagnosticsRoute renders DiagnosticsView"]
-  route --> view["DiagnosticsView renders report and Copy report button"] --> viewModel["useDiagnosticsViewModel.copyReport"]
-  viewModel --> clipboard["navigator.clipboard.writeText(report)"]
-  clipboard --> state{"Clipboard result"}
-  state -->|"success"| copied["copyState becomes copied"]
-  state -->|"failure"| failed["copyState becomes failed"]
+  visibility["Shared route access exposes Diagnostics in Help and buildPageItems palette"] --> route["DiagnosticsRoute checks useDiagnosticsAccessDecision"]
+  route -->|Pending| loading["Show loading"]
+  route -->|Denied| redirect["Replace route with the root"]
+  route -->|Allowed| page["DiagnosticsView calls useDiagnosticsViewModel"]
+  page --> request["Send authenticated diagnostics read"]
+  request --> authorize["DiagnosticsController independently requires admitted Owner or Admin outside View as member"]
+  authorize -->|Allowed| response["Read permitted server facts"]
+  authorize -->|Refused| fallback["Report server observations unavailable"]
+  request -->|Unreachable| fallback
+  response -->|Read succeeds| format["readDiagnostics and formatDiagnostics build the allowlisted report"]
+  response -->|Database read fails| partial["Use 503 report with reachable server and unavailable database"]
+  partial --> format
+  fallback --> format
+  format --> copy["Copy diagnostics calls navigator.clipboard.writeText"]
+  copy -->|Success| copied["Show copied status"]
+  copy -->|Unavailable or failed| retry["Show copy failure and retain the control"]
 ```
 
-**Code references:** [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx), [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts), [buildPaletteItems.ts](../../apps/frontend/src/components/buildPaletteItems.ts), [router.tsx](../../apps/frontend/src/router.tsx), [useDiagnosticsAccessDecision.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsAccessDecision.ts), [DiagnosticsView.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsView.tsx), [useDiagnosticsViewModel.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsViewModel.ts), [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts)
+**Code references:** [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx#L50) · [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts#L158) · [buildPaletteItems.ts](../../apps/frontend/src/components/buildPaletteItems.ts#L88) · [router.tsx](../../apps/frontend/src/router.tsx#L144) · [DiagnosticsView.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsView.tsx#L9) · [useDiagnosticsViewModel.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsViewModel.ts#L15) · [diagnostics_routes.ts](../../apps/backend/start/diagnostics_routes.ts#L7) · [diagnostics_controller.ts](../../apps/backend/app/controllers/diagnostics_controller.ts#L8) · [serverDiagnostics.ts](../../apps/frontend/src/data/serverDiagnostics.ts#L17) · [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts#L160)

@@ -29,14 +29,24 @@ flowchart TD
 
 ## Code flow
 
+The allocation mutation and server checks are traced in [US-ALL-02](../allocation/US-ALL-02-edit.md#code-flow). The keyboard path uses the live store action after gesture checks, without the edit dialog’s draft check.
+
 ```mermaid
 flowchart TD
-  grid["SchedulerGrid renders AllocationBar"] --> label["buildAriaLabel describes bar and role"]
-  label --> bar["AllocationBar receives keyboard event"]
-  bar --> action["dispatchBarKeyboardAction"]
-  action -->|Enter or Space| edit["onEdit opens AllocationDialog when supplied"]
-  action -->|arrow key| nudge["nudgeBarFromKeyboard calls nudge mode"]
-  nudge --> gesture["useAllocationGesture applies move or resize"]
+  lane["ResourceLane BarsLayer renders AllocationBar and makes the layer inert in Time off mode"] --> bar["Work mode: AllocationBar handles keydown"]
+  bar --> repeat{"Repeated keydown?"}
+  repeat -->|yes| ignore["Leave the bar unchanged"]
+  repeat -->|no| escape{"Escape with open popover and no drag?"}
+  escape -->|yes| hide["closePopoverOnEscape hides the popover"]
+  escape -->|no| edit{"useCanEdit allows editing?"}
+  edit -->|no| ignore
+  edit -->|Enter or Space| open["activateBarFromKeyboard calls onEdit with allocation ID when supplied"]
+  edit -->|Left or Right without Ctrl or Meta| nudge["nudgeBarFromKeyboard calls nudge with move, Alt start resize or Shift end resize"]
+  nudge --> calc{"nudgeAllocation finds a valid changed span?"}
+  calc -->|no| skip["Blocked or unchanged gesture sends no write"]
+  calc -->|yes| save["saveKeyboardGesture calls updateAllocation"]
+  save -->|changed| focus["Schedule focus restoration; announce capacity only if the read settled"]
+  save -->|refused or unconfirmed| failure["Surface applicable error or planning recovery"]
 ```
 
-**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx); [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx); [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts); [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
+**Code references:** [ResourceLane.tsx:34](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L34) · [AllocationBar.tsx:20](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L20) · [AllocationBar.tsx:96](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L96) · [AllocationBar.tsx:136](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L136) · [useAllocationGesture.ts:92](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L92) · [useAllocationGestureViewModel.ts:311](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L311) · [useAllocationGestureViewModel.ts:341](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L341)

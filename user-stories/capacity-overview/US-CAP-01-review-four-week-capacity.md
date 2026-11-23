@@ -39,10 +39,36 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["CapacityOverviewRoute checks role and company access setting"] --> B["CapacityOverviewView holds horizon and display controls in component state"]
-  B --> C["buildCapacityOverviewModel sums the server's per-day horizon figures into periods, rows, filters and totals"]
-  C --> D["CapacityOverviewTable renders toolbar and capacity cells"]
-  D --> E["Blocks mode renders explanatory Alert instead of capacity figures"]
+  Route["Overview link or /overview enters CapacityOverviewRoute"] --> Access{"resolveCapacityOverviewAccessDecision"}
+  Access -->|pending| Loading["Show loading"]
+  Access -->|denied| Schedule["Redirect to Schedule with replacement"]
+  Access -->|allowed| Date["CompanyDateRoute waits for date"]
+  Date -->|pending| Loading
+  Date -->|read failed and no date| Wait["Wait for successful planning refresh"]
+  Date -->|date ready| View["CapacityOverviewView initializes 4 weeks, Ledger and Tentative on"]
+  Read["readPlanning → buildCapacitySection supplies tracked resource horizon"] --> View
+  View --> Model["buildCapacityOverviewModel builds selected periods from company Today and week start"]
+  Model -->|Blocks mode| Alert["CapacityOverviewTable keeps toolbar and renders explanatory alert"]
+  Model -->|measured| Periods["calculatePeriod sums daily free, over and tentative hours, then rounds"]
+  Periods --> Filter["applyAvailabilityFilter checks minimum free time or positive placeholder demand"]
+  Filter -->|empty| Empty["CapacityTable shows empty result"]
+  Filter -->|rows remain| Table["CapacityTable renders Ledger or Load curve, with independent collapse"]
+  Table -->|Totals enabled| Totals["Sum precise filtered people hours before rounding; collapsed groups still count"]
+  Table -->|avatar| Sheet["usePersonScheduleDrawer opens resource schedule"]
 ```
 
-**Code references:** [router.tsx](../../apps/frontend/src/router.tsx), [capacityOverviewAccess.ts](../../apps/frontend/src/auth/capacityOverviewAccess.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts), [CapacityOverviewView.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewView.tsx), [capacityOverviewModel.ts](../../apps/frontend/src/components/capacity-overview/capacityOverviewModel.ts), [CapacityOverviewTable.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewTable.tsx), [OverviewToolbar.tsx](../../apps/frontend/src/components/capacity-overview/OverviewToolbar.tsx), [CapacityOverviewCells.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewCells.tsx)
+The horizon covers the remainder of the company week and subsequent full weeks. Has availability and Totals start off. Horizon changes aggregate existing figures locally. Tentative toggles between all load and confirmed/completed load. Free capacity rounds down and overload rounds up to quarter days using eight hours per day. Overview access is a page-visibility setting. The avatar path continues in [US-SCH-20](../scheduler/US-SCH-20-person-schedule-drawer.md).
+
+**Code references:**
+
+- [router.tsx](../../apps/frontend/src/router.tsx#L120)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L56)
+- [CapacityOverviewView.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewView.tsx#L17)
+- [capacityOverviewModel.ts](../../apps/frontend/src/components/capacity-overview/capacityOverviewModel.ts#L69)
+- [capacityOverviewModel.ts](../../apps/frontend/src/components/capacity-overview/capacityOverviewModel.ts#L207)
+- [CapacityOverviewTable.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewTable.tsx#L50)
+- [CapacityOverviewTableGrid.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewTableGrid.tsx#L247)
+- [capacityOverviewBar.ts](../../apps/frontend/src/components/capacity-overview/capacityOverviewBar.ts#L98)
+- [CapacityOverviewCells.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewCells.tsx#L135)
+- [capacityOverview.test.ts](../../apps/frontend/src/components/capacity-overview/capacityOverview.test.ts#L254)

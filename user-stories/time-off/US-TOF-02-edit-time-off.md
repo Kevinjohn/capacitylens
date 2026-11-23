@@ -41,16 +41,35 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["TimeOffForm: edit saved entry"] --> B["timeOffFormSubmission: validate changed fields"]
-  B -->|valid| C["updateTimeOff(id, patch)"]
-  B -->|invalid| D["Field error; no mutation"]
-  C --> E["typedPlanningActions.updateTimeOff; planning reconciliation"]
-  E --> F["Only selected entry updates"]
+  Row["TimeOffList date-specific Edit for planning writers"] --> Form["TimeOffForm captures opening row and prefills draft"]
+  Form -->|Cancel| Close["Dismiss form"]
+  Form --> Prep["useEditSubmit runs prepareTimeOffSave"]
+  Prep -->|invalid| Field["Field error, draft stays open"]
+  Prep -->|valid| Stale{"Opening row still current?"}
+  Stale -->|no| Reopen["Stale error; close and reopen to edit"]
+  Stale -->|yes| Diff["updateTimeOff → buildTimeOffUpdate"]
+  Diff -->|no diff| Close
+  Diff -->|changes| Send["timeOff.update with expectedUpdatedAt"]
+  Send --> Commit["commit checks live write access and company revision; writeEntity checks row timestamp and fields"]
+  Commit -->|committed and reconciled| Close
+  Commit -->|known refusal| Error["Form error; release pending guard; stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read may show edited row; reset history without replay"]
 ```
+
+An Editor patch omits the protected note, preserving the stored value. Owners and Admins can change or clear it. Repeat controls are absent on edit.
 
 **Code references:**
 
-- [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx)
-- [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx#L98)
+- [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx#L66)
+- [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx#L98)
+- [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts#L151)
+- [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L270)
+- [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L249)
+- [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L111)
+- [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L30)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [TimeOffList.test.tsx](../../apps/frontend/src/components/time-off/TimeOffList.test.tsx#L444)

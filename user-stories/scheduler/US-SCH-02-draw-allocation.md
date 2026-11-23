@@ -38,15 +38,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ResourceLane calls useResourceLaneInteraction.finishGesture"] --> B["SchedulerGrid.openDrawDialog checks placement and sets create dialog"]
-  B --> C["AllocationDialog submits through useStore.addAllocation"]
-  C --> D["allocationSlice creates typed planning intent"]
-  D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends allocation.create API operation"]
-  F --> G["PlanningMutationsController.store calls mutatePlanning"]
-  G --> H["executePlanningIntent and writer persist inside transaction"]
-  H --> J["planningCache reconciles receipt and publishes grid"]
-  I --> J
+  Grid["SchedulerGridRow supplies onDraw for planning writers"] --> Down["beginGesture checks primary pointer and creationBlocked"]
+  Down -->|blocked or no callback| None["No drawing or form"]
+  Down --> Preview["GestureLayers shows selected span"]
+  Preview -->|Escape, pointer cancel or geometry changes| None
+  Preview --> Up["finishGesture rechecks pointer-down day and returns click date or sorted inclusive span"]
+  Up -->|blocked| None
+  Up --> Open["openDrawDialog checks the proposed first Work date"]
+  Open -->|blocked or missing resource| None
+  Open -->|allowed| Dialog["SchedulerDialog seeds AllocationDialog"]
 ```
 
-**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+This flow ends at the seeded `AllocationDialog`. [US-ALL-01](../allocation/US-ALL-01-create.md) traces Save, field and server refusal, and dismissal.
+
+**Code references:**
+
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L260)
+- [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts#L34)
+- [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts#L53)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L138)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L116)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L39)
+- [ResourceLane.test.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.test.tsx#L218)

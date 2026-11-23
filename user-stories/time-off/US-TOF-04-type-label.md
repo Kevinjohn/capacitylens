@@ -32,14 +32,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["TimeOffList.buildTimeOffGroups keeps resource, date and duration in list"] --> B["schedulerRowModel maps time-off type to display label"]
-  B --> C["ResourceLane renders the timeoff-block with that label"]
-  C --> D["Schedule shows type on the matching time-off block"]
+  Read["Authorized planning data contains projected personal time off"] --> List["TimeOffList → buildTimeOffGroups"]
+  List --> Row["TimeOffItem displays start and inclusive duration"]
+  Read --> Model["schedulerRowModel builds visible time-off block"]
+  Model -->|block absent from materialized range| Hidden["No block"]
+  Model --> Render["ResourceLane → ScheduleSignals supplies type to accessible label"]
+  Render -->|width over 44 px| Label["Show visible type"]
+  Render -->|width at most 44 px| Compact["Keep accessible label"]
 ```
+
+The list uses start and duration. The Schedule renders the personal time-off type separately from the company closure band.
 
 **Code references:**
 
-- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx)
-- [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts)
-- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts)
-- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx#L98)
+- [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts#L41)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L44)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L103)
+- [TimeOffList.test.tsx](../../apps/frontend/src/components/time-off/TimeOffList.test.tsx#L140)

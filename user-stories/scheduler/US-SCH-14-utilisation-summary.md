@@ -33,10 +33,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbar calls setZoom"] --> B["useSchedulerViewport recalculates visible dates"]
-  B --> C["useSchedulerGridModel resolves visible window"]
-  C --> D["applyVisibleUtilisation sums the server's per-day figures over the visible dates"]
-  D --> E["SchedulerGridHeader and SchedulerGridGroupHeader render summaries"]
+  Model["useSchedulerGridModel derives visible range from scroll or zoom"] --> Row["applyVisibleUtilisation computes per-resource ratio from server figures"]
+  Row --> Total["buildAverageUtilisationLabel across tracked rows in projected groups"]
+  Row --> Group["SchedulerGridGroupHeader averages each group’s tracked rows"]
+  Total -->|Total enabled| All["SchedulerGridHeader renders mean or 0% without tracked rows"]
+  Total -->|Total disabled| Hidden["No total"]
+  Group -->|collapsed| Count["Show hidden row count"]
+  Group -->|expanded, Discipline enabled and tracked rows| Mean["Render group mean"]
+  Group -->|expanded, preference off or no tracked rows| Omit["No group percentage"]
 ```
 
-**Code references:** [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridHeader.tsx), [SchedulerGridGroupHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridGroupHeader.tsx)
+**Code references:**
+
+- [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L188)
+- [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L218)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L98)
+- [schedulerGridDialog.ts](../../apps/frontend/src/components/scheduler/schedulerGridDialog.ts#L6)
+- [SchedulerGridGroupHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridGroupHeader.tsx#L26)
+- [SchedulerGridHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridHeader.tsx#L48)
+- [SchedulerGrid.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.test.tsx#L416)

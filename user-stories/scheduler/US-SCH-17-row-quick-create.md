@@ -39,15 +39,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerGridRow ResourceActions + sets create dialog from visible start date"] --> B["SchedulerDialog renders AllocationDialog with row resource"]
-  B --> C["AllocationDialog submits through useStore.addAllocation"]
-  C --> D["allocationSlice creates typed planning intent"]
-  D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends allocation.create API operation"]
-  F --> G["PlanningMutationsController.store calls mutatePlanning"]
-  G --> H["executePlanningIntent and writer persist inside transaction"]
-  H --> J["planningCache reconciles receipt and publishes grid"]
-  I --> J
+  Row["ResourceActions computes visibility from canEdit, drawMode and resource"] -->|viewer or external in Time off mode| None["No quick-create control"]
+  Row -->|eligible, click +| Date["visibleStartDate supplies both seed dates"]
+  Date -->|Work| Work["setDialog → SchedulerDialog opens AllocationDialog"]
+  Date -->|Time off| Off["setDialog → SchedulerDialog opens TimeOffForm"]
 ```
 
-**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+This flow ends at the seeded form. [US-ALL-01](../allocation/US-ALL-01-create.md) and [US-TOF-01](../time-off/US-TOF-01-book-time-off.md) trace Save, cancellation and request outcomes.
+
+**Code references:**
+
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L130)
+- [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L269)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L39)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L116)

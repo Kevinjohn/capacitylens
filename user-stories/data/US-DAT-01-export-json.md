@@ -27,9 +27,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  button["ImportExport Export JSON calls useExportOperation.exportData"] --> fetch["useExportOperation fetches api.company_exports.show"]
-  fetch --> route["CompanyExportsController.show projects rows and sets completeness"]
-  route --> file["downloadTextFile saves the server's file"]
+  entry["Export JSON in ImportExport calls useExportOperation.exportData"] --> request["Request the active company's server export"]
+  request --> scope["CompanyExportsController.show uses withActor and resolvePlanningAccess"]
+  scope -->|Verified effective reader| read["Read scoped rows in the transaction; members:manage includes inactive rows"]
+  read --> exportDoc["transformState projects private fields; serialize version 2 as full for Owner or redacted for other roles"]
+  exportDoc --> download["downloadTextFile saves capacitylens-data.json"]
+  scope -->|Refusal| error["Show an export error notice"]
+  request -->|Request failure| error
+  exportDoc -->|Validation error| error
+  download -->|Download failure| error
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [export_routes.ts](../../apps/backend/start/export_routes.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [companyExport.ts](../../packages/shared/src/data/companyExport.ts), [download.ts](../../apps/frontend/src/lib/download.ts)
+**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts#L17) · [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts#L19) · [export_routes.ts](../../apps/backend/start/export_routes.ts#L7) · [state_repository.ts](../../apps/backend/app/services/state_repository.ts#L82) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L14) · [company_export.spec.ts](../../apps/backend/tests/functional/company_export.spec.ts#L40) · [access.ts](../../apps/backend/app/services/planning/access.ts#L16)

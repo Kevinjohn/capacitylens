@@ -33,12 +33,23 @@ flowchart TD
 
 ## Code flow
 
+This trace starts after authentication. See [US-NAV-18](US-NAV-18-not-found-route.md#code-flow) for the signed-out and unmatched URL paths.
+
 ```mermaid
 flowchart TD
-  shell["AppShell receives navLinks"] --> sidebar["AppSidebar renders NavMenu"]
-  sidebar --> link["NavLink sends route"]
-  link --> router["router matches child route"]
-  router --> outlet["Outlet renders destination"]
+  facts["useVisibleRoutes reads role, permission status and company settings"] --> visible["listVisibleRoutes filters the route catalogue"]
+  visible --> nav["GatedSidebar renders navigation links; CommandPalette receives the same visible routes"]
+  nav --> match["Link selection matches a router route"]
+  direct["Direct URL or bookmark"] --> match
+  match -->|ordinary child| child["AppShell Outlet renders the child"]
+  match -->|Overview or Diagnostics| perm{"Checking, allowed or denied?"}
+  perm -->|checking| progress["Route loading status"]
+  perm -->|allowed| child
+  perm -->|denied| schedule["Navigate replaces URL with Schedule"]
+  match -->|Disciplines| flag{"Disciplines enabled?"}
+  flag -->|yes| child
+  flag -->|no| schedule
+  match -->|unmatched| missing["Top-level NotFound after the outer auth gate"]
 ```
 
-**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [router.tsx](../../apps/frontend/src/router.tsx)
+**Code references:** [useVisibleRoutes.ts:37](../../apps/frontend/src/components/useVisibleRoutes.ts#L37) · [navLinks.ts:173](../../apps/frontend/src/lib/navLinks.ts#L173) · [AppShell.tsx:132](../../apps/frontend/src/components/AppShell.tsx#L132) · [CommandPalette.tsx:49](../../apps/frontend/src/components/CommandPalette.tsx#L49) · [router.tsx:113](../../apps/frontend/src/router.tsx#L113) · [router.tsx:238](../../apps/frontend/src/router.tsx#L238)

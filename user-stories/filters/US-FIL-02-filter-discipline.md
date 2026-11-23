@@ -34,18 +34,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections discipline FilterSelect"] --> B["SchedulerToolbar.setFilters callback"]
-  B --> C["schedulerSlice.setFilters stores disciplineId"]
-  C --> D["createAllocationFilters.resourceVisible checks disciplineId"]
-  D --> E["SchedulerGrid renders matching resource groups"]
-  E --> F["No planning write or server mutation"]
+  FILTERS["SchedulerToolbar uses buildFilterOptions on active scoped data"] --> READY{"Use disciplines enabled and discipline options exist?"}
+  READY -->|No| HIDDEN["EntityFilters omits Filter by discipline"]
+  READY -->|Yes| SELECT["FilterSelect shows disciplines in compareByDisciplineOrder order"]
+  SELECT --> PATCH["setToolbarFilters → setFilters with selected disciplineId or null for All disciplines"]
+  PATCH --> RESOLVE{"createAllocationFilters finds an active selected discipline with disciplines enabled?"}
+  HIDDEN --> RESOLVE
+  RESOLVE -->|Yes| MATCH["resourceVisible also requires the matching discipline"]
+  RESOLVE -->|No| PASS["resourceVisible skips the discipline check"]
+  MATCH --> MODEL["buildSchedulerModel retains eligible rows"]
+  PASS --> MODEL
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. A deleted discipline id can remain in the filter store while the model skips it. The toolbar commits the current draft search with the selection.
 
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+**Code references:** [toolbarFilterOptions.ts](../../apps/frontend/src/components/scheduler/toolbarFilterOptions.ts#L16) · [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L111) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L47) · [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L138) · [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts#L81) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208) · [SchedulerToolbar.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.test.tsx#L151)

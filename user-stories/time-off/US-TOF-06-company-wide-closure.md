@@ -43,15 +43,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ClosureForm: create/edit closure"] --> B["Validate required name and date range"]
-  B -->|valid| C["addClosure"]
-  B -->|invalid| D["Field error; no write"]
-  C --> E["typedPlanningActions.addClosure; planning reconciliation"]
-  E --> F["Closure band and availability refresh"]
+  List["CompanyClosureSection Add closure with planning write access"] --> Form["ClosureForm seeds blank name and company Today dates"]
+  Form -->|Cancel| Close["Dismiss form"]
+  Form --> Check["useEditSubmit calls prepareSave"]
+  Check -->|invalid| Field["Form error, no request"]
+  Check -->|valid| Send["addClosure sends closure.create"]
+  Send --> Commit["commit checks live write access and revision; writeEntity persists one literal inclusive span"]
+  Commit -->|committed and reconciled| Project["Dismiss form; recompute closure band and capacity for people and placeholders"]
+  Commit -->|known refusal| Error["Form error; release pending guard; stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read may show closure; reset history without replay"]
 ```
+
+The pending form disables its fields and buttons during Save. Resource and Repeat controls are absent. The list shows the reconciled closure only when it ends in the current company week or later.
 
 **Code references:**
 
-- [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [CompanyClosureSection.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.tsx#L76)
+- [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx#L74)
+- [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx#L103)
+- [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L293)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L401)
+- [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts#L24)
+- [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L83)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [ClosureForm.test.tsx](../../apps/frontend/src/components/time-off/ClosureForm.test.tsx#L51)

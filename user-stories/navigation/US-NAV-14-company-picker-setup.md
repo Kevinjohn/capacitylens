@@ -38,16 +38,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  command["Account Kit bootstrap CLI issues invitation"] --> invite["InviteAccept accepts invitation"]
-  invite --> auth["AuthProvider identifies admitted user"]
-  auth --> setup["companySetupRequired renders CompanySetup"]
-  setup --> submit["CompanySetup.submit posts api.first_company_setup.store"]
-  submit --> route["FirstCompanySetupController.store validates request"]
-  route --> guard["isFirstCompanySetupRequired checks empty installation under lock"]
-  guard --> create["createInitialCompany creates company and Owner membership"]
-  create --> refresh["AuthProvider onCreated refreshes session status"]
-  submit -->|request failure| error["CompanySetup shows visible error"]
-  guard -->|setup no longer available| conflict["409 conflict is reconciled by AuthProvider"]
+  bootstrap["First admitted confirmed identity signs in after accepting bootstrap invitation"] --> gate["AuthProvider renders CompanySetup from companySetupRequired"]
+  gate -->|Sign out| logout["Use the sign-out journey"]
+  gate -->|Submit| form["CompanySetup normalizes input and posts first-company setup"]
+  form --> controller["FirstCompanySetupController validates request and normalizes optional defaults"]
+  controller -->|Invalid or unauthorized| refusal["Show setup failure"]
+  controller -->|Valid| guard["withActor checks eligibility under transaction: sole identity, no company or memberships"]
+  guard -->|Eligible| create["Create company, Internal client, Owner membership, revision and company.initialized audit atomically"]
+  create -->|Created| reread["onCreated rechecks session"]
+  guard -->|Concurrent setup or ineligible| conflict["409 triggers onConflict ownership read"]
+  conflict -->|Caller owns the sole company| concurrent["Recheck session; require pass with setup cleared"]
+  conflict -->|No verified ownership| refusal
+  concurrent -->|Access verified| app
+  concurrent -->|Cannot verify| recover
+  reread -->|Access verified| app["Open company access"]
+  reread -->|Cannot verify| recover["Show session refresh failure and ask for reload"]
+  form -->|Request failed| refusal
 ```
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx); [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx); [authApi.ts](../../apps/frontend/src/auth/authApi.ts); [company_routes.ts](../../apps/backend/start/company_routes.ts); [first_company_setup_controller.ts](../../apps/backend/app/controllers/first_company_setup_controller.ts); [first_company_setup.ts](../../apps/backend/app/services/first_company_setup.ts); [initial_company_defaults.ts](../../apps/backend/app/services/initial_company_defaults.ts); [install.md](../../docs-src/self-hosting/install.md)
+See [Sign out of this browser](../account/US-ACCOUNT-04-sign-out.md#code-flow) for sign-out recovery.
+
+**Code references:** [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx#L32) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L277) · [first_company_setup_controller.ts](../../apps/backend/app/controllers/first_company_setup_controller.ts#L15) · [first_company_setup.ts](../../apps/backend/app/services/first_company_setup.ts#L6) · [initial_company_defaults.ts](../../apps/backend/app/services/initial_company_defaults.ts#L24) · [initial_company_access.ts](../../apps/backend/app/services/initial_company_access.ts#L14) · [first_company_setup.spec.ts](../../apps/backend/tests/functional/auth/first_company_setup.spec.ts#L260)

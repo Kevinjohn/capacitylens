@@ -28,11 +28,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ResourceForm (fields from ResourceAvailabilityFields) → useResourceSubmit.createSubmit → buildResourcePatch"] --> B["useStore.updateResource → createTypedPlanningActions.updateResource"]
-  B --> C["buildResourceUpdate → allocationSlice.send"]
-  C --> D["createPlanningCache.execute"] --> E{"createStorePlanningTransport"}
-  E --> F["createPlanningTransport.sendOperation → api.planning_mutations.store"] --> G["PlanningMutationsController.store → mutatePlanning begins the scoped transaction"]
-  G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ResourceList renders"]
+  OPEN["ResourceList opens person ResourceForm through Add resource or Edit"] --> DRAFT["ResourceForm has no numeric daily hours control"]
+  DRAFT --> ACTION{"Form action"}
+  ACTION -->|Cancel| CLOSE["Close form"]
+  ACTION -->|Save| LOCAL{"useResourceSubmit → useEditSubmit → prepareResourceSave"}
+  LOCAL -->|Invalid draft| DRAFTERR["Show field error and keep draft"]
+  LOCAL -->|Stale opening row| ERROR["Show error and retain draft. Reopen a stale edit"]
+  LOCAL -->|Prepared| PAYLOAD{"saveResource chooses add or update"}
+  PAYLOAD -->|New person| CREATE["buildResourcePatch supplies FULL_DAY_HOURS to resource.create"]
+  PAYLOAD -->|Changed existing person| UPDATE["buildResourcePatch preserves stored workingHoursPerDay. updateResource sends only changes"]
+  PAYLOAD -->|Unchanged edit| CLOSE
+  CREATE --> SERVER{"PlanningMutationsController.store → mutatePlanning checks access, revision and row validity"}
+  UPDATE --> SERVER
+  SERVER -->|Refused| ERROR
+  SERVER -->|Accepted| COMMIT["Commit resource row, revision and audit. acceptReceipt refreshes planning before form closes"]
+  COMMIT --> CAP["buildCapacitySection calculates available hours through buildDayCapacity"]
+  CAP --> HOURS["resolveScheduledHoursForWeekday uses fixed 8 / 4 / 0, with dates, time off and closures in availability"]
+  COMMIT --> META["useResourceListModel.buildMetadata omits hours text"]
 ```
 
-**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [ResourceAvailabilityFields.tsx](../../apps/frontend/src/components/resources/ResourceAvailabilityFields.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts)
+Owner, Admin and Editor can write planning data. Viewer and view-as-member lack write authority. An unchanged edit yields no intent. Footer Cancel closes the form even when a dispatched save is pending. The planning cache refreshes conflicts and reconciles uncertain writes. The compatibility field is carried through the person edit even for a stored six-hour day. Available capacity follows the effective working week and fixed weekday values. The date-aware scheduled-hours helper is `resolveScheduledHoursOnDay`; capacity adds time off and closure rules through `resolveAvailableHoursForWeekday`.
+
+**Code references:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx#L15) · [ResourceListContent.tsx](../../apps/frontend/src/components/resources/ResourceListContent.tsx#L31) · [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx#L197) · [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx#L58) · [useResourceFormState.ts](../../apps/frontend/src/components/resources/useResourceFormState.ts#L48) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts#L184) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts#L116) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts#L155) · [entity_rules.ts](../../apps/backend/app/services/planning/entity_rules.ts#L108) · [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L203) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L222) · [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L310) · [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L364) · [sendPlanningIntent](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [Planning transport](../../apps/frontend/src/data/planning/planningTransport.ts#L64) · [Planning route](../../apps/backend/start/planning_routes.ts#L16) · [Mutation controller](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9) · [Planning transaction](../../apps/backend/app/services/planning.ts#L198) · [Company write authority](../../apps/backend/app/services/planning/access.ts#L16) · [Receipt and refresh](../../apps/frontend/src/data/planning/planningCache.ts#L469) · [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L43) · [effectiveWorkingWeek.ts](../../packages/shared/src/lib/effectiveWorkingWeek.ts#L42) · [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L57) · [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L113) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts#L71) · [ResourceForm.test.tsx](../../apps/frontend/src/components/resources/ResourceForm.test.tsx#L669)

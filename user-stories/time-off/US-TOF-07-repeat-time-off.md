@@ -42,21 +42,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["TimeOffRepeatFields: choose repeat and cutoff"] --> B["timeOffFormSubmission.acceptRepeat"]
-  B -->|valid| C["Count the entries the repeat makes"]
-  B -->|invalid| D["Repeat field error; no mutation"]
-  C --> E["addRepeatedTimeOff"]
-  E --> F["typedPlanningActions.addRepeatedTimeOff sends the first entry, the pattern and the ids for later entries"]
-  F --> H["executePlanningIntent writes the first entry, then repeat_occurrences expands and writes the rest"]
-  H --> G["Planning cache reconciles independent time-off rows"]
+  Entry["Writable TimeOffForm create from list, row + or accepted Time off draw"] --> Preview["useTimeOffRepeat projects counts and spans for TimeOffRepeatFields"]
+  Preview -->|Cancel| Discard["Close without dispatch"]
+  Preview --> Submit["useEditSubmit → prepareTimeOffSave → acceptRepeat"]
+  Submit -->|invalid| Field["Field error; correct and retry"]
+  Submit -->|valid| Send["addRepeatedTimeOff mints first and later IDs; sends timeOff.repeat"]
+  Send --> Commit["commit checks live write access and revision"]
+  Commit --> Batch["executePlanningIntent writes first row, regenerates dates, verifies ID count and writes later rows"]
+  Batch -->|committed receipt| Close["Reconcile rows and close; eligible history stores one step"]
+  Commit -->|known refusal| Error["Rollback and form error; submit guard releases; stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read may show entries; reset history without replay"]
 ```
+
+The entries have independent IDs and no series field. Edit or Delete acts on one entry. The rule counts inclusive start dates and preserves each entry’s duration.
 
 **Code references:**
 
-- [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx)
-- [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/time-off/TimeOffRepeatFields.tsx)
-- [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
-- [execute.ts](../../apps/backend/app/services/planning/execute.ts)
-- [repeat_occurrences.ts](../../apps/backend/app/services/planning/repeat_occurrences.ts)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx#L157)
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L130)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L116)
+- [useTimeOffRepeat.ts](../../apps/frontend/src/components/time-off/useTimeOffRepeat.ts#L26)
+- [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/time-off/TimeOffRepeatFields.tsx#L27)
+- [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts#L76)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L244)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L371)
+- [inverse.ts](../../apps/backend/app/services/planning/inverse.ts#L45)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [TimeOffForm.repeat.test.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.repeat.test.tsx#L167)

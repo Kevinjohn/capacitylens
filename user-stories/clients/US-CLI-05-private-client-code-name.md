@@ -34,11 +34,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ClientForm.ClientForm.submit → parsePrivacyPatch"] --> B["useStore.updateClient → createTypedPlanningActions.updateClient"]
-  B --> C["updateCatalogue → allocationSlice.send"]
-  C --> D["createPlanningCache.execute"] --> E{"createStorePlanningTransport"}
-  E --> F["createPlanningTransport.sendOperation → api.planning_mutations.store"] --> G["PlanningMutationsController.store → mutatePlanning begins the scoped transaction"]
-  G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ClientList renders"]
+  OPEN["ClientList opens ClientForm through Add or Edit"] --> AUTH{"usePrivateNameFields.canManagePrivacy?"}
+  AUTH -->|No| OMIT["Privacy controls omitted. A private name field is protected"]
+  AUTH -->|Owner| DRAFT["PrivateNameFields edits Use code name and conditional Code name"]
+  DRAFT --> ACTION{"Form action"}
+  ACTION -->|Cancel| CLOSE["Close with unsaved draft discarded"]
+  ACTION -->|Save| FORM{"useEditSubmit → prepareSave and parsePrivacyPatch"}
+  FORM -->|Invalid or stale| ERROR["Keep draft with error. Reopen stale edit"]
+  FORM -->|Create| CREATE["addClient sends catalogue.create. No restoration trigger"]
+  FORM -->|Edit| DIFF{"updateClient → buildCatalogueUpdate emits a diff?"}
+  DIFF -->|No| CLOSE
+  DIFF -->|Yes| UPDATE["Send catalogue.update with opening updatedAt"]
+  CREATE --> SERVER{"mutatePlanning checks planning access, revision, restricted fields and row validity"}
+  UPDATE --> SERVER
+  SERVER -->|Refused| ERROR
+  SERVER -->|Valid| TRIGGER{"isRestorationInvalidated finds an actual privacy change on the existing row?"}
+  TRIGGER -->|No| COMMIT["Commit row changes, revision and audit. Return role-projected receipt"]
+  TRIGGER -->|Yes, no pending items| DISCARD["Discard pending groups. Commit without previous history"]
+  TRIGGER -->|Yes, pending items| PROMPT{"Rollback attempt. Planning cache asks for counted consent"}
+  PROMPT -->|Cancel| KEEP["Keep unsaved draft"]
+  PROMPT -->|Save change| RETRY{"Retry original attempt with confirmedRestorationCount"}
+  RETRY -->|Count or revision changed, or refused| ERROR
+  RETRY -->|Accepted| DISCARD
+  DISCARD --> COMMIT
+  COMMIT --> DONE["acceptReceipt refreshes planning and the form closes"]
 ```
 
-**Code references:** [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [usePrivateNameFields.ts](../../apps/frontend/src/components/common/usePrivateNameFields.ts) · [PrivateNameFields.tsx](../../apps/frontend/src/components/common/PrivateNameFields.tsx) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+Owner has the private-name controls. Editor and Admin retain ordinary edit access, and Viewer and view-as-member lack planning writes. The server independently checks both planning and private-name authority. Clearing Use code name sends a privacy reset for an existing private row. `transformState` exposes a quoted code name as the projected name to non-Owners for private rows, and the real name for public rows. A stale revision refreshes planning before the next attempt.
+
+**Code references:** [ClientList.tsx](../../apps/frontend/src/components/clients/ClientList.tsx#L63) · [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx#L95) · [Write controls](../../apps/frontend/src/components/common/crudButtons.tsx#L7) · [Cancel button](../../apps/frontend/src/components/common/FormButtons.tsx#L17) · [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44) · [Row checks](../../apps/backend/app/services/planning/entity_write.ts#L97) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L185) · [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L502) · [usePrivateNameFields.ts](../../apps/frontend/src/components/common/usePrivateNameFields.ts#L27) · [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L21) · [mutation_changes.ts](../../apps/backend/app/services/planning/mutation_changes.ts#L74) · [Confirmation retry](../../apps/frontend/src/data/planning/planningCache.ts#L420) · [Role projection](../../apps/backend/app/transformers/state_transformer.ts#L46) · [sendPlanningIntent](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [Planning transport](../../apps/frontend/src/data/planning/planningTransport.ts#L64) · [Planning route](../../apps/backend/start/planning_routes.ts#L16) · [Mutation controller](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9) · [Planning transaction](../../apps/backend/app/services/planning.ts#L198) · [Company write authority](../../apps/backend/app/services/planning/access.ts#L16) · [Receipt and refresh](../../apps/frontend/src/data/planning/planningCache.ts#L469) · [restoration_pending_groups.spec.ts](../../apps/backend/tests/functional/planning/restoration_pending_groups.spec.ts#L28)

@@ -31,10 +31,24 @@ flowchart TD
 
 ## Code flow
 
+Write readiness reads the cache phase separately. A successful refresh can restore readiness while the unconfirmed notice stays visible.
+
 ```mermaid
 flowchart TD
-  request["planningCache stores planning status"] --> status["readPlanningProblem derives unavailable or refused notice"]
-  status --> alert["AppShell renders destructive Alert"]
+  read["Planning cache refresh receives a read failure"] --> auth{"Scope lost?"}
+  auth -->|401| reset["loseScope clears planning context and reports auth loss"]
+  auth -->|other current read error| phase["Cache records failed phase or pending write readError"]
+  write["Planning cache settles a failed write"] --> result{"Refusal or uncertain result?"}
+  result -->|401| reset
+  result -->|403 or another definite refusal| refused["markRefused records the reply; stale revision also refreshes"]
+  result -->|lost or invalid reply, or committed identity reused| unknown["settleUnconfirmed creates a new history ID and refreshes without replay"]
+  phase --> problem["readPlanningProblem checks current error and lastWrite"]
+  refused --> problem
+  unknown --> problem
+  problem -->|403 error| deny["GatedMain renders the refusal Alert"]
+  problem -->|other failed read| unavailable["GatedMain renders the unavailable Alert"]
+  problem -->|unconfirmed and no read error| check["GatedMain asks the person to check the saved change"]
+  problem -->|none| clear["No planning Alert"]
 ```
 
-**Code references:** [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useStore.ts](../../apps/frontend/src/store/useStore.ts)
+**Code references:** [planningCache.ts:304](../../apps/frontend/src/data/planning/planningCache.ts#L304) · [planningCache.ts:503](../../apps/frontend/src/data/planning/planningCache.ts#L503) · [planningCache.ts:525](../../apps/frontend/src/data/planning/planningCache.ts#L525) · [planningNotices.ts:29](../../apps/frontend/src/data/planning/planningNotices.ts#L29) · [planningReadiness.ts:5](../../apps/frontend/src/data/planning/planningReadiness.ts#L5) · [AppShell.tsx:163](../../apps/frontend/src/components/AppShell.tsx#L163)

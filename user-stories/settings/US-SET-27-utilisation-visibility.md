@@ -28,9 +28,12 @@ B --> C["Schedule shows the selected figures in this browser"]
 
 ```mermaid
 flowchart TD
-  view["SettingsAppearanceSection renders utilisation switches"] --> setter["runtimeSlice.setUtilisationPref updates state"]
-  setter --> storage["displayPrefs.writeStoredUtilisationPrefs writes localStorage"]
-  setter --> overview["SchedulerGridHeader and SchedulerGridRow read utilisation preferences"]
+  prefs["readStoredUtilisationPrefs loads three default-on device flags"] --> control["SettingsAppearanceSection shows Total, Personal and conditional Discipline"]
+  control --> setter["setUtilisationPref receives key and value"]
+  setter --> store["writeStoredUtilisationPrefs attempts localStorage, then runtime publishes the map"]
+  store --> total["SchedulerGridHeader gates Total"]
+  store --> groups["SchedulerGridGroupHeader gates non-external Discipline utilisation"]
+  store --> person["SchedulerGridRow gates utilisation for all capacity-tracked resources"]
 ```
 
-**Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx), [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts), [displayPrefs.ts](../../apps/frontend/src/lib/displayPrefs.ts), [SchedulerGridHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridHeader.tsx), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx)
+**Code references:** [displayPrefs.ts:107](../../apps/frontend/src/lib/displayPrefs.ts#L107) · [SettingsAppearanceSection.tsx:41](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx#L41) · [runtimeSlice.ts:118](../../apps/frontend/src/store/slices/runtimeSlice.ts#L118) · [SchedulerGridHeader.tsx:48](../../apps/frontend/src/components/scheduler/SchedulerGridHeader.tsx#L48) · [SchedulerGridGroupHeader.tsx:24](../../apps/frontend/src/components/scheduler/SchedulerGridGroupHeader.tsx#L24) · [SchedulerGridRow.tsx:132](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L132)

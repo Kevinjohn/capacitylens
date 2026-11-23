@@ -31,10 +31,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerGridRow receives visibleStartDate callback"] --> B["ResourceActions calls visibleStartDate on +"]
-  B --> C["useSchedulerViewport.readVisibleStartDate resolves left-edge date"]
-  C --> D["ResourceActions sets create dialog with that date"]
-  D --> E["AllocationDialog receives resource and start date"]
+  Scroll["useVisibleStartDate exposes callback using live scrollLeft and geometry"] --> Click["ResourceActions calls visibleStartDate at eligible row + click"]
+  Click --> Seed["setDialog supplies selected resource and same start/end date"]
+  Seed -->|Time off, tracked row| Off["SchedulerDialog opens TimeOffForm with literal dates"]
+  Seed -->|Work| Work["SchedulerDialog opens AllocationDialog"]
+  Work -->|external or Hours| Dates["AllocationScheduleFields shows Start and End"]
+  Work -->|tracked Days or Blocks| Counted["AllocationScheduleFields shows counted span"]
 ```
 
-**Code references:** [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
+`useVisibleStartDate` falls back to a materialized date when the live geometry cannot supply one. Time off + is absent for external rows. This flow ends at form initialization. [US-ALL-01](../allocation/US-ALL-01-create.md) and [US-TOF-01](../time-off/US-TOF-01-book-time-off.md) trace persistence and dismissal.
+
+**Code references:**
+
+- [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L269)
+- [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts#L376)
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L130)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L39)
+- [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts#L188)
+- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx#L281)
+- [useSchedulerViewport.test.tsx](../../apps/frontend/src/components/scheduler/useSchedulerViewport.test.tsx#L72)

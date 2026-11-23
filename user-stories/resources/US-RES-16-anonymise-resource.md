@@ -27,12 +27,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ArchivedEntitySection Owner/Admin Anonymise control"] --> B["ConfirmDialog onConfirm → useLifecycleOperations.anonymise"]
-  B --> C{{"Server anonymisation"}}
-  C --> D["POST resources/:id/anonymise → ResourceAnonymisationsController.store"] --> E["anonymiseResources transaction"] --> F["reloadFromServer calls refreshPlanning({ fresh: true })"]
-  G --> H["obfuscateResource and clear linked notes"]
-  H --> I["Archived resource view refreshes"]
-  F --> I
+  ENTRY["PrivilegedArchivedEntitySection offers Anonymise for directly archived resources"] --> CHOICE{"ConfirmDialog action"}
+  CHOICE -->|Cancel| CLOSE["Close dialog. No request"]
+  CHOICE -->|Anonymise| RUN["useExclusiveOperation → useLifecycleOperations.anonymise. Close dialog"]
+  RUN --> READY{"runResourceAnonymisation / runSuspendedReplacement can start for current company?"}
+  READY -->|Blocked by readiness or reload lock| STOP["Show notice. No request"]
+  READY -->|Yes| POST["Suspend planning writes and POST resource anonymisation"]
+  POST --> AUTH{"ResourceAnonymisationsController.store authorizes scope and finds resource"}
+  AUTH -->|Confirmed refusal or missing row| REFUSE["Resume writes and show error"]
+  AUTH -->|Accepted| SCRUB["anonymiseResources scrubs identity and notes, drops company recovery and history, writes audit and advances revision"]
+  SCRUB --> DONE["Commit transaction then return 204"]
+  DONE --> READ{"runSuspendedReplacement refreshPlanning with fresh true"}
+  POST -->|No response, timeout or server error| READ
+  READ -->|Current context and read succeeds| REFRESH["Resume writes and notifyInactiveDataChanged. Warn if commit was uncertain"]
+  READ -->|Current context and read fails| LOCK["Keep writes suspended and require a page reload before retry"]
+  READ -->|Company or planning context departed| OUT["Drop completion for that view"]
 ```
 
-**Code references:** [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts) · [resourceAnonymisation.ts](../../apps/frontend/src/store/resourceAnonymisation.ts) · [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts) · [resource_anonymisations_controller.ts](../../apps/backend/app/controllers/resource_anonymisations_controller.ts) · [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+Owner and Admin can use this action with ordinary confirmation. The server also checks admitted membership, `resources:anonymise` and view-as-member refusal. It looks up a resource by company and id, so the endpoint can also scrub an active resource even though the UI entry is archive-only. The scrub replaces the name with a deterministic masked name and resets the job title, clears the avatar URL and linked allocation and time-off notes including retained rows, and preserves the resource and its relationships. Uncertain outcomes are reconciled by a fresh read before another attempt.
+
+**Code references:** [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx#L182) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx#L79) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx#L232) · [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts#L36) · [resourceAnonymisation.ts](../../apps/frontend/src/store/resourceAnonymisation.ts#L26) · [suspendedReplacement.ts](../../apps/frontend/src/store/suspendedReplacement.ts#L54) · [companyDataRequests.ts](../../apps/frontend/src/data/companyDataRequests.ts#L136) · [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts#L14) · [resource_anonymisations_controller.ts](../../apps/backend/app/controllers/resource_anonymisations_controller.ts#L10) · [anonymise.ts](../../apps/backend/app/services/anonymise.ts#L12) · [transitions.ts](../../packages/shared/src/domain/lifecycle/transitions.ts#L107) · [anonymise.spec.ts](../../apps/backend/tests/functional/anonymise.spec.ts#L124)

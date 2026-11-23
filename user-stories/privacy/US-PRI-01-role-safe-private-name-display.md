@@ -33,12 +33,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  request["planning read resolves current membership role"] --> read["readPlanning reads company slice"]
-  read --> transform["transformState scopes and projects rows"]
-  transform --> owner["Owner retains private row"]
-  transform --> others["redactPrivateName returns code-name projection"]
-  owner --> ui["frontend renders projected name across surfaces"]
-  others --> ui
+  active["PlanningController.show resolves live effective reader through readPlanning"] --> project["transformState scopes and applies projectForReader"]
+  receipt["Accepted planning write builds role-safe receipt rows"] --> project
+  archived["PlanningArchiveController reads Archive recovery"] --> check["Real identity must have archive access and not be in View as member"]
+  check -->|Denied| refused["Archive read refused"]
+  check -->|Allowed| project
+  project -->|Owner| owner["Preserve real name and codeName; displayName may select the codeName"]
+  project -->|Non-Owner| safe["Keep isPrivate and use quoted replacement; withhold real name and raw codeName"]
+  owner --> surface["Use projected fields in frontend displays"]
+  safe --> surface
 ```
 
-**Code references:** [planning.ts](../../apps/backend/app/services/planning.ts); [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts); [privateNames.ts](../../packages/shared/src/domain/privateNames.ts); [ClientList.tsx](../../apps/frontend/src/components/clients/ClientList.tsx); [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx)
+**Code references:** [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts#L20) · [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L73) · [planning.ts](../../apps/backend/app/services/planning.ts#L104) · [planning.ts](../../apps/backend/app/services/planning.ts#L299) · [planning_archive_controller.ts](../../apps/backend/app/controllers/planning_archive_controller.ts#L6) · [native_authorization.spec.ts](../../apps/backend/tests/functional/auth/native_authorization.spec.ts#L263) · [archive_recovery.spec.ts](../../apps/backend/tests/functional/planning/archive_recovery.spec.ts#L173) · [archive_recovery.spec.ts](../../apps/backend/tests/functional/planning/archive_recovery.spec.ts#L298)

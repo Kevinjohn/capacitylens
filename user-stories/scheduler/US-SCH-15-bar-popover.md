@@ -32,9 +32,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationBarView receives hover and focus state"] --> B["AllocationBar controls popoverOpen"]
-  B --> C["BarPopover reads allocation details"]
-  C --> D["TooltipRoot shows popover while open and not dragging"]
+  Layer["BarsLayer renders work bars for permitted Schedule readers"] --> Mode{"Work draw mode?"}
+  Mode -->|Time off| Inert["Inert bars"]
+  Mode -->|Work| Open["AllocationBar hover or focus sets popoverOpen"]
+  Open --> View["AllocationBarView gates TooltipRoot and BarPopover on open and idle"]
+  View --> Details["Render safe projected attribution, dates and details"]
+  View -->|blur, pointer leave or Escape| Close["Clear popoverOpen"]
+  View -->|editor gesture starts| Close
 ```
 
-**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx)
+Projected attribution may contain both client and project or just the one available value. The accessible name provides a separate spoken description.
+
+**Code references:**
+
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L34)
+- [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L96)
+- [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L193)
+- [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx#L162)
+- [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx#L228)

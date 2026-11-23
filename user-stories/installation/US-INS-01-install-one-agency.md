@@ -36,17 +36,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  installer["install.sh writes the environment, then runs app:upgrade"] --> upgrade["AppUpgrade.run verifies SQLite connection"]
-  upgrade --> backup["createBundle backs up the existing database"]
-  backup --> migrate["Ace kernel runs migration:run"]
-  migrate --> integrity["assertSchemaIntegrity checks schema"]
-  integrity --> service["install.sh installs and starts the unit"]
-  service --> caddy["install.sh writes and validates the Caddy site, then reloads Caddy"]
-  caddy --> ready["/health/ready calls healthChecks.run"]
-  ready --> bootstrap["Account Kit admission bootstrap CLI issues invitation"]
-  bootstrap --> browser["FirstCompanySetupController.store validates setup"]
-  browser --> guard["isFirstCompanySetupRequired checks first-company conditions"]
-  guard --> create["createInitialCompany writes company and Owner membership"]
+  start["install.sh checks native prerequisites and first-install or no-argument upgrade inputs"] -->|Refusal| preflight["Exit before stopping any installed unit"]
+  start -->|Accepted| env["Create first environment or reuse existing environment and secret"]
+  env --> stop["Stop existing unit and point current at the release"]
+  stop --> upgrade["AppUpgrade.run delegates backup and migrations to db:upgrade --no-schema-generate"]
+  upgrade -->|Succeeded| integrity["assertSchemaIntegrity"]
+  upgrade -->|Failed| stopped["Exit before starting the unit"]
+  integrity -->|Failed| stopped
+  integrity -->|Succeeded| service["Install the systemd unit and enable/start it"]
+  service -->|No-argument upgrade| exitUpgrade["Installer exits"]
+  service -->|First install with Caddy| caddy["Write and validate site configuration; reload Caddy"]
+  service -->|First install without Caddy| proxy["Print manual HTTPS proxy instructions"]
+  caddy --> bootstrap["Account Kit bootstrap command issues the first invitation"]
+  proxy --> bootstrap
+  service --> probe["Operator checks /health/ready independently"]
+  service --> backup["BackupProvider runs a startup and daily backup when configured"]
+  bootstrap --> boundary["First identity uses the first-company setup journey"]
 ```
 
-**Code references:** [install.sh](../../packaging/release/install.sh); [app_upgrade.ts](../../apps/backend/commands/app_upgrade.ts); [routes.ts](../../apps/backend/start/routes.ts); [health.ts](../../apps/backend/start/health.ts); [first_company_setup_controller.ts](../../apps/backend/app/controllers/first_company_setup_controller.ts); [first_company_setup.ts](../../apps/backend/app/services/first_company_setup.ts); [initial_company_defaults.ts](../../apps/backend/app/services/initial_company_defaults.ts); [install.md](../../docs-src/self-hosting/install.md); [configuration.md](../../docs-src/self-hosting/configuration.md)
+See [Set up and open the installation company](../navigation/US-NAV-14-company-picker-setup.md#code-flow) for the browser continuation.
+
+**Code references:** [install.sh](../../packaging/release/install.sh#L32) · [install.sh](../../packaging/release/install.sh#L49) · [Installer stop and restart ordering](../../packaging/release/install.sh#L65) · [app_upgrade.ts](../../apps/backend/commands/app_upgrade.ts#L13) · [routes.ts](../../apps/backend/start/routes.ts#L57) · [backup_provider.ts](../../apps/backend/providers/backup_provider.ts#L45) · [install-without-docker.md](../../docs-src/self-hosting/install-without-docker.md#L143)

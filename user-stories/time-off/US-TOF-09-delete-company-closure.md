@@ -34,16 +34,28 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["CompanyClosureSection: Delete closure"] --> B["useConfirmDelete: confirmation dialog"]
-  B -->|cancel| C["Keep closure"]
-  B -->|confirm| D["deleteClosure(id)"]
-  D --> E["typedPlanningActions.deleteClosure; planning reconciliation"]
-  E --> F["List and schedule refresh"]
+  Row["ClosureItems Delete for planning writers"] --> Prompt["ConfirmDialog for selected closure"]
+  Prompt -->|Cancel or Escape before confirming| Close["Dismiss prompt"]
+  Prompt -->|confirm| Send["useConfirmDelete awaits deleteClosure"]
+  Send -->|row already missing locally or viewer guard| Close
+  Send --> Commit["closure.delete checks live write access and revision; deleteRows retains one restoration group"]
+  Commit -->|committed and reconciled| Capacity["Close and recompute capacity for remaining closures, absences and working days"]
+  Commit -->|known refusal| Error["Show error notice; prompt stays mounted"]
+  Commit -->|lost or invalid reply| Uncertain["Canonical read can remove closure; request still reports error"]
+  Uncertain --> Error
+  Error -->|confirm again| Send
+  Error -->|Cancel or Escape| Held["confirmingRef suppresses onCancel"]
 ```
 
 **Code references:**
 
-- [CompanyClosureSection.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.tsx)
-- [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [CompanyClosureSection.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.tsx#L114)
+- [dialogs.tsx](../../apps/frontend/src/components/common/dialogs.tsx#L219)
+- [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts#L4)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L326)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L411)
+- [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L92)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [CompanyClosureSection.test.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.test.tsx#L109)

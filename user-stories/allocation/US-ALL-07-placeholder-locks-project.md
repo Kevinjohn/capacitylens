@@ -40,16 +40,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationTargetFields receives placeholder resource"] --> B["useAllocationTargetState resolves bound project"]
-  B --> C["Project control locked; activity options scoped"]
-  C --> D["allocationSubmit validates selected assignment"]
-  D -->|valid| E["addAllocation or updateAllocation"]
-  D -->|invalid| F["Field error; no write"]
+  Form["useAllocationTargetState derives options and effective project"] -->|bound placeholder| Lock["AllocationTargetFields limits Project to the bound project"]
+  Form -->|unbound placeholder| Open["Project uses ordinary options"]
+  Lock --> Match["Project-specific activity or attributed All projects activity"]
+  Open --> Match
+  Match --> Check["parseAllocationIntentDraft → validateAllocationAssignment"]
+  Check -->|project mismatch or unbound with attributed project| Field["Activity error; no request"]
+  Check -->|valid changed draft| Commit["commit checks live write access and revision; writeEntity independently checks assertAllocationRefs"]
+  Commit -->|committed receipt| Saved["Reconcile projection and close form"]
+  Commit -->|refused| Error["Form error, stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Fetch canonical state with fresh history context"]
 ```
+
+A bound placeholder leaves the generic Project choices disabled. An unbound placeholder can save projectless work. Save requires an editable, current draft. Cancel and an unchanged edit close without dispatch.
 
 **Code references:**
 
-- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx)
-- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [refs.ts](../../packages/shared/src/domain/assertions/refs.ts)
+- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts#L74)
+- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts#L162)
+- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx#L26)
+- [allocationDialogSelection.ts](../../apps/frontend/src/components/scheduler/allocationDialogSelection.ts#L28)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L43)
+- [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L366)
+- [integrity.ts](../../packages/shared/src/lib/integrity.ts#L126)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [AllocationDialog.create.test.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.create.test.tsx#L320)

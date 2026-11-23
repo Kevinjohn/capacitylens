@@ -37,16 +37,28 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationTargetFields: inline activity entry when enabled"] --> B["useAllocationTargetState: addActivity handler"]
-  B --> C["addActivity typed catalogue write for selected scope"]
-  C -->|created| D["Select new activity in Activity field"]
-  C -->|invalid/failure| E["Show field/form error; retain form"]
-  D --> F["Allocation remains a draft until Save"]
+  Form["AllocationTargetFields checks canEdit and inline activity setting"] -->|disabled| None["Inline control absent"]
+  Form -->|enabled| Inline["useAddInlineActivity validates name and captures selection version"]
+  Inline -->|invalid| Field["Name error; no write"]
+  Inline --> Send["addActivity sends catalogue.create in selected scope"]
+  Send --> Commit["commit checks live write access and revision; writeEntity saves activity"]
+  Commit -->|committed and reconciled| Basis["Advance draft basis only for sole acknowledged addition"]
+  Basis --> Option["Refresh inline option; select it only if selection version still matches"]
+  Option --> Name["Clear submitted name only if it still matches"]
+  Commit -->|refused| Error["Form error; stale refusal refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical read may contain activity; history resets"]
 ```
+
+If the allocation draft is later discarded, the separately acknowledged activity remains in the catalogue.
 
 **Code references:**
 
-- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx)
-- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
+- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx#L149)
+- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts#L216)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts#L70)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L117)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L273)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [AllocationDialog.activity-and-task.test.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.activity-and-task.test.tsx#L28)

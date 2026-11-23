@@ -34,18 +34,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections project FilterSelect"] --> B["toolbarFilterOptions scopes projects to selected client"]
-  B --> C["schedulerSlice.setFilters stores projectId"]
-  C --> D["createAllocationFilters.allocVisible applies project lens"]
-  D --> E["schedulerModel and SchedulerGrid render matching bars"]
-  E --> F["No planning write or server mutation"]
+  OPT["buildFilterOptions scopes active projects to the selected client and keeps a moved selected project"] --> SELECT["EntityFilters project FilterSelect → setToolbarFilters → setFilters"]
+  SELECT --> ID{"applyFilterPatch receives project id?"}
+  ID -->|Concrete project| SET["Clear activity lens and keep selected client"]
+  ID -->|All projects| CLEAR["Clear project id and keep any current client or activity lens"]
+  SET --> MATCH["allocVisible matches effective project via buildAllocationAttribution"]
+  CLEAR --> MATCH
+  MATCH --> LENS{"Any work lens remains active?"}
+  LENS -->|No| FULL["Keep eligible rows with work allowed by Tentative"]
+  LENS -->|Yes| ROW{"createRowBuilder finds a renderable match in the model timeline?"}
+  ROW -->|Yes| NORMAL["Keep matching row and bars"]
+  ROW -->|No| KEEP{"buildSchedulerModel sees showUnmatched?"}
+  KEEP -->|Yes| DIM["Keep dimmed row with other work allowed by Tentative"]
+  KEEP -->|No| HIDE["Omit unmatched row"]
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. Effective project attribution includes All projects work assigned to that project. If the moved project remains selected alongside the old client, the predicates still require both ids. Changing the client clears an incompatible project and choosing All clients clears any project. Labels use role-projected names, with ordering based on server `displayName` when present.
 
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+**Code references:** [toolbarFilterOptions.ts](../../apps/frontend/src/components/scheduler/toolbarFilterOptions.ts#L16) · [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L111) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L47) · [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L80) · [buildAllocationAttribution.ts](../../apps/frontend/src/lib/buildAllocationAttribution.ts#L18) · [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts#L31) · [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L164) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208) · [SchedulerToolbar.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.test.tsx#L339)

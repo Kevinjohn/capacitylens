@@ -32,17 +32,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarChrome filter toggle"] --> B["useToolbarSearch.setFiltersOpen changes local open state"]
-  B --> C["SchedulerToolbarFilters renders conditionally"]
-  C --> D["Filter values stay in schedulerSlice local state"]
-  D --> E["No planning write or server mutation"]
+  CHROME["SchedulerToolbarChrome renders Show filters with aria-expanded"] --> TOGGLE["useToolbarSearch.setFiltersOpen toggles local state, initially closed"]
+  TOGGLE --> OPEN{"SchedulerToolbar sees filtersOpen?"}
+  OPEN -->|No| HIDE["Unmount SchedulerToolbarFilters"]
+  OPEN -->|Yes| SHOW["Mount SchedulerToolbarFilters using existing ui.filters"]
+  SHOW --> EDIT{"useCanEdit allows planning writes?"}
+  EDIT -->|Yes| DRAW["ViewFilters includes Work / Time off draw mode"]
+  EDIT -->|No| FILTERS["Filter controls remain available"]
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. The row toggle changes component state only. Discipline and activity controls depend on settings or active options and retained selections. Show unallocated requires a work lens.
 
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L100) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L23) · [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx#L80) · [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L111) · [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L152) · [SchedulerToolbar.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.test.tsx#L127)

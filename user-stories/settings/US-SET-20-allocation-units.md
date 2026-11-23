@@ -26,15 +26,17 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ## Code flow
 
+The [company setting write path](../REFERENCE.md#company-setting-writes) traces the common no-op, server commit, refusal and reconciliation branches.
+
 ```mermaid
 flowchart TD
-  control["SchedulingModeSection calls updateSetting({ schedulingMode })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
-  view --> action["typedPlanningActions.updateCompany builds settings.update intent"]
-  action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
-  execute --> transport["planningTransport sends api.planning_mutations.store"]
-  transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]
-  route --> reply["Planning cache reconciles the response into the company projection"]
-  reply --> read["store selectors.resolveSchedulingMode supplies setting to views"]
+  read["resolveSchedulingMode reads the stored mode, with Hours fallback"] --> control["SchedulingModeSection renders current setting and disables when canEdit is false"]
+  control -->|new editable selection| write["updateSetting sends schedulingMode through shared company write path"]
+  write -->|accepted state| dialog["useAllocationDialogState and AllocationScheduleFields read the new mode"]
+  dialog -->|external party| span["Literal Start and End with no load control"]
+  dialog -->|tracked assignee, Hours| hours["Start, End and Hours per day"]
+  dialog -->|tracked assignee, Days| days["Start, Days of work and Days over"]
+  dialog -->|tracked assignee, Blocks| blocks["Start and Days over"]
 ```
 
-**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [selectors.ts:36](../../apps/frontend/src/store/selectors.ts#L36) · [SettingsSchedulingSection.tsx:65](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx#L65) · [initial_company_defaults.ts:30](../../apps/backend/app/services/initial_company_defaults.ts#L30) · [useAllocationDialogState.ts:42](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts#L42) · [AllocationScheduleFields.tsx:123](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx#L123) · [AllocationScheduleFields.tsx:281](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx#L281)

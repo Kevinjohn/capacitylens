@@ -26,15 +26,16 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ## Code flow
 
+The [company setting write path](../REFERENCE.md#company-setting-writes) traces the common no-op, server commit, refusal and reconciliation branches.
+
 ```mermaid
 flowchart TD
-  control["SettingsDateFormatSection calls updateSetting({ dateStyle })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
-  view --> action["typedPlanningActions.updateCompany builds settings.update intent"]
-  action --> execute["allocationSlice.sendPlanningIntent calls execute on the planning cache (createPlanningCache)"]
-  execute --> transport["planningTransport sends api.planning_mutations.store"]
-  transport --> route["PlanningMutationsController.store validates and calls mutatePlanning"]
-  route --> reply["Planning cache reconciles the response into the company projection"]
-  reply --> read["store selectors.resolveDateStyle supplies setting to views"]
+  view["SettingsCompanySetupSections passes resolved dateStyle and canEdit"] --> picker["SettingsDateFormatSection renders the selected format"]
+  picker -->|read-only| disabled["No change dispatch"]
+  picker -->|new selection| patch["SettingsCompanySetupSections calls updateSetting with dateStyle"]
+  patch --> write["Shared company settings write path"]
+  write -->|accepted state| mirror["useStore subscription calls setActiveDateStyle using resolveDateStyle"]
+  mirror --> dates["Planning date formatters read the company style"]
 ```
 
-**Code references:** [SettingsDateFormatSection.tsx](../../apps/frontend/src/components/settings/SettingsDateFormatSection.tsx), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [SettingsDateFormatSection.tsx:10](../../apps/frontend/src/components/settings/SettingsDateFormatSection.tsx#L10) · [SettingsSchedulingSection.tsx:225](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx#L225) · [selectors.ts:29](../../apps/frontend/src/store/selectors.ts#L29) · [useStore.ts:57](../../apps/frontend/src/store/useStore.ts#L57)

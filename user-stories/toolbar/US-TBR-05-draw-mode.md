@@ -36,10 +36,31 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections SegmentedControl calls setDrawMode"] --> B["schedulerSlice stores local drawMode"]
-  B --> C["SchedulerGridRow provides draw callback for Editor"]
-  C --> D["ResourceLane interaction sends resource and dates to createFromDraw"]
-  D --> E["openDrawDialog selects allocation or time-off dialog by drawMode"]
+  Toolbar["SchedulerToolbar Show filters mounts SchedulerToolbarFilters"] --> Access{"Can edit planning?"}
+  Access -->|no| Hidden["Draw mode control absent"]
+  Access -->|yes| Mode["Draw mode control calls setDrawMode; default Work"]
+  Mode --> State["SchedulerGrid announces mode change from ui.drawMode"]
+  State --> Bars["BarsLayer makes work bars inert in Time off"]
+  State --> Plus["ResourceActions + uses mode; hide Time off + on external rows"]
+  State --> Draw["beginGesture checks creationBlocked including closures in both modes"]
+  Draw -->|blocked or cancelled| None["No form from gesture"]
+  Draw -->|release eligible| Open["openDrawDialog checks proposed start; Time off excludes closures and external rows"]
+  Open -->|accepted| Form["SchedulerDialog opens mode-specific seeded form"]
+  Open -->|refused| None
+  Plus -->|enabled and clicked| Form
 ```
 
-**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+Mode changes are local. Work defaults on entry. [Draw Work](../scheduler/US-SCH-02-draw-allocation.md), [draw Time off](../scheduler/US-SCH-03-draw-time-off.md) and [row +](../scheduler/US-SCH-17-row-quick-create.md) trace their form boundaries.
+
+**Code references:**
+
+- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx#L77)
+- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L152)
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L50)
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L218)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L116)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx#L152)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L34)
+- [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx#L130)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts#L120)
+- [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts#L53)

@@ -50,31 +50,31 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog edit dialog"] --> B["allocationSubmit validates saved-value draft"]
-  B -->|valid| C["allocationSlice.updateAllocation"]
-  B -->|invalid or stale| I["Form error; saved row remains"]
-  C --> D["Planning cache executes command"]
-  D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends api.planning_mutations.store"]
-  F --> J["Request refusal or transport failure returns to allocationSubmit"]
-  J --> I["Form error; draft remains available"]
-  F --> G["PlanningMutationsController.store executes scoped writeRow"]
-  G --> H["Acknowledgement reconciles store; Schedule redraws"]
+  Bar["AllocationBar activation in Work mode with planning write access"] --> Draft["useAllocationDialogInputs captures company context and revision"]
+  Draft -->|Cancel or projected row disappears| Close["Close form"]
+  Draft --> Submit["createAllocationIntents checks canEdit and opening draft basis"]
+  Submit -->|stale| Stale["Keep form open with reopen error"]
+  Submit -->|current| Validate["parseAllocationIntentDraft; recheck start on resource change"]
+  Validate -->|invalid| Field["Field error, draft remains"]
+  Validate -->|valid| Update["updateAllocation → buildAllocationUpdate"]
+  Update -->|unchanged diff| Close
+  Update -->|changes| Commit["commit checks live write access and revision before allocation.update"]
+  Commit -->|valid writeEntity result and accepted receipt| Saved["Reconcile projected row; close, then show any advisory"]
+  Commit -->|known refusal| Refusal["Form error; stale reply triggers refresh"]
+  Commit -->|lost or invalid reply| Unknown["settleUnconfirmed reads canonical state without replay"]
 ```
+
+The dialog submits two arguments to `updateAllocation`. The wire mutation carries the company base revision and omits `expectedUpdatedAt`. The [general edit decision](../../DECISIONS.md#data-and-company-separation) calls for the opening row timestamp. A same-assignee edit can retain an existing placement conflict.
 
 **Code references:**
 
-- [writer.ts](../../apps/backend/app/services/planning/writer.ts)
-
-- [execute.ts](../../apps/backend/app/services/planning/execute.ts)
-
-- [planning.ts](../../apps/backend/app/services/planning.ts)
-
-- [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
-- [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
-- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
-- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L183)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts#L54)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L177)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L138)
+- [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L177)
+- [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L111)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [AllocationDialog.edit.test.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.edit.test.tsx#L151)

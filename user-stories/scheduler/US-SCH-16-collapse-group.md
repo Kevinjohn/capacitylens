@@ -34,9 +34,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerGridGroupHeader button calls toggleGroup"] --> B["schedulerSlice.toggleGroup updates ui.collapsedGroups"]
-  B --> C["useSchedulerGridModel projects grouped rows"]
-  C --> D["SchedulerGridRows omits collapsed rows and renders header count"]
+  Group["SchedulerGridGroupHeader renders toggle for each visible group"] --> Toggle["toggleGroup updates ui.collapsedGroups"]
+  Toggle --> Flatten["useSchedulerGridVirtualization → flattenVisibleItems"]
+  Flatten -->|collapsed| Count["Omit resource rows and show projected hidden count"]
+  Flatten -->|expanded| Rows["Virtualize group rows and update expanded state"]
 ```
 
-**Code references:** [SchedulerGridGroupHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridGroupHeader.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx)
+This is a view action available to Schedule readers. The same toggle re-expands the group.
+
+**Code references:**
+
+- [SchedulerGridGroupHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridGroupHeader.tsx#L26)
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L222)
+- [useSchedulerGridVirtualization.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridVirtualization.ts#L25)

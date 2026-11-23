@@ -37,19 +37,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog: Delete action"] --> B["RepeatedAllocationDeleteDialog when series has scope choice"]
-  B -->|cancel| C["Keep allocation"]
-  B -->|one| D["allocationSubmit.deleteSelectedAllocation: deleteAllocation"]
-  B -->|this and future| E["deleteAllocationSeriesFrom"]
-  D --> F["allocationSlice typed delete reconciles store; Schedule updates"]
-  E --> F
+  Edit["AllocationFooter renders Delete for a writable allocation"] -->|ordinary| One["ConfirmDialog"]
+  Edit -->|series| Series["RepeatedAllocationDeleteDialog"]
+  One -->|Cancel| Edit
+  Series -->|Cancel| Edit
+  One -->|Delete| Close["deleteSelectedAllocation closes confirmation"]
+  Series -->|This occurrence or future| Close
+  Close --> Check["deleteAllocation or deleteAllocationSeriesFrom resolves current row"]
+  Check -->|missing or viewer| Noop["No request"]
+  Check --> Send["allocation.delete, with scope future for the series tail"]
+  Send --> Commit["commit authorizes and checks revision; executePlanningIntent soft-deletes a restoration group"]
+  Commit -->|committed receipt| Gone["Reconcile removals; useAllocationDialogInputs closes when row disappears"]
+  Commit -->|refused| Err["Underlying edit dialog reports failure; stale revision refreshes"]
+  Commit -->|lost or invalid reply| Unknown["Canonical refetch can already omit the row; no replay"]
 ```
+
+For future scope, `resolveSeriesFrom` selects rows in the same series beginning at or after the selected start. The transaction records a single recoverable deletion group for eligible Undo.
 
 **Code references:**
 
-- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
-- [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx)
-- [RepeatedAllocationDeleteDialog.tsx](../../apps/frontend/src/components/scheduler/RepeatedAllocationDeleteDialog.tsx)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
+- [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx#L19)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L271)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L164)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L50)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts#L426)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts#L125)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
+- [restoration_allocations.spec.ts](../../apps/backend/tests/functional/planning/restoration_allocations.spec.ts#L77)

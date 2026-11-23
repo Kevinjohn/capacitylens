@@ -25,8 +25,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  auth["AuthProvider checks the current session"] --> context["useAuthContextValue exposes the verified user"]
-  context --> view["AccountView resolves and renders identity"]
+  start["AuthProvider calls fetchAuthStatus"] --> status["Read View as member status"]
+  status -->|Active| actor["Adopt the target grant and use the real actor as user"]
+  status -->|Inactive| me["sessionRequests.me and readAuthResponse verify the ordinary identity"]
+  status -->|Unverifiable| error["Auth checks keep Account closed"]
+  actor --> context["useAuthContextValue supplies the verified user"]
+  me -->|Pass| context
+  me -->|Signed out| signIn["Render sign-in"]
+  me -->|Failed| error
+  context --> gates{"AuthProvider allows the router?"}
+  gates -->|Email, admission, membership or setup gate| limited["Account stays closed; AccessScreen can show the email and Sign out"]
+  gates -->|Yes| account["AccountView renders the user’s name, avatar, email and identity actions"]
 ```
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts), [useAuthContextValue.ts](../../apps/frontend/src/auth/useAuthContextValue.ts), [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx)
+**Code references:** [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L31) · [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L67) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L257) · [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx#L72) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L25)

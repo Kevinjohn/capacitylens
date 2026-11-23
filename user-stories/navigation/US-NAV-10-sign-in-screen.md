@@ -36,11 +36,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  screen["SignInScreen renders SignInForm"] --> hook["usePasswordSignIn submits credentials"]
-  hook --> auth["authApi password sign-in request"]
-  auth --> session["AuthProvider refreshes signed-in status"]
-  session --> app["AppShell becomes available"]
-  account["AccountView sign out"] --> signedOut["signOutAndReload ends session and reloads"]
+  entry["SignInScreen renders SignInForm"] --> validate["usePasswordSignIn normalizes email and checks input"]
+  validate -->|Invalid| refusal["Show validation or server refusal and allow retry"]
+  validate -->|Valid| api["authApi.signIn.email sends credentials"]
+  api --> controller["SessionController.store validates request and calls signInWithPassword"]
+  controller --> kit["Account Kit checks credentials and creates the managed session"]
+  controller -->|Invalid credentials or throttled| refusal
+  api -->|Transport failure| network["Show network error and allow retry"]
+  kit -->|Accepted| reload["onSignedIn fully reloads the page"]
+  reload --> status["AuthProvider fetchAuthStatus rechecks the server session"]
+  status -->|Unconfirmed address, admission or membership| limited["Render first applicable AccessScreen"]
+  status -->|First company required| setup["Render CompanySetup"]
+  status -->|Pass| app["Open the router and AppShell"]
+  status -->|Signed out or check failed| retry["Render sign-in or retryable AuthError"]
 ```
 
-**Code references:** [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts); [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx); [SignInForm.tsx](../../apps/frontend/src/auth/SignInForm.tsx); [authApi.ts](../../apps/frontend/src/auth/authApi.ts); [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx); [signOut.ts](../../apps/frontend/src/auth/signOut.ts)
+**Code references:** [SignInForm.tsx](../../apps/frontend/src/auth/SignInForm.tsx#L46) · [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts#L9) · [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L60) · [password_sign_in.ts](../../apps/backend/app/services/auth/password_sign_in.ts#L34) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L152) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L250) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L118)

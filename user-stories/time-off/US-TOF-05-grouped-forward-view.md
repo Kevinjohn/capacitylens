@@ -32,12 +32,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["TimeOffList reads scoped entries and current week start"] --> B["buildTimeOffGroups omits past entries and groups remaining rows by resource"]
-  B --> C["TimeOffList renders each group and its entries"]
-  C --> D["Past entries remain stored"]
+  Entry["/timeoff → CompanyDateRoute waits for company date"] --> Data["TimeOffList reads useActiveScopedData"]
+  Data --> Groups["buildTimeOffGroups uses configured company week start"]
+  Groups -->|ends before week or placeholder hidden| Omit["Omit row from view"]
+  Groups -->|missing resource in input| Unknown["Collect in final fallback group"]
+  Groups -->|eligible resource| Sort["Sort group by resource display name, rows by dates and ID"]
+  Groups -->|no groups after filtering| Empty["PersonalTimeOffSection shows No time off booked"]
+  Sort --> Show["Render groups; write actions use current permissions"]
+  Unknown --> Show
 ```
 
 **Code references:**
 
-- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx)
-- [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts)
+- [router.tsx](../../apps/frontend/src/router.tsx#L191)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx#L34)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx#L129)
+- [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts#L41)
+- [projection.ts](../../packages/shared/src/domain/lifecycle/projection.ts#L36)
+- [TimeOffList.test.tsx](../../apps/frontend/src/components/time-off/TimeOffList.test.tsx#L217)
+- [TimeOffList.test.tsx](../../apps/frontend/src/components/time-off/TimeOffList.test.tsx#L379)

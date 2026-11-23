@@ -31,15 +31,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Invite["InviteAccept reads token from /invitation/:token"] --> Preview["readInvitationPreview"]
-    Preview --> PreviewRoute["api.invitation_links.show → InvitationLinksController.show"]
-    PreviewRoute --> KitInspect["Account Kit invitations.inspect returns offered email and role"]
-    KitInspect --> Form["InviteAccept renders Name and Password fields"]
-    Form --> Submit["signUpWithInvitation → InvitationAcceptancesController.store"]
-    Submit --> Accept["Account Kit invitations.accept creates invited identity and membership"]
-    Accept --> SignIn["signInWithPassword or sign-in-required response"]
-    SignIn --> Reload["InviteAccept reloads app; AuthProvider resolves limited admission screen"]
-    PreviewRoute -. "Invalid or expired token" .-> Error["InviteAccept shows invitation error"]
+  page["InviteAccept loads readInvitationPreview for the URL token"] --> inspect["InvitationLinksController.show calls the Kit's non-consuming inspection"]
+  inspect -->|Invalid| invalid["Render invalid invitation"]
+  inspect -->|Valid| form["Render Name and Password with the invited context"]
+  page -->|Preview unavailable| retry["Show unavailable or network error with Go to App"]
+  form -->|Valid submit| endpoint["signUpWithInvitation calls InvitationAcceptancesController.store"]
+  form -->|Invalid draft| invalidDraft["Show client field error"]
+  endpoint --> kit["Validate submitted fields; Account Kit accepts token and creates confirmed identity and invitation evidence"]
+  kit -->|Expired or invalid| invalid
+  kit -->|EMAIL_IN_USE| signIn["Return to the form with the sign-in message"]
+  kit -->|Other known refusal| refusal["Show refusal in the form"]
+  kit -->|Company invitation| membership["Access Control creates membership; product callback records audit and revision in the transaction"]
+  membership --> session["Try signInWithPassword"]
+  kit -->|Bootstrap invitation| session
+  session -->|Session created| ok["HTTP 201"]
+  session -->|Sign-in failed| accepted["HTTP 202 with signInRequired"]
+  kit -->|Committed follow-up failure| accepted
+  ok --> browser["Client maps both to signed-up and navigates to the root for a session check"]
+  accepted --> browser
+  endpoint -->|5xx or no response| uncertain["Remain on the uncertainty screen with Go to App"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx), [invitationSignUpApi.ts](../../apps/frontend/src/account/invitationSignUpApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx#L55) · [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx#L97) · [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts#L11) · [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts#L22) · [invitationSignUpApi.ts](../../apps/frontend/src/account/invitationSignUpApi.ts#L64) · [account_kit.ts](../../apps/backend/config/account_kit.ts#L72) · [membership_effects.ts](../../apps/backend/app/services/account_kit/membership_effects.ts#L8) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L80)

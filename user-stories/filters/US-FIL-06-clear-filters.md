@@ -32,18 +32,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarFilters Clear Filters action"] --> B["useToolbarSearch.clearSearch callback"]
-  B --> C["schedulerSlice.clearFilters resets local filter state"]
-  C --> D["SchedulerGrid rebuilds the full schedule"]
-  D --> E["No planning write or server mutation"]
+  VIEW["ViewFilters renders Clear Filters"] --> ACTIVE{"hasActiveFilters sees a committed restriction?"}
+  ACTIVE -->|No| DISABLED["Button disabled"]
+  ACTIVE -->|Yes, clicked| CLEAR["useToolbarSearch.clearSearch cancels timer and clears the draft"]
+  CLEAR --> STORE["clearFilters replaces ui.filters with buildEmptyFilters"]
+  STORE --> MODEL["buildSchedulerModel re-evaluates rows with the reset filters"]
 ```
 
-**Code references:**
+These controls use in-memory schedule filters for any role that can open Schedule, including Viewer and view-as-member. `hasActiveFilters` checks a nonblank committed search, discipline, work lens or hidden tentative work. Show unallocated alone leaves the button disabled, and `buildEmptyFilters` also resets that flag. The grid’s separate empty-state action calls `clearFilters` directly.
 
-- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
-- [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts)
-- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
-- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
-- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
-- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
-- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx#L152) · [filters.ts](../../apps/frontend/src/store/filters.ts#L57) · [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts#L52) · [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts#L138) · [filters.ts](../../apps/frontend/src/store/filters.ts#L23) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208) · [SchedulerToolbar.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.test.tsx#L521)

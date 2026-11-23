@@ -30,10 +30,13 @@ B --> C["Open the help explanation if needed"]
 
 ## Code flow
 
+This is the Company details read path. Ordinary settings updates freeze the established calendar fields. [US-DAT-02](../data/US-DAT-02-import-json.md#code-flow) traces the separate full-import path that can replace them.
+
 ```mermaid
 flowchart TD
-  settings["SettingsView renders SettingsAccountOptions"] --> details["SettingsAccountOptions maps companyName, weekStartsOn, timezone to rows"]
-  details --> display["SettingsAccountOptions displays read-only table"]
+  settingsView["SettingsView checks that an active company exists"] --> bottom["SettingsBottomSections passes company name and resolved calendar settings"]
+  bottom --> details["SettingsCompanyOptions formats week start and time-zone label"]
+  details --> display["Render Company, Week start and Time zone as read-only table rows"]
 ```
 
-**Code references:** [SettingsView.tsx](../../apps/frontend/src/components/settings/SettingsView.tsx), [SettingsCompanySections.tsx](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx)
+**Code references:** [SettingsView.tsx:45](../../apps/frontend/src/components/settings/SettingsView.tsx#L45) · [SettingsView.tsx:61](../../apps/frontend/src/components/settings/SettingsView.tsx#L61) · [SettingsCompanySections.tsx:12](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx#L12) · [selectors.ts:88](../../apps/frontend/src/store/selectors.ts#L88) · [DECISIONS.md:156](../../DECISIONS.md#L156) · [company_import.ts:165](../../apps/backend/app/services/company_import.ts#L165)

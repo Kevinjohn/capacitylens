@@ -34,13 +34,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  shell["AppShell renders GettingStarted"] --> steps["server reports five milestones"]
-  steps --> panel["GettingStarted renders progress and links"]
-  panel --> toggle["setOpen hides or shows checklist"]
-  panel --> dismiss["useCompanyDismissal saves dismissal"]
-  dismiss --> confirm["AlertDialog requests confirmation"]
-  steps -->|done is 5| hidden["GettingStarted renders nothing"]
-  panel --> tour["useTourOperation starts role tour"]
+  shell["AppShell renders GettingStarted for an active company with planning write permission outside View as member"] --> read["useCompanyDismissal rereads milestones and dismissal on path/revision changes"]
+  read --> server["GettingStartedController.show verifies planning:read and reads server milestones"]
+  server -->|Dismissed or all milestones complete| hidden["Hide the checklist"]
+  server -->|Incomplete| panel["Render progress; open by default on Schedule"]
+  read -->|Read failed| retry["Show notice and Retry on the card"]
+  retry --> read
+  panel -->|Show or hide| toggle["Store the one most recent path-tagged open choice"]
+  panel -->|Show me around| tour["useTourOperation starts the eligible tour"]
+  panel -->|Eligible Owner or Admin chooses dismissal| dialog["Open AlertDialog before saving"]
+  dialog -->|No| panel
+  dialog -->|Yes| save["dismiss calls GettingStartedController.update"]
+  save -->|Live Owner/Admin with planning:write| stored["Persist company dismissal and hide card"]
+  save -->|Failed| restore["Close confirmation, show error and keep checklist"]
 ```
 
-**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx); [getting_started.ts](../../apps/backend/app/services/getting_started.ts); [gettingStartedApi.ts](../../apps/frontend/src/account/gettingStartedApi.ts); [useTourOperation.ts](../../apps/frontend/src/hooks/useTourOperation.ts)
+**Code references:** [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx#L53) · [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx#L142) · [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx#L198) · [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx#L219) · [gettingStarted.ts](../../packages/shared/src/domain/gettingStarted.ts#L23) · [getting_started_controller.ts](../../apps/backend/app/controllers/getting_started_controller.ts#L13) · [getting_started.ts](../../apps/backend/app/services/getting_started.ts#L20) · [GettingStarted.test.tsx](../../apps/frontend/src/components/GettingStarted.test.tsx#L231)

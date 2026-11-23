@@ -29,15 +29,34 @@ E -->|cancel| I
 
 ## Code flow
 
-Archive, restore and individual anonymisation paths are shown. The separate [whole-company anonymisation flow](US-SET-26-anonymise-all-people.md) includes its password confirmation.
-
 ```mermaid
 flowchart TD
-archive["useLifecycleOperations.run: archive or restore"] --> intent["Build resource or catalogue lifecycle PlanningIntentRequest"]
-  intent --> send["sendPlanningIntent: createStorePlanningTransport selects transport"]
-  send --> server["PlanningMutationsController → mutatePlanning → transitionLifecycle"]
-  server --> view["Planning cache reconciles; active and archived views refresh"]
-  individual["useLifecycleOperations.run: anonymise"] --> named["runResourceAnonymisation: resource anonymise endpoint and fresh read"]
+  list["Owning catalogue page offers archive under planning write access"] -->|Confirm| dispatch["useLifecycleOperations sends the typed lifecycle intent"]
+  list -->|Cancel| quiet["Leave records unchanged"]
+  archive["ArchivedEntitySection selects the view by resolved permission"] -->|Owner or Admin| full["PrivilegedArchivedEntitySection calls useInactiveCompanyData"]
+  archive -->|Editor| recovery["ArchiveRecoverySection reads authorized recovery identities from PlanningArchiveController.show"]
+  full -->|Read succeeded| rows["Show archived rows for the owning page"]
+  recovery -->|Read succeeded| rows
+  recovery -->|Read refused or unavailable| errors["Show lifecycle read/action error"]
+  full -->|Read refused or unavailable| errors
+  rows -->|Hidden by an ancestor| parent["Link to the ancestor"]
+  rows -->|Restore archived row| dispatch
+  dispatch --> transaction["PlanningMutationsController authorizes and applies lifecycle transition in the planning transaction"]
+  transaction -->|Refused| errors
+  transaction -->|Committed| refresh["Reconcile planning and notify the inactive list to refresh"]
+  dispatch -->|Commit uncertain| reread["Planning cache rereads; show an uncertainty notice"]
+  full -->|Eligible archived Resource| dialog["PrivilegedArchivedEntitySection opens anonymisation confirmation"]
+  dialog -->|Cancel| quiet
+  dialog -->|Confirm| scrub["runResourceAnonymisation suspends planning writes and sends dedicated request"]
+  scrub -->|Ready| endpoint["ResourceAnonymisationsController checks resources:anonymise and scoped Resource"]
+  endpoint -->|Refused| errors
+  scrub -->|Blocked| errors
+  endpoint -->|Scrub committed| canonical["Refresh canonical planning"]
+  scrub -->|Commit uncertain| canonical
+  canonical -->|Read succeeds| refresh
+  canonical -->|Read fails| recover["Keep planning locked and require reload"]
 ```
 
-**Code references:** [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts), [resource_anonymisations_controller.ts](../../apps/backend/app/controllers/resource_anonymisations_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+See [Anonymise all people](US-SET-26-anonymise-all-people.md#code-flow) for the separate Owner-only company operation.
+
+**Code references:** [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx#L182) · [CompanyStateController](../../apps/backend/app/controllers/company_state_controller.ts#L12) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx#L26) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx#L61) · [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts#L51) · [planning_archive_controller.ts](../../apps/backend/app/controllers/planning_archive_controller.ts#L6) · [execute.ts](../../apps/backend/app/services/planning/execute.ts#L71) · [resource_anonymisations_controller.ts](../../apps/backend/app/controllers/resource_anonymisations_controller.ts#L10) · [archive_recovery.spec.ts](../../apps/backend/tests/functional/planning/archive_recovery.spec.ts#L353) · [resourceAnonymisation.ts](../../apps/frontend/src/store/resourceAnonymisation.ts#L26)

@@ -34,10 +34,19 @@ G -->|no or uncertain| I["Read the error; reload when instructed"]
 
 ```mermaid
 flowchart TD
-  button["CompanyAnonymiseSection opens confirmation"] --> proof["PasswordConfirmationDialog issues action anonymise confirmation"]
-  proof --> post["CompanyAnonymiseSection POSTs anonymise with confirmationId"]
-  post --> controller["company_anonymisations_controller authorizes Owner and calls anonymiseResources"]
-  controller --> reload["successful response triggers reloadPage"]
+  section["CompanyAnonymiseSection requires company:anonymise and opens warning"] -->|Cancel| close["Dismiss without posting"]
+  section -->|Continue| proof["PasswordConfirmationDialog issues anonymise proof for company and empty intent"]
+  proof -->|Cancel| section
+  proof -->|Refused| inline["Show proof refusal in the dialog"]
+  proof -->|confirmationId| suspend["runSuspendedReplacement checks readiness and suspends planning writes"]
+  suspend -->|Blocked| notice["Show notice without sending"]
+  suspend -->|Ready| endpoint["CompanyAnonymisationsController checks live Owner and consumes proof in its transaction"]
+  endpoint -->|Refused| resume["Resume writes and show error"]
+  endpoint -->|Authorized| scrub["anonymiseResources retains IDs and scrubs all resource kinds and dependent notes"]
+  scrub --> commit["Discard restoration groups and undo history; record audit and revision"]
+  commit -->|204| reload["Keep writes suspended and reload the page"]
+  suspend -->|Commit uncertain| require["Keep writes suspended and require full reload"]
+  require --> reload
 ```
 
-**Code references:** [CompanyAnonymiseSection.tsx](../../apps/frontend/src/components/settings/CompanyAnonymiseSection.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [company_anonymisations_controller.ts](../../apps/backend/app/controllers/company_anonymisations_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+**Code references:** [CompanyAnonymiseSection.tsx](../../apps/frontend/src/components/settings/CompanyAnonymiseSection.tsx#L43) · [CompanyAnonymiseSection.tsx](../../apps/frontend/src/components/settings/CompanyAnonymiseSection.tsx#L89) · [company_anonymisations_controller.ts](../../apps/backend/app/controllers/company_anonymisations_controller.ts#L10) · [anonymise.ts](../../apps/backend/app/services/anonymise.ts#L12) · [transitions.ts](../../packages/shared/src/domain/lifecycle/transitions.ts#L101) · [anonymise.spec.ts](../../apps/backend/tests/functional/anonymise.spec.ts#L227) · [anonymise.spec.ts](../../apps/backend/tests/functional/anonymise.spec.ts#L413) · [suspendedReplacement.ts](../../apps/frontend/src/store/suspendedReplacement.ts#L101)

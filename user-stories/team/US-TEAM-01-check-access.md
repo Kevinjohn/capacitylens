@@ -30,11 +30,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Route["router.tsx /team route"] --> View["TeamAccessView resolves role and access experience"]
-    View --> Card["CurrentAccessCard renders resolveAccessLabel role and summary"]
-    Card --> Toggle["Local permissionsOpen state toggles PermissionList"]
-    Toggle --> Permissions["listPermissions uses shared can and visibility rules"]
-    Auth["AuthProvider routes limited access to AccessScreen"] --> Limited["AccessScreen shows applicable next step"]
+  route["Team & access renders TeamAccessView"] --> grant["Read resolved effective access grant, role and visibility flags"]
+  grant -->|Waiting| pending["Defer permission and management controls"]
+  grant -->|Resolved| card["CurrentAccessCard renders effective role and summary"]
+  card -->|View as member| projected["Use target role and read-only summary; management is unavailable"]
+  card -->|See all permissions| list["PermissionList uses listPermissions on the issued grant"]
+  list -->|Hide all permissions| card
 ```
 
-**Code references:** [router.tsx](../../apps/frontend/src/router.tsx), [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [access.ts](../../packages/shared/src/domain/access.ts)
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L42) · [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L81) · [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L154) · [masquerade.ts](../../apps/backend/app/services/auth/masquerade.ts#L93)

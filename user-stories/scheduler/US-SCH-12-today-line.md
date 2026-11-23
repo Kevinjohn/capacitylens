@@ -36,9 +36,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useCompanyToday reads the company date sent with the planning read"] --> B["useSchedulerGridModel computes todayX from the loaded range geometry"]
-  B --> C["SchedulerGridRows passes todayX to ResourceLane"]
-  C --> D["ResourceLane renders today line only when todayX is in range"]
+  Auth["AuthProvider rechecks visible session on focus, visibility or interval"] -->|signed in with active company| Read["refreshPlanning → readPlanning resolves company Today"]
+  Auth -->|hidden, no company, or session check fails| NoRead["No refresh from this trigger"]
+  Read --> Cache["Accept fresh Today in full or unchanged-revision reply"]
+  Cache --> View["useSchedulerGridModel computes todayX for materialized range"]
+  View -->|in range| Line["ResourceLaneLayers draws Today line"]
+  View -->|out of range| None["No row line"]
+  Cache --> Header["DateHeader highlights matching day where fine day tier renders"]
 ```
 
-**Code references:** [useCompanyToday.ts](../../apps/frontend/src/hooks/useCompanyToday.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+On failed refresh the client has no new authoritative date to apply. The visible-tab interval is 60 seconds.
+
+**Code references:**
+
+- [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L98)
+- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L238)
+- [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L188)
+- [DateHeader.tsx](../../apps/frontend/src/components/scheduler/DateHeader.tsx#L174)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx#L167)
+- [SchedulerGrid.test.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.test.tsx#L436)

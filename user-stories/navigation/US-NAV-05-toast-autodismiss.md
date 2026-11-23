@@ -33,10 +33,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  producer["Store setNotice publishes notice"] --> bridge["useNoticeBridge watches notice"]
-  bridge --> toast["showNoticeToast chooses Sonner duration"]
-  toast --> host["AppShellToaster renders toast and close control"]
-  toast --> clear["dismiss or auto-close clears same notice"]
+  notice["setNotice publishes the current notice"] --> bridge["useNoticeBridge captures its identity"]
+  bridge --> tone{"showNoticeToast chooses tone"}
+  tone -->|info| timed["Sonner toast has a 4000 ms duration"]
+  tone -->|warning or error| manual["Sonner toast has no automatic timeout"]
+  timed --> done["Dismiss or auto-close calls clear"]
+  manual --> done
+  done --> guard["clear calls setNotice(null) only if the same notice is current"]
+  bridge -->|replacement or unmount| cleanup["Effect cleanup dismisses the previous toast ID"]
 ```
 
-**Code references:** [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts); [shellNotices.ts](../../apps/frontend/src/components/app-shell/shellNotices.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)
+**Code references:** [runtimeSlice.ts:99](../../apps/frontend/src/store/slices/runtimeSlice.ts#L99) · [shellNotices.ts:10](../../apps/frontend/src/components/app-shell/shellNotices.ts#L10) · [shellNotices.ts:21](../../apps/frontend/src/components/app-shell/shellNotices.ts#L21) · [AppShell.tsx:49](../../apps/frontend/src/components/AppShell.tsx#L49)

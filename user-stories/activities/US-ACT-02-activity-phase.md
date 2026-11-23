@@ -32,10 +32,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ActivityList opens ActivityForm"] --> B["ActivityFields renders no Phase picker"]
-  B --> C["useActivityFields retains phaseId state but exposes no setter control"]
-  C --> D["ActivityForm.submit includes retained phaseId for project kind"]
-  E["typedPlanningActions retains phase actions"] --> F["planningTransport maps phase routes"] --> G["PlanningMutationsController.store / phaseUpdate / phaseDelete"]
+  LIST["ActivityList opens ActivityForm through Add or Edit"] --> FIELDS["ActivityFields renders Name, Kind and conditional Project. Phase has no control"]
+  FIELDS --> CHANGE{"Existing project-specific activity is edited through the normal form?"}
+  CHANGE -->|Project and project kind kept| KEEP["useActivityFields retains the stored phaseId"]
+  CHANGE -->|Project changes or kind leaves Project-specific| CLEAR["changeProject or changeKind clears the local phase"]
+  KEEP --> SAVE["prepareSave and buildCatalogueUpdate carry the resulting attribution on a changed edit"]
+  CLEAR --> SAVE
+  SAVE --> CHECK{"writeEntity checks same-company, matching-project phase references"}
+  CHECK -->|Valid| ROW["Persist activity and return role-projected receipt"]
+  CHECK -->|Refused| ERROR["useEditSubmit keeps the draft and shows the error"]
+  CHANGE -->|Creating project-specific activity| NEW["prepareSave and buildCatalogueCreate submit phaseId as null"]
+  NEW --> CHECK
 ```
 
-**Code references:** [ActivityList.tsx](../../apps/frontend/src/components/activities/ActivityList.tsx) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
+Owner, Admin and Editor can write planning data. Viewer and view-as-member lack write authority. Assigning a phase is unavailable in the list journey. Cancel discards local changes and a no-op edit sends no intent. The mutation API retains phase validation, including the stored-reference handling for an unchanged phase and project.
+
+**Code references:** [ActivityList.tsx](../../apps/frontend/src/components/activities/ActivityList.tsx#L190) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx#L154) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx#L34) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx#L67) · [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L502) · [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L157) · [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L81) · [sendPlanningIntent](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L139) · [Planning transport](../../apps/frontend/src/data/planning/planningTransport.ts#L64) · [Planning route](../../apps/backend/start/planning_routes.ts#L16) · [Mutation controller](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9) · [Planning transaction](../../apps/backend/app/services/planning.ts#L198) · [Company write authority](../../apps/backend/app/services/planning/access.ts#L16) · [Receipt and refresh](../../apps/frontend/src/data/planning/planningCache.ts#L469)
