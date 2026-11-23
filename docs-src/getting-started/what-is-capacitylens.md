@@ -67,8 +67,8 @@ it to see their own week.
 
 - **Leaving.** Your data is one SQLite database file on your server, and **Export JSON** in
   Settings downloads the company's scheduling records. The GPL lets anyone continue the code.
-- **Status.** An alpha release maintained by one person. Until beta, settings and the upgrade
-  path may still change between releases; the release notes say when they do.
+- **Status.** A beta release maintained by one person. Settings and the upgrade path may still
+  change between releases, and the release notes say when they do.
 - **Outside services.** Email delivery is the only one. Invitations, address confirmation and
   password resets are sent by email.
 - **Support.** Community help on a best-effort basis, with no guaranteed response time.

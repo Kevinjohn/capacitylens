@@ -8,7 +8,7 @@ CapacityLens puts people down the side, days across the top, and the work and ti
 - Licence: GPL-3.0-or-later.
 - Cost: free and open source, with no paid tier and no hosted version. The only cost is your own server.
 - Requirements: one Linux host with Node 24, an SQLite database file and HTTPS from a proxy on the same machine.
-- Status: alpha, maintained by one person.
+- Status: beta, maintained by one person.
 - It does not do: tasks, tickets, deadlines, budgets, timesheets or hour-by-hour scheduling.
 
 Float, Productive, awork, Runn, Teamwork, Resource Guru and eResource Scheduler are good tools, and each covers several jobs, such as budgets, timesheets, project management and reporting. CapacityLens tries to do less: it shows who is busy and who is free, week by week, on a server you run, with no licence fee. If you need budgets, timesheets, hour-level booking or a hosted service, choose one of them.
