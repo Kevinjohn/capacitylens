@@ -4,8 +4,11 @@ import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging
 
 declare module '@adonisjs/core/http' {
   interface HttpContext {
-    /** The validated planning operation, set by the mutation route for the completion line. */
-    planningOperation?: string;
+    /** Fields an action adds to this request's completion line. */
+    requestLog: {
+      /** The validated planning operation, set by the mutation route. */
+      planningOperation?: string;
+    };
   }
 }
 
@@ -13,6 +16,7 @@ declare module '@adonisjs/core/http' {
 export default class RequestLoggingMiddleware {
   async handle(ctx: HttpContext, next: () => Promise<void>) {
     const method = normalizeRequestMethod(ctx.request.method());
+    ctx.requestLog = {};
     try {
       await next();
     } finally {
@@ -27,7 +31,9 @@ export default class RequestLoggingMiddleware {
               event: 'http.request.completed',
               method,
               path,
-              ...(ctx.planningOperation ? { planningOperation: ctx.planningOperation } : {}),
+              ...(ctx.requestLog.planningOperation
+                ? { planningOperation: ctx.requestLog.planningOperation }
+                : {}),
               status,
               outcome: status >= 400 ? 'failure' : 'success',
             },

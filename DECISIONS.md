@@ -386,9 +386,7 @@ reopened there.
 25. The view-as control actions (`store`, `show`, `destroy` in `masquerade_controller.ts`) take the
     whole HTTP context and pass it to the Masquerade service. The service treats the context as the
     request: it admits each request once, authenticates through its guard and reads its route
-    parameters. `PlanningMutationsController.store` also keeps the context, because it records the
-    planning operation on it for the request log. Every other controller action destructures.
-    Revisit: #2334 item 4.
+    parameters. Every other controller action destructures. Revisit: #2334 item 4.
 
 ## Installation
 
