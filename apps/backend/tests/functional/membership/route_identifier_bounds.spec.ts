@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
-import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
-import { clearIdentities, signUpAndIn } from '#tests/helpers/identities';
+import { clearIdentities, createIdentity } from '#tests/helpers/identities';
 
 const owner = {
   email: 'bruce.wayne@wayne.example',
@@ -22,11 +22,10 @@ test.group('company route identifier bounds', (group) => {
   });
 
   test('identifiers longer than the package accepts match no route', async ({ client }) => {
-    const signedIn = await signUpAndIn(client, owner);
-    signedIn.assertStatus(200);
-    const cookie = signedIn.cookie('adonis-session')!.value;
-    const user = await db.from('users').where('email', owner.email).first();
-    await createFixtureCompanyForOwner(String(user!.id), 'Wayne Enterprises', 'a-studio');
+    const user = await User.findOrFail(
+      await createIdentity(owner.email, { name: owner.name, password: owner.password })
+    );
+    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
     const tooLong = 'a'.repeat(255);
     const refused = [
       client.get(`/api/companies/${tooLong}/members`),
@@ -34,12 +33,12 @@ test.group('company route identifier bounds', (group) => {
       client.put(`/api/companies/a-studio/members/${tooLong}/resource-link`).json({}),
     ];
     for (const request of refused) {
-      const response = await asDataOwner(request, cookie).send();
+      const response = await asLoggedInDataOwner(request, user).send();
       response.assertStatus(404);
     }
-    const listed = await asDataOwner(
+    const listed = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
-      cookie
+      user
     ).send();
     listed.assertStatus(200);
   });
