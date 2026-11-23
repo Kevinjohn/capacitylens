@@ -37,16 +37,20 @@ flowchart TD
   dialog["AccountView opens SecuritySection DeleteAccountDialog"] -->|Cancel| clear["Clear the draft; a dispatched request continues"]
   dialog -->|Submit| api["useAccountDeletion validates and calls authApi.deleteAccount"]
   api --> guard["Auth route refuses own-account writes in View as member"]
-  guard -->|Allowed| proof["AccountController.destroy issues and spends delete-account proof for this user outside the Kit deletion transaction"]
+  guard -->|Allowed| current["AccountController.destroy validates the request and reads the current sign-in through the raw web guard"]
+  current -->|Verified| proof["Issue and spend delete-account proof scoped to this user ID before the Kit deletion transaction"]
+  current -->|Refused| field
   proof -->|Password or throttle refusal| field["Show the current-password error"]
   proof -->|Spent| kit["Account Kit rechecks password and starts the deletion transaction"]
   kit -->|Owner| owner["LAST_OWNER: show transfer-ownership requirement"]
   kit -->|Wrong current password| field
   kit -->|Eligible| cleanup["Delete identity and memberships/links; record revision and audit; retain resources, history and invitations with inviter cleared"]
-  cleanup --> terminate["Terminate current managed sign-in"]
+  cleanup --> terminate["Terminate the browser session through the raw web guard"]
   terminate -->|Success or ACCOUNT_DELETION_COMMITTED| reload["Navigate to the root"]
   api -->|No response| unknown["Show outcome unknown if the dialog is still current"]
   guard -->|Refused| field
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx#L88) · [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx#L112) · [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts#L112) · [account_controller.ts](../../apps/backend/app/controllers/account_controller.ts#L29) · [route_middleware.ts](../../apps/backend/start/route_middleware.ts#L50) · [account_kit.ts](../../apps/backend/config/account_kit.ts#L49) · [membership_effects.ts](../../apps/backend/app/services/account_kit/membership_effects.ts#L31) · [account_deletion.spec.ts](../../apps/backend/tests/functional/auth/account_deletion.spec.ts#L85)
+See [Package callbacks](../REFERENCE.md#package-callbacks) for confirmation authorization and the transaction callbacks used by deletion.
+
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx#L88) · [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx#L112) · [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts#L112) · [account_controller.ts](../../apps/backend/app/controllers/account_controller.ts#L28) · [route_middleware.ts](../../apps/backend/start/route_middleware.ts#L50) · [password_confirmation.ts](../../apps/backend/app/services/auth/password_confirmation.ts#L42) · [package_callbacks_provider.ts](../../apps/backend/providers/package_callbacks_provider.ts#L38) · [account_kit.ts](../../apps/backend/config/account_kit.ts#L34) · [membership_effects.ts](../../apps/backend/app/services/account_kit/membership_effects.ts#L31) · [account_deletion.spec.ts](../../apps/backend/tests/functional/auth/account_deletion.spec.ts#L85)

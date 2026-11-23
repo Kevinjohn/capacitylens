@@ -41,11 +41,11 @@ flowchart TD
   panel -->|Submit| validate["useMemberInvites trims and checks the email"]
   validate -->|Invalid| error["Show invite field error"]
   validate -->|Valid| request["teamAccessApi calls InvitationsController.store"]
-  request --> auth["Validate request and require current invitation manager"]
+  request --> auth["Validate request; requireInvitationManager checks live invitations:manage for the installation company"]
   auth -->|Allowed| mail{"Mail configured?"}
   auth -->|Refused| error
   mail -->|No| error
-  mail -->|Yes| kit["Account Kit rechecks current transaction authority and saves invitation before mail delivery"]
+  mail -->|Yes| kit["Account Kit send uses the registered Access Control authorization callback, then saves before delivery"]
   kit -->|Refused| error
   kit -->|Saved and emailed| completed["Show emailed notice; clear the email draft"]
   kit -->|Saved but delivery failed| warning["HTTP 202: show warning; clear the email draft"]
@@ -54,4 +54,4 @@ flowchart TD
   request -->|Unknown outcome| reconcile["Reconcile directory before inviting again"]
 ```
 
-**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx#L35) · [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts#L31) · [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts#L19) · [account_kit.ts](../../apps/backend/config/account_kit.ts#L53) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L363)
+**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx#L35) · [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts#L31) · [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts#L19) · [invitation_answers.ts](../../apps/backend/app/services/admission/invitation_answers.ts#L40) · [package_callbacks_provider.ts](../../apps/backend/providers/package_callbacks_provider.ts#L18) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L363)

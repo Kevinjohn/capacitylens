@@ -47,7 +47,7 @@ flowchart TD
   service -->|No-argument upgrade| exitUpgrade["Installer exits"]
   service -->|First install with Caddy| caddy["Write and validate site configuration; reload Caddy"]
   service -->|First install without Caddy| proxy["Print manual HTTPS proxy instructions"]
-  caddy --> bootstrap["Account Kit bootstrap command issues the first invitation"]
+  caddy --> bootstrap["Ace runs account-kit:admission:bootstrap to issue the first invitation"]
   proxy --> bootstrap
   service --> probe["Operator checks /health/ready independently"]
   service --> backup["BackupProvider runs a startup and daily backup when configured"]
@@ -56,4 +56,4 @@ flowchart TD
 
 See [Set up and open the installation company](../navigation/US-NAV-14-company-picker-setup.md#code-flow) for the browser continuation.
 
-**Code references:** [install.sh](../../packaging/release/install.sh#L32) · [install.sh](../../packaging/release/install.sh#L49) · [Installer stop and restart ordering](../../packaging/release/install.sh#L65) · [app_upgrade.ts](../../apps/backend/commands/app_upgrade.ts#L13) · [routes.ts](../../apps/backend/start/routes.ts#L57) · [backup_provider.ts](../../apps/backend/providers/backup_provider.ts#L45) · [install-without-docker.md](../../docs-src/self-hosting/install-without-docker.md#L143)
+**Code references:** [install.sh](../../packaging/release/install.sh#L32) · [install.sh](../../packaging/release/install.sh#L49) · [Installer stop and restart ordering](../../packaging/release/install.sh#L65) · [Bootstrap command](../../packaging/release/install.sh#L88) · [Ace command registration](../../apps/backend/adonisrc.ts#L27) · [app_upgrade.ts](../../apps/backend/commands/app_upgrade.ts#L13) · [routes.ts](../../apps/backend/start/routes.ts#L57) · [backup_provider.ts](../../apps/backend/providers/backup_provider.ts#L45) · [install-without-docker.md](../../docs-src/self-hosting/install-without-docker.md#L143)

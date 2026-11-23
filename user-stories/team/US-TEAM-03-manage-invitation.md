@@ -32,19 +32,21 @@ flowchart TD
 ```mermaid
 flowchart TD
   row["InviteMemberPanel renders outstanding invitations"] -->|Resend, including expired row| resend["useMemberInvites calls InvitationDeliveriesController.store"]
-  resend --> check["Require invitation manager and configured mail"]
+  resend --> check["requireInvitationManager checks live invitations:manage and mail must be configured"]
   check -->|Refused| error["Show action error"]
-  check -->|Allowed| replace["Kit invalidates the prior link by replacing the token, then attempts delivery"]
+  check -->|Allowed| replace["Account Kit resend uses registered authorization, replaces the token, then attempts delivery"]
   replace -->|Emailed| sent["Show resend notice"]
   replace -->|Saved with failed delivery| warned["Show saved-but-not-emailed warning"]
   sent --> list["Reload invitations"]
   warned --> list
   resend -->|Unknown or refused result| error
   row -->|Revoke, unexpired row| revoke["useMemberInvites calls InvitationsController.destroy"]
-  revoke --> kit["Check current manager; Account Kit revokes invitation"]
+  revoke --> kit["Check current manager; Account Kit revoke uses registered authorization and cancels the invitation"]
   kit -->|Confirmed| list
   kit -->|Refused| error
   revoke -->|Unknown| reconcile["Reconcile directory before another attempt"]
 ```
+
+See [package callbacks](../REFERENCE.md#package-callbacks) for the Kit authorization shared with invitation creation.
 
 **Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx#L141) · [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx#L178) · [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts#L95) · [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts#L137) · [invitation_deliveries_controller.ts](../../apps/backend/app/controllers/invitation_deliveries_controller.ts#L15) · [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts#L64) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L310)

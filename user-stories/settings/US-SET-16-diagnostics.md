@@ -33,7 +33,9 @@ flowchart TD
   route -->|Denied| redirect["Replace route with the root"]
   route -->|Allowed| page["DiagnosticsView calls useDiagnosticsViewModel"]
   page --> request["Send authenticated diagnostics read"]
-  request --> authorize["DiagnosticsController independently requires admitted Owner or Admin outside View as member"]
+  request --> gate["Diagnostics routes require account admission and asMemberOnly blocks view-as reads"]
+  gate -->|Allowed| authorize["DiagnosticsController checks live Owner or Admin via withActor(auth)"]
+  gate -->|Refused| fallback
   authorize -->|Allowed| response["Read permitted server facts"]
   authorize -->|Refused| fallback["Report server observations unavailable"]
   request -->|Unreachable| fallback

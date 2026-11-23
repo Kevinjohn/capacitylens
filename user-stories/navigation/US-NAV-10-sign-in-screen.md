@@ -40,10 +40,12 @@ flowchart TD
   validate -->|Invalid| refusal["Show validation or server refusal and allow retry"]
   validate -->|Valid| api["authApi.signIn.email sends credentials"]
   api --> controller["SessionController.store validates request and calls signInWithPassword"]
-  controller --> kit["Account Kit checks credentials and creates the managed session"]
-  controller -->|Invalid credentials or throttled| refusal
+  controller --> kit["signInWithPassword calls Account Kit login through the raw web guard adapter"]
+  kit -->|Sign-in registered| session["Use limited withActor to verify it, record member sign-in for active memberships with tracking enabled, and build the user response"]
+  kit -->|Invalid credentials, throttled or otherwise refused| refusal
   api -->|Transport failure| network["Show network error and allow retry"]
-  kit -->|Accepted| reload["onSignedIn fully reloads the page"]
+  session -->|Success| reload["onSignedIn fully reloads the page"]
+  session -->|Follow-up fails| followUp["Show the error even though Account Kit already registered the sign-in"]
   reload --> status["AuthProvider fetchAuthStatus rechecks the server session"]
   status -->|Unconfirmed address, admission or membership| limited["Render first applicable AccessScreen"]
   status -->|First company required| setup["Render CompanySetup"]
@@ -51,4 +53,6 @@ flowchart TD
   status -->|Signed out or check failed| retry["Render sign-in or retryable AuthError"]
 ```
 
-**Code references:** [SignInForm.tsx](../../apps/frontend/src/auth/SignInForm.tsx#L46) · [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts#L9) · [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L60) · [password_sign_in.ts](../../apps/backend/app/services/auth/password_sign_in.ts#L34) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L152) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L250) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L118)
+See [Signed-in requests](../REFERENCE.md#signed-in-requests) for the raw guard and transaction checks and [Sign out of this browser](../account/US-ACCOUNT-04-sign-out.md#code-flow) for sign-out.
+
+**Code references:** [SignInForm.tsx](../../apps/frontend/src/auth/SignInForm.tsx#L46) · [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts#L9) · [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L59) · [password_sign_in.ts](../../apps/backend/app/services/auth/password_sign_in.ts#L37) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L152) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L250) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L118)

@@ -41,9 +41,11 @@ flowchart TD
   bootstrap["First admitted confirmed identity signs in after accepting bootstrap invitation"] --> gate["AuthProvider renders CompanySetup from companySetupRequired"]
   gate -->|Sign out| logout["Use the sign-out journey"]
   gate -->|Submit| form["CompanySetup normalizes input and posts first-company setup"]
-  form --> controller["FirstCompanySetupController validates request and normalizes optional defaults"]
+  form --> access["The admitted web_effective route checks access before calling FirstCompanySetupController"]
+  access -->|Refused| refusal
+  access -->|Allowed| controller["FirstCompanySetupController validates request and normalizes optional defaults"]
   controller -->|Invalid or unauthorized| refusal["Show setup failure"]
-  controller -->|Valid| guard["withActor checks eligibility under transaction: sole identity, no company or memberships"]
+  controller -->|Valid| guard["withActor rechecks the real sign-in before the controller checks for a sole identity and no company or memberships in the same transaction"]
   guard -->|Eligible| create["Create company, Internal client, Owner membership, revision and company.initialized audit atomically"]
   create -->|Created| reread["onCreated rechecks session"]
   guard -->|Concurrent setup or ineligible| conflict["409 triggers onConflict ownership read"]
@@ -56,6 +58,6 @@ flowchart TD
   form -->|Request failed| refusal
 ```
 
-See [Sign out of this browser](../account/US-ACCOUNT-04-sign-out.md#code-flow) for sign-out recovery.
+See [Signed-in requests](../REFERENCE.md#signed-in-requests) for the two guards and the transaction check. See [Sign out of this browser](../account/US-ACCOUNT-04-sign-out.md#code-flow) for sign-out recovery.
 
-**Code references:** [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx#L32) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L277) · [first_company_setup_controller.ts](../../apps/backend/app/controllers/first_company_setup_controller.ts#L15) · [first_company_setup.ts](../../apps/backend/app/services/first_company_setup.ts#L6) · [initial_company_defaults.ts](../../apps/backend/app/services/initial_company_defaults.ts#L24) · [initial_company_access.ts](../../apps/backend/app/services/initial_company_access.ts#L14) · [first_company_setup.spec.ts](../../apps/backend/tests/functional/auth/first_company_setup.spec.ts#L260)
+**Code references:** [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx#L32) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L277) · [company_routes.ts](../../apps/backend/start/company_routes.ts#L9) · [first_company_setup_controller.ts](../../apps/backend/app/controllers/first_company_setup_controller.ts#L15) · [first_company_setup.ts](../../apps/backend/app/services/first_company_setup.ts#L6) · [initial_company_defaults.ts](../../apps/backend/app/services/initial_company_defaults.ts#L24) · [initial_company_access.ts](../../apps/backend/app/services/initial_company_access.ts#L14) · [first_company_setup.spec.ts](../../apps/backend/tests/functional/auth/first_company_setup.spec.ts#L260)

@@ -43,7 +43,7 @@ flowchart TD
   dialog -->|Cancel| card
   dialog -->|Proof refused| inlineError["Show proof error"]
   dialog -->|Confirmed| request["useOwnershipTransfer submits the target, proof and account-operation headers"]
-  request --> guard["OwnershipTransfersController uses withActor and transferOwnership calls runAccountOperation"]
+  request --> guard["OwnershipTransfersController uses withActor(auth); transferOwnership calls runAccountOperation"]
   guard -->|Matching replay by current active former Owner| receipt["Return stored receipt without spending proof again"]
   guard -->|New operation| checks["Check live Owner, eligible active Admin and one-Owner invariant before consuming proof"]
   checks -->|Refused| refusal["Show transfer refusal"]
@@ -54,5 +54,7 @@ flowchart TD
   request -->|Unknown result| reconcile
   reconcile -->|Failed| reload["Close the company and ask the person to reopen it"]
 ```
+
+See [password proof issuance](../data/US-DAT-08-preview-exact-import.md#code-flow) for the shared authorization callback. Ownership transfer binds the proof to the selected successor.
 
 **Code references:** [OwnershipTransferCard.tsx](../../apps/frontend/src/components/team/OwnershipTransferCard.tsx#L69) · [OwnershipTransferCard.tsx](../../apps/frontend/src/components/team/OwnershipTransferCard.tsx#L114) · [useOwnershipTransfer.ts](../../apps/frontend/src/components/team/useOwnershipTransfer.ts#L32) · [useOwnershipTransfer.ts](../../apps/frontend/src/components/team/useOwnershipTransfer.ts#L121) · [ownership_transfers_controller.ts](../../apps/backend/app/controllers/ownership_transfers_controller.ts#L9) · [ownership_transfer.ts](../../apps/backend/app/services/membership/ownership_transfer.ts#L24) · [account_operations.ts](../../apps/backend/app/services/account_operations.ts#L36) · [ownership_transfer.spec.ts](../../apps/backend/tests/functional/membership/ownership_transfer.spec.ts#L127)

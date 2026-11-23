@@ -35,9 +35,12 @@ flowchart TD
 ```mermaid
 flowchart TD
   gate["AuthProvider renders AccessScreen with the confirmation gate"] --> send["authApi.sendEmailVerification calls EmailVerificationRequestsController.store"]
-  send --> kitMail["Account Kit issues and sends the verification link"]
+  send --> check["EmailVerificationRequestsController.store checks mail setup and verifies the account through readCurrentAccount(auth)"]
+  check -->|Mail configured and account verified| kitMail["Account Kit issues and sends the verification link"]
+  check -->|Mail unavailable| admin
+  check -->|Session refused| sendError
   kitMail -->|Accepted| sent["Show delivery acknowledgement"]
-  kitMail -->|Mail missing or saved but delivery failed| admin["Show contact-admin message"]
+  kitMail -->|Saved but delivery failed| admin["Show contact-admin message"]
   send -->|Other error| sendError["Show request error"]
   link["VerifyEmail opens the token URL"] --> inspect["authApi.inspectEmailVerification calls EmailVerificationsController.show"]
   inspect -->|Unavailable| retry["Try again reruns inspection"]
@@ -52,5 +55,7 @@ flowchart TD
   kit -->|Other 5xx| uncertain["Explain which passwords to try before requesting a fresh link"]
   complete -->|No response| uncertain
 ```
+
+See [Signed-in requests](../REFERENCE.md#signed-in-requests) for the raw guard and account check used to send the link.
 
 **Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L257) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L115) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L37) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L66) · [email_verification_requests_controller.ts](../../apps/backend/app/controllers/email_verification_requests_controller.ts#L9) · [email_verifications_controller.ts](../../apps/backend/app/controllers/email_verifications_controller.ts#L14) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L296)
