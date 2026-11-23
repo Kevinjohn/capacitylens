@@ -11,6 +11,7 @@ import {
   planningUrl,
   resetPlanningFixture,
   session,
+  loginAsMember,
   signIn,
 } from '#tests/functional/planning/helpers';
 import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers';
@@ -37,7 +38,7 @@ test.group('authenticated planning operations', (group) => {
   test('Viewer writes and foreign references are refused', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie: viewerCookie } = await signIn(client, 'viewer');
+    const { cookie: viewerCookie } = await loginAsMember('viewer');
     const allocation = newAllocation(data);
     const viewer = await session(client.post(route('planning/mutations')), viewerCookie)
       .json(input(0, { operation: 'allocation.create', allocation }))
@@ -45,7 +46,7 @@ test.group('authenticated planning operations', (group) => {
     viewer.assertStatus(403);
     assert.equal(body(viewer).code, 'AUTHORIZATION_DENIED');
 
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
 
     const fullState = await readState();
     const foreignResource = fullState.resources.find((row) => row.companyId === 'a-loft')!;
@@ -74,7 +75,7 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client, 'editor');
+    const { cookie } = await loginAsMember('editor');
     const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
     const clientId = randomUUID();
     const projectId = randomUUID();
@@ -156,7 +157,7 @@ test.group('authenticated planning operations', (group) => {
     const original = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
     )!;
-    const { cookie } = await signIn(client, 'editor');
+    const { cookie } = await loginAsMember('editor');
     const id = randomUUID();
     const fields = {
       kind: 'person',
@@ -201,7 +202,7 @@ test.group('authenticated planning operations', (group) => {
       (row) => row.companyId === companyId && row.kind === 'external'
     );
     assert.isDefined(external);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const changedDays = external!.workingDays.includes(0) ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4];
 
@@ -229,7 +230,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const external = data.resources.find((row) => row.kind === 'external')!;
     for (const [field, value] of [
@@ -255,7 +256,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const id = randomUUID();
     const before = await readState(companyId, true);
     const auditBefore = await db.from('audit_entries').where('company_id', companyId);
@@ -291,7 +292,7 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie: ownerCookie } = await signIn(client);
+    const { cookie: ownerCookie } = await loginAsMember();
     const clientId = randomUUID();
     const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
     const privateClient = await session(client.post(route('planning/mutations')), ownerCookie)
@@ -328,7 +329,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     timeOff.assertStatus(200);
 
-    const { cookie } = await signIn(client, 'editor');
+    const { cookie } = await loginAsMember('editor');
     const nameEdit = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(2, {
@@ -385,7 +386,7 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     type Read = { revision: number; data: AppData };
     type Changes = {
       upserts: Array<{ entity: AppDataKey; row: { id: string } }>;
@@ -669,7 +670,7 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     // Bruce works eight hours Monday to Friday and has nothing booked in November.
     const allocation = { ...newAllocation(data), hoursPerDay: 5 };
     const advisory = (response: { body(): unknown }) =>
@@ -757,7 +758,7 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client, 'editor');
+    const { cookie } = await loginAsMember('editor');
     const resourceId = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
     )!.id;
@@ -831,7 +832,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const styled = await session(client.post(route('planning/mutations')), cookie)
       .json(input(0, { operation: 'settings.update', changes: { dateStyle: 'month-day' } }))
       .send();
@@ -851,7 +852,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const phase = before.phases.find((row) => row.id === 'ph-disc')!;
     const target = before.projects.find((row) => row.id === 'p-brand')!;
@@ -886,7 +887,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     // The browser sends the timestamp it read, so take the row from the planning read.
     const read = await session(client.get(planningUrl), cookie).send();
@@ -923,7 +924,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const id = randomUUID();
     const created = await session(client.post(route('planning/mutations')), cookie)
       .json(
@@ -957,7 +958,7 @@ test.group('authenticated planning operations', (group) => {
   });
   test('activity kind edits remove dependent attribution', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const activityId = randomUUID();
     const created = await session(client.post(route('planning/mutations')), cookie)

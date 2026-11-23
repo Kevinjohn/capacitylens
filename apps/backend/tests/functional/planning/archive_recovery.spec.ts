@@ -12,6 +12,8 @@ import {
   configureAuth,
   resetPlanningFixture,
   session,
+  type Credential,
+  loginAsMember,
   signIn,
   trusted,
 } from '#tests/functional/planning/helpers';
@@ -59,7 +61,7 @@ function restoreOperation(entity: ArchiveRecoveryRow['entity'], id: string) {
 
 async function restore(
   client: ApiClient,
-  cookie: string,
+  cookie: Credential,
   entity: ArchiveRecoveryRow['entity'],
   id: string,
   baseRevision: number
@@ -177,7 +179,7 @@ test.group('identity-only archive recovery', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { clientId, projectId } = await prepareArchiveFixture(true);
-    const actor = await signIn(client, 'editor');
+    const actor = await loginAsMember('editor');
 
     for (const role of ['editor', 'admin', 'owner'] as const) {
       await db
@@ -357,7 +359,7 @@ test.group('identity-only archive recovery', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { clientId, projectId } = await prepareArchiveFixture();
-    const editor = await signIn(client, 'editor');
+    const editor = await loginAsMember('editor');
 
     const initial = await session(client.get(route('planning')), editor.cookie).send();
     initial.assertStatus(200);
@@ -535,7 +537,7 @@ test.group('identity-only archive recovery', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { clientId } = await prepareArchiveFixture();
-    const editor = await signIn(client, 'editor');
+    const editor = await loginAsMember('editor');
     const archiveRead = await session(client.get(archiveUrl), editor.cookie).send();
     archiveRead.assertStatus(200);
 

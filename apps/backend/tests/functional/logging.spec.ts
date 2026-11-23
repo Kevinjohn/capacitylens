@@ -19,7 +19,7 @@ import {
   planningUrl,
   resetPlanningFixture,
   session as withPlanningSession,
-  signIn,
+  loginAsMember,
 } from '#tests/functional/planning/helpers';
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE';
@@ -242,7 +242,7 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await resetPlanningFixture();
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const { output, result } = await captureLogs(() =>
       withPlanningSession(client.post(`${planningUrl}/mutations`), cookie)
         .json({

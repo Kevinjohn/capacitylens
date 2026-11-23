@@ -12,7 +12,7 @@ import {
   planningUrl,
   resetPlanningFixture,
   session,
-  signIn,
+  loginAsMember,
   trusted,
 } from '#tests/functional/planning/helpers';
 
@@ -45,7 +45,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
     const first = { ...newAllocation(data), startDate: '2026-10-01', endDate: '2026-10-01' };
     const committed = await session(client.post(route('planning/mutations')), cookie)
@@ -81,7 +81,7 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const timeOff = {
       id: randomUUID(),
@@ -123,7 +123,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const first = newAllocation(data);
     const before = await readState(companyId, true);
     const refused = await session(client.post(route('planning/mutations')), cookie)
@@ -159,7 +159,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const clientId = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.id;
     const resourceId = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person' && !row.archivedAt
@@ -241,7 +241,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const clientId = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.id;
     const missingId = randomUUID();
 
@@ -290,7 +290,7 @@ test.group('independent typed planning operations', (group) => {
   test('a client archive reports the active rows it hid', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
     const before = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const target = before.clients.find(
       (row) =>
         row.companyId === companyId &&
@@ -329,7 +329,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const internal = data.clients.find((row) => row.companyId === companyId && row.builtin)!;
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
@@ -363,7 +363,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const internal = data.clients.find((row) => row.companyId === companyId && row.builtin)!;
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
@@ -501,7 +501,7 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const allCompanies = await readState();
     const foreignProject = allCompanies.projects.find((row) => row.companyId === 'a-loft')!;
     const before = await db.from('projects').where({ id: foreignProject.id }).first();
@@ -561,7 +561,7 @@ test.group('independent typed planning operations', (group) => {
       id,
       name: 'Daily Planet',
     });
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const response = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {

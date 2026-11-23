@@ -10,7 +10,7 @@ import {
   planningUrl,
   resetPlanningFixture,
   session,
-  signIn,
+  loginAsMember,
 } from '#tests/functional/planning/helpers';
 
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
@@ -39,7 +39,7 @@ test.group('planning request rule boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const initial = await readState(companyId, true);
     const clientId = randomUUID();
     const validClient = await session(client.post(route('planning/mutations')), cookie)
@@ -161,7 +161,7 @@ test.group('planning request rule boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const initial = await readState(companyId, true);
     const activity = initial.activities.find((row) => row.phaseId !== null)!;
     const otherProject = initial.projects.find((row) => row.id !== activity.projectId)!;
@@ -247,7 +247,7 @@ test.group('planning request rule boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const person = before.resources.find((row) => row.kind === 'person')!;
     const placeholder = before.resources.find((row) => row.kind === 'placeholder')!;
@@ -309,7 +309,7 @@ test.group('planning request rule boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const initial = await readState(companyId, true);
     const allocatedPerson = initial.resources.find(
       (resource) =>
@@ -428,7 +428,7 @@ test.group('planning request rule boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const baseAllocation = newAllocation(before);
     const external = before.resources.find((row) => row.kind === 'external')!;
@@ -557,7 +557,7 @@ test.group('planning request rule boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
@@ -587,7 +587,7 @@ test.group('planning request rule boundaries', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const created = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
@@ -626,7 +626,7 @@ test.group('planning request rule boundaries', (group) => {
 
   test('ignores a display name sent on a write', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
-    const { cookie } = await signIn(client);
+    const { cookie } = await loginAsMember();
     const initial = await readState(companyId, true);
     const color = initial.clients.find((row) => row.companyId === companyId)!.color;
     const id = randomUUID();
