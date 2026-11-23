@@ -1,6 +1,6 @@
 # CapacityLens repository guidance
 
-Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS documentation for framework conventions and APIs. This file records only repository-specific requirements.
+Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS documentation for framework conventions and APIs. Follow the framework wherever it has an answer; a difference from it needs the owner's ruling. This file records only repository-specific requirements.
 
 ## Scope and architecture
 
@@ -31,7 +31,7 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - Follow `docs-src/reference/code-standards.md` for names, errors, comments and TSDoc; lint and Prettier own the rest.
 - Use the words in [code_convention_terminology.md](code_convention_terminology.md): one word per concept, and framework words only for the framework concept.
 - Follow `docs-src/reference/adonisjs-conventions.md` for backend layout, file names, framework vocabulary and per-layer rules.
-- Keep `DECISIONS.md` authoritative for product rules and framework departures. User-facing documentation is sourced from `docs-src/`; `docs/` is build output and is not committed, so run `pnpm run docs:build` to check a change. Update affected stories and their guide links when user-visible behaviour changes.
+- `DECISIONS.md` records the owner's product rules and the framework departures still open. Where it and the code disagree, raise it; do not assume either is right. Behaviour detail belongs in the user stories and tests, not there. User-facing documentation is sourced from `docs-src/`; `docs/` is build output and is not committed, so run `pnpm run docs:build` to check a change. Update affected stories and their guide links when user-visible behaviour changes.
 - Use fictional DC/Marvel identities in demo data, examples and tests; never use a real customer or colleague's name.
 - Do not publish AI/provider/model attribution or credentials in repository content, screenshots, commits or pull requests.
 
@@ -40,10 +40,9 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - Never commit task work on `main`. Fetch `origin/main` and create a unique feature branch from it. Use a sibling worktree when more than one change is in progress at the same time, and resume existing work in the worktree it was started in. Target `main` for pull requests.
 - Base a pull request on another open pull request's branch only when it needs that change's code; independent changes each branch from `main`. The required check runs only for pull requests that target `main`, and changing a pull request's base does not start it.
 - Land a stack by merging each pull request into its base branch from the top down, then merging the bottom one into `main` after its checks pass. Do not merge a stack bottom-up.
-- `DECISIONS.md` states the target; code may lag until the owning issue lands.
 - Record new implementation, design or investigation plans in a GitHub issue; do not add repository Markdown plans. Keep settled scope and existing plans authoritative.
 - Use the Node version in `.nvmrc` and `pnpm` for JavaScript package operations. Do not use npm, npx or yarn.
-- Run focused checks while implementing: `pnpm run check:changed --static origin/<base>` plus the change's focused tests. The submission gate (`pnpm run gate:all` plus `pnpm run e2e`) runs on GitHub, not locally: the pull request's checks, then one `Validation` run with `full=true` for each batch of changes, unless the accepted scope defines a narrower required gate. Do not add fixed file-size, test-size, coverage-floor or naming-ratchet requirements. Do not run Docker for routine work.
+- Run focused checks while implementing: `pnpm run check:changed --static origin/<base>` plus the change's focused tests. The submission gate (`pnpm run gate:all` plus `pnpm run e2e`) runs on GitHub, not locally: the pull request's checks, then one `Validation` run with `full=true` for each batch of changes, unless the accepted scope defines a narrower required gate. Do not add fixed file-size, test-size or coverage-floor requirements; a mechanical check is added only for a rule the owner has set. Do not run Docker for routine work.
 - Commit each feature change with `git commit -s`. Never push task commits to `main`; publish a ready pull request only after review and required checks.
 - Decide implementation questions yourself and record the choice in the pull request. Ask the owner only about product decisions: behaviour users see, scope, public interfaces, breaking changes and data loss.
 - A pull request merges once its review is complete and every check on its head has passed; no separate authorisation is needed. Preserve unrelated work; never rewrite history without explicit authorisation.

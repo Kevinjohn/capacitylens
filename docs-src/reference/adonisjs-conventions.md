@@ -26,7 +26,8 @@ Three rules decide every case:
 2. **A deliberate difference is a numbered departure.** The list is "AdonisJS framework
    departures" in
    [`DECISIONS.md`](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md). This page
-   cites it as "departure 10". A new difference needs a new item there first.
+   cites it as "departure 10". A new difference needs the owner's ruling first. An entry marked
+   **Aligning** there is being removed; do not copy it into new code.
 3. **An existing difference is debt.** Code that differs without a departure is tracked in
    [#2334](https://github.com/Kevinjohn/capacitylens/issues/2334). It is not a pattern to copy.
    Rules marked **Open** wait for a decision in that issue; until then, match the surrounding
@@ -222,12 +223,12 @@ Source: [Routing](https://docs.adonisjs.com/guides/basics/routing) and
 - Attach middleware with `.use(middleware.name(options))`, importing `middleware` from
   `#start/kernel`.
 - Use `router.resource()` for a resource with the standard actions, with `.apiOnly()` for an API.
-  Planning edits use one mutation route instead (departure 13).
+  Planning edits use one mutation route instead (a product data-design choice in `DECISIONS.md`).
 - Use the verb for what the route does: `GET` reads, `POST` creates or acts, `PUT` replaces,
   `PATCH` changes part, `DELETE` removes.
 - Constrain a route parameter with `.where()` or `router.matchers`.
 - An unmatched request raises `E_ROUTE_NOT_FOUND`, and the exception handler answers it.
-- Routes are registered from one file per area in `start/` (departure 18). An area file exports
+- Routes are registered from one file per area in `start/`. An area file exports
   one `register<Area>Routes()` function that `start/routes.ts` calls.
 - The backend serves the SPA with a history fallback route (departure 6). Apart from that
   fallback, a routes file holds no logic.
@@ -357,7 +358,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
 - Columns are `snake_case` and model properties camelCase. A foreign key is the singular model
   name plus `_id`.
 - A key the application generates needs `static selfAssignPrimaryKey = true`. Planning entities,
-  companies and users have string keys (departure 14).
+  companies and users have string keys (a product data-design choice in `DECISIONS.md`).
 - Declare a relationship on the model with the related model as a function, `() => Project`, and
   declare both sides.
 - A hook is a static method with its decorator. A filter that must cover every read is registered
@@ -517,15 +518,15 @@ Source: [API client](https://docs.adonisjs.com/guides/frontend/api-client) and
 - A request's body, query and response types come from the registry. Do not restate them.
 - With TanStack Query, a read is `useQuery(api.route.queryOptions(...))`, a write is
   `useMutation(api.route.mutationOptions(...))`, and cache keys come from the adapter.
-- The TanStack Query cache holds account and admin reads only; planning data lives in the planning
-  slice (departure 9).
+- TanStack Query owns server reads. The store owns the planning cache and the company directory
+  (`DECISIONS.md`, Browser data).
 
 ## Lint, format and tooling
 
 - `apps/backend/eslint.config.js` starts from `configApp()` in `@adonisjs/eslint-config`. It adds
   type-aware rules, allows `== null`, and turns Prettier off for the generated
   `database/schema.ts`. Prettier starts from `@adonisjs/prettier-config`: single quotes, 100 columns, ES5
-  trailing commas. Semicolons are kept (departure 18).
+  trailing commas. Semicolons are kept.
 - `tsconfig.json` extends `@adonisjs/tsconfig/tsconfig.app.json`.
 - The backend scripts keep the starter kit's names and commands: `dev` (`node ace serve --hmr`),
   `build` (`node ace build`), `start` (`node bin/server.js`), `test` (`node ace test`),

@@ -8,7 +8,7 @@ As a company member, I want to see the company name, week start and time zone so
 **Documentation:** [Settings](../../docs-src/using/settings.md#calendar)
 **Source:** [SettingsCompanySections.tsx](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx)
 
-The read-only values differ from the configuration target; see [GAP-01](../GAPS.md).
+The values are read-only after setup by decision; a rename control for the company name is deferred ([#2461](https://github.com/Kevinjohn/capacitylens/issues/2461)).
 
 ## Acceptance criteria
 
@@ -39,4 +39,4 @@ flowchart TD
   details --> display["Render Company, Week start and Time zone as read-only table rows"]
 ```
 
-**Code references:** [SettingsView.tsx:45](../../apps/frontend/src/components/settings/SettingsView.tsx#L45) · [SettingsView.tsx:61](../../apps/frontend/src/components/settings/SettingsView.tsx#L61) · [SettingsCompanySections.tsx:12](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx#L12) · [selectors.ts:88](../../apps/frontend/src/store/selectors.ts#L88) · [DECISIONS.md:156](../../DECISIONS.md#L156) · [company_import.ts:165](../../apps/backend/app/services/company_import.ts#L165)
+**Code references:** [SettingsView.tsx:45](../../apps/frontend/src/components/settings/SettingsView.tsx#L45) · [SettingsView.tsx:61](../../apps/frontend/src/components/settings/SettingsView.tsx#L61) · [SettingsCompanySections.tsx:12](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx#L12) · [selectors.ts:88](../../apps/frontend/src/store/selectors.ts#L88) · [DECISIONS.md](../../DECISIONS.md#data-and-company-separation) · [company_import.ts:165](../../apps/backend/app/services/company_import.ts#L165)

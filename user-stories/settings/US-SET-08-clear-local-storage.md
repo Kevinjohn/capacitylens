@@ -36,4 +36,4 @@ flowchart TD
   weekends --> storage
 ```
 
-**Code references:** [SettingsView.tsx:86](../../apps/frontend/src/components/settings/SettingsView.tsx#L86) · [runtimeSlice.ts:111](../../apps/frontend/src/store/slices/runtimeSlice.ts#L111) · [displayPrefs.ts:32](../../apps/frontend/src/lib/displayPrefs.ts#L32) · [theme.ts:25](../../apps/frontend/src/lib/theme.ts#L25) · [DECISIONS.md:165](../../DECISIONS.md#L165)
+**Code references:** [SettingsView.tsx:86](../../apps/frontend/src/components/settings/SettingsView.tsx#L86) · [runtimeSlice.ts:111](../../apps/frontend/src/store/slices/runtimeSlice.ts#L111) · [displayPrefs.ts:32](../../apps/frontend/src/lib/displayPrefs.ts#L32) · [theme.ts:25](../../apps/frontend/src/lib/theme.ts#L25) · [DECISIONS.md](../../DECISIONS.md#data-and-company-separation)

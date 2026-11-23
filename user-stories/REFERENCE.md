@@ -3,7 +3,7 @@
 Stories describe user intent and the fields or controls a person encounters. The
 [coverage matrix](COVERAGE.md) inventories current and retained capabilities
 [decision gaps](GAPS.md) distinguishes documentation omissions from differences against the
-agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the target behaviour.
+agreed product. [DECISIONS.md](../DECISIONS.md) records the owner's product rules.
 
 ## Reading the catalogue
 
