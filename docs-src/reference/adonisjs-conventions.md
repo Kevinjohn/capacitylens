@@ -402,8 +402,10 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
 [container services](https://docs.adonisjs.com/guides/concepts/container-services) and
 [application lifecycle](https://docs.adonisjs.com/guides/concepts/application-lifecycle).
 
-- Business logic lives in `app/services`. A service does not read the HTTP context; the
-  controller passes it the verified actor and the transaction.
+- Business logic lives in `app/services`. A service does not receive the HTTP context or build a
+  response: the controller validates, reads route parameters and headers, passes plain values and
+  serialises the result. A service may take the context's `auth` only to open the actor's
+  transaction with `withActor`.
 - In the framework a service is a class the container constructs, taken with `@inject()` and
   replaced in a test with `container.swap`. CapacityLens services are modules of exported
   functions without `@inject`, and a package service is resolved with `app.container.make` where

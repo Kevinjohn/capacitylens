@@ -1,7 +1,5 @@
-import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { readCurrentAccount } from '#services/auth/current_actor';
 import { USER_ID_PATTERN } from '#services/request_helpers';
 
 /** Resolves the Account Kit's admission service from the container. */
@@ -12,20 +10,13 @@ export function parseUserIdParam(value: unknown) {
   return typeof value === 'string' && USER_ID_PATTERN.test(value) ? value : null;
 }
 
-/** Applies an Owner or Admin admission decision to the route's user. */
-export async function decideAdmission(
-  {
-    auth,
-    params,
-    response,
-    serialize,
-  }: Pick<HttpContext, 'auth' | 'params' | 'response' | 'serialize'>,
-  decision: 'approve' | 'reject' | 'revoke'
-) {
-  const userId = parseUserIdParam(params.userId);
-  if (!userId) return response.badRequest({ error: 'Invalid admission request.' });
-  const actor = await readCurrentAccount(auth);
+/** Applies an Owner or Admin admission decision to an account. */
+export async function decideAdmission(input: {
+  actorId: string | number;
+  userId: string;
+  decision: 'approve' | 'reject' | 'revoke';
+}) {
   const service = await resolveAdmission();
-  const record = await service[decision]({ actorId: actor.id, userId });
-  return serialize({ userId: String(record.userId), approval: record.approval });
+  const record = await service[input.decision]({ actorId: input.actorId, userId: input.userId });
+  return { userId: String(record.userId), approval: record.approval };
 }

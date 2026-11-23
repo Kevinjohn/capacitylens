@@ -1,33 +1,20 @@
-import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { assertCompanyPermission } from '#services/auth/authorization';
-import { withActor } from '#services/auth/current_actor';
-import { runAccountOperation, parseAccountOperation } from '#services/account_operations';
+import { withActor, type RequestAuth } from '#services/auth/current_actor';
+import { runAccountOperation, type AccountOperationIdentity } from '#services/account_operations';
 
-/** Reads a member route's parameter. */
-export function readRouteParam(value: unknown) {
-  // AdonisJS calls the controller after matching a route, so each parameter is already a string.
-  return value as string;
-}
-
-/** One member operation: its company, operation name, recorded payload and the work it runs. */
+/** One member operation: its company, operation name and identity, recorded payload and work. */
 export interface SemanticMutationInput<T> {
   companyId: string;
   operation: string;
+  command: AccountOperationIdentity;
   payload: unknown;
   work: (trx: TransactionClientContract, actor: { actorId: string }) => Promise<T>;
 }
 
 /** Runs a member operation as an account operation under live management permission. */
-export async function runMemberMutation<T>(
-  { auth, request }: Pick<HttpContext, 'auth' | 'request'>,
-  input: SemanticMutationInput<T>
-) {
-  const { companyId, operation, payload, work } = input;
-  const command = parseAccountOperation(
-    request.header('x-account-operation-id'),
-    request.header('idempotency-key')
-  );
+export async function runMemberMutation<T>(auth: RequestAuth, input: SemanticMutationInput<T>) {
+  const { companyId, operation, command, payload, work } = input;
   return withActor(auth, async (currentActor, trx) => {
     let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
     return runAccountOperation(trx, {
