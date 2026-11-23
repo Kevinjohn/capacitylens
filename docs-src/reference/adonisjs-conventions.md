@@ -426,10 +426,13 @@ Source: [Authentication](https://docs.adonisjs.com/guides/auth/introduction),
 
 - Guards are defined in `config/auth.ts`. The session guard is named `web`.
 - Protect a route with the named `auth` middleware: `.use(middleware.auth({ guards: ['web'] }))`.
-  CapacityLens member routes use the `web_effective` guard (#2334 item 1).
+  CapacityLens member routes use the `web_effective` guard, Masquerade's effective guard around
+  `web`, which is Account Kit's session guard.
 - In the framework, an action reads the user with `auth.getUserOrFail()` and the `User` model
   composes `withAuthFinder`. In CapacityLens, Account Kit owns sign-in, sessions and credential
-  checks, and an action receives the verified actor (departure 24, provisional).
+  checks, and an action receives the verified actor (departure 24, provisional). Account Kit's
+  session guard sets `auth.user`; an action that writes still takes its actor from `withActor`,
+  which re-checks the session inside the product transaction.
 - Authorization in the framework is a Bouncer ability in `app/abilities/main.ts` or a policy in
   `app/policies`, called from the controller. CapacityLens authorizes a company permission inside
   the product transaction through the Access Control package (departure 11).
@@ -499,8 +502,8 @@ Source: [Testing](https://docs.adonisjs.com/guides/testing/introduction),
 - An API test calls a route by its name with `client.visit('members.index')`.
 - Every database group starts from wipe and migrate, and only groups that send no HTTP request
   use the global transaction (departure 17).
-- Sign-in in a test goes through the real endpoint, because Account Kit owns the session.
-  **Open:** #2334 item 1.
+- A test signs in with `loginAs` unless sign-in or a session lasting across requests is what it
+  tests; then it calls the real endpoint.
 
 ## The frontend API client
 

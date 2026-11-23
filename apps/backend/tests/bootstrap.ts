@@ -1,5 +1,6 @@
 import { assert } from '@japa/assert';
 import { apiClient } from '@japa/api-client';
+import { authApiClient } from '@adonisjs/auth/plugins/api_client';
 import app from '@adonisjs/core/services/app';
 import type { Config } from '@japa/runner/types';
 import { pluginAdonisJS } from '@japa/plugin-adonisjs';
@@ -7,6 +8,7 @@ import testUtils from '@adonisjs/core/services/test_utils';
 import type { Registry } from '../.adonisjs/client/registry/schema.d.ts';
 import { createServer } from 'node:http';
 import { configureNodeServer } from '#start/resource_limits';
+import { loginAsSession } from '#tests/helpers/login_as_session';
 import logger from '@adonisjs/core/services/logger';
 
 /**
@@ -24,7 +26,13 @@ declare module '@japa/api-client/types' {
  * Configure Japa plugins in the plugins array.
  * Learn more - https://japa.dev/docs/runner-config#plugins-optional
  */
-export const plugins: Config['plugins'] = [assert(), pluginAdonisJS(app), apiClient()];
+export const plugins: Config['plugins'] = [
+  assert(),
+  pluginAdonisJS(app),
+  apiClient(),
+  loginAsSession(app),
+  authApiClient(app),
+];
 
 /**
  * Configure lifecycle function to run before and after all the
