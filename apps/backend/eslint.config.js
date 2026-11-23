@@ -6,6 +6,7 @@ export default configApp(
     files: [
       'app/**/*.ts',
       'commands/**/*.ts',
+      'hooks/**/*.ts',
       'providers/**/*.ts',
       'start/**/*.ts',
       'tests/**/*.ts',

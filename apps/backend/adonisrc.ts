@@ -1,19 +1,6 @@
 import { indexEntities } from '@adonisjs/core/generators';
 import { defineConfig } from '@adonisjs/core/app';
-import { generateRegistry } from '@tuyau/core/hooks';
-
-async function accountKitCommands() {
-  const commands = await import('@kevinjohn/adonisjs-account-kit/commands');
-  return {
-    getMetaData: async () => {
-      const metadata = await commands.getMetaData();
-      return metadata.filter(
-        (commandMetadata) => commandMetadata.commandName !== 'account-kit:reset-link'
-      );
-    },
-    getCommand: commands.getCommand,
-  };
-}
+import { defineCommands } from '@kevinjohn/adonisjs-account-kit/define_commands';
 
 export default defineConfig({
   /*
@@ -42,7 +29,7 @@ export default defineConfig({
     () => import('@adonisjs/lucid/commands'),
     () => import('@kevinjohn/adonisjs-sqlite-backup/commands'),
     () => import('@adonisjs/session/commands'),
-    accountKitCommands,
+    defineCommands({ exclude: ['account-kit:reset-link'] }),
     () => import('@kevinjohn/adonisjs-account-kit/admission/commands'),
     () => import('@kevinjohn/adonisjs-access-control/commands'),
     () => import('@kevinjohn/adonisjs-masquerade/commands'),
@@ -146,10 +133,7 @@ export default defineConfig({
       indexEntities({
         transformers: { enabled: true },
       }),
-      // Validation refusals use our flat 400 adapter, rather than Vine's default 422 body.
-      ...(process.env.CAPACITYLENS_E2E_WORKER_API === '1'
-        ? []
-        : [generateRegistry({ validationErrorType: false })]),
+      () => import('./hooks/generate_registry.js'),
     ],
   },
 });

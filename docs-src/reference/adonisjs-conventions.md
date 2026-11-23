@@ -201,7 +201,7 @@ Source: the Configuration and Folder structure pages of the AdonisJS start guide
 - A config file that defines a named list (hash drivers, mailers, limiter stores, loggers, guards)
   also carries the `declare module` block that types it.
 - `adonisrc.ts` stays free of environment checks and application logic. `providers`, `preloads`
-  and `commands` are lazy imports, in the starter kit's order. **Open:** #2334 item 14.
+  and `commands` are lazy imports, in the starter kit's order.
 - Resolve paths with `app.makePath()`, `app.publicPath()` and `app.tmpPath()`.
 - `.env.example` lists every variable with a placeholder value. Values for tests belong in
   `.env.test`; `bin/test.ts` keeps only the values computed per port lane or that must override the shell.
