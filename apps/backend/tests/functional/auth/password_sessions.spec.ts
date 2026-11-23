@@ -199,6 +199,22 @@ test.group('password sign-in and sessions', (group) => {
     await expectStatus(companies(client, removed.cookie), 401);
   });
 
+  test('signing out with an idle-expired session removes its registry row', async ({
+    client,
+    assert,
+  }) => {
+    const userId = await owner();
+    const { cookie } = await signIn(client, email, password);
+    await db
+      .from('account_sessions')
+      .where('user_id', userId)
+      .update({ expires_at: '2000-01-01T00:00:00.000Z' });
+    const signedOut = await asDataOwner(client.visit('api.session.destroy'), cookie).send();
+    signedOut.assertStatus(200);
+    signedOut.assertBody({ data: { ok: true } });
+    assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 0);
+  });
+
   test('a session revoked after request admission refuses the protected write', async ({
     client,
     assert,

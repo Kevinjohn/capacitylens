@@ -85,15 +85,23 @@ export default class SessionController {
   }
 
   /** Ends this sign-in while leaving the identity-wide view active in its other sessions. */
-  async destroy({ auth, serialize }: HttpContext) {
+  async destroy({ auth, session, serialize }: HttpContext) {
+    const guard = auth.use('web');
+    const request = guard.forRequest();
     let current: CurrentAccountInput | undefined;
     try {
-      current = await auth.use('web').current();
+      current = await guard.current();
     } catch (error) {
       // Does work: signing out without a session is a normal outcome, not a refusal.
       if (!(error instanceof InvalidSessionError)) throw error;
+      // Does work: an idle-expired sign-in fails `current` but still names its own registry row.
+      const userId: unknown = session.get(guard.sessionKeyName);
+      const sessionHandle = request.strategy === 'session' ? request.previousHandle?.() : undefined;
+      if ((typeof userId === 'string' || typeof userId === 'number') && sessionHandle) {
+        current = { userId, sessionHandle };
+      }
     }
-    await accountKit.authentication.logout(auth.use('web').forRequest(), undefined, current);
+    await accountKit.authentication.logout(request, undefined, current);
     return serialize({ ok: true });
   }
 }
