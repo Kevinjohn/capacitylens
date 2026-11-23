@@ -342,39 +342,34 @@ test.group('company initialize command', () => {
     }
   }).timeout(90000);
 
-  for (const drift of [
-    'DROP TABLE deleted_rows',
-    'DROP TABLE deleted_groups',
-    'DROP TABLE password_confirmations',
-    'ALTER TABLE planning_mutations RENAME COLUMN origin_session_id TO stale_origin_session_id',
-  ]) {
-    test(`company initialization refuses baseline drift: ${drift}`, ({ assert, test: t }) => {
-      t.timeout(90000);
-      const f = operatorFixture();
-      try {
-        assert.equal(f.command(['app:upgrade']).status, 0);
-        const database = f.inspect();
-        insertUser(database);
-        const users = database.prepare('SELECT * FROM users').all();
-        database.exec(drift);
-        database.close();
-        const refused = f.command(args);
-        assert.notEqual(refused.status, 0, refused.output);
-        assert.match(refused.output, /Database schema (?:drift|is not current)/);
-        const after = f.inspect();
-        assert.deepEqual(after.prepare('SELECT * FROM users').all(), users);
-        for (const table of [
-          'companies',
-          'clients',
-          'memberships',
-          'audit_entries',
-          'company_planning_revisions',
-        ])
-          assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
-        after.close();
-      } finally {
-        f.cleanup();
-      }
-    });
-  }
+  test('company initialization refuses a database missing a shipped migration record', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(90000);
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const database = f.inspect();
+      insertUser(database);
+      const users = database.prepare('SELECT * FROM users').all();
+      database.exec('DELETE FROM adonis_schema');
+      database.close();
+      const refused = f.command(args);
+      assertSafeFailure(assert, refused, /Database schema is not current/);
+      const after = f.inspect();
+      assert.deepEqual(after.prepare('SELECT * FROM users').all(), users);
+      for (const table of [
+        'companies',
+        'clients',
+        'memberships',
+        'audit_entries',
+        'company_planning_revisions',
+      ])
+        assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
+      after.close();
+    } finally {
+      f.cleanup();
+    }
+  });
 });

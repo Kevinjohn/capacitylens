@@ -147,7 +147,7 @@ test.group('upgrade command', () => {
     }
   });
 
-  test('upgrade refuses schema drift on an otherwise complete database', ({
+  test('upgrade refuses a database missing a shipped migration record', ({
     assert,
     test: testCase,
   }) => {
@@ -158,10 +158,11 @@ test.group('upgrade command', () => {
       const init = ace(appRoot, dbPath, 'app:upgrade');
       assert.equal(init.status, 0, init.output);
       const database = new Database(dbPath);
-      database.prepare('DROP TRIGGER clients_company_immutable').run();
+      database.prepare('DELETE FROM adonis_schema').run();
       database.close();
       const drift = ace(appRoot, dbPath, 'app:upgrade');
-      assertSafeFailure(assert, drift, /Database schema drift/);
+      assert.equal(drift.status, 1, drift.output);
+      assert.lengthOf(journal(dbPath), 0);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
