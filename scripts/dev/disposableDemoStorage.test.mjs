@@ -40,7 +40,7 @@ async function writeMarker(child, value) {
 
 test(
   'concurrent port lanes and repeated port lanes own distinct writable databases; live groups prevent deletion',
-  { timeout: 20_000, skip: process.platform === 'win32' },
+  { timeout: 20_000 },
   async (context) => {
     const backendDirectory = await mkdtemp(join(tmpdir(), 'capacitylens-demo-storage-'));
     const sentinel = join(backendDirectory, 'unrelated.db');
@@ -80,19 +80,6 @@ test(
     assert.equal(await readFile(sentinel, 'utf8'), 'preserve this unrelated dataset');
   },
 );
-
-test('uncertain Windows descendant ownership retains storage', async () => {
-  const backendDirectory = await mkdtemp(join(tmpdir(), 'capacitylens-demo-retain-'));
-  const store = await createDisposableDemoStorage(0, { backendDirectory, platform: 'win32' });
-  try {
-    await writeFile(store.databasePath, 'preserve');
-    assert.equal(await store.cleanup([{ pid: undefined }]), false);
-    assert.equal(await readFile(store.databasePath, 'utf8'), 'preserve');
-    assert.equal(await store.cleanup([]), true);
-  } finally {
-    await rm(backendDirectory, { recursive: true, force: true });
-  }
-});
 
 test(
   'production refuses before storage or port handling for every bootstrap flag combination',

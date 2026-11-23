@@ -4,7 +4,7 @@ name: Validation
 # - a main push checks that the merged app works: build, full application tests and the
 #   Chromium journey, unless a manual run already passed the identical tree (the `select` job);
 # - the weekly schedule, a `v*` tag and manual dispatch run full validation: every tooling check,
-#   frontend coverage, the native packages and every browser.
+#   frontend coverage and every browser.
 # Release publication waits for this workflow's tag run (scripts/release/require-release-validation.mjs).
 on:
   push:
@@ -93,28 +93,3 @@ jobs:
           else
             test "$BROWSER_RESULT" = success
           fi
-
-  # Scheduled runs have no pull request or pusher watching them.
-  notify:
-    name: Report an unattended failure
-    needs: [gate]
-    if: always() && github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      issues: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Report the outcome
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          REPORT_LABEL: validation-failure
-          REPORT_TITLE: Weekly validation is failing
-          RESULTS: |
-            validation=${{ needs.gate.result }}
-        run: node scripts/ci/report-workflow-outcome.mjs

@@ -13,8 +13,8 @@ such as NFS are unsupported. Retain protected copies away from the host and rehe
 ## Scheduled and manual bundles
 
 Set `CAPACITYLENS_BACKUP_DIR` to enable a backup at web-service startup and every 24 hours while it
-runs. The [install command](/self-hosting/install-without-docker#install-with-one-command) sets it
-to `/var/lib/capacitylens/backups` and creates that folder for the service user. Startup checks the source and prepares the root with mode `0700`. If that root disappears
+runs. The [installation steps](/self-hosting/install-without-docker) set it
+to `/var/lib/capacitylens/backups` and create that folder for the service user. Startup checks the source and prepares the root with mode `0700`. If that root disappears
 later, a scheduled run fails without recreating it. Restore the storage/mount and permissions before
 retrying. Unset or empty configuration disables scheduling without preventing application startup.
 
@@ -42,7 +42,7 @@ manual create can run while the application is online:
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
-  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
   -p EnvironmentFile=/etc/capacitylens.env \
   -p Environment=NODE_ENV=production \
   /usr/bin/env node ace.js db:backup create
@@ -79,12 +79,12 @@ Stage into a new path so the current database remains available for investigatio
 
    ```bash
    sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
-     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
      -p EnvironmentFile=/etc/capacitylens.env \
      -p Environment=NODE_ENV=production \
      /usr/bin/env node ace.js db:backup list --directory /var/lib/capacitylens/backups
    sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
-     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
      -p EnvironmentFile=/etc/capacitylens.env \
      -p Environment=NODE_ENV=production \
      /usr/bin/env node ace.js db:backup restore-prepare --directory /var/lib/capacitylens/backups \
@@ -100,7 +100,7 @@ Stage into a new path so the current database remains available for investigatio
 
    ```bash
    sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
-     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
      -p EnvironmentFile=/etc/capacitylens.env \
      -p Environment=NODE_ENV=production \
      /usr/bin/env node ace.js app:upgrade
@@ -118,7 +118,7 @@ command as the service user with the same private environment used by the servic
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
-  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
   -p EnvironmentFile=/etc/capacitylens.env \
   -p Environment=NODE_ENV=production \
   /usr/bin/env node ace.js owner:reset-password owner@example.com --confirm-server-stopped

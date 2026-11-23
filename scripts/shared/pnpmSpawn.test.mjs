@@ -15,18 +15,14 @@ import {
 
 const runPreset = fileURLToPath(new URL('../e2e/run-preset.mjs', import.meta.url));
 
-// Writes a stub pnpm launcher into a fresh directory; `body` is the Node module it runs on POSIX.
+// Writes a stub pnpm launcher into a fresh directory; `body` is the Node module it runs.
 function stubPnpm(prefix, body) {
   const fixture = mkdtempSync(join(tmpdir(), prefix));
-  const launcher = join(fixture, process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm');
+  const launcher = join(fixture, 'pnpm');
   const capture = join(fixture, 'capture.mjs');
   writeFileSync(capture, body);
-  if (process.platform === 'win32') {
-    writeFileSync(launcher, `@echo off\r\n"${process.execPath}" "${capture}" %*\r\n`);
-  } else {
-    writeFileSync(launcher, `#!${process.execPath}\nimport ${JSON.stringify(capture)};\n`);
-    chmodSync(launcher, 0o700);
-  }
+  writeFileSync(launcher, `#!${process.execPath}\nimport ${JSON.stringify(capture)};\n`);
+  chmodSync(launcher, 0o700);
   return {
     env: { ...process.env, PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}` },
     remove: () => rmSync(fixture, { recursive: true, force: true }),

@@ -1,6 +1,5 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type { AppData, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
-import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
+import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { tables } from '#services/product_tables';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
@@ -40,34 +39,6 @@ function resolveNextDisciplineSortOrder(data: AppData, companyId: string): numbe
   return data.disciplines
     .filter((row) => row.companyId === companyId)
     .reduce((next, row) => Math.max(next, row.sortOrder + 1), 0);
-}
-
-function lookupFor(data: AppData): ValidationDataLookup {
-  return {
-    row: (table, id) => {
-      const rows: readonly { id: string }[] = data[table];
-      return rows.find((row) => row.id === id);
-    },
-    allocationsForResource: (companyId, resourceId) =>
-      data.allocations.filter(
-        (row) => row.companyId === companyId && row.resourceId === resourceId
-      ),
-    allocationsForActivity: (companyId, activityId) =>
-      data.allocations.filter(
-        (row) => row.companyId === companyId && row.activityId === activityId
-      ),
-    resourceHasLoadedAllocation: (companyId, resourceId) =>
-      data.allocations.some(
-        (row) =>
-          row.companyId === companyId && row.resourceId === resourceId && row.hoursPerDay !== 0
-      ),
-    resourceHasTimeOff: (companyId, resourceId) =>
-      data.timeOff.some((row) => row.companyId === companyId && row.resourceId === resourceId),
-    companyWorkingDays: (companyId): Weekday[] => {
-      const company = data.companies.find((row) => row.id === companyId);
-      return normalizeCompanyWorkingDays(company?.workingDays, company?.weekStartsOn === 0 ? 0 : 1);
-    },
-  };
 }
 
 /**
@@ -129,25 +100,24 @@ export async function writeEntity<K extends ScopedEntityKey>({
   if (!existing && table === 'disciplines') {
     candidate.sortOrder = resolveNextDisciplineSortOrder(data, companyId);
   }
-  const lookup = lookupFor(data);
+  const company = data.companies.find((row) => row.id === companyId);
+  const companyWorkingDays = normalizeCompanyWorkingDays(
+    company?.workingDays,
+    company?.weekStartsOn === 0 ? 0 : 1
+  );
   const clean = await prepareEntityWrite(table, candidate, existing, data, accessGrant, {
-    lookup,
-    hasOtherBuiltinClient: (targetCompanyId, clientId) =>
-      data.clients.some(
-        (row) => row.companyId === targetCompanyId && row.id !== clientId && row.builtin === true
-      ),
+    companyWorkingDays,
   });
   if (table === 'allocations' && !permissiveRepeatStart) {
     assertAllocationStartsOnWorkingDay(
       asRecord(clean),
       existing && asRecord(existing),
-      lookup,
-      companyId
+      data,
+      companyWorkingDays
     );
     assertAllocationStartIsAvailable(
       asRecord(clean),
       existing && asRecord(existing),
-      lookup,
       data,
       companyId
     );

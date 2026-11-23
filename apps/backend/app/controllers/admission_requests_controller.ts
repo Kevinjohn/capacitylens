@@ -14,14 +14,8 @@ export default class AdmissionRequestsController {
     return serialize({ requestedAt: record.requestedAt });
   }
 
-  async index({ auth, request, response, serialize }: HttpContext) {
-    const [validationError, query] = await request.tryValidateUsing(admissionQueryValidator, {
-      data: request.qs(),
-    });
-    // Route wording: this list answers a Vine failure with its own sentence and no code.
-    if (validationError) {
-      return response.badRequest({ error: 'Invalid admission list request.' });
-    }
+  async index({ auth, request, serialize }: HttpContext) {
+    const query = await request.validateUsing(admissionQueryValidator, { data: request.qs() });
     const { status, cursor } = query;
     const actor = await readCurrentAccount(auth);
     const service = await resolveAdmission();

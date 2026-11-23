@@ -7,8 +7,6 @@ import {
   passwordLength,
 } from '#validators/request_rules';
 
-const message = 'Unsupported authentication field.';
-
 /** Retains the product's email shape, normalisation and strict authentication field rules. */
 export const signInValidator = vine.create(
   vine
@@ -16,7 +14,7 @@ export const signInValidator = vine.create(
       email: vine.string().use(accountEmail()).transform(normalizeAccountEmail),
       password: vine.string(),
     })
-    .use(allowedFields({ fields: ['email', 'password'], message }))
+    .use(allowedFields({ fields: ['email', 'password'] }))
 );
 
 /** Counts password code points and display-name code points, matching the established boundaries. */
@@ -30,5 +28,5 @@ export const signUpValidator = vine.create(
         .use(displayName())
         .transform((value) => value.trim()),
     })
-    .use(allowedFields({ fields: ['email', 'password', 'name'], message }))
+    .use(allowedFields({ fields: ['email', 'password', 'name'] }))
 );

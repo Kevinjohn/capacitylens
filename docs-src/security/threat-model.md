@@ -36,7 +36,7 @@ priority over keeping a misconfigured production process running.
 | Owner/Admin view as member state | Package-owned identity-wide SQLite mode with fixed expiry; read projection only; server middleware refuses writes | Session, company and authorisation boundary |
 | Database, WAL, audit rows and backups | File permissions, single-process SQLite ownership and operator-protected storage | Process/host boundary |
 | Application keys and SMTP credentials | `APP_KEY` and mail settings supplied by the operator | Deployment secret store and process boundary |
-| Build and release inputs | Lockfile, pinned workflow actions, dependency review, SBOM, scans and provenance | Contributor/CI/registry boundary |
+| Build and release inputs | Lockfile, pinned workflow actions, dependency review, SBOM and scans | Contributor/CI/registry boundary |
 
 The browser talks to the application over the configured public origin. Operators terminate public
 TLS and protect the host, database and backups. SMTP is the only default outbound application
@@ -74,10 +74,10 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 | Password reset operator misuse | `owner:reset-password` requires the server to be stopped, an eligible sole active Owner, and an audit record before displaying the link | `auth/recovery.spec.ts` |
 | Operator-issued reset outside product recovery | The unaudited `account-kit:reset-link` command is excluded from the registered Account Kit commands. Operators use `owner:reset-password`, which requires a stopped server and eligible sole Owner and writes an audit row before showing the single-use link | `apps/backend/tests/unit/owner_reset_command.spec.ts`; `apps/backend/tests/functional/auth/recovery.spec.ts` |
 | Injection, malformed writes or unsafe imports | Vine validation strips unknown fields; ordinary writes reject invalid input; import is Owner-only, validates references and replaces data atomically | `http_parser_regressions.spec.ts`, `import_apply.spec.ts`, `planning/transactions.spec.ts` |
-| Database corruption or partial write | Startup refuses schema drift in tables, columns, indexes, triggers and proof-table foreign-key declarations; backups must pass SQLite `quick_check` and `foreign_key_check`; write transactions, WAL and operator backups support recovery | `state/database_contract.spec.ts`, `transaction_faults.spec.ts`, `backup_diagnostics.spec.ts`; restore procedures are operator-run |
+| Database corruption or partial write | Startup refuses a database that has not recorded every migration the build ships; backups must pass SQLite `quick_check` and `foreign_key_check`; write transactions, WAL and operator backups support recovery | `state/database_contract.spec.ts`, `transaction_faults.spec.ts`, `backup_diagnostics.spec.ts`; restore procedures are operator-run |
 | Log leakage or uninvestigated authentication | With `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling produce bounded structured events correlated with request completion; bearer values are excluded | `authentication_events.spec.ts`, `logging.spec.ts`; other authorisation, password confirmation and validation refusals are not individually logged |
 | Resource exhaustion | 512 accepted-socket ceiling, 30-second request-reception and socket-inactivity timeouts (not handler/database deadlines), separate password and request throttles, five-second pool acquisition and one-second SQLite busy timeout, and framework request-body limits | `request_limits.spec.ts`, `auth/native_auth_limits.spec.ts`, `backup_diagnostics.spec.ts`, `import_apply.spec.ts` |
-| Supply-chain compromise | Lockfile-pinned dependencies, Dependabot, CodeQL, Gitleaks, SBOM, vulnerability scans, DAST and tagged provenance | Local gates and documented public/manual workflows |
+| Supply-chain compromise | Lockfile-pinned dependencies, Dependabot, CodeQL, Gitleaks, SBOM, vulnerability scans, DAST and the tagged image smoke | Local gates and documented public/manual workflows |
 
 ## Residual and accepted risks
 

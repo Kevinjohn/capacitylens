@@ -29,6 +29,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 
 ## Set up
 
+macOS and Linux are the supported development platforms.
+
 ```bash
 nvm use
 corepack enable
@@ -281,9 +283,8 @@ or browser target, make that a separate launch-compatibility decision supported 
 ([issue #1731](https://github.com/Kevinjohn/capacitylens/issues/1731)).
 
 The intended registry policy in [Dependabot configuration](.github/dependabot.yml) is separate
-weekly groups for npm patch and minor updates, with majors reviewed manually from the
-[monthly major report](.github/workflows/major-dependency-report.yml). GitHub Actions and Docker
-updates stay monthly and patch-only. Advisories are checked by
+weekly groups for npm patch and minor updates, with majors reviewed manually from `pnpm outdated`.
+GitHub Actions and Docker updates stay monthly and patch-only. Advisories are checked by
 `pnpm run check:deps`. Keep [pnpm-workspace.yaml](pnpm-workspace.yaml) overrides only for a specific
 advisory when consumers still allow the affected version; explain the reason beside the override
 and remove it when no longer needed. Track a wider security upgrade and any exception in the issue
@@ -304,29 +305,6 @@ in `docs-src/self-hosting/`, especially [installation](docs-src/self-hosting/ins
 and [upgrades](docs-src/self-hosting/upgrades.md). State the required sequence and recovery action
 operators can actually use. Do not copy historical compatibility investigations into the install
 steps or treat experimental checks as a new support commitment.
-
-## Native production dialog acceptance
-
-After building and packaging with `pnpm run build` and `pnpm run package:managed-release`, copy
-`production/` outside the checkout and run:
-
-```bash
-pnpm run smoke:packaged-dialogs /absolute/path/to/copied-production/backend
-```
-
-Use the Node version in `.nvmrc`, an installed Playwright Chromium browser and `openssl`. This runs
-against the packaged native production server with disposable SQLite data and password sign-in,
-not the development server. A temporary loopback HTTPS edge preserves secure session cookies;
-only the test browser accepts its self-signed certificate. On macOS a process-only preference makes
-scrollbars visible without changing OS preferences. It runs the existing HTTP installation,
-scheduling, backup and restore smoke as well as desktop/narrow dialog scrolling, background locking,
-scrollbar compensation, nested dialogs and selection, Escape, focus restoration and lock cleanup.
-A separate page proves that the shipped CSP blocks an injected stylesheet and that the violation
-guard detects it. Runtime style violations or uncaught browser exceptions fail acceptance.
-
-Set `CAPACITYLENS_BROWSER_ARTIFACT_DIR` to a scratch directory to retain the two fictional-data
-after screenshots. Browser contexts, TLS connections, server processes and disposable state are
-closed or removed on success and failure. This command does not build, publish or deploy a release.
 
 ## Reference records
 

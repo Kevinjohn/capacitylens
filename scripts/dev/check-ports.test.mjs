@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { GUARDED_FILES, evaluatePortUsage, stripComments } from './check-ports.mjs';
+import { portsForPortLane } from '../../tooling/ports.mjs';
 
 test('every guarded file derives its ports from the port lane module', () => {
   const files = GUARDED_FILES.map((path) => ({
@@ -67,4 +68,13 @@ test('worker ports must come from the registry as well', () => {
   ]);
   assert.equal(errors.length, 1);
   assert.match(errors[0], /hardcodes port 10999/);
+});
+
+test('every port in the registry is guarded, not a copy of it', () => {
+  for (const port of Object.values(portsForPortLane(0))) {
+    const [error] = evaluatePortUsage([
+      { path: 'x.ts', content: `import { ports } from "./ports.mjs";\nconst port = ${port};\n` },
+    ]);
+    assert.match(error, new RegExp(`hardcodes port ${port}`));
+  }
 });

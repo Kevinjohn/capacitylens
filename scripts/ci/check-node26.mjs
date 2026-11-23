@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isSupportedNodeVersion } from '../../apps/backend/bin/node_version.ts';
@@ -29,30 +28,7 @@ function capture(command, args) {
   return result.stdout.trim();
 }
 
-/** Build with isolated validation settings, then smoke a copied artifact outside the checkout. */
-export function runDetachedPackageProbe({ repositoryRoot = root, deployDir, runCommand = run }) {
-  runCommand('production build', 'pnpm', ['run', 'build'], {
-    ...process.env,
-    NODE_ENV: 'production',
-    CAPACITYLENS_PUBLIC_URL: 'https://127.0.0.1',
-    HOST: '127.0.0.1',
-    PORT: '0',
-    LOG_LEVEL: 'error',
-    APP_KEY: 'capacitylens-build-key-0123456789abcdef',
-    APP_URL: 'http://127.0.0.1',
-  });
-  runCommand('production package', 'pnpm', ['run', 'package:managed-release']);
-  const detached = join(deployDir, 'production');
-  cpSync(join(repositoryRoot, 'production'), detached, { recursive: true, verbatimSymlinks: true });
-  runCommand('deployed runtime smoke', 'pnpm', [
-    'run',
-    'smoke:packaged-server',
-    join(detached, 'backend'),
-  ]);
-}
-
 function main() {
-  let deployDir;
   let passed = false;
   try {
     const pnpmVersion = capture('pnpm', ['--version']);
@@ -82,7 +58,6 @@ function main() {
       );
     }
 
-    deployDir = mkdtempSync(join(tmpdir(), 'capacitylens-node26-deploy-'));
     run('browser storage regression', 'pnpm', [
       '--dir',
       'apps/frontend',
@@ -100,10 +75,18 @@ function main() {
       '--files=tests/unit/backup_provider.spec.ts',
       '--files=tests/unit/backup_config.spec.ts',
     ]);
-    runDetachedPackageProbe({ deployDir });
+    run('production build', 'pnpm', ['run', 'build'], {
+      ...process.env,
+      NODE_ENV: 'production',
+      CAPACITYLENS_PUBLIC_URL: 'https://127.0.0.1',
+      HOST: '127.0.0.1',
+      PORT: '0',
+      LOG_LEVEL: 'error',
+      APP_KEY: 'capacitylens-build-key-0123456789abcdef',
+      APP_URL: 'http://127.0.0.1',
+    });
     passed = true;
   } finally {
-    if (deployDir) rmSync(deployDir, { recursive: true, force: true });
     console.log(
       JSON.stringify({
         result: passed ? 'passed' : 'failed',

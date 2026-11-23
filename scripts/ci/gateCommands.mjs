@@ -6,7 +6,7 @@ const structuralChecks = [
   'policy:ports:test',
   'policy:e2e-workers:test',
   'policy:sonner-csp:test',
-  'package:managed-release:test',
+  'docker:release:test',
   'security:screenshot-publication',
   'security:screenshot-publication:test',
 ].map((name) => ['run', name]);
@@ -14,14 +14,10 @@ const structuralChecks = [
 // Repository policy, dependency and packaging checks that need no application build.
 const toolingChecks = [
   ['run', 'check:deps'],
-  ['run', 'policy:dependabot'],
-  ['run', 'policy:dependabot:test'],
-  ['run', 'dependency:major-report:test'],
   ['run', 'security:gitleaks-config'],
   ['run', 'policy:dco:test'],
   ['run', 'policy:terminology:test'],
   ...structuralChecks,
-  ['run', 'policy:workflow-report:test'],
   ['run', 'policy:release-validation:test'],
   ['run', 'policy:script-processes:test'],
 ];

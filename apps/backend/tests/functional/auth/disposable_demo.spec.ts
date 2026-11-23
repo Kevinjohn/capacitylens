@@ -12,7 +12,7 @@ import { readState } from '#tests/helpers/state_fixture';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { createIdentity, signIn } from '#tests/helpers/identities';
-import { operatorFixture } from '#tests/helpers/operator_command_helpers';
+import { assertSafeFailure, operatorFixture } from '#tests/helpers/operator_command_helpers';
 
 const email = 'admin@admin.admin';
 const password = 'capacitylens-demo-2026';
@@ -182,8 +182,7 @@ test.group('disposable development demo', (group) => {
           CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
           CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: password,
         });
-        assert.equal(result.status, 1, result.output);
-        assert.match(result.output, /not disposable demo storage/);
+        assertSafeFailure(assert, result, /not disposable demo storage/);
       }
       const database = f.inspect();
       try {

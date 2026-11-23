@@ -1,6 +1,5 @@
-# npm patches and minors arrive weekly in separate groups; majors stay manual and
-# are reported monthly by the major-dependency-report workflow. GitHub Actions and
-# Docker updates remain monthly and patch-only.
+# npm patches and minors arrive weekly in separate groups; majors stay manual (see
+# `pnpm outdated`). GitHub Actions and Docker updates remain monthly and patch-only.
 version: 2
 updates:
   - package-ecosystem: npm

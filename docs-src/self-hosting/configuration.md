@@ -5,8 +5,8 @@ description: Configure the AdonisJS application, SQLite database, sign-in, mail,
 
 # Configuration
 
-Start from `capacitylens.env.example` in the native release archive. Keep the environment file
-outside the release directory, restrict its permissions, and never commit or log its contents.
+Start from `packaging/release/capacitylens.env.example` in the repository. Keep the environment file
+outside the clone, restrict its permissions, and never commit or log its contents.
 Restart the single backend process after changing its environment.
 
 ## Runtime and database
@@ -16,7 +16,7 @@ Restart the single backend process after changing its environment.
 | `NODE_ENV` | Set to `production` for a deployed service. |
 | `HOST`, `PORT` | Listener address and port. The supplied release example binds loopback on port 8787. |
 | `APP_URL` | AdonisJS framework URL; also the public-origin fallback when `CAPACITYLENS_PUBLIC_URL` is unset. |
-| `APP_KEY` | AdonisJS encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
+| `APP_KEY` | AdonisJS encryption key. Generate it from `apps/backend/build` with `node ace.js generate:key --show`; keep it stable and secret. |
 | `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
 | `CAPACITYLENS_PUBLIC_URL` | Optional public-origin override shared by emailed links, cookies and transport security. Bare HTTP(S) origin only: no credentials, path, query or fragment. Production requires HTTPS; development/test allow HTTP only on `localhost`, `127.0.0.1` or `[::1]`. |
 
@@ -32,7 +32,7 @@ sign-in. The first identity comes from a one-time setup link printed on the serv
 node ace.js account-kit:admission:bootstrap owner@example.com --role=viewer
 ```
 
-Run it from `backend/` with the service environment. The person who opens the link chooses a
+Run it from `apps/backend/build` with the service environment. The person who opens the link chooses a
 password, creates the company and becomes its Owner. Everyone after that joins through an emailed
 invitation and an Owner or Admin approval.
 

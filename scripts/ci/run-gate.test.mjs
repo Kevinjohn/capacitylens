@@ -26,12 +26,8 @@ function fixture(t, installCommand = true) {
     const command = join(directory, 'pnpm');
     const source = readFileSync(new URL('./fixtures/gate-command.mjs', import.meta.url), 'utf8');
     writeFileSync(`${command}.mjs`, source);
-    if (process.platform === 'win32')
-      writeFileSync(`${command}.cmd`, `@"${process.execPath}" "${command}.mjs" %*\r\n`);
-    else {
-      writeFileSync(command, `#!${process.execPath}\n${source}`);
-      chmodSync(command, 0o755);
-    }
+    writeFileSync(command, `#!${process.execPath}\n${source}`);
+    chmodSync(command, 0o755);
   }
   return {
     log,
@@ -103,7 +99,7 @@ test('a terminated child is reported through the repository launcher policy and 
     CAPACITYLENS_GATE_SIGNAL: 'SIGTERM',
   });
   assert.notEqual(result.status, 0);
-  if (process.platform !== 'win32') assert.match(result.stderr, /terminated by SIGTERM/);
+  assert.match(result.stderr, /terminated by SIGTERM/);
   assert.equal(stub.entries().length, 1);
 });
 
@@ -211,14 +207,11 @@ test("gateCommands('all') includes every retained policy, package and security c
     'policy:ports:test',
     'policy:e2e-workers:test',
     'policy:sonner-csp:test',
-    'package:managed-release:test',
+    'docker:release:test',
     'security:screenshot-publication',
     'security:screenshot-publication:test',
-    'policy:dependabot',
-    'policy:dependabot:test',
     'security:gitleaks-config',
     'policy:dco:test',
-    'policy:workflow-report:test',
     'policy:release-validation:test',
     'policy:script-processes:test',
     'policy:node-runtime:test',
@@ -301,7 +294,7 @@ test('CI builds the application once and backend tests use those assets without 
     job.steps.some((step) => step.run === 'pnpm run build'),
   );
   assert.deepEqual(
-    builds.map(([name]) => name).filter((name) => name !== 'packaged'),
+    builds.map(([name]) => name),
     ['build'],
   );
   const build = workflow.jobs.build.steps.find((step) => step.run === 'pnpm run build');

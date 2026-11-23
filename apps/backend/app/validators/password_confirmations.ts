@@ -1,7 +1,5 @@
 import vine from '@vinejs/vine';
-import { allowedFields, fixedMessage } from '#validators/request_rules';
-
-const message = 'Invalid password confirmation.';
+import { allowedFields } from '#validators/request_rules';
 
 /** Each action names its own intent; the import document keeps its own parser in the controller. */
 export const confirmPasswordValidator = vine.create(
@@ -16,7 +14,7 @@ export const confirmPasswordValidator = vine.create(
           action: vine.literal('transfer-ownership'),
           intent: vine
             .object({ toUserId: vine.string().minLength(1) })
-            .use(allowedFields({ fields: ['toUserId'], message })),
+            .use(allowedFields({ fields: ['toUserId'] })),
         }),
         vine.group.if((data) => data.action === 'import', {
           action: vine.literal('import'),
@@ -29,14 +27,13 @@ export const confirmPasswordValidator = vine.create(
                 .max(Number.MAX_SAFE_INTEGER),
               document: vine.any().nullable(),
             })
-            .use(allowedFields({ fields: ['baseRevision', 'document'], message })),
+            .use(allowedFields({ fields: ['baseRevision', 'document'] })),
         }),
         vine.group.else({
           action: vine.literal('anonymise'),
-          intent: vine.object({}).use(allowedFields({ fields: [], message })),
+          intent: vine.object({}).use(allowedFields({ fields: [] })),
         }),
       ])
     )
-    .use(allowedFields({ fields: ['action', 'companyId', 'intent', 'password'], message }))
+    .use(allowedFields({ fields: ['action', 'companyId', 'intent', 'password'] }))
 );
-confirmPasswordValidator.messagesProvider = fixedMessage(message);

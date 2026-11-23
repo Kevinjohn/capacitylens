@@ -1,6 +1,6 @@
 ---
 title: Install and run CapacityLens
-description: Install the native CapacityLens archive, configure HTTPS and backups, and hand the service to its Owner.
+description: Clone CapacityLens at a release tag, build it, configure HTTPS and backups, and hand the service to its Owner.
 prev: false
 next: false
 ---
@@ -9,15 +9,16 @@ next: false
 
 CapacityLens runs as one Node process and stores company data in SQLite. These steps are for
 whoever manages your hosting. That person also handles backups, upgrades and service health.
-The expected installation is the native release archive with an HTTPS proxy on the same machine.
+The expected installation is a clone of the repository at a release tag, with an HTTPS proxy on
+the same machine.
 
-1. **Download** and unpack the archive for your host.
-2. **Run** its install command with your domain name. It configures the service, secrets,
-   backups and, when Caddy is installed, HTTPS, then prints the setup link.
+1. **Clone** the repository at a release tag, then run `pnpm install --frozen-lockfile` and
+   `pnpm run build`.
+2. **Run** it under a process manager behind an HTTPS proxy, with your configuration and the
+   database upgrade, then print the setup link.
 3. **Open** the link and complete sign-in and company naming in the browser.
 
-[Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands and
-the manual steps;
+[Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands;
 [Deploy on a managed host](/self-hosting/managed-vps/) explains the process-manager requirements.
 [Docker support](/self-hosting/install-with-docker) remains optional; each release publishes images,
 and the Compose stack includes its own proxy with optional built-in HTTPS. For the native

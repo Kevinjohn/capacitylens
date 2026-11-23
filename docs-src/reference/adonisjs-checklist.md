@@ -23,7 +23,7 @@ rule id on each line is the same in both.
 6. Code the diff did not touch is not in scope. A failure seen there gets an issue.
 
 Origin tags: **F** framework, **P** AdonisJS Plus, **H** house. Items tagged with a decision
-(D1 to D11) are provisional until that decision in the cookbook is agreed.
+are provisional while that decision is open in Part 4 of the cookbook.
 
 
 ---
@@ -351,7 +351,7 @@ Items:
 - [ ] **CMD-3** (F) A command that touches models or services sets `static options = { startApp: true }`.
 - [ ] **CMD-4** (F) Inputs are declared with `@args` and `@flags`, each with a description.
 - [ ] **CMD-5** (F) Output goes through `this.logger` and `this.ui`, not `console`.
-- [ ] **CMD-6** (F) A command that catches its own error sets `this.error = error` and `this.exitCode = 1`.
+- [ ] **CMD-6** (F) A command does not catch an error only to report it. The error reaches Ace, which sets `this.error` and `this.exitCode = 1`; `completed()` logs one safe line and returns `true` so Ace does not print the raw error.
 - [ ] **CMD-7** (H) A command calls the same service a controller would. It holds no business rule of its own.
 - [ ] **CMD-8** (F) A file in `commands/` that is not a command starts with `_`.
 

@@ -186,7 +186,8 @@ test.group('HTTP contract', (group) => {
 
   test('diagnostics preserves the unavailable database projection', async ({ client, assert }) => {
     client = await resetAuthenticatedClient(client, true);
-    await db.rawQuery('DROP INDEX closures_company_id_index');
+    const record = await db.from('adonis_schema').orderBy('id').first();
+    await db.from('adonis_schema').where('id', record!.id).delete();
     try {
       const response = await client.visit('api.diagnostics.show');
       assert.equal(response.status(), 503);
@@ -199,7 +200,7 @@ test.group('HTTP contract', (group) => {
         },
       });
     } finally {
-      await db.rawQuery('CREATE INDEX closures_company_id_index ON closures (company_id)');
+      await db.table('adonis_schema').insert(record!);
     }
   });
 });

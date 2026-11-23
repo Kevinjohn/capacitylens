@@ -1,57 +1,56 @@
 ---
 title: Upgrades
-description: Upgrade the native CapacityLens archive with a verified pre-migration backup and the AdonisJS migration command.
+description: Upgrade CapacityLens by fetching a new tag, building it and running the migration command, with a verified pre-migration backup.
 ---
 
 # Upgrade CapacityLens
 
-Keep the database and backup directory outside versioned release folders. Before changing the
-running code, read the release notes and confirm that a recent backup can be read. Use one
-process and stop it before replacing files or running the migration command.
+Keep the database and backup directory outside the clone. Before changing the running code, read
+the release notes and confirm that a recent backup can be read. Use one process and stop it before
+running the migration command.
 
-## Upgrade with the install command
+## Upgrade to a new tag
 
-If you installed with the [install command](/self-hosting/install-without-docker#install-with-one-command),
-verify and unpack the new archive next to the current release, then run the new release's command
-without arguments:
+Stop the service first: the build replaces the directory the running server reads. Then fetch
+the new tag, install the locked dependencies and build:
 
 ```bash
-sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
-sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
-sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh
+sudo systemctl stop capacitylens
+cd /opt/capacitylens
+sudo git fetch --tags
+sudo git checkout vX.Y.Z
+sudo pnpm install --frozen-lockfile
+sudo env NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error \
+  APP_KEY=capacitylens-build-key-0123456789abcdef \
+  APP_URL=https://127.0.0.1 CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
 ```
 
-It keeps `/etc/capacitylens.env`, stops the service, points `current` at the new release and runs
-`app:upgrade`, which backs up the existing database before migrating. If the migration fails, the
-service stays stopped; see [Roll back](#roll-back). The steps below are the same upgrade by hand.
+Then upgrade the database from the build directory, with the same environment used by the service,
+and start the service:
 
-## Install the new release
+```bash
+cd /opt/capacitylens/apps/backend/build
+sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+  -p WorkingDirectory=/opt/capacitylens/apps/backend/build \
+  -p EnvironmentFile=/etc/capacitylens.env \
+  -p Environment=NODE_ENV=production \
+  /usr/bin/env node ace.js app:upgrade
+sudo systemctl restart capacitylens
+```
 
-Download the archive for the host's operating system and architecture. Verify its checksum, unpack
-it next to the current release, and move the `current` link to the new version. Do not overwrite an
-existing release folder.
-
-If nginx serves the site from a copy of the release's `capacitylens.nginx.conf`, compare that copy
-with the new release's file and copy over any changed `location` blocks before starting the service.
-Upgrades never replace it, and its `location` blocks keep secret-bearing sign-in and invitation
-paths out of the access log. Invitation paths are now `/api/invitations/<token>/...` and
+If nginx serves the site from a copy of `packaging/release/capacitylens.nginx.conf`, compare that
+copy with the new tag's file and copy over any changed `location` blocks before starting the
+service. Upgrades never replace it, and its `location` blocks keep secret-bearing invitation and
+password-reset paths out of the access log. Invitation paths are `/api/invitations/<token>/...` and
 `/invitation/<token>`; an older copy logs the tokens in them.
 
-## Upgrade the database
-
-From the new release's `backend/` directory, with the same environment used by the service, run:
-
-```bash
-node ace.js app:upgrade
-```
-
-For an existing database, this command writes and verifies an online pre-upgrade backup before
+For an existing database, `app:upgrade` writes and verifies an online pre-upgrade backup before
 running `migration:run --force --no-schema-generate`. A fresh database is initialised without a
-pre-upgrade backup. Schema drift refuses the upgrade. Do not start the new
-service after a failed upgrade; retain the source database and recovery files and investigate the
+pre-upgrade backup. The upgrade fails if a migration fails or if any migration this release ships
+is still unrecorded afterwards. Do not start the new service after a failed upgrade; retain the source database and recovery files and investigate the
 reported refusal.
 
-After a successful upgrade, start the service and check `/health/ready`. Keep the backup until the
+After a successful upgrade, check `/health/ready`. Keep the backup until the
 new release has passed sign-in, reads, writes and backup checks. Pre-upgrade backups are kept
 separately from daily/manual retention; copy them off-host and keep the needed recovery points.
 
@@ -72,12 +71,14 @@ Check all imported records and settings, make an allocation edit, and reload bef
 source installation. This imports only full `capacitylens-beta` version `2` documents. It does
 not convert alpha exports or migrate authentication. Redacted and malformed documents are refused.
 
-## Databases the upgrade refuses
+## Databases that cannot be upgraded
 
-A database created before the move to password-only sign-in, or before a later change to the
-baseline schema such as the invitation `scope` column or the Access Control memberships table,
-cannot be upgraded in place: `app:upgrade`
-and startup refuse it with a `Database schema drift` message. Start a fresh database instead:
+Startup and the operator commands refuse a database that has not recorded every migration this
+release ships, with a `Database schema drift` message; run `app:upgrade` to apply them. They do
+not compare the schema itself. A database created before the move to password-only sign-in, or
+before a later change to the baseline schema such as the invitation `scope` column or the Access
+Control memberships table, records the same baseline, so it passes that check but cannot be
+upgraded in place. Start a fresh database instead:
 
 1. Stop the service and keep the old database file where it is.
 2. Point `CAPACITYLENS_DB` at a new, unused path.
@@ -94,8 +95,8 @@ Scheduling exports do not contain this control data.
 ## Roll back
 
 Migrations are forward-only; there are no down migrations. To roll back an application release,
-stop the service and restore the verified pre-upgrade backup to a separate database path, then
-point `CAPACITYLENS_DB` at that restored copy before starting the earlier release. Preserve the
+stop the service and restore the verified pre-upgrade backup to a separate database path, check out
+and build the earlier tag, then point `CAPACITYLENS_DB` at that restored copy before starting it. Preserve the
 upgraded database and all recovery files until the rollback is confirmed.
 
 See [Backups and restore](/self-hosting/backups-and-restore) for backup handling and

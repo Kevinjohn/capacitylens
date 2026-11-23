@@ -13,7 +13,7 @@ import {
   prepareDirectory,
   verifyBundle,
 } from '@kevinjohn/adonisjs-sqlite-backup';
-import { scratchBackendFilter } from '#tests/helpers/operator_command_helpers';
+import { assertSafeFailure, scratchBackendFilter } from '#tests/helpers/operator_command_helpers';
 
 const appRoot = process.cwd();
 
@@ -40,7 +40,11 @@ function command(root: string, databasePath: string, args: string[], backupDir?:
     },
   });
   if (child.error) throw child.error;
-  return { status: child.status, output: `${child.stdout}\n${child.stderr}` };
+  return {
+    status: child.status,
+    stderr: child.stderr,
+    output: `${child.stdout}\n${child.stderr}`,
+  };
 }
 
 const ace = (root: string, databasePath: string, name: string, backupDir?: string) =>
@@ -123,8 +127,7 @@ test.group('upgrade command', () => {
       const blockedDir = join(root, 'occupied');
       writeFileSync(blockedDir, 'not a directory');
       const blocked = ace(scratch, dbPath, 'app:upgrade', blockedDir);
-      assert.notEqual(blocked.status, 0, blocked.output);
-      assert.isNotNull(blocked.status, blocked.output);
+      assertSafeFailure(assert, blocked, /Upgrade failed/);
       assert.lengthOf(journal(dbPath), 1);
       assert.notInclude(tables(dbPath), 'upgrade_added');
 
@@ -144,7 +147,7 @@ test.group('upgrade command', () => {
     }
   });
 
-  test('upgrade refuses schema drift on an otherwise complete database', ({
+  test('upgrade refuses a database missing a shipped migration record', ({
     assert,
     test: testCase,
   }) => {
@@ -155,12 +158,11 @@ test.group('upgrade command', () => {
       const init = ace(appRoot, dbPath, 'app:upgrade');
       assert.equal(init.status, 0, init.output);
       const database = new Database(dbPath);
-      database.prepare('DROP TRIGGER clients_company_immutable').run();
+      database.prepare('DELETE FROM adonis_schema').run();
       database.close();
       const drift = ace(appRoot, dbPath, 'app:upgrade');
-      assert.isNotNull(drift.status, drift.output);
-      assert.notEqual(drift.status, 0, drift.output);
-      assert.match(drift.output, /Database schema drift/);
+      assert.equal(drift.status, 1, drift.output);
+      assert.lengthOf(journal(dbPath), 0);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

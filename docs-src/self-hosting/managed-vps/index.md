@@ -1,23 +1,23 @@
 ---
 title: Deploy on a managed host
-description: Run the native CapacityLens archive on a managed Linux host with a persistent data directory and HTTPS proxy.
+description: Run a built CapacityLens clone on a managed Linux host with a persistent data directory and HTTPS proxy.
 ---
 
 # Deploy on a managed host
 
 Use a managed host that lets you run a persistent Node process as a dedicated site user. Labels
 vary by provider; the requirements are the same: Node 24.19.0 or later within the 24.x line, one process,
-a writable data directory outside release folders, and an HTTPS reverse proxy.
+a writable data directory outside the clone, and an HTTPS reverse proxy.
 
 ## Prepare the host
 
-Create a private data directory owned by the service user. Download the platform-specific
-`capacitylens-X.Y.Z.tar.gz` release archive, verify its accompanying `.sha256` file, unpack it, and
-point a `current` symlink at the versioned directory. Keep this folder layout stable across
-releases:
+Create a private data directory owned by the service user. Clone the repository at a release tag
+into `/opt/capacitylens`, then install and build as described in
+[Install without Docker](/self-hosting/install-without-docker). Keep this folder layout stable
+across releases:
 
 ```text
-/opt/capacitylens/current/backend/
+/opt/capacitylens/apps/backend/build/
 /var/lib/capacitylens/capacitylens.db
 /var/lib/capacitylens/backups/
 /etc/capacitylens.env
@@ -28,17 +28,17 @@ permissions, key generation and initial `app:upgrade` command.
 
 ## Configure the process
 
-Copy `capacitylens.env.example` to a root-owned environment file outside the release. Set
+Copy `packaging/release/capacitylens.env.example` to a root-owned environment file outside the clone. Set
 `APP_URL` and `CAPACITYLENS_PUBLIC_URL` to the public HTTPS origin, keep `CAPACITYLENS_DB` and
 `CAPACITYLENS_BACKUP_DIR` under the persistent data folder, and set independent secret values.
 Configure the host's process manager to:
 
-- run as the dedicated site user from `current/backend`;
+- run as the dedicated site user from `apps/backend/build`;
 - execute `node bin/server.js` with `NODE_ENV=production` and the private environment file;
 - run exactly one application process and allow graceful shutdown;
 - restart after an unexpected failure.
 
-The archive's `capacitylens.service` is a systemd example. The application serves the web app and
+The repository's `packaging/release/capacitylens.service` is a systemd example. The application serves the web app and
 API from the same process. Do not add a second server or public listener for the API.
 
 ## Route HTTPS traffic

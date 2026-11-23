@@ -1,9 +1,9 @@
 name: security
 
 # Main pushes run the fast checks: a secret scan of the pushed commits, dependency review and the
-# source SBOM. The weekly schedule and manual dispatch add the full-history secret scan, the
-# container vulnerability scans and the ZAP baseline. A `v*` tag adds the release-relevant
-# container and ZAP scans.
+# source SBOM. The weekly schedule and manual dispatch add the full-history secret scan. The
+# container vulnerability scans and the ZAP baseline build images, so they run only on a `v*` tag
+# and on manual dispatch.
 on:
   workflow_dispatch:
     inputs:
@@ -84,8 +84,8 @@ jobs:
   containers:
     name: Container vulnerability scan
     if: >-
-      (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')) &&
-      (github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true)
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.secret_scan_only != true)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -117,8 +117,8 @@ jobs:
   dast:
     name: OWASP ZAP baseline
     if: >-
-      (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')) &&
-      (github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true)
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.secret_scan_only != true)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -157,36 +157,3 @@ jobs:
       - name: Stop production stack
         if: always()
         run: docker compose down --volumes
-
-  # Scheduled and push failures have no pull request status to draw attention to them.
-  # Run this report even if an earlier job fails or is canceled before a step starts.
-  # The reporter ignores superseded push cancellations, reconciles visible duplicates after
-  # publishing, and closes reports after a clean run. Concurrent creates converge on a later
-  # push or scheduled run if GitHub's issue list is stale during both post-create reads.
-  notify:
-    name: Report an unattended failure
-    if: always() && (github.event_name == 'schedule' || github.event_name == 'push')
-    needs: [dependency-review, secrets, sbom, containers, dast]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      issues: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Report the outcome
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Checkout leaves no credentialed remote for gh to infer the repository from.
-          GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          # Plain text rather than JSON: these are YAML expressions, where quoting JSON is a trap.
-          RESULTS: |
-            dependency-review=${{ needs.dependency-review.result }}
-            secrets=${{ needs.secrets.result }}
-            sbom=${{ needs.sbom.result }}
-            containers=${{ needs.containers.result }}
-            dast=${{ needs.dast.result }}
-        run: node scripts/ci/report-workflow-outcome.mjs

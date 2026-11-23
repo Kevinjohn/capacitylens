@@ -1,12 +1,9 @@
 import { test } from '@japa/runner';
-import type { HttpContext } from '@adonisjs/core/http';
-import { errors as vineErrors } from '@vinejs/vine';
 import {
   buildCompanyExport,
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyExport';
 import { seed } from '@capacitylens/shared/data/seed';
-import GettingStartedController from '#controllers/getting_started_controller';
 import { parseRequestDocument } from '#services/company_import';
 
 // Expected invalid input becomes a 400; anything else must reach the exception handler and reporting.
@@ -35,33 +32,5 @@ test.group('expected input errors', () => {
       },
     };
     assert.throws(() => parseRequestDocument(document), 'unexpected reader fault');
-  });
-
-  test('getting-started dismissal reports only validation failures as invalid input', async ({
-    assert,
-  }) => {
-    const context = (failure: unknown) =>
-      ({
-        params: { companyId: 'a-studio' },
-        request: {
-          body: () => ({}),
-          // Mirrors the framework: Vine failures are returned, anything else is re-thrown.
-          tryValidateUsing: async () => {
-            if (failure instanceof vineErrors.E_VALIDATION_ERROR) return [failure, null];
-            throw failure;
-          },
-        },
-        response: { badRequest: (body: unknown) => ({ status: 400, body }) },
-      }) as unknown as HttpContext;
-    const controller = new GettingStartedController();
-
-    assert.deepEqual(await controller.update(context(new vineErrors.E_VALIDATION_ERROR([]))), {
-      status: 400,
-      body: { error: 'dismissed must be true.' },
-    });
-    await assert.rejects(
-      () => controller.update(context(new TypeError('unexpected validator fault'))),
-      'unexpected validator fault'
-    );
   });
 });

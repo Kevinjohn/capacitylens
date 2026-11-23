@@ -1,9 +1,10 @@
-import { args, BaseCommand, flags } from '@adonisjs/core/ace';
+import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
 import { initializeCompany } from '#services/operator/company_initialization';
+import { OperatorCommand } from './_operator_command.js';
 
 /** Initialise company access for an existing identity on an empty stopped installation. */
-export default class CompanyInitialize extends BaseCommand {
+export default class CompanyInitialize extends OperatorCommand {
   static commandName = 'company:initialize';
   static description = 'Initialize the first company and Owner for an existing identity';
   static options: CommandOptions = { startApp: true };
@@ -12,27 +13,16 @@ export default class CompanyInitialize extends BaseCommand {
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
   declare confirmServerStopped: boolean;
 
-  #reported = false;
-
   async run() {
-    try {
-      this.logger.log(JSON.stringify(await initializeCompany(this)));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      const safe = /^(Refusing|Operator commands|Another process)/.test(message)
-        ? message
-        : /^Database /.test(message)
-          ? 'Database schema is not current'
-          : 'Company initialization failed; no company access was created';
-      this.logger.error(safe);
-      this.error = error;
-      this.#reported = true;
-      this.exitCode = 1;
-    }
+    this.logger.log(JSON.stringify(await initializeCompany(this)));
   }
 
-  /** Marks a caught error as already reported, so Ace does not print it raw. */
-  async completed() {
-    return this.#reported;
+  protected buildFailureMessage(error: unknown) {
+    const message = error instanceof Error ? error.message : '';
+    return /^(Refusing|Operator commands|Another process)/.test(message)
+      ? message
+      : /^Database /.test(message)
+        ? 'Database schema is not current'
+        : 'Company initialization failed; no company access was created';
   }
 }

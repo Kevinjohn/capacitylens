@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
+import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { GettingStarted } from './GettingStarted';
@@ -142,6 +143,48 @@ describe('Getting started', () => {
       expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2'),
     );
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the bar on screen while a planning change re-reads the milestones', async () => {
+    let finish: (reply: Response) => void = () => {};
+    vi.mocked(fetch)
+      .mockImplementationOnce(async () => new Response(readReply(false, { person: true })))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (finish = resolve)));
+    renderChecklist('owner');
+    await vi.waitFor(() =>
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1'),
+    );
+    act(() =>
+      useStore.setState((state) => ({
+        planning: { ...state.planning, revision: (state.planning.revision ?? 0) + 1 },
+      })),
+    );
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('getting-started-progress')).toBeVisible();
+    await act(async () => finish(new Response(readReply(false, { person: true, client: true }))));
+    await vi.waitFor(() =>
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2'),
+    );
+  });
+
+  it('stops reading a company the server reports dismissed', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(fetch)
+      .mockImplementationOnce(async () => new Response(readReply(true)))
+      .mockImplementation(async () => new Response(null, { status: 503 }));
+    renderChecklist('owner');
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    // Let the dismissed reply land before the planning revision moves.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    act(() =>
+      useStore.setState((state) => ({
+        planning: { ...state.planning, revision: (state.planning.revision ?? 0) + 1 },
+      })),
+    );
+    await act(async () => {});
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
+    expect(errorLog).not.toHaveBeenCalled();
   });
 
   it.each(['starting', 'active', 'ending'] as const)(

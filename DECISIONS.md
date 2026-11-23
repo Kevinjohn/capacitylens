@@ -168,7 +168,8 @@ and the tests, not here.
   behind the sign-in wall.
 - Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
   an online backup before migrating; the backup is the rollback. There are no down migrations and
-  no checksum ledger (#2437 reduces the startup schema check to the migration record).
+  no checksum ledger. Startup, readiness, diagnostics and the operator commands refuse a database
+  that has not recorded every migration the running build ships; nothing compares the schema itself.
 - An online SQLite backup runs at startup and on a schedule, with count-based retention of
   verified bundles on local storage. Pre-migration bundles and reset archives stay outside
   scheduled retention. Failures are logged or returned by the operator command.
@@ -184,8 +185,8 @@ and the tests, not here.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
 - Each server dataset has one home in the browser. TanStack Query owns server reads. The store
   owns the planning cache and the company directory, which store logic reads. No dataset is held
-  in both (#2447 moves the remaining hand-written reads). Undo history is held by the server; the
-  planning cache keeps only the page's history id.
+  in both. Undo history is held by the server; the planning cache keeps only the page's history
+  id.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.
 

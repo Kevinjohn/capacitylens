@@ -1,13 +1,12 @@
 name: gate
 
 # Validation reaches this workflow for main pushes (`full: false`) and for scheduled, tagged and
-# manual full validation (`full: true`). Pull requests that change packaging or runtime inputs run
-# only the native package jobs, with read-only permissions.
+# manual full validation (`full: true`).
 on:
   workflow_call:
     inputs:
       full:
-        description: Run every tooling check, frontend coverage and the native packages.
+        description: Run every tooling check and frontend coverage.
         type: boolean
         required: true
       tree_validated:
@@ -18,27 +17,6 @@ on:
       CODECOV_TOKEN:
         description: Token for optional frontend coverage reporting.
         required: false
-  pull_request:
-    branches: [main]
-    paths:
-      - 'packaging/**'
-      - 'scripts/release/package-managed-release.mjs'
-      - 'scripts/release/deploy-managed-runtime.mjs'
-      - 'scripts/release/docker/prepare-container-runtime.mjs'
-      - 'scripts/release/packagedServer.mjs'
-      - 'scripts/release/smoke-packaged-*.mjs'
-      - 'tooling/smokeSchedule.mjs'
-      - 'scripts/release/loopbackHttpProxy.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'apps/backend/package.json'
-      - 'apps/backend/bin/**'
-      - 'apps/backend/start/**'
-      - 'packages/shared/package.json'
-      - '.nvmrc'
-      - '.github/workflows/gate.yml'
-      - '.github/workflows/release-provenance.yml'
 
 concurrency:
   group: gate-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
@@ -50,7 +28,7 @@ permissions:
 jobs:
   workflow-lint:
     name: GitHub Actions static analysis
-    if: github.event_name != 'pull_request' && !inputs.tree_validated
+    if: ${{ !inputs.tree_validated }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -95,7 +73,7 @@ jobs:
   # Full validation, or no usable earlier success, runs every check.
   tooling-scope:
     name: Select tooling checks
-    if: github.event_name != 'pull_request' && !inputs.tree_validated
+    if: ${{ !inputs.tree_validated }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -154,7 +132,7 @@ jobs:
 
   static:
     name: Format, lint and type-check
-    if: github.event_name != 'pull_request' && !inputs.tree_validated
+    if: ${{ !inputs.tree_validated }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -174,7 +152,7 @@ jobs:
   # The only application build in this workflow. Backend tests use its synced SPA assets.
   build:
     name: Production build
-    if: github.event_name != 'pull_request' && !inputs.tree_validated
+    if: ${{ !inputs.tree_validated }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -201,7 +179,7 @@ jobs:
 
   frontend:
     name: Frontend tests
-    if: github.event_name != 'pull_request' && !inputs.tree_validated
+    if: ${{ !inputs.tree_validated }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -238,7 +216,7 @@ jobs:
   backend:
     name: Backend
     needs: build
-    if: github.event_name != 'pull_request' && !inputs.tree_validated
+    if: ${{ !inputs.tree_validated }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -252,61 +230,3 @@ jobs:
           path: apps/backend/public/
       - run: pnpm run policy:node-runtime:test
       - run: pnpm --dir apps/backend test
-
-  packaged:
-    name: Standalone native package (${{ matrix.target }})
-    # Main pushes leave the native packages to scheduled, tagged and manual validation.
-    if: (github.event_name == 'pull_request' || inputs.full) && !inputs.tree_validated
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-24.04
-            target: Linux x64
-            platform: linux
-            architecture: x64
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          version: 11.23.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24.21.0
-          cache: pnpm
-      - name: Verify native target
-        env:
-          EXPECTED_PLATFORM: ${{ matrix.platform }}
-          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
-        run: >-
-          node --input-type=module -e
-          "import assert from 'node:assert/strict';
-          assert.equal(process.platform, process.env.EXPECTED_PLATFORM);
-          assert.equal(process.arch, process.env.EXPECTED_ARCHITECTURE);
-          console.log(process.version, process.platform, process.arch);"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-        env:
-          NODE_ENV: production
-          CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
-          HOST: 127.0.0.1
-          PORT: '0'
-          LOG_LEVEL: error
-          APP_KEY: capacitylens-test-key-0123456789abcdef
-          APP_URL: http://127.0.0.1
-      - run: pnpm run package:managed-release:test
-      - run: pnpm run policy:packaged-smoke:test
-      - run: pnpm run package:managed-release
-      - run: pnpm run package:release-archive
-      - name: Extract and smoke test outside the repository
-        run: |
-          set -euo pipefail
-          package_version="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('package.json', 'utf8')).version)")"
-          package_scratch="$(mktemp -d)"
-          trap 'rm -rf "$package_scratch"' EXIT
-          archive_name="capacitylens-$package_version.tar.gz"
-          (cd release && shasum -a 256 --check "$archive_name.sha256")
-          tar -xzf "release/$archive_name" -C "$package_scratch"
-          pnpm run smoke:packaged-server "$package_scratch/capacitylens-$package_version/backend"

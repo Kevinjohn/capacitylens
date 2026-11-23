@@ -104,121 +104,58 @@ test.group('product error adapters', () => {
       assert.equal((result.body as { code: string }).code, 'ADMISSION_REQUIRED');
     });
   }
-  test('identity and admission refusals keep the wording stated for each surface', async ({
+  const routeNames = [
+    'api.companies.index',
+    'api.planning.show',
+    'api.member_resource_links.update',
+    'api.company_exports.show',
+  ];
+  /** Answers `error` on every route name and returns the one status and body they share. */
+  async function answerOnEveryRoute(error: () => unknown) {
+    const answers = [];
+    for (const name of routeNames) {
+      const thrown = error();
+      const { ctx, result } = context(thrown, name);
+      await new HttpExceptionHandler().handle(thrown, ctx);
+      answers.push({ status: result.status, body: result.body });
+    }
+    return answers;
+  }
+  test('IdentityAuthorizationException answers 403 with its own message and code on every route', async ({
     assert,
   }) => {
-    const identity = new IdentityAuthorizationException('Invalid membership role.');
-    const decision = { admitted: false, requirements: { invitation: { met: false } } };
-    const admission = new AdmissionRequiredError(decision);
-    const viaHandler = async (error: unknown) => {
-      const { ctx, result } = context(error);
-      await new HttpExceptionHandler().handle(error, ctx);
-      return result.body;
-    };
-    const viaPlanning = async (error: unknown) => {
-      const result = await answerOnPlanning(error);
-      return result.body;
-    };
-    assert.deepEqual(await viaHandler(identity), {
-      error: 'Invalid membership role.',
-      code: 'IDENTITY_AUTHORIZATION_DENIED',
-    });
-    assert.deepEqual(await viaPlanning(identity), {
-      error: 'Planning access is unavailable.',
-      code: 'ACCOUNT_MEMBERSHIP_LOST',
-    });
-    const admissionRoute = context(identity, 'api.member_resource_links.update');
-    await new HttpExceptionHandler().handle(identity, admissionRoute.ctx);
-    assert.deepEqual(admissionRoute.result.body, {
-      error: 'Forbidden.',
-      code: 'IDENTITY_AUTHORIZATION_DENIED',
-    });
-    assert.deepEqual(await viaHandler(admission), {
-      error: 'Your access to this company is waiting on admission.',
-      code: 'ADMISSION_REQUIRED',
-      decision,
-    });
-    assert.deepEqual(await viaPlanning(admission), {
-      error: 'Company access needs admission.',
-      code: 'ADMISSION_REQUIRED',
-      decision,
-    });
-  });
-  test('each surface keeps its wording for identity, admission and Vine refusals', async ({
-    assert,
-  }) => {
-    const decision = { admitted: false, requirements: { invitation: { met: false } } };
-    const routes = {
-      product: 'api.companies.index',
-      planning: 'api.planning.show',
-      admission: 'api.member_resource_links.update',
-    } as const;
-    const productAdmission = 'Your access to this company is waiting on admission.';
-    const cases = [
-      {
-        error: () => new IdentityAuthorizationException('Invalid membership role.'),
-        expected: {
-          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
-          planning: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
-        },
-      },
-      {
-        error: () => new AdmissionRequiredError(decision),
-        expected: {
-          product: { error: productAdmission, code: 'ADMISSION_REQUIRED', decision },
-          planning: {
-            error: 'Company access needs admission.',
-            code: 'ADMISSION_REQUIRED',
-            decision,
-          },
-          admission: { error: productAdmission, code: 'ADMISSION_REQUIRED', decision },
-        },
-      },
-      {
-        error: () => new vineErrors.E_VALIDATION_ERROR([]),
-        expected: {
-          product: { error: 'Invalid request.', code: 'VALIDATION_ERROR' },
-          planning: { error: 'Invalid planning input.', code: 'VALIDATION_ERROR' },
-          admission: { error: 'Invalid request.', code: 'VALIDATION_ERROR' },
-        },
-      },
-    ];
-    for (const { error, expected } of cases) {
-      for (const surface of ['product', 'planning', 'admission'] as const) {
-        const thrown = error();
-        const { ctx, result } = context(thrown, routes[surface]);
-        await new HttpExceptionHandler().handle(thrown, ctx);
-        assert.deepEqual(
-          result.body,
-          expected[surface],
-          `${thrown.constructor.name} on ${surface}`
-        );
-      }
+    for (const answer of await answerOnEveryRoute(
+      () => new IdentityAuthorizationException('Invalid membership role.')
+    )) {
+      assert.deepEqual(answer, {
+        status: 403,
+        body: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
+      });
     }
   });
-  test('the export download keeps the planning wording for identity and admission refusals', async ({
+  test('AdmissionRequiredError answers 403 with one sentence and the decision on every route', async ({
     assert,
   }) => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
-    const cases = [
-      {
-        thrown: new IdentityAuthorizationException('Masquerade company access changed.'),
-        expected: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-      },
-      {
-        thrown: new AdmissionRequiredError(decision),
-        expected: {
-          error: 'Company access needs admission.',
+    for (const answer of await answerOnEveryRoute(() => new AdmissionRequiredError(decision))) {
+      assert.deepEqual(answer, {
+        status: 403,
+        body: {
+          error: 'Your access to this company is waiting on admission.',
           code: 'ADMISSION_REQUIRED',
           decision,
         },
-      },
-    ];
-    for (const { thrown, expected } of cases) {
-      const { ctx, result } = context(thrown, 'api.company_exports.show');
-      await new HttpExceptionHandler().handle(thrown, ctx);
-      assert.deepEqual(result.body, expected, thrown.constructor.name);
+      });
+    }
+  });
+  test('a Vine failure without a message answers 400 with one sentence on every route', async ({
+    assert,
+  }) => {
+    for (const answer of await answerOnEveryRoute(() => new vineErrors.E_VALIDATION_ERROR([]))) {
+      assert.deepEqual(answer, {
+        status: 400,
+        body: { error: 'Invalid request.', code: 'VALIDATION_ERROR' },
+      });
     }
   });
   test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {

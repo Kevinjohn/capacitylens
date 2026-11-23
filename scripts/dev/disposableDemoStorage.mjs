@@ -10,10 +10,7 @@ import { isProcessTreeRunning } from '../../tooling/devProcesses.mjs';
 /** Allocate fresh storage; a later invocation never deletes an earlier invocation's database. */
 export async function createDisposableDemoStorage(
   portLane,
-  {
-    backendDirectory = fileURLToPath(new URL('../../apps/backend/', import.meta.url)),
-    platform = process.platform,
-  } = {},
+  { backendDirectory = fileURLToPath(new URL('../../apps/backend/', import.meta.url)) } = {},
 ) {
   const parent = join(backendDirectory, 'tmp');
   await mkdir(parent, { recursive: true });
@@ -23,9 +20,6 @@ export async function createDisposableDemoStorage(
     databasePath: join(directory, '.demo.db'),
     async cleanup(children) {
       if (children.some((child) => isProcessTreeRunning(child))) return false;
-      // Windows has no POSIX process group to verify after a launcher exits. Retain uncertain
-      // storage rather than unlink a database that an orphaned descendant could still be using.
-      if (platform === 'win32' && children.length > 0) return false;
       await rm(directory, { recursive: true, force: true });
       return true;
     },

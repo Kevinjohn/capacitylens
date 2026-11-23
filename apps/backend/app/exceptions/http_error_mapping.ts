@@ -3,11 +3,10 @@
 // `errors[]`; the SPA keys its presentation on `code`.
 
 import type {
-  HttpErrorBody,
   ProductHttpErrorBody,
   ProductValidationFailure,
 } from '@capacitylens/shared/api/httpErrors';
-import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
+import { errors as httpServerErrors } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { errors as limiterErrors } from '@adonisjs/limiter';
 import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
@@ -38,80 +37,19 @@ export interface HttpErrorResponse {
   report?: { errorType: string; status: number };
 }
 
-/** A refusal whose wording the surface selects. */
-interface SharedRefusal {
-  status: number;
-  body: HttpErrorBody;
-}
-
 /**
- * The routes that word a shared refusal differently. `planning` is every planning route and the
- * export download, which reads through planning access; `admission` is the member-resource link
- * routes; `product` is every other route.
+ * Admission refusals carry the decision so the limited screens can explain it. Planning access
+ * refusals (`ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection)
+ * are produced in `company_scope_middleware.ts` and the planning access check, not here.
  */
-export type RefusalSurface = 'product' | 'planning' | 'admission';
-
-const PLANNING_ROUTE_NAMES = new Set([
-  'api.planning.show',
-  'api.planning_archive.show',
-  'api.planning_mutations.store',
-  'api.planning_undo.store',
-  'api.planning_redo.store',
-  'api.company_exports.show',
-]);
-
-const ADMISSION_ROUTE_NAMES = new Set([
-  'api.member_resource_links.update',
-  'api.member_resource_links.destroy',
-]);
-
-/** Reads the refusal surface from the matched route's generated name. Pure. */
-export function readRefusalSurface(ctx: HttpContext): RefusalSurface {
-  const name = ctx.route?.name ?? '';
-  if (PLANNING_ROUTE_NAMES.has(name)) return 'planning';
-  if (ADMISSION_ROUTE_NAMES.has(name)) return 'admission';
-  return 'product';
-}
-
-/**
- * Admission refusals carry the decision so the limited screens can explain it. Planning routes use
- * their own shorter wording; `account_gate.spec.ts` pins both.
- */
-function buildAdmissionRequiredResponse(
-  error: AdmissionRequiredError,
-  surface: RefusalSurface
-): SharedRefusal {
+function buildAdmissionRequiredResponse(error: AdmissionRequiredError): HttpErrorResponse {
   return {
     status: 403,
     body: {
-      error:
-        surface === 'planning'
-          ? 'Company access needs admission.'
-          : 'Your access to this company is waiting on admission.',
+      error: 'Your access to this company is waiting on admission.',
       code: 'ADMISSION_REQUIRED',
       decision: error.decision,
     } satisfies ProductHttpErrorBody,
-  };
-}
-
-/**
- * Identity resolution failures. Planning answers `ACCOUNT_MEMBERSHIP_LOST`, which tells the browser
- * to drop its planning projection; the admission routes keep the code but not the message; every
- * other route sends the error's own message and code.
- */
-function buildIdentityAuthorizationResponse(
-  error: IdentityAuthorizationException,
-  surface: RefusalSurface
-): SharedRefusal {
-  if (surface === 'planning') {
-    return {
-      status: 403,
-      body: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-    };
-  }
-  return {
-    status: 403,
-    body: { error: surface === 'admission' ? 'Forbidden.' : error.message, code: error.code },
   };
 }
 
@@ -296,10 +234,7 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
 }
 
 /** Planning service refusals: the restoration count, the stated status and code, stale revisions. */
-function buildPlanningResponse(
-  error: unknown,
-  surface: RefusalSurface
-): HttpErrorResponse | undefined {
+function buildPlanningResponse(error: unknown): HttpErrorResponse | undefined {
   if (error instanceof RestorationConfirmationException) {
     return {
       status: 409,
@@ -316,18 +251,9 @@ function buildPlanningResponse(
       body: { error: error.message, ...(error.code ? { code: error.code } : {}) },
     };
   }
-  // Planning words an entity refusal as authorization or validation; the import and example-data
-  // routes send the stated status, code and the current revision.
+  // The planning executor already turns an entity refusal into authorization or validation; the
+  // import and example-data services send the stated status, code and the current revision.
   if (error instanceof EntityWriteException) {
-    if (surface === 'planning') {
-      return {
-        status: error.status === 403 ? 403 : 400,
-        body: {
-          error: error.message,
-          code: error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
-        },
-      };
-    }
     return {
       status: error.status,
       body: {
@@ -347,18 +273,15 @@ function buildPlanningResponse(
  * order. Anything it returns with a status below 500 and no `report` is an expected refusal and is
  * not logged; anything it does not recognise is an unexpected failure.
  */
-export function mapHttpError(
-  error: unknown,
-  surface: RefusalSurface = 'product'
-): HttpErrorResponse | undefined {
-  const planning = buildPlanningResponse(error, surface);
+export function mapHttpError(error: unknown): HttpErrorResponse | undefined {
+  const planning = buildPlanningResponse(error);
   if (planning) return planning;
   if (error instanceof MasqueradeError) {
     const masquerade = buildMasqueradeResponse(error);
     if (masquerade) return masquerade;
   }
   if (error instanceof AdmissionRequiredError) {
-    return buildAdmissionRequiredResponse(error, surface);
+    return buildAdmissionRequiredResponse(error);
   }
   const kitRefusal = buildKitRefusal(error);
   if (kitRefusal) {
@@ -372,23 +295,19 @@ export function mapHttpError(
   }
   const accessRefusal = buildAccessRefusal(error);
   if (accessRefusal) {
-    return surface === 'planning'
-      ? accessRefusal
-      : { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } };
+    return { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } };
   }
   if (error instanceof RefusalException) return { status: error.status, body: error.body() };
   const confirmation = buildConfirmationResponse(error);
   if (confirmation) return confirmation;
   if (error instanceof IdentityAuthorizationException) {
-    return buildIdentityAuthorizationResponse(error, surface);
+    return { status: 403, body: { error: error.message, code: error.code } };
   }
   if (error instanceof vineErrors.E_VALIDATION_ERROR) {
     return {
       status: 400,
       body: {
-        error:
-          error.messages[0]?.message ??
-          (surface === 'planning' ? 'Invalid planning input.' : 'Invalid request.'),
+        error: error.messages[0]?.message ?? 'Invalid request.',
         code: 'VALIDATION_ERROR',
       } satisfies ProductValidationFailure['body'],
     };
