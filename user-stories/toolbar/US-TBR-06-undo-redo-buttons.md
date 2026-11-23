@@ -35,8 +35,9 @@ flowchart TD
   Toolbar["SchedulerToolbar checks canEdit and isPlanningHistoryReady"] -->|hidden, disabled or guard blocks| None["No history request"]
   Toolbar -->|Undo| Undo["planningSessionSlice.undoPlanning → api.planning_undo.store"]
   Toolbar -->|Redo| Redo["planningSessionSlice.redoPlanning → api.planning_redo.store"]
-  Undo --> Commit["runPlanningHistoryStep → commit checks live access, mutation identity and revision"]
-  Redo --> Commit
+  Undo --> Step["Controller passes auth, params and its validation callback to runPlanningHistoryStep"]
+  Redo --> Step
+  Step --> Commit["Validate body and run stepPlanningHistory through withActor(auth); check live access, mutation identity and revision"]
   Commit --> Intent["Select stored inverse or forward for current company, actor, session, page and revision"]
   Intent -->|successful transaction| Receipt["Commit rows, revision, audit and next history; reconcile projected receipt and read"]
   Commit -->|empty history, stale or reused ID| Skip["Refuse without separate history cleanup"]
@@ -46,7 +47,7 @@ flowchart TD
   Commit -->|lost or invalid reply| Unknown["New history ID; canonical read and ask user to inspect the result"]
 ```
 
-The server keeps up to 50 entries for the last writer. A stale refusal refetches without a second toolbar toast. Ordinary failures outside the cache’s existing error notice surface through the toolbar.
+The server keeps up to 50 entries for the last writer. A stale refusal refetches without a second toolbar toast. Ordinary failures outside the cache’s existing error notice surface through the toolbar. See the [signed-in request boundary](../REFERENCE.md#signed-in-requests) for both the history step and its separate cleanup transaction.
 
 **Code references:**
 

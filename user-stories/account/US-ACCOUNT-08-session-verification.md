@@ -28,17 +28,25 @@ flowchart TD
 ```mermaid
 flowchart TD
   retry["AuthError Try again calls AuthProvider checkAuth"] --> status["fetchAuthStatus checks masqueradeApi.status first"]
-  status -->|Active| projected["Validate the actor and adopt the read-only projection"]
-  status -->|Inactive| me["Adopt inactive status and read sessionRequests.me"]
+  status --> controller["MasqueradeController.show uses getSignedInSession to verify the real sign-in"]
+  controller -->|Session verified| mode["readCurrentMasquerade checks View as member status"]
+  mode -->|Active| projected["Validate the actor and adopt the read-only projection"]
+  mode -->|Inactive| me["Adopt inactive status and read sessionRequests.me"]
+  controller -->|No valid sign-in| me
   status -->|Transport failure| fallback["Probe sessionRequests.me while projection is unknown"]
   status -->|Other failure| error["Render AuthError and retain Try again"]
   fallback -->|401| signIn["Show the sign-in screen"]
   fallback -->|Success or another failure| error
-  me -->|401| signIn
-  me -->|Failed or malformed| error
-  me -->|Pass| gates["AuthProvider renders the applicable account or setup gate, or opens the router"]
+  me --> session["SessionController.show rechecks the sign-in under limited withActor"]
+  session --> answers["readAuthResponse interprets the server response"]
+  answers -->|401| signIn
+  me -->|Request failed| error
+  answers -->|Failed or malformed| error
+  answers -->|Pass| gates["AuthProvider renders the applicable account or setup gate, or opens the router"]
   projected -->|Adopted| gates
   projected -->|Failed| error
 ```
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L172) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L238) · [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L11) · [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L67) · [authResponse.ts](../../apps/frontend/src/auth/authResponse.ts#L120)
+See [Signed-in requests](../REFERENCE.md#signed-in-requests) for the raw guard, effective guard and transaction checks.
+
+**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L172) · [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L238) · [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L11) · [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts#L67) · [masquerade_controller.ts](../../apps/backend/app/controllers/masquerade_controller.ts#L49) · [current_actor.ts](../../apps/backend/app/services/auth/current_actor.ts#L123) · [masquerade.ts](../../apps/backend/app/services/auth/masquerade.ts#L38) · [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L25) · [authResponse.ts](../../apps/frontend/src/auth/authResponse.ts#L120)

@@ -32,15 +32,17 @@ flowchart TD
   retry --> list
   list -->|Pending, declined or revoked rows| buttons["Approve any returned row; offer Decline on pending rows"]
   buttons --> submit["teamAccessApi sends selected userId to the approval or rejection controller"]
-  submit --> service["decideAdmission calls Account Kit with current actor and target"]
-  service -->|Authorized| persist["Persist the decision; the person observes it on a later request"]
+  submit --> service["decideAdmission validates userId, reads the signed-in account from web and calls AccountAdmission"]
+  service --> policy["Registered admissionAuthorize callback checks live invitation-management permission and whether the actor can manage an existing target member"]
+  policy -->|Authorized| persist["Persist the decision; the person observes it on a later request"]
   service -->|Returned refusal| error["Show refusal"]
+  policy -->|Refused| error
   error --> list
   persist --> list
   submit -->|Transport failure| uncertain["Show decision failure"]
-  retained["Separate revocation route"] --> api["Eligible API clients can request revoke through the same service"]
+  retained["Separate revocation route"] --> api["AdmissionRevocationsController calls decideAdmission with revoke"]
 ```
 
 See [Request company access and check the decision](../team/US-TEAM-05-request-admission.md#code-flow) for the person’s next session check.
 
-**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L196) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L50) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L74) · [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts#L126) · [admission_decisions.ts](../../apps/backend/app/services/admission/admission_decisions.ts#L15) · [admission_rules.ts](../../apps/backend/app/services/account_kit/admission_rules.ts#L41) · [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts#L4) · [admission_routes.ts](../../apps/backend/start/admission_routes.ts#L45) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L167)
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L196) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L50) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L74) · [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts#L126) · [admission_decisions.ts](../../apps/backend/app/services/admission/admission_decisions.ts#L15) · [package_callbacks_provider.ts](../../apps/backend/providers/package_callbacks_provider.ts#L44) · [admission_rules.ts](../../apps/backend/app/services/account_kit/admission_rules.ts#L42) · [admission_approvals_controller.ts](../../apps/backend/app/controllers/admission_approvals_controller.ts#L4) · [admission_routes.ts](../../apps/backend/start/admission_routes.ts#L45) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L167)

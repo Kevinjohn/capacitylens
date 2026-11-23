@@ -94,6 +94,30 @@ These apply across stories without repeating a technical checklist in every form
 For full rules and any departures, follow [DECISIONS.md](../DECISIONS.md). For runnable validation
 use the existing tests and [testing guide](../docs-src/reference/how-it-is-tested.md).
 
+### Signed-in requests
+
+- The raw `web` guard uses Account Kit's `accountKitSessionGuard` with the application's user
+  provider. `web_effective` wraps that guard for member routes. It can supply the viewed-as member
+  and a request context while keeping the raw sign-in available for account operations.
+  [Guard configuration](../apps/backend/config/auth.ts#L8)
+- [`withActor(auth, …)`](../apps/backend/app/services/auth/current_actor.ts#L60) gets the registered
+  sign-in from `web.current()`, then reads `web_effective.context`, authenticating that guard if it
+  has yet to attempt authentication. It captures the view-as context before opening Account Kit's
+  `authentication.withCurrent` transaction. Inside that transaction it requires a sign-in ID,
+  checks confirmed admission for ordinary routes, and verifies that any view-as context belongs
+  to the same actor before running the action. Limited routes opt out of the confirmed admission
+  check. Each action still applies its company scope and permissions.
+
+### Package callbacks
+
+[`PackageCallbacksProvider.boot`](../apps/backend/providers/package_callbacks_provider.ts#L11)
+registers factories before the package providers need them. Account Kit receives the user adapter,
+registration mapping, Access Control invitation and membership callbacks, and the product's
+transactional effects. The provider also registers admission approval authority, the Masquerade
+adapter and policy, and the authorisation callback for password confirmations. The package
+configuration files supply the options for those same operations.
+[Provider order](../apps/backend/adonisrc.ts#L61) · [Account boundary](../docs-src/decisions/account-boundary.md)
+
 ### Company setting writes
 
 1. An editable Settings control calls
@@ -106,7 +130,11 @@ use the existing tests and [testing guide](../docs-src/reference/how-it-is-teste
    checks the planning context and write readiness through the cache before
    [the transport](../apps/frontend/src/data/planning/planningTransport.ts#L57) sends
    `settings.update` with the base revision. [`PlanningMutationsController.store`](../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
-   validates the request and calls `mutatePlanning` inside the actor transaction.
+   validates the request, records the validated `intent.operation` in `requestLog`, then calls
+   `mutatePlanning` through [`withActor(auth, …)`](#signed-in-requests). The
+   [request logging middleware](../apps/backend/app/middleware/request_logging_middleware.ts#L16)
+   creates that holder before routing and includes the operation in the completion record when
+   request logging is enabled and validation supplied an operation.
    [The commit path](../apps/backend/app/services/planning.ts#L198) checks live write access, mutation
    identity and base revision before [`executePlanningIntent`](../apps/backend/app/services/planning/execute.ts#L423)
    dispatches to [`updateSettings`](../apps/backend/app/services/planning/writer.ts#L88).

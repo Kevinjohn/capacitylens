@@ -12,7 +12,7 @@ As an invited person, I want to accept my email invitation so that I can request
 
 - Use the **Name** and **Password** fields in [Create my account from an invitation](../account/US-ACCOUNT-06-sign-up.md).
 
-- The page shows the invited company and role, then **Accept invitation** creates the invited sign-in and membership. The person must still ask for access and receive approval before seeing company data.
+- A company invitation shows the invited company and role. **Accept invitation** creates a confirmed account and membership. The person still has to ask for access and receive approval before opening the company. The installation’s first identity accepts a bootstrap invitation and continues to first-company setup.
 
 ## User flow
 
@@ -23,8 +23,9 @@ flowchart TD
     Details -->|"No"| Error["Read the invalid or expired invitation message"]
     Details -->|"Yes"| Form["Enter Name and Password"]
     Form --> Submit["Select Accept invitation"]
-    Submit --> SignIn["Continue to the app"]
-    SignIn --> Request["Ask for access and wait for approval"]
+    Submit --> SignIn["Continue to the app; sign in if prompted"]
+    SignIn -->|"Company invitation"| Request["Ask for access and wait for approval"]
+    SignIn -->|"Bootstrap invitation"| Setup["Continue to first-company setup"]
 ```
 
 ## Code flow
@@ -37,11 +38,11 @@ flowchart TD
   page -->|Preview unavailable| retry["Show unavailable or network error with Go to App"]
   form -->|Valid submit| endpoint["signUpWithInvitation calls InvitationAcceptancesController.store"]
   form -->|Invalid draft| invalidDraft["Show client field error"]
-  endpoint --> kit["Validate submitted fields; Account Kit accepts token and creates confirmed identity and invitation evidence"]
+  endpoint --> kit["Validate submitted fields; Account Kit creates the confirmed identity and the registered callback adds invitation evidence"]
   kit -->|Expired or invalid| invalid
   kit -->|EMAIL_IN_USE| signIn["Return to the form with the sign-in message"]
   kit -->|Other known refusal| refusal["Show refusal in the form"]
-  kit -->|Company invitation| membership["Access Control creates membership; product callback records audit and revision in the transaction"]
+  kit -->|Company invitation| membership["Access Control creates membership; recordInvitationAccepted writes audit and revision in the same transaction"]
   membership --> session["Try signInWithPassword"]
   kit -->|Bootstrap invitation| session
   session -->|Session created| ok["HTTP 201"]
@@ -52,4 +53,4 @@ flowchart TD
   endpoint -->|5xx or no response| uncertain["Remain on the uncertainty screen with Go to App"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx#L55) · [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx#L97) · [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts#L11) · [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts#L22) · [invitationSignUpApi.ts](../../apps/frontend/src/account/invitationSignUpApi.ts#L64) · [account_kit.ts](../../apps/backend/config/account_kit.ts#L72) · [membership_effects.ts](../../apps/backend/app/services/account_kit/membership_effects.ts#L8) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L80)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx#L55) · [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx#L97) · [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts#L11) · [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts#L22) · [invitationSignUpApi.ts](../../apps/frontend/src/account/invitationSignUpApi.ts#L64) · [package_callbacks_provider.ts](../../apps/backend/providers/package_callbacks_provider.ts#L18) · [membership_effects.ts](../../apps/backend/app/services/account_kit/membership_effects.ts#L14) · [invitations.spec.ts](../../apps/backend/tests/functional/auth/invitations.spec.ts#L80)

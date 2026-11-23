@@ -41,13 +41,13 @@ flowchart TD
   gate -->|Admission incomplete| admission["AdmissionStep explains the current decision"]
   admission -->|Declined, withdrawn or prerequisites missing| reason["Show reason and keep Sign out available"]
   admission -->|Request offered| request["authApi.requestAdmission calls AdmissionRequestsController.store"]
-  request --> kit["Account Kit checks prerequisites and records the request"]
+  request --> kit["AccountAdmission.request receives the web guard account input, checks prerequisites and records the request"]
   kit -->|Accepted| refresh["onRefresh checks the current session again"]
   kit -->|Refusal or request failure| error["Limited screen shows error"]
   admission -->|Check again, before request or while waiting| refresh
   refresh --> session
   gate -->|Admitted and no membership| join["MembershipStep calls authApi.completeMembership"]
-  join --> service["MembershipsController.store runs completeMembership under withActor"]
+  join --> service["MembershipsController.store runs completeMembership under withActor(auth)"]
   service -->|Missing member| write["Grant invited role or Viewer; record audit and revision"]
   write --> refresh
   service -->|Already active| refresh
@@ -57,4 +57,4 @@ flowchart TD
 
 The manager’s decision controls are documented in [Approve or decline company admission](../settings/US-SET-19-company-admission.md#code-flow).
 
-**Code references:** [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L26) · [authResponse.ts](../../apps/frontend/src/auth/authResponse.ts#L73) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L142) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L192) · [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts#L12) · [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts#L17) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L77)
+**Code references:** [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts#L25) · [authResponse.ts](../../apps/frontend/src/auth/authResponse.ts#L73) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L142) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L192) · [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts#L11) · [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts#L17) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L77)

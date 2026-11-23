@@ -11,6 +11,14 @@ of every implementation guarantee.
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | GAP-01 | Editors and above may change company name, time zone and week start: [Data and company separation](../DECISIONS.md#data-and-company-separation), configuration paragraph. | [Company details](../apps/frontend/src/components/settings/SettingsCompanySections.tsx#L20) displays all three as read-only values. [Frozen-field rules](../apps/backend/app/services/planning/entity_rules.ts#L51) and its [enforcement](../apps/backend/app/services/planning/entity_rules.ts#L217) refuse changing an established time zone or week start. | Describe current read-only details and setup fields accurately; retain the target as unavailable. Company-name editing has no ordinary Settings control. Decide whether to restore editing or amend the target; this refresh does neither. |
 
+### Guide discrepancy
+
+The [AdonisJS conventions](../docs-src/reference/adonisjs-conventions.md#authentication-authorization-and-security)
+describe `withActor` as the actor source for write actions generally. Company writes use it to
+verify the actor inside the product transaction. Some account actions use the raw `web` guard and
+Account Kit's own operation instead, including [changing a password](account/US-ACCOUNT-02-password-change.md)
+and [deleting an account](account/US-ACCOUNT-05-delete-account.md).
+
 ## Deliberately retained features
 
 These are availability records, not automatically defects or commitments to bring a feature back.
@@ -24,7 +32,7 @@ The matrix keeps every historical story discoverable by status.
 
 - **Member sign-in tracking:** the server route and mutation support recording sign-ins, but
   [MembersSection](../apps/frontend/src/components/team/MembersSection.tsx) renders neither its
-  toggle nor its column; the [existing visibility test](../apps/frontend/src/components/team/MembersSection.lifecycle.test.tsx#L536)
+  toggle nor its column; the [existing visibility test](../apps/frontend/src/components/team/MembersSection.lifecycle.test.tsx#L261)
   explicitly expects them to be hidden. The retained team story is Hidden, not a claim of a
   current menu action.
 - **Open self-service sign-up:** [auth routes](../apps/backend/start/auth_routes.ts#L11) expose

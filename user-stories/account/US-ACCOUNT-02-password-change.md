@@ -38,13 +38,17 @@ flowchart TD
   validate -->|Invalid| error["Current dialog shows the field error"]
   validate -->|Valid| request["authApi.changePassword"]
   request --> guard["Auth route refuses own-account writes in View as member"]
-  guard -->|Allowed| kit["PasswordController.update validates and asks Account Kit to change the password and end other sessions"]
+  guard -->|Allowed| current["PasswordController.update validates the request and verifies the account through readCurrentAccount(auth)"]
+  current -->|Verified| kit["Account Kit checks the current password, sets the new password and revokes all registered sign-ins"]
+  current -->|Refused| error
   guard -->|Refused| error
   kit -->|Wrong current password or other refusal| error
-  kit -->|Changed or committed with a follow-up warning| terminate["PasswordController terminates this managed session"]
+  kit -->|Changed or committed with a follow-up warning| terminate["PasswordController terminates the browser session through the raw web guard"]
   terminate --> response["Ordinary success or CREDENTIAL_UPDATE_COMMITTED"]
   response --> reload["Navigate to the root to sign in with the new password"]
   request -->|No response| unknown["Current dialog asks the person to check which password works"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx#L88) · [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx#L75) · [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts#L36) · [password_controller.ts](../../apps/backend/app/controllers/password_controller.ts#L15) · [route_middleware.ts](../../apps/backend/start/route_middleware.ts#L50) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L153)
+See [Signed-in requests](../REFERENCE.md#signed-in-requests) for the raw guard and account check.
+
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx#L88) · [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx#L75) · [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts#L36) · [password_controller.ts](../../apps/backend/app/controllers/password_controller.ts#L14) · [route_middleware.ts](../../apps/backend/start/route_middleware.ts#L50) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L153)
