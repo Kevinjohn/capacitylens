@@ -1,7 +1,7 @@
 # Use BuildKit's bundled frontend to avoid a separate Docker Hub syntax-image pull.
 
 # GitHub-hosted runners are exempt from Docker Hub public-image pull limits; ECR Public is not.
-FROM docker.io/library/node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS deps
+FROM docker.io/library/node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS deps
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -30,7 +30,7 @@ FROM web-build AS server-deploy
 RUN pnpm --filter @capacitylens/backend deploy --prod --legacy --no-optional /runtime-deploy \
     && node scripts/release/docker/prepare-container-runtime.mjs /app /runtime-deploy /prod/backend
 
-FROM docker.io/library/node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS api
+FROM docker.io/library/node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS api
 # Links the published image to this repository on GitHub Container Registry.
 LABEL org.opencontainers.image.source="https://github.com/Kevinjohn/capacitylens"
 WORKDIR /app/backend
