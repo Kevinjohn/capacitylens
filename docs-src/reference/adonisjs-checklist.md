@@ -23,7 +23,7 @@ rule id on each line is the same in both.
 6. Code the diff did not touch is not in scope. A failure seen there gets an issue.
 
 Origin tags: **F** framework, **P** AdonisJS Plus, **H** house. Items tagged with a decision
-(D1 to D11) are provisional until that decision in the cookbook is agreed.
+are provisional while that decision is open in Part 4 of the cookbook.
 
 
 ---
