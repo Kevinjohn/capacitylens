@@ -10,7 +10,7 @@ next: false
 
 ### Do I need Docker?
 
-No. The [native release archive](/self-hosting/install-without-docker) is the expected installation.
+No. The expected installation is a [clone of the repository at a release tag](/self-hosting/install-without-docker).
 Each release also publishes Docker images; see [Install with Docker](/self-hosting/install-with-docker).
 
 ### Which Node version should I use?
@@ -56,14 +56,14 @@ until a restore has passed startup checks. See [Backups and restore](/self-hosti
 
 ### Can I upgrade by replacing the files and restarting?
 
-No. Run `node ace.js app:upgrade` from the new release's `backend/` directory before restarting.
+No. Run `node ace.js app:upgrade` from `apps/backend/build` after building the new tag and before restarting.
 It takes a verified pre-upgrade backup of an existing database, then runs pending migrations.
 See [Upgrades](/self-hosting/upgrades).
 
 ### How do I recover the sole Owner's access?
 
 Stop the service and use
-`node ace.js owner:reset-password <email> --confirm-server-stopped` from the release's `backend/`
+`node ace.js owner:reset-password <email> --confirm-server-stopped` from `apps/backend/build`
 directory. The audited command issues a single-use recovery link; deliver it privately and never
 set a password directly. The generic Account Kit reset-link command is not registered. See
 [When something goes wrong](/self-hosting/incidents).

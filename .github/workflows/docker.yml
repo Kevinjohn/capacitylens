@@ -13,41 +13,24 @@ on:
         type: boolean
         default: false
   push:
-    branches: [main]
     tags: ['v*']
-  # Container inputs, runtime dependencies and this workflow are smoke-tested before merge.
-  pull_request:
-    branches: [main]
-    paths:
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'docker-compose.yml'
-      - 'nginx*.conf'
-      - 'scripts/release/docker/smoke-docker-compose.mjs'
-      - 'scripts/release/docker/prepare-container-runtime.mjs'
-      - 'scripts/release/docker/published-image-state.sh'
-      - 'scripts/release/require-release-validation.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'apps/backend/package.json'
-      - '.nvmrc'
-      - '.github/workflows/docker.yml'
   release:
     types: [published]
 
 permissions:
   contents: read
 
-# A release and its tag push share a ref; the event name keeps the tag's smoke from cancelling the
-# publication.
+# A release and its tag push share a ref; the event name keeps one from cancelling the other. A
+# release run is never cancelled by a newer one.
 concurrency:
   group: docker-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  cancel-in-progress: false
 
 jobs:
   smoke:
     name: Build and smoke standalone images
-    # A publication runs the same smoke on the images it is about to push.
+    # A tag push runs this first and publication waits for it. A manual run without a tag stops here.
+    # A release or a manual publication of an existing tag skips it; `publish` smokes its own build.
     if: github.event_name != 'release' && inputs.tag == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -101,11 +84,14 @@ jobs:
         run: docker compose --profile caddy down --volumes --remove-orphans
 
   # Images publish only after Validation and this workflow's smoke both succeeded on the push of the
-  # same tag, at the commit it names. A failed or missing run stops publication here. Images that
-  # are already published skip the wait, so `publish` can re-run them without building.
+  # same tag, at the commit it names. A tag push has just passed its own smoke, so it waits for
+  # Validation alone; a release or manual run waits for both runs of the tag push. A failed or
+  # missing run stops publication here. Images that are already published skip the wait, so
+  # `publish` can re-run them without building.
   validated:
     name: Require validation of the release tag
-    if: github.event_name == 'release' || inputs.tag != ''
+    needs: smoke
+    if: ${{ !cancelled() && contains(fromJSON('["success","skipped"]'), needs.smoke.result) && (github.event_name != 'workflow_dispatch' || inputs.tag != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 130
     permissions:
@@ -119,7 +105,7 @@ jobs:
       - name: Detect an already published image pair
         id: images
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
           FIRST_PUBLICATION: ${{ inputs.first_publication == true }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REGISTRY_USER: ${{ github.actor }}
@@ -143,20 +129,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+          # This run's own smoke job has already passed.
+          SKIP_WORKFLOW_FILES: ${{ github.event_name == 'push' && 'docker.yml' || '' }}
         run: node scripts/release/require-release-validation.mjs
 
   publish:
     name: Publish release images
     needs: validated
-    if: github.event_name == 'release' || inputs.tag != ''
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.tag != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: read
       packages: write
     env:
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
       FIRST_PUBLICATION: ${{ inputs.first_publication == true }}
       APP_KEY: capacitylens-container-test-key-0123456789abcdef
       CAPACITYLENS_PUBLIC_URL: https://localhost

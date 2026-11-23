@@ -29,7 +29,7 @@ Readiness has no backup health latch; a healthy response does not prove recovery
 The Diagnostics support report names the last applied migration and the newest completed backup
 manifest creation time when a READY bundle is available. Confirm backup integrity separately before recovery.
 
-Run `node ace.js db:backup create` from `backend/` for an operator-requested backup. See
+Run `node ace.js db:backup create` from `apps/backend/build` for an operator-requested backup. See
 [Backups and restore](/self-hosting/backups-and-restore).
 
 ## Logs and operational limits

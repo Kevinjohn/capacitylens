@@ -21,7 +21,7 @@ diagnostic details publicly.
 Keep the service available only if its database remains safe to write. Check free space and
 permissions for `CAPACITYLENS_BACKUP_DIR`. Do not delete the only known-good backup to clear
 space. Copy a verified backup off-host, resolve the capacity issue, then run
-`node ace.js db:backup create` from `backend/`. Confirm it exits successfully, names a READY bundle,
+`node ace.js db:backup create` from `apps/backend/build`. Confirm it exits successfully, names a READY bundle,
 and that the backup can be restored; `/health/ready` does not track backup success. For
 restoration, follow
 [Backups and restore](/self-hosting/backups-and-restore).
@@ -36,7 +36,7 @@ Use [Upgrades](/self-hosting/upgrades) for rollback and recovery.
 ## Sole Owner password recovery
 
 Confirm the target is the sole active Owner, stop the service
-and run the audited command from the release's `backend/` directory:
+and run the audited command from `apps/backend/build`:
 
 ```bash
 node ace.js owner:reset-password owner@example.com --confirm-server-stopped

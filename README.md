@@ -99,33 +99,36 @@ one of them.
 
 ## Install it
 
-On a Linux host with systemd, Node 24 installed system-wide, Caddy (or another HTTPS proxy on the
-same machine) and your domain's DNS pointing at the host with ports 80 and 443 open, download a
-release archive and its checksum, then run:
+On a Linux host with systemd, Git, Node 24 installed system-wide, pnpm, Caddy (or another HTTPS
+proxy on the same machine) and your domain's DNS pointing at the host with ports 80 and 443 open,
+clone the repository at a release tag, install and build (the build needs placeholder
+production settings):
 
 ```bash
-sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
-sudo install -d -m 0755 /opt/capacitylens
-sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
-sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
+sudo git clone --branch vX.Y.Z --depth 1 https://github.com/Kevinjohn/capacitylens.git /opt/capacitylens
+cd /opt/capacitylens
+sudo pnpm install --frozen-lockfile
+sudo env NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error \
+  APP_KEY=capacitylens-build-key-0123456789abcdef \
+  APP_URL=https://127.0.0.1 CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
 ```
 
-The install command asks no questions and ends by printing a one-time setup link for the Owner.
-To confirm the service is up, `curl -s https://capacity.example.com/health/ready` answers HTTP 200
-with `"isHealthy":true`; HTTP 503 means the database checks failed.
+Then configure the environment file, run `node ace.js app:upgrade`, start the service under systemd
+and put the HTTPS proxy in front of it. Follow the
+[installation guide](https://kevinjohn.github.io/capacitylens/self-hosting/install-without-docker.html)
+for the exact commands, including the build environment. To confirm the service is up,
+`curl -s https://capacity.example.com/health/ready` answers HTTP 200 with `"isHealthy":true`; HTTP
+503 means the database checks failed.
 
-CapacityLens is currently supplied as a native Node.js release archive. Follow the
-[installation guide](https://kevinjohn.github.io/capacitylens/self-hosting/install.html), then
-configure HTTPS at a proxy on the same machine. Whoever manages your hosting handles ongoing
-maintenance. The operator guides cover
+Whoever manages your hosting handles ongoing maintenance. The operator guides cover
 [configuration](https://kevinjohn.github.io/capacitylens/self-hosting/configuration.html),
 [backups](https://kevinjohn.github.io/capacitylens/self-hosting/backups-and-restore.html),
 [upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html) and
-[monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Docker
-support remains optional; see
+[monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Each tagged
+release also publishes Docker images; see
 [Install with Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-with-docker.html).
 For the native installation, proxies in separate containers or on separate machines are not yet
-supported; use the native same-machine proxy setup for the first release. Sign-in is by password,
+supported; use the same-machine proxy setup. Sign-in is by password,
 and invitations and password resets need email delivery. See
 [sign-in and access](https://kevinjohn.github.io/capacitylens/sign-in/index.html).
 
@@ -192,7 +195,6 @@ CapacityLens is [GPL-3.0-or-later](LICENSE). Product names and logos are handled
 [![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml?query=branch%3Amain)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kevinjohn/capacitylens/badge)](https://scorecard.dev/viewer/?uri=github.com/Kevinjohn/capacitylens)
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/14555/baseline)](https://www.bestpractices.dev/projects/14555)
-[![Docker build](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml)
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![license: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 

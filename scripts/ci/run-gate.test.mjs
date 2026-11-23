@@ -211,7 +211,7 @@ test("gateCommands('all') includes every retained policy, package and security c
     'policy:ports:test',
     'policy:e2e-workers:test',
     'policy:sonner-csp:test',
-    'package:managed-release:test',
+    'docker:release:test',
     'security:screenshot-publication',
     'security:screenshot-publication:test',
     'policy:dependabot',
@@ -301,7 +301,7 @@ test('CI builds the application once and backend tests use those assets without 
     job.steps.some((step) => step.run === 'pnpm run build'),
   );
   assert.deepEqual(
-    builds.map(([name]) => name).filter((name) => name !== 'packaged'),
+    builds.map(([name]) => name),
     ['build'],
   );
   const build = workflow.jobs.build.steps.find((step) => step.run === 'pnpm run build');

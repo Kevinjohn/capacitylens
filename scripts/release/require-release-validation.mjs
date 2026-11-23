@@ -1,12 +1,14 @@
-// Publication waits for proof. A release publishes archives and images on a different GitHub event
-// from the tag push that validates them, so starting checks on the tag does not make publication
-// wait for them. This script makes it wait:
+// Publication waits for proof. A release is published on a different GitHub event from the tag
+// push that validates it, so starting checks on the tag does not make publication wait for them.
+// This script makes it wait:
 //
 //   RELEASE_TAG=v1.2.3 GH_REPO=owner/repo node scripts/release/require-release-validation.mjs
 //
 // It passes only when the latest push run of every required workflow, for that tag and the commit
-// the tag names, completed successfully. It waits while a run is queued or in progress or has not
-// appeared yet, and fails on any other conclusion or at the deadline.
+// the tag names, completed successfully. The Docker workflow's own tag run names itself in
+// SKIP_WORKFLOW_FILES (comma separated), because its smoke job already finished before it asks.
+// It waits while a run is queued or in progress or has not appeared yet, and fails on any other
+// conclusion or at the deadline.
 
 import { execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -62,10 +64,11 @@ export async function requireValidation({
   now = Date.now,
   wait = sleep,
   log = console.log,
+  workflows = REQUIRED_WORKFLOWS,
 }) {
   const stopAt = now() + deadlineMs;
   for (;;) {
-    const judgements = REQUIRED_WORKFLOWS.map((workflow) =>
+    const judgements = workflows.map((workflow) =>
       judgeRuns(readRuns(workflow.file), { tag, sha, name: workflow.name }),
     );
     for (const judgement of judgements) log(`${judgement.state}  ${judgement.reason}`);
@@ -102,7 +105,9 @@ async function main() {
         '.workflow_runs',
       ]),
     );
-  const state = await requireValidation({ tag, sha, readRuns, deadlineMs });
+  const skipped = (process.env.SKIP_WORKFLOW_FILES ?? '').split(',').filter(Boolean);
+  const workflows = REQUIRED_WORKFLOWS.filter((workflow) => !skipped.includes(workflow.file));
+  const state = await requireValidation({ tag, sha, readRuns, deadlineMs, workflows });
   if (state !== 'pass') {
     console.error(`::error::${tag} is not validated, so nothing is published.`);
     process.exitCode = 1;
