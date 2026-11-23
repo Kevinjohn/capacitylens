@@ -10,7 +10,9 @@ import {
   serializeCompanyExport,
 } from './companyExport.js';
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
-import { buildInternalClientId } from './internalClient.js';
+import { buildInternalClient, buildInternalClientId } from './internalClient.js';
+import { buildExampleCompany } from './exampleCompany.js';
+import { FIXTURE_COMPANY } from './fixtures.js';
 
 const original = seed();
 const companyId = original.companies[0]?.id ?? '';
@@ -24,6 +26,30 @@ function fixture<T>(value: T | undefined, label: string): T {
 }
 
 describe('beta-native transfer', () => {
+  it('round-trips the example company byte for byte', () => {
+    const exampleId = 'a-example';
+    const now = '2031-09-17T10:00:00.000Z';
+    const example = buildExampleCompany({ companyId: exampleId, referenceDate: '2031-09-17', now });
+    const source = {
+      ...example,
+      companies: [{ ...FIXTURE_COMPANY, id: exampleId, createdAt: now, updatedAt: now }],
+      clients: [buildInternalClient(exampleId, now), ...example.clients],
+      closures: [],
+    };
+    const file = serializeCompanyExport(
+      buildCompanyExport(source, { companyId: exampleId, completeness: 'full' }),
+    );
+    const prepared = prepareCompanyImport(parseCompanyExport(file), {
+      companyId: exampleId,
+      memberResourceLinks: [],
+    });
+    expect(
+      serializeCompanyExport(
+        buildCompanyExport(prepared.data, { companyId: exampleId, completeness: 'full' }),
+      ),
+    ).toBe(file);
+  });
+
   it('round-trips the Internal client ID created for a new company', () => {
     const source = structuredClone(original);
     const internal = fixture(

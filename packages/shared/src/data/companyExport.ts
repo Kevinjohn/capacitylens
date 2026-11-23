@@ -2,7 +2,8 @@ import { APP_DATA_KEYS, SCOPED_KEYS } from '../types/entityKeys.js';
 import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
-import { assert, fail, isId, isOneOf, hasOwn } from './companyExport.errors.js';
+import { isEntityId } from '../types/entityFieldRules.js';
+import { assert, fail, isOneOf, hasOwn } from './companyExport.errors.js';
 import { FIELDS } from './companyExport.fields.js';
 import { projectCompanyData } from './companyExport.projection.js';
 import { assertRow } from './companyExport.validation.js';
@@ -72,7 +73,7 @@ function assertDocument(value: unknown): CompanyExport {
     });
     (data as unknown as Record<string, unknown>)[key] = rows.map((row) =>
       Object.fromEntries(
-        (FIELDS[key] as readonly string[])
+        FIELDS[key]
           .filter((field) => hasOwn(row, field))
           .map((field) => {
             const fieldValue = row[field];
@@ -163,7 +164,9 @@ export function prepareCompanyImport(
   context: CompanyImportContext,
 ): PreparedCompanyImport {
   assert(
-    isRecord(context) && isId(context.companyId) && Array.isArray(context.memberResourceLinks),
+    isRecord(context) &&
+      isEntityId(context.companyId) &&
+      Array.isArray(context.memberResourceLinks),
     'context',
     'companyId and memberResourceLinks are required',
   );
@@ -182,7 +185,7 @@ export function prepareCompanyImport(
   );
   for (const [i, link] of context.memberResourceLinks.entries()) {
     assert(
-      isRecord(link) && isId(link.memberId) && isId(link.resourceId),
+      isRecord(link) && isEntityId(link.memberId) && isEntityId(link.resourceId),
       `context.memberResourceLinks[${i}]`,
       'requires memberId and resourceId',
     );

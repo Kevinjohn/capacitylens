@@ -243,3 +243,36 @@ test.group('merged-row field rules', () => {
     });
   }
 });
+
+/** The rules the row check shares with the company import: the one id rule and the timestamp rule. */
+const sharedRuleCases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
+  ['identifier of 128 characters', 'allocations', { resourceId: 'r'.repeat(128) }, 'accepted'],
+  [
+    'identifier over 128 characters',
+    'allocations',
+    { resourceId: 'r'.repeat(129) },
+    'entityField: resourceId must be a bounded identifier.',
+  ],
+  [
+    'identifier with a slash',
+    'allocations',
+    { resourceId: 'r/clark' },
+    'entityField: resourceId must be a bounded identifier.',
+  ],
+  ['timestamp', 'allocations', { updatedAt: '2026-01-01T00:00:00.000Z' }, 'accepted'],
+  [
+    'timestamp on an impossible date',
+    'allocations',
+    { updatedAt: '2026-02-30T12:00:00.000Z' },
+    'entityField: updatedAt must be an ISO timestamp.',
+  ],
+  ['null archive timestamp', 'clients', { archivedAt: null }, 'accepted'],
+];
+
+test.group('row rules shared with the company import', () => {
+  for (const [name, table, row, expected] of sharedRuleCases) {
+    test(name, async ({ assert }) => {
+      assert.equal(await outcome(table, row), expected);
+    });
+  }
+});

@@ -17,7 +17,7 @@ export function projectCompanyData(data: AppData, companyId: string): AppData {
         : source.filter((row): row is Row => isRecord(row) && row.companyId === companyId);
     (projected as unknown as Record<string, unknown>)[key] = selected.map((input) => {
       const copy: Row = {};
-      for (const field of FIELDS[key] as readonly string[]) {
+      for (const field of FIELDS[key]) {
         if (hasOwn(input, field)) {
           const fieldValue = input[field];
           copy[field] = Array.isArray(fieldValue)

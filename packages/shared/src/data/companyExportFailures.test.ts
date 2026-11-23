@@ -7,8 +7,11 @@ import {
   prepareCompanyImport,
 } from './companyExport.js';
 import { APP_DATA_KEYS } from '../types/entities.js';
-import type { AppDataKey } from '../types/entities.js';
+import type { AppData, AppDataKey } from '../types/entities.js';
 import type { CompanyExport } from './companyExport.js';
+import { buildExampleCompany } from './exampleCompany.js';
+import { buildInternalClient } from './internalClient.js';
+import * as fixtures from './fixtures.js';
 
 function requireValue<T>(value: T | undefined | null): T {
   if (value == null) throw new Error('The complete beta fixture is missing a required row.');
@@ -299,4 +302,213 @@ describe('company import failure boundaries', () => {
     expect(prepared.data.companies[0]).not.toHaveProperty('role');
     expect(prepared.data.companies[0]).not.toHaveProperty('theme');
   });
+});
+
+type Answer = 'accepted' | 'refused';
+
+function answer(run: () => unknown): Answer {
+  try {
+    run();
+    return 'accepted';
+  } catch (error) {
+    if (error instanceof CompanyExportError) return 'refused';
+    throw error;
+  }
+}
+
+const importCorrupted = (corrupt: CorruptDocument) => () =>
+  answer(() => {
+    const document = freshDocument();
+    corrupt(document);
+    prepareCompanyImport(document, context);
+  });
+
+const importCompany = (data: AppData, companyId: string) => () =>
+  answer(() =>
+    prepareCompanyImport(buildCompanyExport(data, { companyId, completeness: 'full' }), {
+      companyId,
+      memberResourceLinks: [],
+    }),
+  );
+
+function buildExampleCompanyData(): AppData {
+  const companyId = 'a-example';
+  const now = '2031-09-17T10:00:00.000Z';
+  const example = buildExampleCompany({ companyId, referenceDate: '2031-09-17', now });
+  return {
+    ...example,
+    companies: [{ ...fixtures.FIXTURE_COMPANY, id: companyId, createdAt: now, updatedAt: now }],
+    clients: [buildInternalClient(companyId, now), ...example.clients],
+    closures: [],
+  };
+}
+
+function buildFixtureCompanyData(): AppData {
+  const company = fixtures.FIXTURE_COMPANY;
+  return {
+    companies: [company],
+    disciplines: [fixtures.FIXTURE_DISCIPLINE],
+    resources: [
+      fixtures.FIXTURE_RESOURCE,
+      fixtures.FIXTURE_RESOURCE_PERSON,
+      fixtures.FIXTURE_RESOURCE_EXTERNAL,
+    ],
+    clients: [buildInternalClient(company.id, company.createdAt), fixtures.FIXTURE_CLIENT],
+    projects: [fixtures.FIXTURE_PROJECT],
+    phases: [fixtures.FIXTURE_PHASE],
+    activities: [
+      fixtures.FIXTURE_ACTIVITY,
+      fixtures.FIXTURE_ACTIVITY_INTERNAL,
+      fixtures.FIXTURE_ACTIVITY_ALL_PROJECTS,
+    ],
+    allocations: [fixtures.FIXTURE_ALLOCATION, fixtures.FIXTURE_ALLOCATION_ATTRIBUTED],
+    timeOff: [fixtures.FIXTURE_TIME_OFF],
+    closures: [fixtures.FIXTURE_CLOSURE],
+  };
+}
+
+function setFirstPlaceholderName(doc: CompanyExport, name: string) {
+  requireValue(doc.data.resources.find((row) => row.kind === 'placeholder')).name = name;
+}
+
+/**
+ * The answers the import gave before it validated from the entity field table, recorded from the
+ * validator at 1fce8c41d over every import fixture and every failure case in this file. The new
+ * validator must give the same answer.
+ */
+const previousAnswers: [string, () => Answer, Answer][] = [
+  ...seed().companies.map((company): [string, () => Answer, Answer] => [
+    `the seed company ${company.id}`,
+    importCompany(seed(), company.id),
+    'accepted',
+  ]),
+  ['the seed company with a closure', importCorrupted(() => undefined), 'accepted'],
+  ['the example company', importCompany(buildExampleCompanyData(), 'a-example'), 'accepted'],
+  [
+    'the fixture company',
+    importCompany(buildFixtureCompanyData(), fixtures.FIXTURE_COMPANY.id),
+    'accepted',
+  ],
+  ...failures.map(([name, corrupt]): [string, () => Answer, Answer] => [
+    name,
+    importCorrupted(corrupt),
+    'refused',
+  ]),
+  ...(['clients', 'projects'] as const).map((key): [string, () => Answer, Answer] => [
+    `a ${key} name over the full-export limit`,
+    importCorrupted((doc) => {
+      requireValue(doc.data[key].find((row) => !('builtin' in row && row.builtin))).name =
+        'N'.repeat(101);
+    }),
+    'refused',
+  ]),
+  [
+    'a public name over the limit in a redacted document',
+    () =>
+      answer(() => {
+        const document = { ...freshDocument(), completeness: 'redacted' as const };
+        const row = requireValue(document.data.clients.find((item) => !item.builtin));
+        row.name = 'N'.repeat(101);
+        row.isPrivate = false;
+        parseCompanyExport(JSON.stringify(document));
+      }),
+    'refused',
+  ],
+  [
+    'rows naming their company accountId',
+    () =>
+      answer(() =>
+        parseCompanyExport(
+          JSON.stringify(freshDocument()).replaceAll('"companyId":', '"accountId":'),
+        ),
+      ),
+    'refused',
+  ],
+  ...['closure/one', '_closure', 'götham', 'x'.repeat(129)].map(
+    (id): [string, () => Answer, Answer] => [
+      `the identifier ${id}`,
+      importCorrupted((doc) => {
+        requireValue(doc.data.closures[0]).id = id;
+      }),
+      'refused',
+    ],
+  ),
+  [
+    'the longest identifier',
+    importCorrupted((doc) => {
+      requireValue(doc.data.closures[0]).id = `G${'a._~-9'.repeat(21)}0`;
+    }),
+    'accepted',
+  ],
+];
+
+/**
+ * The cases the settled text rule changes: import applies the ordinary write path's text rule, so
+ * text it used to refuse only for not being canonical now imports, and a blank placeholder name
+ * that ordinary writes refuse is refused.
+ */
+const textRuleChanges: [string, CorruptDocument, Answer, Answer][] = [
+  [
+    'a name with doubled inner spacing',
+    (doc) => {
+      requireValue(doc.data.companies[0]).name = 'Wayne  Enterprises';
+    },
+    'refused',
+    'accepted',
+  ],
+  [
+    'a name with surrounding spaces',
+    (doc) => {
+      requireValue(doc.data.companies[0]).name = ' Wayne Enterprises ';
+    },
+    'refused',
+    'accepted',
+  ],
+  [
+    'a name in decomposed Unicode',
+    (doc) => {
+      requireValue(doc.data.companies[0]).name = 'Ge\u0301nosha';
+    },
+    'refused',
+    'accepted',
+  ],
+  [
+    'a name at the limit followed by a space',
+    (doc) => {
+      requireValue(doc.data.companies[0]).name = `${'N'.repeat(100)} `;
+    },
+    'refused',
+    'accepted',
+  ],
+  [
+    'a note with three line breaks',
+    (doc) => {
+      requireValue(doc.data.allocations[0]).note = 'Gotham\n\n\nMetropolis';
+    },
+    'refused',
+    'accepted',
+  ],
+  [
+    'a blank task',
+    (doc) => {
+      requireValue(doc.data.allocations[0]).task = '   ';
+    },
+    'refused',
+    'accepted',
+  ],
+  ['an empty placeholder name', (doc) => setFirstPlaceholderName(doc, ''), 'accepted', 'refused'],
+];
+
+describe('company import answers against the previous validator', () => {
+  it.each(previousAnswers)('gives the previous answer for %s', (_name, run, previous) => {
+    expect(run()).toBe(previous);
+  });
+
+  it.each(textRuleChanges)(
+    'changes the answer for %s under the write path text rule',
+    (_name, corrupt, previous, now) => {
+      expect(previous).not.toBe(now);
+      expect(importCorrupted(corrupt)()).toBe(now);
+    },
+  );
 });

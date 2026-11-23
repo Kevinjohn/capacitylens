@@ -22,7 +22,7 @@ import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { requiredFields } from '@capacitylens/shared/types/entityFields';
 import { validateRow } from '#validators/planning/row';
 import { asRecord } from '#services/planning/writer';
-import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
+import { isEntityId } from '@capacitylens/shared/types/entityFieldRules';
 import { assertEntityDomain, type EntityWrite } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
 import {
@@ -289,7 +289,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   options: EntityWriteOptions
 ): Promise<AppData[K][number]> {
   const existing = stored && asRecord(stored);
-  if (typeof row.id !== 'string' || !ENTITY_ID_PATTERN.test(row.id)) {
+  if (!isEntityId(row.id)) {
     throw new EntityWriteException(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde, colon or hyphen.'
     );
