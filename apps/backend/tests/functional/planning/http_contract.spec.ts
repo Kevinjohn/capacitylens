@@ -122,7 +122,7 @@ test.group('authenticated typed planning transactions', (group) => {
     // One allocation is deleted; the other is hidden by archiving its activity, because allocations
     // have no archive of their own.
     const [deletedActivity, archivedActivity] = stored.activities.filter(
-      (row) => row.companyId === companyId && !row.archivedAt && !row.deletedAt
+      (row) => row.companyId === companyId && !row.archivedAt
     );
     assert.exists(archivedActivity);
     type Days = { available: number[]; over: boolean[] };
@@ -624,7 +624,6 @@ test.group('authenticated typed planning transactions', (group) => {
       .from('resources')
       .where({ company_id: companyId, kind: 'person' })
       .whereNull('archived_at')
-      .whereNull('deleted_at')
       .orderBy('id')
       .limit(3);
     assert.lengthOf(people, 3);

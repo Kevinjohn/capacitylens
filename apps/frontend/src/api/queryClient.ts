@@ -102,7 +102,7 @@ export function clearQueryCacheForScopeChange(
   return true;
 }
 
-/** Route keys of the reads that show rows hidden from the planning cache (archived or soft-deleted). */
+/** Route keys of the reads that show rows hidden from the planning cache (archived rows). */
 export const INACTIVE_READ_ROUTES = ['archive-recovery', 'inactive-company-data'] as const;
 
 /** Mark every inactive-row read stale after a lifecycle change so mounted readers refetch. */

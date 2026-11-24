@@ -66,8 +66,7 @@ export function mockApi(
               resourceCandidates: useStore
                 .getState()
                 .data.resources.filter(
-                  (resource) =>
-                    resource.kind === 'person' && !resource.archivedAt && !resource.deletedAt,
+                  (resource) => resource.kind === 'person' && !resource.archivedAt,
                 )
                 .map((resource) => ({
                   resourceId: resource.id,

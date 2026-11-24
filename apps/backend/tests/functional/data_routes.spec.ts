@@ -79,7 +79,7 @@ test.group('data routes', (group) => {
     }
   });
 
-  test('inactive export includes archived and deleted rows but stays in one company', async ({
+  test('inactive export includes archived rows but stays in one company', async ({
     client,
     assert,
   }) => {
@@ -93,12 +93,11 @@ test.group('data routes', (group) => {
     assert.lengthOf(candidates, 2);
     await db
       .from('resources')
-      .where('id', candidates[0]!.id)
+      .whereIn(
+        'id',
+        candidates.map((row) => row.id)
+      )
       .update({ archived_at: '2026-10-13T00:00:00.000Z' });
-    await db
-      .from('resources')
-      .where('id', candidates[1]!.id)
-      .update({ deleted_at: '2026-10-13T00:00:00.000Z' });
     const inactive = await client
       .visit('api.company_state.show')
       .qs({ companyId: 'a-studio', includeInactive: '1' })
@@ -147,9 +146,7 @@ test.group('data routes', (group) => {
       active.resources.map((row) => row.id),
       candidate.id
     );
-    assert.isTrue(
-      active.resources.every((row) => row.archivedAt === null && row.deletedAt === null)
-    );
+    assert.isTrue(active.resources.every((row) => row.archivedAt === null));
   });
 
   test('export excludes membership, invitation and session secrets', async ({ client, assert }) => {

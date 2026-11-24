@@ -28,7 +28,7 @@ async function getResource(trx: Trx, companyId: string, resourceId: string) {
 /** Checks the scheduled person is still available to link. */
 async function assertAvailablePerson(trx: Trx, companyId: string, resourceId: string) {
   const row = await getResource(trx, companyId, resourceId);
-  if (row?.kind !== 'person' || row.archived_at || row.deleted_at) {
+  if (row?.kind !== 'person' || row.archived_at) {
     refuseConflictingAdmission('The selected scheduled person is no longer available.');
   }
 }
@@ -55,7 +55,7 @@ export async function setMemberResourceLink(
   }
   if (current && current.resource_id !== resourceId) {
     const previous = await getResource(trx, companyId, String(current.resource_id));
-    if (previous?.kind !== 'person' || previous.archived_at || previous.deleted_at) {
+    if (previous?.kind !== 'person' || previous.archived_at) {
       refuseConflictingAdmission(
         'The current scheduled person is unavailable; unlink it before changing the link.'
       );

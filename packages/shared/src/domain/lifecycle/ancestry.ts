@@ -29,7 +29,7 @@ export type LifecycleAncestryLookup = (
 ) => LifecycleAncestryRow | undefined;
 
 /**
- * `hidden` only when a resolved ancestor is archived or deleted; unresolved, malformed or
+ * `hidden` only when a resolved ancestor is archived; unresolved, malformed or
  * cross-company references stay `visible` because missing refs remain the FK guard's job.
  */
 export type LifecycleAncestryResult =
@@ -99,7 +99,7 @@ export function inspectLifecycleAncestry(
   return inspectAncestry({ table, row, lookup, memo: undefined });
 }
 
-/** Report whether any resolved ancestor of the row is archived or deleted. Pure apart from the optional memo. */
+/** Report whether any resolved ancestor of the row is archived. Pure apart from the optional memo. */
 export function inspectAncestry({
   table,
   row,
@@ -112,7 +112,7 @@ export function inspectAncestry({
     const parentId = row[relation.field];
     if (relation.optional && parentId == null) continue;
     // This projection hides lifecycle state, not integrity damage. A missing, malformed or
-    // cross-company reference is not evidence that an ancestor is archived/deleted; retain the row
+    // cross-company reference is not evidence that an ancestor is archived; retain the row
     // so normal views can surface their existing "Unknown …" fallbacks and integrity tooling can
     // diagnose it. Generic writes independently reject the broken reference.
     if (typeof parentId !== 'string') continue;

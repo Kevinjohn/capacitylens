@@ -57,9 +57,8 @@ export const FIXTURE_CLIENT: Client = {
   codeName: 'Fixture Nightwing',
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the company lifecycle path.
-  // Present lifecycle fields exercise consumers that read archived and retained-deletion fixtures.
+  // Present lifecycle fields exercise consumers that read archived fixtures.
   archivedAt: TS1,
-  deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -84,9 +83,8 @@ export const FIXTURE_PROJECT: Project = {
   color: '#2d75da',
   isPrivate: true,
   codeName: 'Fixture Aurora',
-  // Present lifecycle fields exercise consumers that read archived and retained-deletion fixtures.
+  // Present lifecycle fields exercise consumers that read archived fixtures.
   archivedAt: TS1,
-  deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -117,9 +115,8 @@ export const FIXTURE_RESOURCE: Resource = {
   projectId: 'fix-p1',
   color: '#3ace6b',
   isFavourite: true,
-  // Present lifecycle fields exercise consumers that read archived and retained-deletion fixtures.
+  // Present lifecycle fields exercise consumers that read archived fixtures.
   archivedAt: TS1,
-  deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -146,7 +143,6 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
   firstAvailableDate: '2026-02-01',
   lastAvailableDate: '2026-11-30',
   archivedAt: TS1,
-  deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
 };

@@ -18,6 +18,13 @@ export { CompanyExportError };
 /** Stable identifier for the beta-native export format. */
 export const COMPANY_EXPORT_FORMAT = 'capacitylens-beta' as const;
 /** Beta export schema version, independent of the database schema. */
+const RETIRED_DELETED_TABLES: ReadonlySet<string> = new Set([
+  'clients',
+  'projects',
+  'resources',
+  'activities',
+]);
+
 export const COMPANY_EXPORT_SCHEMA_VERSION = 2 as const;
 
 export interface CompanyExport {
@@ -73,6 +80,14 @@ function assertDocument(value: unknown): CompanyExport {
     rows.forEach((row, i) => {
       if (seen.has(row.id as string)) fail(`data.${key}[${i}].id`, 'duplicates a table id');
       seen.add(row.id as string);
+      // Deleted catalogue records are no longer a state; importing one would bring it back active.
+      if (
+        RETIRED_DELETED_TABLES.has(key) &&
+        row.deletedAt !== undefined &&
+        row.deletedAt !== null
+      ) {
+        fail(`data.${key}[${i}].deletedAt`, 'deleted records are not supported');
+      }
     });
     (data as unknown as Record<string, unknown>)[key] = rows.map((row) =>
       Object.fromEntries(

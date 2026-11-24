@@ -111,10 +111,6 @@ describe('Settings example data', () => {
       'an archived person',
       { resources: [makeResource({ ...owned, archivedAt: '2026-01-05T09:00:00.000Z' })] },
     ],
-    [
-      'a deleted client',
-      { clients: [makeClient({ ...owned, deletedAt: '2026-01-05T09:00:00.000Z' })] },
-    ],
   ])('is hidden when the company still holds %s', async (_label, rows) => {
     vi.mocked(fetchInactiveRecords).mockImplementation(async () => ({
       ...useStore.getState().data,

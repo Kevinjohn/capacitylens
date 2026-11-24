@@ -111,7 +111,7 @@ export class AccountTransactionLockSchema extends BaseModel {
 }
 
 export class ActivitySchema extends BaseModel {
-  static $columns = ['archivedAt', 'companyId', 'createdAt', 'deletedAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
+  static $columns = ['archivedAt', 'companyId', 'createdAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
   $columns = ActivitySchema.$columns
   @column.dateTime()
   declare archivedAt: DateTime | null
@@ -119,8 +119,6 @@ export class ActivitySchema extends BaseModel {
   declare companyId: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column.dateTime()
-  declare deletedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -211,7 +209,7 @@ export class AuditEntrySchema extends BaseModel {
 }
 
 export class ClientSchema extends BaseModel {
-  static $columns = ['archivedAt', 'builtin', 'codeName', 'color', 'companyId', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
+  static $columns = ['archivedAt', 'builtin', 'codeName', 'color', 'companyId', 'createdAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
   $columns = ClientSchema.$columns
   @column.dateTime()
   declare archivedAt: DateTime | null
@@ -225,8 +223,6 @@ export class ClientSchema extends BaseModel {
   declare companyId: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column.dateTime()
-  declare deletedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -624,7 +620,7 @@ export class PlanningMutationSchema extends BaseModel {
 }
 
 export class ProjectSchema extends BaseModel {
-  static $columns = ['archivedAt', 'clientId', 'codeName', 'color', 'companyId', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
+  static $columns = ['archivedAt', 'clientId', 'codeName', 'color', 'companyId', 'createdAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
   $columns = ProjectSchema.$columns
   @column.dateTime()
   declare archivedAt: DateTime | null
@@ -638,8 +634,6 @@ export class ProjectSchema extends BaseModel {
   declare companyId: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column.dateTime()
-  declare deletedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -687,7 +681,7 @@ export class RequestReceiptSchema extends BaseModel {
 }
 
 export class ResourceSchema extends BaseModel {
-  static $columns = ['archivedAt', 'avatarUrl', 'color', 'companyId', 'createdAt', 'deletedAt', 'disciplineId', 'employmentType', 'engagement', 'firstAvailableDate', 'halfDays', 'id', 'isFavourite', 'jobTitle', 'kind', 'lastAvailableDate', 'name', 'projectId', 'updatedAt', 'workingDays', 'workingHoursPerDay'] as const
+  static $columns = ['archivedAt', 'avatarUrl', 'color', 'companyId', 'createdAt', 'disciplineId', 'employmentType', 'engagement', 'firstAvailableDate', 'halfDays', 'id', 'isFavourite', 'jobTitle', 'kind', 'lastAvailableDate', 'name', 'projectId', 'updatedAt', 'workingDays', 'workingHoursPerDay'] as const
   $columns = ResourceSchema.$columns
   @column.dateTime()
   declare archivedAt: DateTime | null
@@ -699,8 +693,6 @@ export class ResourceSchema extends BaseModel {
   declare companyId: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column.dateTime()
-  declare deletedAt: DateTime | null
   @column()
   declare disciplineId: string | null
   @column()
