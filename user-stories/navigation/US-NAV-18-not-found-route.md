@@ -37,7 +37,9 @@ The frontend wildcard handles a navigation miss after the server and authenticat
 flowchart TD
   url["Unmatched browser GET reaches backend fallback"] --> type{"Request path"}
   type -->|API| api["Limited account gate precedes JSON 404 on the API fallback"]
-  type -->|asset, dotted last segment or trailing slash| http["SPA fallback replies HTTP 404"]
+  type -->|asset or dotted last segment| http["SPA fallback replies HTTP 404"]
+  type -->|trailing slash| slash["Redirect with HTTP 301 to the address without it"]
+  slash --> url
   type -->|eligible navigation| spa["Send index.html with no-store"]
   spa --> auth{"Outer AuthProvider gate"}
   auth -->|signed out and ordinary address| sign["SignInGate renders sign-in before RouterProvider"]
@@ -52,4 +54,4 @@ flowchart TD
   link --> root["AppShell and CompanyDateRoute gate SchedulerView"]
 ```
 
-**Code references:** [routes.ts:47](../../apps/backend/start/routes.ts#L47) · [main.tsx:30](../../apps/frontend/src/main.tsx#L30) · [AuthProvider.tsx:245](../../apps/frontend/src/auth/AuthProvider.tsx#L245) · [router.tsx:172](../../apps/frontend/src/router.tsx#L172) · [router.tsx:206](../../apps/frontend/src/router.tsx#L206) · [router.tsx:238](../../apps/frontend/src/router.tsx#L238) · [NotFound.tsx:1](../../apps/frontend/src/components/common/NotFound.tsx#L1)
+**Code references:** [routes.ts:62](../../apps/backend/start/routes.ts#L62) · [main.tsx:30](../../apps/frontend/src/main.tsx#L30) · [AuthProvider.tsx:245](../../apps/frontend/src/auth/AuthProvider.tsx#L245) · [router.tsx:172](../../apps/frontend/src/router.tsx#L172) · [router.tsx:206](../../apps/frontend/src/router.tsx#L206) · [router.tsx:238](../../apps/frontend/src/router.tsx#L238) · [NotFound.tsx:1](../../apps/frontend/src/components/common/NotFound.tsx#L1)

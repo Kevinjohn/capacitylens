@@ -7,12 +7,9 @@ import type { Socket } from 'node:net';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import { copyFile, mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePort } from '../../scripts/dev/parsePort.mjs';
 import { ports, testShare } from '../../tooling/ports.mjs';
-import { STATIC_SPA_ROUTES } from '../../scripts/build/staticSpaRoutes.mjs';
 import { ENTRY_RAW_LIMIT_KB } from '../../scripts/build/bundleBudget.mjs';
 import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
 import { createResetControlServer } from '../../tooling/e2e_reset_control.ts';
@@ -37,32 +34,6 @@ if (!Object.hasOwn(portLanePorts, viteService)) {
 const servicePort = portLanePorts[viteService as keyof typeof portLanePorts];
 const e2eWorker = process.env.CAPACITYLENS_E2E_WORKER === '1';
 const e2eResetToken = process.env.CAPACITYLENS_E2E_RESET_TOKEN;
-/**
- * Emit real directory index documents for fixed client routes. The packaged nginx image still
- * provides the normal SPA fallback, while these aliases also survive a static outer proxy that
- * serves only paths which physically exist (the production failure mode this guards). Keep the
- * filesystem work in `writeBundle`: Rollup also runs `closeBundle` while unwinding failed builds,
- * before Vite has emitted `index.html`.
- */
-export function staticSpaRouteDocuments(): Plugin {
-  let outputDirectory = '';
-  return {
-    name: 'capacitylens-static-spa-route-documents',
-    apply: 'build',
-    configResolved(config) {
-      outputDirectory = resolve(config.root, config.build.outDir);
-    },
-    async writeBundle() {
-      const shell = resolve(outputDirectory, 'index.html');
-      for (const route of STATIC_SPA_ROUTES) {
-        const directory = resolve(outputDirectory, route);
-        await mkdir(directory, { recursive: true });
-        await copyFile(shell, resolve(directory, 'index.html'));
-      }
-    },
-  };
-}
-
 /** Track pending proxy requests and their actual upstream sockets before a worker resets SQLite. */
 function createE2eProxyDrainProbe() {
   let activeRequests = 0;
@@ -216,7 +187,6 @@ export default defineConfig(({ mode, command }) => {
     plugins: [
       react(),
       tailwindcss(),
-      staticSpaRouteDocuments(),
       // Paraglide generates messages from committed sources during dev and builds. Package scripts
       // precompile them so direct type-check and Vitest commands can resolve the output. The
       // company-scoped locale stays client-only in a global variable; baseLocale keeps English as
