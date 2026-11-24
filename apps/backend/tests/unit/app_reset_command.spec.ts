@@ -73,9 +73,13 @@ test.group('app reset command', () => {
         'password_confirmations',
       ])
         assert.equal(tableCount(fresh, table), 0, table);
-      assert.deepEqual(fresh.prepare('SELECT name FROM adonis_schema ORDER BY id').all(), [
-        { name: 'database/migrations/202610120001_create_capacitylens_baseline' },
-      ]);
+      assert.deepEqual(
+        fresh.prepare('SELECT name FROM adonis_schema ORDER BY id').all(),
+        readdirSync(join(process.cwd(), 'database/migrations'))
+          .filter((name) => name.endsWith('.ts'))
+          .sort()
+          .map((name) => ({ name: `database/migrations/${name.slice(0, -'.ts'.length)}` }))
+      );
       fresh.close();
     } finally {
       f.cleanup();

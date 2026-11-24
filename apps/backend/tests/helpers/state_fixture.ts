@@ -3,7 +3,8 @@ import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { seed } from '@capacitylens/shared/data/seed';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import access from '#config/access_control';
-import { encodeRow, readStateWithClient } from '#services/state_repository';
+import { readStateWithClient } from '#services/state_repository';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import { tables } from '#services/product_tables';
 
 /** Reads one company fixture or combines explicit company reads of every stored company. */
@@ -61,15 +62,8 @@ export async function resetState(seedRequested: boolean | 'single') {
             closures: filterCompanyRows(seeded.closures, firstCompanyId),
           }
         : seeded;
-    for (const [key, table] of Object.entries(tables)) {
-      const rows = data[key as keyof typeof tables];
-      if (rows.length > 0) {
-        await trx
-          .table(table)
-          .multiInsert(
-            rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>))
-          );
-      }
+    for (const key of Object.keys(tables) as (keyof typeof tables)[]) {
+      await insertProductRows(key, data[key], trx);
     }
   });
 }

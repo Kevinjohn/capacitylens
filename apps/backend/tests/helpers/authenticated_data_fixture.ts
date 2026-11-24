@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import app from '@adonisjs/core/services/app';
 import { resetState } from '#tests/helpers/state_fixture';
-import { encodeRow } from '#services/state_repository';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { createIdentity, sessionCookieHeader, signIn } from '#tests/helpers/identities';
@@ -129,22 +129,22 @@ export async function createFixtureCompanyForOwner(
   await db.transaction(async (trx) => {
     const user = await trx.from('users').where('id', userId).select('id').first();
     if (!user) throw new Error('A fixture company requires an existing native user.');
-    await trx.table('companies').insert(
-      encodeRow('companies', {
-        id,
-        name: companyName,
-        color: FALLBACK_PRESET_COLOR,
-        schedulingMode: 'days',
-        inlineActivityCreateEnabled: false,
-        createdAt: now,
-        updatedAt: now,
-      })
+    await insertProductRows(
+      'companies',
+      [
+        {
+          id,
+          name: companyName,
+          color: FALLBACK_PRESET_COLOR,
+          schedulingMode: 'days',
+          inlineActivityCreateEnabled: false,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      trx
     );
-    await trx
-      .table('clients')
-      .insert(
-        encodeRow('clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
-      );
+    await insertProductRows('clients', [buildInternalClient(id, now)], trx);
     await trx.table('memberships').insert({
       scope_id: id,
       user_id: userId,

@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import { cpSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { mkdtemp, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +16,10 @@ import {
 import { assertSafeFailure, scratchBackendFilter } from '#tests/helpers/operator_command_helpers';
 
 const appRoot = process.cwd();
+/** How many migrations this build ships; a scratch app adds its own after them. */
+const shipped = readdirSync(join(appRoot, 'database/migrations')).filter((name) =>
+  name.endsWith('.ts')
+).length;
 
 function command(root: string, databasePath: string, args: string[], backupDir?: string) {
   const web = args.includes('bin/server.ts');
@@ -99,12 +103,12 @@ test.group('upgrade command', () => {
       const dbPath = join(root, 'live.db');
       const result = ace(appRoot, dbPath, 'app:upgrade');
       assert.equal(result.status, 0, result.output);
-      assert.lengthOf(journal(dbPath), 1);
+      assert.lengthOf(journal(dbPath), shipped);
       assert.isFalse(result.output.includes('Pre-upgrade backup written'));
       const repeated = ace(appRoot, dbPath, 'app:upgrade');
       assert.equal(repeated.status, 0, repeated.output);
       assert.match(repeated.output, /Already up to date/);
-      assert.lengthOf(journal(dbPath), 1);
+      assert.lengthOf(journal(dbPath), shipped);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -121,26 +125,26 @@ test.group('upgrade command', () => {
       const init = ace(appRoot, dbPath, 'app:upgrade');
       assert.equal(init.status, 0, init.output);
       const scratch = scratchApp(root, {
-        '202610210001_add_upgrade_table': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_added', (table) => table.increments('id')) } }\n`,
+        '209912310001_add_upgrade_table': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_added', (table) => table.increments('id')) } }\n`,
       });
 
       const blockedDir = join(root, 'occupied');
       writeFileSync(blockedDir, 'not a directory');
       const blocked = ace(scratch, dbPath, 'app:upgrade', blockedDir);
       assertSafeFailure(assert, blocked, /Upgrade failed/);
-      assert.lengthOf(journal(dbPath), 1);
+      assert.lengthOf(journal(dbPath), shipped);
       assert.notInclude(tables(dbPath), 'upgrade_added');
 
       const upgrade = ace(scratch, dbPath, 'app:upgrade');
       assert.equal(upgrade.status, 0, upgrade.output);
       assert.match(upgrade.output, /Pre-upgrade backup written/);
-      assert.lengthOf(journal(dbPath), 2);
+      assert.lengthOf(journal(dbPath), shipped + 1);
       assert.include(tables(dbPath), 'upgrade_added');
       const backups = join(root, 'live.db.backups');
       const [backup, ...others] = preMigrationBackups(backups);
       assert.isDefined(backup);
       assert.lengthOf(others, 0);
-      assert.lengthOf(journal(join(backups, backup!, 'db.sqlite')), 1);
+      assert.lengthOf(journal(join(backups, backup!, 'db.sqlite')), shipped);
       assert.notInclude(tables(join(backups, backup!, 'db.sqlite')), 'upgrade_added');
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -179,18 +183,18 @@ test.group('upgrade command', () => {
       const init = ace(appRoot, dbPath, 'app:upgrade');
       assert.equal(init.status, 0, init.output);
       const scratch = scratchApp(root, {
-        '202610210001_commit_before_failure': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_committed', (table) => table.increments('id')) } }\n`,
-        '202610210002_fail_after_ddl': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_rolled_back', (table) => table.increments('id')); this.schema.raw('SELECT * FROM table_that_does_not_exist') } }\n`,
+        '209912310001_commit_before_failure': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_committed', (table) => table.increments('id')) } }\n`,
+        '209912310002_fail_after_ddl': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_rolled_back', (table) => table.increments('id')); this.schema.raw('SELECT * FROM table_that_does_not_exist') } }\n`,
       });
 
       const upgrade = ace(scratch, dbPath, 'app:upgrade');
       assert.notEqual(upgrade.status, 0, upgrade.output);
-      assert.lengthOf(journal(dbPath), 2);
+      assert.lengthOf(journal(dbPath), shipped + 1);
       assert.include(tables(dbPath), 'upgrade_committed');
       assert.notInclude(tables(dbPath), 'upgrade_rolled_back');
       const [backup] = preMigrationBackups(join(root, 'live.db.backups'));
       assert.isDefined(backup);
-      assert.lengthOf(journal(join(root, 'live.db.backups', backup!, 'db.sqlite')), 1);
+      assert.lengthOf(journal(join(root, 'live.db.backups', backup!, 'db.sqlite')), shipped);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -247,7 +251,7 @@ test.group('upgrade command', () => {
       const bundles = listBundles(actual);
       assert.lengthOf(bundles, 1);
       assert.equal(verifyBundle(actual, bundles[0]!.name).path, bundles[0]!.path);
-      assert.lengthOf(journal(join(bundles[0]!.path, 'db.sqlite')), 1);
+      assert.lengthOf(journal(join(bundles[0]!.path, 'db.sqlite')), shipped);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
