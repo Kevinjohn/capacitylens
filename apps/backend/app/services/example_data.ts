@@ -2,8 +2,10 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { buildExampleCompany, countExampleRows } from '@capacitylens/shared/data/exampleCompany';
 import logger from '@adonisjs/core/services/logger';
 import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
-import { encodeRow, readStateWithClient } from '#services/state_repository';
-import { tables } from '#services/product_tables';
+import type { LucidModel } from '@adonisjs/lucid/types/model';
+import { productModels } from '#models_support/product_models';
+import { rowAttributes } from '#models_support/row_attributes';
+import { readStateWithClient } from '#services/state_repository';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
@@ -58,14 +60,11 @@ export async function addExampleData(
     weekStartsOn: company.weekStartsOn ?? 1,
   });
   for (const key of INSERT_ORDER) {
-    const rows = sample[key];
-    if (rows.length > 0) {
-      await trx
-        .table(tables[key])
-        .multiInsert(
-          rows.map((row) => encodeRow(tables[key], row as unknown as Record<string, unknown>))
-        );
-    }
+    const model: LucidModel = productModels[key];
+    await model.createMany(
+      sample[key].map((row) => rowAttributes(model, row)),
+      { client: trx }
+    );
   }
   await writeAudit(trx, {
     companyId,

@@ -4,9 +4,8 @@ import { test } from '@japa/runner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
-import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
-import { deleteAllocations } from '#services/planning/restoration';
+import { deleteAllocations, deleteRows } from '#services/planning/restoration';
 import {
   companyId,
   configureAuth,
@@ -298,17 +297,20 @@ test.group('session-bound allocation restoration', (suite) => {
     const listedCount = 32_766;
     const seeded = await readState(companyId, true);
     const now = new Date().toISOString();
-    const rows = Array.from({ length: listedCount + 1 }, () =>
-      encodeRow('allocations', {
-        ...newAllocation(seeded),
-        companyId,
-        note,
-        createdAt: now,
-        updatedAt: now,
-      })
+    const rows = Array.from({ length: listedCount + 1 }, () => ({
+      ...newAllocation(seeded),
+      companyId,
+      note,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    // Stored directly in column form: 32,767 single-row model inserts would dominate the suite.
+    const columnOf = (key: string) => Allocation.$keys.attributesToColumns.resolve(key);
+    const columnRows = rows.map((row) =>
+      Object.fromEntries(Object.entries(row).map(([key, value]) => [columnOf(key), value]))
     );
-    for (let start = 0; start < rows.length; start += 500)
-      await db.table('allocations').multiInsert(rows.slice(start, start + 500));
+    for (let start = 0; start < columnRows.length; start += 500)
+      await db.table('allocations').multiInsert(columnRows.slice(start, start + 500));
     const [kept, ...listed] = rows.map((row) => String(row.id));
     const otherCompanies = () =>
       db.from('allocations').whereNot('company_id', companyId).count('* as n');
@@ -338,7 +340,61 @@ test.group('session-bound allocation restoration', (suite) => {
       data.allocations.find((row) => row.id === kept)
     );
     assert.deepEqual(await otherCompanies(), othersBefore);
-  }).timeout(60_000);
+    // Each listed row is deleted through its model in its own statement.
+  }).timeout(120_000);
+
+  test('a listed row deleted since the snapshot refuses the whole deletion', async ({ assert }) => {
+    const data = await readState(companyId, true);
+    const [first, second] = data.allocations.map((row) => row.id);
+    assert.isDefined(second);
+    await db
+      .from('allocations')
+      .where('id', second!)
+      .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
+    const listed = [first!, second!];
+    const before = await db.from('allocations').whereIn('id', listed).orderBy('id');
+    const sessionId = await fixtureSession('u-bruce');
+    await assert.rejects(
+      () =>
+        db.transaction((trx) =>
+          deleteAllocations(trx, data, companyId, listed, {
+            actorId: 'u-bruce',
+            sessionId,
+            mutationId: randomUUID(),
+          })
+        ),
+      /can no longer be restored/
+    );
+    assert.deepEqual(await db.from('allocations').whereIn('id', listed).orderBy('id'), before);
+    assert.lengthOf(await db.from('deleted_groups'), 0);
+  });
+
+  test('a child moved off its parent since the snapshot refuses the parent deletion', async ({
+    assert,
+  }) => {
+    const data = await readState(companyId, true);
+    const resource = data.resources.find((row) => row.disciplineId !== null);
+    assert.isDefined(resource);
+    const disciplineId = resource!.disciplineId!;
+    await db.from('resources').where('id', resource!.id).update({ discipline_id: null });
+    const resourcesBefore = await db.from('resources').orderBy('id');
+    const sessionId = await fixtureSession('u-bruce');
+    await assert.rejects(
+      () =>
+        db.transaction((trx) =>
+          deleteRows(trx, data, companyId, 'disciplines', [disciplineId], {
+            actorId: 'u-bruce',
+            sessionId,
+            mutationId: randomUUID(),
+          })
+        ),
+      /can no longer be restored/
+    );
+    assert.deepEqual(await db.from('resources').orderBy('id'), resourcesBefore);
+    const discipline = await db.from('disciplines').where('id', disciplineId).first();
+    assert.isNull(discipline.deleted_at);
+    assert.lengthOf(await db.from('deleted_groups'), 0);
+  });
 
   test('stale delete and restore revisions return 409 without effects', async ({
     client,
