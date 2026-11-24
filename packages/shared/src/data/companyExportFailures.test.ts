@@ -367,10 +367,6 @@ function buildFixtureCompanyData(): AppData {
   };
 }
 
-function setFirstPlaceholderName(doc: CompanyExport, name: string) {
-  requireValue(doc.data.resources.find((row) => row.kind === 'placeholder')).name = name;
-}
-
 /**
  * The answers the import gave before it validated from the entity field table, recorded from the
  * validator at 1fce8c41d over every import fixture and every failure case in this file. The new
@@ -442,62 +438,92 @@ const previousAnswers: [string, () => Answer, Answer][] = [
   ],
 ];
 
+type TextRow = (data: AppData) => Record<string, unknown>;
+const companyRow: TextRow = (data) => requireValue(data.companies[0]) as never;
+const allocationRow: TextRow = (data) => requireValue(data.allocations[0]) as never;
+const placeholderRow: TextRow = (data) =>
+  requireValue(data.resources.find((row) => row.kind === 'placeholder')) as never;
+
 /**
- * The cases the settled text rule changes: import applies the ordinary write path's text rule, so
- * text it used to refuse only for not being canonical now imports, and a blank placeholder name
- * that ordinary writes refuse is refused.
+ * The cases the settled text rule changes: import applies the ordinary write path's text rule and
+ * stores text as that path stores it (`cleanText`), so text it used to refuse only for not being
+ * canonical now imports in its canonical form, and a blank placeholder name that ordinary writes
+ * refuse is refused. Each row: the row and field, the supplied text, the previous and the current
+ * answer, and the stored text when it imports.
  */
-const textRuleChanges: [string, CorruptDocument, Answer, Answer][] = [
+const textRuleChanges: [string, TextRow, string, string, Answer, Answer, string | null][] = [
   [
     'a name with doubled inner spacing',
-    (doc) => {
-      requireValue(doc.data.companies[0]).name = 'Wayne  Enterprises';
-    },
+    companyRow,
+    'name',
+    'Wayne  Enterprises',
     'refused',
     'accepted',
+    'Wayne Enterprises',
   ],
   [
     'a name with surrounding spaces',
-    (doc) => {
-      requireValue(doc.data.companies[0]).name = ' Wayne Enterprises ';
-    },
+    companyRow,
+    'name',
+    ' Wayne Enterprises ',
     'refused',
     'accepted',
+    'Wayne Enterprises',
   ],
   [
     'a name in decomposed Unicode',
-    (doc) => {
-      requireValue(doc.data.companies[0]).name = 'Ge\u0301nosha';
-    },
+    companyRow,
+    'name',
+    'Ge\u0301nosha',
     'refused',
     'accepted',
+    'G\u00e9nosha',
   ],
   [
     'a name at the limit followed by a space',
-    (doc) => {
-      requireValue(doc.data.companies[0]).name = `${'N'.repeat(100)} `;
-    },
+    companyRow,
+    'name',
+    `${'N'.repeat(100)} `,
     'refused',
     'accepted',
+    'N'.repeat(100),
+  ],
+  [
+    'a name padded past the limit with inner spaces',
+    companyRow,
+    'name',
+    `Wayne${' '.repeat(200)}Enterprises`,
+    'refused',
+    'accepted',
+    'Wayne Enterprises',
   ],
   [
     'a note with three line breaks',
-    (doc) => {
-      requireValue(doc.data.allocations[0]).note = 'Gotham\n\n\nMetropolis';
-    },
+    allocationRow,
+    'note',
+    'Gotham\n\n\nMetropolis',
     'refused',
     'accepted',
+    'Gotham\n\nMetropolis',
   ],
   [
-    'a blank task',
-    (doc) => {
-      requireValue(doc.data.allocations[0]).task = '   ';
-    },
+    'a note with a tab',
+    allocationRow,
+    'note',
+    'Gotham\tMetropolis',
     'refused',
     'accepted',
+    'Gotham Metropolis',
   ],
-  ['an empty placeholder name', (doc) => setFirstPlaceholderName(doc, ''), 'accepted', 'refused'],
+  ['a blank task', allocationRow, 'task', '   ', 'refused', 'accepted', ''],
+  ['an empty placeholder name', placeholderRow, 'name', '', 'accepted', 'refused', null],
 ];
+
+function prepareWithText(row: TextRow, field: string, text: string) {
+  const document = freshDocument();
+  row(document.data)[field] = text;
+  return prepareCompanyImport(document, context);
+}
 
 describe('company import answers against the previous validator', () => {
   it.each(previousAnswers)('gives the previous answer for %s', (_name, run, previous) => {
@@ -506,9 +532,16 @@ describe('company import answers against the previous validator', () => {
 
   it.each(textRuleChanges)(
     'changes the answer for %s under the write path text rule',
-    (_name, corrupt, previous, now) => {
+    (_name, row, field, text, previous, now) => {
       expect(previous).not.toBe(now);
-      expect(importCorrupted(corrupt)()).toBe(now);
+      expect(answer(() => prepareWithText(row, field, text))).toBe(now);
+    },
+  );
+
+  it.each(textRuleChanges.filter((change) => change[6] !== null))(
+    'stores %s as ordinary writes store it',
+    (_name, row, field, text, _previous, _now, stored) => {
+      expect(row(prepareWithText(row, field, text).data)[field]).toBe(stored);
     },
   );
 });

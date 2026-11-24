@@ -3,6 +3,9 @@ import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
 import { isEntityId } from '../types/entityFieldRules.js';
+import { ENTITY_FIELDS } from '../types/entityFields.js';
+import type { FieldSpec } from '../types/entityFields.js';
+import { cleanText } from '../lib/strings.js';
 import { assert, fail, isOneOf, hasOwn } from './companyExport.errors.js';
 import { FIELDS } from './companyExport.fields.js';
 import { projectCompanyData } from './companyExport.projection.js';
@@ -179,6 +182,18 @@ export function prepareCompanyImport(
   importedCompany.id = context.companyId;
   for (const key of SCOPED_KEYS) {
     for (const row of data[key]) row.companyId = context.companyId;
+  }
+  // Store text as ordinary writes store it; a file this product exported is unchanged by this.
+  for (const key of APP_DATA_KEYS) {
+    const specs: Record<string, FieldSpec> = ENTITY_FIELDS[key];
+    for (const row of data[key] as unknown as Row[]) {
+      for (const [field, spec] of Object.entries(specs)) {
+        const value = row[field];
+        if ((spec.kind === 'text' || spec.kind === 'note') && typeof value === 'string') {
+          row[field] = cleanText(value, { multiline: spec.kind === 'note' });
+        }
+      }
+    }
   }
   const personIds = new Set(
     data.resources.filter((row) => row.kind === 'person').map((row) => row.id),
