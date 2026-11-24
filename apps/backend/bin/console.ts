@@ -13,6 +13,7 @@
 
 const { assertSupportedNodeVersion } = await import('#bin/node_version');
 assertSupportedNodeVersion();
+const { failUnsettledStart } = await import('#bin/unsettled_start');
 
 await import('reflect-metadata');
 const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor');
@@ -34,7 +35,7 @@ const IMPORTER = (filePath: string) => {
   return import(filePath);
 };
 
-new Ignitor(APP_ROOT, { importer: IMPORTER })
+const start = new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
     app.booting(async () => {
       await import('#start/env');
@@ -48,3 +49,4 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
     process.exitCode = 1;
     prettyPrintError(error);
   });
+void failUnsettledStart(start, 'The command');

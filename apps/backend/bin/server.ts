@@ -12,6 +12,7 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 const { assertSupportedNodeVersion } = await import('#bin/node_version');
 assertSupportedNodeVersion();
+const { failUnsettledStart } = await import('#bin/unsettled_start');
 
 await import('reflect-metadata');
 const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor');
@@ -50,7 +51,7 @@ let installE2eHarness:
   ((server: NodeServer, handler: NodeHandler) => ReturnType<E2eRequestActivity>) | undefined;
 let resetControl: ReturnType<E2eRequestActivity> | undefined;
 
-new Ignitor(APP_ROOT, { importer: IMPORTER })
+const start = new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
     terminateApplication = () => app.terminate();
     app.terminating(async () => {
@@ -93,3 +94,4 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
     prettyPrintError(error);
     await terminateApplication?.();
   });
+void failUnsettledStart(start, 'The server');

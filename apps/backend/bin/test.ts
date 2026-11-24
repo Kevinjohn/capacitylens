@@ -12,6 +12,7 @@
 
 const { assertSupportedNodeVersion } = await import('#bin/node_version');
 assertSupportedNodeVersion();
+const { failUnsettledStart } = await import('#bin/unsettled_start');
 
 process.env.NODE_ENV = 'test';
 
@@ -54,7 +55,7 @@ const IMPORTER = (filePath: string) => {
 };
 
 const ignitor = new Ignitor(APP_ROOT, { importer: IMPORTER });
-ignitor
+const start = ignitor
   .tap((app) => {
     app.booting(async () => {
       await import('#start/env');
@@ -97,3 +98,4 @@ ignitor
   // are flushed first, because a pipe is written asynchronously on some platforms and exiting at
   // once would cut the summary short.
   .finally(() => process.stdout.write('', () => process.stderr.write('', () => process.exit())));
+void failUnsettledStart(start, 'The test run');
