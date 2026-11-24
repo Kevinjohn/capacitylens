@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import { mutatePlanning } from '#services/planning';
+import { PlanningService } from '#services/planning_service';
 import { planningMutationValidator } from '#validators/planning_operations';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 
@@ -8,9 +8,11 @@ import { CurrentActorService } from '#services/auth/current_actor_service';
 @inject()
 export default class PlanningMutationsController {
   #currentActor: CurrentActorService;
+  #planning: PlanningService;
 
-  constructor(currentActor: CurrentActorService) {
+  constructor(currentActor: CurrentActorService, planning: PlanningService) {
     this.#currentActor = currentActor;
+    this.#planning = planning;
   }
 
   /** Runs one planning operation; the validated intent, not the URL, names it. */
@@ -20,7 +22,7 @@ export default class PlanningMutationsController {
     const companyId = String(params.companyId);
     return serialize(
       await this.#currentActor.withActor(auth, (actor, trx) =>
-        mutatePlanning({ trx, actor, companyId, input })
+        this.#planning.mutatePlanning({ trx, actor, companyId, input })
       )
     );
   }

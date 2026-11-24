@@ -61,6 +61,6 @@ Save follows the [create](US-ALL-01-create.md) or [edit](US-ALL-02-edit.md) vali
 - [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L72)
 - [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx#L214)
 - [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
-- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L222)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [AllocationDialog.activity-and-task.test.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.activity-and-task.test.tsx#L259)

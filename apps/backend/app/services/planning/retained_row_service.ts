@@ -20,16 +20,17 @@ const models = {
   disciplines: Discipline,
 };
 
-/** Narrows a product table to one backed by the planning retention lifecycle. */
-export function isRetainedTable(table: AppDataKey): table is RetainedTable {
-  return table in models;
-}
+/** Retained planning rows, read and changed in the caller's transaction. */
+export class RetainedRowService {
+  /** Narrows a product table to one backed by the planning retention lifecycle. */
+  isRetainedTable(table: AppDataKey): table is RetainedTable {
+    return table in models;
+  }
 
-/** Provides a company-scoped lifecycle builder on the caller's transaction. */
-export function buildRetainedQuery(
-  trx: TransactionClientContract,
-  companyId: string,
-  table: RetainedTable
-) {
-  return models[table].query({ client: trx }).withScopes((scopes) => scopes.forCompany(companyId));
+  /** Provides a company-scoped lifecycle builder on the caller's transaction. */
+  buildRetainedQuery(trx: TransactionClientContract, companyId: string, table: RetainedTable) {
+    return models[table]
+      .query({ client: trx })
+      .withScopes((scopes) => scopes.forCompany(companyId));
+  }
 }

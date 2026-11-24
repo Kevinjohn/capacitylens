@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import { readState } from '#tests/helpers/state_fixture';
-import { buildRetainedQuery } from '#services/planning/retained_rows';
+import { RetainedRowService } from '#services/planning/retained_row_service';
 import Discipline from '#models/discipline';
 
 class DisciplineWithLaterOrHooks extends Discipline {
@@ -21,6 +21,8 @@ class DisciplineWithLaterOrHooks extends Discipline {
     void query.orWhere('name', 'Wayne Foundation');
   }
 }
+
+const retainedRows = new RetainedRowService();
 
 test.group('soft-deleted rows', (group) => {
   group.setup(() => freshDatabase());
@@ -71,7 +73,8 @@ test.group('soft-deleted rows', (group) => {
     const before = await db.from('allocations').where('id', deletedLocal!.id).first();
 
     const softDeleted = await db.transaction((trx) =>
-      buildRetainedQuery(trx, 'a-studio', 'allocations')
+      retainedRows
+        .buildRetainedQuery(trx, 'a-studio', 'allocations')
         .whereIn('id', [deletedLocal!.id, otherCompanyAllocation.id])
         .softDelete()
     );
@@ -88,7 +91,8 @@ test.group('soft-deleted rows', (group) => {
       .where('id', otherCompanyAllocation.id)
       .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
     const purged = await db.transaction((trx) =>
-      buildRetainedQuery(trx, 'a-studio', 'allocations')
+      retainedRows
+        .buildRetainedQuery(trx, 'a-studio', 'allocations')
         .onlyTrashed()
         .whereIn('id', [deletedLocal!.id, activeLocal!.id, otherCompanyAllocation.id])
         .forceDelete()

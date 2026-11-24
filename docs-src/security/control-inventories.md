@@ -67,7 +67,7 @@ Runtime `node:crypto` importers are accounted for here: `apps/backend/app/models
 UUID identifiers; `account_operation_service.ts` creates command ids; `@kevinjohn/adonisjs-duplicate-request-guard` owns payload hashes and receipts;
 `@kevinjohn/adonisjs-confirm-action-with-password` creates confirmation UUIDs and intent hashes; `auth/request_limit.ts` hashes client
 IP keys; `company_import_service.ts` hashes import snapshots; and
-`planning/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto
+`planning/restoration_service.ts` creates restoration-group UUIDs. The browser uses Web Crypto
 for UUIDs and a command digest. Build scripts use SHA-256 for file integrity; end-to-end test
 tooling uses UUIDs. These are identifiers or integrity/limiter hashes, not password or bearer-token
 storage.

@@ -127,7 +127,7 @@ one is a swallow too.
 Validation returns a value; enforcement throws. Validators return a `ValidationResult` or a VineJS
 schema result and never throw on bad input. The write boundary converts a failed result into a
 typed error whose message is safe to show, such as `PlanningOperationException` in
-`apps/backend/app/services/planning/writer.ts`, which carries its own status and code and answers
+`apps/backend/app/services/planning/planning_writer_service.ts`, which carries its own status and code and answers
 for itself. The frontend catches at the form or gesture handler and relays the message
 to the field or toast. Add to the typed error vocabulary rather than sniffing message strings; the
 one exception is a library's own wording, which a test pins.

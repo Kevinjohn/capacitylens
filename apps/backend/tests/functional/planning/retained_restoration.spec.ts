@@ -11,10 +11,12 @@ import {
   session,
   signIn,
 } from '#tests/functional/planning/helpers';
-import { countRestorableItems } from '#services/planning/restoration';
+import app from '@adonisjs/core/services/app';
+import { RestorationService } from '#services/planning/restoration_service';
 import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
 
+const restoration = await app.container.make(RestorationService);
 const tables = {
   allocations: 'allocations',
   timeOff: 'time_off',
@@ -179,7 +181,10 @@ test.group('retained restoration reads', (suite) => {
     assert.exists(restoredRowBeforeReuse);
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId);
 
-    assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 1);
+    assert.equal(
+      await db.transaction((trx) => restoration.countRestorableItems(trx, companyId)),
+      1
+    );
     const reused = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -199,7 +204,10 @@ test.group('retained restoration reads', (suite) => {
     const ledgerAfterReuse = await db.from('deleted_rows').where('group_id', groupId).first();
     assert.deepEqual(JSON.parse(ledgerAfterReuse.payload_json), { kind: 'row' });
 
-    assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 0);
+    assert.equal(
+      await db.transaction((trx) => restoration.countRestorableItems(trx, companyId)),
+      0
+    );
     const beforeRefusal = await readState(companyId, true);
     const refused = await session(
       client.visit('api.planning_mutations.store', { companyId }),
