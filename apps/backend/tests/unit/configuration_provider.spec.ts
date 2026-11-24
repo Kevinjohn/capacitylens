@@ -89,8 +89,16 @@ test.group('configuration provider', () => {
 
   test('a running server stops background maintenance when shutdown begins', async ({ assert }) => {
     const hooks: Array<() => unknown> = [];
+    const passes: string[] = [];
+    // The provider resolves its maintenance service from this application's container.
+    const storageMaintenance = {
+      createMaintenance: () => ({
+        run: async () => void passes.push('run'),
+        stop: async () => void passes.push('stop'),
+      }),
+    };
     const application = {
-      container: { make: async () => ({ on() {} }) },
+      container: { make: async () => storageMaintenance },
       getEnvironment: () => 'web',
       inTest: false,
       isTerminating: false,
@@ -102,5 +110,6 @@ test.group('configuration provider', () => {
     assert.lengthOf(hooks, 1, 'the provider registers one shutdown hook');
     await hooks[0]();
     await provider.shutdown();
+    assert.deepEqual(passes, ['run', 'stop']);
   });
 });
