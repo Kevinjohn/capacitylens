@@ -105,6 +105,18 @@ const failures: [string, CorruptDocument][] = [
     },
   ],
   [
+    'timestamps in the year zero',
+    (doc) => {
+      requireValue(doc.data.clients[0]).updatedAt = '0000-01-01T00:00:00.000Z';
+    },
+  ],
+  [
+    'timestamps with an expanded year',
+    (doc) => {
+      requireValue(doc.data.clients[0]).updatedAt = '+010000-01-01T00:00:00.000Z';
+    },
+  ],
+  [
     'reversed date ranges',
     (doc) => {
       requireValue(doc.data.allocations[0]).endDate = '2020-01-01';
