@@ -6,7 +6,7 @@ As a hosting operator, I want to install and maintain the release on a host so t
 
 **Access:** Hosting operator; company Owner completes browser company setup
 
-**Entry:** Release archive install command, or manual environment configuration, upgrade and health commands
+**Entry:** Clone at a release tag, environment configuration, upgrade and health commands
 
 **Documentation:** [Install](../../docs-src/self-hosting/install.md); [Install without Docker](../../docs-src/self-hosting/install-without-docker.md); [Upgrades](../../docs-src/self-hosting/upgrades.md)
 
@@ -16,7 +16,7 @@ As a hosting operator, I want to install and maintain the release on a host so t
 
 - A clone of the repository at a release tag, installed and built, runs with configured secrets, database and HTTPS origin; `app:upgrade` backs up an existing database before migrating, `/health/ready` checks database readiness, and initial Owner admission uses the bootstrap invitation. No Docker task is included in this story.
 - The operator writes the root-only environment file, runs `app:upgrade` from `apps/backend/build`, installs and starts the systemd unit, puts an HTTPS proxy in front and prints the setup link with the bootstrap command. Scheduled backups run in the service.
-- An upgrade checks out a newer tag, installs, builds, stops the service, runs `app:upgrade` and starts the service only after the upgrade succeeds.
+- An upgrade stops the service, checks out a newer tag, installs, builds, runs `app:upgrade` and starts the service only after the upgrade succeeds.
 
 ## User flow
 
