@@ -1,7 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import Resource from '#models/resource';
 
-/** Keeps retained or archived resources identifiable in the member directory. */
+/** Keeps archived resources identifiable in the member directory. */
 export interface MemberResourceLinkProjection {
   resourceId: string;
   revision: string;
@@ -20,7 +20,6 @@ export async function readResourceCandidates(trx: TransactionClientContract, com
     .withScopes((scopes) => scopes.forCompany(companyId))
     .where('kind', 'person')
     .whereNull('archived_at')
-    .whereNull('deleted_at')
     .select('id', 'name', 'job_title');
   return rows.map((row) => ({
     resourceId: String(row.id),
@@ -51,8 +50,7 @@ export async function readMemberResourceFields(
       'link.resource_id',
       'link.revision',
       'resource.name',
-      'resource.archived_at',
-      'resource.deleted_at'
+      'resource.archived_at'
     );
   const result = new Map<string, MemberResourceFields>();
   for (const userId of userIds) result.set(userId, { resourceLink: null });
@@ -62,7 +60,7 @@ export async function readMemberResourceFields(
         resourceId: String(link.resource_id),
         revision: String(link.revision),
         resourceName: link.name ?? null,
-        resourceStatus: link.deleted_at || link.archived_at ? 'archived' : 'active',
+        resourceStatus: link.archived_at ? 'archived' : 'active',
       },
     });
   }

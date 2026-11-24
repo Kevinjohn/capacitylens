@@ -11,10 +11,6 @@ export {
 } from './entityKeys.js';
 export type { AppDataKey, ScopedEntityKey } from './entityKeys.js';
 
-/** Portable JSON schema version, independent of the physical SQLite schema version.
- * Increment when the portable AppData shape changes and provide the corresponding migration. */
-export const EXPORT_SCHEMA_VERSION = 25;
-
 export {
   hasHourlyLoad,
   isScopedEntityKey,

@@ -7,18 +7,15 @@ import { isOneOf } from '@kevinjohn/adonisjs-lucid-checked-columns';
 /** Accepts a weekday number, 0 (Sunday) to 6 (Saturday), in a JSON column. */
 export const isWeekday = isOneOf([0, 1, 2, 3, 4, 5, 6] as const);
 
-/** Converts a valid Luxon tombstone to the canonical UTC value stored in SQLite and sent to the API. */
-function serializeDeletedAt(
-  value: unknown,
-  boundary: 'persistence' | 'serialization'
-): ISOTimestamp | null | undefined {
+/** Converts a valid Luxon tombstone to the canonical UTC value stored in SQLite. */
+function serializeDeletedAt(value: unknown): ISOTimestamp | null | undefined {
   if (value === undefined || value === null) return value;
   const serialized =
     DateTime.isDateTime(value) && value.isValid
       ? value.toUTC().toISO({ suppressMilliseconds: false })
       : null;
   if (!isIsoInstant(serialized)) {
-    throw new Error(`Invalid soft-delete timestamp in model ${boundary}.`);
+    throw new Error('Invalid soft-delete timestamp in model persistence.');
   }
   return serialized;
 }
@@ -44,15 +41,11 @@ function parseDeletedAt(value: unknown): DateTime | null | undefined {
   return dateTime;
 }
 
-/** Keeps the package's Luxon model property on the existing strict ISO SQLite and DTO contract. */
-export const deletedAtColumn: Pick<
-  ColumnOptions,
-  'columnName' | 'prepare' | 'consume' | 'serialize'
-> = {
+/** Keeps the package's Luxon model property on the existing strict ISO SQLite contract. */
+export const deletedAtColumn: Pick<ColumnOptions, 'columnName' | 'prepare' | 'consume'> = {
   columnName: 'deleted_at',
-  prepare: (value: unknown) => serializeDeletedAt(value, 'persistence'),
+  prepare: serializeDeletedAt,
   consume: parseDeletedAt,
-  serialize: (value: unknown) => serializeDeletedAt(value, 'serialization'),
 };
 
 /** Column options for a nullable flag stored as 1 or 0; any other value is refused both ways. */

@@ -5,7 +5,6 @@ import {
   resolveProjectColor,
   calculateContrastRatio,
   resolveReadableTextColor,
-  ensureBarColors,
   resolveAccessibleBarColors,
   isPresetColor,
   PRESET_COLORS,
@@ -271,7 +270,7 @@ describe('resolveAccessibleBarColors', () => {
   it('darkens (multiplies channels down) when white ink is chosen', () => {
     // Exercises the darken branch body (r/g/b *= 0.92) and the formatHex '#' prefix +
     // clamp + zero-pad; a b *= -> b /= slip alone changes the blue channel here.
-    expect(ensureBarColors('#6366f1')).toEqual({ bg: '#5b5ede', ink: '#ffffff' });
+    expect(resolveAccessibleBarColors('#6366f1')).toEqual({ bg: '#5b5ede', ink: '#ffffff' });
   });
 
   it('lightens (moves channels toward 255) when dark ink is chosen, never darkens', () => {

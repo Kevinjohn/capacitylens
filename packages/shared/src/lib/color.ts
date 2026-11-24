@@ -249,6 +249,3 @@ export function resolveAccessibleBarColors(hex: string): { bg: string; ink: stri
     ink,
   };
 }
-
-/** Compatibility alias for the published shared contract. */
-export { resolveAccessibleBarColors as ensureBarColors };

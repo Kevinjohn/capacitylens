@@ -2,7 +2,11 @@ import { APP_DATA_KEYS, SCOPED_KEYS } from '../types/entityKeys.js';
 import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
-import { assert, fail, isId, isOneOf, hasOwn } from './companyExport.errors.js';
+import { isEntityId } from '../types/entityFieldRules.js';
+import { ENTITY_FIELDS } from '../types/entityFields.js';
+import type { FieldSpec } from '../types/entityFields.js';
+import { cleanText } from '../lib/strings.js';
+import { assert, fail, isOneOf, hasOwn } from './companyExport.errors.js';
 import { FIELDS } from './companyExport.fields.js';
 import { projectCompanyData } from './companyExport.projection.js';
 import { assertRow } from './companyExport.validation.js';
@@ -14,6 +18,13 @@ export { CompanyExportError };
 /** Stable identifier for the beta-native export format. */
 export const COMPANY_EXPORT_FORMAT = 'capacitylens-beta' as const;
 /** Beta export schema version, independent of the database schema. */
+const RETIRED_DELETED_TABLES: ReadonlySet<string> = new Set([
+  'clients',
+  'projects',
+  'resources',
+  'activities',
+]);
+
 export const COMPANY_EXPORT_SCHEMA_VERSION = 2 as const;
 
 export interface CompanyExport {
@@ -69,10 +80,18 @@ function assertDocument(value: unknown): CompanyExport {
     rows.forEach((row, i) => {
       if (seen.has(row.id as string)) fail(`data.${key}[${i}].id`, 'duplicates a table id');
       seen.add(row.id as string);
+      // Deleted catalogue records are no longer a state; importing one would bring it back active.
+      if (
+        RETIRED_DELETED_TABLES.has(key) &&
+        row.deletedAt !== undefined &&
+        row.deletedAt !== null
+      ) {
+        fail(`data.${key}[${i}].deletedAt`, 'deleted records are not supported');
+      }
     });
     (data as unknown as Record<string, unknown>)[key] = rows.map((row) =>
       Object.fromEntries(
-        (FIELDS[key] as readonly string[])
+        FIELDS[key]
           .filter((field) => hasOwn(row, field))
           .map((field) => {
             const fieldValue = row[field];
@@ -163,7 +182,9 @@ export function prepareCompanyImport(
   context: CompanyImportContext,
 ): PreparedCompanyImport {
   assert(
-    isRecord(context) && isId(context.companyId) && Array.isArray(context.memberResourceLinks),
+    isRecord(context) &&
+      isEntityId(context.companyId) &&
+      Array.isArray(context.memberResourceLinks),
     'context',
     'companyId and memberResourceLinks are required',
   );
@@ -177,12 +198,24 @@ export function prepareCompanyImport(
   for (const key of SCOPED_KEYS) {
     for (const row of data[key]) row.companyId = context.companyId;
   }
+  // Store text as ordinary writes store it; a file this product exported is unchanged by this.
+  for (const key of APP_DATA_KEYS) {
+    const specs: Record<string, FieldSpec> = ENTITY_FIELDS[key];
+    for (const row of data[key] as unknown as Row[]) {
+      for (const [field, spec] of Object.entries(specs)) {
+        const value = row[field];
+        if ((spec.kind === 'text' || spec.kind === 'note') && typeof value === 'string') {
+          row[field] = cleanText(value, { multiline: spec.kind === 'note' });
+        }
+      }
+    }
+  }
   const personIds = new Set(
     data.resources.filter((row) => row.kind === 'person').map((row) => row.id),
   );
   for (const [i, link] of context.memberResourceLinks.entries()) {
     assert(
-      isRecord(link) && isId(link.memberId) && isId(link.resourceId),
+      isRecord(link) && isEntityId(link.memberId) && isEntityId(link.resourceId),
       `context.memberResourceLinks[${i}]`,
       'requires memberId and resourceId',
     );

@@ -15,13 +15,12 @@ import type { LifecycleState, LifecycleFields } from '@capacitylens/shared/domai
 import type { Resource } from '../types/entities.js';
 
 // These tests are an independent oracle of the lifecycle state machine: the expected states /
-// booleans below are hand-derived from the contract (deletedAt wins; archive needs active;
+// booleans below are hand-derived from the contract (archive needs active;
 // restore needs archived), not copied from the
 // implementation. If lifecycle.ts and these tables disagree, that's the test doing its job.
 
 // Fixed ISO consts so every assertion is deterministic (no ambient clock anywhere in the machine).
 const T_ARCH = '2026-01-01T00:00:00.000Z';
-const T_DEL = '2026-02-01T00:00:00.000Z';
 
 describe('lifecycle vocabulary', () => {
   it('is immutable and keeps the narrowing guard closed', () => {
@@ -39,7 +38,6 @@ const NOW = '2026-06-01T00:00:00.000Z';
 type Sample = LifecycleFields & { id: string; name: string };
 const makeActive = (): Sample => ({ id: 'r1', name: 'x' });
 const makeArchived = (): Sample => ({ id: 'r1', name: 'x', archivedAt: T_ARCH });
-const makeDeleted = (): Sample => ({ id: 'r1', name: 'x', archivedAt: T_ARCH, deletedAt: T_DEL });
 
 const expectLifecycleError = (
   operation: () => unknown,
@@ -61,47 +59,35 @@ const expectLifecycleError = (
   }
 };
 
-describe('resolveLifecycleStatus — derive state from tombstones (deletedAt wins)', () => {
+describe('resolveLifecycleStatus — derive state from the archive tombstone', () => {
   it("active ({}) → 'active'", () => {
     expect(resolveLifecycleStatus(makeActive())).toBe<LifecycleState>('active');
   });
   it("archived ({archivedAt}) → 'archived'", () => {
     expect(resolveLifecycleStatus(makeArchived())).toBe<LifecycleState>('archived');
   });
-  it("deleted ({archivedAt, deletedAt}) → 'deleted' (deletedAt wins over archivedAt)", () => {
-    expect(resolveLifecycleStatus(makeDeleted())).toBe<LifecycleState>('deleted');
-  });
-  it("standalone deletedAt with NO archivedAt → 'deleted' (deletedAt wins on its own)", () => {
-    expect(resolveLifecycleStatus({ deletedAt: T_DEL })).toBe<LifecycleState>('deleted');
-  });
-  it('treats null tombstones as absent (SQLite/JSON round-trip)', () => {
+  it('treats a null tombstone as absent (SQLite/JSON round-trip)', () => {
     expect(
       resolveLifecycleStatus({
         archivedAt: null as unknown as string,
-        deletedAt: null as unknown as string,
       }),
     ).toBe('active');
   });
-  it('derives the nearest valid state from malformed legacy tombstones', () => {
-    expect(resolveLifecycleStatus({ archivedAt: T_ARCH, deletedAt: 'not-a-date' })).toBe(
-      'archived',
-    );
-    expect(resolveLifecycleStatus({ archivedAt: '', deletedAt: 'not-a-date' })).toBe('active');
+  it('derives the nearest valid state from a malformed legacy tombstone', () => {
+    expect(resolveLifecycleStatus({ archivedAt: '' })).toBe('active');
   });
 });
 
-describe('canArchive — public archive affordance over active/archived/deleted', () => {
+describe('canArchive — public archive affordance over active/archived', () => {
   const EXPECTED = {
     active: true,
     archived: false,
-    deleted: false,
   } as const;
   const samples: Record<keyof typeof EXPECTED, Sample> = {
     active: makeActive(),
     archived: makeArchived(),
-    deleted: makeDeleted(),
   };
-  for (const state of ['active', 'archived', 'deleted'] as const) {
+  for (const state of ['active', 'archived'] as const) {
     it(`canArchive(${state}) === ${EXPECTED[state]}`, () => {
       expect(canArchive(samples[state])).toBe(EXPECTED[state]);
     });
@@ -114,7 +100,6 @@ describe.each([['canRestore', canRestore]] as const)(
     it.each([
       ['active', makeActive(), false],
       ['archived', makeArchived(), true],
-      ['deleted', makeDeleted(), false],
     ] as const)('returns the documented result for %s', (_state, sample, expected) => {
       expect(predicate(sample)).toBe(expected);
     });
@@ -136,10 +121,9 @@ describe('archive — active → archived (immutable, fail-loud)', () => {
     expect(input.archivedAt).toBeUndefined();
     expect(resolveLifecycleStatus(input)).toBe('active');
   });
-  it('replaces malformed legacy tombstones when archiving the recovered active state', () => {
-    const result = archive({ ...makeActive(), archivedAt: '', deletedAt: 'not-a-date' }, NOW);
+  it('replaces a malformed legacy tombstone when archiving the recovered active state', () => {
+    const result = archive({ ...makeActive(), archivedAt: '' }, NOW);
     expect(result.archivedAt).toBe(NOW);
-    expect(result.deletedAt).toBeNull();
     expect(resolveLifecycleStatus(result)).toBe('archived');
   });
   it('from archived: throws (no re-archive)', () => {
@@ -147,13 +131,6 @@ describe('archive — active → archived (immutable, fail-loud)', () => {
       () => archive(makeArchived(), NOW),
       'already_inactive',
       /already archived/,
-    );
-  });
-  it('from deleted: throws', () => {
-    expectLifecycleError(
-      () => archive(makeDeleted(), NOW),
-      'invalid_transition',
-      /already deleted/,
     );
   });
   it('rejects an invalid archive timestamp and canonicalizes an explicit offset', () => {
@@ -167,7 +144,6 @@ describe('restore — archived → active (clears archivedAt to null, immutable,
     const input = makeArchived();
     const result = restore(input);
     expect(result.archivedAt).toBeNull();
-    expect(result.deletedAt).toBeNull();
     expect(resolveLifecycleStatus(result)).toBe('active');
     expect(result.id).toBe('r1');
     expect(result.name).toBe('x');
@@ -181,15 +157,6 @@ describe('restore — archived → active (clears archivedAt to null, immutable,
   it('from active: throws', () => {
     expect(() => restore(makeActive())).toThrow(/not archived/);
   });
-  it('from deleted: throws (cannot restore a tombstone)', () => {
-    expect(() => restore(makeDeleted())).toThrow(/not archived/);
-  });
-  it('recovers an archived row carrying a malformed deletion tombstone', () => {
-    const result = restore({ ...makeArchived(), deletedAt: 'not-a-date' });
-    expect(result.archivedAt).toBeNull();
-    expect(result.deletedAt).toBeNull();
-    expect(resolveLifecycleStatus(result)).toBe('active');
-  });
 });
 
 describe('isLifecycleEntityKey — narrowing guard for the tombstone-carrying tables', () => {
@@ -199,7 +166,7 @@ describe('isLifecycleEntityKey — narrowing guard for the tombstone-carrying ta
     expect(isLifecycleEntityKey('projects')).toBe(true);
     expect(isLifecycleEntityKey('activities')).toBe(true);
   });
-  it('is FALSE for every non-lifecycle table (they carry no archivedAt/deletedAt)', () => {
+  it('is FALSE for every non-lifecycle table (they carry no archivedAt)', () => {
     expect(isLifecycleEntityKey('phases')).toBe(false);
     expect(isLifecycleEntityKey('allocations')).toBe(false);
     expect(isLifecycleEntityKey('timeOff')).toBe(false);
@@ -228,7 +195,6 @@ const RESOURCE_BASE: Resource = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-02-01T00:00:00.000Z',
   archivedAt: T_ARCH,
-  deletedAt: T_DEL,
   halfDays: [],
 };
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
@@ -265,7 +231,6 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(result.createdAt).toBe(input.createdAt);
     expect(result.updatedAt).toBe(input.updatedAt);
     expect(result.archivedAt).toBe(input.archivedAt);
-    expect(result.deletedAt).toBe(input.deletedAt);
   });
 
   it('does NOT mutate the input and returns a NEW reference (immutability)', () => {

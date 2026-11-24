@@ -21,6 +21,7 @@ export type FieldKind =
   | 'boolean'
   | 'number'
   | 'date'
+  | 'timestamp'
   | 'weekdays'
   | 'color'
   | 'avatar'
@@ -43,16 +44,15 @@ export interface FieldSpec {
 
 const base = {
   id: { kind: 'identifier', system: true },
-  createdAt: { kind: 'identifier', system: true },
-  updatedAt: { kind: 'identifier', system: true },
+  createdAt: { kind: 'timestamp', system: true },
+  updatedAt: { kind: 'timestamp', system: true },
 } as const;
 const scoped = {
   ...base,
   companyId: { kind: 'identifier', required: true, system: true },
 } as const;
 const lifecycle = {
-  archivedAt: { kind: 'identifier', nullable: true, system: true },
-  deletedAt: { kind: 'identifier', nullable: true, system: true },
+  archivedAt: { kind: 'timestamp', nullable: true, system: true },
 } as const;
 const privateName = {
   isPrivate: { kind: 'boolean', nullable: true },

@@ -22,7 +22,7 @@ import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { requiredFields } from '@capacitylens/shared/types/entityFields';
 import { validateRow } from '#validators/planning/row';
 import { asRecord } from '#services/planning/writer';
-import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
+import { isEntityId } from '@capacitylens/shared/types/entityFieldRules';
 import { assertEntityDomain, type EntityWrite } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
 import {
@@ -45,12 +45,12 @@ const CREATE_DEFAULTS: Partial<Record<ScopedEntityKey, Record<string, unknown>>>
   resources: { avatarUrl: null, halfDays: [], engagement: 'studio' },
 };
 /** Fields a new row may not supply: lifecycle state and the Internal client flag. */
-const SERVER_SET_ON_CREATE = new Set(['archivedAt', 'deletedAt', 'builtin']);
+const SERVER_SET_ON_CREATE = new Set(['archivedAt', 'builtin']);
 
 /** Applies a new row's server-owned defaults; lifecycle tables start active. */
 export function applyCreateDefaults(table: ScopedEntityKey, candidate: Record<string, unknown>) {
   const defaults: Record<string, unknown> = {
-    ...(isLifecycleEntityKey(table) ? { archivedAt: null, deletedAt: null } : {}),
+    ...(isLifecycleEntityKey(table) ? { archivedAt: null } : {}),
     ...CREATE_DEFAULTS[table],
   };
   for (const [field, value] of Object.entries(defaults)) {
@@ -210,12 +210,13 @@ function assertManagedFields(
   existing: Record<string, unknown> | undefined
 ) {
   if (isLifecycleEntityKey(table)) {
-    for (const field of ['archivedAt', 'deletedAt'] as const) {
-      if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null)) {
-        throw new EntityWriteException(`${field} is managed by its lifecycle action.`);
-      }
-      candidate[field] = existing?.[field] ?? null;
+    if (
+      Object.hasOwn(requested, 'archivedAt') &&
+      requested.archivedAt !== (existing?.archivedAt ?? null)
+    ) {
+      throw new EntityWriteException('archivedAt is managed by its lifecycle action.');
     }
+    candidate.archivedAt = existing?.archivedAt ?? null;
   }
   if (table === 'allocations' && existing) {
     if (Object.hasOwn(requested, 'seriesId') && requested.seriesId !== existing.seriesId) {
@@ -289,7 +290,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   options: EntityWriteOptions
 ): Promise<AppData[K][number]> {
   const existing = stored && asRecord(stored);
-  if (typeof row.id !== 'string' || !ENTITY_ID_PATTERN.test(row.id)) {
+  if (!isEntityId(row.id)) {
     throw new EntityWriteException(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde, colon or hyphen.'
     );

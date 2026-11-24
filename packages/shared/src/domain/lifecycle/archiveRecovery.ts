@@ -21,7 +21,7 @@ export type ArchiveRecoveryRow = {
 /** A company-scoped list of recoverable identities. */
 export type ArchiveRecovery = { companyId: string; rows: ArchiveRecoveryRow[] };
 
-/** Project recoverable identities without exposing inactive details or deleted ancestry. */
+/** Project recoverable identities without exposing inactive details. */
 export function archiveRecovery(data: AppData, companyId: string, role: Role): ArchiveRecovery {
   const indexes = new Map<AppDataKey, Map<string, LifecycleAncestryRow>>();
   for (const table of ['resources', 'clients', 'projects', 'activities', 'phases'] as const) {
@@ -35,11 +35,6 @@ export function archiveRecovery(data: AppData, companyId: string, role: Role): A
     );
   }
   const lookup = (table: AppDataKey, id: string) => indexes.get(table)?.get(id);
-  // Ignoring archive timestamps makes a deleted grandparent visible to the same domain walk.
-  const getRowIgnoringArchive = (table: AppDataKey, id: string) => {
-    const row = lookup(table, id);
-    return row ? { ...row, archivedAt: null } : undefined;
-  };
   const label = (table: AppDataKey, row: LifecycleAncestryRow): string => {
     if ((table === 'clients' || table === 'projects') && !canSeePrivateNames(role)) {
       return redactPrivateName(row as unknown as AppData['clients'][number]).name;
@@ -54,10 +49,7 @@ export function archiveRecovery(data: AppData, companyId: string, role: Role): A
   for (const entity of LIFECYCLE_ENTITY_KEYS) {
     for (const row of indexes.get(entity)?.values() ?? []) {
       const state = resolveLifecycleStatus(row);
-      if (state === 'deleted' || (entity === 'clients' && row.builtin === true)) continue;
-      if (inspectLifecycleAncestry(entity, row, getRowIgnoringArchive).kind === 'hidden') {
-        continue;
-      }
+      if (entity === 'clients' && row.builtin === true) continue;
       const ancestry = inspectLifecycleAncestry(entity, row, lookup);
       if (state !== 'archived' && ancestry.kind === 'visible') continue;
       let parent: ArchivedParent | null = null;

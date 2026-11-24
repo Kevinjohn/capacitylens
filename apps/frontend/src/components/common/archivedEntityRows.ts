@@ -89,9 +89,6 @@ function getArchivedAncestor(
     ancestor.table === 'clients'
       ? m.settings_archived_type_clients()
       : m.settings_archived_type_projects();
-  if (ancestor.state === 'deleted') {
-    return { name, message: m.list_hidden_by_deleted_parent({ type: noun, name }) };
-  }
   return {
     name,
     href: `/${ancestor.table}#archived-${ancestor.id}`,
@@ -111,7 +108,6 @@ export function buildArchivedRows(data: AppData, entity: ArchivedEntity): Archiv
   }
   return entityConfig[entity]
     .list(data)
-    .filter((row) => resolveLifecycleStatus(row) !== 'deleted')
     .map((row) => ({ row, ancestor: getArchivedAncestor(indexes, entity, row) }))
     .filter(({ row, ancestor }) => resolveLifecycleStatus(row) === 'archived' || ancestor !== null)
     .toSorted(

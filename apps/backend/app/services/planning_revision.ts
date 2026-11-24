@@ -18,7 +18,7 @@ function ensureTransactionRevisions(trx: TransactionClientContract) {
   return revisions;
 }
 
-/** Reads the current company planning revision, treating pre-migration rows as revision zero. */
+/** Reads the current company planning revision; a company without a revision row reads as zero. */
 export async function getPlanningRevision(
   trx: TransactionClientContract,
   companyId: string

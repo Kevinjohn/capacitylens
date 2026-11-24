@@ -4,9 +4,9 @@ import {
   DATE_STYLES,
   SCHEDULING_MODES,
 } from '@capacitylens/shared/types/entities';
+import { isSupportedTimeZone } from '@capacitylens/shared/types/entityFieldRules';
 import {
   boolean,
-  isSupportedTimeZone,
   nameText,
   presetColor,
   requireChanges,
