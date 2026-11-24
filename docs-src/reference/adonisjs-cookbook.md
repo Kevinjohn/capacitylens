@@ -1198,14 +1198,6 @@ export { limiter as default }
   the framework calls instead of the application (the configure hook, the provider, commands, a
   middleware's `handle`, a controller's actions) need none.
 
-### Compound failures
-
-Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule only when the work
-fails and its cleanup fails too. Its `errors[0]` is the primary failure; subsequent failures follow
-in the order observed. Every function that can throw or propagate one documents it in `@throws`.
-Never use it for an expected 4xx outcome or a case on which a caller needs to branch; use a package
-exception class for that case instead.
-
 Recipe, `src/errors.ts` and a throw site:
 
 ```ts
@@ -1277,6 +1269,14 @@ export class SqliteBackup {
 The first example carries its import because the reader has not imported anything yet. The second
 starts from `backup`; the class's own `@example` shows the import from `services/main` that produces
 it.
+
+### Compound failures
+
+Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule and PKG-47's
+`src/errors.ts` rule only when the work fails and its cleanup fails too. Its `errors[0]` is the
+primary failure; subsequent failures follow in the order observed. Every function that can throw or
+propagate one documents it in `@throws`. Never use it for an expected 4xx outcome or a case on which
+a caller needs to branch; use a package exception class for that case instead.
 
 ## Tests and release
 
