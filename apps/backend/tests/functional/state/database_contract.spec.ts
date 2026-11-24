@@ -1,3 +1,5 @@
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
@@ -60,9 +62,14 @@ test.group('database contract', (group) => {
     assert,
   }) => {
     const journal = await db.from('adonis_schema').orderBy('id').select('name');
+    const shipped = readdirSync(join(process.cwd(), 'database/migrations'))
+      .filter((name) => name.endsWith('.ts'))
+      .sort()
+      .map((name) => `database/migrations/${name.slice(0, -'.ts'.length)}`);
+    assert.equal(shipped[0], 'database/migrations/202610120001_create_capacitylens_baseline');
     assert.deepEqual(
       journal.map((row) => row.name),
-      ['database/migrations/202610120001_create_capacitylens_baseline']
+      shipped
     );
     const rows = await db.from('sqlite_master').select('name').where('type', 'table');
     assert.includeMembers(
