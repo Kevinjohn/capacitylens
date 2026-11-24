@@ -313,7 +313,10 @@ test('CI builds the application once and backend tests use those assets without 
   const download = backend.steps.findIndex((step) =>
     step.uses?.startsWith('actions/download-artifact'),
   );
-  const testIndex = backend.steps.findIndex((step) => step.run === 'pnpm --dir apps/backend test');
+  const testIndex = backend.steps.findIndex(
+    (step) => step.run === 'pnpm --dir apps/backend test ${{ matrix.suite }}',
+  );
+  assert.deepEqual(backend.strategy.matrix.suite, ['unit', 'functional']);
   assert.equal(backend.steps[download].with.name, upload.with.name);
   assert.equal(backend.steps[download].with.path, upload.with.path);
   assert.ok(download >= 0 && download < testIndex);

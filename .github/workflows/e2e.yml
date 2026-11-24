@@ -51,13 +51,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: Chromium + auth
+          # Each engine runs as two shards on separate runners; both together cover its suite
+          # (#1808, #2529). A runner admits two browser workers, so a second runner halves the wait.
+          - label: Chromium + auth 1/2
             browser: chromium
-            command: pnpm run e2e
-          - label: Firefox
+            shard: 1-of-2
+            command: pnpm run e2e --shard=1/2
+          - label: Chromium + auth 2/2
+            browser: chromium
+            shard: 2-of-2
+            command: pnpm run e2e --shard=2/2
+          - label: Firefox 1/2
             browser: firefox
-            command: pnpm run e2e:firefox
-          # Trial (#1808): two WebKit shards on separate runners; both together cover the suite.
+            shard: 1-of-2
+            command: pnpm run e2e:firefox --shard=1/2
+          - label: Firefox 2/2
+            browser: firefox
+            shard: 2-of-2
+            command: pnpm run e2e:firefox --shard=2/2
           - label: WebKit 1/2
             browser: webkit
             shard: 1-of-2

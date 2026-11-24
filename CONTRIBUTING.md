@@ -165,7 +165,7 @@ request. CI runs:
   type-check in parallel jobs, tooling-policy checks when their inputs change, and a short Chromium
   journey (sign-in, the planner and saving an allocation).
 - **Weekly and manual full validation:** every tooling check, frontend coverage, Chromium, Firefox
-  and both WebKit shards, the full-history secret scan and Scorecard.
+  and WebKit in two shards each, the full-history secret scan and Scorecard.
 - **`v*` tags:** full validation of the tagged commit, the container smoke, container scans and the
   ZAP baseline. The tag push publishes the images, only after the tag's Validation run and the
   container smoke succeed.
