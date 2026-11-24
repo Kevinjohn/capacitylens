@@ -12,6 +12,7 @@ import { makeCompany, makeClient } from '@/test/fixtures';
 import { useInactiveCompanyData } from './useInactiveCompanyData';
 import { permissionValue } from '@/test/permissionGrants';
 import { createDeferred } from '@/test/createDeferred';
+import { m } from '@/i18n';
 
 function payload(companyId: string, name: string) {
   return {
@@ -192,5 +193,45 @@ describe('useInactiveCompanyData', () => {
     });
     expect(await screen.findByText(/Safe cover/)).toBeInTheDocument();
     expect(screen.queryByText(/Owner secret/)).not.toBeInTheDocument();
+  });
+});
+
+describe('useInactiveCompanyData read failure notices', () => {
+  beforeEach(() => useStore.getState().setNotice(null));
+
+  async function renderFailedRead(response: Response) {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    render(view('admin'));
+    await waitFor(() => expect(cache.getQueryCache().getAll()[0]?.state.status).toBe('error'));
+    expect(screen.getByText('hidden')).toBeInTheDocument();
+  }
+
+  it('stays silent on a 403, which only means inactive rows are not offered', async () => {
+    await renderFailedRead(Response.json({ error: 'Forbidden.' }, { status: 403 }));
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it('reports another HTTP failure by its status', async () => {
+    await renderFailedRead(new Response(null, { status: 500 }));
+    expect(useStore.getState().notice).toEqual({
+      message: m.settings_archived_err_load({ status: 500 }),
+      tone: 'error',
+    });
+  });
+
+  it('prefers the server sentence for an HTTP failure that carries one', async () => {
+    await renderFailedRead(Response.json({ error: 'The archive is resting.' }, { status: 503 }));
+    expect(useStore.getState().notice).toEqual({
+      message: 'The archive is resting.',
+      tone: 'error',
+    });
+  });
+
+  it('reports an answer that is not a complete company set', async () => {
+    await renderFailedRead(Response.json({ data: { companies: [] } }));
+    expect(useStore.getState().notice).toEqual({
+      message: m.settings_archived_err_incomplete(),
+      tone: 'error',
+    });
   });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { invalidateInactiveReads, queryClient } from '@/api/queryClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateInactiveReads } from '@/api/queryClient';
 import { useStore } from '@/store/useStore';
 import type { LifecycleEntity } from '@/lib/entityDrafts';
 import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
@@ -30,6 +31,7 @@ export interface LifecycleOperations {
  */
 export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperations {
   const mutationQueue = useRef<Promise<void>>(Promise.resolve());
+  const queryClient = useQueryClient();
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
 
@@ -45,7 +47,7 @@ export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperat
         onReloaded?.();
       }
     },
-    [activeCompanyId, setNotice, onReloaded],
+    [activeCompanyId, setNotice, onReloaded, queryClient],
   );
 
   const run = useCallback(
@@ -91,7 +93,7 @@ export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperat
       mutationQueue.current = scheduled;
       return scheduled;
     },
-    [activeCompanyId, dispatchServer, setNotice],
+    [activeCompanyId, dispatchServer, setNotice, queryClient],
   );
 
   // Stabilize the returned surface so consumers do not rerender solely because its object identity changes.
