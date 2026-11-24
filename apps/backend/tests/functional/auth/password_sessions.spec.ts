@@ -186,6 +186,15 @@ test.group('password sign-in and sessions', (group) => {
     );
   });
 
+  test('a new sign-in is registered to expire after 14 idle days', async ({ client, assert }) => {
+    const userId = await owner();
+    const before = Date.now();
+    await signIn(client, email, password);
+    const session = await db.from('account_sessions').where('user_id', userId).firstOrFail();
+    const idleDays = (new Date(session.expires_at).getTime() - before) / 86_400_000;
+    assert.closeTo(idleDays, 14, 0.01);
+  });
+
   test('an expired or unregistered sign-in is refused', async ({ client }) => {
     const userId = await owner();
     const expiring = await signIn(client, email, password);
