@@ -1,13 +1,23 @@
 import { spawnSync } from 'node:child_process';
+import type { SpawnSyncOptions } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
-/** Generate shared backend client and localization modules before any worker starts. */
+function run(description: string, command: string, args: string[], options?: SpawnSyncOptions) {
+  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', ...options });
+  if (result.error) throw result.error;
+  if (result.status !== 0)
+    throw new Error(`${description} failed (${result.status ?? result.signal}).`);
+}
+
+/**
+ * Generate shared backend client and localization modules, then build the SPA every worker's
+ * backend serves, before any worker starts. Building on every run keeps the browser suite on the
+ * current source rather than a bundle left over from an earlier build.
+ */
 export default function globalSetup(): void {
-  const codegen = spawnSync('pnpm', ['--dir', 'apps/backend', 'codegen'], {
-    cwd: root,
-    stdio: 'inherit',
+  run('Backend code generation', 'pnpm', ['--dir', 'apps/backend', 'codegen'], {
     // Code generation loads route configuration, which validates the app environment.
     env: {
       ...process.env,
@@ -23,15 +33,19 @@ export default function globalSetup(): void {
       CAPACITYLENS_E2E_WORKER_API: '0',
     },
   });
-  if (codegen.error) throw codegen.error;
-  if (codegen.status !== 0)
-    throw new Error(`Backend code generation failed (${codegen.status ?? codegen.signal}).`);
-
-  const result = spawnSync('pnpm', ['run', 'paraglide:compile'], {
-    cwd: root,
-    stdio: 'inherit',
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(`Paraglide compilation failed (${result.status ?? result.signal}).`);
+  run('Paraglide compilation', 'pnpm', ['run', 'paraglide:compile']);
+  // Deployment settings from a local environment file must not change what the specs see.
+  run(
+    'SPA build',
+    'pnpm',
+    ['--dir', 'apps/frontend', 'exec', 'vite', 'build', '--logLevel', 'warn'],
+    {
+      env: {
+        ...process.env,
+        VITE_CAPACITYLENS_BUILD_SHA: '',
+        VITE_CAPACITYLENS_FEEDBACK_MAILTO: '',
+      },
+    },
+  );
+  run('SPA sync', process.execPath, ['scripts/build/sync-adonis-public.mjs']);
 }

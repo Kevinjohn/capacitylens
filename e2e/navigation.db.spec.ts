@@ -17,7 +17,7 @@ const deepDestinations = [
 ] as const;
 
 test.describe('Navigation & shell', () => {
-  // This exercises real document navigations rather than React Router transitions. The Vite history
+  // This exercises real document navigations rather than React Router transitions. The backend's page
   // fallback must serve index.html, and the session-only company gate must preserve the URL.
   for (const [path, heading] of deepDestinations) {
     test(

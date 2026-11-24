@@ -80,7 +80,7 @@
     "policy:check-changed:test": "node --test scripts/ci/check-changed.test.mjs",
     "policy:turbo-graph:test": "node --test scripts/ci/turbo-graph.test.mjs",
     "policy:node-runtime:test": "node --test scripts/ci/check-node-runtime.test.mjs",
-    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2e/e2eWorkerRuntime.test.mjs scripts/dev/disposableDemoStorage.test.mjs scripts/e2e/e2eProxyDrain.test.mjs scripts/e2e/playwrightWorkers.test.mjs scripts/e2e/e2eReset.test.mjs scripts/e2e/playwright-server-reuse.test.mjs scripts/e2e/serverStateTransport.test.mjs && node scripts/build/paraglidePluginParity.mjs"
+    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2e/e2eWorkerRuntime.test.mjs scripts/dev/disposableDemoStorage.test.mjs scripts/e2e/playwrightWorkers.test.mjs scripts/e2e/e2eReset.test.mjs scripts/e2e/playwright-server-reuse.test.mjs scripts/e2e/serverStateTransport.test.mjs"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": "eslint --max-warnings 0 --no-warn-ignored"

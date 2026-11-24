@@ -5,7 +5,7 @@ import type { Server as NetServer, Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-export type ResetControlRole = 'api' | 'vite';
+export type ResetControlRole = 'api';
 export type ResetControlCommand = 'status' | 'pause' | 'resume';
 
 const maxFrameBytes = 16 * 1024;
@@ -268,7 +268,7 @@ export async function requestResetControl(
 }
 
 export async function cleanupResetControlEndpoints(token: string): Promise<void> {
-  for (const role of ['api', 'vite'] as const) await cleanupResetControlEndpoint(token, role);
+  await cleanupResetControlEndpoint(token, 'api');
 }
 
 async function cleanupResetControlEndpoint(token: string, role: ResetControlRole): Promise<void> {

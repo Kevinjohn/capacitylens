@@ -8,7 +8,7 @@ const admin = { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' }
 type WorkerFixtures = { dbServer: E2eWorkerServer };
 type TestFixtures = { dbReset: void; dbAuthentication: void };
 
-/** Database-backed specs each receive an isolated real API, Vite proxy and SQLite file. */
+/** Database-backed specs each receive an isolated real API serving the built SPA, and a SQLite file. */
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   dbServer: [
     // This worker runtime is independent of Playwright's browser and request fixtures.

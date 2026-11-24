@@ -128,13 +128,14 @@ export async function freezeBrowserDate(page: Page): Promise<void> {
  * animated surface and waiting for two paint frames makes those assertions deterministic without
  * weakening the accessibility rules being checked. */
 export async function disableCssMotion(page: Page): Promise<void> {
-  await page.addStyleTag({
-    content: `
-      *, *::before, *::after {
-        animation: none !important;
-        transition: none !important;
-      }
-    `,
+  // A constructed stylesheet is not a `<style>` element, so the product's `style-src 'self'`
+  // policy allows it.
+  await page.evaluate(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(
+      '*, *::before, *::after { animation: none !important; transition: none !important; }',
+    );
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   });
   await page.evaluate(
     () =>

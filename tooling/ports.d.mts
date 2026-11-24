@@ -62,7 +62,7 @@ export function reservationCeiling(cores?: number): number;
 
 /** First isolated worker port. */
 export const WORKER_BASE: number;
-/** API/web worker slots per port lane. */
+/** Worker slots per port lane. */
 export const WORKER_SLOTS_PER_PORT_LANE: number;
-/** Returns an isolated API/web pair; invalid port lane or slot throws RangeError. */
-export function workerPorts(portLane: number, slot: number): Readonly<{ api: number; web: number }>;
+/** Returns an isolated worker API port; invalid port lane or slot throws RangeError. */
+export function workerPorts(portLane: number, slot: number): Readonly<{ api: number }>;

@@ -168,36 +168,7 @@ test(
     const target = serverTarget(resolvePortLane(), E2E_SCRIPT_TEST_SLOTS.reset);
     const release = acquireExclusiveFile(`${target.databasePath}.reset-test.lock`);
     const controlToken = createResetControlToken();
-    let failNextVitePause = false;
-    let failNextViteResume = false;
-    let vitePaused = false;
-    let viteControlClosed = false;
-    const viteControl = createResetControlServer(controlToken, 'vite', {
-      status: () => ({
-        paused: vitePaused,
-        listening: !vitePaused,
-        activeRequests: 0,
-        openSockets: 0,
-        pendingUpstreamRequests: 0,
-      }),
-      async pause() {
-        if (failNextVitePause) {
-          failNextVitePause = false;
-          throw new Error('Worker Vite still has in-flight API sockets');
-        }
-        vitePaused = true;
-        return { paused: vitePaused };
-      },
-      async resume() {
-        if (failNextViteResume) {
-          failNextViteResume = false;
-          throw new Error('Vite listener failed to reopen');
-        }
-        vitePaused = false;
-        return { paused: vitePaused };
-      },
-    });
-    await viteControl.ready;
+    let fakeApiControl;
 
     const environment = {
       ...process.env,
@@ -278,8 +249,6 @@ test(
             server = undefined;
             await terminateProcessTree(ownedServer);
           }
-          await viteControl.close();
-          viteControlClosed = true;
         },
       });
       await waitForApiIdle(target.api);
@@ -487,9 +456,6 @@ test(
           Object.assign(Object.create(null), row),
         ),
       );
-      failNextVitePause = true;
-      await assert.rejects(resetServer({ target }), /in-flight API sockets/);
-      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 1);
       await resetServer({ target, withSeed: false });
       assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 0);
       assert.equal(database.prepare('SELECT COUNT(*) AS count FROM memberships').get().count, 0);
@@ -535,18 +501,36 @@ test(
         database.prepare('SELECT COUNT(*) AS count FROM users WHERE id = ?').get(admin.id).count,
         0,
       );
-      failNextViteResume = true;
+      // A listener that cannot reopen after the restore must stop the worker, not leave it paused.
+      await terminateProcessTree(server);
+      server = undefined;
+      await cleanupResetControlEndpoints(controlToken);
+      let fakeApiStopped = false;
+      fakeApiControl = createResetControlServer(controlToken, 'api', {
+        status: () => ({ paused: false }),
+        pause: async () => ({ paused: true }),
+        async resume() {
+          throw new Error('API listener failed to reopen');
+        },
+      });
+      await fakeApiControl.ready;
+      configureServerTarget(target, {
+        controlToken,
+        stop: async () => {
+          await fakeApiControl.close();
+          fakeApiStopped = true;
+        },
+      });
       await assert.rejects(
         resetServer({ target }),
-        /owned API\/Vite pair could not resume; the pair was stopped/,
-        'a partial listener resume stops the worker pair after restoring SQLite',
+        /owned worker API could not resume; it was stopped/,
+        'a failed listener resume stops the worker after restoring SQLite',
       );
-      assert.equal(server, undefined, 'the owned API process is stopped after partial resume');
-      assert.equal(viteControlClosed, true, 'the owned Vite control process is stopped too');
+      assert.equal(fakeApiStopped, true, 'the owned worker is stopped after a failed resume');
     } finally {
       database?.close();
       if (server) await terminateProcessTree(server);
-      await viteControl.close();
+      await fakeApiControl?.close();
       if (created)
         for (const suffix of ['', '-wal', '-shm', '.template'])
           rmSync(`${target.databasePath}${suffix}`, { force: true });

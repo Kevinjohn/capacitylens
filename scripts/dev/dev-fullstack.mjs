@@ -162,12 +162,7 @@ export async function runDevelopmentStack({ demo = false } = {}) {
     start('api', ['--filter', '@capacitylens/backend', 'run', 'dev'], apiEnvironment);
     if (demo) await waitUntilReady(`http://127.0.0.1:${API_PORT}/health/ready`);
     const webEnvironment = { CAPACITYLENS_DEV_API_PORT: String(API_PORT) };
-    if (demo)
-      Object.assign(webEnvironment, {
-        CAPACITYLENS_VITE_SERVICE: 'web',
-        CAPACITYLENS_VITE_PORT: String(WEB_PORT),
-        CAPACITYLENS_E2E_WORKER: '0',
-      });
+    if (demo) Object.assign(webEnvironment, { CAPACITYLENS_VITE_SERVICE: 'web' });
     start('web', ['run', 'dev:web'], webEnvironment);
     if (demo) {
       await waitUntilReady(`http://127.0.0.1:${WEB_PORT}/health/ready`);

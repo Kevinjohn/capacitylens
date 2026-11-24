@@ -5,7 +5,7 @@ import { configureServerTarget, prepareServerTemplate, serverTarget } from './se
 /** The process handles and target owned by one Playwright worker slot. */
 export type E2eWorkerServer = Awaited<ReturnType<typeof startE2eWorkerServer>>;
 
-/** Start the real API and Vite proxy associated with this worker's stable parallel index. */
+/** Start the real API, serving the built SPA, for this worker's stable parallel index. */
 export async function startWorkerServer(parallelIndex: number): Promise<E2eWorkerServer> {
   const portLane = resolvePortLane();
   const target = serverTarget(portLane, parallelIndex);

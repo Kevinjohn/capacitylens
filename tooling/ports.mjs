@@ -35,10 +35,10 @@ const BASES = Object.freeze({
 
 /** First API port in the isolated browser-worker range. */
 export const WORKER_BASE = 10000;
-/** Number of API/web pairs reserved per port lane. */
+/** Number of worker API ports reserved per port lane. */
 export const WORKER_SLOTS_PER_PORT_LANE = 50;
 
-/** Return the isolated API and web ports for a port lane and stable parallel-worker slot. */
+/** Return the isolated API port for a port lane and stable parallel-worker slot. */
 export function workerPorts(portLane, slot) {
   assertPortLane(portLane);
   if (!Number.isInteger(slot) || slot < 0 || slot >= WORKER_SLOTS_PER_PORT_LANE) {
@@ -46,8 +46,7 @@ export function workerPorts(portLane, slot) {
       `A worker slot must be an integer from 0 to ${WORKER_SLOTS_PER_PORT_LANE - 1}; received ${JSON.stringify(slot)}.`,
     );
   }
-  const api = WORKER_BASE + portLane * WORKER_SLOTS_PER_PORT_LANE * 2 + slot * 2;
-  return Object.freeze({ api, web: api + 1 });
+  return Object.freeze({ api: WORKER_BASE + portLane * WORKER_SLOTS_PER_PORT_LANE + slot });
 }
 
 /** Return an integer port lane from 0 to `PORT_LANE_CEILING - 1`, or throw `RangeError`. */

@@ -16,11 +16,10 @@ import {
 
 const portLane = resolvePortLane();
 const slot = E2E_SCRIPT_TEST_SLOTS.runtime;
-const target = (databasePath, apiPort, webPort) => ({
+const target = (databasePath, apiPort) => ({
   portLane,
   slot,
   api: `http://127.0.0.1:${apiPort}`,
-  web: `http://127.0.0.1:${webPort}`,
   databasePath,
   templatePath: `${databasePath}.template`,
 });
@@ -115,27 +114,22 @@ function waitForExit(child) {
   });
 }
 
-test('occupied API and web endpoints leave the existing database untouched', async () => {
+test('an occupied API endpoint leaves the existing database untouched', async () => {
   const ports = workerPorts(portLane, slot);
-  for (const [kind, port] of [
-    ['API', ports.api],
-    ['web', ports.web],
-  ]) {
-    const temp = join(tmpdir(), `capacitylens-e2e-collision-${kind}-${process.pid}.db`);
-    await writeFile(temp, 'preserve this database');
-    const listener = await listen(port);
-    try {
-      await assert.rejects(
-        startE2eWorkerServer(target(temp, ports.api, ports.web), portLane, slot),
-        new RegExp(`${kind} \\d+ port is occupied; refusing to remove its database`),
-      );
-      assert.equal(await readFile(temp, 'utf8'), 'preserve this database');
-    } finally {
-      await new Promise((resolve, reject) =>
-        listener.close((error) => (error ? reject(error) : resolve())),
-      );
-      await rm(temp, { force: true });
-    }
+  const temp = join(tmpdir(), `capacitylens-e2e-collision-${process.pid}.db`);
+  await writeFile(temp, 'preserve this database');
+  const listener = await listen(ports.api);
+  try {
+    await assert.rejects(
+      startE2eWorkerServer(target(temp, ports.api), portLane, slot),
+      /API \d+ port is occupied; refusing to remove its database/,
+    );
+    assert.equal(await readFile(temp, 'utf8'), 'preserve this database');
+  } finally {
+    await new Promise((resolve, reject) =>
+      listener.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(temp, { force: true });
   }
 });
 
@@ -228,7 +222,6 @@ test('a normal guardian stop terminates its service group before exit', async ()
 
 test('guardian disconnect cleans each crash stage before stale lease recovery removes files', async () => {
   const db = join(tmpdir(), `capacitylens-e2e-stale-${process.pid}.db`);
-  const cache = join(process.cwd(), 'node_modules', `.vite-e2e-l${portLane}-w${slot}`);
   const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
   const id = `l${portLane}-w${slot}`;
   const lock = join(leaseDirectory, `${id}.lock`);
@@ -236,7 +229,6 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
   const owner = join(lock, ownerName);
   await mkdir(leaseDirectory, { recursive: true });
   await mkdir(lock, { recursive: true });
-  await mkdir(cache, { recursive: true });
   await writeFile(db, 'stale');
   await writeFile(`${db}.template`, 'stale template');
   let resetToken;
@@ -281,7 +273,7 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
     assert.equal(crash.status, 0, crash.stderr);
     await access(endpoint);
     await putOwner([], resetToken);
-    await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
+    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
     await assert.rejects(access(endpoint), { code: 'ENOENT' });
 
     // Crash after spawn but before recording the guardian: no service has been STARTed.
@@ -293,7 +285,7 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
     await unrecordedExit;
     assert.throws(() => process.kill(-unrecorded.pid, 0), { code: 'ESRCH' });
     await writeFile(db, 'stale pre-record');
-    await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
+    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
     await assert.rejects(access(db), { code: 'ENOENT' });
 
     // Crash after the guardian PID is atomically recorded but before START.
@@ -305,8 +297,7 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
     await recordedExit;
     await writeFile(db, 'stale');
     await writeFile(`${db}.template`, 'stale template');
-    await mkdir(cache, { recursive: true });
-    await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
+    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
     await assert.rejects(access(db), { code: 'ENOENT' });
     await assert.rejects(access(`${db}.template`), { code: 'ENOENT' });
     await assert.rejects(access(owner), { code: 'ENOENT' });
@@ -338,7 +329,7 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
     active.disconnect();
     await activeExit;
     await writeFile(db, 'stale active');
-    await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
+    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
     assert.throws(() => process.kill(-active.pid, 0), { code: 'ESRCH' });
     assert.throws(() => process.kill(descendantPid, 0), { code: 'ESRCH' });
     assert.equal(
@@ -352,14 +343,12 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
     if (resetToken) await cleanupResetControlEndpoints(resetToken);
     await rm(db, { force: true });
     await rm(`${db}.template`, { force: true });
-    await rm(cache, { recursive: true, force: true });
     await resetLease();
   }
 });
 
 test('SIGKILL of the real worker parent reaps guardians before recovery and restart', async () => {
   const db = join(process.cwd(), 'apps/backend', `.e2e-l${portLane}-w${slot}.db`);
-  const cache = join(process.cwd(), 'node_modules', `.vite-e2e-l${portLane}-w${slot}`);
   const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
   const lock = join(leaseDirectory, `l${portLane}-w${slot}.lock`);
   const runtimeUrl = new URL('./e2eWorkerRuntime.mjs', import.meta.url).href;
@@ -369,14 +358,8 @@ test('SIGKILL of the real worker parent reaps guardians before recovery and rest
   const recoverAndCheckFiles = async () => {
     await writeFile(db, 'stale worker database');
     await writeFile(`${db}.template`, 'stale worker template');
-    await mkdir(cache, { recursive: true });
-    await writeFile(join(cache, 'stale'), 'stale worker cache');
-    await recoverE2eWorker(
-      target(db, workerPorts(portLane, slot).api, workerPorts(portLane, slot).web),
-      portLane,
-      slot,
-    );
-    for (const path of [db, `${db}.template`, cache])
+    await recoverE2eWorker(target(db, workerPorts(portLane, slot).api), portLane, slot);
+    for (const path of [db, `${db}.template`])
       await assert.rejects(access(path), { code: 'ENOENT' });
   };
 
@@ -389,9 +372,7 @@ test('SIGKILL of the real worker parent reaps guardians before recovery and rest
         CAPACITYLENS_CRASH_STAGE: stage,
         CAPACITYLENS_CRASH_MARKER: marker,
         CAPACITYLENS_CRASH_RUNTIME_URL: runtimeUrl,
-        CAPACITYLENS_CRASH_TARGET: JSON.stringify(
-          target(db, workerPorts(portLane, slot).api, workerPorts(portLane, slot).web),
-        ),
+        CAPACITYLENS_CRASH_TARGET: JSON.stringify(target(db, workerPorts(portLane, slot).api)),
         CAPACITYLENS_CRASH_LANE: String(portLane),
         CAPACITYLENS_CRASH_SLOT: String(slot),
       },
@@ -413,7 +394,7 @@ test('SIGKILL of the real worker parent reaps guardians before recovery and rest
         assert.equal(owners.length, 1, 'active worker publishes exactly one lease owner');
         ownerPath = join(lock, owners[0]);
         groups = JSON.parse(await readFile(ownerPath, 'utf8')).groups;
-        assert.equal(groups.length, 2, 'active worker has API and Vite guardian groups');
+        assert.equal(groups.length, 1, 'active worker has one API guardian group');
       } else if (stage === 'before-owner') {
         assert.equal(staged.owner.groups.length, 1, 'pending owner has the spawned API guardian');
         assert.deepEqual(JSON.parse(await readFile(ownerPath, 'utf8')).groups, []);
@@ -438,13 +419,13 @@ test('SIGKILL of the real worker parent reaps guardians before recovery and rest
     await runStage('active');
 
     const restarted = await startE2eWorkerServer(
-      target(db, workerPorts(portLane, slot).api, workerPorts(portLane, slot).web),
+      target(db, workerPorts(portLane, slot).api),
       portLane,
       slot,
     );
     try {
       assert.equal((await fetch(`${restarted.target.api}/health/ready`)).ok, true);
-      assert.equal((await fetch(`${restarted.baseURL}/health/ready`)).ok, true);
+      assert.equal(restarted.baseURL, restarted.target.api, 'the API serves the browser page');
     } finally {
       await restarted.stop();
     }
@@ -453,7 +434,6 @@ test('SIGKILL of the real worker parent reaps guardians before recovery and rest
     await rm(`${db}-wal`, { force: true });
     await rm(`${db}-shm`, { force: true });
     await rm(`${db}.template`, { force: true });
-    await rm(cache, { recursive: true, force: true });
     await rm(lock, { recursive: true, force: true });
     await rm(temp, { recursive: true, force: true });
   }
@@ -479,7 +459,7 @@ test('a live process group from a stale record is never signalled and keeps its 
     });
     await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [unrelated.pid] }));
     await assert.rejects(
-      recoverE2eWorker(target(db, 1, 2), portLane, slot),
+      recoverE2eWorker(target(db, 1), portLane, slot),
       /preserving the lease and worker files/,
     );
     assert.equal(await readFile(db, 'utf8'), 'preserve');

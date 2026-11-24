@@ -17,7 +17,6 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const backend = join(root, 'apps/backend');
 const leaseRoot = join(tmpdir(), 'capacitylens-e2e-workers');
 const readinessTimeoutMs = 120_000;
-const cachePath = (portLane, slot) => join(root, 'node_modules', `.vite-e2e-l${portLane}-w${slot}`);
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
@@ -257,29 +256,24 @@ async function waitReady(processRecord, url, description, watched = [processReco
   );
 }
 
-async function assertPortsFree(apiPort, webPort) {
-  const [apiOccupied, webOccupied] = await Promise.all([portInUse(apiPort), portInUse(webPort)]);
-  if (apiOccupied || webOccupied) {
-    const occupied = [apiOccupied && `API ${apiPort}`, webOccupied && `web ${webPort}`]
-      .filter(Boolean)
-      .join(' and ');
-    throw new Error(`E2E worker ${occupied} port is occupied; refusing to remove its database.`);
-  }
+async function assertPortFree(apiPort) {
+  if (await portInUse(apiPort))
+    throw new Error(`E2E worker API ${apiPort} port is occupied; refusing to remove its database.`);
 }
 
-async function waitForControlServer(token, role) {
+async function waitForControlServer(token) {
   const deadline = Date.now() + 5_000;
   let lastError;
   while (Date.now() < deadline) {
     try {
-      await requestResetControl(token, role, 'status', 1_000);
+      await requestResetControl(token, 'api', 'status', 1_000);
       return;
     } catch (error) {
       lastError = error;
       await sleep(25);
     }
   }
-  throw new Error(`${role} reset control did not become ready within 5,000 ms.`, {
+  throw new Error('api reset control did not become ready within 5,000 ms.', {
     cause: lastError,
   });
 }
@@ -291,27 +285,6 @@ async function removeDatabaseFiles(target) {
 }
 
 class BusyWorkerError extends Error {}
-
-async function assertProxyDrained(webOrigin) {
-  const response = await fetch(`${webOrigin}/__e2e/active-proxies`, {
-    signal: AbortSignal.timeout(1_000),
-  });
-  if (!response.ok) throw new Error(`Worker Vite drain probe returned HTTP ${response.status}.`);
-  const value = await response.json();
-  if (
-    !Number.isInteger(value.activeRequests) ||
-    value.activeRequests < 0 ||
-    !Number.isInteger(value.openSockets) ||
-    value.openSockets < 0 ||
-    !Number.isInteger(value.pendingUpstreamRequests) ||
-    value.pendingUpstreamRequests < 0
-  )
-    throw new Error('Worker Vite drain probe returned an invalid active request count.');
-  if (value.activeRequests !== 0 || value.openSockets !== 0 || value.pendingUpstreamRequests !== 0)
-    throw new BusyWorkerError(
-      `Refusing database reset while Vite has ${value.activeRequests} active API requests, ${value.openSockets} open upstream sockets and ${value.pendingUpstreamRequests} pending upstream requests.`,
-    );
-}
 
 async function assertRequestsDrained(apiOrigin) {
   const response = await fetch(`${apiOrigin}/api/health/e2e-idle`, {
@@ -331,10 +304,9 @@ async function assertRequestsDrained(apiOrigin) {
   }
 }
 
-/** Starts an isolated API/Vite pair for one Playwright parallelIndex and owns their lifecycle. */
+/** Starts the isolated API serving the built SPA for one Playwright parallelIndex; owns its lifecycle. */
 export async function startE2eWorkerServer(target, portLane = resolvePortLane(), slot = 0) {
   const ports = workerPorts(portLane, slot);
-  const viteCachePath = cachePath(portLane, slot);
   const lease = await acquireLease(portLane, slot);
   const { paths } = lease;
   const resetToken = createResetControlToken();
@@ -379,18 +351,14 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
     }
     if (!terminationError) {
       if (removeDatabase) await removeDatabaseFiles(target);
-      await rm(viteCachePath, { recursive: true, force: true });
       await releaseLease(paths);
     }
     if (terminationError) throw terminationError;
   };
 
   try {
-    await assertPortsFree(ports.api, ports.web);
-    if (lease.recovered) {
-      await removeDatabaseFiles(target);
-      await rm(viteCachePath, { recursive: true, force: true });
-    }
+    await assertPortFree(ports.api);
+    if (lease.recovered) await removeDatabaseFiles(target);
     const api = makeChild('E2E API server');
     processes.push(api);
     writeOwner();
@@ -409,47 +377,11 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
     );
     await waitReady(api, `${target.api}/health/ready`, 'E2E API server');
     databaseOwned = true;
-
-    const vite = makeChild('E2E Vite server');
-    processes.push(vite);
-    writeOwner();
-    vite.start(
-      'pnpm',
-      [
-        '--dir',
-        'apps/frontend',
-        'exec',
-        'vite',
-        '--host',
-        '127.0.0.1',
-        '--port',
-        String(ports.web),
-        '--strictPort',
-      ],
-      {
-        cwd: root,
-        env: {
-          ...process.env,
-          CAPACITYLENS_PORT_LANE: String(portLane),
-          CAPACITYLENS_E2E_WORKER: '1',
-          CAPACITYLENS_E2E_RESET_TOKEN: resetToken,
-          CAPACITYLENS_VITE_PORT: String(ports.web),
-          CAPACITYLENS_VITE_CACHE_DIR: viteCachePath,
-          CAPACITYLENS_DEV_API_PORT: String(ports.api),
-          VITE_CAPACITYLENS_BUILD_SHA: '',
-          VITE_CAPACITYLENS_FEEDBACK_MAILTO: '',
-        },
-      },
-    );
-    await waitReady(vite, `${target.web}/health/ready`, 'E2E Vite proxy', processes);
-    await Promise.all([
-      waitForControlServer(resetToken, 'api'),
-      waitForControlServer(resetToken, 'vite'),
-    ]);
+    await waitForControlServer(resetToken);
 
     return {
       target,
-      baseURL: target.web,
+      baseURL: target.api,
       controlToken: resetToken,
       async stop() {
         await stop();
@@ -477,9 +409,8 @@ export async function recoverE2eWorker(target, portLane = resolvePortLane(), slo
   const lease = await acquireLease(portLane, slot);
   try {
     const ports = workerPorts(portLane, slot);
-    await assertPortsFree(ports.api, ports.web);
+    await assertPortFree(ports.api);
     await removeDatabaseFiles(target);
-    await rm(cachePath(portLane, slot), { recursive: true, force: true });
   } finally {
     await releaseLease(lease.paths);
   }
@@ -488,6 +419,5 @@ export async function recoverE2eWorker(target, portLane = resolvePortLane(), slo
 export {
   acquireLease as acquireE2eWorkerLease,
   releaseLease as releaseE2eWorkerLease,
-  assertProxyDrained as assertE2eProxyDrained,
   assertRequestsDrained as assertE2eRequestsDrained,
 };

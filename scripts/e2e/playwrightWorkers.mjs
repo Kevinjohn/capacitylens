@@ -4,13 +4,18 @@ import { freemem } from 'node:os';
 import { testShare, WORKER_SLOTS_PER_PORT_LANE } from '../../tooling/ports.mjs';
 import { resolvePlaywrightRunMode } from './playwrightRunMode.mjs';
 
-// Baseline full-stack RSS in KiB: API tree, warmed Vite tree and largest representative browser worker/tree (WebKit).
-export const AUTH_SERVER_MEMORY_BYTES = (671568 + 890832) * 1024;
-// Two measured E2E guardians were 59,436 and 59,348 KiB at API/Vite readiness;
-// reserve 64 MiB each for runtime and platform variation.
-export const E2E_GUARDIAN_MEMORY_BYTES = 2 * 64 * 1024 ** 2;
+// Baseline RSS in KiB: API tree, warmed Vite tree and largest representative browser worker/tree
+// (WebKit). The auth project still runs one API and one Vite server; a database worker runs only an
+// API, which serves the built SPA.
+const API_TREE_KIB = 671568;
+const VITE_TREE_KIB = 890832;
+const BROWSER_TREE_KIB = 1537376;
+export const AUTH_SERVER_MEMORY_BYTES = (API_TREE_KIB + VITE_TREE_KIB) * 1024;
+// Measured E2E guardians were 59,436 and 59,348 KiB at API/Vite readiness, and at most 48,368 KiB
+// across full API-only WebKit and Firefox runs; reserve 64 MiB for runtime and platform variation.
+export const E2E_GUARDIAN_MEMORY_BYTES = 64 * 1024 ** 2;
 export const WORKER_MEMORY_BYTES =
-  AUTH_SERVER_MEMORY_BYTES + 1537376 * 1024 + E2E_GUARDIAN_MEMORY_BYTES;
+  (API_TREE_KIB + BROWSER_TREE_KIB) * 1024 + E2E_GUARDIAN_MEMORY_BYTES;
 
 /**
  * Usable RAM from `vm_stat` output. macOS keeps most unused memory as inactive, speculative or

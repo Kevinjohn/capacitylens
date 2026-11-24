@@ -1,9 +1,5 @@
 import { defineConfig } from 'vitest/config';
 import { loadEnv } from 'vite';
-import type { Plugin, ProxyOptions } from 'vite';
-import { Agent } from 'node:http';
-import type { ClientRequest, RequestOptions } from 'node:http';
-import type { Socket } from 'node:net';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -12,8 +8,6 @@ import { parsePort } from '../../scripts/dev/parsePort.mjs';
 import { ports, testShare } from '../../tooling/ports.mjs';
 import { ENTRY_RAW_LIMIT_KB } from '../../scripts/build/bundleBudget.mjs';
 import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
-import { createResetControlServer } from '../../tooling/e2e_reset_control.ts';
-import { createRetirableListener } from '../../tooling/e2e_retirable_listener.ts';
 
 // Port lane-derived ports keep concurrent worktrees on disjoint service endpoints.
 const portLanePorts = ports();
@@ -32,136 +26,9 @@ if (!Object.hasOwn(portLanePorts, viteService)) {
   );
 }
 const servicePort = portLanePorts[viteService as keyof typeof portLanePorts];
-const e2eWorker = process.env.CAPACITYLENS_E2E_WORKER === '1';
-const e2eResetToken = process.env.CAPACITYLENS_E2E_RESET_TOKEN;
-/** Track pending proxy requests and their actual upstream sockets before a worker resets SQLite. */
-function createE2eProxyDrainProbe() {
-  let activeRequests = 0;
-  let pendingUpstreamRequests = 0;
-  const sockets = new Set<Socket>();
-  const agent = new Agent({ keepAlive: false });
-  let listenerControl: ReturnType<typeof createRetirableListener> | undefined;
-  let controlServer: ReturnType<typeof createResetControlServer> | undefined;
-  // The configured proxies have no async bypass hook, so proxy.web reaches Agent admission
-  // synchronously before pause control can interleave; this also covers requests queued for sockets.
-  const dispatchingAgent = agent as Agent & {
-    addRequest(request: ClientRequest, options: RequestOptions): void;
-  };
-  const addRequest = dispatchingAgent.addRequest.bind(agent);
-  dispatchingAgent.addRequest = (request, options) => {
-    pendingUpstreamRequests += 1;
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      pendingUpstreamRequests -= 1;
-    };
-    request.once('close', finish);
-    try {
-      addRequest(request, options);
-    } catch (error) {
-      request.off('close', finish);
-      finish();
-      throw error;
-    }
-  };
-  const configure: NonNullable<ProxyOptions['configure']> = (proxy) => {
-    proxy.on('proxyReq', (request) => {
-      const observe = (socket: Socket) => {
-        if (socket.destroyed || sockets.has(socket)) return;
-        sockets.add(socket);
-        socket.once('close', () => sockets.delete(socket));
-      };
-      if (request.socket) observe(request.socket);
-      else request.once('socket', observe);
-    });
-  };
-  const plugin: Plugin = {
-    name: 'capacitylens-e2e-proxy-drain-probe',
-    async configureServer(server) {
-      const httpServer = server.httpServer;
-      if (e2eResetToken && httpServer) {
-        listenerControl = createRetirableListener(httpServer, {
-          role: 'vite',
-          listen: async () => {
-            await server.listen();
-          },
-          async waitForQuiescence(timeoutMs) {
-            const deadline = Date.now() + timeoutMs;
-            while (activeRequests || pendingUpstreamRequests || sockets.size) {
-              if (Date.now() >= deadline)
-                throw new Error(
-                  `Vite pause timed out with ${activeRequests} active API requests, ${pendingUpstreamRequests} pending upstream requests and ${sockets.size} open upstream sockets.`,
-                );
-              await new Promise((resolve) => setTimeout(resolve, 10));
-            }
-            return {
-              activeRequests,
-              pendingUpstreamRequests,
-              openUpstreamSockets: sockets.size,
-            };
-          },
-          status: () => ({
-            activeRequests,
-            pendingUpstreamRequests,
-            openUpstreamSockets: sockets.size,
-          }),
-        });
-        controlServer = createResetControlServer(e2eResetToken, 'vite', {
-          status: listenerControl.status,
-          pause(timeoutMs) {
-            agent.destroy();
-            return listenerControl!.pause(timeoutMs);
-          },
-          resume: listenerControl.resume,
-        });
-        await controlServer.ready;
-      }
-
-      server.middlewares.use((request, _response, next) => {
-        if (listenerControl?.shouldReject(request.socket)) {
-          request.socket.destroy();
-          return;
-        }
-        next();
-      });
-      server.httpServer?.once('close', () => agent.destroy());
-      server.middlewares.use((request, response, next) => {
-        if (request.url === '/__e2e/active-proxies') {
-          response.statusCode = 200;
-          response.setHeader('content-type', 'application/json');
-          response.end(
-            JSON.stringify({ activeRequests, openSockets: sockets.size, pendingUpstreamRequests }),
-          );
-          return;
-        }
-        if (!request.url?.startsWith('/api/') && !request.url?.startsWith('/health')) return next();
-        activeRequests += 1;
-        let finished = false;
-        const finish = () => {
-          if (finished) return;
-          finished = true;
-          activeRequests -= 1;
-        };
-        response.once('finish', finish);
-        response.once('close', finish);
-        next();
-      });
-    },
-    async closeServer() {
-      await controlServer?.close();
-    },
-  };
-  return { plugin, proxyOptions: { agent, configure } };
-}
 
 /** Configures application builds and port-lane-local development, refusing invalid client deployment settings. */
-export default defineConfig(({ mode, command }) => {
-  const workerServe = command === 'serve' && e2eWorker;
-  const drainProbe = workerServe ? createE2eProxyDrainProbe() : null;
-  const vitePort = workerServe
-    ? parsePort(process.env.CAPACITYLENS_VITE_PORT, servicePort, 'CAPACITYLENS_VITE_PORT')
-    : servicePort;
+export default defineConfig(({ mode }) => {
   // Scripts load this config from the repository root, so resolve frontend paths from the config file.
   const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
   const fileEnv = loadEnv(mode, frontendRoot, 'VITE_CAPACITYLENS_');
@@ -174,9 +41,6 @@ export default defineConfig(({ mode, command }) => {
 
   return {
     root: frontendRoot,
-    ...(workerServe && process.env.CAPACITYLENS_VITE_CACHE_DIR
-      ? { cacheDir: process.env.CAPACITYLENS_VITE_CACHE_DIR }
-      : {}),
     build: {
       outDir: '../../dist',
       emptyOutDir: true,
@@ -191,17 +55,12 @@ export default defineConfig(({ mode, command }) => {
       // precompile them so direct type-check and Vitest commands can resolve the output. The
       // company-scoped locale stays client-only in a global variable; baseLocale keeps English as
       // the fallback without a page reload or server round-trip.
-      ...(!workerServe
-        ? [
-            paraglideVitePlugin({
-              project: './project.inlang',
-              outdir: './src/paraglide',
-              outputStructure: 'locale-modules',
-              strategy: ['globalVariable', 'baseLocale'],
-            }),
-          ]
-        : []),
-      ...(drainProbe ? [drainProbe.plugin] : []),
+      paraglideVitePlugin({
+        project: './project.inlang',
+        outdir: './src/paraglide',
+        outputStructure: 'locale-modules',
+        strategy: ['globalVariable', 'baseLocale'],
+      }),
     ],
     resolve: {
       alias: {
@@ -215,7 +74,7 @@ export default defineConfig(({ mode, command }) => {
     // Refuse occupied ports so the launcher and browser retain the same endpoint.
     server: {
       host: '127.0.0.1',
-      port: vitePort,
+      port: servicePort,
       strictPort: true,
       // The dev proxy and full-stack launcher share the configured port lane API port so browser requests stay same-origin.
       proxy: {
@@ -224,12 +83,10 @@ export default defineConfig(({ mode, command }) => {
           // scripts/dev/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
-          ...(drainProbe?.proxyOptions ?? {}),
         },
         '/health': {
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
-          ...(drainProbe?.proxyOptions ?? {}),
         },
       },
     },
