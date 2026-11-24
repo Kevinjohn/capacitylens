@@ -4,16 +4,9 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { LucidModel, LucidRow } from '@adonisjs/lucid/types/model';
 import { seed } from '@capacitylens/shared/data/seed';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
-import Activity from '#models/activity';
-import Allocation from '#models/allocation';
 import Client from '#models/client';
-import Closure from '#models/closure';
 import Company from '#models/company';
-import Discipline from '#models/discipline';
-import Phase from '#models/phase';
-import Project from '#models/project';
-import Resource from '#models/resource';
-import TimeOff from '#models/time_off';
+import { companyRows, productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
 import { encodeRow } from '#services/state_repository';
 import { tables } from '#services/product_tables';
@@ -24,18 +17,7 @@ type Row = Record<string, unknown>;
 // Parents before children, the order the cross-company triggers need.
 const KEYS = Object.keys(tables) as AppDataKey[];
 
-const models: Record<AppDataKey, LucidModel> = {
-  companies: Company,
-  clients: Client,
-  disciplines: Discipline,
-  projects: Project,
-  phases: Phase,
-  resources: Resource,
-  activities: Activity,
-  allocations: Allocation,
-  timeOff: TimeOff,
-  closures: Closure,
-};
+const modelOf = (key: AppDataKey): LucidModel => productModels[key];
 
 const archivedAt = '2026-03-04T05:06:07.089Z';
 
@@ -114,12 +96,7 @@ async function findStored(key: AppDataKey, row: Row, trx: TransactionClientContr
   if (key === 'companies') {
     return Company.query({ client: trx }).where('id', String(row.id)).firstOrFail();
   }
-  // Every other product model is company-scoped and shares the `forCompany` scope.
-  return (models[key] as typeof Client)
-    .query({ client: trx })
-    .withScopes((scopes) => scopes.forCompany(String(row.companyId)))
-    .where('id', String(row.id))
-    .firstOrFail();
+  return companyRows(key, String(row.companyId), trx).where('id', String(row.id)).firstOrFail();
 }
 
 test.group('model writes store what encodeRow stores', (group) => {
@@ -141,12 +118,12 @@ test.group('model writes store what encodeRow stores', (group) => {
     const modelled = await storeWith(async (trx) => {
       for (const key of KEYS) {
         for (const row of data[key]) {
-          await models[key].create(rowAttributes(models[key], row), { client: trx });
+          await modelOf(key).create(rowAttributes(modelOf(key), row), { client: trx });
         }
       }
       for (const { key, row } of updates) {
         const stored: LucidRow = await findStored(key, row, trx);
-        await stored.merge(rowAttributes(models[key], row)).save();
+        await stored.merge(rowAttributes(modelOf(key), row)).save();
       }
     });
 
