@@ -3,13 +3,15 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
-import { readStateWithClient } from '#services/state_repository';
 import { readState, resetState } from '#tests/helpers/state_fixture';
 import { executePlanningIntent as applyPlanningIntent } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import { StateRepositoryService } from '#services/state_repository_service';
+
+const stateRepository = new StateRepositoryService();
 
 const owner: PlanningAccessGrant = {
   role: 'owner',
@@ -24,7 +26,7 @@ async function executePlanningIntent(
   intent: PlanningIntent,
   accessGrant: PlanningAccessGrant
 ) {
-  const data = await readStateWithClient(trx, companyId, true);
+  const data = await stateRepository.readStateWithClient(trx, companyId, true);
   return applyPlanningIntent({
     trx,
     companyId,

@@ -6,7 +6,7 @@ As an evaluator, I want to explore a demo company on the real server so that I c
 **Access:** Printed development Owner sign-in
 **Entry:** `pnpm run dev:demo` → sign in → demo company
 **Documentation:** [Try the demo](../../docs-src/getting-started/try-the-demo.md)
-**Source:** [dev-demo.mjs](../../scripts/dev/dev-demo.mjs); [disposable_demo.ts](../../apps/backend/app/services/disposable_demo.ts)
+**Source:** [dev-demo.mjs](../../scripts/dev/dev-demo.mjs); [disposable_demo_service.ts](../../apps/backend/app/services/disposable_demo_service.ts)
 
 ## Acceptance criteria
 
@@ -48,4 +48,4 @@ flowchart TD
   stop -->|Exit unverified| retain["Report and retain its storage"]
 ```
 
-**Code references:** [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L38) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L61) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L124) · [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts#L11) · [demo_seed.ts](../../apps/backend/commands/demo_seed.ts#L11) · [disposable_demo.ts](../../apps/backend/app/services/disposable_demo.ts#L49) · [initial_company_access.ts](../../apps/backend/app/services/initial_company_access.ts#L14) · [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts#L108)
+**Code references:** [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L38) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L61) · [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs#L124) · [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts#L11) · [demo_seed.ts](../../apps/backend/commands/demo_seed.ts#L11) · [disposable_demo_service.ts](../../apps/backend/app/services/disposable_demo_service.ts#L49) · [initial_company_access_service.ts](../../apps/backend/app/services/initial_company_access_service.ts#L14) · [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts#L108)

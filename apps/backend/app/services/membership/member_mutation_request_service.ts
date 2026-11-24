@@ -2,7 +2,10 @@ import { inject } from '@adonisjs/core';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { CurrentActorService, type RequestAuth } from '#services/auth/current_actor_service';
-import { runAccountOperation, type AccountOperationIdentity } from '#services/account_operations';
+import {
+  AccountOperationService,
+  type AccountOperationIdentity,
+} from '#services/account_operation_service';
 
 /** One member operation: its company, operation name and identity, recorded payload and work. */
 export interface SemanticMutationInput<T> {
@@ -18,10 +21,16 @@ export interface SemanticMutationInput<T> {
 export class MemberMutationRequestService {
   #authorization: AuthorizationService;
   #currentActor: CurrentActorService;
+  #accountOperations: AccountOperationService;
 
-  constructor(authorization: AuthorizationService, currentActor: CurrentActorService) {
+  constructor(
+    authorization: AuthorizationService,
+    currentActor: CurrentActorService,
+    accountOperations: AccountOperationService
+  ) {
     this.#authorization = authorization;
     this.#currentActor = currentActor;
+    this.#accountOperations = accountOperations;
   }
 
   /** Runs a member operation as an account operation under live management permission. */
@@ -29,7 +38,7 @@ export class MemberMutationRequestService {
     const { companyId, operation, command, payload, work } = input;
     return this.#currentActor.withActor(auth, async (currentActor, trx) => {
       let actor: Awaited<ReturnType<AuthorizationService['assertCompanyPermission']>>;
-      return runAccountOperation(trx, {
+      return this.#accountOperations.runAccountOperation(trx, {
         name: operation,
         authorizeAccess: async () => {
           actor = await this.#authorization.assertCompanyPermission(

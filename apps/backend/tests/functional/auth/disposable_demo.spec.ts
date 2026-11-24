@@ -3,16 +3,14 @@ import app from '@adonisjs/core/services/app';
 import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
-import {
-  assertDisposableDemoDatabase,
-  prepareDisposableDemo,
-  seedDisposableDemo,
-} from '#services/disposable_demo';
 import { readState } from '#tests/helpers/state_fixture';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { createIdentity, signIn } from '#tests/helpers/identities';
 import { assertSafeFailure, operatorFixture } from '#tests/helpers/operator_command_helpers';
+import { DisposableDemoService } from '#services/disposable_demo_service';
+
+const disposableDemo = await app.container.make(DisposableDemoService);
 
 const email = 'admin@admin.admin';
 const password = 'capacitylens-demo-2026';
@@ -24,8 +22,14 @@ test.group('disposable development demo', (group) => {
     assert,
   }) => {
     const production = { inProduction: true } as ApplicationService;
-    await assert.rejects(() => prepareDisposableDemo(production), /forbidden in production/);
-    await assert.rejects(() => seedDisposableDemo(production), /forbidden in production/);
+    await assert.rejects(
+      () => disposableDemo.prepareDisposableDemo(production),
+      /forbidden in production/
+    );
+    await assert.rejects(
+      () => disposableDemo.seedDisposableDemo(production),
+      /forbidden in production/
+    );
     assert.lengthOf(await db.from('users'), 0);
     assert.lengthOf(await db.from('companies'), 0);
   });
@@ -33,11 +37,14 @@ test.group('disposable development demo', (group) => {
   test('seed requires the admitted development identity and never adopts another identity', async ({
     assert,
   }) => {
-    await assert.rejects(() => seedDisposableDemo(app), /administrator is missing/);
+    await assert.rejects(() => disposableDemo.seedDisposableDemo(app), /administrator is missing/);
     await createIdentity('owner@example.test');
-    await assert.rejects(() => seedDisposableDemo(app), /administrator is missing/);
+    await assert.rejects(() => disposableDemo.seedDisposableDemo(app), /administrator is missing/);
     await createIdentity(email, { password, admitted: false });
-    await assert.rejects(() => seedDisposableDemo(app), /administrator is not admitted/);
+    await assert.rejects(
+      () => disposableDemo.seedDisposableDemo(app),
+      /administrator is not admitted/
+    );
     assert.lengthOf(await db.from('companies'), 0);
     assert.lengthOf(await db.from('memberships'), 0);
   });
@@ -51,7 +58,7 @@ test.group('disposable development demo', (group) => {
     try {
       env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
       env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', password);
-      await prepareDisposableDemo(app);
+      await disposableDemo.prepareDisposableDemo(app);
     } finally {
       env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', originalCreate ?? false);
       env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', originalPassword ?? '');
@@ -59,7 +66,7 @@ test.group('disposable development demo', (group) => {
     const owner = await db.from('users').where('email', email).firstOrFail();
     assert.lengthOf(await db.from('companies'), 0);
     assert.lengthOf(await db.from('memberships'), 0);
-    await seedDisposableDemo(app);
+    await disposableDemo.seedDisposableDemo(app);
     const companies = await db.from('companies');
     assert.deepEqual(
       companies.map((row) => row.id),
@@ -93,8 +100,11 @@ test.group('disposable development demo', (group) => {
         .sort((a, b) => a.id.localeCompare(b.id))
         .map((row) => [row.id, row.startDate, row.endDate])
     );
-    await assert.rejects(() => seedDisposableDemo(app), /companies already exist/);
-    await assert.rejects(() => prepareDisposableDemo(app), /companies already exist/);
+    await assert.rejects(() => disposableDemo.seedDisposableDemo(app), /companies already exist/);
+    await assert.rejects(
+      () => disposableDemo.prepareDisposableDemo(app),
+      /companies already exist/
+    );
     assert.lengthOf(await db.from('memberships'), 1);
     const session = await signIn(client, email, password);
     const directory = await client
@@ -107,7 +117,7 @@ test.group('disposable development demo', (group) => {
 
   test('existing membership independently refuses preparation and seed', async ({ assert }) => {
     const owner = await createIdentity(email, { password });
-    await seedDisposableDemo(app);
+    await disposableDemo.seedDisposableDemo(app);
     // Keep a membership while making the company existence probe report empty. This stages the
     // independent membership check without manufacturing an invalid persisted foreign key.
     const originalFrom = db.from;
@@ -116,8 +126,14 @@ test.group('disposable development demo', (group) => {
         ? { first: async () => undefined }
         : originalFrom.call(db, table)) as typeof db.from;
     try {
-      await assert.rejects(() => prepareDisposableDemo(app), /memberships already exist/);
-      await assert.rejects(() => seedDisposableDemo(app), /memberships already exist/);
+      await assert.rejects(
+        () => disposableDemo.prepareDisposableDemo(app),
+        /memberships already exist/
+      );
+      await assert.rejects(
+        () => disposableDemo.seedDisposableDemo(app),
+        /memberships already exist/
+      );
     } finally {
       db.from = originalFrom;
     }
@@ -133,7 +149,7 @@ test.group('disposable development demo', (group) => {
       "CREATE TRIGGER reject_demo_audit BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'staged audit failure'); END"
     );
     try {
-      await assert.rejects(() => seedDisposableDemo(app), /staged audit failure/);
+      await assert.rejects(() => disposableDemo.seedDisposableDemo(app), /staged audit failure/);
       for (const table of [
         'companies',
         'clients',
@@ -152,7 +168,7 @@ test.group('disposable development demo', (group) => {
     const original = env.get('CAPACITYLENS_DB')!;
     try {
       env.set('CAPACITYLENS_DB', app.tmpPath('demo-l0-Ab12cD', '.demo.db'));
-      assert.doesNotThrow(() => assertDisposableDemoDatabase(app));
+      assert.doesNotThrow(() => disposableDemo.assertDisposableDemoDatabase(app));
       for (const path of [
         app.tmpPath('db.sqlite3'),
         app.tmpPath('.demo.db'),
@@ -161,7 +177,10 @@ test.group('disposable development demo', (group) => {
         '/tmp/demo-l0-Ab12cD/.demo.db',
       ]) {
         env.set('CAPACITYLENS_DB', path);
-        assert.throws(() => assertDisposableDemoDatabase(app), /not disposable demo storage/);
+        assert.throws(
+          () => disposableDemo.assertDisposableDemoDatabase(app),
+          /not disposable demo storage/
+        );
       }
     } finally {
       env.set('CAPACITYLENS_DB', original);

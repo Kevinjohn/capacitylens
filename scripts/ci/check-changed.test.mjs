@@ -752,7 +752,7 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
     'apps/backend/app/services/planning/entity_rules.ts',
     'apps/backend/app/middleware/company_scope_middleware.ts',
     'apps/backend/app/models_support/scoped_model.ts',
-    'apps/backend/app/services/state_repository.ts',
+    'apps/backend/app/services/state_repository_service.ts',
     'apps/backend/database/migrations/0001_baseline.ts',
     'apps/backend/start/routes.ts',
     'apps/backend/config/admission.ts',
@@ -767,14 +767,19 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
     assert.match(suite.reason, /permission, schema, configuration or test infrastructure/, path);
   }
   const viaHelper = step(
-    planChecks(['apps/backend/app/services/planning_revision.ts'], everything, noImporters, {
-      backendImporters: () => null,
-    }),
+    planChecks(
+      ['apps/backend/app/services/planning_revision_service.ts'],
+      everything,
+      noImporters,
+      {
+        backendImporters: () => null,
+      },
+    ),
     'test: backend suite',
   );
   assert.match(
     viaHelper.reason,
-    /a shared backend test helper imports apps\/backend\/app\/services\/planning_revision\.ts/,
+    /a shared backend test helper imports apps\/backend\/app\/services\/planning_revision_service\.ts/,
   );
   const unmapped = step(
     planChecks(

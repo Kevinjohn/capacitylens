@@ -11,7 +11,6 @@ import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { readState } from '#tests/helpers/state_fixture';
-import { getPlanningRevision } from '#services/planning_revision';
 import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import {
   clearIdentities,
@@ -21,6 +20,9 @@ import {
 } from '#tests/helpers/identities';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { asExportFile } from '#tests/helpers/export_file';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+
+const planningRevisions = new PlanningRevisionService();
 
 const companyId = 'a-studio';
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
@@ -213,7 +215,9 @@ test.group('package proof adoption boundaries', (group) => {
         completeness: 'full',
       })
     );
-    const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, companyId));
+    const baseRevision = await db.transaction((trx) =>
+      planningRevisions.getPlanningRevision(trx, companyId)
+    );
     const responses = [
       await issue(client, cookie, { ...body, companyId: scope }),
       await asDataOwner(client.visit('api.imports.store'), cookie)

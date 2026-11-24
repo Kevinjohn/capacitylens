@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import db from '@adonisjs/lucid/services/db';
 import { buildCompanyExport, type CompanyExport } from '@capacitylens/shared/data/companyExport';
 import { readState } from '#tests/helpers/state_fixture';
-import { getPlanningRevision } from '#services/planning_revision';
 import hash from '@adonisjs/core/services/hash';
 import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
@@ -16,6 +15,9 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import type { ApiClient } from '@japa/api-client';
 import { signIn } from '#tests/helpers/identities';
 import { asExportFile } from '#tests/helpers/export_file';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+
+const planningRevisions = new PlanningRevisionService();
 
 const companyId = 'a-studio';
 const password = 'fixture-password-2026';
@@ -25,7 +27,7 @@ async function document() {
 }
 
 async function revision() {
-  return db.transaction((trx) => getPlanningRevision(trx, companyId));
+  return db.transaction((trx) => planningRevisions.getPlanningRevision(trx, companyId));
 }
 
 async function deleteForRestoration(
@@ -36,7 +38,9 @@ async function deleteForRestoration(
   const state = await readState(targetCompanyId, true);
   const allocation = state.allocations[0];
   if (!allocation) throw new Error('The restoration fixture has no allocation.');
-  const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, targetCompanyId));
+  const baseRevision = await db.transaction((trx) =>
+    planningRevisions.getPlanningRevision(trx, targetCompanyId)
+  );
   const mutationId = randomUUID();
   const response = await asDataOwner(
     client.visit('api.planning_mutations.store', { companyId: targetCompanyId }),

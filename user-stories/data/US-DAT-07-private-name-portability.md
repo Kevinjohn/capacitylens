@@ -6,7 +6,7 @@ As an Owner, I want private names preserved safely in export and import so that 
 **Access:** Owner for import; role-tiered export
 **Entry:** Settings → Data and support → Import and export
 **Documentation:** [Settings](../../docs-src/using/settings.md#import-and-export)
-**Source:** [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Source:** [company_import_service.ts](../../apps/backend/app/services/company_import_service.ts)
 
 ## Acceptance criteria
 

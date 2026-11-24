@@ -10,7 +10,8 @@ import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
-import { readStateWithClient } from '#services/state_repository';
+import app from '@adonisjs/core/services/app';
+import { StateRepositoryService } from '#services/state_repository_service';
 import { parseAffectedRows } from '#models_support/affected_rows';
 import {
   buildRetainedQuery,
@@ -172,6 +173,7 @@ export async function restoreGroup(
   written: WrittenRow[],
   now = new Date().toISOString()
 ) {
+  const stateRepository = await app.container.make(StateRepositoryService);
   const owner = {
     group_id: groupId,
     company_id: companyId,
@@ -248,7 +250,7 @@ export async function restoreGroup(
     }
   }
   if (rows.length === 0) refuseRestorationConflict();
-  const dependencies = await readStateWithClient(trx, companyId, true);
+  const dependencies = await stateRepository.readStateWithClient(trx, companyId, true);
   const company = dependencies.companies.find((row) => row.id === companyId);
   const companyWorkingDays = normalizeCompanyWorkingDays(
     company?.workingDays,
@@ -297,7 +299,7 @@ export async function restoreGroup(
     restoredRows.push({ ...row });
     written.push({ entity, id, before: null, after: { ...row } });
   }
-  const current = await readStateWithClient(trx, companyId, true);
+  const current = await stateRepository.readStateWithClient(trx, companyId, true);
   for (const { entity, rowId, parentId } of links) {
     const field = entity === 'activities' ? 'phaseId' : 'disciplineId';
     const child = current[entity].find((row) => row.id === rowId);

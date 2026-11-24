@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app';
 import {
   buildActiveData,
   archiveImpact,
@@ -8,14 +9,10 @@ import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { readCompanyToday } from '#services/company_today';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { buildCapacitySection } from '#services/planning/capacity_section';
-import { readStateWithClient } from '#services/state_repository';
+import { StateRepositoryService } from '#services/state_repository_service';
 import { transformState } from '#transformers/state_transformer';
 import type { CurrentActor } from '#services/auth/current_actor_service';
-import {
-  getPlanningRevision,
-  advancePlanningRevision,
-  assertPlanningBaseRevision,
-} from '#services/planning_revision';
+import { PlanningRevisionService } from '#services/planning_revision_service';
 import { executePlanningIntent } from '#services/planning/execute';
 import { resolvePlanningAccess, type PlanningAccess } from '#services/planning/access';
 import {
@@ -24,7 +21,7 @@ import {
   listAuditedEntities,
   buildProjectionChanges,
 } from '#services/planning/mutation_changes';
-import { writeAudit } from '#services/audit';
+import { AuditService } from '#services/audit_service';
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
 import {
   countRestorableItems,
@@ -99,9 +96,11 @@ export async function readPlanning(
   window?: CapacityRange,
   page?: { sessionId: number; historyId?: string; ifRevision?: number }
 ): Promise<PlanningRead> {
+  const planningRevisions = await app.container.make(PlanningRevisionService);
+  const stateRepository = await app.container.make(StateRepositoryService);
   const { planningAccess } = await resolvePlanningAccess(trx, companyId);
-  const revision = await getPlanningRevision(trx, companyId);
-  const data = await readStateWithClient(trx, companyId, true);
+  const revision = await planningRevisions.getPlanningRevision(trx, companyId);
+  const data = await stateRepository.readStateWithClient(trx, companyId, true);
   const company = data.companies.find((row) => row.id === companyId);
   const today = readCompanyToday(company?.timezone ?? null);
   const visible = transformState(buildActiveData(data), companyId, planningAccess.role);
@@ -133,6 +132,7 @@ export async function readPlanning(
 
 /** Read only recoverable identities under the current transactional write permission. */
 export async function readArchiveRecovery(trx: TransactionClientContract, companyId: string) {
+  const stateRepository = await app.container.make(StateRepositoryService);
   const { planningAccess } = await resolvePlanningAccess(trx, companyId);
   if (!planningAccess.canWrite) {
     throw new PlanningOperationException(
@@ -141,7 +141,7 @@ export async function readArchiveRecovery(trx: TransactionClientContract, compan
       'This action is not allowed.'
     );
   }
-  const data = await readStateWithClient(trx, companyId, true);
+  const data = await stateRepository.readStateWithClient(trx, companyId, true);
   return archiveRecovery(data, companyId, planningAccess.role);
 }
 
@@ -171,6 +171,7 @@ export async function abandonPlanningHistory({
   companyId,
   historyId,
 }: Pick<PlanningHistoryStepOptions, 'trx' | 'actor' | 'companyId'> & { historyId: string }) {
+  const planningRevisions = await app.container.make(PlanningRevisionService);
   const { planningAccess } = await resolvePlanningAccess(trx, companyId);
   const owner = {
     companyId,
@@ -178,7 +179,7 @@ export async function abandonPlanningHistory({
     actorId: planningAccess.actorId,
     historyId,
   };
-  const revision = await getPlanningRevision(trx, companyId);
+  const revision = await planningRevisions.getPlanningRevision(trx, companyId);
   if (await readHistory(trx, owner, revision)) await discardHistory(trx, companyId);
 }
 
@@ -203,6 +204,9 @@ async function commit({
   step,
   supplied,
 }: CommitOptions): Promise<PlanningMutationSuccess> {
+  const planningRevisions = await app.container.make(PlanningRevisionService);
+  const stateRepository = await app.container.make(StateRepositoryService);
+  const audit = await app.container.make(AuditService);
   const { planningAccess, accessGrant } = await resolvePlanningAccess(trx, companyId);
   if (!planningAccess.canWrite) {
     throw new PlanningOperationException(
@@ -218,9 +222,9 @@ async function commit({
       'This mutation identity has already committed.'
     );
   }
-  assertPlanningBaseRevision(
+  planningRevisions.assertPlanningBaseRevision(
     input.baseRevision,
-    await getPlanningRevision(trx, companyId),
+    await planningRevisions.getPlanningRevision(trx, companyId),
     input.mutationId
   );
   const owner: HistoryOwner | null =
@@ -240,7 +244,7 @@ async function commit({
       step === 'undo' ? 'There is nothing to undo.' : 'There is nothing to redo.'
     );
   }
-  const before = await readStateWithClient(trx, companyId, true);
+  const before = await stateRepository.readStateWithClient(trx, companyId, true);
   const working = structuredClone(before);
   const execution = await executePlanningIntent({
     trx,
@@ -285,7 +289,7 @@ async function commit({
     }
     await discardRestorationGroups(trx, companyId);
   }
-  const revision = await advancePlanningRevision(trx, companyId);
+  const revision = await planningRevisions.advancePlanningRevision(trx, companyId);
   await recordCommittedMutation(trx, {
     companyId,
     mutationId: input.mutationId,
@@ -299,7 +303,7 @@ async function commit({
     transformState(buildActiveData(before), companyId, planningAccess.role),
     transformState(buildActiveData(working), companyId, planningAccess.role)
   );
-  await writeAudit(trx, {
+  await audit.writeAudit(trx, {
     companyId,
     actorId: planningAccess.actorId,
     action: intent.operation,

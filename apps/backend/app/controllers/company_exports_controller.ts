@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import access from '#config/access_control';
@@ -9,14 +8,17 @@ import {
   buildCompanyExport,
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyExport';
+import { StateRepositoryService } from '#services/state_repository_service';
 
 /** The company's export document. */
 @inject()
 export default class CompanyExportsController {
   #currentActor: CurrentActorService;
+  #stateRepository: StateRepositoryService;
 
-  constructor(currentActor: CurrentActorService) {
+  constructor(currentActor: CurrentActorService, stateRepository: StateRepositoryService) {
     this.#currentActor = currentActor;
+    this.#stateRepository = stateRepository;
   }
 
   /**
@@ -28,7 +30,7 @@ export default class CompanyExportsController {
     const companyId = String(params.companyId);
     const text = await this.#currentActor.withActor(auth, async (_actor, trx) => {
       const { planningAccess } = await resolvePlanningAccess(trx, companyId);
-      const rows = await readStateWithClient(
+      const rows = await this.#stateRepository.readStateWithClient(
         trx,
         companyId,
         access.can(planningAccess.role, 'members:manage')

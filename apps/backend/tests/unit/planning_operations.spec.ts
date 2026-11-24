@@ -1,5 +1,4 @@
 import { test } from '@japa/runner';
-import { assertPlanningBaseRevision } from '#services/planning_revision';
 import {
   buildExternalCapacityDefaults,
   buildPlaceholderCapacityDefaults,
@@ -10,6 +9,9 @@ import type {
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
 import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+
+const planningRevisions = new PlanningRevisionService();
 
 const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
 const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';
@@ -616,13 +618,13 @@ test.group('planning operation contracts', () => {
   }) => {
     let conflict: unknown;
     try {
-      assertPlanningBaseRevision(4, 5, uuid);
+      planningRevisions.assertPlanningBaseRevision(4, 5, uuid);
     } catch (error) {
       conflict = error;
     }
     assert.instanceOf(conflict, StalePlanningRevisionException);
     assert.equal((conflict as StalePlanningRevisionException).status, 409);
     assert.equal((conflict as StalePlanningRevisionException).code, 'STALE_REVISION');
-    assert.doesNotThrow(() => assertPlanningBaseRevision(5, 5, uuid));
+    assert.doesNotThrow(() => planningRevisions.assertPlanningBaseRevision(5, 5, uuid));
   });
 });

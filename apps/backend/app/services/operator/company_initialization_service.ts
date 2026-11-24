@@ -2,21 +2,29 @@ import { inject } from '@adonisjs/core';
 import db from '@adonisjs/lucid/services/db';
 import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { parseUserName } from '@capacitylens/shared/lib/strings';
-import { createInitialCompany } from '#services/initial_company_defaults';
 import { AdmissionRuleService } from '#services/account_kit/admission_rule_service';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import access from '#config/access_control';
-import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
 import { hasNoCompany } from '#services/installation_company';
+import { SchemaIntegrityService } from '#services/schema_integrity_service';
+import { InitialCompanyDefaultsService } from '#services/initial_company_defaults_service';
 
 /** Operator initialisation of the first company on an empty stopped installation. */
 @inject()
 export class CompanyInitializationService {
   #admissionRules: AdmissionRuleService;
+  #schemaIntegrity: SchemaIntegrityService;
+  #initialCompanyDefaults: InitialCompanyDefaultsService;
 
-  constructor(admissionRules: AdmissionRuleService) {
+  constructor(
+    admissionRules: AdmissionRuleService,
+    schemaIntegrity: SchemaIntegrityService,
+    initialCompanyDefaults: InitialCompanyDefaultsService
+  ) {
     this.#admissionRules = admissionRules;
+    this.#schemaIntegrity = schemaIntegrity;
+    this.#initialCompanyDefaults = initialCompanyDefaults;
   }
 
   /** Establish the first company role for an existing native identity without changing admission. */
@@ -28,7 +36,7 @@ export class CompanyInitializationService {
       throw new Error('Refusing invalid email or company name');
     }
     return withOperatorDatabase(db, async () => {
-      await assertSchemaIntegrity();
+      await this.#schemaIntegrity.assertSchemaIntegrity();
       // The Kit runner holds the writer lock its package writes rely on.
       return transaction(db, async (trx) => {
         if (
@@ -59,7 +67,11 @@ export class CompanyInitializationService {
         if (!(await this.#admissionRules.isAdmitted(String(user.id), trx))) {
           throw new Error('Refusing company initialization: identity is not admitted');
         }
-        return createInitialCompany(trx, { name, ownerId: String(user.id), actorId: null });
+        return this.#initialCompanyDefaults.createInitialCompany(trx, {
+          name,
+          ownerId: String(user.id),
+          actorId: null,
+        });
       });
     });
   }

@@ -1,13 +1,13 @@
 import { inject } from '@adonisjs/core';
 import { exportQueryValidator } from '#validators/export_query';
 import type { HttpContext } from '@adonisjs/core/http';
-import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import access from '#config/access_control';
+import { StateRepositoryService } from '#services/state_repository_service';
 
 /** The company's state as the effective member may read it. */
 @inject()
@@ -15,15 +15,18 @@ export default class CompanyStateController {
   #authorization: AuthorizationService;
   #masqueradeModes: MasqueradeModeService;
   #currentActor: CurrentActorService;
+  #stateRepository: StateRepositoryService;
 
   constructor(
     authorization: AuthorizationService,
     masqueradeModes: MasqueradeModeService,
-    currentActor: CurrentActorService
+    currentActor: CurrentActorService,
+    stateRepository: StateRepositoryService
   ) {
     this.#authorization = authorization;
     this.#masqueradeModes = masqueradeModes;
     this.#currentActor = currentActor;
+    this.#stateRepository = stateRepository;
   }
 
   async show({ auth, request, serialize }: HttpContext) {
@@ -41,7 +44,11 @@ export default class CompanyStateController {
         if (includeInactive === '1' && !access.can(role, 'members:manage')) {
           throw new IdentityAuthorizationException('Forbidden.');
         }
-        const state = await readStateWithClient(trx, companyId, includeInactive === '1');
+        const state = await this.#stateRepository.readStateWithClient(
+          trx,
+          companyId,
+          includeInactive === '1'
+        );
         return transformState(state, companyId, role);
       })
     );

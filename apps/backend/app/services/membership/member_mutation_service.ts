@@ -3,20 +3,29 @@ import { MembershipException } from '#exceptions/membership_exception';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
-import { writeAudit } from '#services/audit';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
-import { advancePlanningRevision } from '#services/planning_revision';
+import { AuditService } from '#services/audit_service';
+import { PlanningRevisionService } from '#services/planning_revision_service';
 
 /** Role and status changes to a company member. */
 @inject()
 export class MemberMutationService {
   #authorization: AuthorizationService;
   #signInTracking: MemberSignInTrackingService;
+  #audit: AuditService;
+  #planningRevisions: PlanningRevisionService;
 
-  constructor(signInTracking: MemberSignInTrackingService, authorization: AuthorizationService) {
+  constructor(
+    signInTracking: MemberSignInTrackingService,
+    authorization: AuthorizationService,
+    audit: AuditService,
+    planningRevisions: PlanningRevisionService
+  ) {
     this.#signInTracking = signInTracking;
     this.#authorization = authorization;
+    this.#audit = audit;
+    this.#planningRevisions = planningRevisions;
   }
 
   async #requireTargetMember(trx: TransactionClientContract, companyId: string, userId: string) {
@@ -49,8 +58,8 @@ export class MemberMutationService {
       trx,
     });
     if (member.role !== input.role) {
-      await advancePlanningRevision(trx, input.companyId);
-      await writeAudit(trx, {
+      await this.#planningRevisions.advancePlanningRevision(trx, input.companyId);
+      await this.#audit.writeAudit(trx, {
         companyId: input.companyId,
         actorId: input.actorId,
         action: 'member.role_changed',
@@ -77,8 +86,8 @@ export class MemberMutationService {
     });
     if (member.status !== input.status) {
       await this.#signInTracking.resetSignIn(input.companyId, input.userId, trx);
-      await advancePlanningRevision(trx, input.companyId);
-      await writeAudit(trx, {
+      await this.#planningRevisions.advancePlanningRevision(trx, input.companyId);
+      await this.#audit.writeAudit(trx, {
         companyId: input.companyId,
         actorId: input.actorId,
         action: 'member.status_changed',

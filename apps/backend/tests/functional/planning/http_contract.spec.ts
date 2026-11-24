@@ -6,7 +6,6 @@ import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
 import { updateSettings } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
-import { advancePlanningRevision } from '#services/planning_revision';
 import {
   companyId,
   planningUrl,
@@ -20,6 +19,9 @@ import {
   validationSentence,
 } from '#tests/functional/planning/helpers';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+
+const planningRevisions = new PlanningRevisionService();
 
 test.group('authenticated typed planning transactions', (group) => {
   group.setup(() => freshDatabase());
@@ -190,7 +192,7 @@ test.group('authenticated typed planning transactions', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie, userId } = await loginAsMember('editor');
-    await db.transaction((trx) => advancePlanningRevision(trx, companyId));
+    await db.transaction((trx) => planningRevisions.advancePlanningRevision(trx, companyId));
     const read = (query: Record<string, string | number>) =>
       session(client.get(planningUrl).qs(query), cookie).send();
 
@@ -221,7 +223,7 @@ test.group('authenticated typed planning transactions', (group) => {
         .from('memberships')
         .where({ scope_id: companyId, user_id: userId })
         .update({ role: 'viewer' });
-      await advancePlanningRevision(trx, companyId);
+      await planningRevisions.advancePlanningRevision(trx, companyId);
     });
     const afterRoleChange = await read({ ifRevision: 1 });
     afterRoleChange.assertStatus(200);

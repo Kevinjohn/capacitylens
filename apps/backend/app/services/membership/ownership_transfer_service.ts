@@ -7,10 +7,13 @@ import { IdentityAuthorizationException } from '#exceptions/identity_authorizati
 import { PasswordConfirmationService } from '#services/auth/password_confirmation_service';
 import { CurrentActorService, type CurrentActor } from '#services/auth/current_actor_service';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import { runAccountOperation, type AccountOperationIdentity } from '#services/account_operations';
 import access from '#config/access_control';
-import { writeAudit } from '#services/audit';
-import { advancePlanningRevision } from '#services/planning_revision';
+import { AuditService } from '#services/audit_service';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+import {
+  AccountOperationService,
+  type AccountOperationIdentity,
+} from '#services/account_operation_service';
 
 /** One ownership transfer in the caller's transaction, by its verified actor. */
 export interface OwnershipTransferInput {
@@ -28,15 +31,24 @@ export class OwnershipTransferService {
   #authorization: AuthorizationService;
   #passwordConfirmationRules: PasswordConfirmationService;
   #currentActor: CurrentActorService;
+  #audit: AuditService;
+  #planningRevisions: PlanningRevisionService;
+  #accountOperations: AccountOperationService;
 
   constructor(
     authorization: AuthorizationService,
     passwordConfirmationRules: PasswordConfirmationService,
-    currentActor: CurrentActorService
+    currentActor: CurrentActorService,
+    audit: AuditService,
+    planningRevisions: PlanningRevisionService,
+    accountOperations: AccountOperationService
   ) {
     this.#authorization = authorization;
     this.#passwordConfirmationRules = passwordConfirmationRules;
     this.#currentActor = currentActor;
+    this.#audit = audit;
+    this.#planningRevisions = planningRevisions;
+    this.#accountOperations = accountOperations;
   }
 
   /** Exchanges Owner and Admin inside one product transaction, with exact semantic replay. */
@@ -49,7 +61,7 @@ export class OwnershipTransferService {
     command,
   }: OwnershipTransferInput): Promise<OwnershipTransferReceipt> {
     let currentRole: Awaited<ReturnType<AuthorizationService['getActiveCompanyRole']>>;
-    return runAccountOperation(trx, {
+    return this.#accountOperations.runAccountOperation(trx, {
       name: 'transfer-ownership',
       authorizeAccess: async () => {
         this.#passwordConfirmationRules.refuseWhileViewing(actor);
@@ -103,8 +115,8 @@ export class OwnershipTransferService {
           toUserId,
           trx,
         });
-        await advancePlanningRevision(trx, companyId);
-        await writeAudit(trx, {
+        await this.#planningRevisions.advancePlanningRevision(trx, companyId);
+        await this.#audit.writeAudit(trx, {
           companyId,
           actorId: actor.userId,
           action: 'ownership.transferred',

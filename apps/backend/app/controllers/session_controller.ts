@@ -9,12 +9,12 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
-import { isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { buildUserProjection } from '#services/auth/user_projection';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { signInValidator } from '#validators/auth_requests';
 import { hasAnyIdentity } from '#services/installation_company';
+import { FirstCompanySetupService } from '#services/first_company_setup_service';
 
 /** The caller's sign-in: who is signed in, signing in with a password, and signing out. */
 @inject()
@@ -22,15 +22,18 @@ export default class SessionController {
   #passwordSignIn: PasswordSignInService;
   #currentActor: CurrentActorService;
   #admissionMemberships: AdmissionMembershipService;
+  #firstCompanySetup: FirstCompanySetupService;
 
   constructor(
     admissionMemberships: AdmissionMembershipService,
     passwordSignIn: PasswordSignInService,
-    currentActor: CurrentActorService
+    currentActor: CurrentActorService,
+    firstCompanySetup: FirstCompanySetupService
   ) {
     this.#admissionMemberships = admissionMemberships;
     this.#passwordSignIn = passwordSignIn;
     this.#currentActor = currentActor;
+    this.#firstCompanySetup = firstCompanySetup;
   }
 
   /**
@@ -50,7 +53,8 @@ export default class SessionController {
               emailVerified: actor.emailVerified,
               admission,
               companySetupRequired:
-                admitted && (await isFirstCompanySetupRequired(actor.userId, trx)),
+                admitted &&
+                (await this.#firstCompanySetup.isFirstCompanySetupRequired(actor.userId, trx)),
               // Admitted but not yet a member: the person completes their membership explicitly.
               membershipRequired:
                 admitted &&

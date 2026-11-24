@@ -4,9 +4,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { seed } from '@capacitylens/shared/data/seed';
-import { checkDatabase } from '#services/database_health';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
-import { assertSchemaIntegrity } from '#services/schema_integrity';
 import Company from '#models/company';
 import { insertTwoCompanyFixture } from '#tests/functional/state/database_contract_fixtures';
 import {
@@ -29,6 +27,12 @@ import {
   fullFixtureRows,
   insertInvalidReference,
 } from '#tests/functional/state/database_contract_cases';
+import app from '@adonisjs/core/services/app';
+import { DatabaseHealthService } from '#services/database_health_service';
+import { SchemaIntegrityService } from '#services/schema_integrity_service';
+
+const databaseHealth = await app.container.make(DatabaseHealthService);
+const schemaIntegrity = new SchemaIntegrityService();
 
 const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';
@@ -199,16 +203,16 @@ test.group('database contract', (group) => {
     await db.from('adonis_schema').where('id', record!.id).delete();
     try {
       const unrecorded = new RegExp(`Database schema drift: .*${String(record!.name)}`);
-      await assert.rejects(() => assertSchemaIntegrity(), unrecorded);
-      await assert.rejects(() => checkDatabase(), unrecorded);
+      await assert.rejects(() => schemaIntegrity.assertSchemaIntegrity(), unrecorded);
+      await assert.rejects(() => databaseHealth.checkDatabase(), unrecorded);
     } finally {
       await db.table('adonis_schema').insert(record!);
     }
   });
 
   test('readiness accepts a freshly migrated database', async () => {
-    await assertSchemaIntegrity();
-    await checkDatabase();
+    await schemaIntegrity.assertSchemaIntegrity();
+    await databaseHealth.checkDatabase();
   });
 
   test('round-trips every seeded entity through the migrated database read path', async ({
