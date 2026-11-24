@@ -1,11 +1,8 @@
-// Package, parser and database errors are not ours to describe, so the exception handler answers
+// Package and parser errors are not ours to describe, so the exception handler answers
 // them here in the product's flat `{ error, code? }` body before it calls `super.handle`. Product
 // exceptions answer for themselves, and a Vine validation failure takes the framework's answer.
 
-import type {
-  ProductHttpErrorBody,
-  ProductValidationFailure,
-} from '@capacitylens/shared/api/httpErrors';
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { errors as httpServerErrors } from '@adonisjs/core/http';
 import { errors as limiterErrors } from '@adonisjs/limiter';
 import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
@@ -180,14 +177,6 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
   }
 }
 
-const CONSTRAINT_CODES = new Set([
-  'SQLITE_CONSTRAINT_NOTNULL',
-  'SQLITE_CONSTRAINT_PRIMARYKEY',
-  'SQLITE_CONSTRAINT_UNIQUE',
-  'SQLITE_CONSTRAINT_FOREIGNKEY',
-  'SQLITE_CONSTRAINT_CHECK',
-]);
-
 function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
   if (typeof error !== 'object' || error === null) return;
   const code = 'code' in error ? error.code : undefined;
@@ -215,22 +204,10 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
       } satisfies ProductHttpErrorBody,
     };
   }
-  // A constraint failure is answered as invalid input but still logged: it means a check upstream
-  // let a bad write through.
-  if (typeof code === 'string' && CONSTRAINT_CODES.has(code)) {
-    return {
-      status: 400,
-      body: {
-        error: 'That change references missing data or conflicts with an existing record.',
-        code: 'VALIDATION_ERROR',
-      } satisfies ProductValidationFailure['body'],
-      errorType: 'database_constraint',
-    };
-  }
 }
 
 /**
- * The answer to each package, parser or database error the product recognises, in precedence
+ * The answer to each package or parser error the product recognises, in precedence
  * order; `undefined` for anything else. Several of these errors have their own `handle`, which would
  * send the package's envelope, so the handler must answer them before `super.handle`.
  */
