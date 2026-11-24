@@ -9,7 +9,7 @@ import {
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
-import { encodeRow } from '#services/state_repository';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
@@ -63,7 +63,7 @@ test.group('data routes', (group) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
-    await db.table('companies').insert(encodeRow('companies', company));
+    await insertProductRows('companies', [company]);
     await grantDataOwner(dataOwner.userId, company.id);
     for (const role of ['editor', 'admin']) {
       await db
@@ -294,7 +294,7 @@ test.group('data routes', (group) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
-    await db.table('companies').insert(encodeRow('companies', company));
+    await insertProductRows('companies', [company]);
     await grantDataOwner(dataOwner.userId, company.id);
     const otherCompanyId = await createFixtureCompanyForOwner(
       dataOwner.userId,
@@ -302,14 +302,9 @@ test.group('data routes', (group) => {
       'a-example-other'
     );
     const person = seed().resources.find((row) => row.kind === 'person')!;
-    await db.table('resources').insert(
-      encodeRow('resources', {
-        ...person,
-        id: 'r-example-other',
-        companyId: otherCompanyId,
-        disciplineId: null,
-      })
-    );
+    await insertProductRows('resources', [
+      { ...person, id: 'r-example-other', companyId: otherCompanyId, disciplineId: null },
+    ]);
     const otherBefore = await readState(otherCompanyId, true);
     const route = '/api/companies/a-example/example-data';
     const first = await trusted(client.post(route)).json({}).send();
@@ -331,7 +326,7 @@ test.group('data routes', (group) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
-    await db.table('companies').insert(encodeRow('companies', company));
+    await insertProductRows('companies', [company]);
     await grantDataOwner(dataOwner.userId, company.id);
     const resource = {
       ...seed().resources[0]!,
@@ -339,7 +334,7 @@ test.group('data routes', (group) => {
       companyId: company.id,
       disciplineId: null,
     };
-    await db.table('resources').insert(encodeRow('resources', resource));
+    await insertProductRows('resources', [resource]);
     const before = await readState(company.id, true);
     const response = await trusted(
       client.visit('api.example_data.store', { companyId: 'a-example' })
@@ -354,7 +349,7 @@ test.group('data routes', (group) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
-    await db.table('companies').insert(encodeRow('companies', company));
+    await insertProductRows('companies', [company]);
     await grantDataOwner(dataOwner.userId, company.id);
     const resource = {
       ...seed().resources[0]!,
@@ -363,7 +358,7 @@ test.group('data routes', (group) => {
       disciplineId: null,
       archivedAt: new Date().toISOString(),
     };
-    await db.table('resources').insert(encodeRow('resources', resource));
+    await insertProductRows('resources', [resource]);
     const existing = await trusted(
       client.visit('api.example_data.store', { companyId: 'a-example' })
     )
@@ -381,14 +376,14 @@ test.group('data routes', (group) => {
       const dataOwner = await reset(client, false);
       client = dataOwner.client;
       const company = { ...seed().companies[0]!, id: 'a-example' };
-      await db.table('companies').insert(encodeRow('companies', company));
+      await insertProductRows('companies', [company]);
       await grantDataOwner(dataOwner.userId, company.id);
       const clientRow = {
         ...seed().clients.find((row) => row.builtin !== true)!,
         id: 'c-example',
         companyId: company.id,
       };
-      await db.table('clients').insert(encodeRow('clients', clientRow));
+      await insertProductRows('clients', [clientRow]);
       if (kind === 'project') {
         const project = {
           ...seed().projects[0]!,
@@ -396,7 +391,7 @@ test.group('data routes', (group) => {
           companyId: company.id,
           clientId: clientRow.id,
         };
-        await db.table('projects').insert(encodeRow('projects', project));
+        await insertProductRows('projects', [project]);
       }
       const result = await trusted(
         client.visit('api.example_data.store', { companyId: 'a-example' })

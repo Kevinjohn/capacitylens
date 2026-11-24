@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
-import { encodeRow } from '#services/state_repository';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
@@ -225,8 +225,8 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const resourceId = before.resources.find((row) => row.kind === 'person')!.id;
     const ids: string[] = [randomUUID(), randomUUID(), randomUUID()];
     for (const id of ids)
-      await db.table('time_off').insert(
-        encodeRow('time_off', {
+      await insertProductRows('timeOff', [
+        {
           id,
           companyId,
           resourceId,
@@ -236,8 +236,8 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           note: 'Gotham private note',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        })
-      );
+        },
+      ]);
     const deleted = await send(
       client,
       cookie,

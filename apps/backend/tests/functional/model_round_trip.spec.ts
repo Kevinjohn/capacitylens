@@ -1,14 +1,18 @@
 import { test } from '@japa/runner';
+import { readFile } from 'node:fs/promises';
 import db from '@adonisjs/lucid/services/db';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { LucidModel, LucidRow } from '@adonisjs/lucid/types/model';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { seed } from '@capacitylens/shared/data/seed';
-import type { AppDataKey } from '@capacitylens/shared/types/entities';
+import { SCOPED_KEYS, type AppDataKey } from '@capacitylens/shared/types/entities';
 import Client from '#models/client';
 import Company from '#models/company';
 import { companyRows, productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
-import { encodeRow } from '#services/state_repository';
+import { applyCompanyImport } from '#services/company_import';
+import { getPlanningRevision } from '#services/planning_revision';
+import { readStateWithClient } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 
@@ -16,6 +20,11 @@ type Row = Record<string, unknown>;
 
 // Parents before children, the order the cross-company triggers need.
 const KEYS = Object.keys(tables) as AppDataKey[];
+
+// Captured from the query-builder write path before #2459, on this fixture; stored bytes must not move.
+const expected = JSON.parse(
+  await readFile(new URL('../fixtures-stored-rows.json', import.meta.url), 'utf8')
+) as Partial<Record<AppDataKey, Row[]>>;
 
 const modelOf = (key: AppDataKey): LucidModel => productModels[key];
 
@@ -99,21 +108,11 @@ async function findStored(key: AppDataKey, row: Row, trx: TransactionClientContr
   return companyRows(key, String(row.companyId), trx).where('id', String(row.id)).firstOrFail();
 }
 
-test.group('model writes store what encodeRow stores', (group) => {
+test.group('model writes store the rows stored before #2459', (group) => {
   group.setup(() => freshDatabase());
 
   test('create and update through each model store the same row bytes', async ({ assert }) => {
     const { data, updates } = buildFixture();
-
-    const encoded = await storeWith(async (trx) => {
-      for (const key of KEYS) {
-        for (const row of data[key])
-          await trx.table(tables[key]).insert(encodeRow(tables[key], row));
-      }
-      for (const { key, row } of updates) {
-        await trx.from(tables[key]).where('id', String(row.id)).update(encodeRow(tables[key], row));
-      }
-    });
 
     const modelled = await storeWith(async (trx) => {
       for (const key of KEYS) {
@@ -127,8 +126,48 @@ test.group('model writes store what encodeRow stores', (group) => {
       }
     });
 
-    for (const key of KEYS) assert.isNotEmpty(encoded[key], key);
-    assert.deepEqual(modelled, encoded);
+    for (const key of KEYS) assert.isNotEmpty(expected[key], key);
+    assert.deepEqual(modelled, expected);
+  });
+
+  test('an import stores each row as the model stores it', async ({ assert }) => {
+    const { data, updates } = buildFixture();
+    const companyId = String(data.companies[0]!.id);
+    await storeWith(async (trx) => {
+      for (const key of KEYS) {
+        for (const row of data[key]) {
+          await modelOf(key).create(rowAttributes(modelOf(key), row), { client: trx });
+        }
+      }
+      // An export refuses the fixture's private Internal client and its allocation's project
+      // attribution, so those two rows keep their seed values.
+      const exportable = updates.filter(({ key }) => key !== 'clients' && key !== 'allocations');
+      for (const { key, row } of exportable) {
+        const stored: LucidRow = await findStored(key, row, trx);
+        await stored.merge(rowAttributes(modelOf(key), row)).save();
+      }
+      const before = await readStored(trx);
+      const document = buildCompanyExport(await readStateWithClient(trx, companyId, true), {
+        companyId,
+        completeness: 'full',
+      });
+      document.data.companies[0]!.name = 'Wayne Enterprises Restored';
+      const revision = await getPlanningRevision(trx, companyId);
+      await applyCompanyImport(trx, companyId, document, revision, 'actor-alfred-pennyworth');
+      const after = await readStored(trx);
+      for (const key of SCOPED_KEYS) {
+        assert.isNotEmpty(
+          after[key]!.filter((row) => row.company_id === companyId),
+          key
+        );
+        assert.deepEqual(after[key], before[key], key);
+      }
+      const company = (rows: Row[] | undefined) => rows!.find((row) => row.id === companyId)!;
+      assert.deepEqual(company(after.companies), {
+        ...company(before.companies),
+        name: 'Wayne Enterprises Restored',
+      });
+    });
   });
 
   test('a created row keeps its own id', async ({ assert }) => {
