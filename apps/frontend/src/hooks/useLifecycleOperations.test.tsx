@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
-import { queryClient as queryCache } from '@/api/queryClient';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '@/store/useStore';
 import {
@@ -12,6 +13,10 @@ import { useLifecycleOperations } from './useLifecycleOperations';
 import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
+const queryCache = new QueryClient();
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryCache}>{children}</QueryClientProvider>
+);
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -32,7 +37,7 @@ describe('named lifecycle actions', () => {
     useStore.setState({ sendPlanningIntent: send });
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
-    const { result } = renderHook(() => useLifecycleOperations());
+    const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => {
       await result.current.archive('clients', 'c-1');
       await result.current.restore('clients', 'c-1');
@@ -56,7 +61,7 @@ describe('named lifecycle actions', () => {
     for (const route of ['archive-recovery', 'inactive-company-data', 'team-directory']) {
       queryCache.setQueryData(key(route), route);
     }
-    const { result } = renderHook(() => useLifecycleOperations());
+    const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => result.current.archive('clients', 'c-1'));
     const stale = (route: string) => queryCache.getQueryState(key(route))?.isInvalidated;
     expect([stale('archive-recovery'), stale('inactive-company-data')]).toEqual([true, true]);
@@ -76,7 +81,7 @@ describe('named lifecycle actions', () => {
       };
     });
     useStore.setState({ sendPlanningIntent: send });
-    const { result } = renderHook(() => useLifecycleOperations());
+    const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => result.current.archive('clients', 'c-1'));
     expect(useStore.getState().notice).toEqual({
       message:
@@ -92,7 +97,7 @@ describe('named lifecycle actions', () => {
       return new Response(null, { status: 204 });
     });
     vi.stubGlobal('fetch', fetch);
-    const { result } = renderHook(() => useLifecycleOperations());
+    const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => result.current.anonymise('r-1'));
     expect(fetch).toHaveBeenCalledOnce();
     const call = fetch.mock.calls[0];
@@ -107,7 +112,7 @@ describe('named lifecycle actions', () => {
     if (!release) throw new Error('The test planning context was not ready.');
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
-    const { result } = renderHook(() => useLifecycleOperations());
+    const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
 
     await act(async () => result.current.anonymise('r-1'));
 
@@ -123,7 +128,7 @@ describe('named lifecycle actions', () => {
       return undefined;
     });
     useStore.setState({ sendPlanningIntent: send });
-    const { result } = renderHook(() => useLifecycleOperations());
+    const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
     const queued = result.current.archive('clients', 'c-1');
     useStore.getState().setActiveCompany(null);
     await act(async () => queued);
@@ -140,10 +145,10 @@ describe('named lifecycle actions', () => {
     useStore.setState({ refreshPlanning: async () => false });
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
-    const first = renderHook(() => useLifecycleOperations());
+    const first = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => first.result.current.anonymise('r-one'));
     first.unmount();
-    const second = renderHook(() => useLifecycleOperations());
+    const second = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => second.result.current.anonymise('r-two'));
     expect(fetch).toHaveBeenCalledOnce();
     expect(useStore.getState().notice?.message).toMatch(
@@ -166,7 +171,7 @@ describe('named lifecycle actions', () => {
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
     const onReloaded = vi.fn();
-    const { result } = renderHook(() => useLifecycleOperations(onReloaded));
+    const { result } = renderHook(() => useLifecycleOperations(onReloaded), { wrapper });
     const operation = result.current.anonymise('r-one');
     await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
     act(() => useStore.setState({ activeCompanyId: 'a-loft' }));

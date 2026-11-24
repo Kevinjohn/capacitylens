@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { buildScopeQueryKey } from '@/api/queryClient';
-import { useAuth } from '@/auth/authContext';
+import { useQueryScope } from '@/api/useQueryScope';
 import { useCan, useRole } from '@/auth/permissionContext';
 import {
   fetchInactiveRecords,
@@ -22,21 +22,18 @@ export function useInactiveCompanyData(): {
   // The server serves inactive rows only to `members:manage` (company_state_controller.ts).
   const mayViewInactive = useCan('members:manage');
   const role = useRole();
-  const { user } = useAuth();
   const planning = useStore((state) => state.planning);
-  const masquerade = useStore((state) => state.masquerade);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
+  const scope = useQueryScope();
   const enabled = mayViewInactive && !!activeCompanyId;
   const query = useQuery<AppData>({
-    queryKey: buildScopeQueryKey(
-      {
-        userId: user?.id ?? null,
-        companyId: activeCompanyId,
-        masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
-      },
-      ['inactive-company-data', role, buildAccessKey(planning.access), planning.revision],
-    ),
+    queryKey: buildScopeQueryKey(scope, [
+      'inactive-company-data',
+      role,
+      buildAccessKey(planning.access),
+      planning.revision,
+    ]),
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
