@@ -107,8 +107,7 @@ test.group('allocation start availability', (group) => {
         row.companyId === companyId &&
         row.kind === 'person' &&
         row.id !== allocation.resourceId &&
-        !row.archivedAt &&
-        !row.deletedAt
+        !row.archivedAt
     )!;
     const created = await mutate(client, cookie, 0, {
       operation: 'allocation.create',

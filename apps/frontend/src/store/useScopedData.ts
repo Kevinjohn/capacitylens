@@ -41,12 +41,12 @@ export function useScopedData(): AppData {
 
 /**
  * The active-only view projection: the same scoped AppData as {@link useScopedData}, but with
- * every non-active (archived or soft-deleted) resource/client/project/activity removed via the shared
+ * every archived resource/client/project/activity removed via the shared
  * `buildActiveData` helper, so the rule is single-sourced with the server's per-company read.
  *
  * Use this in the normal app views (scheduler, lists, forms' option-pickers, command palette, toolbar
  * filters); use the raw {@link useScopedData} only for consumers such as export that must retain
- * archived/deleted rows. Memoised
+ * archived rows. Memoised
  * on the scoped base so the projected object is stable between renders (same `useSyncExternalStore`
  * stability contract as {@link useScopedData}).
  *

@@ -81,20 +81,12 @@ export async function readStateWithClient(
     closures,
   ] = await Promise.all([
     Company.query({ client }).where('id', companyId),
-    Client.query({ client })
-      .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(companyId)),
+    Client.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
     Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
-    Project.query({ client })
-      .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(companyId)),
+    Project.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
     Phase.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
-    Resource.query({ client })
-      .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(companyId)),
-    Activity.query({ client })
-      .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(companyId)),
+    Resource.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
+    Activity.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
     Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
     TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
     Closure.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),

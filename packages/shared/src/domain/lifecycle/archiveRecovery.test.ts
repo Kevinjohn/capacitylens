@@ -26,7 +26,6 @@ function fixture() {
       isPrivate: true,
       codeName: 'Wayne',
       archivedAt,
-      deletedAt: null,
     },
   ];
   data.projects = [
@@ -39,7 +38,6 @@ function fixture() {
       isPrivate: true,
       codeName: 'Gotham',
       archivedAt,
-      deletedAt: null,
     },
   ];
   data.phases = [{ ...FIXTURE_PHASE, companyId, id: 'phase', projectId: 'project' }];
@@ -52,7 +50,6 @@ function fixture() {
       projectId: null,
       phaseId: 'phase',
       archivedAt: null,
-      deletedAt: null,
     },
   ];
   data.resources = [
@@ -63,7 +60,6 @@ function fixture() {
       name: 'Bruce Wayne',
       jobTitle: 'Secret role',
       archivedAt,
-      deletedAt: null,
     },
   ];
   return data;
@@ -78,7 +74,7 @@ describe('identity-only archive recovery', () => {
       'projects',
       'resources',
     ]);
-    expect(JSON.stringify(editor)).not.toMatch(/Secret|codeName|archivedAt|deletedAt|avatar/);
+    expect(JSON.stringify(editor)).not.toMatch(/Secret|codeName|archivedAt|avatar/);
     for (const row of editor.rows) {
       expect(Object.keys(row).sort()).toEqual(
         (row.entity === 'resources'
@@ -95,11 +91,6 @@ describe('identity-only archive recovery', () => {
     expect(
       archiveRecovery(data, companyId, 'owner').rows.find((row) => row.id === 'client')?.label,
     ).toBe('Secret client');
-  });
-  it('omits any deleted ancestry even when an archived project masks its deleted client', () => {
-    const data = fixture();
-    requireFixture(data.clients[0]).deletedAt = archivedAt;
-    expect(archiveRecovery(data, companyId, 'owner').rows.map((row) => row.id)).toEqual(['person']);
   });
   it('omits foreign rows, built-in clients and active visible rows; keeps independently archived children', () => {
     const data = fixture();

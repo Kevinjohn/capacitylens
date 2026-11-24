@@ -51,7 +51,7 @@ export function buildActiveData(data: AppData): AppData {
     (resource) => isActive(resource) && hasVisibleAncestry('resources', resource),
   );
   const clients = data.clients.filter(isActive);
-  // An active child of an archived or deleted parent stays stored but is hidden from the app.
+  // An active child of an archived parent stays stored but is hidden from the app.
   const projects = data.projects.filter(
     (project) => isActive(project) && hasVisibleAncestry('projects', project),
   );

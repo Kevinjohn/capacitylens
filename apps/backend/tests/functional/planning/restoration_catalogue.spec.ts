@@ -2,8 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
-import Activity from '#models/activity';
-import Resource from '#models/resource';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import {
@@ -37,12 +35,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const before = await readState(companyId, true);
     const resource = before.resources.find((row) => row.disciplineId !== null)!;
     const disciplineId = resource.disciplineId!;
-    await Resource.query()
-      .withScopes((scopes) => scopes.forCompany(companyId))
-      .where('id', resource.id)
-      .softDelete();
-    const hiddenResource = await db.from('resources').where('id', resource.id).first();
-    const childDeletedAt = hiddenResource.deleted_at;
+    const storedResource = await db.from('resources').where('id', resource.id).first();
     const deleted = await send(
       client,
       cookie,
@@ -57,8 +50,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const afterDelete = await readState(companyId, true);
     assert.isNull(afterDelete.resources.find((row) => row.id === resource.id)?.disciplineId);
     const detachedResource = await db.from('resources').where('id', resource.id).first();
-    assert.equal(detachedResource.updated_at, hiddenResource.updated_at);
-    assert.equal(detachedResource.deleted_at, childDeletedAt);
+    assert.equal(detachedResource.updated_at, storedResource.updated_at);
     await db
       .from('resources')
       .where('id', resource.id)
@@ -77,8 +69,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       'Updated Gotham role'
     );
     const relinkedResource = await db.from('resources').where('id', resource.id).first();
-    assert.equal(relinkedResource.deleted_at, childDeletedAt);
-    assert.isAbove(Date.parse(relinkedResource.updated_at), Date.parse(hiddenResource.updated_at));
+    assert.isAbove(Date.parse(relinkedResource.updated_at), Date.parse(storedResource.updated_at));
   });
 
   test('a reassigned child prevents partial discipline relinking and leaves the group usable', async ({
@@ -127,13 +118,8 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const { cookie } = await signIn(client);
     const before = await readState(companyId, true);
     const seededActivity = before.activities.find((row) => row.phaseId !== null)!;
-    await Activity.query()
-      .withScopes((scopes) => scopes.forCompany(companyId))
-      .where('id', seededActivity.id)
-      .softDelete();
     const activity = before.activities.find((row) => row.id === seededActivity.id)!;
-    const hiddenActivity = await db.from('activities').where('id', activity.id).first();
-    const childDeletedAt = hiddenActivity.deleted_at;
+    const storedActivity = await db.from('activities').where('id', activity.id).first();
     const phaseId = activity.phaseId!;
     const deleted = await send(
       client,
@@ -150,8 +136,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const afterDelete = await readState(companyId, true);
     assert.isNull(afterDelete.activities.find((row) => row.id === activity.id)?.phaseId);
     const detachedActivity = await db.from('activities').where('id', activity.id).first();
-    assert.equal(detachedActivity.updated_at, hiddenActivity.updated_at);
-    assert.equal(detachedActivity.deleted_at, childDeletedAt);
+    assert.equal(detachedActivity.updated_at, storedActivity.updated_at);
     const otherProject = before.projects.find((row) => row.id !== activity.projectId)!;
     await db.from('activities').where('id', activity.id).update({ project_id: otherProject.id });
     const refused = await restore(client, cookie, groupId, 1);
@@ -169,8 +154,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(after.activities.find((row) => row.id === activity.id)?.phaseId, phaseId);
     assert.equal(after.activities.find((row) => row.id === activity.id)?.name, 'Gotham review');
     const relinkedActivity = await db.from('activities').where('id', activity.id).first();
-    assert.equal(relinkedActivity.deleted_at, childDeletedAt);
-    assert.isAbove(Date.parse(relinkedActivity.updated_at), Date.parse(hiddenActivity.updated_at));
+    assert.isAbove(Date.parse(relinkedActivity.updated_at), Date.parse(storedActivity.updated_at));
   });
 
   test('a missing phase project returns a restoration conflict without consuming its group', async ({

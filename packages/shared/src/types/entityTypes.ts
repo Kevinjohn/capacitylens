@@ -174,8 +174,6 @@ export interface Resource extends ScopedEntity {
   /** ISO 8601 timestamp of when this resource was archived. Null = active.
    * Archived rows are hidden from normal scheduling views. */
   archivedAt: ISOTimestamp | null;
-  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
-  deletedAt: ISOTimestamp | null;
 }
 
 /** A client whose projects are scheduled. */
@@ -199,8 +197,6 @@ export interface Client extends ScopedEntity {
   builtin: boolean | null;
   /** ISO 8601 archive timestamp; null means active. Archived rows are hidden from scheduling. */
   archivedAt: ISOTimestamp | null;
-  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
-  deletedAt: ISOTimestamp | null;
 }
 
 /** A client project. */
@@ -219,8 +215,6 @@ export interface Project extends ScopedEntity {
   displayName?: string;
   /** ISO 8601 archive timestamp; null means active. Archived rows are hidden from scheduling. */
   archivedAt: ISOTimestamp | null;
-  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
-  deletedAt: ISOTimestamp | null;
 }
 
 /** A named phase of a project. */
@@ -242,8 +236,6 @@ export interface Activity extends ScopedEntity {
   phaseId: ID | null;
   /** ISO 8601 archive timestamp; null means active. Archived rows are hidden from scheduling. */
   archivedAt: ISOTimestamp | null;
-  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
-  deletedAt: ISOTimestamp | null;
 }
 
 /** A booking of one resource onto one activity over a date range. */

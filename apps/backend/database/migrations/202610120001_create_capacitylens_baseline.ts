@@ -92,7 +92,6 @@ export default class extends BaseSchema {
       table.string('code_name').nullable();
       table.boolean('builtin').nullable();
       table.timestamp('archived_at').nullable();
-      table.timestamp('deleted_at').nullable();
       table.check('is_private IS NULL OR is_private IN (0, 1)');
       table.check('builtin IS NULL OR builtin IN (0, 1)');
     });
@@ -116,7 +115,6 @@ export default class extends BaseSchema {
       table.boolean('is_private').nullable();
       table.string('code_name').nullable();
       table.timestamp('archived_at').nullable();
-      table.timestamp('deleted_at').nullable();
       table.check('is_private IS NULL OR is_private IN (0, 1)');
     });
     this.schema.createTable('phases', (table) => {
@@ -158,7 +156,6 @@ export default class extends BaseSchema {
       table.date('first_available_date').nullable();
       table.date('last_available_date').nullable();
       table.timestamp('archived_at').nullable();
-      table.timestamp('deleted_at').nullable();
       table.index(['discipline_id']);
       table.index(['project_id']);
       table.check("kind IN ('person','placeholder','external')");
@@ -181,7 +178,6 @@ export default class extends BaseSchema {
         .onDelete('CASCADE');
       table.string('phase_id').nullable().references('id').inTable('phases').onDelete('SET NULL');
       table.timestamp('archived_at').nullable();
-      table.timestamp('deleted_at').nullable();
       table.index(['project_id']);
       table.index(['phase_id']);
       table.check("kind IN ('project','internal','allProjects')");

@@ -280,7 +280,6 @@ export async function serverState(
       id: string;
       name?: string;
       archivedAt?: string;
-      deletedAt?: string;
       language?: string;
       seriesId?: string;
       engagement?: 'studio' | 'supplementary';

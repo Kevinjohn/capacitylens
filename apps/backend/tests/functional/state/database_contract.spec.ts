@@ -261,7 +261,7 @@ test.group('database contract', (group) => {
     assert,
   }) => {
     await db.from('clients').where('id', 'm1-dc-client').update({ archived_at: stamp });
-    await db.from('projects').where('id', 'm1-dc-project').update({ deleted_at: stamp });
+    await db.from('projects').where('id', 'm1-dc-project').update({ archived_at: stamp });
 
     const active = await readState(companyIds.dc);
     assert.notInclude(

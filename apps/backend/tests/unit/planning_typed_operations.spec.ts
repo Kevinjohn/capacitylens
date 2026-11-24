@@ -138,9 +138,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     assert.isNull(after.resources.find((row) => row.id === resource.id)?.archivedAt);
   });
 
-  test('refuses repeated archive, active restore, built-in archive, and tombstone restore', async ({
-    assert,
-  }) => {
+  test('refuses repeated archive, active restore and built-in archive', async ({ assert }) => {
     await resetState('single');
     const before = await readState('a-studio', true);
     const client = before.clients.find((row) => row.builtin !== true)!;
@@ -175,20 +173,5 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     )!;
     assert.equal(afterRepeatedArchive.archivedAt, archived.archivedAt);
     assert.equal(afterRepeatedArchive.updatedAt, archived.updatedAt);
-
-    await db.from('clients').where({ id: client.id, company_id: 'a-studio' }).update({
-      deleted_at: '2026-10-20T12:00:00.000Z',
-    });
-    const tombstoneRestore = await refused({
-      operation: 'catalogue.restore',
-      entity: { entity: 'clients', id: client.id },
-    });
-    assert.equal(tombstoneRestore.status, 400);
-    assert.equal(tombstoneRestore.code, 'VALIDATION_ERROR');
-    const after = await readState('a-studio', true);
-    assert.equal(
-      after.clients.find((row) => row.id === client.id)?.deletedAt,
-      '2026-10-20T12:00:00.000Z'
-    );
   });
 });

@@ -107,10 +107,8 @@ export function encodeFixture(value: object) {
   );
 }
 
-export function stripLifecycle<T extends { archivedAt?: string | null; deletedAt?: string | null }>(
-  value: T
-): T {
-  return { ...value, archivedAt: null, deletedAt: null };
+export function stripLifecycle<T extends { archivedAt?: string | null }>(value: T): T {
+  return { ...value, archivedAt: null };
 }
 
 export const fullFixtureRows = [

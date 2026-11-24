@@ -24,7 +24,6 @@ const person: Resource = {
   firstAvailableDate: null,
   lastAvailableDate: null,
   archivedAt: null,
-  deletedAt: null,
 };
 
 // Two eight-hour bookings on Monday 1 June 2026 for a person with eight available hours.

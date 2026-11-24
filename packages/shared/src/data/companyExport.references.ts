@@ -27,8 +27,7 @@ export function assertCompanyReferences(data: AppData): void {
   assert(
     canonicalInternal.name === INTERNAL_CLIENT_NAME &&
       canonicalInternal.color === INTERNAL_CLIENT_COLOR &&
-      canonicalInternal.archivedAt === null &&
-      canonicalInternal.deletedAt === null,
+      canonicalInternal.archivedAt === null,
     'data.clients',
     'built-in Internal client must be canonical and active',
   );

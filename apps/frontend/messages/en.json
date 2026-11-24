@@ -703,7 +703,6 @@
   "list_projects_archived_heading": "Archived projects",
   "list_activities_archived_heading": "Archived activities",
   "list_hidden_by_archived_parent": "Hidden because {type} {name} is archived.",
-  "list_hidden_by_deleted_parent": "Hidden because {type} {name} is deleted.",
   "list_archived_unknown_parent": "Unknown parent",
   "list_archived_restore_parent": "View archived parent",
   "list_activities_archive_aria": "Archive {name}",
