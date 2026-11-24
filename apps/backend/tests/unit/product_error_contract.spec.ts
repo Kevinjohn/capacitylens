@@ -41,6 +41,10 @@ import {
   invalidLinkAnswer,
 } from '#services/auth/credential_answers';
 import { signUpValidator } from '#validators/auth_requests';
+import {
+  acceptInvitationSignUpValidator,
+  createInvitationValidator,
+} from '#validators/invitations';
 import { inspectResetValidator } from '#validators/credentials';
 
 function context(error: unknown, routeName?: string) {
@@ -278,6 +282,38 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     () => mappedThrown(() => signUpValidator.validate({ ...signUp, password: 'short' })),
     400,
     { error: 'Invalid password.', code: 'VALIDATION_ERROR' },
+  ],
+  // Invitation sign-up and invitation creation read the same sentences as sign-up.
+  [
+    'invitation sign-up with a short password',
+    () =>
+      mappedThrown(() =>
+        acceptInvitationSignUpValidator.validate({ name: 'Diana Prince', password: 'short' })
+      ),
+    400,
+    { error: 'Invalid password.', code: 'VALIDATION_ERROR' },
+  ],
+  [
+    'invitation sign-up with an unsupported field',
+    () =>
+      mappedThrown(() =>
+        acceptInvitationSignUpValidator.validate({
+          name: 'Diana Prince',
+          password: signUp.password,
+          role: 'owner',
+        })
+      ),
+    400,
+    { error: 'Unsupported field.', code: 'VALIDATION_ERROR' },
+  ],
+  [
+    'invitation with an invalid email',
+    () =>
+      mappedThrown(() =>
+        createInvitationValidator.validate({ companyId: 'c', role: 'editor', email: 'diana' })
+      ),
+    400,
+    { error: 'Invalid email.', code: 'VALIDATION_ERROR' },
   ],
   [
     'invalid token',
