@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { isHalfDay, isOnClosure, isOnTimeOff } from '../capacity.js';
+import { isHalfDay, isOnClosure, isOnTimeOff, isWorkingDay } from '../capacity.js';
 
 import {
   scheduledHoursOnDay,
-  availableHoursOnDay,
+  resolveAvailableHoursOnDay,
   allocatedHoursOnDay,
-  isWorkingDay,
+  makeWeekFor,
   makeResource,
   makeAlloc,
   makeTimeOff,
@@ -24,7 +24,9 @@ describe('resource availability boundaries', () => {
     ['2026-09-10', 8],
     ['2026-09-11', 0],
   ] as const)('returns boundary-aware capacity on %s', (date, expected) => {
-    expect(availableHoursOnDay({ resource: boundedResource, date, timeOff: [] })).toBe(expected);
+    expect(
+      resolveAvailableHoursOnDay({ resource: boundedResource, date, timeOff: [], closures: [] }),
+    ).toBe(expected);
   });
 
   it('does not apply person-only boundaries to a non-person row', () => {
@@ -34,7 +36,14 @@ describe('resource availability boundaries', () => {
       lastAvailableDate: '2026-09-10',
     });
 
-    expect(availableHoursOnDay({ resource: placeholder, date: '2026-09-07', timeOff: [] })).toBe(8);
+    expect(
+      resolveAvailableHoursOnDay({
+        resource: placeholder,
+        date: '2026-09-07',
+        timeOff: [],
+        closures: [],
+      }),
+    ).toBe(8);
   });
 });
 
@@ -50,9 +59,9 @@ describe('availability', () => {
   });
 
   it('knows working vs non-working weekdays', () => {
-    expect(isWorkingDay(r, '2026-06-01')).toBe(true);
-    expect(isWorkingDay(r, '2026-06-06')).toBe(false);
-    expect(isWorkingDay(r, '2026-06-07')).toBe(false);
+    expect(isWorkingDay(makeWeekFor(r), '2026-06-01')).toBe(true);
+    expect(isWorkingDay(makeWeekFor(r), '2026-06-06')).toBe(false);
+    expect(isWorkingDay(makeWeekFor(r), '2026-06-07')).toBe(false);
   });
 
   it('detects time off ranges', () => {
@@ -88,27 +97,34 @@ describe('availability', () => {
   });
 
   it('uses fixed eight-hour full days, four-hour half days, and zero for non-working/time-off days', () => {
-    expect(availableHoursOnDay({ resource: r, date: '2026-06-01', timeOff: [] })).toBe(8);
     expect(
-      availableHoursOnDay({
+      resolveAvailableHoursOnDay({ resource: r, date: '2026-06-01', timeOff: [], closures: [] }),
+    ).toBe(8);
+    expect(
+      resolveAvailableHoursOnDay({
         resource: makeResource({ workingHoursPerDay: 6, halfDays: [2] }),
         date: '2026-06-02',
         timeOff: [],
+        closures: [],
       }),
     ).toBe(4);
     expect(
-      availableHoursOnDay({
+      resolveAvailableHoursOnDay({
         resource: makeResource({ workingHoursPerDay: 6 }),
         date: '2026-06-01',
         timeOff: [],
+        closures: [],
       }),
     ).toBe(8);
-    expect(availableHoursOnDay({ resource: r, date: '2026-06-06', timeOff: [] })).toBe(0);
     expect(
-      availableHoursOnDay({
+      resolveAvailableHoursOnDay({ resource: r, date: '2026-06-06', timeOff: [], closures: [] }),
+    ).toBe(0);
+    expect(
+      resolveAvailableHoursOnDay({
         resource: makeResource({ halfDays: [3] }),
         date: '2026-06-03',
         timeOff: [makeTimeOff()],
+        closures: [],
       }),
     ).toBe(0);
   });

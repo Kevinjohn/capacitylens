@@ -305,7 +305,7 @@ describe('capacityAdvisory', () => {
   });
 
   it('ignores allocations belonging to another resource (callers need not pre-filter)', () => {
-    // The advisory's per-day mirror (allocatedHoursOnDay) scopes by resource; this must too, so a
+    // The advisory's per-day mirror (resolveAllocationLoadForWeekday) scopes by resource; this must too, so a
     // caller handing over an unfiltered list cannot have someone else's 8h read as this person's.
     const others = [
       makeAlloc({ id: 'someone-else', resourceId: 'r2', hoursPerDay: 8 }),

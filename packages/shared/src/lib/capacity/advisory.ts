@@ -45,7 +45,7 @@ interface AddCapacityLoadInput {
 }
 
 /** Add `allocation`'s hours to `byDay` on every day of [start, end] that it actually works.
- * Allocations belonging to another resource are ignored, mirroring `resolveAllocatedHoursOnDay`:
+ * Allocations belonging to another resource are ignored, mirroring `resolveAllocationLoadForWeekday`:
  * correctness must not depend on every caller remembering to pre-filter, or an unfiltered list
  * would count other people's hours against this resource and advise "over capacity" for days that
  * are perfectly fine. */
@@ -146,7 +146,7 @@ function tallyAdvisory({
   let overDays = 0;
   let timeOffDays = 0;
   for (const day of days) {
-    // Derive the weekday + time-off once per day and reuse for both tallies, resolveAvailableHoursOnDay
+    // Derive the weekday + time-off once per day and reuse for both tallies, resolveAvailableHoursForWeekday
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = getWeekday(day);
     const working = hasEffectiveWeekDay(effectiveWeek, weekday);
@@ -170,7 +170,7 @@ function tallyAdvisory({
     ) {
       continue;
     }
-    // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWorkingDays) has
+    // Mirrors resolveAvailableHoursForWeekday: a non-working weekday the proposal opts into (ignoreWorkingDays) has
     // 0 capacity, so any proposed hours there read as over, exactly like the per-day over-marker.
     const available = working ? scheduledCapacity : 0;
     if (
@@ -201,7 +201,7 @@ interface BuildCapacityAdvisoryInput {
  * `otherAllocations` is the existing load to count against (caller excludes the allocation being
  * edited); it need not be pre-filtered by resource (see `addCapacityLoad`).
  * Shared by the allocation dialog and the drag-commit path so the rule
- * lives in one place. Mirrors the per-day over-marker (`resolveAllocatedHoursOnDay`): it counts a day only
+ * lives in one place. Mirrors the per-day over-marker (`resolveAllocationLoadForWeekday`): it counts a day only
  * when the proposed allocation actually works it (so a weekend-aware bar merely spanning Sat/Sun
  * isn't "over"), and an `ignoreWorkingDays` weekend, 0 capacity, reads as over exactly like the red
  * cell does. Time off stays its own category, never folded into overDays (a holiday a working

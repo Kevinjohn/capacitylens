@@ -139,56 +139,6 @@ export function resolveAvailableHoursForWeekday({
   return resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek);
 }
 
-interface ResolveAvailableHoursOnDayInput {
-  resource: Resource;
-  date: ISODate;
-  timeOff: TimeOff[];
-  effectiveWeek: EffectiveWorkingWeek;
-  closures: Closure[];
-}
-
-/** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
- * fixed 4h on a half day, otherwise fixed 8h. */
-export function resolveAvailableHoursOnDay({
-  resource,
-  date,
-  timeOff,
-  effectiveWeek,
-  closures,
-}: ResolveAvailableHoursOnDayInput): number {
-  return resolveAvailableHoursForWeekday({
-    resource,
-    date,
-    timeOff,
-    closures,
-    weekday: getWeekday(date),
-    effectiveWeek,
-  });
-}
-
-interface ResolveAllocatedHoursOnDayInput {
-  resource: Resource;
-  date: ISODate;
-  allocations: Allocation[];
-  effectiveWeek: EffectiveWorkingWeek;
-}
-
-/** Totals the allocation hours assigned to `resource` on `date`, respecting effective working days. */
-export function resolveAllocatedHoursOnDay({
-  resource,
-  date,
-  allocations,
-  effectiveWeek,
-}: ResolveAllocatedHoursOnDayInput): number {
-  return resolveAllocatedHoursForWeekday({
-    resource,
-    date,
-    allocations,
-    weekday: getWeekday(date),
-    effectiveWeek,
-  });
-}
-
 interface ResolveAllocatedHoursForWeekdayInput {
   resource: Resource;
   date: ISODate;

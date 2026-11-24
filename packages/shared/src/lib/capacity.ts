@@ -32,16 +32,6 @@ interface BuildCapacityWindowInput {
   closures: Closure[];
 }
 
-interface ResolveUtilisationInput {
-  resource: Resource;
-  allocations: Allocation[];
-  timeOff: TimeOff[];
-  start: ISODate;
-  end: ISODate;
-  effectiveWeek: EffectiveWorkingWeek;
-  closures: Closure[];
-}
-
 /** Available and allocated capacity values for one date. */
 export interface DayCapacity {
   date: ISODate;
@@ -125,32 +115,4 @@ export function resolveUtilisationFromCapacity(days: Iterable<DayCapacity>): num
     available += day.available;
   }
   return available === 0 ? 0 : allocated / available;
-}
-
-/** Allocated / available over the window, counted over working days only.
- * Returns 0 when there is no availability. Non-working days (weekends / time off)
- * are skipped entirely, counting their allocated hours against zero availability
- * would push a normal allocation that merely spans a weekend past 100%.
- * Like `buildCapacityWindow`, this is the straight-line definition; the render path reaches the same
- * number through `resolveUtilisationFromCapacity` over its memoised per-date capacity. */
-export function resolveUtilisation({
-  resource,
-  allocations,
-  timeOff,
-  start,
-  end,
-  effectiveWeek,
-  closures,
-}: ResolveUtilisationInput): number {
-  return resolveUtilisationFromCapacity(
-    buildCapacityWindow({
-      resource,
-      allocations,
-      timeOff,
-      start,
-      end,
-      effectiveWeek,
-      closures,
-    }),
-  );
 }

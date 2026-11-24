@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { applyCapacityMode } from '../capacity.js';
 import {
-  availableHoursOnDay,
+  resolveAvailableHoursOnDay,
   allocatedHoursOnDay,
   makeResource,
   makeAlloc,
@@ -58,10 +58,11 @@ describe('devAssertFinite (DEV-only console.warn on a non-finite allocation)', (
 
   it('ignores a legacy non-finite workingHoursPerDay because full-day capacity is fixed', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    availableHoursOnDay({
+    resolveAvailableHoursOnDay({
       resource: makeResource({ workingHoursPerDay: Number.NaN }),
       date: '2026-06-01',
       timeOff: [],
+      closures: [],
     });
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
