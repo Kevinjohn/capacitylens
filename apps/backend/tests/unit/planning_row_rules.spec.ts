@@ -264,7 +264,13 @@ const sharedRuleCases: Array<[string, AppDataKey, Record<string, unknown>, strin
     'timestamp on an impossible date',
     'allocations',
     { updatedAt: '2026-02-30T12:00:00.000Z' },
-    'entityField: updatedAt must be an ISO timestamp.',
+    'entityField: updatedAt must be a UTC timestamp with milliseconds.',
+  ],
+  [
+    'timestamp without milliseconds',
+    'allocations',
+    { updatedAt: '2026-11-24T10:11:12Z' },
+    'entityField: updatedAt must be a UTC timestamp with milliseconds.',
   ],
   ['null archive timestamp', 'clients', { archivedAt: null }, 'accepted'],
 ];

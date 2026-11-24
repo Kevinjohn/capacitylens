@@ -89,7 +89,19 @@ const failures: [string, CorruptDocument][] = [
   [
     'invalid timestamps',
     (doc) => {
-      requireValue(doc.data.clients[0]).updatedAt = '2026-02-30T12:00:00Z';
+      requireValue(doc.data.clients[0]).updatedAt = '2026-02-30T12:00:00.000Z';
+    },
+  ],
+  [
+    'timestamps without milliseconds',
+    (doc) => {
+      requireValue(doc.data.clients[0]).updatedAt = '2026-11-24T10:11:12Z';
+    },
+  ],
+  [
+    'timestamps with a numeric offset',
+    (doc) => {
+      requireValue(doc.data.clients[0]).updatedAt = '2026-11-24T11:11:12.000+01:00';
     },
   ],
   [
