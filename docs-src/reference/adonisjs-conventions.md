@@ -418,15 +418,18 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
   serialises the result. A service may take the context's `auth` only to open the actor's
   transaction with `withActor`.
 - A service is a class named `<Name>Service` in `<name>_service.ts`, exported by name as
-  `node ace make:service` writes it. The container constructs it; a controller, command or
-  another service takes it through the constructor with `@inject()`, and package services are
-  injected the same way. A test resolves it with `app.container.make` or constructs it.
+  `node ace make:service` writes it. The container constructs it. A controller or another service
+  takes it through the constructor with `@inject()`; an Ace command takes it as a parameter of an
+  `@inject()` `run` method. Package services are injected the same way. A test resolves it with
+  `app.container.make` or constructs it.
 - A file of pure functions, with no database, container or HTTP context, is not a service: it
   stays a module, in `app/exceptions/` or `app/models_support/` when it builds error answers or
   table helpers, otherwise beside the services that use it.
-- The Account Kit's `AccountAdmission` is resolved when it is used, not injected: building it
-  builds the product's admission callbacks, so constructor injection would make each wait on the
-  other.
+- Two package services are resolved with `app.container.make` when they are used. The services
+  the Account Kit's admission callbacks build (`AdmissionRuleService`, `CurrentActorService`)
+  resolve `AccountAdmission` that way, because building `AccountAdmission` builds those
+  callbacks, so constructor injection would make each wait on the other. The masquerade runtime is
+  registered only under the name `masquerade.runtime`, so it cannot be injected by class.
 - Write a provider only for container bindings, framework extensions, or work that must start and
   stop with the application. One-off setup is a preload file.
 - In a provider: `register` only binds and is synchronous; `boot` configures; `start` also runs

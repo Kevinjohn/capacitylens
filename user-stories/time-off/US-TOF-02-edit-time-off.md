@@ -67,7 +67,7 @@ An Editor patch omits the protected note, preserving the stored value. Owners an
 - [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L270)
 - [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L249)
-- [entity_write_service.ts](../../apps/backend/app/services/planning/entity_write_service.ts#L105)
+- [entity_write_service.ts](../../apps/backend/app/services/planning/entity_write_service.ts#L75)
 - [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L30)
 - [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L222)

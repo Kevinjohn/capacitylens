@@ -320,8 +320,9 @@ removed entry retires its number.
    framework's names.
 6. The backend serves the SPA with the product security headers and a history fallback rather than
    a separate static-file proxy.
-7. The SQLite pool is one connection, configured when it is created. Network, mail and password
-   hashing stay outside transactions.
+7. The SQLite pool is one connection, configured when it is created. A mutating service receives
+   its transaction as a method argument. Network, mail and password hashing stay outside
+   transactions.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
 9. Retired. See Browser data.
 10. Retired (#2458). Product services are container-resolved `*Service` classes.
