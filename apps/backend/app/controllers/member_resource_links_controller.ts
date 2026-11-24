@@ -1,16 +1,21 @@
+import { MemberMutationRequestService } from '#services/membership/member_mutation_request_service';
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { parseAccountOperation } from '#services/account_operations';
-import { runMemberMutation } from '#services/membership/member_mutation_request';
 import { MemberResourceLinkService } from '#services/member_resources/member_resource_link_service';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
 
 /** Scoped member/person association. */
 @inject()
 export default class MemberResourceLinksController {
+  #memberMutationRequests: MemberMutationRequestService;
   #links: MemberResourceLinkService;
 
-  constructor(links: MemberResourceLinkService) {
+  constructor(
+    links: MemberResourceLinkService,
+    memberMutationRequests: MemberMutationRequestService
+  ) {
+    this.#memberMutationRequests = memberMutationRequests;
     this.#links = links;
   }
 
@@ -21,7 +26,7 @@ export default class MemberResourceLinksController {
       request.header('idempotency-key')
     );
     const { companyId, userId } = params;
-    const result = await runMemberMutation(auth, {
+    const result = await this.#memberMutationRequests.run(auth, {
       companyId,
       operation: 'set-member-resource-link',
       command,
@@ -47,7 +52,7 @@ export default class MemberResourceLinksController {
       request.header('idempotency-key')
     );
     const { companyId, userId } = params;
-    await runMemberMutation(auth, {
+    await this.#memberMutationRequests.run(auth, {
       companyId,
       operation: 'clear-member-resource-link',
       command,

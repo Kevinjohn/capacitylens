@@ -1,9 +1,10 @@
+import app from '@adonisjs/core/services/app';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidCredentialsError, ThrottledError } from '@kevinjohn/adonisjs-account-kit/errors';
 import capacitylens from '#config/capacitylens';
 import { withActor } from '#services/auth/current_actor';
-import { recordMemberSignIn } from '#services/membership/sign_in_tracking';
+import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
 import { buildUserProjection } from '#services/auth/user_projection';
 
 function logSignInOutcome(
@@ -59,7 +60,8 @@ export async function signInWithPassword(
   return withActor(
     auth,
     async (actor, trx) => {
-      await recordMemberSignIn(actor.userId, trx);
+      const signInTracking = await app.container.make(MemberSignInTrackingService);
+      await signInTracking.recordSignIn(actor.userId, trx);
       return buildUserProjection(actor);
     },
     { limited: true }

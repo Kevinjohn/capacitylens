@@ -1,3 +1,5 @@
+import { inject } from '@adonisjs/core';
+import { AdmissionMembershipService } from '#services/membership/admission_membership_service';
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
@@ -8,7 +10,6 @@ import {
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
 import { isFirstCompanySetupRequired } from '#services/first_company_setup';
-import { isMembershipRequired } from '#services/membership/admission_membership';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { buildUserProjection } from '#services/auth/user_projection';
 import { requireAdmissionDecision, withActor } from '#services/auth/current_actor';
@@ -16,7 +17,14 @@ import { signInValidator } from '#validators/auth_requests';
 import { hasAnyIdentity } from '#services/installation_company';
 
 /** The caller's sign-in: who is signed in, signing in with a password, and signing out. */
+@inject()
 export default class SessionController {
+  #admissionMemberships: AdmissionMembershipService;
+
+  constructor(admissionMemberships: AdmissionMembershipService) {
+    this.#admissionMemberships = admissionMemberships;
+  }
+
   /**
    * The signed-in identity and what it may reach: a confirmed address, admission, company setup
    * and membership decide between the limited screens and the schedule.
@@ -36,7 +44,9 @@ export default class SessionController {
               companySetupRequired:
                 admitted && (await isFirstCompanySetupRequired(actor.userId, trx)),
               // Admitted but not yet a member: the person completes their membership explicitly.
-              membershipRequired: admitted && (await isMembershipRequired(actor.userId, trx)),
+              membershipRequired:
+                admitted &&
+                (await this.#admissionMemberships.isMembershipRequired(actor.userId, trx)),
             };
           },
           { limited: true }
