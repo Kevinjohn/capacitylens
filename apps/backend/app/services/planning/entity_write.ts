@@ -126,5 +126,5 @@ export async function writeEntity<K extends ScopedEntityKey>({
   if (mode === 'create' && isRetainedTable(table)) {
     await reclaimRetainedId(trx, companyId, table, id, identity);
   }
-  return writeRow({ trx, data, companyId, table, row: clean, existing, written });
+  return writeRow({ trx, data, table, row: clean, existing, written });
 }
