@@ -324,9 +324,7 @@ removed entry retires its number.
    hashing stay outside transactions.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
 9. Retired. See Browser data.
-10. **Aligning (#2458).** Product services are modules of exported functions without `@inject`
-    or a `_service` suffix, and package services are resolved with `app.container.make`. Kept
-    from this entry: a mutating service receives its transaction as an argument.
+10. Retired (#2458). Product services are container-resolved `*Service` classes.
 11. A company permission is authorised inside the product transaction through the Access
     Control package, after the route middleware has checked membership. Controllers do not
     call Bouncer and the product has no policies or abilities of its own.

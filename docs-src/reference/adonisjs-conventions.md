@@ -26,7 +26,7 @@ Three rules decide every case:
 2. **A deliberate difference is a numbered departure.** The list is "AdonisJS framework
    departures" in
    [`DECISIONS.md`](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md). This page
-   cites it as "departure 10". A new difference needs the owner's ruling first. An entry marked
+   cites it as "departure 11". A new difference needs the owner's ruling first. An entry marked
    **Aligning** there is being removed by the issue it names; until that issue lands, match the
    surrounding code.
 3. **An existing difference is debt.** Code that differs without a departure is tracked in
@@ -152,7 +152,7 @@ one class unless the table says otherwise.
 | Validator | `app/validators/<singular resource>.ts` | named `<verb><Resource>Validator` | `createMemberValidator` |
 | Transformer | `app/transformers/<singular>_transformer.ts` | `<Singular>Transformer` | `user_transformer.ts` |
 | Exception | `app/exceptions/<name>_exception.ts` | `<Name>Exception` | `stale_revision_exception.ts` |
-| Service | `app/services/<name>_service.ts` | `<Name>Service` | function modules with no `_service` suffix (departure 10) |
+| Service | `app/services/<name>_service.ts` | `<Name>Service`, a named export | `planning_service.ts` |
 | Provider | `providers/<name>_provider.ts` | `<Name>Provider` | `backup_provider.ts` |
 | Preload file | `start/<name>.ts` | none; imported for its effect | `start/validator.ts` |
 | Ace command | `commands/<namespace>_<action>.ts` | `<NamespaceAction>` | `app_reset.ts`, `app:reset` |
@@ -181,7 +181,7 @@ one class unless the table says otherwise.
 - Import a container service from its `services` path (`@adonisjs/core/services/app`,
   `@adonisjs/limiter/services/main`). Do not construct what a package already provides. A service
   that serves a request takes its transaction as an argument and does not import
-  `@adonisjs/lucid/services/db` (departure 10).
+  `@adonisjs/lucid/services/db`.
 - Routes import controllers through the barrel file, `import { controllers } from
   '#generated/controllers'`. A static controller import in a routes file breaks hot reload and is
   a lint error (`@adonisjs/prefer-lazy-controller-import`).
@@ -255,8 +255,8 @@ Source: [Controllers](https://docs.adonisjs.com/guides/basics/controllers) and
   exception reach the exception handler.
 - Return a value, or use the response helpers that name the status: `response.created()`,
   `response.notFound()`, `response.conflict()`.
-- Controllers call function-module services, so they take nothing by `@inject` (departure 10), and
-  they do not call Bouncer (departure 11).
+- Controllers take their services through the constructor with `@inject()`, and they do not call
+  Bouncer (departure 11).
 
 ## Validators
 
@@ -389,8 +389,8 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
   model write passes `{ client: trx }` or calls `model.useTransaction(trx)`.
 - Prefer the managed form, `db.transaction(async (trx) => { ... })`, which commits on return and
   rolls back on a throw.
-- Pass one `trx` through the whole unit of work. A mutating service takes it as an argument
-  (departure 10). Network, mail and password hashing stay outside it (departure 7).
+- Pass one `trx` through the whole unit of work. A mutating service takes it as a method argument.
+  Network, mail and password hashing stay outside it (departure 7).
 - Bind values in `db.rawQuery`. Never build SQL from input.
 
 **Migrations, seeders and factories**
@@ -417,10 +417,16 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
   response: the controller validates, reads route parameters and headers, passes plain values and
   serialises the result. A service may take the context's `auth` only to open the actor's
   transaction with `withActor`.
-- In the framework a service is a class the container constructs, taken with `@inject()` and
-  replaced in a test with `container.swap`. CapacityLens services are modules of exported
-  functions without `@inject`, and a package service is resolved with `app.container.make` where
-  it is used. Service files carry no `_service` suffix (departure 10).
+- A service is a class named `<Name>Service` in `<name>_service.ts`, exported by name as
+  `node ace make:service` writes it. The container constructs it; a controller, command or
+  another service takes it through the constructor with `@inject()`, and package services are
+  injected the same way. A test resolves it with `app.container.make` or constructs it.
+- A file of pure functions, with no database, container or HTTP context, is not a service: it
+  stays a module, in `app/exceptions/` or `app/models_support/` when it builds error answers or
+  table helpers, otherwise beside the services that use it.
+- The Account Kit's `AccountAdmission` is resolved when it is used, not injected: building it
+  builds the product's admission callbacks, so constructor injection would make each wait on the
+  other.
 - Write a provider only for container bindings, framework extensions, or work that must start and
   stop with the application. One-off setup is a preload file.
 - In a provider: `register` only binds and is synchronous; `boot` configures; `start` also runs
@@ -560,8 +566,8 @@ than the documentation does. CapacityLens does not install them. This is where i
 | `no-shared-mutable-test-state` | No `let` or `var` outside a test callback. | Adopted; see Tests. |
 | `test-helpers-contain-runtime-code` | Types for test helpers live in `tests/helpers/types.ts`. | Adopted, with the types in the existing `tests/types/` folder. |
 | `playwright-locators-are-exact` | A text locator states `exact`. | Applies to `e2e/` specs. |
-| `no-top-level-functions` | Behaviour is a class method, not a top-level function. | Not followed (departure 10). |
-| `exported-functions-are-factories` | An exported function only builds and returns a class instance. | Not followed (departure 10). |
+| `no-top-level-functions` | Behaviour is a class method, not a top-level function. | Adopted for services; pure helper modules keep their functions. |
+| `exported-functions-are-factories` | An exported function only builds and returns a class instance. | Adopted for services; pure helper modules keep their functions. |
 | `types-live-in-types-directory` | Types and interfaces live in a `types/` folder. | Not followed (departure 20). |
 
 Its code style guide adds one rule this page adopts: return early. Check each condition that ends
