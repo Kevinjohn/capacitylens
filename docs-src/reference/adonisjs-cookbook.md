@@ -1181,6 +1181,13 @@ export { limiter as default }
   registered with `rcFile.addCommand('<package>/commands')`.
 - **PKG-38 (H)** A package does not import from an application and makes no assumption about its
   folder names beyond the framework's.
+- **PKG-48 (H)** Everything an application calls from the export map has an `@example` in its
+  TSDoc: each exported function, class, decorator and mixin, and each public method on an exported
+  class or service. The example is the application's code, fenced as `ts`. A top-level export's
+  example starts with its import from the public subpath; a method's starts from the instance. One
+  example is enough; a second is for a second way to call it. Types, exception classes and what
+  the framework calls instead of the application (the configure hook, the provider, commands, a
+  middleware's `handle`, a controller's actions) need none.
 
 Recipe, `src/errors.ts` and a throw site:
 
@@ -1211,6 +1218,44 @@ import { E_BACKUP_LOCKED } from './errors.ts'
 
 throw new E_BACKUP_LOCKED(directory, { cause })
 ```
+
+Recipe, an `@example` on a top-level export and on a method (PKG-48):
+
+````ts
+/**
+ * Composes a Lucid model with the soft-delete lifecycle: `delete()` marks the row, and reads
+ * leave marked rows out.
+ *
+ * @example
+ * ```ts
+ * import { compose } from '@adonisjs/core/helpers'
+ * import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+ *
+ * export default class Client extends compose(ClientSchema, SoftDeletes) {}
+ * ```
+ */
+export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(superclass: T) {
+````
+
+````ts
+export class SqliteBackup {
+  /**
+   * Copies the live database into a new bundle and publishes it once it verifies.
+   *
+   * @throws `E_BACKUP_LOCKED` when another backup holds the directory; nothing was published.
+   *
+   * @example
+   * ```ts
+   * const bundle = await backup.create()
+   * logger.info({ name: bundle.name, bytes: bundle.manifest.bytes }, 'backup created')
+   * ```
+   */
+  create(): Promise<CreateResult> {
+````
+
+The first example carries its import because the reader has not imported anything yet. The second
+starts from `backup`; the class's own `@example` shows the import from `services/main` that produces
+it.
 
 ## Tests and release
 
@@ -1284,7 +1329,8 @@ the answer is recorded in the repository's departures list.
 7. Every thrown exception is a class in `src/errors.ts`, one per cause, exported and thrown under
    its stable code; no constructor takes a status or a code (PKG-31, PKG-32, PKG-46, PKG-47).
 8. No `console` output; diagnostics use `debuglog` (PKG-34).
-9. Public types are in `src/types.ts` and exported from `./types` (PKG-11).
-10. The configure hook and the provider each have a test (PKG-40, PKG-41).
-11. The README follows PKG-45, and its vocabulary is the framework's (VOC-1).
-12. Any difference from this book is in the repository's departures list.
+9. Everything an application calls from the export map has an `@example` (PKG-48).
+10. Public types are in `src/types.ts` and exported from `./types` (PKG-11).
+11. The configure hook and the provider each have a test (PKG-40, PKG-41).
+12. The README follows PKG-45, and its vocabulary is the framework's (VOC-1).
+13. Any difference from this book is in the repository's departures list.
