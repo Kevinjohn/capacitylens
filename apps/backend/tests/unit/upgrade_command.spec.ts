@@ -188,7 +188,7 @@ test.group('upgrade command', () => {
       });
 
       const upgrade = ace(scratch, dbPath, 'app:upgrade');
-      assert.notEqual(upgrade.status, 0, upgrade.output);
+      assertSafeFailure(assert, upgrade, /Upgrade failed: .*table_that_does_not_exist/);
       assert.lengthOf(journal(dbPath), shipped + 1);
       assert.include(tables(dbPath), 'upgrade_committed');
       assert.notInclude(tables(dbPath), 'upgrade_rolled_back');

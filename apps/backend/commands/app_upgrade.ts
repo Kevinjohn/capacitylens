@@ -12,8 +12,9 @@ export default class AppUpgrade extends OperatorCommand {
   @inject()
   async run(schemaIntegrity: SchemaIntegrityService) {
     const upgrade = await this.kernel.exec('db:upgrade', ['--no-schema-generate']);
+    // `db:upgrade` has already reported its own failure as one line; reporting it again would
+    // print it twice.
     if (upgrade.exitCode !== 0) {
-      this.error = upgrade.error;
       this.exitCode = upgrade.exitCode ?? 1;
       return;
     }
