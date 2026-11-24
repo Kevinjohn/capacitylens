@@ -7,7 +7,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/admission';
 import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
-import { users } from '#services/account_kit/users';
+import { users } from '#services/account_kit/account_user_service';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-password';

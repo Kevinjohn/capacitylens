@@ -746,7 +746,7 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
   const importedByEverything = () => ['apps/backend/tests/unit/a.spec.ts'];
   for (const path of [
     'apps/backend/app/services/auth/authorization.ts',
-    'apps/backend/app/services/account_kit/admission_rules.ts',
+    'apps/backend/app/services/account_kit/admission_rule_service.ts',
     'apps/backend/app/services/membership/member_directory.ts',
     'apps/backend/app/services/planning/access_grant.ts',
     'apps/backend/app/services/planning/entity_rules.ts',

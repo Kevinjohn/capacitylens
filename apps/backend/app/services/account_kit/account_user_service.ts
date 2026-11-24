@@ -1,8 +1,7 @@
 import { createLucidAdapter } from '@kevinjohn/adonisjs-account-kit';
 import { MAX_NAME_LENGTH, countUnicodeCharacters } from '@capacitylens/shared/lib/strings';
 
-/** The only registration field: a display name, which the sign-up routes have already validated. */
-export function requireRegistrationDisplayName(data: unknown) {
+function readRegistrationDisplayName(data: unknown) {
   const name =
     data && typeof data === 'object' && typeof (data as { name?: unknown }).name === 'string'
       ? (data as { name: string }).name.trim()
@@ -13,6 +12,14 @@ export function requireRegistrationDisplayName(data: unknown) {
   return name;
 }
 
+/** The registration data CapacityLens keeps on an Account Kit user. */
+export class AccountUserService {
+  /** The only registration field: a display name, which the sign-up routes have already validated. */
+  requireRegistrationDisplayName(data: unknown) {
+    return readRegistrationDisplayName(data);
+  }
+}
+
 /** Account Kit's maintained Lucid adapter over the product user model and the default hasher. */
 export const users = createLucidAdapter(
   async () => {
@@ -21,8 +28,7 @@ export const users = createLucidAdapter(
   },
   {
     mapRegistrationData(data, user) {
-      (user as unknown as { displayName: string }).displayName =
-        requireRegistrationDisplayName(data);
+      (user as unknown as { displayName: string }).displayName = readRegistrationDisplayName(data);
     },
   }
 );

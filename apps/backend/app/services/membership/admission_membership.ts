@@ -1,7 +1,7 @@
 import app from '@adonisjs/core/services/app';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { isInvitableRole } from '#services/account_kit/admission_rules';
+import { AdmissionRuleService } from '#services/account_kit/admission_rule_service';
 import { hasNoCompany, getInstallationCompanyId } from '#services/installation_company';
 import { AdmissionException } from '#exceptions/admission_exception';
 import { writeAudit } from '#services/audit';
@@ -38,7 +38,8 @@ export async function completeMembership(userId: string, trx: TransactionClientC
   const admission = await app.container.make(AccountAdmission);
   const evidence = await admission.record(userId, trx);
   const invited = evidence?.invitation?.role;
-  const role = isInvitableRole(invited) ? invited : 'viewer';
+  const admissionRules = await app.container.make(AdmissionRuleService);
+  const role = admissionRules.isInvitableRole(invited) ? invited : 'viewer';
   await access.memberships.grant({ scopeId: companyId, userId, role, trx });
   await writeAudit(trx, {
     companyId,

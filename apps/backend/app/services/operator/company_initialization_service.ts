@@ -1,8 +1,9 @@
+import { inject } from '@adonisjs/core';
 import db from '@adonisjs/lucid/services/db';
 import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { parseUserName } from '@capacitylens/shared/lib/strings';
 import { createInitialCompany } from '#services/initial_company_defaults';
-import { isAdmitted } from '#services/account_kit/admission_rules';
+import { AdmissionRuleService } from '#services/account_kit/admission_rule_service';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
@@ -10,7 +11,14 @@ import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-
 import { hasNoCompany } from '#services/installation_company';
 
 /** Operator initialisation of the first company on an empty stopped installation. */
+@inject()
 export class CompanyInitializationService {
+  #admissionRules: AdmissionRuleService;
+
+  constructor(admissionRules: AdmissionRuleService) {
+    this.#admissionRules = admissionRules;
+  }
+
   /** Establish the first company role for an existing native identity without changing admission. */
   async initialize(input: { email: string; companyName: string; confirmServerStopped: boolean }) {
     operatorDatabasePath(db, input.confirmServerStopped);
@@ -48,7 +56,7 @@ export class CompanyInitializationService {
         if (user.unverified_email === user.email) {
           throw new Error('Refusing company initialization: identity has not confirmed its email');
         }
-        if (!(await isAdmitted(String(user.id), trx))) {
+        if (!(await this.#admissionRules.isAdmitted(String(user.id), trx))) {
           throw new Error('Refusing company initialization: identity is not admitted');
         }
         return createInitialCompany(trx, { name, ownerId: String(user.id), actorId: null });
