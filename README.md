@@ -55,9 +55,10 @@ Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github
 
 For people comfortable with a terminal: the demo runs the full server and web app on your computer
 with demo data. It needs Node 24, git and [pnpm](https://pnpm.io/installation). Node 26 is an
-experimental, best-effort option. Install pnpm separately before running these commands; Node 25
-and later no longer bundle Corepack. Sign in with the credentials printed in the
-terminal. Changes survive refresh and reset when you restart the command. Everyone else can watch
+experimental, best-effort option: the main CI runs on Node 24, and Node 26 is checked
+occasionally, for completeness, with `pnpm run check:node26`. Install pnpm separately before
+running these commands; Node 25 and later no longer bundle Corepack. Sign in with the credentials
+printed in the terminal. Changes survive refresh and reset when you restart the command. Everyone else can watch
 the walkthrough above.
 
 ```bash
