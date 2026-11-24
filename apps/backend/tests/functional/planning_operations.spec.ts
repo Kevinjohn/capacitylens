@@ -239,4 +239,73 @@ test.group('typed planning writers', (group) => {
     assert.equal(created?.name, 'Wayne Foundation');
     assert.isNotTrue(created?.isPrivate);
   });
+
+  test('an activity kind change clears attribution only on the live allocations it names', async ({
+    assert,
+  }) => {
+    await resetState('single');
+    const activityId = randomUUID();
+    await db.transaction((trx) =>
+      executePlanningIntent(
+        trx,
+        'a-studio',
+        {
+          operation: 'catalogue.create',
+          entity: {
+            entity: 'activities',
+            id: activityId,
+            fields: { name: 'Gotham patrol', kind: 'allProjects', projectId: null, phaseId: null },
+          },
+        },
+        owner
+      )
+    );
+    const template = await db.from('allocations').where('company_id', 'a-studio').firstOrFail();
+    const project = await db.from('projects').where('company_id', 'a-studio').firstOrFail();
+    const copy = (overrides: Record<string, unknown>) => ({
+      ...template,
+      id: randomUUID(),
+      activity_id: activityId,
+      project_id: project.id,
+      ...overrides,
+    });
+    // Two attributed rows, one already unattributed and one soft-deleted attributed row.
+    const live = [copy({}), copy({})];
+    const others = [
+      copy({ project_id: null }),
+      copy({ deleted_at: '2026-01-02T03:04:05.006Z', deletion_group_id: null }),
+    ];
+    await db.table('allocations').multiInsert([...live, ...others]);
+    const before = await db.from('allocations').orderBy('id');
+
+    const execution = await db.transaction((trx) =>
+      executePlanningIntent(
+        trx,
+        'a-studio',
+        {
+          operation: 'catalogue.update',
+          entity: { entity: 'activities', id: activityId, changes: { kind: 'internal' } },
+        },
+        owner
+      )
+    );
+
+    const liveIds = new Set(live.map((row) => row.id));
+    const revisions = new Map(
+      execution.written
+        .filter((entry) => entry.entity === 'allocations')
+        .map((entry) => [entry.id, entry.after?.updatedAt])
+    );
+    assert.deepEqual([...revisions.keys()].sort(), [...liveIds].sort());
+    const expected = before.map((row) =>
+      liveIds.has(row.id) ? { ...row, project_id: null, updated_at: revisions.get(row.id) } : row
+    );
+    assert.deepEqual(await db.from('allocations').orderBy('id'), expected);
+    for (const id of liveIds) {
+      assert.isAbove(
+        Date.parse(String(revisions.get(id))),
+        Date.parse(String(before.find((row) => row.id === id)?.updated_at))
+      );
+    }
+  });
 });
