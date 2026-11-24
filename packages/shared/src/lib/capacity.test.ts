@@ -35,7 +35,6 @@ function registerSemanticsTableTests(
           allocations: [...allocations],
           timeOff: [...timeOff],
           companyWorkingDays: companyMondayOnly,
-          closures: [],
         }),
       ).toMatchObject(expected);
       expect(isOnTimeOff(resource.id, date, [...timeOff])).toBe(timeOff.length > 0);
@@ -138,7 +137,6 @@ describe('#257 characterization: effective-week capacity', () => {
         date: '2026-06-05',
         timeOff: [],
         companyWorkingDays,
-        closures: [],
       }),
     ).toBe(0);
     expect(
@@ -200,7 +198,6 @@ describe('effective working-week semantics table', () => {
         date: monday,
         timeOff: [],
         companyWorkingDays: noneCompanyWeek,
-        closures: [],
       }),
     ).toBe(0);
     expect(
@@ -218,7 +215,6 @@ describe('effective working-week semantics table', () => {
         allocations: normal,
         timeOff: [],
         companyWorkingDays: noneCompanyWeek,
-        closures: [],
       }).over,
     ).toBe(false);
     expect(
@@ -236,7 +232,6 @@ describe('effective working-week semantics table', () => {
         allocations: ignored,
         timeOff: [],
         companyWorkingDays: noneCompanyWeek,
-        closures: [],
       }),
     ).toMatchObject({
       allocated: 8,
@@ -261,7 +256,6 @@ describe('buildDayCapacity over-allocation', () => {
       date: '2026-06-01',
       allocations: allocs,
       timeOff: [],
-      closures: [],
     });
     expect(cap).toMatchObject({ allocated: 10, available: 8, over: true });
   });
@@ -281,7 +275,6 @@ describe('buildDayCapacity over-allocation', () => {
       date: '2026-06-06',
       allocations: allocs,
       timeOff: [],
-      closures: [],
     });
     expect(cap).toMatchObject({ allocated: 0, available: 0, over: false });
   });
@@ -302,7 +295,6 @@ describe('buildDayCapacity over-allocation', () => {
       date: '2026-06-06',
       allocations: allocs,
       timeOff: [],
-      closures: [],
     });
     expect(cap).toMatchObject({ allocated: 2, available: 0, over: true });
   });
@@ -322,7 +314,6 @@ describe('buildDayCapacity over-allocation', () => {
       date: '2026-06-03',
       allocations: allocs,
       timeOff: [makeTimeOff({ startDate: '2026-06-03', endDate: '2026-06-03' })],
-      closures: [],
     });
     expect(cap).toMatchObject({ allocated: 4, available: 0, over: true });
   });
@@ -337,26 +328,15 @@ describe('buildDayCapacity over-allocation', () => {
       }),
     ];
     expect(
-      buildDayCapacity({
-        resource: monWed,
-        date: '2026-06-04',
-        allocations: allocs,
-        timeOff: [],
-        closures: [],
-      }),
+      buildDayCapacity({ resource: monWed, date: '2026-06-04', allocations: allocs, timeOff: [] }),
     ).toMatchObject({
       allocated: 0,
       available: 0,
       over: false,
     });
     expect(
-      buildDayCapacity({
-        resource: monWed,
-        date: '2026-06-02',
-        allocations: allocs,
-        timeOff: [],
-        closures: [],
-      }).over,
+      buildDayCapacity({ resource: monWed, date: '2026-06-02', allocations: allocs, timeOff: [] })
+        .over,
     ).toBe(false);
   });
 
@@ -369,13 +349,7 @@ describe('buildDayCapacity over-allocation', () => {
       }),
     ];
     expect(
-      buildDayCapacity({
-        resource: r,
-        date: '2026-06-01',
-        allocations: allocs,
-        timeOff: [],
-        closures: [],
-      }).over,
+      buildDayCapacity({ resource: r, date: '2026-06-01', allocations: allocs, timeOff: [] }).over,
     ).toBe(false);
   });
 
@@ -393,7 +367,6 @@ describe('buildDayCapacity over-allocation', () => {
       date: '2026-06-01',
       allocations: allocs,
       timeOff: [],
-      closures: [],
     });
     expect(cap).toMatchObject({ allocated: 8, available: 8, over: false });
   });
@@ -411,7 +384,6 @@ describe('buildDayCapacity over-allocation', () => {
       date: '2026-06-01',
       allocations: allocs,
       timeOff: [],
-      closures: [],
     });
     expect(cap).toMatchObject({ allocated: 9, available: 8, over: true });
   });
@@ -434,13 +406,7 @@ describe('buildDayCapacity over-allocation', () => {
     for (const order of orders) {
       const ordered = order.map((index) => requireValueAt(allocations, index));
       expect(
-        buildDayCapacity({
-          resource,
-          date: '2026-06-01',
-          allocations: ordered,
-          timeOff: [],
-          closures: [],
-        }).over,
+        buildDayCapacity({ resource, date: '2026-06-01', allocations: ordered, timeOff: [] }).over,
       ).toBe(false);
       expect(
         buildCapacityWindow({
@@ -449,7 +415,6 @@ describe('buildDayCapacity over-allocation', () => {
           timeOff: [],
           start: '2026-06-01',
           end: '2026-06-01',
-          closures: [],
         }).some((c) => c.over),
       ).toBe(false);
     }
@@ -463,7 +428,6 @@ describe('buildDayCapacity over-allocation', () => {
         date: '2026-06-01',
         allocations: genuinelyOver,
         timeOff: [],
-        closures: [],
       }).over,
     ).toBe(true);
   });
@@ -566,7 +530,6 @@ describe('utilisation', () => {
       timeOff: [],
       start: '2026-06-01',
       end: '2026-06-07',
-      closures: [],
     });
     expect(days.map((d) => d.date)).toEqual(listDaysISO('2026-06-01', '2026-06-07'));
     expect(days.map((d) => d.allocated)).toEqual([4, 4, 4, 4, 4, 0, 0]);
@@ -640,7 +603,6 @@ describe('over-allocated inside a window', () => {
       timeOff: [],
       start,
       end,
-      closures: [],
     }).some((day) => day.over);
 
   it('is true when a working day is genuinely over-allocated', () => {
@@ -682,13 +644,7 @@ it('reports a real sub-nanohour overload in both the day marker and proposal adv
   const resource = makeResource();
   const allocation = makeAlloc({ hoursPerDay: 8 + 1e-10 });
   expect(
-    buildDayCapacity({
-      resource,
-      date: '2026-06-01',
-      allocations: [allocation],
-      timeOff: [],
-      closures: [],
-    }).over,
+    buildDayCapacity({ resource, date: '2026-06-01', allocations: [allocation], timeOff: [] }).over,
   ).toBe(true);
   expect(
     capacityAdvisory({
@@ -712,9 +668,9 @@ it('does not mark a day over when days-mode bookings fit it exactly', () => {
   const allocations = Array.from({ length: 5 }, (_, index) =>
     makeAlloc({ id: `fit-${index}`, hoursPerDay: 1.6 }),
   );
-  expect(
-    buildDayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [], closures: [] }).over,
-  ).toBe(false);
+  expect(buildDayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [] }).over).toBe(
+    false,
+  );
   expect(
     capacityAdvisory({
       resource,
@@ -739,10 +695,9 @@ it.each(
     const allocations = hours.map((hoursPerDay, index) =>
       makeAlloc({ id: `exact-${index}`, hoursPerDay }),
     );
-    expect(
-      buildDayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [], closures: [] })
-        .over,
-    ).toBe(true);
+    expect(buildDayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [] }).over).toBe(
+      true,
+    );
     const proposalHours = hours.at(-1) ?? 0;
     expect(
       capacityAdvisory({

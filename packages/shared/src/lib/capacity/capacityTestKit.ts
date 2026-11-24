@@ -3,13 +3,12 @@ import {
   buildCapacityAdvisory as capacityAdvisoryWithWeek,
   buildCapacityWindow as buildCapacityWindowWithWeek,
   buildDayCapacity as buildDayCapacityWithWeek,
+  resolveAllocatedHoursForWeekday,
+  resolveAvailableHoursForWeekday,
   resolveScheduledHoursOnDay as scheduledHoursOnDayWithWeek,
+  resolveUtilisationFromCapacity,
 } from '../capacity.js';
-import {
-  resolveAllocatedHoursOnDay as allocatedHoursOnDayWithWeek,
-  resolveAvailableHoursOnDay as resolveAvailableHoursOnDayWithWeek,
-  resolveUtilisation as utilisationWithWeek,
-} from './capacityReference.js';
+import { getWeekday } from '../dateMath.js';
 import type { DayCapacity, CapacityAllocationInput } from '../capacity.js';
 import { resolveEffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import type {
@@ -31,7 +30,7 @@ export interface AvailableHoursOnDayTestInput {
   resource: Resource;
   date: ISODate;
   timeOff: TimeOff[];
-  closures: Closure[];
+  closures?: Closure[] | undefined;
   companyWorkingDays?: Weekday[] | undefined;
 }
 
@@ -47,7 +46,7 @@ export interface DayCapacityTestInput {
   date: ISODate;
   allocations: Allocation[];
   timeOff: TimeOff[];
-  closures: Closure[];
+  closures?: Closure[] | undefined;
   companyWorkingDays?: Weekday[] | undefined;
 }
 
@@ -57,7 +56,7 @@ export interface CapacityForWindowTestInput {
   timeOff: TimeOff[];
   start: ISODate;
   end: ISODate;
-  closures: Closure[];
+  closures?: Closure[] | undefined;
   companyWorkingDays?: Weekday[] | undefined;
 }
 
@@ -110,13 +109,14 @@ export const resolveAvailableHoursOnDay = ({
   resource,
   date,
   timeOff,
-  closures,
+  closures = [],
   companyWorkingDays,
 }: AvailableHoursOnDayTestInput) =>
-  resolveAvailableHoursOnDayWithWeek({
+  resolveAvailableHoursForWeekday({
     resource,
     date,
     timeOff,
+    weekday: getWeekday(date),
     effectiveWeek: makeWeekFor(resource, companyWorkingDays),
     closures,
   });
@@ -126,10 +126,11 @@ export const allocatedHoursOnDay = ({
   allocations,
   companyWorkingDays,
 }: AllocatedHoursOnDayTestInput) =>
-  allocatedHoursOnDayWithWeek({
+  resolveAllocatedHoursForWeekday({
     resource,
     date,
     allocations,
+    weekday: getWeekday(date),
     effectiveWeek: makeWeekFor(resource, companyWorkingDays),
   });
 export const buildDayCapacity = ({
@@ -137,7 +138,7 @@ export const buildDayCapacity = ({
   date,
   allocations,
   timeOff,
-  closures,
+  closures = [],
   companyWorkingDays,
 }: DayCapacityTestInput) =>
   buildDayCapacityWithWeek({
@@ -154,7 +155,7 @@ export const buildCapacityWindow = ({
   timeOff,
   start,
   end,
-  closures,
+  closures = [],
   companyWorkingDays,
 }: CapacityForWindowTestInput) =>
   buildCapacityWindowWithWeek({
@@ -175,15 +176,17 @@ export const utilisation = ({
   companyWorkingDays,
   closures = [],
 }: UtilisationTestInput) =>
-  utilisationWithWeek({
-    resource,
-    allocations,
-    timeOff,
-    start,
-    end,
-    effectiveWeek: makeWeekFor(resource, companyWorkingDays),
-    closures,
-  });
+  resolveUtilisationFromCapacity(
+    buildCapacityWindowWithWeek({
+      resource,
+      allocations,
+      timeOff,
+      start,
+      end,
+      effectiveWeek: makeWeekFor(resource, companyWorkingDays),
+      closures,
+    }),
+  );
 export const capacityAdvisory = ({
   resource,
   proposal,

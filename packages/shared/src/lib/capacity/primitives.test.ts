@@ -62,7 +62,6 @@ describe('devAssertFinite (DEV-only console.warn on a non-finite allocation)', (
       resource: makeResource({ workingHoursPerDay: Number.NaN }),
       date: '2026-06-01',
       timeOff: [],
-      closures: [],
     });
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
