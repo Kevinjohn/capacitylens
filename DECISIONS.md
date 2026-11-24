@@ -311,8 +311,11 @@ removed entry retires its number.
 4. Columns are snake_case. The row transformer produces the camelCase wire format from each
    model's column serialisation and the state transformer projects it for the reader's role.
    Calendar dates are date-only strings and flags are boolean columns. Product instants are
-   stored and sent as the canonical UTC ISO string with milliseconds. **Aligning (#2442):** the
-   hand-written column helpers give way to Lucid's own wherever Lucid produces that value.
+   stored and sent as the canonical UTC ISO string with milliseconds, through one helper,
+   `timestampColumn`, on Lucid's `prepare`/`consume`/`serialize` column options: Lucid's SQLite
+   date-time format drops milliseconds, and `updatedAt` is an edit token compared for equality.
+   Flags keep `booleanColumn` because the SQLite driver reads them back as 0 and 1. Soft-delete
+   markers use the package's own Lucid column and format (#2442).
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
 6. The backend serves the SPA with the product security headers and a history fallback rather than
