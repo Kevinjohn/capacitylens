@@ -2,11 +2,11 @@
 // Node24+ and the backend are required.
 // Authentication journeys remain Chromium-only in e2e:all. Both invocations always run.
 
+import { spawnSync } from 'node:child_process';
 import {
   nonColourEnvironment,
-  spawnPnpmSync,
   reportSpawnFailureAndResolveExitStatus,
-} from '../shared/pnpmSpawn.mjs';
+} from '../shared/childProcess.mjs';
 import { E2E_RUN_PRESETS, presetEnvironment } from './playwrightRunMode.mjs';
 
 const forwardedArgs = process.argv.slice(2);
@@ -14,7 +14,7 @@ const forwardedArgs = process.argv.slice(2);
 /** Run one Playwright invocation to completion; return its exit status (2 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:browsers — ${label} ===`);
-  const res = spawnPnpmSync(['exec', 'playwright', 'test', ...extraArgs, ...forwardedArgs], {
+  const res = spawnSync('pnpm', ['exec', 'playwright', 'test', ...extraArgs, ...forwardedArgs], {
     stdio: 'inherit',
     env: nonColourEnvironment({}, presetEnvironment(process.env, env)),
   });

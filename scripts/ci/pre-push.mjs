@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../shared/pnpmSpawn.mjs';
+import { reportSpawnFailureAndResolveExitStatus } from '../shared/childProcess.mjs';
 
 const updates = (input) =>
   input
@@ -47,7 +47,9 @@ export function needsFullCheck(status) {
 }
 
 function runFullCheck() {
-  const result = spawnPnpmSync(['run', 'check:push'], { stdio: ['ignore', 'inherit', 'inherit'] });
+  const result = spawnSync('pnpm', ['run', 'check:push'], {
+    stdio: ['ignore', 'inherit', 'inherit'],
+  });
   return reportSpawnFailureAndResolveExitStatus('check:push', result);
 }
 

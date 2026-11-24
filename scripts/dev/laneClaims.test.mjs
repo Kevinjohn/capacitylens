@@ -18,7 +18,7 @@ import {
   resolvePlaywrightRunMode,
   E2E_RUN_PRESETS,
 } from '../e2e/playwrightRunMode.mjs';
-import { nonColourEnvironment } from '../shared/pnpmSpawn.mjs';
+import { nonColourEnvironment } from '../shared/childProcess.mjs';
 import {
   assertPortLaneFree,
   claimPortLane,

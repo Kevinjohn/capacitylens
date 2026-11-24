@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { spawnPnpm } from '../shared/pnpmSpawn.mjs';
 
 const graceMs = 2_000;
 let started = false;
@@ -61,8 +60,7 @@ process.on('message', (message) => {
       detached: false,
       stdio: 'inherit',
     };
-    service =
-      command === 'pnpm' ? spawnPnpm(args, spawnOptions) : spawn(command, args, spawnOptions);
+    service = spawn(command, args, spawnOptions);
   } catch (error) {
     process.stderr.write(`${error.stack ?? error.message}\n`);
     stop();

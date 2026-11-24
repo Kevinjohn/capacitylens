@@ -134,7 +134,7 @@ and **logout** (the framework's words for starting and ending a session).
 - **TOOL-1 (F)** ESLint starts from `@adonisjs/eslint-config`: `configApp()` in an application,
   `configPkg()` in a package. Add rules; do not remove the preset's.
 - **TOOL-2 (F)** Prettier starts from `@adonisjs/prettier-config`: single quotes, 100 columns, ES5
-  trailing commas, `arrowParens: always`, `quoteProps: consistent`, no semicolons. See decision D1.
+  trailing commas, `arrowParens: always`, `quoteProps: consistent`, no semicolons.
 - **TOOL-3 (F)** `tsconfig.json` extends `@adonisjs/tsconfig/tsconfig.app.json` in an application
   and `@adonisjs/tsconfig/tsconfig.package.json` in a package.
 - **TOOL-4 (H)** Node is version 24 or later, declared under `engines`. The framework requires it;
@@ -681,7 +681,7 @@ export default class extends BaseSchema {
 - **SVC-4 (F)** Replace a service in a test with the test context's `swap(Service, fake)`, which
   restores itself.
 - **SVC-5 (P)** Behaviour is a class method. A file does not export loose top-level functions; an
-  exported function only builds and returns an instance. See decision D2.
+  exported function only builds and returns an instance.
 - **SVC-6 (F)** Write a provider only for container bindings, framework extensions (macros,
   `HttpContext` properties), or work that starts and stops with the application. One-off setup is
   a preload file.
@@ -1183,14 +1183,11 @@ the answer is recorded in the repository's departures list.
 
 | Id | Question | Framework | Recommendation |
 | --- | --- | --- | --- |
-| D1 | Semicolons | `@adonisjs/prettier-config` has `semi: false`. | CapacityLens kept semicolons (decided 2026-10-28). For one house style, either move everything to the preset or record "semicolons kept" here as the single format departure. Recommend the preset in packages now, since they are small; decide the application separately. |
-| D2 | Services: classes with `@inject`, or modules of functions | Classes built by the container; Plus forbids loose functions. | Classes in packages (already the official shape) and in new application code. An existing function-module codebase records a departure instead of converting. |
 | D4 | API response envelope | `serialize(...)` wraps in `{ data }`. | Adopt for new APIs (RES-4). An existing wire contract records a departure. |
-| D5 | Error body | Framework default handler output, per content negotiation. | Adopt the default. A product with a published error contract records a departure and still calls `super.report`. |
 | D7 | Package manager | Kits ship npm scripts and work with any manager. | pnpm everywhere; scripts written so they do not name the manager. |
 | D8 | Authentication in applications that use Account Kit | `@adonisjs/auth` guards, `withAuthFinder`, `loginAs`. | Account Kit is itself an AdonisJS package, so it should expose the framework's surface (guards, `auth.user`, a `loginAs`-style test plugin) rather than each application recording a departure. Audit it against Part 3 first. |
 | D9 | Authorization in applications that use Access Control | Bouncer abilities and policies called from the controller. | Same as D8: the package should present Bouncer's vocabulary (`ability`, `policy`, `authorize`), and the application calls it from the controller. |
-| D10 | Which AdonisJS Plus rules are binding | Published as optional lint rules. | Binding: CTL-5, TST-11, TST-12, TST-13, TOOL-7. Subject to D2: SVC-5. |
+| D10 | Which AdonisJS Plus rules are binding | Published as optional lint rules. | Binding: CTL-5, TST-11, TST-12, TST-13, TOOL-7, SVC-5. |
 
 ---
 

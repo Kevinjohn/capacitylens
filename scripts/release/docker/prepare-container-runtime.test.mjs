@@ -219,7 +219,7 @@ test('the web image copies the Vite output consumed by the root standalone build
   visit(source);
   assert.equal(outputDirectories.length, 1);
   const output = resolve(repository, 'apps/frontend', outputDirectories[0]);
-  const containerOutput = `/app/${relative(repository, output).replaceAll('\\', '/')}`;
+  const containerOutput = `/app/${relative(repository, output)}`;
   const dockerfile = await readFile(join(repository, 'Dockerfile'), 'utf8');
   assert.ok(dockerfile.includes(`COPY --from=web-build ${containerOutput} /usr/share/nginx/html`));
   const manifest = JSON.parse(await readFile(join(repository, 'package.json'), 'utf8'));

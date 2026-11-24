@@ -1,11 +1,11 @@
-import { spawnPnpmSync } from '../scripts/shared/pnpmSpawn.mjs';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
 /** Generate shared backend client and localization modules before any worker starts. */
 export default function globalSetup(): void {
-  const codegen = spawnPnpmSync(['--dir', 'apps/backend', 'codegen'], {
+  const codegen = spawnSync('pnpm', ['--dir', 'apps/backend', 'codegen'], {
     cwd: root,
     stdio: 'inherit',
     // Code generation loads route configuration, which validates the app environment.
@@ -27,7 +27,7 @@ export default function globalSetup(): void {
   if (codegen.status !== 0)
     throw new Error(`Backend code generation failed (${codegen.status ?? codegen.signal}).`);
 
-  const result = spawnPnpmSync(['run', 'paraglide:compile'], {
+  const result = spawnSync('pnpm', ['run', 'paraglide:compile'], {
     cwd: root,
     stdio: 'inherit',
   });

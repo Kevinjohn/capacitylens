@@ -21,7 +21,7 @@ function storyFiles(directory = resolve(ROOT, 'user-stories')): string[] {
 
 function storyPaths(): string[] {
   return storyFiles()
-    .map((file) => relative(resolve(ROOT, 'user-stories'), file).replaceAll('\\', '/'))
+    .map((file) => relative(resolve(ROOT, 'user-stories'), file))
     .sort();
 }
 
@@ -275,7 +275,7 @@ test.group('documentation and repository rule contracts', () => {
       identifiers.add(identifier!);
       assert.match(content.replace(/\s+/g, ' '), /As an? .+, I want .+ so that .+/);
       assert.match(content, /^\*\*Status:\*\* (?:Current|Hidden|Removed|Demo|Operator|Planned)\b/m);
-      const pathInCatalogue = relative(resolve(ROOT, 'user-stories'), file).replaceAll('\\', '/');
+      const pathInCatalogue = relative(resolve(ROOT, 'user-stories'), file);
       const matrixRow = matrix.split('\n').find((line) => line.includes(`](${pathInCatalogue})`));
       const matrixStatus = matrixRow?.match(
         /\|\s*(Current|Hidden|Removed|Demo|Operator|Planned)\s*\|\s*(?:New|Existing)\s*\|$/

@@ -68,7 +68,7 @@ UUID identifiers; `account_operations.ts` creates command ids; `@kevinjohn/adoni
 `@kevinjohn/adonisjs-confirm-action-with-password` creates confirmation UUIDs and intent hashes; `auth/request_limit.ts` hashes client
 IP keys; `company_import.ts` hashes import snapshots; and
 `planning/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto
-for UUIDs and a command digest. Build scripts use SHA-256 for file integrity; packaged-server smoke
+for UUIDs and a command digest. Build scripts use SHA-256 for file integrity; end-to-end test
 tooling uses UUIDs. These are identifiers or integrity/limiter hashes, not password or bearer-token
 storage.
 

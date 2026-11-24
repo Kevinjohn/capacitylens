@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdir, readFile, rm, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { spawnPnpmSync } from '../shared/pnpmSpawn.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -23,7 +23,7 @@ async function treeDigest(directory) {
       else if (entry.isFile()) {
         const bytes = await readFile(absolute);
         entries.push([
-          relative(directory, absolute).replaceAll('\\', '/'),
+          relative(directory, absolute),
           createHash('sha256').update(bytes).digest('hex'),
         ]);
       }
@@ -34,7 +34,8 @@ async function treeDigest(directory) {
 }
 
 try {
-  const cli = spawnPnpmSync(
+  const cli = spawnSync(
+    'pnpm',
     [
       '--dir',
       'apps/frontend',

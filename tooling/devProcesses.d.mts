@@ -7,5 +7,5 @@ export function terminateProcessTree(
   options?: { graceMs?: number; forceMs?: number },
 ): Promise<void>;
 
-/** Check the owned POSIX process group, or the root process on Windows. */
+/** Check the owned POSIX process group. */
 export function isProcessTreeRunning(child: ChildProcess): boolean;
