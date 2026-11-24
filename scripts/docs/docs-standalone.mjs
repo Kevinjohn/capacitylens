@@ -16,7 +16,7 @@
 //
 
 import { readdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
-import { join, relative, dirname, resolve, sep } from 'node:path';
+import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BASE } from '../../docs-src/.vitepress/base.mjs';
 
@@ -68,7 +68,7 @@ const STANDALONE_NOT_FOUND_CSS =
 const toRelative = (pageDir, absolutePath) => {
   let target = absolutePath.slice(BASE.length);
   if (target === '' || target.endsWith('/')) target += 'index.html';
-  const rel = relative(pageDir, join(siteDir, target)).split(sep).join('/');
+  const rel = relative(pageDir, join(siteDir, target));
   return rel === '' ? 'index.html' : rel;
 };
 

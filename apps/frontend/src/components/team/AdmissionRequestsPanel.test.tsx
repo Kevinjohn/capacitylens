@@ -17,18 +17,19 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('AdmissionRequestsPanel read and refusal states', () => {
   it('shows loading until the read finishes, then allows a failed read to be retried', async () => {
-    let finishRead!: (
-      value: Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>,
-    ) => void;
-    const firstRead = new Promise<Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>>(
-      (resolve) => {
-        finishRead = resolve;
-      },
-    );
+    type ListResult = Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>;
+    let finishRead!: (value: ListResult) => void;
+    const firstRead = new Promise<ListResult>((resolve) => {
+      finishRead = resolve;
+    });
+    let finishRetry!: (value: ListResult) => void;
+    const retryRead = new Promise<ListResult>((resolve) => {
+      finishRetry = resolve;
+    });
     const list = vi
       .spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockReturnValueOnce(firstRead)
-      .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] });
+      .mockReturnValueOnce(retryRead);
 
     render(<AdmissionRequestsPanel />);
     expect(screen.getByRole('status')).toHaveTextContent('Loading');
@@ -38,9 +39,44 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true');
+
+    finishRetry({ kind: 'ok', status: 200, value: [pendingRequest] });
     expect(await screen.findByTestId('admission-request')).toHaveTextContent(pendingRequest.email);
     expect(list).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'false');
+  });
+
+  it('shows loading while retrying a refresh that failed after a listing', async () => {
+    type ListResult = Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>;
+    let finishRetry!: (value: ListResult) => void;
+    const retryRead = new Promise<ListResult>((resolve) => {
+      finishRetry = resolve;
+    });
+    vi.spyOn(teamAccessApi, 'listAdmissionRequests')
+      .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] })
+      .mockResolvedValueOnce({ kind: 'rejected', status: 503, message: 'Unavailable' })
+      .mockReturnValueOnce(retryRead);
+    vi.spyOn(teamAccessApi, 'decideAdmission').mockResolvedValue({
+      kind: 'ok',
+      status: 204,
+      value: true,
+    });
+
+    render(<AdmissionRequestsPanel />);
+    await screen.findByTestId('admission-request');
+    fireEvent.click(screen.getByTestId('admission-approve'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true');
+
+    finishRetry({ kind: 'ok', status: 200, value: [] });
+    expect(await screen.findByText('Nobody is waiting for approval.')).toBeInTheDocument();
   });
 
   it('explains approval only while at least one request is listed', async () => {

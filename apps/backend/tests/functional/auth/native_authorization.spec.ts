@@ -80,9 +80,13 @@ async function currentUser(client: ApiClient, cookie: string) {
   return withSession(trusted(client.visit('api.session.show')), cookie).send();
 }
 
-async function writeDismissal(client: ApiClient, cookie: string) {
+async function writeDismissal(
+  client: ApiClient,
+  cookie: string,
+  body: Record<string, unknown> = { dismissed: true }
+) {
   return withSession(trusted(client.visit('api.getting_started.update', { companyId })), cookie)
-    .json({ dismissed: true })
+    .json(body as never)
     .send();
 }
 
@@ -355,6 +359,27 @@ test.group('native authorization and role projections', (group) => {
         .where('company_id', companyId)
         .count('* as total'),
       [{ total: 1 }]
+    );
+  });
+
+  test('an invalid getting-started dismissal is refused and records nothing', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await createMember(client, 'owner');
+    for (const body of [{}, { dismissed: false }, { dismissed: 'yes' }]) {
+      const refused = await writeDismissal(client, cookie, body);
+      refused.assertStatus(422);
+      assert.isNotEmpty((refused.body() as { errors?: unknown[] }).errors, JSON.stringify(body));
+    }
+    assert.deepEqual(
+      await db
+        .from('company_getting_started_dismissals')
+        .where('company_id', companyId)
+        .count('* as total'),
+      [{ total: 0 }]
     );
   });
 });

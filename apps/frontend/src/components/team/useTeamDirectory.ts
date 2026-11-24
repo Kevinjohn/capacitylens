@@ -12,7 +12,7 @@ import type {
 import type { FieldError } from '@/hooks/useFieldError';
 import { api, buildScopeQueryKey } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
-import { useAuth } from '@/auth/authContext';
+import { useQueryScope } from '@/api/useQueryScope';
 import { useStore } from '@/store/useStore';
 
 interface TeamDirectoryOptions {
@@ -185,20 +185,12 @@ function useReadFailureNotices(
 /** Owns authoritative directory reads, self-gating and reload generations. */
 export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeCompanyId, fail } = options;
-  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const masqueradeGeneration = useStore((state) =>
-    state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
-  );
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
-  const scope: ApiQueryScope = {
-    userId: user?.id ?? null,
-    companyId: activeCompanyId,
-    masqueradeGeneration,
-  };
+  // The keys take the company from the caller; the scope supplies the user and view-as generation.
   const queries = useDirectoryQueries(
     { ...options, enabled: options.enabled && !masqueradeActive },
-    scope,
+    useQueryScope(),
   );
   const { membersKey, membersQuery, invitesKey, invitationsQuery } = queries;
   useReadFailureNotices(fail, queries);

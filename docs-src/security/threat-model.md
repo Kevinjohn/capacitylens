@@ -16,7 +16,8 @@ deployment topology or external services.
    their current server-side membership and role.
 2. Passwords, session tokens and emailed bearer links are not disclosed or stored in recoverable
    form where a safer representation is available.
-3. Company writes remain valid, atomic and attributable; schema drift prevents startup.
+3. Company writes remain valid, atomic and attributable; startup refuses a database whose migration
+   record lacks a migration the build ships.
 4. Browser-delivered code cannot silently turn an authenticated browser into a cross-site write
    primitive, and sensitive API responses are not cached.
 5. Operators can contain a compromised identity, restore authoritative data and investigate the

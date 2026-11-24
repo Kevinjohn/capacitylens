@@ -1,6 +1,6 @@
 // Fails on a rejected synonym from code_convention_terminology.md, in file names and in the text of
-// source, tests, scripts, documentation, user stories and UI messages. The list and its exemptions
-// are data in tooling/terminology.mjs.
+// source, tests, scripts, documentation, user stories and UI messages. tooling/terminology.mjs reads
+// the list from that page's Enforced rejections table and holds the exemptions.
 //
 //   node scripts/maintenance/check-terminology.mjs            the whole tracked tree
 //   node scripts/maintenance/check-terminology.mjs <path>...  only those paths

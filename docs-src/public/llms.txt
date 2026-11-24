@@ -18,7 +18,7 @@ Float, Productive, awork, Runn, Teamwork, Resource Guru and eResource Scheduler 
 - [What is CapacityLens?](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html): the one-page introduction, who it is for and what to know before adopting it
 - [Quick start](https://kevinjohn.github.io/capacitylens/getting-started/quick-start.html): install, create the company and book the first work
 - [Install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/install.html): requirements and installation routes
-- [Install without Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-without-docker.html): the one-command install and the manual steps
+- [Install without Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-without-docker.html): clone a release tag, build it and run it under systemd
 - [Configuration](https://kevinjohn.github.io/capacitylens/self-hosting/configuration.html): environment settings, including email delivery
 - [Upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html): upgrading an installation and what to check afterwards
 

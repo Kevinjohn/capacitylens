@@ -76,7 +76,7 @@ Mechanical checks:
 Items:
 
 - [ ] **TOOL-1** (F) ESLint starts from `@adonisjs/eslint-config`: `configApp()` in an application, `configPkg()` in a package. Add rules; do not remove the preset's.
-- [ ] **TOOL-2** (F) Prettier starts from `@adonisjs/prettier-config`: single quotes, 100 columns, ES5 trailing commas, `arrowParens: always`, `quoteProps: consistent`, no semicolons. See decision D1.
+- [ ] **TOOL-2** (F) Prettier starts from `@adonisjs/prettier-config`: single quotes, 100 columns, ES5 trailing commas, `arrowParens: always`, `quoteProps: consistent`, no semicolons.
 - [ ] **TOOL-3** (F) `tsconfig.json` extends `@adonisjs/tsconfig/tsconfig.app.json` in an application and `@adonisjs/tsconfig/tsconfig.package.json` in a package.
 - [ ] **TOOL-4** (H) Node is version 24 or later, declared under `engines`. The framework requires it; the package starter kit declares it.
 - [ ] **TOOL-5** (F) Script names are the starter kit's: `dev`, `build`, `start`, `test`, `lint`, `format`, `typecheck`, plus `codegen` in a monorepo backend and `compile`, `quick:test` and `release` in a package.
@@ -285,7 +285,7 @@ Items:
 
 Mechanical checks:
 
-- [ ] `grep -rnE "^export (async )?function" app` prints nothing (subject to D2)
+- [ ] `grep -rnE "^export (async )?function" app` prints nothing
 - [ ] `grep -rnE "^\s*console\." app providers start` prints nothing
 
 Items:
@@ -294,7 +294,7 @@ Items:
 - [ ] **SVC-2** (F) A service is taken through the constructor with `@inject()`. The container builds it; nothing calls `new` on it.
 - [ ] **SVC-3** (F) A service does not read the HTTP context unless it is injected with it. Prefer passing the values it needs.
 - [ ] **SVC-4** (F) Replace a service in a test with the test context's `swap(Service, fake)`, which restores itself.
-- [ ] **SVC-5** (P) Behaviour is a class method. A file does not export loose top-level functions; an exported function only builds and returns an instance. See decision D2.
+- [ ] **SVC-5** (P) Behaviour is a class method. A file does not export loose top-level functions; an exported function only builds and returns an instance.
 - [ ] **SVC-6** (F) Write a provider only for container bindings, framework extensions (macros, `HttpContext` properties), or work that starts and stops with the application. One-off setup is a preload file.
 - [ ] **SVC-7** (F) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in `ready` and stops in `shutdown`.
 - [ ] **SVC-8** (F) Application code logs through the logger, not `console`.

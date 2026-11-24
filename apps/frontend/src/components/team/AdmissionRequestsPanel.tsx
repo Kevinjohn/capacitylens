@@ -45,8 +45,11 @@ export function AdmissionRequestsPanel() {
     };
   }, []);
   const [error, setError] = useState<string | null>(null);
+  // A query that held data keeps its error while it refetches, so a retry checks `isFetching`.
   const listing = query.isError
-    ? ({ kind: 'failed' } as const)
+    ? query.isFetching
+      ? ({ kind: 'loading' } as const)
+      : ({ kind: 'failed' } as const)
     : query.data
       ? ({ kind: 'ready', requests: query.data } as const)
       : ({ kind: 'loading' } as const);

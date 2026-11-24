@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Prints `present` or `absent` for one image reference. Only a definite "not found" answer counts as
-# absent, so a registry outage, rate limit or expired login stops the caller instead of republishing.
-# FIRST_PUBLICATION=true also reads `denied` as absent: a package that was never published may
-# answer that way.
+# Prints `present` or `absent` for one image reference. Only a definite "not found" or `denied`
+# answer counts as absent, so a registry outage, rate limit or expired login stops the caller
+# instead of republishing. `denied` counts because a package that was never published answers that
+# way, so the first tag push can publish. It cannot lead to a replaced tag: a token refused a read
+# is refused the push.
 set -euo pipefail
 
 image="$1"
@@ -12,8 +13,7 @@ attempt() {
     echo present
     return 0
   fi
-  if grep -qiE 'no such manifest|manifest unknown|name unknown' <<<"$last_error" ||
-    { [ "${FIRST_PUBLICATION:-}" = true ] && grep -qi 'denied' <<<"$last_error"; }; then
+  if grep -qiE 'no such manifest|manifest unknown|name unknown|denied' <<<"$last_error"; then
     echo absent
     return 0
   fi

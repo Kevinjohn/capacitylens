@@ -14,7 +14,9 @@ next:
 CapacityLens installs from the repository: clone it at a release tag, install, build and run it
 under a process manager behind an HTTPS proxy on the same machine. These steps use a Linux host
 with systemd, Git, Node 24.19.0 or later within the 24.x line, and pnpm at the version named in the
-`packageManager` field of `package.json` (`corepack enable` provides it). Whoever manages hosting
+`packageManager` field of `package.json` (`corepack enable` provides it). Install `python3`, `make`
+and `g++` as well (on Debian or Ubuntu, `sudo apt-get install python3 make g++`): the SQLite driver,
+`better-sqlite3`, compiles with them when no prebuilt binary matches the host. Whoever manages hosting
 installs it and remains responsible for backups, upgrades and service health. Replace `X.Y.Z`,
 hostnames and addresses with your own.
 
