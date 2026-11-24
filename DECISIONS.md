@@ -330,10 +330,7 @@ removed entry retires its number.
 11. A company permission is authorised inside the product transaction through the Access
     Control package, after the route middleware has checked membership. Controllers do not
     call Bouncer and the product has no policies or abilities of its own.
-12. **Aligning (#2459).** Reads of planning tables that have a company-scoped model go through
-    that model, while writes use the query builder on the caller's connection. Kept from this
-    entry: checks that must see other companies or soft-deleted rows, and tables without a
-    model, use the query builder. Account Kit creates identities through the `User` model.
+12. Retired (#2459). Product writes go through the Lucid models. See Data design.
 13. Retired. See Data design.
 14. Retired. See Data design.
 15. The Node server is created by `bin/server.ts` with fixed connection limits, and a

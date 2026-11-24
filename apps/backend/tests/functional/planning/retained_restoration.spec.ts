@@ -12,7 +12,7 @@ import {
   signIn,
 } from '#tests/functional/planning/helpers';
 import { countRestorableItems } from '#services/planning/restoration';
-import { encodeRow } from '#services/state_repository';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
 
 const tables = {
@@ -76,16 +76,16 @@ test.group('retained restoration reads', (suite) => {
       id: ids.allocations,
       note: 'Gotham retained note',
     };
-    await db.table('allocations').insert(
-      encodeRow('allocations', {
+    await insertProductRows('allocations', [
+      {
         ...allocation,
         companyId,
         createdAt: now,
         updatedAt: now,
-      })
-    );
-    await db.table('time_off').insert(
-      encodeRow('time_off', {
+      },
+    ]);
+    await insertProductRows('timeOff', [
+      {
         id: ids.timeOff,
         companyId,
         resourceId: seed.resources.find(
@@ -97,10 +97,10 @@ test.group('retained restoration reads', (suite) => {
         note: 'Gotham private note',
         createdAt: now,
         updatedAt: now,
-      })
-    );
-    await db.table('closures').insert(
-      encodeRow('closures', {
+      },
+    ]);
+    await insertProductRows('closures', [
+      {
         id: ids.closures,
         companyId,
         name: 'Gotham retained closure',
@@ -108,8 +108,8 @@ test.group('retained restoration reads', (suite) => {
         endDate: '2026-11-02',
         createdAt: now,
         updatedAt: now,
-      })
-    );
+      },
+    ]);
     const insertedAllocation = await db.from('allocations').where('id', ids.allocations).first();
     assert.exists(insertedAllocation);
 
@@ -227,14 +227,14 @@ test.group('retained restoration reads', (suite) => {
     const { cookie } = await signIn(client);
     const data = await readState(companyId, true);
     const allocation = newAllocation(data);
-    await db.table('allocations').insert(
-      encodeRow('allocations', {
+    await insertProductRows('allocations', [
+      {
         ...allocation,
         companyId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })
-    );
+      },
+    ]);
     const deleted = await deleteTarget(client, cookie, 'allocations', allocation.id, 0);
     deleted.assertStatus(200);
     const groupId = (deleted.body().data as { restoration: { replacementGroupId: string } })
