@@ -64,6 +64,6 @@ A bound placeholder leaves the generic Project choices disabled. An unbound plac
 - [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L366)
 - [integrity.ts](../../packages/shared/src/lib/integrity.ts#L126)
 - [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
-- [planning.ts](../../apps/backend/app/services/planning.ts#L198)
+- [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L222)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [AllocationDialog.create.test.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.create.test.tsx#L320)

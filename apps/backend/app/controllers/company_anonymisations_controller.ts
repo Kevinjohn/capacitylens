@@ -1,23 +1,26 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import { anonymiseResources } from '#services/anonymise';
 import { PasswordConfirmationService } from '#services/auth/password_confirmation_service';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { anonymiseCompanyValidator } from '#validators/anonymise';
+import { AnonymisationService } from '#services/anonymisation_service';
 
 /** Anonymises every person in the company after a password confirmation. */
 @inject()
 export default class CompanyAnonymisationsController {
   #currentActor: CurrentActorService;
   #passwordConfirmationRules: PasswordConfirmationService;
+  #anonymisations: AnonymisationService;
 
   constructor(
     currentActor: CurrentActorService,
-    passwordConfirmationRules: PasswordConfirmationService
+    passwordConfirmationRules: PasswordConfirmationService,
+    anonymisations: AnonymisationService
   ) {
     this.#currentActor = currentActor;
     this.#passwordConfirmationRules = passwordConfirmationRules;
+    this.#anonymisations = anonymisations;
   }
 
   async store({ auth, params, request, response }: HttpContext) {
@@ -37,7 +40,7 @@ export default class CompanyAnonymisationsController {
         scope: companyId,
         intent: {},
       });
-      await anonymiseResources(trx, companyId, actor.userId);
+      await this.#anonymisations.anonymiseResources(trx, companyId, actor.userId);
     });
     return response.noContent();
   }

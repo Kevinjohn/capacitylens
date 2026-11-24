@@ -10,20 +10,23 @@ import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-passw
 import { PasswordConfirmationService } from '#services/auth/password_confirmation_service';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { classifyLogError } from '#config/logger';
-import { parseRequestDocument } from '#services/company_import';
 import { confirmPasswordValidator } from '#validators/password_confirmations';
+import { CompanyImportService } from '#services/company_import_service';
 
 @inject()
 export default class PasswordConfirmationsController {
   #passwordConfirmationRules: PasswordConfirmationService;
   #currentActor: CurrentActorService;
+  #companyImports: CompanyImportService;
 
   constructor(
     passwordConfirmationRules: PasswordConfirmationService,
-    currentActor: CurrentActorService
+    currentActor: CurrentActorService,
+    companyImports: CompanyImportService
   ) {
     this.#passwordConfirmationRules = passwordConfirmationRules;
     this.#currentActor = currentActor;
+    this.#companyImports = companyImports;
   }
 
   async store({ auth, request, response, logger, serialize }: HttpContext) {
@@ -32,7 +35,7 @@ export default class PasswordConfirmationsController {
     });
     let intent: unknown = body.intent;
     if (body.action === 'import') {
-      const document = parseRequestDocument(body.intent.document);
+      const document = this.#companyImports.parseRequestDocument(body.intent.document);
       if (!document) return response.badRequest({ error: 'Invalid password confirmation.' });
       intent = { baseRevision: body.intent.baseRevision, document };
     }

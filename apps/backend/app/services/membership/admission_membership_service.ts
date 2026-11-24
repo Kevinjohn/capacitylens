@@ -4,19 +4,28 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { AdmissionRuleService } from '#services/account_kit/admission_rule_service';
 import { hasNoCompany, getInstallationCompanyId } from '#services/installation_company';
 import { AdmissionException } from '#exceptions/admission_exception';
-import { writeAudit } from '#services/audit';
-import { advancePlanningRevision } from '#services/planning_revision';
 import access from '#config/access_control';
+import { AuditService } from '#services/audit_service';
+import { PlanningRevisionService } from '#services/planning_revision_service';
 
 /** Company membership for an identity the Account Kit has admitted. */
 @inject()
 export class AdmissionMembershipService {
   #admission: AccountAdmission;
   #admissionRules: AdmissionRuleService;
+  #audit: AuditService;
+  #planningRevisions: PlanningRevisionService;
 
-  constructor(admission: AccountAdmission, admissionRules: AdmissionRuleService) {
+  constructor(
+    admission: AccountAdmission,
+    admissionRules: AdmissionRuleService,
+    audit: AuditService,
+    planningRevisions: PlanningRevisionService
+  ) {
     this.#admission = admission;
     this.#admissionRules = admissionRules;
+    this.#audit = audit;
+    this.#planningRevisions = planningRevisions;
   }
 
   /**
@@ -50,7 +59,7 @@ export class AdmissionMembershipService {
     const invited = evidence?.invitation?.role;
     const role = this.#admissionRules.isInvitableRole(invited) ? invited : 'viewer';
     await access.memberships.grant({ scopeId: companyId, userId, role, trx });
-    await writeAudit(trx, {
+    await this.#audit.writeAudit(trx, {
       companyId,
       actorId: userId,
       action: 'admission.completed',
@@ -58,7 +67,7 @@ export class AdmissionMembershipService {
       entityId: userId,
       fields: ['role'],
     });
-    await advancePlanningRevision(trx, companyId);
+    await this.#planningRevisions.advancePlanningRevision(trx, companyId);
     return { companyId, role, created: true };
   }
 

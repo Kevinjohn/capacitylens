@@ -1,9 +1,8 @@
 import { test } from '@japa/runner';
-import {
-  buildBootstrapRecoveryMessage,
-  recordBootstrapAdmission,
-} from '#services/development_bootstrap';
 import ConfigurationProvider, { assertProductionPosture } from '#providers/configuration_provider';
+import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
+
+const developmentBootstrap = new DevelopmentBootstrapService();
 
 test.group('configuration provider', () => {
   test('production refuses bootstrap, invalid limiter, and reset settings', ({ assert }) => {
@@ -42,12 +41,18 @@ test.group('configuration provider', () => {
       };
       let failure: unknown;
       try {
-        await recordBootstrapAdmission({ operator } as never, 'admin@admin.admin');
+        await developmentBootstrap.recordBootstrapAdmission(
+          { operator } as never,
+          'admin@admin.admin'
+        );
       } catch (error) {
         failure = error;
       }
       assert.instanceOf(failure, Error);
-      assert.include((failure as Error).message, buildBootstrapRecoveryMessage());
+      assert.include(
+        (failure as Error).message,
+        developmentBootstrap.buildBootstrapRecoveryMessage()
+      );
       assert.notInclude((failure as Error).message, 'private package detail');
       assert.include((failure as Error).message, 'CAPACITYLENS_CREATE_ADMIN_ADMIN=false');
       assert.include((failure as Error).message, 'account-kit:admission:grant-invitation');
@@ -84,8 +89,16 @@ test.group('configuration provider', () => {
 
   test('a running server stops background maintenance when shutdown begins', async ({ assert }) => {
     const hooks: Array<() => unknown> = [];
+    const passes: string[] = [];
+    // The provider resolves its maintenance service from this application's container.
+    const storageMaintenance = {
+      createMaintenance: () => ({
+        run: async () => void passes.push('run'),
+        stop: async () => void passes.push('stop'),
+      }),
+    };
     const application = {
-      container: { make: async () => ({ on() {} }) },
+      container: { make: async () => storageMaintenance },
       getEnvironment: () => 'web',
       inTest: false,
       isTerminating: false,
@@ -97,5 +110,6 @@ test.group('configuration provider', () => {
     assert.lengthOf(hooks, 1, 'the provider registers one shutdown hook');
     await hooks[0]();
     await provider.shutdown();
+    assert.deepEqual(passes, ['run', 'stop']);
   });
 });

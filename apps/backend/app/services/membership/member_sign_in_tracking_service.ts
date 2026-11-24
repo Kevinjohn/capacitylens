@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core';
 import { createId } from '@capacitylens/shared/lib/id';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { writeAudit } from '#services/audit';
+import { AuditService } from '#services/audit_service';
 
 const TRACKING_KEY = 'member-sign-in-tracking';
 const buildObservedKey = (userId: string) => `member-sign-in:${userId}`;
@@ -15,9 +15,11 @@ function isEnabled(value: unknown) {
 @inject()
 export class MemberSignInTrackingService {
   #authorization: AuthorizationService;
+  #audit: AuditService;
 
-  constructor(authorization: AuthorizationService) {
+  constructor(authorization: AuthorizationService, audit: AuditService) {
     this.#authorization = authorization;
+    this.#audit = audit;
   }
 
   /** Reads a company's private Boolean tracking window without exposing sign-in times. */
@@ -96,7 +98,7 @@ export class MemberSignInTrackingService {
     await this.setTracking(companyId, requested, trx, now);
     if (!current.enabled && requested) await this.confirmSignIn(companyId, actorId, trx, now);
     if (current.enabled !== requested) {
-      await writeAudit(
+      await this.#audit.writeAudit(
         trx,
         {
           companyId,

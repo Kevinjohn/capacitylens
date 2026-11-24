@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import { readPlanning } from '#services/planning';
+import { PlanningService } from '#services/planning_service';
 import { planningReadValidator } from '#validators/planning/read';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 
@@ -8,9 +8,11 @@ import { CurrentActorService } from '#services/auth/current_actor_service';
 @inject()
 export default class PlanningController {
   #currentActor: CurrentActorService;
+  #planning: PlanningService;
 
-  constructor(currentActor: CurrentActorService) {
+  constructor(currentActor: CurrentActorService, planning: PlanningService) {
     this.#currentActor = currentActor;
+    this.#planning = planning;
   }
 
   async show({ auth, params, request, serialize }: HttpContext) {
@@ -21,7 +23,7 @@ export default class PlanningController {
     const window = from !== undefined && to !== undefined ? { from, to } : undefined;
     return serialize(
       await this.#currentActor.withActor(auth, (actor, trx) =>
-        readPlanning(trx, companyId, window, {
+        this.#planning.readPlanning(trx, companyId, window, {
           sessionId: actor.sessionId,
           historyId,
           ifRevision,

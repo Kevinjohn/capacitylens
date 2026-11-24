@@ -1,13 +1,23 @@
+import { inject } from '@adonisjs/core';
 import type { AccountKitConfig } from '@kevinjohn/adonisjs-account-kit';
 import type { AccountUser, Invitation, Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import access from '#config/access_control';
-import { advancePlanningRevision } from '#services/planning_revision';
-import { writeAudit } from '#services/audit';
+import { AuditService } from '#services/audit_service';
+import { PlanningRevisionService } from '#services/planning_revision_service';
 
 type AccountDeleting = NonNullable<AccountKitConfig['onAccountDeletingTransaction']>;
 
 /** The product records written when the Account Kit admits or deletes a company member. */
+@inject()
 export class MembershipEffectService {
+  #audit: AuditService;
+  #planningRevisions: PlanningRevisionService;
+
+  constructor(audit: AuditService, planningRevisions: PlanningRevisionService) {
+    this.#audit = audit;
+    this.#planningRevisions = planningRevisions;
+  }
+
   /**
    * Records an accepted company invitation after Access Control created its membership, in the same
    * transaction. An invitation without a company, such as the operator's bootstrap invitation,
@@ -15,7 +25,7 @@ export class MembershipEffectService {
    */
   async recordInvitationAccepted(user: AccountUser, invitation: Invitation, trx: Trx) {
     if (invitation.scope === null) return;
-    await writeAudit(trx, {
+    await this.#audit.writeAudit(trx, {
       companyId: invitation.scope,
       actorId: String(user.id),
       action: 'invitation.accepted',
@@ -23,7 +33,7 @@ export class MembershipEffectService {
       entityId: String(user.id),
       fields: ['role'],
     });
-    await advancePlanningRevision(trx, invitation.scope);
+    await this.#planningRevisions.advancePlanningRevision(trx, invitation.scope);
   }
 
   /**
@@ -42,7 +52,7 @@ export class MembershipEffectService {
           .from('account_member_resources')
           .where({ company_id: companyId, user_id: userId })
           .delete();
-        await writeAudit(trx, {
+        await this.#audit.writeAudit(trx, {
           companyId,
           actorId: userId,
           action: 'identity.deleted',
@@ -50,7 +60,7 @@ export class MembershipEffectService {
           entityId: userId,
           fields: [],
         });
-        await advancePlanningRevision(trx, companyId);
+        await this.#planningRevisions.advancePlanningRevision(trx, companyId);
       }
     };
   }

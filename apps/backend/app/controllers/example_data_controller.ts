@@ -1,17 +1,23 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import { addExampleData } from '#services/example_data';
 import { AuthorizationService } from '#services/auth/authorization_service';
+import { ExampleDataService } from '#services/example_data_service';
 
 @inject()
 export default class ExampleDataController {
   #currentActor: CurrentActorService;
   #authorization: AuthorizationService;
+  #exampleData: ExampleDataService;
 
-  constructor(currentActor: CurrentActorService, authorization: AuthorizationService) {
+  constructor(
+    currentActor: CurrentActorService,
+    authorization: AuthorizationService,
+    exampleData: ExampleDataService
+  ) {
     this.#currentActor = currentActor;
     this.#authorization = authorization;
+    this.#exampleData = exampleData;
   }
 
   async store({ auth, params, response, logger, serialize }: HttpContext) {
@@ -22,7 +28,7 @@ export default class ExampleDataController {
         'members:manage',
         trx
       );
-      return addExampleData(trx, companyId, actor.actorId);
+      return this.#exampleData.addExampleData(trx, companyId, actor.actorId);
     });
     try {
       logger.info({ companyId, added }, 'Example data committed');

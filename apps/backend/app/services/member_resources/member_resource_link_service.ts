@@ -4,8 +4,8 @@ import { refuseConflictingAdmission } from '#exceptions/admission_errors';
 import access from '#config/access_control';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { parseAffectedRows } from '#models_support/affected_rows';
-import { advancePlanningRevision } from '#services/planning_revision';
-import { writeAudit } from '#services/audit';
+import { AuditService } from '#services/audit_service';
+import { PlanningRevisionService } from '#services/planning_revision_service';
 
 type Trx = TransactionClientContract;
 
@@ -32,9 +32,17 @@ async function assertAvailablePerson(trx: Trx, companyId: string, resourceId: st
 @inject()
 export class MemberResourceLinkService {
   #authorization: AuthorizationService;
+  #audit: AuditService;
+  #planningRevisions: PlanningRevisionService;
 
-  constructor(authorization: AuthorizationService) {
+  constructor(
+    authorization: AuthorizationService,
+    audit: AuditService,
+    planningRevisions: PlanningRevisionService
+  ) {
     this.#authorization = authorization;
+    this.#audit = audit;
+    this.#planningRevisions = planningRevisions;
   }
 
   async #assertEligibleMember(trx: Trx, companyId: string, userId: string) {
@@ -98,8 +106,8 @@ export class MemberResourceLinkService {
         updated_at: now,
       });
     }
-    await advancePlanningRevision(trx, companyId);
-    await writeAudit(
+    await this.#planningRevisions.advancePlanningRevision(trx, companyId);
+    await this.#audit.writeAudit(
       trx,
       {
         companyId,
@@ -129,8 +137,8 @@ export class MemberResourceLinkService {
     if (parseAffectedRows(changed) !== 1) {
       refuseConflictingAdmission('The member resource link changed. Refresh and retry.');
     }
-    await advancePlanningRevision(trx, companyId);
-    await writeAudit(trx, {
+    await this.#planningRevisions.advancePlanningRevision(trx, companyId);
+    await this.#audit.writeAudit(trx, {
       companyId,
       actorId,
       action: 'member-resource.unlinked',

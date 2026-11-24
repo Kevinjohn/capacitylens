@@ -11,8 +11,8 @@ import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-ki
 import type { Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { writeAudit } from '#services/audit';
 import { getInstallationCompanyId } from '#services/installation_company';
+import { AuditService } from '#services/audit_service';
 
 /** Roles an invitation may carry; ownership moves only through company setup or transfer. */
 export const INVITABLE_ROLES = ['viewer', 'editor', 'admin'] as const;
@@ -26,9 +26,11 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 @inject()
 export class AdmissionRuleService {
   #authorization: AuthorizationService;
+  #audit: AuditService;
 
-  constructor(authorization: AuthorizationService) {
+  constructor(authorization: AuthorizationService, audit: AuditService) {
     this.#authorization = authorization;
+    this.#audit = audit;
   }
 
   // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
@@ -77,7 +79,7 @@ export class AdmissionRuleService {
     trx: Trx
   ) {
     for (const membership of await access.memberships.listForUser(String(user.id), trx)) {
-      await writeAudit(trx, {
+      await this.#audit.writeAudit(trx, {
         companyId: String(membership.scopeId),
         actorId: String(user.id),
         action: 'identity.credentials_changed',

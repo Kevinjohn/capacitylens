@@ -73,7 +73,7 @@ await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 | `normalize`        | Returns a repaired copy of the same type.                                                            | `normalizeAccountEmail` in `packages/shared/src/account/validation.ts`            |
 | `resolve`          | Picks one concrete value from preferences or candidates.                                             | `resolveBarColor` in `packages/shared/src/lib/color.ts`                           |
 | `build`            | Derives a new structure from its inputs. Pure.                                                       | `buildColumnGeometry` in `apps/frontend/src/components/scheduler/columnGeometry.ts` |
-| `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance.ts`            |
+| `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance_service.ts`            |
 | `make`             | Test fixtures only.                                                                                  | `makeResource` in `apps/frontend/src/test/fixtures.ts`                            |
 | `use`              | A React hook.                                                                                        | `useScopedData` in `apps/frontend/src/store/useScopedData.ts`                     |
 | `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withActor` in `apps/backend/app/services/auth/current_actor_service.ts`                  |
@@ -127,7 +127,7 @@ one is a swallow too.
 Validation returns a value; enforcement throws. Validators return a `ValidationResult` or a VineJS
 schema result and never throw on bad input. The write boundary converts a failed result into a
 typed error whose message is safe to show, such as `PlanningOperationException` in
-`apps/backend/app/services/planning/writer.ts`, which carries its own status and code and answers
+`apps/backend/app/services/planning/planning_writer_service.ts`, which carries its own status and code and answers
 for itself. The frontend catches at the form or gesture handler and relays the message
 to the field or toast. Add to the typed error vocabulary rather than sniffing message strings; the
 one exception is a library's own wording, which a test pins.
