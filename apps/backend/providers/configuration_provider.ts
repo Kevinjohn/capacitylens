@@ -7,14 +7,10 @@ import type { ApplicationService } from '@adonisjs/core/types';
 import logger from '@adonisjs/core/services/logger';
 import capacitylens from '#config/capacitylens';
 import db from '@adonisjs/lucid/services/db';
-import { rememberSchemaIntegrity } from '#services/schema_integrity';
+import { SchemaIntegrityService } from '#services/schema_integrity_service';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
-import {
-  createMaintenance,
-  pruneRequestReceipts,
-  pruneExpiredMasquerades,
-} from '#services/storage_maintenance';
+import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
+import { StorageMaintenanceService } from '#services/storage_maintenance_service';
 
 const PRUNE_INTERVAL_MS = 60 * 60_000;
 
@@ -68,8 +64,10 @@ export default class ConfigurationProvider {
       .where({ type: 'table', name: 'companies' })
       .select('name');
     if (rows.length > 0) {
-      await rememberSchemaIntegrity();
-      await bootstrapDevelopmentCredential(this.app);
+      const schemaIntegrity = await this.app.container.make(SchemaIntegrityService);
+      await schemaIntegrity.rememberSchemaIntegrity();
+      const developmentBootstrap = await this.app.container.make(DevelopmentBootstrapService);
+      await developmentBootstrap.bootstrapDevelopmentCredential(this.app);
     }
   }
 
@@ -80,15 +78,16 @@ export default class ConfigurationProvider {
    */
   async ready() {
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
+    const storageMaintenance = await this.app.container.make(StorageMaintenanceService);
     // Shutdown can begin while an earlier provider is still getting ready; a pass started after
     // that would reopen the database once it has been closed.
     if (this.app.isTerminating || this.app.isTerminated) return;
     // Each task reports its own failure, so one failing does not skip the others.
-    const maintenance = createMaintenance(
+    const maintenance = storageMaintenance.createMaintenance(
       [
         ['Account sign-in pruning', () => accountKit.maintenance.prune()],
-        ['Request receipt pruning', () => pruneRequestReceipts()],
-        ['Masquerade pruning', () => pruneExpiredMasquerades(this.app)],
+        ['Request receipt pruning', () => storageMaintenance.pruneRequestReceipts()],
+        ['Masquerade pruning', () => storageMaintenance.pruneExpiredMasquerades(this.app)],
       ],
       (task, error) =>
         logger.error(

@@ -10,8 +10,10 @@ import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_
 import { signIn, signUpAndIn } from '#tests/helpers/identities';
 import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
 import app from '@adonisjs/core/services/app';
-import { pruneExpiredMasquerades } from '#services/storage_maintenance';
-import { getMasqueradeService } from '#services/auth/masquerade';
+import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
+import { StorageMaintenanceService } from '#services/storage_maintenance_service';
+
+const storageMaintenance = new StorageMaintenanceService();
 
 const password = 'batman-secret-2026';
 
@@ -853,7 +855,7 @@ test.group('native read-only masquerade', (group) => {
       .where({ actor_id: ownerId, kind: 'started' })
       .update({ at: new Date(now - 366 * 24 * 60 * 60_000).toISOString() });
 
-    await pruneExpiredMasquerades(app);
+    await storageMaintenance.pruneExpiredMasquerades(app);
 
     const mode = await db.from('masquerade_modes').where(owner).firstOrFail();
     assert.notEqual(mode.state, 'active');
@@ -1114,7 +1116,8 @@ test.group('native read-only masquerade', (group) => {
       .send();
     ended.assertStatus(200);
 
-    const service = await getMasqueradeService();
+    const masqueradeModes = await app.container.make(MasqueradeModeService);
+    const service = await masqueradeModes.getMasqueradeService();
     const originalStart = service.start;
     try {
       for (const [code, status, body] of [

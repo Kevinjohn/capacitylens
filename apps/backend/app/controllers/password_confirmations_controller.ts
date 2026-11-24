@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core';
 // The wire names are `POST /api/auth/password-confirmation`, `confirmationId`,
 // `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`.
 //
@@ -6,25 +7,44 @@
 
 import type { HttpContext } from '@adonisjs/core/http';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
-import { withActor } from '#services/auth/current_actor';
+import { PasswordConfirmationService } from '#services/auth/password_confirmation_service';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { classifyLogError } from '#config/logger';
-import { parseRequestDocument } from '#services/company_import';
 import { confirmPasswordValidator } from '#validators/password_confirmations';
+import { CompanyImportService } from '#services/company_import_service';
 
+@inject()
 export default class PasswordConfirmationsController {
+  #passwordConfirmationRules: PasswordConfirmationService;
+  #currentActor: CurrentActorService;
+  #companyImports: CompanyImportService;
+
+  constructor(
+    passwordConfirmationRules: PasswordConfirmationService,
+    currentActor: CurrentActorService,
+    companyImports: CompanyImportService
+  ) {
+    this.#passwordConfirmationRules = passwordConfirmationRules;
+    this.#currentActor = currentActor;
+    this.#companyImports = companyImports;
+  }
+
   async store({ auth, request, response, logger, serialize }: HttpContext) {
     const body = await request.validateUsing(confirmPasswordValidator, {
       data: request.body(),
     });
     let intent: unknown = body.intent;
     if (body.action === 'import') {
-      const document = parseRequestDocument(body.intent.document);
+      const document = this.#companyImports.parseRequestDocument(body.intent.document);
       if (!document) return response.badRequest({ error: 'Invalid password confirmation.' });
       intent = { baseRevision: body.intent.baseRevision, document };
     }
-    await withActor(auth, async (_actor, trx) =>
-      requirePasswordConfirmationActor(body.companyId, trx, body.action)
+    await this.#currentActor.withActor(auth, async (_actor, trx) =>
+      this.#passwordConfirmationRules.requirePasswordConfirmationActor(
+        body.companyId,
+        trx,
+        body.action
+      )
     );
     const { confirmationId } = await passwordConfirmations.confirmPassword(
       await auth.use('web').current(),

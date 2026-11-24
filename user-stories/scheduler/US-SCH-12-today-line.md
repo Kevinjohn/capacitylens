@@ -50,7 +50,7 @@ On failed refresh the client has no new authoritative date to apply. The visible
 **Code references:**
 
 - [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L98)
-- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L130)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L238)
 - [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L188)
 - [DateHeader.tsx](../../apps/frontend/src/components/scheduler/DateHeader.tsx#L174)

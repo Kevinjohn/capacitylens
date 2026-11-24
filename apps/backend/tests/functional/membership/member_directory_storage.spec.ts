@@ -1,6 +1,7 @@
 import { test } from '@japa/runner';
+import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
-import { readMemberDirectory } from '#services/membership/member_directory';
+import { MemberDirectoryService } from '#services/membership/member_directory_service';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
@@ -171,13 +172,14 @@ test.group('member directory malformed storage', (group) => {
       }
     );
 
+    const memberDirectory = await app.container.make(MemberDirectoryService);
     for (const corruption of corruptions) {
       await writeCorruption(corruption, memberId);
       const beforeRead = await readProductState();
       await assert.rejects(
         () =>
           db.transaction((trx) =>
-            readMemberDirectory(trx, companyId, { actorId: ownerId, role: 'owner' })
+            memberDirectory.read(trx, companyId, { actorId: ownerId, role: 'owner' })
           ),
         Error,
         new RegExp('^' + corruption.checkMessage.replace('.', '\\.') + '$'),

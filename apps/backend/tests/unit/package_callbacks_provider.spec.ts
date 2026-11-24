@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
-import { nativeAdapter } from '#services/auth/masquerade_authority';
+import { nativeAdapter } from '#services/auth/masquerade_authority_service';
 
 test.group('package callbacks provider', () => {
   test('the packages resolve with the callbacks the provider registers', async ({ assert }) => {

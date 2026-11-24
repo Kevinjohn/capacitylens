@@ -1,21 +1,37 @@
+import { inject } from '@adonisjs/core';
+import { MemberMutationService } from '#services/membership/member_mutation_service';
+import { MemberMutationRequestService } from '#services/membership/member_mutation_request_service';
 import type { HttpContext } from '@adonisjs/core/http';
-import { changeMemberStatus } from '#services/membership/member_mutations';
-import { parseAccountOperation } from '#services/account_operations';
-import { runMemberMutation } from '#services/membership/member_mutation_request';
 import { changeStatusValidator } from '#validators/members';
+import { AccountOperationService } from '#services/account_operation_service';
 
 /** A member's status, changed under live management permission. */
+@inject()
 export default class MemberStatusController {
+  #memberMutations: MemberMutationService;
+  #memberMutationRequests: MemberMutationRequestService;
+  #accountOperations: AccountOperationService;
+
+  constructor(
+    memberMutations: MemberMutationService,
+    memberMutationRequests: MemberMutationRequestService,
+    accountOperations: AccountOperationService
+  ) {
+    this.#memberMutations = memberMutations;
+    this.#memberMutationRequests = memberMutationRequests;
+    this.#accountOperations = accountOperations;
+  }
+
   async update({ auth, params, request, serialize }: HttpContext) {
     const { status } = await request.validateUsing(changeStatusValidator, {
       data: request.body(),
     });
     const { companyId, userId } = params;
-    const command = parseAccountOperation(
+    const command = this.#accountOperations.parseAccountOperation(
       request.header('x-account-operation-id'),
       request.header('idempotency-key')
     );
-    const result = await runMemberMutation(auth, {
+    const result = await this.#memberMutationRequests.run(auth, {
       companyId,
       operation: 'change-member-status',
       command,
@@ -24,7 +40,7 @@ export default class MemberStatusController {
         status,
       },
       work: (trx, actor) =>
-        changeMemberStatus(trx, {
+        this.#memberMutations.changeStatus(trx, {
           companyId,
           actorId: actor.actorId,
           userId,
