@@ -177,7 +177,7 @@ describe('scoped data hooks', () => {
     );
   });
 
-  it('projects archived and soft-deleted rows out of active data', async () => {
+  it('projects archived rows out of active data', async () => {
     const data = twoCompanyData();
     data.resources.push(
       makeResource({ id: 'r-a-active', companyId: COMPANY_A, name: 'Diana Prince' }),
@@ -197,7 +197,7 @@ describe('scoped data hooks', () => {
       ...requireValue(data.resources[0]),
       archivedAt: '2026-01-01T00:00:00.000Z',
     };
-    data.clients[0] = { ...requireValue(data.clients[0]), deletedAt: '2026-01-02T00:00:00.000Z' };
+    data.clients[0] = { ...requireValue(data.clients[0]), archivedAt: '2026-01-02T00:00:00.000Z' };
     await act(async () => activateFixtureCompany(data, COMPANY_A));
     const { result } = renderHook(() => useActiveScopedData());
 

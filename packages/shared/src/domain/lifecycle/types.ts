@@ -1,15 +1,14 @@
 import type { ISOTimestamp } from '../../types/entities.js';
 import { parseISOTimestamp } from '../../lib/isoDates.js';
 
-/** Derive three lifecycle states from valid tombstones; no state column is persisted.
- * Active means neither timestamp is valid. Archived means archivedAt is valid and deletedAt is not.
- * Deleted means deletedAt is valid, which takes precedence over archivedAt.
+/** Derive two lifecycle states from a valid archive tombstone; no state column is persisted.
+ * Archived means archivedAt is valid; otherwise the entity is active.
  * These states define the lifecycle predicates and transitions. */
-export type LifecycleState = 'active' | 'archived' | 'deleted';
+export type LifecycleState = 'active' | 'archived';
 
 /**
- * The minimal structural shape the lifecycle machine reads and writes, the two optional tombstone
- * timestamps. Resource, Client, Project and Activity all satisfy this by carrying the same two fields,
+ * The minimal structural shape the lifecycle machine reads and writes, the optional archive
+ * tombstone. Resource, Client, Project and Activity all satisfy this by carrying the same field,
  * so the machine is generic over the shape rather than coupled to those concrete types: a transition
  * takes `<T extends LifecycleFields>` and returns `T`, so `archive(aResource)` yields a `Resource`
  * with its other fields untouched.
@@ -20,8 +19,6 @@ export type LifecycleState = 'active' | 'archived' | 'deleted';
 export interface LifecycleFields {
   /** ISO 8601 timestamp of when the entity was archived (soft, reversible). Absent/null = not archived. */
   archivedAt?: ISOTimestamp | null;
-  /** ISO 8601 timestamp of the soft-delete tombstone. Absent/null = not deleted. `deletedAt` wins. */
-  deletedAt?: ISOTimestamp | null;
 }
 
 /** Tables with lifecycle tombstones, shared by lifecycle routing and write validation. */
@@ -44,11 +41,10 @@ export function isValidTombstone(value: ISOTimestamp | null | undefined): value 
   return value != null && parseISOTimestamp(value) !== null;
 }
 
-/** Derive lifecycle state from valid tombstones without reading the clock. Pure.
- * A valid deletedAt wins; otherwise a valid archivedAt means archived, and neither means active.
- * Malformed tombstones are ignored so a later valid transition can repair the row. */
+/** Derive lifecycle state from a valid tombstone without reading the clock. Pure.
+ * A valid archivedAt means archived; otherwise the entity is active.
+ * A malformed tombstone is ignored so a later valid transition can repair the row. */
 export function resolveLifecycleStatus(entity: LifecycleFields): LifecycleState {
-  if (isValidTombstone(entity.deletedAt)) return 'deleted';
   if (isValidTombstone(entity.archivedAt)) return 'archived';
   return 'active';
 }

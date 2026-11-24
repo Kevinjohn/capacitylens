@@ -53,7 +53,6 @@ const scoped = {
 } as const;
 const lifecycle = {
   archivedAt: { kind: 'timestamp', nullable: true, system: true },
-  deletedAt: { kind: 'timestamp', nullable: true, system: true },
 } as const;
 const privateName = {
   isPrivate: { kind: 'boolean', nullable: true },

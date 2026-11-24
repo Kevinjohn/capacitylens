@@ -306,16 +306,16 @@ Every `@kevinjohn/*` package is consumed the same way, from its own repository's
 lockfile records each archive's integrity. To change a pin, update the backend manifest URL and the
 lockfile together; pnpm records the new archive's integrity.
 
-Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
-serialisers validate the UTC ISO timestamp sent to the shared domain and wire contract. Product
+Allocation, TimeOff, Closure, Phase and Discipline use the package for restorable deletion; their
+Luxon `deletedAt` attribute stays on the server. Client, Project, Activity and Resource have no
+deletion state: archive and restore are their only lifecycle. Product
 `createdAt`, `updatedAt` and `archivedAt` are Luxon attributes too, declared with
 `timestampColumn` (`app/models_support/scalar_column.ts`), which stores and serialises the same canonical
 UTC ISO string. `database/schema_rules.ts` leaves every date-time column on Lucid's default
 `DateTime` type except `users.created_at` and `users.updated_at`, which the `User` model writes as
 strings.
 
-Complete-state reads explicitly include trashed Client, Project, Activity and Resource rows. A root
-`withTrashed()` does not change related queries; select the mode separately on every preload.
+A root `withTrashed()` does not change related queries; select the mode separately on every preload.
 The shared `buildActiveData` projection owns descendant hiding, using the complete parent state.
 The package hides a model's own tombstone and does not implement application ancestry rules.
 

@@ -85,10 +85,7 @@ describe('assertScopedRefs', () => {
     );
   });
 
-  it.each([
-    ['archived', { archivedAt: TS }],
-    ['soft-deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
-  ] as const)(
+  it.each([['archived', { archivedAt: TS }]] as const)(
     'rejects new descendants beneath an active project with an %s client ancestor',
     (_state, lifecycle) => {
       const existingPhase = makePhase('ph-existing', A1, 'p1');
@@ -526,10 +523,7 @@ describe('assertAllocationRefs', () => {
     );
   });
 
-  it.each([
-    ['archived', { archivedAt: TS }],
-    ['soft-deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
-  ] as const)(
+  it.each([['archived', { archivedAt: TS }]] as const)(
     'rejects new allocations beneath an active project with an %s client ancestor',
     (_state, lifecycle) => {
       const data: AppData = {

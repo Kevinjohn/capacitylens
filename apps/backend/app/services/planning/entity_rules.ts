@@ -45,12 +45,12 @@ const CREATE_DEFAULTS: Partial<Record<ScopedEntityKey, Record<string, unknown>>>
   resources: { avatarUrl: null, halfDays: [], engagement: 'studio' },
 };
 /** Fields a new row may not supply: lifecycle state and the Internal client flag. */
-const SERVER_SET_ON_CREATE = new Set(['archivedAt', 'deletedAt', 'builtin']);
+const SERVER_SET_ON_CREATE = new Set(['archivedAt', 'builtin']);
 
 /** Applies a new row's server-owned defaults; lifecycle tables start active. */
 export function applyCreateDefaults(table: ScopedEntityKey, candidate: Record<string, unknown>) {
   const defaults: Record<string, unknown> = {
-    ...(isLifecycleEntityKey(table) ? { archivedAt: null, deletedAt: null } : {}),
+    ...(isLifecycleEntityKey(table) ? { archivedAt: null } : {}),
     ...CREATE_DEFAULTS[table],
   };
   for (const [field, value] of Object.entries(defaults)) {
@@ -210,12 +210,13 @@ function assertManagedFields(
   existing: Record<string, unknown> | undefined
 ) {
   if (isLifecycleEntityKey(table)) {
-    for (const field of ['archivedAt', 'deletedAt'] as const) {
-      if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null)) {
-        throw new EntityWriteException(`${field} is managed by its lifecycle action.`);
-      }
-      candidate[field] = existing?.[field] ?? null;
+    if (
+      Object.hasOwn(requested, 'archivedAt') &&
+      requested.archivedAt !== (existing?.archivedAt ?? null)
+    ) {
+      throw new EntityWriteException('archivedAt is managed by its lifecycle action.');
     }
+    candidate.archivedAt = existing?.archivedAt ?? null;
   }
   if (table === 'allocations' && existing) {
     if (Object.hasOwn(requested, 'seriesId') && requested.seriesId !== existing.seriesId) {

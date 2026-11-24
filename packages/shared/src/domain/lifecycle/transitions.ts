@@ -1,7 +1,7 @@
 import type { ISOTimestamp, Resource } from '../../types/entities.js';
 import { parseISOTimestamp } from '../../lib/isoDates.js';
 import { buildShortIdTag } from '../privateNames.js';
-import { resolveLifecycleStatus, isValidTombstone } from './types.js';
+import { resolveLifecycleStatus } from './types.js';
 import type { LifecycleFields } from './types.js';
 
 /**
@@ -19,9 +19,7 @@ export function canArchive(entity: LifecycleFields): boolean {
 
 /**
  * May this entity be un-archived (restored to active)? Pure affordance predicate, true iff the
- * entity is currently `'archived'`. A `'deleted'` tombstone is not un-archivable (it must be
- * restored via a different path, not by clearing `archivedAt`), and an `'active'` entity has nothing
- * to undo.
+ * entity is currently `'archived'`; an `'active'` entity has nothing to undo.
  *
  * @param entity - the entity to test.
  * @returns `true` iff {@link resolveLifecycleStatus} is `'archived'`.
@@ -49,21 +47,19 @@ export class LifecycleTransitionError extends Error {
  * input is not mutated and every other field flows through unchanged (the generic `<T>` preserves the
  * concrete type, so `archive(aResource)` returns a `Resource`).
  *
- * Throws if the entity is not `'active'` (re-archiving an archived/deleted record is a caller
- * bug). The guard is the shared {@link canArchive}
+ * Throws if the entity is not `'active'` (re-archiving an archived record is a caller bug). The guard is the shared {@link canArchive}
  * predicate, so the throw condition can't drift from the affordance.
  *
  * @param entity - the entity to archive (must be `'active'`).
  * @param nowISO - the caller-supplied archive timestamp (the store/server owns the clock).
  * @returns a new entity of the same type with a canonical `archivedAt`.
- * @throws {Error} if the entity is already archived/deleted or the timestamp is invalid.
+ * @throws {Error} if the entity is already archived or the timestamp is invalid.
  */
 export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimestamp): T {
   if (!canArchive(entity)) {
-    const status = resolveLifecycleStatus(entity);
     throw new LifecycleTransitionError(
-      status === 'archived' ? 'already_inactive' : 'invalid_transition',
-      `Cannot archive: entity is already ${status}.`,
+      'already_inactive',
+      'Cannot archive: entity is already archived.',
     );
   }
   const archivedMs = parseISOTimestamp(nowISO);
@@ -73,14 +69,10 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
       'Cannot archive: archive time must be a valid ISO timestamp.',
     );
   }
-  return Object.assign(
-    { ...entity },
-    { archivedAt: new Date(archivedMs).toISOString(), deletedAt: null },
-  );
+  return Object.assign({ ...entity }, { archivedAt: new Date(archivedMs).toISOString() });
 }
 
-/** Restore an archived entity to active without mutating it.
- * Removes archivedAt and any malformed deletedAt; a valid deleted tombstone is rejected.
+/** Restore an archived entity to active without mutating it by removing archivedAt.
  * @throws LifecycleTransitionError when the entity is not archived. */
 export function restore<T extends LifecycleFields>(entity: T): T {
   if (!canRestore(entity)) {
@@ -90,11 +82,7 @@ export function restore<T extends LifecycleFields>(entity: T): T {
     );
   }
   // Remove archivedAt to represent the active state by absence.
-  const next = Object.assign({ ...entity }, { archivedAt: null });
-  // A malformed deletedAt is ignored by resolveLifecycleStatus so the nearest valid state is archived;
-  // remove that stale corruption while completing the recovery transition to active.
-  if (!isValidTombstone(next.deletedAt)) Object.assign(next, { deletedAt: null });
-  return next;
+  return Object.assign({ ...entity }, { archivedAt: null });
 }
 
 /**
