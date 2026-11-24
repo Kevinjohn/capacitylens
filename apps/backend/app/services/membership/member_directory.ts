@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { DatabaseQueryBuilderContract } from '@adonisjs/lucid/types/querybuilder';
 import {
@@ -7,13 +8,12 @@ import {
   type Role,
 } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
-import type { MemberResourceLinkProjection } from '#services/member_resources/directory';
 import { readMemberSignInTracking } from '#services/membership/sign_in_tracking';
 import {
   type MemberResourceFields,
-  readMemberResourceFields,
-  readResourceCandidates,
-} from '#services/member_resources/directory';
+  type MemberResourceLinkProjection,
+  MemberResourceDirectoryService,
+} from '#services/member_resources/member_resource_directory_service';
 
 interface MembershipDirectoryRow {
   user_id: string;
@@ -71,13 +71,14 @@ export async function readMemberDirectory(
       'member_user.email'
     )
     .orderBy('member.created_at', 'asc');
+  const memberResources = await app.container.make(MemberResourceDirectoryService);
   const [rows, tracking, resourceCandidates] = await Promise.all([
     membershipQuery,
     readMemberSignInTracking(companyId, trx),
-    readResourceCandidates(trx, companyId),
+    memberResources.readCandidates(trx, companyId),
   ]);
   const memberIds = new Set(rows.map((row) => row.user_id));
-  const resourceFields = await readMemberResourceFields(trx, companyId, [...memberIds]);
+  const resourceFields = await memberResources.readMemberFields(trx, companyId, [...memberIds]);
   const members: MemberDirectoryEntry[] = [];
   for (const row of rows) {
     const userId = row.user_id;

@@ -1,11 +1,19 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { parseAccountOperation } from '#services/account_operations';
 import { runMemberMutation } from '#services/membership/member_mutation_request';
-import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
+import { MemberResourceLinkService } from '#services/member_resources/member_resource_link_service';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
 
 /** Scoped member/person association. */
+@inject()
 export default class MemberResourceLinksController {
+  #links: MemberResourceLinkService;
+
+  constructor(links: MemberResourceLinkService) {
+    this.#links = links;
+  }
+
   async update({ auth, params, request, serialize }: HttpContext) {
     const body = await request.validateUsing(setLinkValidator, { data: request.body() });
     const command = parseAccountOperation(
@@ -19,7 +27,7 @@ export default class MemberResourceLinksController {
       command,
       payload: { userId, ...body },
       work: async (trx, { actorId }) => {
-        const link = await setMemberResourceLink(trx, {
+        const link = await this.#links.set(trx, {
           companyId,
           userId,
           resourceId: body.resourceId,
@@ -45,7 +53,7 @@ export default class MemberResourceLinksController {
       command,
       payload: { userId, ...body },
       work: async (trx, { actorId }) => {
-        await clearMemberResourceLink(trx, {
+        await this.#links.clear(trx, {
           companyId,
           userId,
           expectedRevision: body.expectedRevision,
