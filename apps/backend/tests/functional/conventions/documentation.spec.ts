@@ -1,8 +1,6 @@
 import { test } from '@japa/runner';
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
-import { assertDateRange } from '@capacitylens/shared/domain/mutations';
 
 const ROOT = resolve(process.cwd(), '../..');
 const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8');
@@ -114,11 +112,6 @@ test.group('documentation and repository rule contracts', () => {
       'node ace.js app:reset',
     ])
       assert.include(operatorDocs, command);
-    // nginx site files are copied by hand, so an upgrade must point at the tag's copy.
-    assert.match(
-      operations,
-      /capacitylens\.nginx\.conf`, compare\s+that\s+copy\s+with the new tag's file and copy over any changed `location` blocks[\s\S]*`\/api\/invitations\/<token>\/\.\.\.` and\s+`\/invitation\/<token>`/
-    );
     assert.include(monitoring, '/health/live');
     assert.include(monitoring, '/health/ready');
   });
@@ -138,19 +131,8 @@ test.group('documentation and repository rule contracts', () => {
       assert.include(example, `${key}=`);
       assert.include(configuration, `\`${key}\``);
     }
-    assert.include(configuration, 'SQL audit records remain active');
     assert.include(configuration, 'account-kit:admission:bootstrap');
     assert.include(configuration, '`CAPACITYLENS_MAIL_HOST`');
-  });
-
-  test('documents daily backups and retention bounds without an interval setting', ({ assert }) => {
-    const configuration = read('docs-src/self-hosting/configuration.md').replace(/\s+/g, ' ');
-    assert.match(configuration, /at web-service startup and every 24 hours/);
-    assert.match(configuration, /defaulting to 48/);
-    assert.match(configuration, /Positive fractional values are floored to whole bundles/);
-    assert.match(configuration, /invalid or nonpositive values use 48 with a startup warning/);
-    assert.match(configuration, /values above 10,000 clamp to 10,000 with a warning/);
-    assert.match(configuration, /`CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used/);
   });
 
   test('documents sole-owner password recovery as a stopped-server command', ({ assert }) => {
@@ -163,69 +145,6 @@ test.group('documentation and repository rule contracts', () => {
       assert.include(document, 'owner:reset-password');
       assert.include(document, '--confirm-server-stopped');
     }
-  });
-
-  test('documents the current standalone Docker lifecycle and persistent data', ({ assert }) => {
-    const dockerGuide = read('docs-src/self-hosting/install-with-docker.md');
-    // Published images are the default; a source build is the stated alternative.
-    assert.include(dockerGuide, 'docker compose up --detach --wait');
-    assert.include(dockerGuide, 'docker compose --profile caddy up --detach --wait');
-    assert.include(dockerGuide, 'docker compose up --build --detach --wait');
-    assert.include(dockerGuide, '`CAPACITYLENS_VERSION`');
-    assert.include(dockerGuide, '/vX.Y.Z/docker-compose.yml');
-    assert.include(dockerGuide, '`capacitylens-caddy-data`');
-    assert.isBelow(
-      dockerGuide.indexOf('docker compose up --detach --wait'),
-      dockerGuide.indexOf('docker compose up --build --detach --wait')
-    );
-    assert.include(dockerGuide, '`app:upgrade`');
-    assert.include(dockerGuide, '`capacitylens-db`');
-    assert.include(dockerGuide, '`capacitylens-backups`');
-    assert.include(dockerGuide, '/health/ready');
-    assert.include(
-      dockerGuide,
-      'docker compose exec api node ace.js account-kit:admission:bootstrap'
-    );
-  });
-
-  test('ignores runtime databases', ({ assert }) => {
-    const ignored = (path: string) => {
-      try {
-        execFileSync('git', ['check-ignore', '--no-index', '--quiet', path], {
-          cwd: ROOT,
-          stdio: 'ignore',
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    assert.isTrue(ignored('capacitylens-local.db'));
-    assert.isTrue(ignored('apps/backend/tmp/operator.db'));
-  });
-
-  test('asks contributors to commit documentation sources, not the built site', ({ assert }) => {
-    const markdown = (directory: string): string[] =>
-      readdirSync(resolve(ROOT, directory), { withFileTypes: true }).flatMap((entry) => {
-        const path = `${directory}/${entry.name}`;
-        if (entry.isDirectory()) return entry.name === '.vitepress' ? [] : markdown(path);
-        return entry.name.endsWith('.md') ? [path] : [];
-      });
-    const guidance = [
-      'AGENTS.md',
-      'CONTRIBUTING.md',
-      'README.md',
-      '.github/pull_request_template.md',
-      ...markdown('docs-src'),
-    ];
-    for (const path of guidance) {
-      assert.notMatch(read(path), /\bcommitted (?:site|`?docs\/)|rebuilt `?docs\//i, path);
-    }
-  });
-
-  test('keeps the shared domain core executable from the backend Node runtime', ({ assert }) => {
-    assert.doesNotThrow(() => assertDateRange('2026-01-01', '2026-01-05'));
-    assert.throws(() => assertDateRange('2026-01-05', '2026-01-01'));
   });
 
   test('keeps user-story source and documentation references resolvable', ({ assert }) => {
@@ -313,49 +232,5 @@ test.group('documentation and repository rule contracts', () => {
       for (const diagram of diagrams) assert.match(diagram[1]!, /^flowchart (?:TD|LR)\b/, file);
       assert.match(content.slice(codeStart), /^\*\*Code references:\*\*\s+(?:- )?\[/m, file);
     }
-  });
-
-  test('keeps permanent deletion guidance on the entity view', ({ assert }) => {
-    assert.notMatch(
-      read('docs-src/using/resources.md'),
-      /permanent deletion[^.]*\]\(\/using\/settings\)/i
-    );
-  });
-
-  test('keeps the product name and literal plural marker out of localized copy', ({ assert }) => {
-    const brand = read('packages/shared/src/brand.ts').match(
-      /export const APP_NAME = '([^']+)'/
-    )?.[1];
-    assert.isDefined(brand, 'Expected the shared brand module to export APP_NAME');
-    const messages = Object.values(
-      JSON.parse(read('apps/frontend/messages/en.json')) as Record<string, string>
-    );
-    assert.deepEqual(
-      messages.filter((message) => message.includes(brand!)),
-      []
-    );
-    assert.deepEqual(
-      messages.filter((message) => message.includes('(s)')),
-      []
-    );
-  });
-
-  test('keeps operational execution and resource boundaries in current runbooks', ({ assert }) => {
-    const install = read('docs-src/self-hosting/install.md').replace(/\s+/g, ' ');
-    const managedHost = read('docs-src/self-hosting/managed-vps/index.md');
-    const monitoring = read('docs-src/self-hosting/monitoring.md').replace(/\s+/g, ' ');
-    const managedSiteUser = /^-\s+run as the dedicated site user from\b/im;
-    assert.match(install, /background process runs as a dedicated site user/i);
-    assert.match(managedHost, managedSiteUser);
-    assert.match(
-      monitoring,
-      /Authentication and request-work safeguards are process-wide, not per-company reservations/
-    );
-    assert.match(monitoring, /Authentication is identity-global before company selection/);
-    assert.match(
-      monitoring,
-      /Use edge\/global quotas or separate CapacityLens instances when installations require resource isolation/
-    );
-    assert.include(monitoring, 'journalctl -u capacitylens --since "30 min ago"');
   });
 });

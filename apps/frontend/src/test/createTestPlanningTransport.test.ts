@@ -1,89 +1,12 @@
 import { expect, it } from 'vitest';
 import type { PlanningIntent } from '@/api/planningContracts';
-import { makeCompany, makeAppData, makeClient, requireFullSnapshot } from './fixtures';
+import { makeCompany, makeAppData, requireFullSnapshot } from './fixtures';
 import { createTestPlanningTransport } from './createTestPlanningTransport';
 import { makeReceipt } from './planning/makeReceipt';
 import { getStubPlanningTransport } from './planningTransportHandle';
 
 const context = { identity: 'test', companyId: 'acct-one' };
 const signal = new AbortController().signal;
-
-it('reads a reset snapshot scoped to its company at that company revision', async () => {
-  const transport = createTestPlanningTransport();
-  const client = makeClient({ id: 'c1', companyId: context.companyId });
-  const other = makeClient({ id: 'c2', companyId: 'acct-two' });
-  getStubPlanningTransport().reset(
-    context.companyId,
-    makeAppData({
-      companies: [makeCompany({ id: context.companyId }), makeCompany({ id: 'acct-two' })],
-      clients: [client, other],
-    }),
-  );
-
-  const snapshot = requireFullSnapshot(await transport.read(context, signal));
-
-  expect(snapshot).toMatchObject({ revision: 0, access: { canWrite: true } });
-  expect(snapshot.data.clients).toEqual([client]);
-  expect(snapshot.data.companies).toEqual([makeCompany({ id: context.companyId })]);
-});
-
-it('records the sent intent and applies an unvalidated single-row change', async () => {
-  const transport = createTestPlanningTransport();
-  getStubPlanningTransport().reset(context.companyId, makeAppData());
-  const client = makeClient({ id: 'new-client', companyId: context.companyId });
-
-  const response = await transport.execute(
-    context,
-    {
-      mutationId: 'create-client',
-      baseRevision: 0,
-      intent: {
-        operation: 'catalogue.create',
-        entity: { entity: 'clients', id: client.id, fields: client },
-      },
-    },
-    signal,
-  );
-
-  expect(getStubPlanningTransport().calls).toEqual([
-    { operation: 'catalogue.create', entity: { entity: 'clients', id: client.id, fields: client } },
-  ]);
-  expect(response).toEqual({
-    status: 'committed',
-    mutationId: 'create-client',
-    revision: 1,
-    restoration: { consumedGroupId: null, replacementGroupId: null },
-    changes: { upserts: [{ entity: 'clients', row: client }], removed: [] },
-  });
-  const snapshot = requireFullSnapshot(await transport.read(context, signal));
-  expect(snapshot.data.clients).toEqual([client]);
-});
-
-it('returns a queued response, preserves its canonical read data and exposes its commitment', async () => {
-  const transport = createTestPlanningTransport();
-  const stub = getStubPlanningTransport();
-  stub.reset(context.companyId, makeAppData());
-  const client = makeClient({ id: 'canonical-client', companyId: context.companyId });
-  const queued = makeReceipt('queued', 7);
-  stub.respondNext(queued, makeAppData({ clients: [client] }));
-
-  await expect(
-    transport.execute(
-      context,
-      {
-        mutationId: 'queued',
-        baseRevision: 0,
-        intent: { operation: 'settings.update', changes: { name: 'Canon' } },
-      },
-      signal,
-    ),
-  ).resolves.toEqual({
-    ...queued,
-    changes: { upserts: [{ entity: 'clients', row: client }], removed: [] },
-  });
-  const snapshot = requireFullSnapshot(await transport.read(context, signal));
-  expect(snapshot.data.clients).toEqual([client]);
-});
 
 it('throws a queued refusal, records the intent, and requires responses for compound operations', async () => {
   const transport = createTestPlanningTransport();

@@ -6,10 +6,10 @@ import type { Allocation, ISODate, Resource, Weekday } from '../types/entities.j
 import {
   requireValueAt,
   scheduledHoursOnDay,
-  availableHoursOnDay,
+  resolveAvailableHoursOnDay,
   allocatedHoursOnDay,
-  dayCapacity,
-  capacityForWindow,
+  buildDayCapacity,
+  buildCapacityWindow,
   utilisation,
   capacityAdvisory,
   makeResource,
@@ -29,7 +29,7 @@ function registerSemanticsTableTests(
     'implements $name',
     ({ date, allocations, timeOff, expected }: CapacityCaseInput) => {
       expect(
-        dayCapacity({
+        buildDayCapacity({
           resource,
           date,
           allocations: [...allocations],
@@ -132,7 +132,7 @@ describe('#257 characterization: effective-week capacity', () => {
 
     expect(scheduledHoursOnDay(resource, '2026-06-05', companyWorkingDays)).toBe(0);
     expect(
-      availableHoursOnDay({
+      resolveAvailableHoursOnDay({
         resource,
         date: '2026-06-05',
         timeOff: [],
@@ -193,7 +193,7 @@ describe('effective working-week semantics table', () => {
 
     expect(scheduledHoursOnDay(resource, monday, noneCompanyWeek)).toBe(0);
     expect(
-      availableHoursOnDay({
+      resolveAvailableHoursOnDay({
         resource,
         date: monday,
         timeOff: [],
@@ -209,7 +209,7 @@ describe('effective working-week semantics table', () => {
       }),
     ).toBe(0);
     expect(
-      dayCapacity({
+      buildDayCapacity({
         resource,
         date: monday,
         allocations: normal,
@@ -226,7 +226,7 @@ describe('effective working-week semantics table', () => {
       }),
     ).toBe(8);
     expect(
-      dayCapacity({
+      buildDayCapacity({
         resource,
         date: monday,
         allocations: ignored,
@@ -241,7 +241,7 @@ describe('effective working-week semantics table', () => {
   });
 });
 
-describe('dayCapacity over-allocation', () => {
+describe('buildDayCapacity over-allocation', () => {
   const r = makeResource();
   it('flags over when allocated exceeds available', () => {
     const allocs = [
@@ -251,7 +251,12 @@ describe('dayCapacity over-allocation', () => {
         hoursPerDay: 10,
       }),
     ];
-    const cap = dayCapacity({ resource: r, date: '2026-06-01', allocations: allocs, timeOff: [] });
+    const cap = buildDayCapacity({
+      resource: r,
+      date: '2026-06-01',
+      allocations: allocs,
+      timeOff: [],
+    });
     expect(cap).toMatchObject({ allocated: 10, available: 8, over: true });
   });
 
@@ -265,7 +270,12 @@ describe('dayCapacity over-allocation', () => {
         hoursPerDay: 8,
       }),
     ];
-    const cap = dayCapacity({ resource: r, date: '2026-06-06', allocations: allocs, timeOff: [] });
+    const cap = buildDayCapacity({
+      resource: r,
+      date: '2026-06-06',
+      allocations: allocs,
+      timeOff: [],
+    });
     expect(cap).toMatchObject({ allocated: 0, available: 0, over: false });
   });
 
@@ -280,7 +290,12 @@ describe('dayCapacity over-allocation', () => {
         ignoreWorkingDays: true,
       }),
     ];
-    const cap = dayCapacity({ resource: r, date: '2026-06-06', allocations: allocs, timeOff: [] });
+    const cap = buildDayCapacity({
+      resource: r,
+      date: '2026-06-06',
+      allocations: allocs,
+      timeOff: [],
+    });
     expect(cap).toMatchObject({ allocated: 2, available: 0, over: true });
   });
 
@@ -294,7 +309,7 @@ describe('dayCapacity over-allocation', () => {
         hoursPerDay: 4,
       }),
     ];
-    const cap = dayCapacity({
+    const cap = buildDayCapacity({
       resource: r,
       date: '2026-06-03',
       allocations: allocs,
@@ -313,14 +328,15 @@ describe('dayCapacity over-allocation', () => {
       }),
     ];
     expect(
-      dayCapacity({ resource: monWed, date: '2026-06-04', allocations: allocs, timeOff: [] }),
+      buildDayCapacity({ resource: monWed, date: '2026-06-04', allocations: allocs, timeOff: [] }),
     ).toMatchObject({
       allocated: 0,
       available: 0,
       over: false,
     });
     expect(
-      dayCapacity({ resource: monWed, date: '2026-06-02', allocations: allocs, timeOff: [] }).over,
+      buildDayCapacity({ resource: monWed, date: '2026-06-02', allocations: allocs, timeOff: [] })
+        .over,
     ).toBe(false);
   });
 
@@ -333,7 +349,7 @@ describe('dayCapacity over-allocation', () => {
       }),
     ];
     expect(
-      dayCapacity({ resource: r, date: '2026-06-01', allocations: allocs, timeOff: [] }).over,
+      buildDayCapacity({ resource: r, date: '2026-06-01', allocations: allocs, timeOff: [] }).over,
     ).toBe(false);
   });
 
@@ -346,7 +362,7 @@ describe('dayCapacity over-allocation', () => {
         hoursPerDay: 8,
       }),
     ];
-    const cap = dayCapacity({
+    const cap = buildDayCapacity({
       resource: r,
       date: '2026-06-01',
       allocations: allocs,
@@ -363,7 +379,7 @@ describe('dayCapacity over-allocation', () => {
         hoursPerDay: 9,
       }),
     ];
-    const cap = dayCapacity({
+    const cap = buildDayCapacity({
       resource: r,
       date: '2026-06-01',
       allocations: allocs,
@@ -390,10 +406,10 @@ describe('dayCapacity over-allocation', () => {
     for (const order of orders) {
       const ordered = order.map((index) => requireValueAt(allocations, index));
       expect(
-        dayCapacity({ resource, date: '2026-06-01', allocations: ordered, timeOff: [] }).over,
+        buildDayCapacity({ resource, date: '2026-06-01', allocations: ordered, timeOff: [] }).over,
       ).toBe(false);
       expect(
-        capacityForWindow({
+        buildCapacityWindow({
           resource,
           allocations: ordered,
           timeOff: [],
@@ -407,7 +423,7 @@ describe('dayCapacity over-allocation', () => {
       index === 2 ? { ...allocation, hoursPerDay: allocation.hoursPerDay + 0.05 } : allocation,
     );
     expect(
-      dayCapacity({
+      buildDayCapacity({
         resource,
         date: '2026-06-01',
         allocations: genuinelyOver,
@@ -498,9 +514,9 @@ describe('utilisation', () => {
     ).toBeCloseTo(1);
   });
 
-  it('reports one entry per calendar day of the window (capacityForWindow)', () => {
+  it('reports one entry per calendar day of the window (buildCapacityWindow)', () => {
     // The straight-line oracle the memoised render path (buildSchedulerModel's per-date
-    // `dayCapacity` cache over `bucketByCoveredDate`) is checked against.
+    // `buildDayCapacity` cache over `bucketByCoveredDate`) is checked against.
     const allocs = [
       makeAlloc({
         startDate: '2026-06-01',
@@ -508,7 +524,7 @@ describe('utilisation', () => {
         hoursPerDay: 4,
       }),
     ];
-    const days = capacityForWindow({
+    const days = buildCapacityWindow({
       resource: r,
       allocations: allocs,
       timeOff: [],
@@ -581,7 +597,7 @@ describe('utilisation', () => {
 describe('over-allocated inside a window', () => {
   const r = makeResource();
   const overInWindow = (allocations: Allocation[], start: ISODate, end: ISODate) =>
-    capacityForWindow({
+    buildCapacityWindow({
       resource: r,
       allocations,
       timeOff: [],
@@ -628,7 +644,7 @@ it('reports a real sub-nanohour overload in both the day marker and proposal adv
   const resource = makeResource();
   const allocation = makeAlloc({ hoursPerDay: 8 + 1e-10 });
   expect(
-    dayCapacity({ resource, date: '2026-06-01', allocations: [allocation], timeOff: [] }).over,
+    buildDayCapacity({ resource, date: '2026-06-01', allocations: [allocation], timeOff: [] }).over,
   ).toBe(true);
   expect(
     capacityAdvisory({
@@ -652,7 +668,9 @@ it('does not mark a day over when days-mode bookings fit it exactly', () => {
   const allocations = Array.from({ length: 5 }, (_, index) =>
     makeAlloc({ id: `fit-${index}`, hoursPerDay: 1.6 }),
   );
-  expect(dayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [] }).over).toBe(false);
+  expect(buildDayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [] }).over).toBe(
+    false,
+  );
   expect(
     capacityAdvisory({
       resource,
@@ -677,7 +695,9 @@ it.each(
     const allocations = hours.map((hoursPerDay, index) =>
       makeAlloc({ id: `exact-${index}`, hoursPerDay }),
     );
-    expect(dayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [] }).over).toBe(true);
+    expect(buildDayCapacity({ resource, date: '2026-06-01', allocations, timeOff: [] }).over).toBe(
+      true,
+    );
     const proposalHours = hours.at(-1) ?? 0;
     expect(
       capacityAdvisory({

@@ -1,9 +1,11 @@
 // A type-checked message reference proves removing its compiled key fails the build.
 // Brand identity remains outside the translation catalogue.
 
+import { readFileSync } from 'node:fs';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { baseLocale, locales } from '@/paraglide/runtime.js';
+import { APP_NAME } from '@capacitylens/shared/brand';
 import { m } from '@/i18n';
 
 describe('i18n scaffolding (Paraglide)', () => {
@@ -33,5 +35,12 @@ describe('i18n scaffolding (Paraglide)', () => {
     }
     render(<Wordmark />);
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('keeps the product name and the literal plural marker out of the catalogue', () => {
+    const catalogue = readFileSync('messages/en.json', 'utf8');
+    const texts = Object.values(JSON.parse(catalogue) as Record<string, string>);
+    expect(texts.filter((text) => text.includes(APP_NAME))).toEqual([]);
+    expect(texts.filter((text) => text.includes('(s)'))).toEqual([]);
   });
 });

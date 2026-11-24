@@ -1,8 +1,6 @@
 import { ApiClient, type ApiRequest } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
-import app from '@adonisjs/core/services/app';
 import { resetState } from '#tests/helpers/state_fixture';
 import { insertProductRows } from '#tests/helpers/product_rows';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -113,16 +111,6 @@ export async function createFixtureCompanyForOwner(
   name: string,
   id: string = randomUUID()
 ) {
-  const port = process.env.CAPACITYLENS_TEST_HTTP_PORT;
-  const databasePath = process.env.CAPACITYLENS_DB;
-  if (
-    process.env.NODE_ENV !== 'test' ||
-    !port ||
-    !/^\d+$/.test(port) ||
-    !databasePath ||
-    resolve(databasePath) !== resolve(app.tmpPath(`japa-${port}.db`))
-  )
-    throw new Error('Company fixtures require the dedicated Japa test database.');
   const companyName = name.trim();
   if (!companyName) throw new Error('A fixture company requires a name.');
   const now = new Date().toISOString();

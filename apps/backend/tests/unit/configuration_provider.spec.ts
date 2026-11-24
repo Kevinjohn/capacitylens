@@ -1,4 +1,6 @@
 import { test } from '@japa/runner';
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import ConfigurationProvider, { assertProductionPosture } from '#providers/configuration_provider';
 import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
 
@@ -18,6 +20,22 @@ test.group('configuration provider', () => {
       () => assertProductionPosture({ ...safe, fixedToday: '2026-06-03' }),
       /FIXED_TODAY/
     );
+  });
+
+  test('git ignores the default and operator runtime database files', ({ assert }) => {
+    const ignored = (path: string) => {
+      try {
+        execFileSync('git', ['check-ignore', '--no-index', '--quiet', path], {
+          cwd: resolve(process.cwd(), '../..'),
+          stdio: 'ignore',
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    assert.isTrue(ignored('capacitylens-local.db'));
+    assert.isTrue(ignored('apps/backend/tmp/operator.db'));
   });
 
   for (const failedOperation of ['grantInvitation', 'approve'] as const) {

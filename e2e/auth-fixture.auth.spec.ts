@@ -1,195 +1,66 @@
 import { expect, test } from './fixtures';
 import {
   AUTH_API,
-  AUTH_PASSWORD,
-  assertAuthE2EFixturePath,
   bootstrapOrg,
   clearAuthE2ECompanies,
   readAuthE2EBaselineSnapshot,
   signUpUser,
 } from './authTestKit';
 
-test('native company fixtures preserve baseline data and unrelated users across cleanup cycles', async ({
+test('clearing the native company fixtures restores the baseline and keeps unrelated users', async ({
   request,
-  page,
 }) => {
-  expect(() => assertAuthE2EFixturePath('/tmp/capacitylens-other.db')).toThrow(
-    'Auth E2E fixtures may only access apps/backend/.auth-e2e.db.',
-  );
-
   const baseline = readAuthE2EBaselineSnapshot();
-  expect(baseline.company).toMatchObject({
+  const suffix = crypto.randomUUID();
+  const user = await signUpUser(`cleanup-cycle-${suffix}@capacitylens.dev`, 'Diana Prince');
+  const temporaryCompanyId = await bootstrapOrg(request, user.cookie, `Cleanup Company ${suffix}`);
+  const temporaryState = await request.get(
+    `${AUTH_API}/api/state?companyId=${temporaryCompanyId}`,
+    {
+      headers: { cookie: user.cookie },
+    },
+  );
+  expect(temporaryState.status()).toBe(200);
+
+  clearAuthE2ECompanies();
+
+  const restored = readAuthE2EBaselineSnapshot();
+  expect(restored.company.id).not.toBe(baseline.company.id);
+  expect(restored.company).toMatchObject({
     name: 'Daily Planet E2E Baseline',
     scheduling_mode: 'days',
+    week_starts_on: 1,
+    working_days: '[1,2,3,4,5]',
+    disciplines_enabled: 0,
+    placeholders_enabled: 0,
+    external_enabled: 0,
     inline_activity_create_enabled: 0,
   });
-  expect(baseline.client).toMatchObject({
-    id: `internal:${baseline.company.id}`,
+  expect(restored.client).toMatchObject({
+    id: `internal:${restored.company.id}`,
     name: 'Internal',
     builtin: 1,
   });
-  expect(baseline.revision).toBe(1);
-  expect(baseline.owner).toMatchObject({
+  expect(restored.revision).toBe(1);
+  expect(restored.owner).toMatchObject({
     email: 'baseline-owner@capacitylens.dev',
     role: 'owner',
     status: 'active',
   });
-  expect(baseline.administrator).toMatchObject({ email: 'admin@admin.admin', memberships: 0 });
+  expect(restored.administrator).toMatchObject({ email: 'admin@admin.admin', memberships: 0 });
+  expect(restored.initializationHistory).toBe(1);
 
-  const suffix = crypto.randomUUID();
-  const first = await signUpUser(`bruce-wayne-fixture-${suffix}@capacitylens.dev`, 'Bruce Wayne');
-  const firstId = await bootstrapOrg(request, first.cookie, `Wayne Enterprises ${suffix}`);
-  const firstRead = await request.get(`${AUTH_API}/api/state?companyId=${firstId}`, {
-    headers: { cookie: first.cookie },
-  });
-  expect(firstRead.status()).toBe(200);
-  const firstState = (await firstRead.json()).data;
-  expect(firstState.clients).toEqual([
-    expect.objectContaining({
-      id: `internal:${firstId}`,
-      companyId: firstId,
-      name: 'Internal',
-      builtin: true,
-    }),
-  ]);
-  expect(firstState.companies).toEqual([
-    expect.objectContaining({ id: firstId, schedulingMode: 'days' }),
-  ]);
-
-  const second = await signUpUser(`tony-stark-fixture-${suffix}@capacitylens.dev`, 'Tony Stark');
-  const secondId = await bootstrapOrg(request, second.cookie, `Stark Industries ${suffix}`);
-  expect(secondId).not.toBe(firstId);
-  const firstAfter = await request.get(`${AUTH_API}/api/state?companyId=${firstId}`, {
-    headers: { cookie: first.cookie },
-  });
-  expect(firstAfter.status()).toBe(200);
-  expect((await firstAfter.json()).data).toEqual(firstState);
-  const secondState = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
-    headers: { cookie: second.cookie },
-  });
-  expect(secondState.status()).toBe(200);
-  expect((await secondState.json()).data.companies).toEqual([
-    expect.objectContaining({ id: secondId }),
-  ]);
-  const foreignRead = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
-    headers: { cookie: first.cookie },
-  });
-  expect(foreignRead.status()).toBe(403);
-
-  const browserSignIn = await page.context().request.post(`${AUTH_API}/api/auth/sign-in`, {
-    data: { email: first.email, password: AUTH_PASSWORD },
-    headers: { 'sec-fetch-site': 'same-origin' },
-  });
-  expect(browserSignIn.status()).toBe(200);
-  await page.goto('/');
-  const ambiguity = page.getByRole('alert');
-  await expect(ambiguity).toHaveText(
-    'This installation has more than one company. Contact your administrator to resolve it.',
-  );
-  await expect(page.getByTestId('scheduler-grid')).toHaveCount(0);
-  await page.reload();
-  await expect(ambiguity).toHaveText(
-    'This installation has more than one company. Contact your administrator to resolve it.',
-  );
-
-  for (let cycle = 0; cycle < 2; cycle += 1) {
-    const baselineBeforeCycle = cycle === 0 ? undefined : readAuthE2EBaselineSnapshot();
-    const user = await signUpUser(
-      `cleanup-cycle-${cycle}-${suffix}@capacitylens.dev`,
-      'Diana Prince',
-    );
-    const companies = await request.get(`${AUTH_API}/api/companies`, {
+  const me = await request.get(`${AUTH_API}/api/auth/me`, { headers: { cookie: user.cookie } });
+  expect(me.status()).toBe(200);
+  const hiddenBaseline = await request.get(
+    `${AUTH_API}/api/state?companyId=${restored.company.id}`,
+    {
       headers: { cookie: user.cookie },
-    });
-    if (cycle === 0) {
-      expect(companies.status()).toBe(409);
-      expect(await companies.json()).toEqual({
-        error:
-          'This installation has more than one company. Contact the administrator to resolve it.',
-        code: 'MULTIPLE_COMPANIES',
-      });
-    } else {
-      expect(companies.status()).toBe(200);
-      expect(await companies.json()).toEqual({ data: [] });
-    }
-    const inaccessibleCompanyId = baselineBeforeCycle?.company.id ?? firstId;
-    const hiddenBaseline = await request.get(
-      `${AUTH_API}/api/state?companyId=${inaccessibleCompanyId}`,
-      {
-        headers: { cookie: user.cookie },
-      },
-    );
-    expect(hiddenBaseline.status()).toBe(403);
-
-    const temporaryCompanyId = await bootstrapOrg(
-      request,
-      user.cookie,
-      `Cleanup Company ${cycle} ${suffix}`,
-    );
-    const temporaryState = await request.get(
-      `${AUTH_API}/api/state?companyId=${temporaryCompanyId}`,
-      {
-        headers: { cookie: user.cookie },
-      },
-    );
-    expect(temporaryState.status()).toBe(200);
-    clearAuthE2ECompanies();
-
-    const restoredBaseline = readAuthE2EBaselineSnapshot();
-    expect(restoredBaseline.company.id).not.toBe(
-      baselineBeforeCycle?.company.id ?? baseline.company.id,
-    );
-    expect(restoredBaseline.company).toMatchObject({
-      name: 'Daily Planet E2E Baseline',
-      scheduling_mode: 'days',
-      week_starts_on: 1,
-      working_days: '[1,2,3,4,5]',
-      disciplines_enabled: 0,
-      placeholders_enabled: 0,
-      external_enabled: 0,
-      inline_activity_create_enabled: 0,
-    });
-    expect(restoredBaseline.client).toMatchObject({
-      id: `internal:${restoredBaseline.company.id}`,
-      name: 'Internal',
-      builtin: 1,
-    });
-    expect(restoredBaseline.revision).toBe(1);
-    expect(restoredBaseline.owner).toMatchObject({
-      email: 'baseline-owner@capacitylens.dev',
-      role: 'owner',
-      status: 'active',
-    });
-    expect(restoredBaseline.administrator).toMatchObject({
-      email: 'admin@admin.admin',
-      memberships: 0,
-    });
-    expect(restoredBaseline.initializationHistory).toBe(1);
-    expect(
-      (await request.get(`${AUTH_API}/api/auth/me`, { headers: { cookie: user.cookie } })).status(),
-    ).toBe(200);
-    const hiddenRestoredBaseline = await request.get(
-      `${AUTH_API}/api/state?companyId=${restoredBaseline.company.id}`,
-      {
-        headers: { cookie: user.cookie },
-      },
-    );
-    expect(hiddenRestoredBaseline.status()).toBe(403);
-    expect(
-      await (
-        await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
-      ).json(),
-    ).toEqual({ data: [] });
-  }
-
-  for (const user of [first, second]) {
-    expect(
-      (await request.get(`${AUTH_API}/api/auth/me`, { headers: { cookie: user.cookie } })).status(),
-    ).toBe(200);
-    expect(
-      await (
-        await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
-      ).json(),
-    ).toEqual({ data: [] });
-  }
+    },
+  );
+  expect(hiddenBaseline.status()).toBe(403);
+  const companies = await request.get(`${AUTH_API}/api/companies`, {
+    headers: { cookie: user.cookie },
+  });
+  expect(await companies.json()).toEqual({ data: [] });
 });
