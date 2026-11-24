@@ -1,3 +1,5 @@
+# PAUSED: every open-pull-requests-limit is 0 while the repositories are baselined.
+# To resume, restore the previous limits (see the commit that added this note).
 # npm patches and minors arrive weekly in separate groups; majors stay manual (see
 # `pnpm outdated`). GitHub Actions and Docker updates remain monthly and patch-only.
 version: 2
@@ -18,7 +20,7 @@ updates:
       - dependency-name: '*'
         update-types:
           - version-update:semver-major
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -28,6 +30,7 @@ updates:
         update-types:
           - version-update:semver-minor
           - version-update:semver-major
+    open-pull-requests-limit: 0
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -37,3 +40,4 @@ updates:
         update-types:
           - version-update:semver-minor
           - version-update:semver-major
+    open-pull-requests-limit: 0
