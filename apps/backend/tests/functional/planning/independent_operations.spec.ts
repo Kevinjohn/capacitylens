@@ -14,6 +14,7 @@ import {
   session,
   loginAsMember,
   trusted,
+  validationSentence,
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
@@ -138,10 +139,9 @@ test.group('independent typed planning operations', (group) => {
       )
       .send();
 
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
     assert.equal(
-      body(refused).error,
+      validationSentence(refused),
       'Repeat until must include at least one repeated occurrence.'
     );
     assert.deepEqual(await readState(companyId, true), before);
@@ -261,9 +261,9 @@ test.group('independent typed planning operations', (group) => {
         input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: missingId } })
       )
       .send();
-    missing.assertStatus(400);
-    assert.equal(body(missing).code, 'VALIDATION_ERROR');
-    assert.deepEqual(Object.keys(missing.body() as object).sort(), ['code', 'error']);
+    missing.assertStatus(422);
+    assert.isString(validationSentence(missing));
+    assert.deepEqual(Object.keys(missing.body() as object), ['errors']);
 
     const archived = await session(client.post(route('planning/mutations')), cookie)
       .json(
@@ -378,8 +378,8 @@ test.group('independent typed planning operations', (group) => {
         })
       )
       .send();
-    renamed.assertStatus(400);
-    assert.equal(body(renamed).code, 'VALIDATION_ERROR');
+    renamed.assertStatus(422);
+    assert.isString(validationSentence(renamed));
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
     const refusedSnapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(refusedSnapshot.body().data.revision, 0);
@@ -518,8 +518,8 @@ test.group('independent typed planning operations', (group) => {
       )
       .send();
 
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
+    assert.isString(validationSentence(refused));
     assert.deepEqual(await db.from('projects').where({ id: foreignProject.id }).first(), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().data.revision, 0);

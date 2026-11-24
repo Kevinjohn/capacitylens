@@ -13,6 +13,7 @@ import {
   newAllocation,
   resetPlanningFixture,
   signIn,
+  validationSentence,
 } from '#tests/functional/planning/helpers';
 import {
   note,
@@ -226,8 +227,8 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.deepEqual(await stored(kept!), keptRow);
     const before = await readState(companyId, true);
     const partial = await deleteGroup(client, cookie, [kept!, randomUUID()], 2);
-    partial.assertStatus(400);
-    assert.equal(partial.body().code, 'VALIDATION_ERROR');
+    partial.assertStatus(422);
+    assert.isString(validationSentence(partial));
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('deleted_groups'), 1);
     const restored = await restore(

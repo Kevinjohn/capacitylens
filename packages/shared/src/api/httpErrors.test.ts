@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readHttpErrorBody } from './httpErrors.js';
-import type { ProductHttpErrorBody, ProductValidationFailure } from './httpErrors.js';
+import type { ProductHttpErrorBody } from './httpErrors.js';
 
 describe('flat HTTP failure boundary', () => {
   it('retains committed and admission metadata without trusting malformed values', () => {
@@ -54,16 +54,10 @@ describe('flat HTTP failure boundary', () => {
 
 // These examples are checked by the shared test TypeScript project, alongside runtime tests.
 function productTypeContracts() {
-  const validation: ProductValidationFailure = {
-    status: 400,
-    body: { error: 'Invalid', code: 'VALIDATION_ERROR' },
-  };
   const registered = {
     error: 'An account already uses this email.',
     code: 'EMAIL_IN_USE',
   } satisfies ProductHttpErrorBody;
-  // @ts-expect-error Product validation does not use Tuyau's default 422 status.
-  const wrongStatus: ProductValidationFailure = { ...validation, status: 422 };
   // @ts-expect-error An arbitrary dependency code cannot be assumed to be a known product code.
   const unsupported: ProductHttpErrorBody = { error: 'Unknown', code: 'FUTURE_DEPENDENCY_CODE' };
   // @ts-expect-error Restoration confirmation requires its operation metadata.
@@ -72,11 +66,11 @@ function productTypeContracts() {
     code: 'RESTORATION_CONFIRMATION_REQUIRED',
   };
   const misplacedCount: ProductHttpErrorBody = {
-    error: 'Invalid',
-    code: 'VALIDATION_ERROR',
-    // @ts-expect-error Ordinary validation has no restoration metadata.
+    error: 'Nothing changed',
+    code: 'NO_CHANGE',
+    // @ts-expect-error An ordinary refusal has no restoration metadata.
     restorableItemCount: 2,
   };
-  return [validation, registered, wrongStatus, unsupported, missingCount, misplacedCount];
+  return [registered, unsupported, missingCount, misplacedCount];
 }
 void productTypeContracts;

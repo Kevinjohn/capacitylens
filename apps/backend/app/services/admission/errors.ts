@@ -1,20 +1,9 @@
-import { errors as vineErrors } from '@vinejs/vine';
 import { AdmissionException } from '#exceptions/admission_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
-/** Refuses malformed admission input before any product write. */
-export function refuseInvalidAdmission(message = 'Invalid admission request.'): never {
-  throw new AdmissionException(message, 400, 'VALIDATION_ERROR');
-}
-
-/**
- * Turns a refused request body into the admission refusal, with the sentence the validator
- * reports first. Call with the error `tryValidateUsing` returns; any other value is re-thrown.
- */
-export function refuseInvalidAdmissionBody(error: unknown): never {
-  if (error instanceof vineErrors.E_VALIDATION_ERROR) {
-    refuseInvalidAdmission(error.messages[0]?.message);
-  }
-  throw error;
+/** Refuses a malformed admission id before any product write. */
+export function refuseInvalidAdmission(): never {
+  throw new ValidationRefusalException('Invalid admission request.');
 }
 
 /** Conceals a missing or cross-company control record. */

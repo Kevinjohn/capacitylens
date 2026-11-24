@@ -254,8 +254,8 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
     getStubPlanningTransport().failNext(
       new PlanningCacheError(
         'A placeholder bound to a project can only take activities from that project.',
-        'VALIDATION_ERROR',
-        400,
+        undefined,
+        422,
       ),
     );
     const bar = screen.getByTestId('allocation-bar');

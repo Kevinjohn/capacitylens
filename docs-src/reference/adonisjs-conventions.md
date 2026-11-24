@@ -322,7 +322,8 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
   and keep their spelling.
 - A product exception extends `ProductException` (`app/exceptions/product_exception.ts`) and
   answers for itself: its `handle` sends the product's flat body `{ error, code? }`, so no central
-  table lists product exceptions.
+  table lists product exceptions. A domain validation refusal throws `ValidationRefusalException`,
+  which answers like a request validation failure: 422 with `{ errors: [{ message }] }`.
 - The handler's `handle` answers only the errors that are not ours to describe (package and body
   parser errors) in the same flat body, then calls `super.handle`. Anything else, a database
   constraint failure included, is answered as a 500 with a fixed sentence. The handler shows debug output in development

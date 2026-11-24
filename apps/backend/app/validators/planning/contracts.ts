@@ -82,7 +82,6 @@ export interface PlanningMutationSuccess {
 
 /** Product planning refusal codes; Kit codes retain their own contract. */
 export const planningMutationErrorCodes = [
-  'VALIDATION_ERROR',
   'ACCOUNT_MEMBERSHIP_LOST',
   'AUTHORIZATION_DENIED',
   'STALE_REVISION',

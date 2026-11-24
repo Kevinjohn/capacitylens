@@ -16,6 +16,7 @@ import { isRetainedTable } from '#services/planning/retained_rows';
 import { reclaimRetainedId, type RestorationIdentity } from '#services/planning/restoration';
 import { asRecord, writeRow, type WrittenRow } from '#services/planning/writer';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
 interface WriteEntityOptions<K extends ScopedEntityKey> {
   trx: TransactionClientContract;
@@ -67,17 +68,17 @@ export async function writeEntity<K extends ScopedEntityKey>({
   const existing = rows.find((row) => row.id === id);
   assertMayWriteRestrictedFields(table, asRecord(fields), accessGrant, mode);
   if (mode === 'create' && existing) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new ValidationRefusalException('The record already exists.');
   }
   if (
     mode === 'create' &&
     !isRetainedTable(table) &&
     (await trx.from(tables[table]).select('id').where('id', id).first())
   ) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new ValidationRefusalException('The record already exists.');
   }
   if (mode === 'update' && !existing) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record was not found.');
+    throw new ValidationRefusalException('The record was not found.');
   }
   if (
     mode === 'update' &&

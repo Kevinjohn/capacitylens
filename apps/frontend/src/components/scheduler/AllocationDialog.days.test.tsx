@@ -39,8 +39,8 @@ describe('AllocationDialog days mode', () => {
     getStubPlanningTransport().failNext(
       new PlanningCacheError(
         'Allocation must reference an existing resource and activity in this company.',
-        'VALIDATION_ERROR',
-        400,
+        undefined,
+        422,
       ),
     );
     await user.click(screen.getByRole('button', { name: 'Save' }));

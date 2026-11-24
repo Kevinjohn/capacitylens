@@ -11,6 +11,7 @@ import { validateRow } from '#validators/planning/row';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
 /** One row a planning operation wrote: its table, id, and the row before and after. */
 export interface WrittenRow {
@@ -37,7 +38,7 @@ export function requireExistingRow<K extends AppDataKey>(
   const rows: readonly { id: string }[] = data[table];
   const row = rows.find((item) => item.id === id);
   if (!row) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record was not found.');
+    throw new ValidationRefusalException('The record was not found.');
   }
   // Indexing the snapshot by a generic key loses the element type, so restore it here.
   return row as AppData[K][number];

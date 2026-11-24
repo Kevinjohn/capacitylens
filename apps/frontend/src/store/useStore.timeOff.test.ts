@@ -97,11 +97,11 @@ describe('atomic time-off creation: atomic validation', () => {
       }
     });
     getStubPlanningTransport().failNext(
-      new PlanningCacheError('The server refused the time-off batch.', 'VALIDATION_ERROR', 400),
+      new PlanningCacheError('The server refused the time-off batch.', undefined, 422),
     );
     await expect(
       requireCreated(state().addRepeatedTimeOff(draft(), weekly('2026-06-15'), 3)),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     unsubscribe();
 
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({

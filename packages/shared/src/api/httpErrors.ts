@@ -2,7 +2,6 @@ import { isRecord } from '../lib/isRecord.js';
 
 /** Product codes consumed by browser flows; dependency and future codes remain open on the wire. */
 export const PRODUCT_ERROR_CODES = [
-  'VALIDATION_ERROR',
   'INVALID_JSON',
   'INVALID_JSON_SHAPE',
   'PAYLOAD_TOO_LARGE',
@@ -68,15 +67,9 @@ export type ProductHttpErrorBody =
     };
 
 /**
- * A product validation refusal (a domain rule) answers 400. A route's
- * request validation takes the framework's 422 `{ errors }` answer instead.
+ * The first message of the framework's validation answer, `{ errors: [{ message, ... }] }`. Every
+ * validation refusal, request or domain, answers 422 with it.
  */
-export interface ProductValidationFailure {
-  status: 400;
-  body: { error: string; code: 'VALIDATION_ERROR' };
-}
-
-/** The first message of the framework's validation answer, `{ errors: [{ message, ... }] }`. */
 export function readValidationMessage(value: unknown): string | undefined {
   if (!isRecord(value) || !Array.isArray(value.errors)) return undefined;
   const first: unknown = value.errors[0];

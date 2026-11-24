@@ -13,6 +13,7 @@ import {
   session,
   loginAsMember,
   signIn,
+  validationSentence,
 } from '#tests/functional/planning/helpers';
 import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers';
 
@@ -64,8 +65,8 @@ test.group('authenticated planning operations', (group) => {
         })
       )
       .send();
-    foreign.assertStatus(400);
-    assert.equal(body(foreign).code, 'VALIDATION_ERROR');
+    foreign.assertStatus(422);
+    assert.isString(validationSentence(foreign));
     const current = await session(client.get(planningUrl), cookie).send();
     assert.equal(body(current).revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
@@ -219,8 +220,8 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
 
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
+    assert.isString(validationSentence(refused));
     assert.deepEqual(await readState(companyId, true), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().data.revision, 0);
@@ -245,10 +246,9 @@ test.group('authenticated planning operations', (group) => {
           input(0, { operation: 'resource.update', id: external.id, changes: { [field]: value } })
         )
         .send();
-      refused.assertStatus(400);
+      refused.assertStatus(422);
       assert.deepEqual(refused.body(), {
-        code: 'VALIDATION_ERROR',
-        error: `${field} is not used by external resources.`,
+        errors: [{ message: `${field} is not used by external resources.` }],
       });
     }
   });
@@ -511,8 +511,8 @@ test.group('authenticated planning operations', (group) => {
 
     // Six calendar months after 2 November is 2 May.
     const tooLate = await repeatGroup('2027-05-03');
-    tooLate.assertStatus(400);
-    assert.equal(body(tooLate).code, 'VALIDATION_ERROR');
+    tooLate.assertStatus(422);
+    assert.isString(validationSentence(tooLate));
 
     // The client sends the first occurrence and the pattern; the server mints the later ids.
     const created = await repeatGroup('2026-11-23');
@@ -582,8 +582,8 @@ test.group('authenticated planning operations', (group) => {
       id: oneOff.id,
       scope: 'future',
     });
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
+    assert.isString(validationSentence(refused));
 
     // Only the selected id is sent; the server finds the later occurrences itself.
     const tail = await mutate(2, { operation: 'allocation.delete', id: ids[1], scope: 'future' });
@@ -629,8 +629,8 @@ test.group('authenticated planning operations', (group) => {
 
     // Eleven calendar months after November end with October.
     const tooLate = await repeatTimeOff('2027-11-01', [randomUUID()]);
-    tooLate.assertStatus(400);
-    assert.equal(body(tooLate).code, 'VALIDATION_ERROR');
+    tooLate.assertStatus(422);
+    assert.isString(validationSentence(tooLate));
 
     const ids = [timeOff.id, randomUUID(), randomUUID()];
     const created = await repeatTimeOff('2026-11-30', ids.slice(1));
@@ -783,11 +783,8 @@ test.group('authenticated planning operations', (group) => {
         })
       )
       .send();
-    repeat.assertStatus(400);
-    assert.equal(
-      (repeat.body() as { error?: string }).error,
-      'The occurrence identities do not match the repeat.'
-    );
+    repeat.assertStatus(422);
+    assert.equal(validationSentence(repeat), 'The occurrence identities do not match the repeat.');
     const afterRepeat = await readState(companyId, true);
     assert.isFalse(afterRepeat.timeOff.some((row) => row.id === firstId));
 
@@ -867,8 +864,8 @@ test.group('authenticated planning operations', (group) => {
         })
       )
       .send();
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
+    assert.isString(validationSentence(refused));
     const retained = await session(client.post('/api/batch'), cookie)
       .json({
         ops: [

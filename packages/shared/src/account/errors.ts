@@ -5,7 +5,6 @@ export type AccountErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'NOT_MEMBER'
-  | 'VALIDATION_ERROR'
   | 'CONFLICT'
   | 'COMMAND_IN_PROGRESS'
   | 'OWNER_TRANSFER_REQUIRED'

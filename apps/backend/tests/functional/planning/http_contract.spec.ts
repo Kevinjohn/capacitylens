@@ -17,6 +17,7 @@ import {
   loginAsMember,
   signIn,
   trusted,
+  validationSentence,
 } from '#tests/functional/planning/helpers';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
@@ -709,8 +710,8 @@ test.group('authenticated typed planning transactions', (group) => {
         intent: { operation: 'allocation.create', allocation },
       })
       .send();
-    occupied.assertStatus(400);
-    assert.equal((occupied.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
+    occupied.assertStatus(422);
+    assert.isString(validationSentence(occupied));
     const missingId = randomUUID();
     const missing = await session(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -726,8 +727,8 @@ test.group('authenticated typed planning transactions', (group) => {
         },
       })
       .send();
-    missing.assertStatus(400);
-    assert.equal((missing.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
+    missing.assertStatus(422);
+    assert.isString(validationSentence(missing));
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(

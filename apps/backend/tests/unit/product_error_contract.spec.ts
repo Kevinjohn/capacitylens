@@ -32,7 +32,6 @@ import { StalePlanningRevisionException } from '#exceptions/stale_planning_revis
 import {
   refuseConflictingAdmission,
   refuseInvalidAdmission,
-  refuseInvalidAdmissionBody,
   refuseMissingAdmission,
 } from '#services/admission/errors';
 import {
@@ -137,15 +136,6 @@ async function routeValidationAnswer(call: () => unknown) {
   return { status, body: { errors: [{ message: first?.message }] } };
 }
 
-/** The invitation controllers turn a validator's failure into the admission refusal. */
-async function invitationValidationAnswer(
-  validator: { tryValidate(data: unknown): Promise<[unknown, unknown]> },
-  data: unknown
-) {
-  const [error] = await validator.tryValidate(data);
-  return answeredThrown(() => refuseInvalidAdmissionBody(error));
-}
-
 const signUp = {
   email: 'diana.prince@themyscira.example',
   password: 'lasso-of-truth-26',
@@ -174,7 +164,6 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
       ['E_MASQUERADE_ACTION_BLOCKED', 403, 'Masquerade is read-only.', 'MASQUERADE_READ_ONLY'],
       ['E_MASQUERADE_NOT_ALLOWED', 403, 'This action is not allowed.', 'AUTHORIZATION_DENIED'],
       ['E_MASQUERADE_ALREADY_ACTIVE', 409, 'Masquerade is already active.', 'MASQUERADE_ACTIVE'],
-      ['E_MASQUERADE_INVALID_INPUT', 400, 'Invalid masquerade request.', 'VALIDATION_ERROR'],
       ['E_MASQUERADE_UNAUTHENTICATED', 401, 'Sign-in required.', 'SIGN_IN_REQUIRED'],
       ['E_MASQUERADE_UNAVAILABLE', 503, 'Masquerade is unavailable.', 'MASQUERADE_UNAVAILABLE'],
     ] as const
@@ -189,6 +178,12 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     status,
     { error, code: wire },
   ]),
+  [
+    'E_MASQUERADE_INVALID_INPUT',
+    () => answered(new MasqueradeError('E_MASQUERADE_INVALID_INPUT')),
+    422,
+    { errors: [{ message: 'Invalid masquerade request.' }] },
+  ],
   ...(
     [
       ['E_ACCESS_CONTROL_FORBIDDEN', 403, 'Forbidden.', 'FORBIDDEN'],
@@ -254,8 +249,8 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   [
     'refuseInvalidAdmission',
     () => answeredThrown(() => refuseInvalidAdmission()),
-    400,
-    { error: 'Invalid admission request.', code: 'VALIDATION_ERROR' },
+    422,
+    { errors: [{ message: 'Invalid admission request.' }] },
   ],
   [
     'refuseMissingAdmission',
@@ -312,34 +307,33 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   [
     'invitation sign-up with a short password',
     () =>
-      invitationValidationAnswer(acceptInvitationSignUpValidator, {
-        name: 'Diana Prince',
-        password: 'short',
-      }),
-    400,
-    { error: 'Invalid password.', code: 'VALIDATION_ERROR' },
+      routeValidationAnswer(() =>
+        acceptInvitationSignUpValidator.validate({ name: 'Diana Prince', password: 'short' })
+      ),
+    422,
+    { errors: [{ message: 'Invalid password.' }] },
   ],
   [
     'invitation sign-up with an unsupported field',
     () =>
-      invitationValidationAnswer(acceptInvitationSignUpValidator, {
-        name: 'Diana Prince',
-        password: signUp.password,
-        role: 'owner',
-      }),
-    400,
-    { error: 'Unsupported field.', code: 'VALIDATION_ERROR' },
+      routeValidationAnswer(() =>
+        acceptInvitationSignUpValidator.validate({
+          name: 'Diana Prince',
+          password: signUp.password,
+          role: 'owner',
+        })
+      ),
+    422,
+    { errors: [{ message: 'Unsupported field.' }] },
   ],
   [
     'invitation with an invalid email',
     () =>
-      invitationValidationAnswer(createInvitationValidator, {
-        companyId: 'c',
-        role: 'editor',
-        email: 'diana',
-      }),
-    400,
-    { error: 'Invalid email.', code: 'VALIDATION_ERROR' },
+      routeValidationAnswer(() =>
+        createInvitationValidator.validate({ companyId: 'c', role: 'editor', email: 'diana' })
+      ),
+    422,
+    { errors: [{ message: 'Invalid email.' }] },
   ],
   [
     'invalid token',

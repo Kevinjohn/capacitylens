@@ -9,6 +9,7 @@ import {
   resetPlanningFixture,
   session,
   loginAsMember,
+  validationSentence,
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
@@ -103,8 +104,8 @@ test.group('typed resource availability', (group) => {
         })
       )
       .send();
-    inclusive.assertStatus(400);
-    assert.equal((inclusive.body() as { code: string }).code, 'VALIDATION_ERROR');
+    inclusive.assertStatus(422);
+    assert.isString(validationSentence(inclusive));
     const after = await readState(companyId, true);
     assert.isDefined(after.allocations.find((row) => row.id === candidate.id));
     assert.isUndefined(
@@ -152,8 +153,8 @@ test.group('typed resource availability', (group) => {
         })
       )
       .send();
-    refused.assertStatus(400);
-    assert.equal((refused.body() as { code: string }).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
+    assert.isString(validationSentence(refused));
     assert.deepEqual(await readState(companyId, true), before);
   });
 });

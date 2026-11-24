@@ -729,10 +729,14 @@ test.group('native read-only masquerade', (group) => {
     );
   });
 
-  test('rejects self, inactive target, and malformed session access', async ({ client }) => {
+  test('rejects self, inactive target, and malformed session access', async ({
+    client,
+    assert,
+  }) => {
     const { cookie, ownerId, targetId } = await fixture(client);
     const self = await startView(client, cookie, ownerId);
-    self.assertStatus(400);
+    self.assertStatus(422);
+    assert.deepEqual(self.body(), { errors: [{ message: 'Invalid masquerade request.' }] });
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: targetId })

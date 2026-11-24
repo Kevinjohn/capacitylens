@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { parseFirstCompanyInput, isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { createInitialCompany } from '#services/initial_company_defaults';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 import {
   firstCompanySetupMessage,
   createFirstCompanyValidator,
@@ -18,7 +19,7 @@ export default class FirstCompanySetupController {
     });
     const input = parseFirstCompanyInput(body);
     if (input === null) {
-      return response.badRequest({ error: firstCompanySetupMessage, code: 'VALIDATION_ERROR' });
+      throw new ValidationRefusalException(firstCompanySetupMessage);
     }
     const result = await withActor(auth, async (actor, trx) => {
       if (!(await isFirstCompanySetupRequired(actor.userId, trx))) return null;

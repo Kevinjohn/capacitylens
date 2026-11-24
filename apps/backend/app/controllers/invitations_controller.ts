@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { isMailConfigured } from '#services/mail_delivery';
-import { refuseInvalidAdmission, refuseInvalidAdmissionBody } from '#services/admission/errors';
+import { refuseInvalidAdmission } from '#services/admission/errors';
 import {
   answerMailUnavailable,
   buildInvitationView,
@@ -17,10 +17,7 @@ import { createInvitationValidator } from '#validators/invitations';
  */
 export default class InvitationsController {
   async store({ auth, request, response, logger, serialize }: HttpContext) {
-    const [validationError, body] = await request.tryValidateUsing(createInvitationValidator, {
-      data: request.body(),
-    });
-    if (validationError) refuseInvalidAdmissionBody(validationError);
+    const body = await request.validateUsing(createInvitationValidator, { data: request.body() });
     const { email } = body;
     const actorId = await requireInvitationManager(auth, body.companyId);
     if (!isMailConfigured()) return answerMailUnavailable(response);

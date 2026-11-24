@@ -34,7 +34,7 @@ async function acceptBootstrap(client: ApiClient) {
     .header('sec-fetch-site', 'same-origin')
     .json({ name: '𐐀'.repeat(101), password })
     .send();
-  oversized.assertStatus(400);
+  oversized.assertStatus(422);
   const accepted = await client
     .visit('api.invitation_acceptances.store', { token })
     .header('sec-fetch-site', 'same-origin')
@@ -165,15 +165,15 @@ test.group('authenticated first company setup', (group) => {
     assert,
   }) => {
     const { cookie } = await acceptBootstrap(client);
-    // Request validation refuses a malformed shape with 422; the setup rules refuse a time zone it
-    // cannot use with 400.
+    // Request validation refuses a malformed shape, and the setup rules a time zone they cannot
+    // use, both with 422.
     for (const [extra, status] of [
       [{ weekStartsOn: 2, timeZone: 'Etc/GMT' }, 422],
-      [{ weekStartsOn: 0, timeZone: 'Gotham/Invalid' }, 400],
+      [{ weekStartsOn: 0, timeZone: 'Gotham/Invalid' }, 422],
       [{ weekStartsOn: null, timeZone: 'Etc/GMT' }, 422],
-      [{ weekStartsOn: 1, timeZone: '+01:00' }, 400],
+      [{ weekStartsOn: 1, timeZone: '+01:00' }, 422],
       [{ weekStartsOn: 1, timeZone: null }, 422],
-      [{ weekStartsOn: 1, timeZone: '' }, 400],
+      [{ weekStartsOn: 1, timeZone: '' }, 422],
       [{ weekStartsOn: '1', timeZone: 'Etc/GMT' }, 422],
     ] as const) {
       const refused = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
@@ -243,11 +243,11 @@ test.group('authenticated first company setup', (group) => {
       .send();
     anonymous.assertStatus(401);
     const { cookie } = await acceptBootstrap(client);
-    // Request validation refuses a malformed shape with 422; the name rule refuses with 400.
+    // Request validation refuses a malformed shape, and the name rule a name it cannot use, with 422.
     for (const [body, status] of [
       [{}, 422],
-      [{ name: '' }, 400],
-      [{ name: 'x'.repeat(200) }, 400],
+      [{ name: '' }, 422],
+      [{ name: 'x'.repeat(200) }, 422],
       [{ name: 'Wayne Enterprises', ownerId: 'someone-else' }, 422],
       [['Wayne Enterprises'], 422],
     ] as const) {

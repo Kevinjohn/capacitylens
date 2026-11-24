@@ -9,6 +9,7 @@ import { executePlanningIntent as applyPlanningIntent } from '#services/planning
 import type { PlanningIntent } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
 const owner: PlanningAccessGrant = {
   role: 'owner',
@@ -94,7 +95,7 @@ test.group('typed planning writers', (group) => {
             owner
           )
         ),
-      PlanningOperationException
+      ValidationRefusalException
     );
     const state = await readState('a-studio', true);
     assert.isUndefined(state.timeOff.find((row) => row.id === id));

@@ -4,6 +4,7 @@
 // `IDEMPOTENCY_CONFLICT`); only values passed to the package use its `requestKey` name.
 
 import { AccountOperationException } from '#exceptions/account_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 import { randomUUID } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
@@ -35,11 +36,7 @@ export function parseAccountOperation(
     return { commandId: randomUUID(), requestKey: randomUUID() };
   }
   if (!isAccountCommandId(commandId) || !isAccountIdempotencyKey(requestKey)) {
-    throw new AccountOperationException(
-      'Invalid or unpaired operation headers.',
-      400,
-      'VALIDATION_ERROR'
-    );
+    throw new ValidationRefusalException('Invalid or unpaired operation headers.');
   }
   return { commandId, requestKey };
 }
@@ -50,7 +47,7 @@ export function mapAccountOperationError(error: unknown): unknown {
     return new AccountOperationException('Operation id already used.', 409, 'IDEMPOTENCY_CONFLICT');
   }
   if (error instanceof E_INVALID_COMMAND_VALUE) {
-    return new AccountOperationException('Invalid operation payload.', 400, 'VALIDATION_ERROR');
+    return new ValidationRefusalException('Invalid operation payload.');
   }
   return error;
 }

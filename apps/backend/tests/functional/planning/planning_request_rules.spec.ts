@@ -127,8 +127,8 @@ test.group('planning request rule boundaries', (group) => {
           })
         )
         .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(422);
+      assert.isNotEmpty(validationErrors(refused));
     }
 
     for (const color of ['#7cd9e4']) {
@@ -194,8 +194,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    wrongProject.assertStatus(400);
-    assert.equal(body(wrongProject).code, 'VALIDATION_ERROR');
+    wrongProject.assertStatus(422);
+    assert.isNotEmpty(validationErrors(wrongProject));
 
     const unassignedProjectActivity = await session(
       client.post(route('planning/mutations')),
@@ -212,8 +212,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    unassignedProjectActivity.assertStatus(400);
-    assert.equal(body(unassignedProjectActivity).code, 'VALIDATION_ERROR');
+    unassignedProjectActivity.assertStatus(422);
+    assert.isNotEmpty(validationErrors(unassignedProjectActivity));
 
     const wrongKind = await session(client.post(route('planning/mutations')), cookie)
       .json(
@@ -232,8 +232,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    wrongKind.assertStatus(400);
-    assert.equal(body(wrongKind).code, 'VALIDATION_ERROR');
+    wrongKind.assertStatus(422);
+    assert.isNotEmpty(validationErrors(wrongKind));
     assert.deepEqual(await readState(companyId, true), before);
     assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(
@@ -272,22 +272,21 @@ test.group('planning request rule boundaries', (group) => {
     const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
-    // Request validation refuses a malformed pattern with 422; a planning rule refuses with 400.
+    // Request validation and the planning rules both refuse with 422.
     const invalidCases = [
-      { id: person.id, changes: { workingDays: [] }, status: 422 },
-      { id: person.id, changes: { workingDays: [1, 2], halfDays: [3] }, status: 422 },
-      { id: person.id, changes: { halfDays: [1, 1] }, status: 422 },
-      { id: person.id, changes: { workingHoursPerDay: 0 }, status: 422 },
-      { id: placeholder.id, changes: { engagement: 'supplementary' }, status: 400 },
-      { id: placeholder.id, changes: { workingDays: [0, 6], halfDays: [6] }, status: 400 },
+      { id: person.id, changes: { workingDays: [] } },
+      { id: person.id, changes: { workingDays: [1, 2], halfDays: [3] } },
+      { id: person.id, changes: { halfDays: [1, 1] } },
+      { id: person.id, changes: { workingHoursPerDay: 0 } },
+      { id: placeholder.id, changes: { engagement: 'supplementary' } },
+      { id: placeholder.id, changes: { workingDays: [0, 6], halfDays: [6] } },
     ];
-    for (const { id, changes, status } of invalidCases) {
+    for (const { id, changes } of invalidCases) {
       const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(input(1, { operation: 'resource.update', id, changes }))
         .send();
-      refused.assertStatus(status);
-      if (status === 422) assert.isNotEmpty(validationErrors(refused));
-      else assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(422);
+      assert.isNotEmpty(validationErrors(refused));
     }
 
     const changedKind = await session(client.post(route('planning/mutations')), cookie)
@@ -467,30 +466,22 @@ test.group('planning request rule boundaries', (group) => {
     const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
-    // Request validation refuses a malformed allocation with 422; a planning rule refuses with 400.
+    // Request validation and the planning rules both refuse a malformed allocation with 422.
     const invalidAllocations = [
-      [{ ...baseAllocation, hoursPerDay: 25 }, 422],
-      [{ ...baseAllocation, startDate: '2026-11-06', endDate: '2026-11-02' }, 422],
-      [{ ...baseAllocation, startDate: '', endDate: '' }, 422],
-      [{ ...baseAllocation, resourceId: external.id }, 400],
-      [{ ...baseAllocation, resourceId: randomUUID() }, 400],
-      [{ ...baseAllocation, activityId: randomUUID() }, 400],
-      [
-        {
-          ...baseAllocation,
-          resourceId: placeholder.id,
-          activityId: otherProjectActivity!.id,
-        },
-        400,
-      ],
-    ] as const;
-    for (const [allocation, status] of invalidAllocations) {
+      { ...baseAllocation, hoursPerDay: 25 },
+      { ...baseAllocation, startDate: '2026-11-06', endDate: '2026-11-02' },
+      { ...baseAllocation, startDate: '', endDate: '' },
+      { ...baseAllocation, resourceId: external.id },
+      { ...baseAllocation, resourceId: randomUUID() },
+      { ...baseAllocation, activityId: randomUUID() },
+      { ...baseAllocation, resourceId: placeholder.id, activityId: otherProjectActivity!.id },
+    ];
+    for (const allocation of invalidAllocations) {
       const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(input(2, { operation: 'allocation.create', allocation }))
         .send();
-      refused.assertStatus(status);
-      if (status === 422) assert.isNotEmpty(validationErrors(refused));
-      else assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(422);
+      assert.isNotEmpty(validationErrors(refused));
     }
 
     const storedAllocation = canonicalBeforeRefusals.allocations.find(
@@ -517,8 +508,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    refusedUpdate.assertStatus(400);
-    assert.equal(body(refusedUpdate).code, 'VALIDATION_ERROR');
+    refusedUpdate.assertStatus(422);
+    assert.isNotEmpty(validationErrors(refusedUpdate));
 
     const invalidTimeOff = [
       {
@@ -543,14 +534,13 @@ test.group('planning request rule boundaries', (group) => {
         type: 'holiday',
       },
     ];
-    // The reversed range is refused by request validation (422), the others by planning rules.
-    for (const [index, timeOff] of invalidTimeOff.entries()) {
+    // The reversed range is refused by request validation, the others by planning rules; all 422.
+    for (const timeOff of invalidTimeOff) {
       const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(input(2, { operation: 'timeOff.create', timeOff }))
         .send();
-      refused.assertStatus(index === 0 ? 422 : 400);
-      if (index === 0) assert.isNotEmpty(validationErrors(refused));
-      else assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(422);
+      assert.isNotEmpty(validationErrors(refused));
     }
 
     assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals);

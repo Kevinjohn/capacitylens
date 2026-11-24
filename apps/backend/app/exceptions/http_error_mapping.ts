@@ -1,6 +1,7 @@
 // Package and parser errors are not ours to describe, so the exception handler answers
-// them here in the product's flat `{ error, code? }` body before it calls `super.handle`. Product
-// exceptions answer for themselves, and a Vine validation failure takes the framework's answer.
+// them here in the product's flat `{ error, code? }` body before it calls `super.handle`; invalid
+// input takes the framework's 422 `{ errors }` body. Product exceptions answer for themselves, and
+// a Vine validation failure takes the framework's answer.
 
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { errors as httpServerErrors } from '@adonisjs/core/http';
@@ -18,6 +19,7 @@ import {
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
+import { buildValidationBody } from '#exceptions/validation_refusal_exception';
 
 /**
  * One answered package error. `errorType` marks an answer whose error is still logged as a server
@@ -72,11 +74,6 @@ const MASQUERADE_RESPONSES: Record<string, { status: number; code: string; messa
     code: 'MASQUERADE_ACTIVE',
     message: 'Masquerade is already active.',
   },
-  E_MASQUERADE_INVALID_INPUT: {
-    status: 400,
-    code: 'VALIDATION_ERROR',
-    message: 'Invalid masquerade request.',
-  },
   E_MASQUERADE_UNAUTHENTICATED: {
     status: 401,
     code: 'SIGN_IN_REQUIRED',
@@ -90,6 +87,10 @@ const MASQUERADE_RESPONSES: Record<string, { status: number; code: string; messa
 };
 
 function buildMasqueradeResponse(error: MasqueradeError): HttpErrorResponse | undefined {
+  // Invalid input answers like any other validation refusal.
+  if (error.code === 'E_MASQUERADE_INVALID_INPUT') {
+    return { status: 422, body: buildValidationBody('Invalid masquerade request.') };
+  }
   const known = Object.hasOwn(MASQUERADE_RESPONSES, error.code)
     ? MASQUERADE_RESPONSES[error.code]
     : undefined;

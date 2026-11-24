@@ -10,7 +10,7 @@ const personDraft = makeResourceDraft({ name: 'Person', jobTitle: 'Dev', color: 
 
 function refuseNextPlanningMutation(): void {
   getStubPlanningTransport().failNext(
-    new PlanningCacheError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
+    new PlanningCacheError('The server refused the planning change.', undefined, 422),
   );
 }
 
@@ -36,8 +36,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
     const before = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
+      status: 422,
     });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'resource.update',
@@ -59,8 +58,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
     const before = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
+      status: 422,
     });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'resource.update',
@@ -85,8 +83,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
     const beforeFree = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(free.id, { kind: 'external' })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
+      status: 422,
     });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'resource.update',
@@ -113,8 +110,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
     const beforeZero = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(z.id, { kind: 'external' })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
+      status: 422,
     });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'resource.update',
@@ -164,8 +160,7 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
     const historyBefore = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(ph.id, { projectId: p2.id })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
+      status: 422,
     });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'resource.update',
@@ -202,8 +197,7 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
     const historyBefore = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateActivity(t.id, { projectId: p2.id })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
+      status: 422,
     });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'catalogue.update',
