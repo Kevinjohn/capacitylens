@@ -12,11 +12,14 @@ test.group('static fallback', (group) => {
   test('serves the shell only for SPA routes', async ({ client, assert }) => {
     for (const path of [
       '/',
+      '/clients',
+      '/settings',
       '/schedule/week/2026-10-05',
       '/invitation/abc',
       '/reset-password/abc',
     ]) {
-      const response = await client.get(path);
+      // A redirect is not followed: the address asked for must itself answer with the shell.
+      const response = await client.get(path).redirects(0);
       assert.equal(response.status(), 200, path);
       assert.include(response.header('content-type'), 'text/html');
       assert.equal(response.header('cache-control'), 'no-store');
@@ -54,6 +57,7 @@ test.group('static fallback', (group) => {
   }) => {
     for (const [path, location] of [
       ['/schedule/week/2026-10-05/', '/schedule/week/2026-10-05'],
+      ['/clients/', '/clients'],
       ['/invitation/abc//', '/invitation/abc'],
       ['/schedule/?from=mail', '/schedule?from=mail'],
       ['/schedule/?x=1&x=2&flag&q=a+b', '/schedule?x=1&x=2&flag&q=a+b'],

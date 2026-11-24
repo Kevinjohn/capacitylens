@@ -32,12 +32,10 @@ const sharedTestFiles = [
 // and each may import only the specifiers listed against it.
 const parentImportAllowances = {
   'apps/frontend/src/data/buildInfo.ts': ['../../../../package.json'],
-  'apps/frontend/src/build/staticSpaRouteDocuments.test.ts': ['../../vite.config'],
   'apps/frontend/src/csp.test.ts': [
     '../../../nginx.conf?raw',
     '../../../nginx-security-headers.conf?raw',
   ],
-  'apps/frontend/src/router.test.tsx': ['../../../scripts/build/staticSpaRoutes.mjs'],
   'apps/frontend/src/test/generateDocumentationComponentId.test.ts': [
     '../../../../docs-src/.vitepress/generateDocumentationComponentId.mts',
     '../../../../docs-src/.vitepress/config.mts',
