@@ -503,6 +503,7 @@ Items:
 - [ ] **PKG-36** (F) A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath and registered by the configure hook.
 - [ ] **PKG-37** (F) A command the package ships is a file in `commands/`. The build writes `build/commands/main.js` with `adonis-kit index build/commands`, exported as `./commands` and registered with `rcFile.addCommand('<package>/commands')`.
 - [ ] **PKG-38** (H) A package does not import from an application and makes no assumption about its folder names beyond the framework's.
+- [ ] **PKG-48** (H) Everything an application calls from the export map has an `@example` in its TSDoc: each exported function, class, decorator and mixin, and each public method on an exported class or service. The example is the application's code, fenced as `ts`. A top-level export's example starts with its import from the public subpath; a method's starts from the instance. One example is enough; a second is for a second way to call it. Types, exception classes and what the framework calls instead of the application (the configure hook, the provider, commands, a middleware's `handle`, a controller's actions) need none.
 
 ## Tests and release
 

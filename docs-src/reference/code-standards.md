@@ -163,7 +163,8 @@ numbered so a review can cite one.
    caller can know.
 3. **Tags are TSDoc:** `@param`, `@returns`, `@throws`, `@remarks`, `@deprecated`, `@example`.
    No types inside tags; the signature carries them. Add `@param` and `@returns` only when the
-   name and type cannot say it. `@deprecated` names the replacement.
+   name and type cannot say it. `@deprecated` names the replacement. In a package, everything an
+   application calls carries an `@example` ([cookbook](./adonisjs-cookbook.md), PKG-48).
 4. **Internal code uses `//` above the line, in full sentences.** No trailing comments.
 5. **Catch and do-not-wrap comments are mandatory.** Every `catch` says what is swallowed or
    surfaced and why. Every "do not wrap" point carries a comment saying why.
