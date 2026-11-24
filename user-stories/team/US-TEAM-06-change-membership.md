@@ -42,7 +42,7 @@ flowchart TD
   role -->|Cancel| close["Close without sending"]
   role -->|Save| save["Close role dialog; createRoleMutation skips unchanged role"]
   status -->|Cancel| close
-  status -->|Confirm| confirmed["confirmedMemberAction dispatches changeMemberStatus"]
+  status -->|Confirm| confirmed["confirmedMemberAction dispatches MemberMutationService.changeStatus"]
   save -->|Changed| transaction["MembersController or MemberStatusController runs the scoped Access Control mutation"]
   confirmed --> transaction
   transaction -->|Denied| error["Show action refusal"]
