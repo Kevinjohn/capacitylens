@@ -15,6 +15,7 @@ import type { AdmissionPage } from './teamAccessParsers';
 import type { TeamAccessResult } from './accessResult';
 import { ownershipTransferAccess } from './ownershipTransferAccess';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { readApiErrorCode } from '@/lib/readApiError';
 import type { TeamDirectory, TeamInvitation, AdmissionRequest } from './teamAccessTypes';
 
 export { resolveRefusalMessage, type TeamAccessResult } from './accessResult';
@@ -109,13 +110,22 @@ export const teamAccessApi = {
     );
   },
 
-  /** Emails a new invitation. A 202 means it was stored but the email could not be sent. */
+  /**
+   * Emails a new invitation. A 202 means it was stored but the email could not be sent;
+   * `alreadyInvited` means the address has a pending invitation and nothing was created or sent.
+   */
   async createInvitation(input: {
     companyId: string;
     role: InvitationRole;
     email: string;
-  }): Promise<TeamAccessResult<{ emailed: boolean }>> {
+  }): Promise<TeamAccessResult<{ emailed: boolean }> | { kind: 'alreadyInvited'; status: 409 }> {
     const response = await invitationRequests.createInvitation(input);
+    if (
+      response.status === 409 &&
+      (await readApiErrorCode(response)) === 'E_ACCOUNT_KIT_INVITATION_PENDING'
+    ) {
+      return { kind: 'alreadyInvited', status: 409 };
+    }
     return readOperationResult(response, parseDelivery, response.status === 202 ? 202 : 201);
   },
 

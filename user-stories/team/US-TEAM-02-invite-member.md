@@ -17,6 +17,7 @@ As an Owner or Admin, I want to email a teammate an invitation with a role so th
 
 - The **Invite someone** section is its heading, the **Invite someone** button and any outstanding invitations; it has no intro paragraph. The explanation of email delivery and approval is the description of the invitation dialog.
 - **Create invite** emails the invitation; the app does not display the invitation link. Missing mail configuration prevents creation. If delivery fails after the invitation was saved, the page explains that it was saved but not emailed and it can be resent.
+- Inviting an address that already has a pending invitation creates nothing and sends no email; the page says so and points to **Resend**.
 
 ## User flow
 
@@ -47,6 +48,8 @@ flowchart TD
   mail -->|No| error
   mail -->|Yes| kit["Account Kit send uses the registered Access Control authorization callback, then saves before delivery"]
   kit -->|Refused| error
+  kit -->|Address already has a pending invitation| pending["Say it is already invited and point to Resend"]
+  pending --> reload
   kit -->|Saved and emailed| completed["Show emailed notice; clear the email draft"]
   kit -->|Saved but delivery failed| warning["HTTP 202: show warning; clear the email draft"]
   completed --> reload["Reload invitations"]

@@ -1033,6 +1033,7 @@
   "sign_in_send_reset_link": "Email reset link",
   "sign_in_reset_confirmation": "If an account uses that address, we've emailed a reset link.",
   "settings_invite_emailed": "Invitation emailed to {address}",
+  "settings_invite_already_pending": "{address} already has a pending invitation. Use Resend under Outstanding invites to send a new link.",
   "diagnostics_title": "Diagnostics",
   "diagnostics_report_heading": "Support report",
   "diagnostics_description": "Copy this report into a support request. Server values were observed when the page opened. Identifying browser text is omitted.",

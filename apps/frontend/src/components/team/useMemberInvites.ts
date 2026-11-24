@@ -55,6 +55,11 @@ function createSubmitInvite({
           email,
         });
         if (!isActiveCompany(companyId)) return;
+        if (result.kind === 'alreadyInvited') {
+          fail('invite', m.settings_invite_already_pending({ address: email }));
+          void reloadInvites();
+          return;
+        }
         if (result.kind === 'unknown' || result.kind === 'invalid') {
           await reconcileUnknownMutation(m.settings_members_unknown_invite_creation());
           return;

@@ -27,6 +27,23 @@ describe('teamAccessApi operation outcomes', () => {
     ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'Still running.' });
   });
 
+  it('reports a pending invitation for the address as already invited', async () => {
+    vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
+      Response.json(
+        { code: 'E_ACCOUNT_KIT_INVITATION_PENDING', error: 'Account request rejected.' },
+        { status: 409 },
+      ),
+    );
+
+    await expect(
+      teamAccessApi.createInvitation({
+        companyId: 'company-1',
+        role: 'viewer',
+        email: 'selina@wayne.test',
+      }),
+    ).resolves.toEqual({ kind: 'alreadyInvited', status: 409 });
+  });
+
   it('decodes an equivalent successful status instead of reporting a rejected operation', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
