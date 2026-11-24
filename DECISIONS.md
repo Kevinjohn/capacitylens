@@ -273,7 +273,8 @@ and the tests, not here.
   CSP report route.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
 - Every request gets a server-generated id for log correlation; no client text becomes the id.
-- Validation and domain errors use one flat error contract; the browser presents them by code.
+- Domain errors use one flat error contract, and the browser presents them by code. Request
+  validation failures take the framework's 422 answer (#2457).
 - Authentication and the API are rate limited.
 - CapacityLens ships no analytics. Mail delivers addressed invitations, address confirmations and
   password resets only.
