@@ -36,7 +36,7 @@ flowchart TD
   remove --> terminate
   terminate --> ok["Return ok: true"]
   request -->|Unconfirmed| error["Show an inline error and allow retry"]
-  ok --> cleanup["Best-effort clear query, planning and stored account-operation state"]
+  ok --> cleanup["Best-effort clear query and planning state"]
   cleanup --> signal["Best-effort write non-secret invalidation marker for sibling tabs"]
   signal --> reload["Reload this tab even if cleanup or notification failed"]
 ```

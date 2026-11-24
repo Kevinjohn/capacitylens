@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { admissionRequests } from './admissionRequests';
 import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
-import { runOperation } from './operationRequest';
 import { resolveRefusalMessage, teamAccessApi } from './teamAccessApi';
 
 const json = (body: unknown) =>
@@ -26,6 +25,23 @@ describe('teamAccessApi operation outcomes', () => {
         email: 'selina@wayne.test',
       }),
     ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'Still running.' });
+  });
+
+  it('reports a pending invitation for the address as already invited', async () => {
+    vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
+      Response.json(
+        { code: 'E_ACCOUNT_KIT_INVITATION_PENDING', error: 'Account request rejected.' },
+        { status: 409 },
+      ),
+    );
+
+    await expect(
+      teamAccessApi.createInvitation({
+        companyId: 'company-1',
+        role: 'viewer',
+        email: 'selina@wayne.test',
+      }),
+    ).resolves.toEqual({ kind: 'alreadyInvited', status: 409 });
   });
 
   it('decodes an equivalent successful status instead of reporting a rejected operation', async () => {
@@ -123,15 +139,11 @@ describe('teamAccessApi directory validation', () => {
 });
 
 describe('teamAccessApi member resource links', () => {
-  it('keeps an operation-ambiguous conflict uncertain despite a terminal-looking body', async () => {
-    const response = await runOperation({
-      operationKey: null,
-      explicit: undefined,
-      ambiguousStatus: 409,
-      request: async () =>
-        Response.json({ code: 'CONFLICT', error: 'A conflict occurred.' }, { status: 409 }),
-    });
-    vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(response);
+  it('keeps a link or unlink conflict uncertain despite a terminal-looking body', async () => {
+    const conflict = () =>
+      Response.json({ code: 'CONFLICT', error: 'The member link changed.' }, { status: 409 });
+    vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(conflict());
+    vi.spyOn(memberRequests, 'clearMemberResourceLink').mockResolvedValue(conflict());
     await expect(
       teamAccessApi.setMemberResourceLink({
         companyId: 'a1',
@@ -139,7 +151,12 @@ describe('teamAccessApi member resource links', () => {
         resourceId: 'r1',
         expectedRevision: null,
       }),
-    ).resolves.toMatchObject({ kind: 'unknown', status: 409 });
+    ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'The member link changed.' });
+    await expect(teamAccessApi.clearMemberResourceLink('a1', 'u1', 'revision-1')).resolves.toEqual({
+      kind: 'unknown',
+      status: 409,
+      message: 'The member link changed.',
+    });
   });
 
   it.each([
@@ -162,11 +179,11 @@ describe('teamAccessApi member resource links', () => {
     },
   );
 
-  it('preserves a structured conflict and contains an uncertain success body', async () => {
+  it('preserves a structured refusal and contains an uncertain success body', async () => {
     vi.spyOn(memberRequests, 'setMemberResourceLink')
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ code: 'CONFLICT', error: 'The member link changed.' }), {
-          status: 409,
+        new Response(JSON.stringify({ code: 'FORBIDDEN', error: 'The member link changed.' }), {
+          status: 403,
         }),
       )
       .mockResolvedValueOnce(new Response('', { status: 200 }));
@@ -178,7 +195,7 @@ describe('teamAccessApi member resource links', () => {
     };
     await expect(teamAccessApi.setMemberResourceLink(input)).resolves.toEqual({
       kind: 'rejected',
-      status: 409,
+      status: 403,
       message: 'The member link changed.',
     });
     await expect(teamAccessApi.setMemberResourceLink(input)).resolves.toMatchObject({

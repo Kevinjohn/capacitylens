@@ -28,7 +28,7 @@ export interface AccountOperationIdentity {
 export class AccountOperationService {
   /**
    * Parses the paired account-operation headers (`X-Account-Operation-Id`, `Idempotency-Key`), minting
-   * both for older callers that send neither.
+   * both for a caller that sends neither, as the browser does.
    */
   parseAccountOperation(
     commandId: string | undefined,

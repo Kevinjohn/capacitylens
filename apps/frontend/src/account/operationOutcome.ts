@@ -2,7 +2,7 @@ import type { AccountErrorCode } from '@capacitylens/shared/account/errors';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 
 // These currently defined 409 codes prove that the server reached a terminal refusal. A new or
-// malformed code stays unknown, preserving the retry handle rather than risking a duplicate operation.
+// malformed code stays unknown, so the screen re-reads state instead of reporting a refusal.
 const TERMINAL_OPERATION_CONFLICT_CODES = new Set<string>([
   'INVITATION_USED',
   'CONFLICT',
@@ -11,41 +11,10 @@ const TERMINAL_OPERATION_CONFLICT_CODES = new Set<string>([
 ] satisfies readonly AccountErrorCode[]);
 // The server refuses an emailed operation without mail delivery before it writes anything.
 const TERMINAL_SERVER_CODES = new Set<string>(['MAIL_UNAVAILABLE']);
-/** The unknown-outcome decision `runOperation` made for each response it classified. */
-export const operationOutcomeDecisions = new WeakMap<Response, boolean>();
-
-/** Read the exact unknown-outcome decision made while retaining or closing the operation identity. */
-export function hasUnknownAccountOperationOutcome(response: Response): boolean {
-  return operationOutcomeDecisions.get(response) === true;
-}
-
-function compareCanonicalKeys(left: string, right: string): number {
-  if (left < right) return -1;
-  if (left > right) return 1;
-  return 0;
-}
 
 async function readResponseBody(response: Response, parsedBody: unknown): Promise<unknown> {
   if (parsedBody !== undefined) return parsedBody;
   return response.clone().json();
-}
-
-/** Keep unknown-outcome retry ceremonies distinct when one UI operation accepts different
- * semantic payloads. Without this binding, changing (for example) the company name after a 5xx
- * reuses the old operation, receives IDEMPOTENCY_CONFLICT, clears the only recovery handle, and can
- * then submit a fresh duplicate while the original outcome is still unknown. */
-export async function buildPayloadOperationKey(operation: string, body: unknown): Promise<string> {
-  const serialized: unknown = JSON.stringify(body, (_key, value: unknown) => {
-    if (!isRecord(value)) return value;
-    return Object.fromEntries(
-      Object.entries(value).sort(([left], [right]) => compareCanonicalKeys(left, right)),
-    );
-  });
-  const canonical = typeof serialized === 'string' ? serialized : 'null';
-  const bytes = new TextEncoder().encode(canonical);
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-  const fingerprint = [...digest].map((value) => value.toString(16).padStart(2, '0')).join('');
-  return `${operation}:${fingerprint}`;
 }
 
 /** HTTP responses for which the client cannot prove whether a operation committed. */
@@ -67,8 +36,8 @@ export async function readUnknownAccountOperationOutcome(
     const code = body.code;
     return typeof code !== 'string' || !terminalCodes.has(code);
   } catch {
-    // Status alone cannot distinguish a terminal refusal from an in-flight operation. Retain the
-    // identity unless a readable, known code proves finality.
+    // Status alone cannot distinguish a terminal refusal from an in-flight operation. The outcome
+    // stays unknown unless a readable, known code proves finality.
     return true;
   }
 }

@@ -28,7 +28,8 @@ Admin can do this. An Editor or Viewer who opens **Team & access** sees their ow
 
 Invitations need the server's email delivery. Without it, the dialog says so and nothing is
 created; ask your installer to set up email. If the invitation was saved but the email failed, a
-warning says so: select **Resend** on its row to try again.
+warning says so: select **Resend** on its row to try again. If the address already has a pending
+invitation, nothing is created or sent and the dialog says so: use **Resend** on the existing row.
 
 The link is never shown in CapacityLens. It works once and expires after seven days. **Resend**
 emails a fresh link and stops the old one working. An invitation never adds the person to the

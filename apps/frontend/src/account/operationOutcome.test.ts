@@ -13,47 +13,18 @@ vi.mock('@/data/requestTimeout', () => ({
   createRequestSignal: mocks.requestSignal,
 }));
 
-import { clearStoredAccountOperations } from './accountOperations';
 import { readUnknownAccountOperationOutcome } from './operationOutcome';
-import { invitationRequests } from './invitationRequests';
 
 describe('browser account api', () => {
   beforeEach(() => {
-    clearStoredAccountOperations();
     mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
-    sessionStorage.clear();
   });
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-  });
-  it('treats invitation field order as irrelevant when binding a semantic payload', async () => {
-    vi.spyOn(globalThis.crypto, 'randomUUID')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000021')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000022');
-    mocks.fetchApi.mockResolvedValue(new Response(null, { status: 503 }));
-
-    await invitationRequests.createInvitation({
-      companyId: 'a-studio',
-      role: 'viewer',
-      email: 'bruce@example.test',
-    });
-    await invitationRequests.createInvitation({
-      email: 'bruce@example.test',
-      role: 'viewer',
-      companyId: 'a-studio',
-    });
-
-    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-operation-id'),
-    );
-    expect(commandIds).toEqual([
-      '00000000-0000-4000-8000-000000000021',
-      '00000000-0000-4000-8000-000000000021',
-    ]);
   });
   it('classifies server and in-progress responses as unknown without consuming the body', async () => {
     const inProgress = Response.json(
