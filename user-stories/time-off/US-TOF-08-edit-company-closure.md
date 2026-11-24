@@ -65,7 +65,7 @@ flowchart TD
 - [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L308)
 - [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L292)
-- [entity_write_service.ts](../../apps/backend/app/services/planning/entity_write_service.ts#L105)
+- [entity_write_service.ts](../../apps/backend/app/services/planning/entity_write_service.ts#L75)
 - [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts#L24)
 - [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L222)

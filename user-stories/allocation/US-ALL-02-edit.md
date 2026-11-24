@@ -73,7 +73,7 @@ The dialog submits two arguments to `updateAllocation`. The wire mutation carrie
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts#L177)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L138)
 - [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L177)
-- [entity_write_service.ts](../../apps/backend/app/services/planning/entity_write_service.ts#L105)
+- [entity_write_service.ts](../../apps/backend/app/services/planning/entity_write_service.ts#L75)
 - [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L222)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)

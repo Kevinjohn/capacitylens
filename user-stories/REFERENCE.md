@@ -137,7 +137,7 @@ configuration files supply the options for those same operations.
    request logging is enabled and validation supplied an operation.
    [The commit path](../apps/backend/app/services/planning_service.ts#L222) checks live write access, mutation
    identity and base revision before [`executePlanningIntent`](../apps/backend/app/services/planning/planning_execution_service.ts#L401)
-   dispatches to [`updateSettings`](../apps/backend/app/services/planning/planning_writer_service.ts#L73).
+   dispatches to [`updateSettings`](../apps/backend/app/services/planning/planning_writer_service.ts#L55).
    The writer validates and updates the company row. It additionally requires Owner or Admin for
    Overview access and refuses changes to established calendar fields. A changed commit advances
    the revision and records audit and history before returning its projected receipt.
