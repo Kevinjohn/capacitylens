@@ -4,7 +4,6 @@
 // `masquerade:stop`.
 
 import type { ApplicationService } from '@adonisjs/core/types';
-import application from '@adonisjs/core/services/app';
 import logger from '@adonisjs/core/services/logger';
 import capacitylens from '#config/capacitylens';
 import db from '@adonisjs/lucid/services/db';
@@ -79,7 +78,7 @@ export default class ConfigurationProvider {
    */
   async ready() {
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
-    const storageMaintenance = await application.container.make(StorageMaintenanceService);
+    const storageMaintenance = await this.app.container.make(StorageMaintenanceService);
     // Shutdown can begin while an earlier provider is still getting ready; a pass started after
     // that would reopen the database once it has been closed.
     if (this.app.isTerminating || this.app.isTerminated) return;
