@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Prints `present` or `absent` for one image reference. Only a definite "not found" answer counts as
-# absent, so a registry outage, rate limit or expired login stops the caller instead of republishing.
-# `denied` also counts as absent: a package that was never published answers that way, so the first
-# tag push can publish. It cannot lead to a replaced tag: a token refused a read is refused the push.
+# Prints `present` or `absent` for one image reference. Only a definite "not found" or `denied`
+# answer counts as absent, so a registry outage, rate limit or expired login stops the caller
+# instead of republishing. `denied` counts because a package that was never published answers that
+# way, so the first tag push can publish. It cannot lead to a replaced tag: a token refused a read
+# is refused the push.
 set -euo pipefail
 
 image="$1"
