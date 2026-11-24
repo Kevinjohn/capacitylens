@@ -48,6 +48,40 @@ test.group('static fallback', (group) => {
     assert.deepEqual(api.body(), { error: 'Not found' });
   });
 
+  test('opens a page whose address has a trailing slash at the address without it', async ({
+    client,
+    assert,
+  }) => {
+    for (const [path, location] of [
+      ['/schedule/week/2026-10-05/', '/schedule/week/2026-10-05'],
+      ['/invitation/abc//', '/invitation/abc'],
+      ['/schedule/?from=mail', '/schedule?from=mail'],
+      ['/schedule/?x=1&x=2&flag&q=a+b', '/schedule?x=1&x=2&flag&q=a+b'],
+    ]) {
+      const response = await client.get(path).redirects(0);
+      assert.equal(response.status(), 301, path);
+      assert.equal(response.header('location'), location, path);
+    }
+  });
+
+  test('never redirects a trailing slash to another host or outside the page addresses', async ({
+    client,
+    assert,
+  }) => {
+    for (const path of [
+      '//intranet/',
+      '//example.com/',
+      '/schedule//week/',
+      '/api/',
+      '/assets/',
+      '/nested/missing.png/',
+    ]) {
+      const response = await client.get(path).redirects(0);
+      assert.equal(response.status(), 404, path);
+      assert.isUndefined(response.header('location'), path);
+    }
+  });
+
   test('serves hashed assets as immutable and root files as no-store', async ({
     client,
     assert,
