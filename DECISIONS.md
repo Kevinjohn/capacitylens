@@ -311,8 +311,11 @@ removed entry retires its number.
 4. Columns are snake_case. The row transformer produces the camelCase wire format from each
    model's column serialisation and the state transformer projects it for the reader's role.
    Calendar dates are date-only strings and flags are boolean columns. Product instants are
-   stored and sent as the canonical UTC ISO string with milliseconds. **Aligning (#2442):** the
-   hand-written column helpers give way to Lucid's own wherever Lucid produces that value.
+   stored and sent as the canonical UTC ISO string with milliseconds, through one helper,
+   `timestampColumn`, on Lucid's `prepare`/`consume`/`serialize` column options: Lucid's SQLite
+   date-time format drops milliseconds, and `updatedAt` is an edit token compared for equality.
+   Flags keep `booleanColumn` because the SQLite driver reads them back as 0 and 1. Soft-delete
+   markers use the package's own Lucid column and format (#2442).
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
 6. The backend serves the SPA with the product security headers and a history fallback rather than
@@ -327,10 +330,7 @@ removed entry retires its number.
 11. A company permission is authorised inside the product transaction through the Access
     Control package, after the route middleware has checked membership. Controllers do not
     call Bouncer and the product has no policies or abilities of its own.
-12. **Aligning (#2459).** Reads of planning tables that have a company-scoped model go through
-    that model, while writes use the query builder on the caller's connection. Kept from this
-    entry: checks that must see other companies or soft-deleted rows, and tables without a
-    model, use the query builder. Account Kit creates identities through the `User` model.
+12. Retired (#2459). Product writes go through the Lucid models. See Data design.
 13. Retired. See Data design.
 14. Retired. See Data design.
 15. The Node server is created by `bin/server.ts` with fixed connection limits, and a

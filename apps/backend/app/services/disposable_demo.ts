@@ -6,7 +6,10 @@ import { bootstrapDevelopmentCredential } from '#services/development_bootstrap'
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { initializeCompanyAccess } from '#services/initial_company_access';
 import { tables } from '#services/product_tables';
-import { encodeRow } from '#services/state_repository';
+import type { LucidModel } from '@adonisjs/lucid/types/model';
+import type { AppDataKey } from '@capacitylens/shared/types/entities';
+import { productModels } from '#models_support/product_models';
+import { rowAttributes } from '#models_support/row_attributes';
 import capacitylens from '#config/capacitylens';
 import { hasNoCompany } from '#services/installation_company';
 
@@ -22,20 +25,16 @@ async function insertDisposableDemoSeed(ownerId: string) {
     const data = seedForCurrentWeek();
     const company = data.companies.find((row) => row.id === 'a-studio');
     if (!company) throw new Error('Disposable demo company is missing');
-    for (const [key, table] of Object.entries(tables)) {
-      const rows =
+    for (const key of Object.keys(tables) as AppDataKey[]) {
+      const rows: readonly object[] =
         key === 'companies'
           ? [company]
-          : data[key as keyof typeof tables].filter(
-              (row) => 'companyId' in row && row.companyId === company.id
-            );
-      if (rows.length > 0) {
-        await trx
-          .table(table)
-          .multiInsert(
-            rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>))
-          );
-      }
+          : data[key].filter((row) => 'companyId' in row && row.companyId === company.id);
+      const model: LucidModel = productModels[key];
+      await model.createMany(
+        rows.map((row) => rowAttributes(model, row)),
+        { client: trx }
+      );
     }
     await initializeCompanyAccess(trx, {
       companyId: company.id,

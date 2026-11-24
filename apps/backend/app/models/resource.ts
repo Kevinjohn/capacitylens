@@ -1,8 +1,8 @@
 import { ResourceSchema } from '#database/schema';
-import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
+import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm';
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import { forCompany, requireCompanyScope, requireRowCompany } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scalar_column';
 import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
@@ -10,6 +10,7 @@ import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-
 /** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */
 export default class Resource extends ResourceSchema {
   static forCompany = forCompany;
+  static selfAssignPrimaryKey = true;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Resource>) {
     requireCompanyScope(query);
@@ -17,6 +18,11 @@ export default class Resource extends ResourceSchema {
   @beforeFetch()
   static requireFetchScope(query: ModelQueryBuilderContract<typeof Resource>) {
     requireCompanyScope(query);
+  }
+  @beforeSave()
+  @beforeDelete()
+  static requireWriteScope(row: Resource) {
+    requireRowCompany(row);
   }
   @column(jsonColumn('resources', 'working_days', isArrayOf(isWeekday)))
   declare workingDays: Weekday[];

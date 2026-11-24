@@ -1,21 +1,32 @@
 import { seed } from '@capacitylens/shared/data/seed';
 import db from '@adonisjs/lucid/services/db';
+import type { LucidModel } from '@adonisjs/lucid/types/model';
+import type { AppDataKey } from '@capacitylens/shared/types/entities';
+import { productModels } from '#models_support/product_models';
+import { rowAttributes } from '#models_support/row_attributes';
 import { tables } from '#services/product_tables';
-import { encodeRow } from '#services/state_repository';
 
 /** Add the seed rows without replacing operator data or audit history. */
 export async function insertSeed() {
   await db.transaction(async (trx) => {
     const data = seed();
-    for (const [key, table] of Object.entries(tables)) {
-      const rows = data[key as keyof typeof tables];
-      if (rows.length > 0) {
-        await trx
-          .table(table)
-          .insert(rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>)))
-          .onConflict('id')
-          .ignore();
-      }
+    for (const key of Object.keys(tables) as AppDataKey[]) {
+      const rows: readonly { id: string }[] = data[key];
+      if (rows.length === 0) continue;
+      // A row whose id is stored already, in any company and even soft-deleted, is kept as it is.
+      const stored = await trx
+        .from(tables[key])
+        .whereIn(
+          'id',
+          rows.map((row) => row.id)
+        )
+        .select('id');
+      const existing = new Set(stored.map((row) => String(row.id)));
+      const model: LucidModel = productModels[key];
+      await model.createMany(
+        rows.filter((row) => !existing.has(row.id)).map((row) => rowAttributes(model, row)),
+        { client: trx }
+      );
     }
   });
 }

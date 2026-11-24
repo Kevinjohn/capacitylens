@@ -1,12 +1,13 @@
 import { ActivitySchema } from '#database/schema';
-import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
+import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import { forCompany, requireCompanyScope, requireRowCompany } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import { timestampColumn } from '#models_support/scalar_column';
 /** A company-scoped activity; its kind governs project and phase references. */
 export default class Activity extends ActivitySchema {
   static forCompany = forCompany;
+  static selfAssignPrimaryKey = true;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Activity>) {
     requireCompanyScope(query);
@@ -14,6 +15,11 @@ export default class Activity extends ActivitySchema {
   @beforeFetch()
   static requireFetchScope(query: ModelQueryBuilderContract<typeof Activity>) {
     requireCompanyScope(query);
+  }
+  @beforeSave()
+  @beforeDelete()
+  static requireWriteScope(row: Activity) {
+    requireRowCompany(row);
   }
   @column.dateTime(timestampColumn('activities', 'archived_at'))
   declare archivedAt: DateTime | null;

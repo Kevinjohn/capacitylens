@@ -3,7 +3,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { encodeRow } from '#services/state_repository';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
@@ -159,10 +159,8 @@ test.group('company member access and tracking', (group) => {
     );
     const now = new Date().toISOString();
     const otherCompany = { ...seed().companies[0]!, id: 'a-loft', name: 'Stark Industries' };
-    await db.table('companies').insert(encodeRow('companies', otherCompany));
-    await db
-      .table('clients')
-      .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
+    await insertProductRows('companies', [otherCompany]);
+    await insertProductRows('clients', [buildInternalClient('a-loft', now)]);
     const ownerMembership = await db.from('memberships').where({ scope_id: 'a-studio' }).first();
     assert.isNotNull(ownerMembership);
     await db.table('memberships').insert({
