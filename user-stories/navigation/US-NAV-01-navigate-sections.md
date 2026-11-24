@@ -14,7 +14,7 @@ As an Owner, Admin, Editor, or Viewer, I want to open the sections available to 
 
 ## Acceptance criteria
 
-- Selecting a permitted destination renders its page and preserves valid deep links; unknown routes show the not-found page. A direct link to Overview or Diagnostics without access, or to Disciplines while disciplines are off, returns to the Schedule. The sidebar lists the working destinations, **Team & access** and **Settings**, then **Help** and **Account**; Diagnostics is reached from Help or the command palette, not the sidebar.
+- Selecting a permitted destination renders its page and preserves valid deep links; a page address entered with a trailing slash still opens the page; unknown routes show the not-found page. A direct link to Overview or Diagnostics without access, or to Disciplines while disciplines are off, returns to the Schedule. The sidebar lists the working destinations, **Team & access** and **Settings**, then **Help** and **Account**; Diagnostics is reached from Help or the command palette, not the sidebar.
 
 ## User flow
 
