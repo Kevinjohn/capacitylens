@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { gateCommands } from './gateCommands.mjs';
-import { spawnPnpmSync, reportSpawnFailureAndResolveExitStatus } from '../shared/pnpmSpawn.mjs';
+import { spawnSync } from 'node:child_process';
+import { reportSpawnFailureAndResolveExitStatus } from '../shared/childProcess.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -20,7 +21,7 @@ function main() {
               CAPACITYLENS_PUBLIC_URL: 'https://127.0.0.1',
             }
           : process.env;
-      const result = spawnPnpmSync(args, { cwd: root, stdio: 'inherit', env });
+      const result = spawnSync('pnpm', args, { cwd: root, stdio: 'inherit', env });
       const status = reportSpawnFailureAndResolveExitStatus(label, result);
       if (status !== 0) {
         process.exitCode = status;

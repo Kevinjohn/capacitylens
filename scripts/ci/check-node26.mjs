@@ -3,25 +3,21 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isSupportedNodeVersion } from '../../apps/backend/bin/node_version.ts';
-import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../shared/pnpmSpawn.mjs';
+import { reportSpawnFailureAndResolveExitStatus } from '../shared/childProcess.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const startedAt = performance.now();
 
 function run(label, command, args, environment = process.env) {
   console.log(`Checking ${label}...`);
-  const result =
-    command === 'pnpm'
-      ? spawnPnpmSync(args, { cwd: root, stdio: 'inherit', env: environment })
-      : spawnSync(command, args, { cwd: root, stdio: 'inherit', env: environment });
+  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', env: environment });
   const status = reportSpawnFailureAndResolveExitStatus(label, result);
   if (status !== 0) throw new Error(`${label} failed with exit status ${status}.`);
 }
 
 function capture(command, args) {
   const options = { cwd: root, encoding: 'utf8' };
-  const result =
-    command === 'pnpm' ? spawnPnpmSync(args, options) : spawnSync(command, args, options);
+  const result = spawnSync(command, args, options);
   const status = reportSpawnFailureAndResolveExitStatus(command, result);
   if (status !== 0)
     throw new Error(`${command} failed with exit status ${status}: ${result.stderr}`);
