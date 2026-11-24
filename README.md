@@ -9,7 +9,7 @@
   hosted version; the only cost is your own server.
 - **Requirements:** one Linux host with Node 24, an SQLite database file and HTTPS from a proxy on
   the same machine.
-- **Status:** beta, maintained by one person; see the
+- **Status:** alpha, maintained by one person; see the
   [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest).
 - **Links:** [demo](#try-it-in-two-minutes) (`pnpm run dev:demo`) ·
   [install guide](https://kevinjohn.github.io/capacitylens/self-hosting/install.html) ·
@@ -151,8 +151,8 @@ Your schedule stays yours: it is one SQLite file on your server, **Export JSON**
 scheduling records at any time, and the licence lets anyone carry the code on. `app:upgrade` backs
 up the database before it runs pending migrations, which are forward-only from one baseline.
 
-CapacityLens is a beta release maintained by one person. Settings and the upgrade path may still
-change between releases, and the release notes say when they do.
+CapacityLens is an alpha release maintained by one person. Until beta, settings and the upgrade
+path may still change between releases; the release notes say when they do.
 [Before you adopt](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html#before-you-adopt)
 covers status, getting your data out and support. See
 [how it is tested](docs-src/reference/how-it-is-tested.md) and the
