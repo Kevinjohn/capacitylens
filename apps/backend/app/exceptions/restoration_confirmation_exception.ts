@@ -16,4 +16,8 @@ export class RestorationConfirmationException extends PlanningOperationException
         : `This change clears ${restorableItemCount} restorable ${restorableItemCount === 1 ? 'item' : 'items'}`
     );
   }
+
+  override body() {
+    return { ...super.body(), restorableItemCount: this.restorableItemCount };
+  }
 }

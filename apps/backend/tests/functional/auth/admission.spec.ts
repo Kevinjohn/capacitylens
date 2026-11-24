@@ -283,7 +283,7 @@ test.group('address confirmation', (group) => {
     for (const refused of ['😀'.repeat(8), 'a'.repeat(129)])
       await expectStatus(
         as(cookie).post(api, '/api/auth/verification/complete', { token, password: refused }),
-        400
+        422
       );
     const confirmed = await as(cookie).post(api, '/api/auth/verification/complete', {
       token,

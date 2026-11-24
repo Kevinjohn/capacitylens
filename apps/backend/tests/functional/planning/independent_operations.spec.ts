@@ -23,6 +23,9 @@ const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   intent,
 });
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+/** The framework's validation answer: one entry per refused field. */
+const validationErrors = (response: { body(): unknown }) =>
+  (response.body() as { errors?: Array<{ message: string }> }).errors;
 const body = (response: { body(): unknown; status(): number }) =>
   (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
     code?: string;
@@ -109,9 +112,8 @@ test.group('independent typed planning operations', (group) => {
           })
         )
         .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
-      assert.include(body(refused).error, error);
+      refused.assertStatus(422);
+      assert.include(validationErrors(refused)?.[0]?.message, error);
     }
     assert.deepEqual(await readState(companyId, true), before);
   });
@@ -461,8 +463,8 @@ test.group('independent typed planning operations', (group) => {
     const flagOnly = await session(client.post(route('planning/mutations')), cookie)
       .json(flagOnlyInput)
       .send();
-    flagOnly.assertStatus(400);
-    assert.equal(body(flagOnly).code, 'VALIDATION_ERROR');
+    flagOnly.assertStatus(422);
+    assert.isNotEmpty(validationErrors(flagOnly));
     assert.deepEqual(await db.from('clients').where({ id: spoofedId }).first(), ordinaryRenamed);
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
 

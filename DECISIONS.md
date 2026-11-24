@@ -273,7 +273,8 @@ and the tests, not here.
   CSP report route.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
 - Every request gets a server-generated id for log correlation; no client text becomes the id.
-- Validation and domain errors use one flat error contract; the browser presents them by code.
+- Domain errors use one flat error contract, and the browser presents them by code. Request
+  validation failures take the framework's 422 answer (#2457).
 - Authentication and the API are rate limited.
 - CapacityLens ships no analytics. Mail delivers addressed invitations, address confirmations and
   password resets only.
@@ -301,9 +302,9 @@ removed entry retires its number.
 
 1. The shared package is imported by the backend and the SPA. It contains pure domain rules and wire
    types, never backend code.
-2. **Aligning (#2457).** The exception handler maps every error itself and does not call
-   `super.handle` or `super.report`. Kept from this entry: empty strings are not converted to
-   null; empty optionals are `null` on the wire, in storage and in the export.
+2. Empty strings are not converted to null; empty optionals are `null` on the wire, in storage
+   and in the export. (The exception handler's own error mapping, once part of this entry, is
+   withdrawn by #2457: the handler follows the framework.)
 3. Product models fail closed without an explicit company scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.

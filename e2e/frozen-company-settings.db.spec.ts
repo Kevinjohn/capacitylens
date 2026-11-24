@@ -67,7 +67,8 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
     }
 
     // The settings-update schema excludes language, so language-only updates are rejected
-    // before frozen-field handling, even when the supplied language is English ('en').
+    // before frozen-field handling, even when the supplied language is English ('en'). The framework
+    // answers a schema failure with 422.
     const language = await request.post(`${API}/api/companies/${company.id}/planning/mutations`, {
       headers: await masqueradeTokenHeaders(request, undefined, API),
       data: {
@@ -76,7 +77,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
         intent: { operation: 'settings.update', changes: { language: 'fr' } },
       },
     });
-    expect(language.status()).toBe(400);
+    expect(language.status()).toBe(422);
 
     const after = await serverState(request);
     const updatedCompany = requireStateRows(after, 'companies')[0];

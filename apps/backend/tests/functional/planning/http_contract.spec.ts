@@ -210,8 +210,8 @@ test.group('authenticated typed planning transactions', (group) => {
     }
     for (const ifRevision of ['-1', '1.5', 'abc']) {
       const refused = await read({ ifRevision });
-      refused.assertStatus(400);
-      assert.equal(refused.body().code, 'VALIDATION_ERROR', ifRevision);
+      refused.assertStatus(422);
+      assert.isNotEmpty(refused.body().errors, ifRevision);
     }
 
     // A role change advances the revision, so the reader's old revision gets the full slice.
@@ -246,8 +246,8 @@ test.group('authenticated typed planning transactions', (group) => {
     ];
     for (const [query, error] of refusals) {
       const response = await session(client.get(planningUrl).qs(query), cookie).send();
-      response.assertStatus(400);
-      assert.deepEqual(response.body(), { error, code: 'VALIDATION_ERROR' }, JSON.stringify(query));
+      response.assertStatus(422);
+      assert.equal(response.body().errors[0]?.message, error, JSON.stringify(query));
     }
     const longest = await session(
       client.get(planningUrl).qs({ from: '2026-01-01', to: '2027-01-01' }),

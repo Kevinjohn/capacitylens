@@ -219,7 +219,7 @@ test.group('data routes', (group) => {
     assert.equal(shared.body().data.dismissed, true);
     assert.equal(other.body().data.dismissed, false);
     const reverse = await trusted(client.put(route)).json({ dismissed: false }).send();
-    reverse.assertStatus(400);
+    reverse.assertStatus(422);
     const stillDismissed = await client.get(route).send();
     assert.equal(stillDismissed.body().data.dismissed, true);
   });
@@ -286,7 +286,7 @@ test.group('data routes', (group) => {
     const saved = await client.get(route).send();
     assert.equal(saved.body().data.dismissed, true);
     const invalid = await trusted(client.put(route)).json({ dismissed: null }).send();
-    invalid.assertStatus(400);
+    invalid.assertStatus(422);
     const stillDismissed = await client.get(route).send();
     assert.equal(stillDismissed.body().data.dismissed, true);
     const missing = await client.visit('api.getting_started.show', { companyId: 'unknown' }).send();

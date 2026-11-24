@@ -39,6 +39,16 @@ describe('VerifyEmail outcomes', () => {
     expect(await screen.findByTestId('verify-invalid')).toBeInTheDocument();
   });
 
+  it.each([400, 422])('reports a link refused with status %i as invalid', async (status) => {
+    vi.spyOn(authApi, 'inspectEmailVerification').mockResolvedValue({
+      data: null,
+      error: { message: 'Invalid', status },
+    });
+    renderPage();
+    expect(await screen.findByTestId('verify-invalid')).toBeInTheDocument();
+    expect(screen.queryByTestId('verify-unavailable')).not.toBeInTheDocument();
+  });
+
   it('reports a committed confirmation as done even when a later step failed', async () => {
     vi.spyOn(authApi, 'inspectEmailVerification').mockResolvedValue({
       data: { valid: true },

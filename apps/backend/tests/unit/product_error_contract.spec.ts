@@ -13,10 +13,15 @@ import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
+import loggerConfig from '#config/logger';
+
+/** The `err` field as the logger writes it. */
+const serializeErr = (error: unknown) => loggerConfig.loggers.app.serializers!.err!(error);
 
 function context(error: unknown, routeName?: string) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
-  const diagnostics: Array<{ fields: Record<string, unknown>; message: string }> = [];
+  const diagnostics: Array<{ level: string; fields: Record<string, unknown>; message: string }> =
+    [];
   const response = {
     header(name: string, value: string) {
       result.headers[name] = value;
@@ -48,11 +53,11 @@ function context(error: unknown, routeName?: string) {
     ctx: {
       response,
       logger: {
-        error(fields: Record<string, unknown>, message: string) {
-          diagnostics.push({ fields, message });
+        log(level: string, fields: Record<string, unknown>, message: string) {
+          diagnostics.push({ level, fields, message });
         },
       },
-      request: { method: () => 'POST' },
+      request: { method: () => 'POST', id: () => undefined, accepts: () => 'json' },
       route: { pattern: '/api/companies/:companyId/resources', name: routeName },
       get params() {
         throw error;
@@ -148,14 +153,11 @@ test.group('product error adapters', () => {
       });
     }
   });
-  test('a Vine failure without a message answers 400 with one sentence on every route', async ({
+  test('a Vine failure without a message takes the framework answer on every route', async ({
     assert,
   }) => {
     for (const answer of await answerOnEveryRoute(() => new vineErrors.E_VALIDATION_ERROR([]))) {
-      assert.deepEqual(answer, {
-        status: 400,
-        body: { error: 'Invalid request.', code: 'VALIDATION_ERROR' },
-      });
+      assert.deepEqual(answer, { status: 422, body: { errors: [] } });
     }
   });
   test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {
@@ -173,7 +175,10 @@ test.group('product error adapters', () => {
     const unexpected = context(new Error('SENTINEL'));
     await new HttpExceptionHandler().report(new Error('SENTINEL'), unexpected.ctx);
     assert.lengthOf(unexpected.diagnostics, 1);
-    assert.include(unexpected.diagnostics[0]!.fields, { errorType: 'unexpected', status: 500 });
+    assert.include(serializeErr(unexpected.diagnostics[0]!.fields.err), {
+      errorType: 'unexpected',
+      status: 500,
+    });
   });
   test('constraint refusals carry the validation code', async ({ assert }) => {
     const error = Object.assign(new Error('SENTINEL_SQL_TEXT SENTINEL_PAYLOAD'), {
@@ -187,28 +192,25 @@ test.group('product error adapters', () => {
     assert.equal(result.status, 400);
     assert.equal((result.body as { code: string }).code, 'VALIDATION_ERROR');
     assert.lengthOf(diagnostics, 1);
-    assert.deepEqual(diagnostics[0]!.fields, {
+    const { err, ...fields } = diagnostics[0]!.fields;
+    assert.deepEqual(fields, {
       event: 'http.request.error',
-      errorType: 'database_constraint',
       method: 'POST',
       path: '/api/companies/:companyId/resources',
-      status: 400,
     });
-    const serialized = JSON.stringify(diagnostics);
+    assert.include(serializeErr(err), { errorType: 'database_constraint', status: 500 });
+    const serialized = JSON.stringify([diagnostics[0]!.message, fields, serializeErr(err)]);
     assert.notInclude(serialized, 'SENTINEL_SQL_TEXT');
     assert.notInclude(serialized, 'SENTINEL_PAYLOAD');
     assert.notInclude(serialized, error.message);
   });
-  test('Vine validation is flat status 400 rather than the generated default 422', async ({
-    assert,
-  }) => {
-    const error = new vineErrors.E_VALIDATION_ERROR([
-      { message: 'Email is required.', field: 'email', rule: 'required' },
-    ]);
+  test('Vine validation takes the framework answer: 422 with its errors', async ({ assert }) => {
+    const messages = [{ message: 'Email is required.', field: 'email', rule: 'required' }];
+    const error = new vineErrors.E_VALIDATION_ERROR(messages);
     const { ctx, result } = context(error);
     await new HttpExceptionHandler().handle(error, ctx);
-    assert.equal(result.status, 400);
-    assert.deepEqual(result.body, { error: 'Email is required.', code: 'VALIDATION_ERROR' });
+    assert.equal(result.status, 422);
+    assert.deepEqual(result.body, { errors: messages });
   });
   test('planning operation refusals send the status and code the service states', async ({
     assert,

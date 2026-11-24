@@ -1,16 +1,8 @@
-import { Exception } from '@adonisjs/core/exceptions';
+import { ProductException } from '#exceptions/product_exception';
 
-/**
- * An expected product refusal that carries its own HTTP status and stable code. The central handler
- * renders every subclass the same way and does not report it.
- */
-export class RefusalException extends Exception {
+/** An expected product refusal that carries its own HTTP status and stable code. */
+export class RefusalException extends ProductException {
   constructor(message: string, status: number, code: string) {
     super(message, { status, code });
-  }
-
-  /** The response body. A subclass adds only fields that are safe to send. */
-  body(): Record<string, unknown> {
-    return { error: this.message, code: this.code };
   }
 }

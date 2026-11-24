@@ -1,13 +1,12 @@
-// Validation and domain errors use the flat `{ error, code? }` contract. Vine runs behind the
-// product's response adapters, so a validation failure answers 400 rather than Vine's 422
-// `errors[]`; the SPA keys its presentation on `code`.
+// Package, parser and database errors are not ours to describe, so the exception handler answers
+// them here in the product's flat `{ error, code? }` body before it calls `super.handle`. Product
+// exceptions answer for themselves, and a Vine validation failure takes the framework's answer.
 
 import type {
   ProductHttpErrorBody,
   ProductValidationFailure,
 } from '@capacitylens/shared/api/httpErrors';
 import { errors as httpServerErrors } from '@adonisjs/core/http';
-import { errors as vineErrors } from '@vinejs/vine';
 import { errors as limiterErrors } from '@adonisjs/limiter';
 import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
@@ -20,21 +19,18 @@ import {
   PasswordConfirmationThrottledException,
   InvalidPasswordConfirmationRequestException,
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { RefusalException } from '#exceptions/refusal_exception';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
-import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
-import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 
-/** One mapped HTTP outcome. `report` marks a mapped outcome that is still logged as a failure. */
+/**
+ * One answered package error. `errorType` marks an answer whose error is still logged as a server
+ * fault, under that category.
+ */
 export interface HttpErrorResponse {
   status: number;
   body: object;
   headers?: Record<string, string>;
-  report?: { errorType: string; status: number };
+  errorType?: string;
 }
 
 /**
@@ -228,54 +224,17 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
         error: 'That change references missing data or conflicts with an existing record.',
         code: 'VALIDATION_ERROR',
       } satisfies ProductValidationFailure['body'],
-      report: { errorType: 'database_constraint', status: 400 },
+      errorType: 'database_constraint',
     };
-  }
-}
-
-/** Planning service refusals: the restoration count, the stated status and code, stale revisions. */
-function buildPlanningResponse(error: unknown): HttpErrorResponse | undefined {
-  if (error instanceof RestorationConfirmationException) {
-    return {
-      status: 409,
-      body: {
-        error: error.message,
-        code: error.code,
-        restorableItemCount: error.restorableItemCount,
-      } satisfies ProductHttpErrorBody,
-    };
-  }
-  if (error instanceof PlanningOperationException) {
-    return {
-      status: error.status,
-      body: { error: error.message, ...(error.code ? { code: error.code } : {}) },
-    };
-  }
-  // The planning executor already turns an entity refusal into authorization or validation; the
-  // import and example-data services send the stated status, code and the current revision.
-  if (error instanceof EntityWriteException) {
-    return {
-      status: error.status,
-      body: {
-        error: error.message,
-        ...(error.code ? { code: error.code } : {}),
-        ...(error.current ?? {}),
-      },
-    };
-  }
-  if (error instanceof StalePlanningRevisionException) {
-    return { status: 409, body: { error: error.message, code: 'STALE_REVISION' } };
   }
 }
 
 /**
- * The central handler's mapping from each known error class to its HTTP outcome, in precedence
- * order. Anything it returns with a status below 500 and no `report` is an expected refusal and is
- * not logged; anything it does not recognise is an unexpected failure.
+ * The answer to each package, parser or database error the product recognises, in precedence
+ * order; `undefined` for anything else. Several of these errors have their own `handle`, which would
+ * send the package's envelope, so the handler must answer them before `super.handle`.
  */
-export function mapHttpError(error: unknown): HttpErrorResponse | undefined {
-  const planning = buildPlanningResponse(error);
-  if (planning) return planning;
+export function mapPackageError(error: unknown): HttpErrorResponse | undefined {
   if (error instanceof MasqueradeError) {
     const masquerade = buildMasqueradeResponse(error);
     if (masquerade) return masquerade;
@@ -288,30 +247,16 @@ export function mapHttpError(error: unknown): HttpErrorResponse | undefined {
     return {
       ...kitRefusal,
       // Account Kit refusals are expected outcomes; its server faults are still reported.
-      ...(kitRefusal.status >= 500
-        ? { report: { errorType: 'account_kit_failure', status: kitRefusal.status } }
-        : {}),
+      ...(kitRefusal.status >= 500 ? { errorType: 'account_kit_failure' } : {}),
     };
   }
   const accessRefusal = buildAccessRefusal(error);
   if (accessRefusal) {
     return { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } };
   }
-  if (error instanceof RefusalException) return { status: error.status, body: error.body() };
   const confirmation = buildConfirmationResponse(error);
   if (confirmation) return confirmation;
-  if (error instanceof IdentityAuthorizationException) {
-    return { status: 403, body: { error: error.message, code: error.code } };
-  }
-  if (error instanceof vineErrors.E_VALIDATION_ERROR) {
-    return {
-      status: 400,
-      body: {
-        error: error.messages[0]?.message ?? 'Invalid request.',
-        code: 'VALIDATION_ERROR',
-      } satisfies ProductValidationFailure['body'],
-    };
-  }
+  // Shared code holds no backend code (departure 1), so the export format's own error is answered here.
   if (error instanceof CompanyExportError) {
     return { status: 400, body: { error: error.message } };
   }

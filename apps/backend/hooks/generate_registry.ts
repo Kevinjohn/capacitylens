@@ -1,7 +1,8 @@
 import type { HookParams } from '@adonisjs/assembler/types';
 import { generateRegistry } from '@tuyau/core/hooks';
 
-// Validation refusals use our flat 400 adapter, rather than Vine's default 422 body.
+// The browser narrows every error body itself, including Vine's 422 `{ errors }`, so the registry
+// does not type validation errors.
 const registry = generateRegistry({ validationErrorType: false });
 
 /**

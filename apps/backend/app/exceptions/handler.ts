@@ -1,57 +1,75 @@
 import app from '@adonisjs/core/services/app';
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
-import { mapHttpError } from '#exceptions/http_error_mapping';
-import { classifyLogError } from '#config/logger';
-import {
-  describeFailure,
-  reportPrivateFailure,
-  normalizeRequestMethod,
-  normalizeRoutePattern,
-} from '#services/logging_safety';
+import { errors as vineErrors } from '@vinejs/vine';
+import { mapPackageError } from '#exceptions/http_error_mapping';
+import { ProductException } from '#exceptions/product_exception';
+import { UnexpectedException } from '#exceptions/unexpected_exception';
+import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety';
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   // In development a 500 carries the error's message and stack.
   protected debug = app.inDev;
 
-  /** Answers a mapped refusal with its body, anything else with a bare 500. */
+  /** Every answer below 500 is an expected refusal and is not logged. */
+  protected ignoreStatuses = Array.from({ length: 100 }, (_, offset) => 400 + offset);
+
+  /**
+   * A product exception answers for itself and a Vine failure takes the framework's answer. A
+   * package error is answered here in the product's flat body; anything else is an unexpected 500.
+   */
   async handle(error: unknown, ctx: HttpContext) {
-    const mapped = mapHttpError(error);
-    if (mapped) {
-      for (const [name, value] of Object.entries(mapped.headers ?? {})) {
+    if (error instanceof ProductException || error instanceof vineErrors.E_VALIDATION_ERROR) {
+      return super.handle(error, ctx);
+    }
+    const answer = mapPackageError(error);
+    if (answer) {
+      for (const [name, value] of Object.entries(answer.headers ?? {})) {
         ctx.response.header(name, value);
       }
-      return ctx.response.status(mapped.status).send(mapped.body);
+      return ctx.response.status(answer.status).send(answer.body);
     }
     if (this.debug && error instanceof Error) {
       return ctx.response.internalServerError({ error: error.message, stack: error.stack });
     }
-    return ctx.response.internalServerError({ error: 'Internal server error.' });
+    return super.handle(new UnexpectedException(error), ctx);
   }
 
   /**
-   * Logs server faults with their class and stack frames, never the message; expected refusals are
-   * not logged.
+   * Reports what the log may see of an error. A product exception's message is a fixed sentence, so
+   * it is reported as it is; anything else reaches the log as an `UnexpectedException` that keeps
+   * only its class, frames and causes. A package refusal is reported as the product refusal it is
+   * answered with, which the ignored statuses keep out of the log.
    */
   async report(error: unknown, ctx: HttpContext) {
-    // Expected refusals are the mapped outcomes below 500; the mapping marks the ones still logged.
-    const mapped = mapHttpError(error);
-    if (mapped && mapped.status < 500 && !mapped.report) return;
-    const failure = mapped?.report ?? { errorType: classifyLogError(error), status: 500 };
-    if (!mapped?.report && failure.errorType !== 'unexpected') return;
+    try {
+      await super.report(this.#reportable(error), ctx);
+    } catch {
+      // The server answers only after the report, so a failed logger must not stop the answer.
+      console.error('Private diagnostic logger failed');
+    }
+  }
 
-    reportPrivateFailure(
-      ctx.logger,
-      {
-        event: 'http.request.error',
-        errorType: failure.errorType,
-        method: normalizeRequestMethod(ctx.request.method()),
-        path: normalizeRoutePattern(ctx.route?.pattern),
-        status: failure.status,
-        ...(failure.errorType === 'unexpected' || failure.status >= 500
-          ? describeFailure(error)
-          : {}),
-      },
-      'HTTP request failed'
-    );
+  /** Every report names the event, the request method and the route pattern, never the path. */
+  protected context(ctx: HttpContext) {
+    return {
+      ...super.context(ctx),
+      event: 'http.request.error',
+      method: normalizeRequestMethod(ctx.request.method()),
+      path: normalizeRoutePattern(ctx.route?.pattern),
+    };
+  }
+
+  #reportable(error: unknown) {
+    if (error instanceof ProductException || error instanceof vineErrors.E_VALIDATION_ERROR) {
+      return error;
+    }
+    const answer = mapPackageError(error);
+    if (answer && answer.status < 500 && !answer.errorType) {
+      return new ProductException('Request refused.', { status: answer.status });
+    }
+    return new UnexpectedException(error, {
+      status: answer && answer.status >= 500 ? answer.status : undefined,
+      errorType: answer?.errorType,
+    });
   }
 }

@@ -67,17 +67,28 @@ export type ProductHttpErrorBody =
       committed: true;
     };
 
-/** Product validation uses 400 even though the generated client's default validation helper uses 422. */
+/**
+ * A product validation refusal (a domain rule or a database constraint) answers 400. A route's
+ * request validation takes the framework's 422 `{ errors }` answer instead.
+ */
 export interface ProductValidationFailure {
   status: 400;
   body: { error: string; code: 'VALIDATION_ERROR' };
+}
+
+/** The first message of the framework's validation answer, `{ errors: [{ message, ... }] }`. */
+export function readValidationMessage(value: unknown): string | undefined {
+  if (!isRecord(value) || !Array.isArray(value.errors)) return undefined;
+  const first: unknown = value.errors[0];
+  return isRecord(first) && typeof first.message === 'string' ? first.message : undefined;
 }
 
 /** Narrows untrusted HTTP JSON without changing status or mistaking transport failures for responses. */
 export function readHttpErrorBody(value: unknown, fallback: string): HttpErrorBody {
   if (!isRecord(value)) return { error: fallback };
   return {
-    error: typeof value.error === 'string' ? value.error : fallback,
+    error:
+      typeof value.error === 'string' ? value.error : (readValidationMessage(value) ?? fallback),
     ...(typeof value.code === 'string' ? { code: value.code } : {}),
     ...(isRecord(value.decision) ? { decision: value.decision } : {}),
     ...(typeof value.committed === 'boolean' ? { committed: value.committed } : {}),

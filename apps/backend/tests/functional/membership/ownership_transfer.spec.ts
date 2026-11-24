@@ -246,7 +246,7 @@ test.group('atomic ownership transfer', (group) => {
     )
       .json({ toUserId: adminId, expectedRevision: 'old-ceremony' } as never)
       .send();
-    legacyBody.assertStatus(400);
+    legacyBody.assertStatus(422);
     const unpaired = await signed(
       client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
       ownerCookie

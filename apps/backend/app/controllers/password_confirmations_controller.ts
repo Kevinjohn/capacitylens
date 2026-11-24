@@ -9,7 +9,6 @@ import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-passw
 import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
 import { withActor } from '#services/auth/current_actor';
 import { classifyLogError } from '#config/logger';
-import { reportPrivateFailure } from '#services/logging_safety';
 import { parseRequestDocument } from '#services/company_import';
 import { confirmPasswordValidator } from '#validators/password_confirmations';
 
@@ -40,8 +39,7 @@ export default class PasswordConfirmationsController {
       await passwordConfirmations.prune();
     } catch (error) {
       // Does work: pruning is best effort, so its failure is logged and the confirmation stands.
-      reportPrivateFailure(
-        logger,
+      logger.error(
         { event: 'password_confirmation.prune', errorType: classifyLogError(error) },
         'Password confirmation pruning failed'
       );

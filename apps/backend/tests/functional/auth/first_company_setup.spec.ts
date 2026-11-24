@@ -165,20 +165,22 @@ test.group('authenticated first company setup', (group) => {
     assert,
   }) => {
     const { cookie } = await acceptBootstrap(client);
-    for (const extra of [
-      { weekStartsOn: 2, timeZone: 'Etc/GMT' },
-      { weekStartsOn: 0, timeZone: 'Gotham/Invalid' },
-      { weekStartsOn: null, timeZone: 'Etc/GMT' },
-      { weekStartsOn: 1, timeZone: '+01:00' },
-      { weekStartsOn: 1, timeZone: null },
-      { weekStartsOn: 1, timeZone: '' },
-      { weekStartsOn: '1', timeZone: 'Etc/GMT' },
-    ]) {
+    // Request validation refuses a malformed shape with 422; the setup rules refuse a time zone it
+    // cannot use with 400.
+    for (const [extra, status] of [
+      [{ weekStartsOn: 2, timeZone: 'Etc/GMT' }, 422],
+      [{ weekStartsOn: 0, timeZone: 'Gotham/Invalid' }, 400],
+      [{ weekStartsOn: null, timeZone: 'Etc/GMT' }, 422],
+      [{ weekStartsOn: 1, timeZone: '+01:00' }, 400],
+      [{ weekStartsOn: 1, timeZone: null }, 422],
+      [{ weekStartsOn: 1, timeZone: '' }, 400],
+      [{ weekStartsOn: '1', timeZone: 'Etc/GMT' }, 422],
+    ] as const) {
       const refused = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
         // Deliberately outside the generated body type, to reach the server's refusal.
         .json({ name: 'Wayne Enterprises', ...extra } as never)
         .send();
-      refused.assertStatus(400);
+      refused.assertStatus(status);
       for (const table of companyTables) assert.lengthOf(await db.from(table), 0);
     }
     const response = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
@@ -241,18 +243,19 @@ test.group('authenticated first company setup', (group) => {
       .send();
     anonymous.assertStatus(401);
     const { cookie } = await acceptBootstrap(client);
-    for (const body of [
-      {},
-      { name: '' },
-      { name: 'x'.repeat(200) },
-      { name: 'Wayne Enterprises', ownerId: 'someone-else' },
-      ['Wayne Enterprises'],
-    ]) {
+    // Request validation refuses a malformed shape with 422; the name rule refuses with 400.
+    for (const [body, status] of [
+      [{}, 422],
+      [{ name: '' }, 400],
+      [{ name: 'x'.repeat(200) }, 400],
+      [{ name: 'Wayne Enterprises', ownerId: 'someone-else' }, 422],
+      [['Wayne Enterprises'], 422],
+    ] as const) {
       const result = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
         // Deliberately outside the generated body type, to reach the server's refusal.
         .json(body as never)
         .send();
-      result.assertStatus(400);
+      result.assertStatus(status);
     }
     for (const table of companyTables) assert.lengthOf(await db.from(table), 0);
   });

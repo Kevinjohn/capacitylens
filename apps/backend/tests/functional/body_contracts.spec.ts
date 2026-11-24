@@ -15,6 +15,11 @@ interface BodyContract {
   untyped?: string[];
   /** Keys validated as a strict boolean or number, refused in string form. */
   scalar?: Record<string, string>;
+  /**
+   * The action turns a validation failure into its own 400 `VALIDATION_ERROR` refusal; every other
+   * route takes the framework's 422 `{ errors }` answer.
+   */
+  productRefusal?: true;
 }
 
 const password = 'krypton-password-2026';
@@ -106,21 +111,25 @@ const contracts: Record<string, BodyContract> = {
     body: () => ({ status: 'active' }),
   },
   'api.invitations.store': {
+    productRefusal: true,
     method: 'post',
     url: () => '/api/invitations',
     body: (companyId) => ({ companyId, role: 'viewer', email: 'clark.kent@wayne.example' }),
   },
   'api.invitation_acceptances.store': {
+    productRefusal: true,
     method: 'post',
     url: () => '/api/invitations/token/sign-up',
     body: () => ({ name: 'Clark Kent', password }),
   },
   'api.member_resource_links.update': {
+    productRefusal: true,
     method: 'put',
     url: (companyId) => `/api/companies/${companyId}/members/u1/resource-link`,
     body: () => ({ resourceId: 'r1', expectedRevision: null }),
   },
   'api.member_resource_links.destroy': {
+    productRefusal: true,
     method: 'delete',
     url: (companyId) => `/api/companies/${companyId}/members/u1/resource-link`,
     body: () => ({ expectedRevision: '1' }),
@@ -146,7 +155,7 @@ test.group('request body contracts', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => limiter.clear());
 
-  test('{$self} refuses unknown keys and wrongly typed values with 400 VALIDATION_ERROR')
+  test('{$self} refuses unknown keys and wrongly typed values')
     .with(Object.keys(contracts))
     .run(async ({ client, assert, cleanup }, name) => {
       captureMail(cleanup);
@@ -167,12 +176,20 @@ test.group('request body contracts', (group) => {
       }
       for (const [label, body] of refusals) {
         const response = await owner[contract.method](contract.url(companyId)).json(body).send();
-        assert.equal(response.status(), 400, `${name}: ${label}`);
-        assert.equal(
-          (response.body() as { code?: unknown }).code,
-          'VALIDATION_ERROR',
-          `${name}: ${label}`
-        );
+        if (contract.productRefusal) {
+          assert.equal(response.status(), 400, `${name}: ${label}`);
+          assert.equal(
+            (response.body() as { code?: unknown }).code,
+            'VALIDATION_ERROR',
+            `${name}: ${label}`
+          );
+        } else {
+          assert.equal(response.status(), 422, `${name}: ${label}`);
+          assert.isNotEmpty(
+            (response.body() as { errors?: unknown[] }).errors,
+            `${name}: ${label}`
+          );
+        }
       }
     });
 });
