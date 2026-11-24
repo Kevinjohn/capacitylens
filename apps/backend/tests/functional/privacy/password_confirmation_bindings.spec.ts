@@ -5,7 +5,6 @@ import { readState } from '#tests/helpers/state_fixture';
 import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { createIdentity, fixturePassword, signIn } from '#tests/helpers/identities';
-import { asExportFile } from '#tests/helpers/export_file';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();
@@ -26,7 +25,7 @@ test.group('password confirmation bindings', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
     const baseRevision = await revision();
-    const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
+    const document = buildCompanyExport(before, { companyId, completeness: 'full' });
     document.data.companies[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
       const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
@@ -99,7 +98,7 @@ test.group('password confirmation bindings', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
     const baseRevision = await revision();
-    const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
+    const document = buildCompanyExport(before, { companyId, completeness: 'full' });
     const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
       .json({
         action: 'import',

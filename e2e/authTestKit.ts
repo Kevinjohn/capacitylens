@@ -48,7 +48,7 @@ const AUTH_E2E_BASELINE_COMPANY = 'Daily Planet E2E Baseline';
 const AUTH_E2E_BASELINE_OWNER = 'baseline-owner@capacitylens.dev';
 
 /** Rejects a fixture target outside the one disposable native auth E2E database. */
-export function assertAuthE2EFixturePath(databasePath: string): void {
+function assertAuthE2EFixturePath(databasePath: string): void {
   if (resolve(databasePath) !== resolve(AUTH_E2E_DATABASE))
     throw new Error('Auth E2E fixtures may only access apps/backend/.auth-e2e.db.');
   if (!existsSync(databasePath))

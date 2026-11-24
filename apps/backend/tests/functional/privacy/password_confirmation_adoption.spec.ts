@@ -19,7 +19,6 @@ import {
   signIn,
 } from '#tests/helpers/identities';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import { asExportFile } from '#tests/helpers/export_file';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();
@@ -209,12 +208,10 @@ test.group('package proof adoption boundaries', (group) => {
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
     const scope = 'x'.repeat(256);
-    const document = asExportFile(
-      buildCompanyExport(await readState(companyId, true), {
-        companyId,
-        completeness: 'full',
-      })
-    );
+    const document = buildCompanyExport(await readState(companyId, true), {
+      companyId,
+      completeness: 'full',
+    });
     const baseRevision = await db.transaction((trx) =>
       planningRevisions.getPlanningRevision(trx, companyId)
     );

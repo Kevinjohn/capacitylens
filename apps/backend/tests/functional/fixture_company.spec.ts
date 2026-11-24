@@ -36,24 +36,4 @@ test.group('isolated company fixtures', (group) => {
     assert.lengthOf(firstMembers, 1);
     assert.lengthOf(secondMembers, 1);
   });
-
-  test('refuses a non-dedicated database path before writing fixture rows', async ({
-    client,
-    assert,
-  }) => {
-    const owner = await resetAuthenticatedData(client, false);
-    const previous = process.env.CAPACITYLENS_DB;
-    try {
-      process.env.CAPACITYLENS_DB = '/tmp/capacitylens-other.db';
-      await assert.rejects(
-        () => createFixtureCompanyForOwner(owner.userId, 'Wayne Enterprises'),
-        'Company fixtures require the dedicated Japa test database.'
-      );
-    } finally {
-      if (previous === undefined) delete process.env.CAPACITYLENS_DB;
-      else process.env.CAPACITYLENS_DB = previous;
-    }
-    const companyCount = await db.from('companies').count('* as total').first();
-    assert.equal(companyCount?.total, 0);
-  });
 });

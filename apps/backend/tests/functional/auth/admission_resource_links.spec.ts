@@ -9,7 +9,6 @@ import { resetState } from '#tests/helpers/state_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
-const withSession = asDataOwner;
 
 test.group('direct member resource association', (group) => {
   group.setup(() => freshDatabase());
@@ -213,7 +212,7 @@ test.group('direct member resource association', (group) => {
         person('r-stark', 'a-loft'),
       ]);
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
-      withSession(
+      asDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
@@ -236,7 +235,7 @@ test.group('direct member resource association', (group) => {
       .count('* as total');
     assert.equal(Number(auditCountBeforeLink[0].total), 0);
     const createLinkOperation = () =>
-      withSession(
+      asDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
@@ -266,7 +265,7 @@ test.group('direct member resource association', (group) => {
       .count('* as total');
     assert.equal(Number(auditCountAfterLink[0].total), 1);
     const repeatLink = () =>
-      withSession(
+      asDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
@@ -300,7 +299,7 @@ test.group('direct member resource association', (group) => {
     const archivedCurrent = await put(ownerId, 'r-barry', revision);
     archivedCurrent.assertStatus(409);
     const unlink = () =>
-      withSession(
+      asDataOwner(
         client
           .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
@@ -351,7 +350,7 @@ test.group('direct member resource association', (group) => {
     const occupied = await put(otherId, 'r-barry', null);
     occupied.assertStatus(409);
     const clear = (userId: string, expectedRevision: string) =>
-      withSession(
+      asDataOwner(
         client
           .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),

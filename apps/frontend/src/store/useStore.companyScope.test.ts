@@ -6,6 +6,8 @@ import { m } from '@/i18n';
 import {
   makeCompany,
   makeAppData,
+  makeResource,
+  replaceFixtureData,
   resetStoreWithData,
   setPlanningAccess,
   WORKDAYS,
@@ -232,6 +234,40 @@ describe('foreign-key refs must stay in the active company', () => {
       `project ${p.id}`,
     );
     expect(project.clientId).toBe(c.id);
+  });
+});
+
+describe('re-entering a company', () => {
+  it('re-enters the first company after visiting another and clearing the active context', async () => {
+    const first = makeCompany({ id: 'acct-first' });
+    const second = makeCompany({ id: 'acct-second', name: 'Stark Industries' });
+    const data = makeAppData({
+      companies: [first, second],
+      resources: [
+        makeResource({ id: 'resource-first', companyId: first.id }),
+        makeResource({ id: 'resource-second', companyId: second.id }),
+      ],
+    });
+    await resetStoreWithData(data, first.id);
+    useStore.getState().setCompanySummaries({
+      list: [
+        { id: first.id, name: first.name, role: 'owner' },
+        { id: second.id, name: second.name, role: 'owner' },
+      ],
+    });
+    replaceFixtureData(data);
+
+    useStore.getState().setActiveCompany(second.id);
+    await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
+    expect(useStore.getState().data.resources.map(({ id }) => id)).toEqual(['resource-second']);
+
+    useStore.getState().setActiveCompany(null);
+    useStore.getState().setCompanySummaries({
+      list: [{ id: first.id, name: first.name, role: 'owner' }],
+    });
+    useStore.getState().setActiveCompany(first.id);
+    await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
+    expect(useStore.getState().data.resources.map(({ id }) => id)).toEqual(['resource-first']);
   });
 });
 

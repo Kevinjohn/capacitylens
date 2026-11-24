@@ -10,7 +10,6 @@ import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '#tests/helpers/identities';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
-import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
 const otherCompanyId = 'a-loft';
@@ -30,8 +29,6 @@ type Role = (typeof roles)[number];
 function trusted<T extends { header(name: string, value: string): T }>(request: T) {
   return request.header('sec-fetch-site', 'same-origin');
 }
-
-const withSession = asDataOwner;
 
 function configureAuth(cleanup: (callback: () => void) => void) {
   const prior = {
@@ -70,14 +67,14 @@ async function setRole(userId: string, role: Role) {
 }
 
 async function stateFor(client: ApiClient, cookie: string, targetCompanyId = companyId) {
-  return withSession(
+  return asDataOwner(
     trusted(client.visit('api.company_state.show').qs({ companyId: targetCompanyId })),
     cookie
   ).send();
 }
 
 async function currentUser(client: ApiClient, cookie: string) {
-  return withSession(trusted(client.visit('api.session.show')), cookie).send();
+  return asDataOwner(trusted(client.visit('api.session.show')), cookie).send();
 }
 
 async function writeDismissal(
@@ -85,25 +82,23 @@ async function writeDismissal(
   cookie: string,
   body: Record<string, unknown> = { dismissed: true }
 ) {
-  return withSession(trusted(client.visit('api.getting_started.update', { companyId })), cookie)
+  return asDataOwner(trusted(client.visit('api.getting_started.update', { companyId })), cookie)
     .json(body as never)
     .send();
 }
 
 async function importSeed(client: ApiClient, cookie: string) {
-  const document = asExportFile(
-    buildCompanyExport(await readState(companyId, true), {
-      companyId,
-      completeness: 'full',
-    })
-  );
-  return withSession(trusted(client.visit('api.imports.store')), cookie)
+  const document = buildCompanyExport(await readState(companyId, true), {
+    companyId,
+    completeness: 'full',
+  });
+  return asDataOwner(trusted(client.visit('api.imports.store')), cookie)
     .json({ companyId, document, baseRevision: 0 })
     .send();
 }
 
 async function anonymiseResource(client: ApiClient, cookie: string, id: string) {
-  return withSession(
+  return asDataOwner(
     trusted(client.visit('api.resource_anonymisations.store', { companyId, id })),
     cookie
   )
@@ -183,7 +178,7 @@ test.group('native authorization and role projections', (group) => {
 
     const foreignClient = seed().clients.find((row) => row.companyId === otherCompanyId);
     assert.isDefined(foreignClient);
-    const concealed = await withSession(
+    const concealed = await asDataOwner(
       trusted(client.post(`/api/clients/${foreignClient!.id}/archive`)),
       cookie
     )
@@ -222,11 +217,11 @@ test.group('native authorization and role projections', (group) => {
       const me = await currentUser(client, cookie);
       me.assertStatus(200);
 
-      const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
+      const currentPlanning = await asDataOwner(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);
       const planning = currentPlanning.body().data as { revision: number };
       const settingsRequest = trusted(client.visit('api.planning_mutations.store', { companyId }));
-      const setting = await withSession(settingsRequest, cookie)
+      const setting = await asDataOwner(settingsRequest, cookie)
         .json(
           input(planning.revision, {
             operation: 'settings.update',
