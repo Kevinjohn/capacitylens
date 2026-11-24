@@ -76,9 +76,12 @@ test('Compose upgrades before API startup and preserves the private persistent d
     await readFile(new URL('../../../.github/workflows/docker.yml', import.meta.url), 'utf8'),
   );
   // Docker work runs on a release tag or by hand, never on pull requests or pushes to main (#2436).
-  assert.deepEqual(Object.keys(workflow.on).sort(), ['push', 'release', 'workflow_dispatch']);
+  // The tag push is the only publishing event, so a release does not publish the same version again.
+  assert.deepEqual(Object.keys(workflow.on).sort(), ['push', 'workflow_dispatch']);
   assert.deepEqual(workflow.on.push, { tags: ['v*'] });
   assert.deepEqual(workflow.permissions, { contents: 'read' });
+  // Runs for one version share a group whatever started them.
+  assert.equal(workflow.concurrency.group, 'docker-${{ inputs.tag || github.ref_name }}');
   // A tag push builds and smokes first; publication waits for the validation check, then publishes.
   assert.ok(workflow.jobs.validated.needs === 'smoke');
   assert.ok(workflow.jobs.publish.needs === 'validated');
@@ -110,11 +113,13 @@ test('Compose runs the published release images by default and can still build t
   const workflow = YAML.parse(
     await readFile(new URL('../../../.github/workflows/docker.yml', import.meta.url), 'utf8'),
   );
-  assert.deepEqual(workflow.on.release.types, ['published']);
   const { publish, smoke, validated } = workflow.jobs;
   assert.deepEqual(publish.permissions, { contents: 'read', packages: 'write' });
-  // Publication waits for successful validation and smoke runs of the same tag and commit.
+  // Publication waits for successful validation of the tag. A tag push also waits for its own smoke;
+  // a manual publication skips the smoke, so `publish` names the result it needs instead of the
+  // implicit success of every earlier job.
   assert.equal(publish.needs, 'validated');
+  assert.match(publish.if, /^\$\{\{ !cancelled\(\) && needs\.validated\.result == 'success' && /);
   assert.ok(
     validated.steps.some(
       (step) => step.run === 'node scripts/release/require-release-validation.mjs',

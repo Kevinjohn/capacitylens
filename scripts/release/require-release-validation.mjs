@@ -1,5 +1,5 @@
-// Publication waits for proof. A release is published on a different GitHub event from the tag
-// push that validates it, so starting checks on the tag does not make publication wait for them.
+// Publication waits for proof. The tag push that publishes is also the push that validates the
+// tag, and nothing orders the two workflows' runs, so publication would not wait for the checks.
 // This script makes it wait:
 //
 //   RELEASE_TAG=v1.2.3 GH_REPO=owner/repo node scripts/release/require-release-validation.mjs

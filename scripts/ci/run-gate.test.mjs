@@ -208,6 +208,7 @@ test("gateCommands('all') includes every retained policy, package and security c
     'policy:e2e-workers:test',
     'policy:sonner-csp:test',
     'docker:release:test',
+    'packaging:release:test',
     'security:screenshot-publication',
     'security:screenshot-publication:test',
     'security:gitleaks-config',

@@ -7,31 +7,26 @@ on:
         description: Existing release tag whose images to publish when they are not yet in the registry. Leave empty to run only the smoke.
         required: false
         type: string
-      first_publication:
-        description: Only for the first publication of the images. Treat a registry "denied" answer as not yet published.
-        required: false
-        type: boolean
-        default: false
+  # The tag push is the only publishing event, so one version is published by one run; publishing
+  # the GitHub release starts nothing here.
   push:
     tags: ['v*']
-  release:
-    types: [published]
 
 permissions:
   contents: read
 
-# A release and its tag push share a ref; the event name keeps one from cancelling the other. A
-# release run is never cancelled by a newer one.
+# Runs for the same version share a group, so a tag push and a manual publication of that tag never
+# publish at once; the later run finds the images present. A publishing run is never cancelled.
 concurrency:
-  group: docker-${{ github.event_name }}-${{ github.ref }}
+  group: docker-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   smoke:
     name: Build and smoke standalone images
     # A tag push runs this first and publication waits for it. A manual run without a tag stops here.
-    # A release or a manual publication of an existing tag skips it; `publish` smokes its own build.
-    if: github.event_name != 'release' && inputs.tag == ''
+    # A manual publication of an existing tag skips it; `publish` smokes its own build.
+    if: inputs.tag == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -104,8 +99,7 @@ jobs:
       - name: Detect an already published image pair
         id: images
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
-          FIRST_PUBLICATION: ${{ inputs.first_publication == true }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REGISTRY_USER: ${{ github.actor }}
         run: |
@@ -128,21 +122,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: node scripts/release/require-release-validation.mjs
 
   publish:
     name: Publish release images
     needs: validated
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.tag != '' }}
+    # A skipped smoke would otherwise skip this job too, so the dependency is stated outright.
+    if: ${{ !cancelled() && needs.validated.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.tag != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: read
       packages: write
     env:
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
-      FIRST_PUBLICATION: ${{ inputs.first_publication == true }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
       APP_KEY: capacitylens-container-test-key-0123456789abcdef
       CAPACITYLENS_PUBLIC_URL: https://localhost
       WEB_PORT: '8080'
@@ -169,7 +163,7 @@ jobs:
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
           # Published image tags are never rebuilt or replaced: a complete pair stops here, and a
           # partial pair fails instead of pushing a second build under the same version.
-          # A registry error stops the job; only a definite 'not found' counts as unpublished.
+          # A registry error stops the job; only 'not found' or 'denied' counts as unpublished.
           state() { scripts/release/docker/published-image-state.sh "ghcr.io/kevinjohn/capacitylens-$1:$version"; }
           api=$(state api)
           web=$(state web)

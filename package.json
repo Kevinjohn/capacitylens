@@ -34,6 +34,7 @@
     "lanes": "node scripts/dev/lanes.mjs",
     "build": "pnpm --filter @capacitylens/shared build && pnpm --dir apps/backend codegen && pnpm --dir apps/backend typecheck:client && pnpm --dir apps/frontend build && node scripts/build/sync-adonis-public.mjs && pnpm --dir apps/backend build && pnpm run check:bundle",
     "docker:release:test": "node --test scripts/release/docker/prepare-container-runtime.test.mjs scripts/release/docker/published-image-state.test.mjs",
+    "packaging:release:test": "node --test packaging/release/release-files.test.mjs",
     "check:bundle": "node scripts/build/check-bundle-budget.mjs && node scripts/build/check-spa-route-documents.mjs",
     "security:gitleaks-config": "node scripts/maintenance/check-gitleaks-config.mjs",
     "security:screenshot-publication": "node scripts/docs/check-screenshot-publication.mjs",
