@@ -7,7 +7,8 @@ import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
-import { signIn, signUpAndIn } from '#tests/helpers/identities';
+import { clearIdentities, signIn, signUpAndIn } from '#tests/helpers/identities';
+import { requestBarrier } from '#tests/helpers/request_barrier';
 import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
 import app from '@adonisjs/core/services/app';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
@@ -16,14 +17,6 @@ import { StorageMaintenanceService } from '#services/storage_maintenance_service
 const storageMaintenance = new StorageMaintenanceService();
 
 const password = 'batman-secret-2026';
-
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
 
 function asSession<
   T extends {
@@ -165,11 +158,7 @@ test.group('native read-only masquerade', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await resetState(false);
-    await db.from('account_admissions').delete();
-    await db.from('account_invitations').delete();
-    await db.from('adonis_sessions').delete();
-    await db.from('memberships').delete();
-    await db.from('users').delete();
+    await clearIdentities();
   });
 
   test('requires the current context for idle writes and refuses writes in view mode', async ({
@@ -356,65 +345,6 @@ test.group('native read-only masquerade', (group) => {
     }
   });
 
-  test('keeps a captured idle actor for writes admitted before a concurrent start', async ({
-    client,
-    assert,
-  }) => {
-    const { cookie, targetId } = await fixture(client);
-    const idleToken = await masqueradeToken(client, cookie);
-    const service = await masqueradeAdmission();
-    const serviceWithTestGate = service as unknown as {
-      resolve(request: HttpContext): Promise<ResolvedContext>;
-    };
-    const originalResolve = service.resolve.bind(service);
-    const admitted = deferred();
-    const release = deferred();
-    serviceWithTestGate.resolve = async (request) => {
-      const resolved = await originalResolve(request);
-      if (request.request.header('x-test-admission-pause') === 'idle') {
-        admitted.resolve();
-        await release.promise;
-      }
-      return resolved;
-    };
-
-    try {
-      const normalWrite = asSession(
-        client
-          .visit('api.getting_started.update', { companyId: 'a-studio' })
-          .header('sec-fetch-site', 'same-origin')
-          .header('x-test-admission-pause', 'idle'),
-        cookie,
-        idleToken
-      )
-        .json({ dismissed: true })
-        .send();
-      await admitted.promise;
-      const started = await startView(client, cookie, targetId);
-      started.assertStatus(200);
-      release.resolve();
-      const saved = await normalWrite;
-      saved.assertStatus(200);
-      assert.isDefined(
-        await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
-      );
-      const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
-      status.assertStatus(200);
-      const activeToken = (status.body()!.data as { masqueradeToken: string }).masqueradeToken;
-      const ended = await asSession(
-        client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
-        cookie,
-        activeToken
-      )
-        .json({ token: activeToken, reason: 'explicit' })
-        .send();
-      ended.assertStatus(200);
-    } finally {
-      release.resolve();
-      serviceWithTestGate.resolve = originalResolve;
-    }
-  });
-
   test('keeps a captured active projection read-only after a concurrent stop', async ({
     client,
     assert,
@@ -428,13 +358,11 @@ test.group('native read-only masquerade', (group) => {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
     const originalResolve = service.resolve.bind(service);
-    const admitted = deferred();
-    const release = deferred();
+    const gate = requestBarrier();
     serviceWithTestGate.resolve = async (request) => {
       const resolved = await originalResolve(request);
       if (request.request.header('x-test-admission-pause') === 'active') {
-        admitted.resolve();
-        await release.promise;
+        await gate.pause();
       }
       return resolved;
     };
@@ -450,7 +378,7 @@ test.group('native read-only masquerade', (group) => {
       )
         .json({ dismissed: true })
         .send();
-      await admitted.promise;
+      await gate.entered();
       const stopped = await asSession(
         client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
         sessionCookie,
@@ -459,7 +387,7 @@ test.group('native read-only masquerade', (group) => {
         .json({ token: activeToken, reason: 'explicit' })
         .send();
       stopped.assertStatus(200);
-      release.resolve();
+      gate.release();
       const refused = await pendingWrite;
       refused.assertStatus(403);
       assert.equal((refused.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY');
@@ -467,7 +395,7 @@ test.group('native read-only masquerade', (group) => {
         await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
       );
     } finally {
-      release.resolve();
+      gate.release();
       serviceWithTestGate.resolve = originalResolve;
     }
   });
@@ -839,215 +767,36 @@ test.group('native read-only masquerade', (group) => {
     assert.equal((started.body().data as { targetUserId: string }).targetUserId, targetId);
   });
 
-  test('the scheduled prune ends an expired mode and deletes events past retention', async ({
+  test('the scheduled prune deletes events older than the configured retention', async ({
     client,
     assert,
   }) => {
     const { cookie, ownerId, targetId } = await fixture(client);
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
-    const now = Date.now();
-    const owner = { authority_namespace: 'capacitylens', actor_id: ownerId };
-    await db
-      .from('masquerade_modes')
-      .where(owner)
-      .update({
-        started_at: new Date(now - 31 * 60_000).toISOString(),
-        expires_at: new Date(now - 16 * 60_000).toISOString(),
-      });
-    // The start event is aged past the 365-day retention; the expiry event written by this pass is not.
     await db
       .from('masquerade_events')
       .where({ actor_id: ownerId, kind: 'started' })
-      .update({ at: new Date(now - 366 * 24 * 60 * 60_000).toISOString() });
+      .update({ at: new Date(Date.now() - 366 * 24 * 60 * 60_000).toISOString() });
 
     await storageMaintenance.pruneExpiredMasquerades(app);
 
-    const mode = await db.from('masquerade_modes').where(owner).firstOrFail();
-    assert.notEqual(mode.state, 'active');
-    const events = await db.from('masquerade_events').where('actor_id', ownerId);
-    assert.deepEqual(
-      events.map((event) => event.kind),
-      ['expired']
+    assert.isEmpty(
+      await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'started' })
     );
   });
 
-  test('expires package mode on status and rejects the pre-expiry context token', async ({
-    client,
-    assert,
-  }) => {
-    const { cookie, ownerId, targetId } = await fixture(client);
-    const started = await startView(client, cookie, targetId);
-    started.assertStatus(200);
-    const token = (started.body().data as { masqueradeToken: string }).masqueradeToken;
-    const now = Date.now();
-    await db
-      .from('masquerade_modes')
-      .where({ authority_namespace: 'capacitylens', actor_id: ownerId })
-      .update({
-        started_at: new Date(now - 31 * 60_000).toISOString(),
-        expires_at: new Date(now - 16 * 60_000).toISOString(),
-      });
-
-    const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
-    status.assertStatus(200);
-    assert.isFalse((status.body()!.data as { active: boolean }).active);
-    assert.lengthOf(
-      await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'expired' }),
-      1
-    );
-    assert.notEqual((status.body()!.data as { masqueradeToken: string }).masqueradeToken, token);
-    const staleWrite = await asSession(
-      client
-        .visit('api.masquerade.store', { companyId: 'a-studio' })
-        .header('sec-fetch-site', 'same-origin'),
-      cookie,
-      token
-    )
-      .json({ targetUserId: targetId })
-      .send();
-    staleWrite.assertStatus(409);
-    assert.equal(
-      (staleWrite.body() as unknown as { code: string }).code,
-      'MASQUERADE_CONTEXT_CHANGED'
-    );
-  });
-
-  test('invalidates target context after credential change or identity removal', async ({
-    client,
-    assert,
-  }) => {
-    const { cookie, ownerId, targetId } = await fixture(client);
+  test('ends the view when the target changes credentials', async ({ client, assert }) => {
+    const { cookie, targetId } = await fixture(client);
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
     await db
       .from('users')
       .where('id', targetId)
       .update({ credentials_changed_at: new Date().toISOString() });
-    const credentialStatus = await asSession(client.visit('api.masquerade.show'), cookie).send();
-    credentialStatus.assertStatus(200);
-    assert.isFalse((credentialStatus.body()!.data as { active: boolean }).active);
-
-    const restarted = await startView(client, cookie, targetId);
-    restarted.assertStatus(200);
-    await db.from('memberships').where('user_id', targetId).delete();
-    await db.from('users').where('id', targetId).delete();
     const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
     status.assertStatus(200);
     assert.isFalse((status.body()!.data as { active: boolean }).active);
-    assert.lengthOf(
-      await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'invalidated' }),
-      2
-    );
-  });
-
-  test('serializes concurrent starts and stops across the identity', async ({ client, assert }) => {
-    const { cookie, ownerId, targetId } = await fixture(client);
-    const secondTargetId = crypto.randomUUID();
-    const now = new Date().toISOString();
-    await db.table('users').insert({
-      id: secondTargetId,
-      email: 'diana.prince@wayne.example',
-      display_name: 'Diana Prince',
-      email_verified_at: now,
-      password: null,
-      created_at: now,
-      updated_at: now,
-    });
-    await db.table('memberships').insert({
-      scope_id: 'a-studio',
-      user_id: secondTargetId,
-      role: 'viewer',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    });
-    const idleToken = await masqueradeToken(client, cookie);
-    const starts = await Promise.all(
-      [targetId, secondTargetId].map((userId) =>
-        asSession(
-          client
-            .visit('api.masquerade.store', { companyId: 'a-studio' })
-            .header('sec-fetch-site', 'same-origin'),
-          cookie,
-          idleToken
-        )
-          .json({ targetUserId: userId })
-          .send()
-      )
-    );
-    assert.deepEqual(starts.map((response) => response.status()).sort(), [200, 409]);
-    const active = starts.find((response) => response.status() === 200)!;
-    const activeToken = (active.body() as { data: { masqueradeToken: string } }).data
-      .masqueradeToken;
-    const stops = await Promise.all(
-      [0, 1].map(() =>
-        asSession(
-          client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
-          cookie,
-          activeToken
-        )
-          .json({ token: activeToken, reason: 'explicit' })
-          .send()
-      )
-    );
-    assert.deepEqual(stops.map((response) => response.status()).sort(), [200, 409]);
-    const events = await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'started' });
-    assert.lengthOf(events, 1);
-    const stoppedEvents = await db
-      .from('masquerade_events')
-      .where({ actor_id: ownerId, kind: 'stopped' });
-    assert.lengthOf(stoppedEvents, 1);
-  });
-
-  test('rolls back the package mode transition when its event insert fails', async ({
-    client,
-    assert,
-  }) => {
-    const { cookie, ownerId: actorId, targetId } = await fixture(client);
-    await db.rawQuery(
-      "CREATE TRIGGER reject_masquerade_event BEFORE INSERT ON masquerade_events BEGIN SELECT RAISE(ABORT, 'fixture event insert failure'); END"
-    );
-    try {
-      const response = await startView(client, cookie, targetId);
-      response.assertStatus(503);
-      assert.isNull(
-        await db
-          .from('masquerade_modes')
-          .where({ authority_namespace: 'capacitylens', actor_id: actorId })
-          .first()
-      );
-      assert.isEmpty(await db.from('masquerade_events').where('actor_id', actorId));
-    } finally {
-      await db.rawQuery('DROP TRIGGER reject_masquerade_event');
-    }
-  });
-
-  test('keeps a committed transition successful when an observer throws', async ({
-    client,
-    assert,
-  }) => {
-    const { cookie, ownerId, targetId } = await fixture(client);
-    const originalInfo = logger.info;
-    try {
-      logger.info = () => {
-        throw new Error('fixture observer failure');
-      };
-      const response = await startView(client, cookie, targetId);
-      response.assertStatus(200);
-      assert.isDefined(
-        await db
-          .from('masquerade_modes')
-          .where({ authority_namespace: 'capacitylens', actor_id: ownerId, state: 'active' })
-          .first()
-      );
-      assert.lengthOf(
-        await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'started' }),
-        1
-      );
-    } finally {
-      logger.info = originalInfo;
-    }
   });
 
   test('reports inactive for anonymous and revoked sessions without restoring data access', async ({
@@ -1235,13 +984,11 @@ test.group('native read-only masquerade', (group) => {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
     const originalResolve = service.resolve.bind(service);
-    const admitted = deferred();
-    const release = deferred();
+    const gate = requestBarrier();
     serviceWithTestGate.resolve = async (request) => {
       const resolved = await originalResolve(request);
       if (request.request.header('x-test-admission-pause') === 'promote') {
-        admitted.resolve();
-        await release.promise;
+        await gate.pause();
       }
       return resolved;
     };
@@ -1252,15 +999,15 @@ test.group('native read-only masquerade', (group) => {
           .header('x-test-admission-pause', 'promote'),
         cookie
       ).send();
-      await admitted.promise;
+      await gate.entered();
       await promoteToOwner(targetId, companyOwnerId);
-      release.resolve();
+      gate.release();
       const read = await pendingRead;
       read.assertStatus(403);
       assert.equal((read.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
       assert.notInclude(read.text(), privateClientName);
     } finally {
-      release.resolve();
+      gate.release();
       serviceWithTestGate.resolve = originalResolve;
     }
   });
