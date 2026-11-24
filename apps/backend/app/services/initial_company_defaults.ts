@@ -3,7 +3,9 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { buildDefaultCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { encodeRow } from '#services/state_repository';
+import Client from '#models/client';
+import Company from '#models/company';
+import { rowAttributes } from '#models_support/row_attributes';
 import { initializeCompanyAccess } from '#services/initial_company_access';
 
 /** Writes the complete first company inside the caller's transaction. */
@@ -21,8 +23,8 @@ export async function createInitialCompany(
   const name = input.name;
   const companyId = crypto.randomUUID();
   const now = input.now ?? new Date().toISOString();
-  await trx.table('companies').insert(
-    encodeRow('companies', {
+  await Company.create(
+    rowAttributes(Company, {
       ...NULLABLE_FIELDS.companies,
       id: companyId,
       name,
@@ -37,16 +39,10 @@ export async function createInitialCompany(
       inlineActivityCreateEnabled: false,
       createdAt: now,
       updatedAt: now,
-    })
+    }),
+    { client: trx }
   );
-  await trx
-    .table('clients')
-    .insert(
-      encodeRow(
-        'clients',
-        buildInternalClient(companyId, now) as unknown as Record<string, unknown>
-      )
-    );
+  await Client.create(rowAttributes(Client, buildInternalClient(companyId, now)), { client: trx });
   await initializeCompanyAccess(trx, {
     companyId,
     ownerId: input.ownerId,

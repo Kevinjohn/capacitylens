@@ -13,7 +13,11 @@ import {
   SCOPED_WRITE_ORDER,
   type AppData,
 } from '@capacitylens/shared/types/entities';
-import { encodeRow, readStateWithClient } from '#services/state_repository';
+import type { LucidModel, ModelObject } from '@adonisjs/lucid/types/model';
+import Company from '#models/company';
+import { companyRows, productModels } from '#models_support/product_models';
+import { rowAttributes } from '#models_support/row_attributes';
+import { readStateWithClient } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
@@ -49,6 +53,35 @@ export function parseRequestDocument(value: unknown): CompanyExport | null {
 
 const INSERT_CHUNK_SIZE = 32;
 const ID_LOOKUP_CHUNK_SIZE = 200;
+
+/**
+ * Inserts rows on the model's table in multi-row statements, each value stored by the model's
+ * column `prepare`, as `save()` stores it. Lucid has no bulk insert and `createMany` sends one
+ * statement per row through a model instance, several times slower on the largest import. No
+ * instance exists, so no model hook runs: every imported row carries the importing company.
+ */
+async function insertThroughModel(
+  trx: TransactionClientContract,
+  model: LucidModel,
+  rows: readonly object[]
+) {
+  // The product columns' prepare functions read only the value; a blank row stands in for the row.
+  const blank = new model();
+  for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {
+    const values = rows.slice(offset, offset + INSERT_CHUNK_SIZE).map((row) => {
+      const attributes: ModelObject = rowAttributes(model, row);
+      const stored: ModelObject = {};
+      for (const [property, column] of model.$columnsDefinitions) {
+        const value: unknown = attributes[property];
+        stored[column.columnName] = column.prepare ? column.prepare(value, property, blank) : value;
+      }
+      return stored;
+    });
+    const query = model.query({ client: trx });
+    query.knexQuery.insert(values);
+    await query;
+  }
+}
 
 function buildFingerprint(data: AppData) {
   const rows = APP_DATA_KEYS.map((key) => [
@@ -160,25 +193,15 @@ export async function applyCompanyImport(
   await discardRestorationGroups(trx, companyId);
   await discardHistory(trx, companyId);
   for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
-    await trx.from(tables[key]).where('company_id', companyId).delete();
+    // A builder delete runs no fetch hooks, so soft-deleted rows go too.
+    await companyRows(key, companyId, trx).delete();
   }
   const company = prepared.data.companies.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one company.');
-  await trx
-    .from('companies')
-    .where('id', companyId)
-    .update(encodeRow('companies', company as unknown as Record<string, unknown>));
+  const stored = await Company.findOrFail(companyId, { client: trx });
+  await stored.merge(rowAttributes(Company, company)).save();
   for (const key of SCOPED_WRITE_ORDER) {
-    const rows = prepared.data[key];
-    for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {
-      await trx
-        .table(tables[key])
-        .multiInsert(
-          rows
-            .slice(offset, offset + INSERT_CHUNK_SIZE)
-            .map((row) => encodeRow(tables[key], row as unknown as Record<string, unknown>))
-        );
-    }
+    await insertThroughModel(trx, productModels[key], prepared.data[key]);
   }
   await writeAudit(trx, {
     companyId,

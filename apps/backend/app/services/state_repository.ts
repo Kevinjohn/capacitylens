@@ -12,45 +12,7 @@ import Resource from '#models/resource';
 import TimeOff from '#models/time_off';
 import type { BaseModel } from '@adonisjs/lucid/orm';
 import type { QueryClientContract } from '@adonisjs/lucid/types/database';
-import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
-import { isJsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 import { transformRow } from '#transformers/row_transformer';
-import type { ProductTable } from '#services/product_tables';
-
-const buildSnakeKey = (key: string) =>
-  key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-
-const models = {
-  companies: Company,
-  clients: Client,
-  disciplines: Discipline,
-  projects: Project,
-  phases: Phase,
-  resources: Resource,
-  activities: Activity,
-  allocations: Allocation,
-  time_off: TimeOff,
-  closures: Closure,
-} satisfies Record<
-  ProductTable,
-  { $columns: readonly string[]; $getColumn(name: string): ModelColumnOptions | undefined }
->;
-
-/** Map a product row to its stored columns; `jsonColumn` model columns hold JSON text. */
-export function encodeRow(table: ProductTable, row: Record<string, unknown>) {
-  const model = models[table];
-  return Object.fromEntries(
-    model.$columns.map((key) => {
-      const value = row[key];
-      return [
-        buildSnakeKey(key),
-        isJsonColumn(model.$getColumn(key)) && value !== undefined && value !== null
-          ? JSON.stringify(value)
-          : (value ?? null),
-      ];
-    })
-  );
-}
 
 function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, unknown>[] {
   return rows.map(transformRow);

@@ -18,6 +18,8 @@ import {
   type RetainedTable,
 } from '#services/planning/retained_rows';
 import { tables } from '#services/product_tables';
+import { companyRows, productModels } from '#models_support/product_models';
+import { rowAttributes } from '#models_support/row_attributes';
 import { transformRow } from '#transformers/row_transformer';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { asRecord, requireExistingRow, type WrittenRow } from '#services/planning/writer';
@@ -32,6 +34,7 @@ export interface RestorationIdentity {
 }
 
 type DeletableTable = RetainedTable;
+type RetainedRow = InstanceType<(typeof productModels)[RetainedTable]>;
 type SavedRow = { kind: 'row' };
 type SavedLink = { kind: 'link'; parentId: string };
 
@@ -106,13 +109,21 @@ export async function deleteRows(
   for (let start = 0; start < saved.length; start += 500) {
     await trx.table('deleted_rows').multiInsert(saved.slice(start, start + 500));
   }
+  // Detaches each deleted parent's surviving children; every child must still name that parent.
+  const childEntity = table === 'phases' ? 'activities' : 'resources';
+  const column = table === 'phases' ? 'phase_id' : 'discipline_id';
+  for (const row of rows) {
+    const childIds = links.filter((link) => link.parentId === row.id).map((link) => link.rowId);
+    for (let start = 0; start < childIds.length; start += 500) {
+      const selected = childIds.slice(start, start + 500);
+      const detached = await companyRows(childEntity, companyId, trx)
+        .where(column, row.id)
+        .whereIn('id', selected)
+        .update({ [column]: null });
+      if (parseAffectedRows(detached) !== selected.length) refuseRestorationConflict();
+    }
+  }
   for (const link of links) {
-    const column = link.entity === 'activities' ? 'phase_id' : 'discipline_id';
-    const detached = await trx
-      .from(tables[link.entity])
-      .where({ id: link.rowId, company_id: companyId, [column]: link.parentId })
-      .update({ [column]: null });
-    if (parseAffectedRows(detached) !== 1) refuseRestorationConflict();
     const child = requireExistingRow(data, link.entity, link.rowId);
     const before = { ...child };
     if ('phaseId' in child) child.phaseId = null;
@@ -121,19 +132,14 @@ export async function deleteRows(
   }
   for (let start = 0; start < ids.length; start += 500) {
     const selected = ids.slice(start, start + 500);
-    const deleted = await buildRetainedQuery(trx, companyId, table)
-      .whereIn('id', selected)
-      .softDelete();
-    if (deleted !== selected.length) refuseRestorationConflict();
-    // Marks the rows deleted above; their entries are recorded below.
-    const attached = await trx
-      .from(tables[table])
-      .where('company_id', companyId)
-      .whereIn('id', selected)
-      .whereNotNull('deleted_at')
-      .whereNull('deletion_group_id')
-      .update({ deletion_group_id: groupId });
-    if (parseAffectedRows(attached) !== selected.length) refuseRestorationConflict();
+    // Only live rows load, so a row already deleted or missing refuses the whole deletion.
+    const live = await buildRetainedQuery(trx, companyId, table).whereIn('id', selected);
+    if (live.length !== selected.length) refuseRestorationConflict();
+    // Marks each row deleted in its group in one statement; their entries are recorded below.
+    for (const row of live) {
+      row.deletionGroupId = groupId;
+      await row.delete();
+    }
   }
   // A deleted retained row is not part of the snapshot, so it leaves `data`.
   const deleted = new Set(ids);
@@ -208,8 +214,12 @@ export async function restoreGroup(
     .from('deleted_rows')
     .where({ group_id: groupId })
     .select('entity', 'row_id', 'payload_json');
-  const rows: Array<{ entity: DeletableTable; id: string; row: AppData[DeletableTable][number] }> =
-    [];
+  const rows: Array<{
+    entity: DeletableTable;
+    id: string;
+    row: AppData[DeletableTable][number];
+    stored: RetainedRow;
+  }> = [];
   const links: Array<{ entity: 'activities' | 'resources'; rowId: string; parentId: string }> = [];
   for (const item of saved) {
     const payload = JSON.parse(String(item.payload_json)) as SavedRow | SavedLink;
@@ -227,6 +237,7 @@ export async function restoreGroup(
         entity,
         id: String(item.row_id),
         row: transformRow(stored) as AppData[typeof entity][number],
+        stored,
       });
     } else {
       links.push({
@@ -277,21 +288,11 @@ export async function restoreGroup(
       }
     });
   }
-  for (const { entity, id, row } of rows) {
+  for (const { entity, id, row, stored } of rows) {
     if (row.companyId !== companyId || row.id !== id) refuseRestorationConflict();
-    // Clears the deletion mark of the row restored below; its entry is recorded there.
-    const cleared = await trx
-      .from(tables[entity])
-      .where({ id, company_id: companyId, deletion_group_id: groupId })
-      .whereNotNull('deleted_at')
-      .update({ deletion_group_id: null });
-    if (parseAffectedRows(cleared) !== 1) refuseRestorationConflict();
-    const restored = await buildRetainedQuery(trx, companyId, entity)
-      .onlyTrashed()
-      .where('id', id)
-      .whereNull('deletion_group_id')
-      .restore();
-    if (restored !== 1) refuseRestorationConflict();
+    // Loaded above as this group's deleted row; one statement clears its group and deletion.
+    stored.deletionGroupId = null;
+    await stored.restore();
     const restoredRows: AppData[DeletableTable][number][] = data[entity];
     restoredRows.push({ ...row });
     written.push({ entity, id, before: null, after: { ...row } });
@@ -299,7 +300,6 @@ export async function restoreGroup(
   const current = await readStateWithClient(trx, companyId, true);
   for (const { entity, rowId, parentId } of links) {
     const field = entity === 'activities' ? 'phaseId' : 'disciplineId';
-    const column = entity === 'activities' ? 'phase_id' : 'discipline_id';
     const child = current[entity].find((row) => row.id === rowId);
     const parent = current[entity === 'activities' ? 'phases' : 'disciplines'].find(
       (row) => row.id === parentId
@@ -313,11 +313,10 @@ export async function restoreGroup(
       assertScopedRefs(current, companyId, entity, candidate, child);
     });
     const updatedAt = createServerRevision(child.updatedAt);
-    await trx
-      .from(tables[entity])
-      .where({ id: rowId, company_id: companyId })
-      .whereNull(column)
-      .update({ [column]: parentId, updated_at: updatedAt });
+    // The read above, in this transaction, found the child live and unlinked.
+    const relinked = await companyRows(entity, companyId, trx).where('id', rowId).first();
+    if (!relinked) refuseRestorationConflict();
+    await relinked.merge(rowAttributes(productModels[entity], { ...candidate, updatedAt })).save();
     const kept = requireExistingRow(data, entity, rowId);
     const before = { ...kept };
     Object.assign(kept, { [field]: parentId, updatedAt });

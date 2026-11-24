@@ -1,4 +1,4 @@
-// The development bootstrap identity is the one account written straight into `users`, already
+// The development bootstrap identity is the one account the product creates itself, already
 // confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
 // proof.
 
@@ -8,6 +8,7 @@ import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import User from '#models/user';
+import { DateTime } from 'luxon';
 import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password';
 
 /** Keeps interrupted-bootstrap recovery explicit rather than adopting an identity by address. */
@@ -55,19 +56,20 @@ export async function bootstrapDevelopmentCredential(app: ApplicationService) {
     throw new Error(buildBootstrapRecoveryMessage());
   }
   const passwordHash = await hash.make(password);
-  const now = new Date().toISOString();
   await db.transaction(async (trx) => {
     if (await trx.from('users').select('id').first()) return;
-    await trx.table('users').insert({
-      id: crypto.randomUUID(),
-      email,
-      display_name: 'admin',
-      password: passwordHash,
-      email_verified_at: now,
-      unverified_email: null,
-      created_at: now,
-      updated_at: now,
-    });
+    // The model's hooks set the id and both timestamps; the verification instant is stored the
+    // way Account Kit stores it for every other identity.
+    await User.create(
+      {
+        email,
+        displayName: 'admin',
+        password: passwordHash,
+        emailVerifiedAt: DateTime.local(),
+        unverifiedEmail: null,
+      },
+      { client: trx }
+    );
   });
   const admission = await app.container.make(AccountAdmission);
   await recordBootstrapAdmission(admission, email);
