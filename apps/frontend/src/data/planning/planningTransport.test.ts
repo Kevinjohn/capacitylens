@@ -4,6 +4,7 @@ import { registry } from '@capacitylens/backend/registry';
 import type { PlanningIntent } from '@/api/planningContracts';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { createPlanningTransport } from './planningTransport';
+import { PlanningCacheError } from './planningErrors';
 import { setMasqueradeToken } from '@/api/masqueradeToken';
 
 const context = {
@@ -464,6 +465,23 @@ describe('generated planning transport', () => {
       transport.execute(context, execution({ operation: 'allocation.create', allocation }), signal),
     ).rejects.toMatchObject({ status: 408, message: 'Request timed out' });
     expect(fetcher).toHaveBeenCalledOnce();
+  });
+  it('reads a validation refusal as its sentence with status 422 and no code', async () => {
+    const { transport } = harness(
+      { errors: [{ message: 'The allocation must start on a working day.' }] },
+      422,
+    );
+    const refused = transport.execute(
+      context,
+      execution({ operation: 'allocation.create', allocation }),
+      signal,
+    );
+    await expect(refused).rejects.toBeInstanceOf(PlanningCacheError);
+    await expect(refused).rejects.toMatchObject({
+      status: 422,
+      code: undefined,
+      message: 'The allocation must start on a working day.',
+    });
   });
   it('narrows restoration metadata from generated HTTP errors', async () => {
     const { transport } = harness(

@@ -15,6 +15,7 @@ import {
   loginAsMember,
   signIn,
   trusted,
+  validationSentence,
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string, targetCompanyId = companyId) =>
@@ -534,8 +535,8 @@ test.group('identity-only archive recovery', (suite) => {
         })
       )
       .send();
-    foreignTarget.assertStatus(400);
-    assert.equal((foreignTarget.body() as { code: string }).code, 'VALIDATION_ERROR');
+    foreignTarget.assertStatus(422);
+    assert.isString(validationSentence(foreignTarget));
 
     await db.from('memberships').where({ user_id: editor.userId, scope_id: companyId }).update({
       role: 'viewer',

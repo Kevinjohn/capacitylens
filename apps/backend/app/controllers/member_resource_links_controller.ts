@@ -2,16 +2,12 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { parseAccountOperation } from '#services/account_operations';
 import { runMemberMutation } from '#services/membership/member_mutation_request';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
-import { refuseInvalidAdmissionBody } from '#services/admission/errors';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
 
 /** Scoped member/person association. */
 export default class MemberResourceLinksController {
   async update({ auth, params, request, serialize }: HttpContext) {
-    const [validationError, body] = await request.tryValidateUsing(setLinkValidator, {
-      data: request.body(),
-    });
-    if (validationError) refuseInvalidAdmissionBody(validationError);
+    const body = await request.validateUsing(setLinkValidator, { data: request.body() });
     const command = parseAccountOperation(
       request.header('x-account-operation-id'),
       request.header('idempotency-key')
@@ -37,10 +33,7 @@ export default class MemberResourceLinksController {
   }
 
   async destroy({ auth, params, request, response }: HttpContext) {
-    const [validationError, body] = await request.tryValidateUsing(clearLinkValidator, {
-      data: request.body(),
-    });
-    if (validationError) refuseInvalidAdmissionBody(validationError);
+    const body = await request.validateUsing(clearLinkValidator, { data: request.body() });
     const command = parseAccountOperation(
       request.header('x-account-operation-id'),
       request.header('idempotency-key')

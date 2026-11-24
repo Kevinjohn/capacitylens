@@ -236,8 +236,8 @@ describe('server-owned allocation rules', () => {
     getStubPlanningTransport().failNext(
       new PlanningCacheError(
         'Allocation must reference an existing resource and activity in this company.',
-        'VALIDATION_ERROR',
-        400,
+        undefined,
+        422,
       ),
     );
 
@@ -248,7 +248,7 @@ describe('server-owned allocation rules', () => {
 
     await expect(
       state().addAllocation(draft({ resourceId: 'other-resource' })),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'allocation.create',
       allocation: { resourceId: 'other-resource' },
@@ -264,7 +264,7 @@ describe('server-owned allocation rules', () => {
 
     await expect(
       state().updateAllocation(allocation.id, { endDate: '2026-06-04' }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'allocation.update',
       id: allocation.id,
@@ -386,7 +386,7 @@ it('leaves a reassignment before the target is available for the server to refus
   );
   const allocation = requireCreated(await state().addAllocation(draft()));
   const refusal = 'Allocation includes a scheduled working day before this person is available.';
-  getStubPlanningTransport().failNext(new PlanningCacheError(refusal, 'VALIDATION_ERROR', 400));
+  getStubPlanningTransport().failNext(new PlanningCacheError(refusal, undefined, 422));
   await expect(
     state().reassignAllocation(allocation.id, {
       resourceId: target.id,

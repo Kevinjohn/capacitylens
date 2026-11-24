@@ -302,7 +302,7 @@ describe('AllocationDialog repeat creation', { timeout: 15_000 }, () => {
 
       // The server places later occurrences, so it owns this refusal.
       const refusal = 'A repeated working span extends beyond the supported date range.';
-      getStubPlanningTransport().failNext(new PlanningCacheError(refusal, 'VALIDATION_ERROR', 400));
+      getStubPlanningTransport().failNext(new PlanningCacheError(refusal, undefined, 422));
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(refusal);
@@ -596,8 +596,8 @@ describe('AllocationDialog repeat creation', { timeout: 15_000 }, () => {
     getStubPlanningTransport().failNext(
       new PlanningCacheError(
         'The allocation starts before this person is available.',
-        'VALIDATION_ERROR',
-        400,
+        undefined,
+        422,
       ),
     );
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));

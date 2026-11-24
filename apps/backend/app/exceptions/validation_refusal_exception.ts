@@ -1,0 +1,21 @@
+import { ProductException } from '#exceptions/product_exception';
+
+/** The framework's validation body, `{ errors: [{ message }] }`, for one refusal sentence. */
+export function buildValidationBody(message: string) {
+  return { errors: [{ message }] };
+}
+
+/**
+ * Input the product refuses after request validation passed, such as a domain rule. It answers
+ * like a request validation failure, 422 with the framework's `{ errors }` body, so the browser
+ * reads one shape for invalid input.
+ */
+export class ValidationRefusalException extends ProductException {
+  constructor(message: string) {
+    super(message, { status: 422 });
+  }
+
+  override body() {
+    return buildValidationBody(this.message);
+  }
+}

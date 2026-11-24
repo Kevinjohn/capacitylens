@@ -6,7 +6,6 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
-import { refuseInvalidAdmissionBody } from '#services/admission/errors';
 import { emailInUseAnswer, invalidLinkAnswer } from '#services/auth/credential_answers';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { acceptInvitationSignUpValidator } from '#validators/invitations';
@@ -20,11 +19,9 @@ export default class InvitationAcceptancesController {
    */
   async store({ auth, params, request, response, logger, serialize }: HttpContext) {
     setProofHeaders(response);
-    const [validationError, body] = await request.tryValidateUsing(
-      acceptInvitationSignUpValidator,
-      { data: request.body() }
-    );
-    if (validationError) refuseInvalidAdmissionBody(validationError);
+    const body = await request.validateUsing(acceptInvitationSignUpValidator, {
+      data: request.body(),
+    });
     const { name } = body;
     let email: string;
     try {

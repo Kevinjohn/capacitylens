@@ -148,10 +148,10 @@ describe('planning write transitions', () => {
   it('keeps rows and history for a validation refusal and allows Undo from the refused state', async () => {
     const h = await readyWithHistory();
     const reads = h.read.mock.calls.length;
-    const refusal = new PlanningCacheError('Invalid hours.', 'VALIDATION_ERROR', 400);
+    const refusal = new PlanningCacheError('Invalid hours.', undefined, 422);
     h.execute.mockRejectedValueOnce(refusal);
     await expect(h.cache.execute(h.cache.begin(), update)).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
+      status: 422,
       uncertain: false,
     });
     expect(h.state().planning.phase).toEqual({
@@ -159,7 +159,6 @@ describe('planning write transitions', () => {
       lastWrite: {
         kind: 'refused',
         mutationId: 'mutation-2',
-        code: 'VALIDATION_ERROR',
         error: refusal,
       },
     });

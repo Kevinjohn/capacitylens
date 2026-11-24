@@ -1,15 +1,16 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { decideAdmission, parseUserIdParam } from '#services/admission/admission_decisions';
 import { readCurrentAccount } from '#services/auth/current_actor';
+import { refuseInvalidAdmission } from '#services/admission/errors';
 
 /**
  * An Owner or Admin rejects a person's admission. The Account Kit authorises every decision; it
  * sends no notification.
  */
 export default class AdmissionRejectionsController {
-  async store({ auth, params, response, serialize }: HttpContext) {
+  async store({ auth, params, serialize }: HttpContext) {
     const userId = parseUserIdParam(params.userId);
-    if (!userId) return response.badRequest({ error: 'Invalid admission request.' });
+    if (!userId) refuseInvalidAdmission();
     const actor = await readCurrentAccount(auth);
     return serialize(await decideAdmission({ actorId: actor.id, userId, decision: 'reject' }));
   }

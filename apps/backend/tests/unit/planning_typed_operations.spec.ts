@@ -8,6 +8,7 @@ import { executePlanningIntent } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
 const owner: PlanningAccessGrant = {
   role: 'owner',
@@ -102,7 +103,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
           allocation: makeAllocation(source, refusedFirstId, '2026-10-25'),
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-01' },
         }),
-      PlanningOperationException
+      ValidationRefusalException
     );
     const unchanged = await readState('a-studio', true);
     assert.isFalse(unchanged.allocations.some((row) => row.id === refusedFirstId));

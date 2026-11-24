@@ -11,16 +11,10 @@ import {
   session,
   type Credential,
   loginAsMember,
+  validationSentence,
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
-/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
-const body = (response: { body(): unknown; status(): number }) =>
-  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
-    code: string;
-    error: string;
-    revision: number;
-  };
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -61,9 +55,8 @@ test.group('allocation start availability', (group) => {
     const before = await readState(companyId, true);
 
     const refused = await mutate(client, cookie, 1, { operation: 'allocation.create', allocation });
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
-    assert.match(body(refused).error, /time off or a company closure/);
+    refused.assertStatus(422);
+    assert.match(String(validationSentence(refused)), /time off or a company closure/);
     assert.deepEqual(await readState(companyId, true), before);
 
     const later = await mutate(client, cookie, 1, {
@@ -89,8 +82,8 @@ test.group('allocation start availability', (group) => {
     closure.assertStatus(200);
 
     const refused = await mutate(client, cookie, 1, { operation: 'allocation.create', allocation });
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
+    assert.isString(validationSentence(refused));
   });
 
   test('a reassignment cannot land a start on time off, even with the working-day override, while a same-person edit stays permissive', async ({
@@ -149,8 +142,8 @@ test.group('allocation start availability', (group) => {
       id: allocation.id,
       changes: { resourceId: other.id },
     });
-    reassigned.assertStatus(400);
-    assert.equal(body(reassigned).code, 'VALIDATION_ERROR');
+    reassigned.assertStatus(422);
+    assert.isString(validationSentence(reassigned));
     const dragged = await mutate(client, cookie, 4, {
       operation: 'allocation.reassign',
       id: allocation.id,
@@ -158,8 +151,8 @@ test.group('allocation start availability', (group) => {
       startDate: allocation.startDate,
       endDate: allocation.endDate,
     });
-    dragged.assertStatus(400);
-    assert.equal(body(dragged).code, 'VALIDATION_ERROR');
+    dragged.assertStatus(422);
+    assert.isString(validationSentence(dragged));
     const after = await readState(companyId, true);
     const saved = after.allocations.find((row) => row.id === allocation.id)!;
     assert.equal(saved.resourceId, allocation.resourceId);

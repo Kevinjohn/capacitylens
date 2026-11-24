@@ -32,17 +32,14 @@ import {
 } from '#services/planning/restoration';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
 
 /** A repeat names one id per later occurrence; a different count means the client's repeat differs. */
 function assertOccurrenceIdsMatch(occurrenceIds: readonly string[], later: readonly unknown[]) {
   if (occurrenceIds.length !== later.length) {
-    throw new PlanningOperationException(
-      400,
-      'VALIDATION_ERROR',
-      'The occurrence identities do not match the repeat.'
-    );
+    throw new ValidationRefusalException('The occurrence identities do not match the repeat.');
   }
 }
 
@@ -51,11 +48,7 @@ function resolveSeriesFrom(data: AppData, id: string): string[] {
   const target = requireExistingRow(data, 'allocations', id);
   const { seriesId, startDate } = target;
   if (!seriesId) {
-    throw new PlanningOperationException(
-      400,
-      'VALIDATION_ERROR',
-      'This allocation is not part of a repeat series.'
-    );
+    throw new ValidationRefusalException('This allocation is not part of a repeat series.');
   }
   return data.allocations
     .filter((row) => row.seriesId === seriesId && row.startDate >= startDate)
@@ -89,14 +82,10 @@ async function transitionLifecycle(
     };
   } else {
     if (!canRestore(current)) {
-      const noChange = resolveLifecycleStatus(current) === 'active';
-      throw new PlanningOperationException(
-        400,
-        noChange ? 'NO_CHANGE' : 'VALIDATION_ERROR',
-        noChange
-          ? 'The record is already active.'
-          : 'The record is not archived and cannot be restored.'
-      );
+      if (resolveLifecycleStatus(current) === 'active') {
+        throw new PlanningOperationException(400, 'NO_CHANGE', 'The record is already active.');
+      }
+      throw new ValidationRefusalException('The record is not archived and cannot be restored.');
     }
     next = {
       ...restore(current),
@@ -165,7 +154,7 @@ async function applyIntent(
     throw new PlanningOperationException(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
   if (!data.companies.some((row) => row.id === companyId)) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The company was not found.');
+    throw new ValidationRefusalException('The company was not found.');
   }
   const writeOptions = { trx, data, written, companyId, accessGrant, identity, expectedUpdatedAt };
   try {
@@ -445,21 +434,24 @@ async function applyIntent(
         );
     }
   } catch (error) {
-    if (error instanceof PlanningOperationException) throw error;
+    if (
+      error instanceof PlanningOperationException ||
+      error instanceof ValidationRefusalException
+    ) {
+      throw error;
+    }
     if (error instanceof EntityWriteException) {
       throw error.status === 403
         ? new PlanningOperationException(403, 'AUTHORIZATION_DENIED', error.message)
-        : new PlanningOperationException(400, 'VALIDATION_ERROR', error.message);
+        : new ValidationRefusalException(error.message);
     }
     if (error instanceof DomainError) {
-      throw new PlanningOperationException(400, 'VALIDATION_ERROR', error.message);
+      throw new ValidationRefusalException(error.message);
     }
     if (error instanceof LifecycleTransitionError) {
-      throw new PlanningOperationException(
-        400,
-        error.code === 'already_inactive' ? 'NO_CHANGE' : 'VALIDATION_ERROR',
-        error.message
-      );
+      throw error.code === 'already_inactive'
+        ? new PlanningOperationException(400, 'NO_CHANGE', error.message)
+        : new ValidationRefusalException(error.message);
     }
     if (
       typeof error === 'object' &&
@@ -470,9 +462,7 @@ async function applyIntent(
       Array.isArray(error.messages)
     ) {
       const first = error.messages[0];
-      throw new PlanningOperationException(
-        400,
-        'VALIDATION_ERROR',
+      throw new ValidationRefusalException(
         typeof first?.message === 'string' ? first.message : 'The operation is invalid.'
       );
     }

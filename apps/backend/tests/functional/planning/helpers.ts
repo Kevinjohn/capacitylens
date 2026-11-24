@@ -14,6 +14,10 @@ import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_d
 import User from '#models/user';
 
 export const companyId = 'a-studio';
+
+/** The sentence of a validation refusal: the first message of its 422 `{ errors }` body. */
+export const validationSentence = (response: { body(): unknown }) =>
+  (response.body() as { errors?: Array<{ message?: unknown }> }).errors?.[0]?.message;
 export const planningUrl = `/api/companies/${companyId}/planning`;
 const password = 'batman-secret-2026';
 

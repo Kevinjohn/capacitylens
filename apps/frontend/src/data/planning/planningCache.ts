@@ -569,7 +569,6 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     if (
       details.status !== 408 &&
       (details.code === 'AUTHORIZATION_DENIED' ||
-        details.code === 'VALIDATION_ERROR' ||
         details.code === 'NO_CHANGE' ||
         (details.status !== undefined && details.status < 500))
     ) {

@@ -254,7 +254,7 @@ test.group('atomic ownership transfer', (group) => {
       .header('x-account-operation-id', 'ownership-unpaired-command-0001')
       .json({ toUserId: adminId })
       .send();
-    unpaired.assertStatus(400);
+    unpaired.assertStatus(422);
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: adminId })

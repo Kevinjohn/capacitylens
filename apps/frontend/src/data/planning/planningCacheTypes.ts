@@ -62,8 +62,8 @@ export interface PlanningSessionScope {
  * `message` only. On `execute`, status 401 ends the planning scope; code `MUTATION_ID_REUSED`, status
  * 408, a status of 500 or more, or no status (a network failure) leaves the commit boundary unknown,
  * so the cache refetches and reports the change as unconfirmed; code `STALE_REVISION`
- * or status 409 is refused and refreshed; codes `AUTHORIZATION_DENIED`, `VALIDATION_ERROR` and
- * `NO_CHANGE`, and any other status below 500, are refused. Only a server request to confirm cleanup
+ * or status 409 is refused and refreshed; codes `AUTHORIZATION_DENIED` and `NO_CHANGE`, and any
+ * other status below 500 (a 422 validation refusal included), are refused. Only a server request to confirm cleanup
  * must be a `PlanningCacheError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
  * `restorableItemCount`. A transport must not set `uncertain`; the cache sets it on failures it
  * has already recorded. `undo` and `redo` follow the same contract, except that the server never

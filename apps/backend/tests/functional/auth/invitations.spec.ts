@@ -225,7 +225,7 @@ test.group('company invitations', (group) => {
     unavailable.assertStatus(503);
     assert.equal((unavailable.body() as { code?: string }).code, 'MAIL_UNAVAILABLE');
     captureMail(cleanup);
-    await expectStatus(invite(client, ownerCookie, invitee, 'owner'), 400);
+    await expectStatus(invite(client, ownerCookie, invitee, 'owner'), 422);
     const { cookie: editorCookie } = await signIn(client, 'barry.allen@wayne.example');
     await expectStatus(invite(client, editorCookie, invitee), 403);
     const { cookie: adminCookie } = await signIn(client, 'diana.prince@wayne.example');

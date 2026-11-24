@@ -97,11 +97,8 @@ test.group('retained id recreation ownership', (suite) => {
         baseRevision: 2,
         intent: { operation: 'allocation.create', allocation: { ...allocation, hoursPerDay: 6 } },
       });
-      refused.assertStatus(400);
-      assert.deepEqual(refused.body(), {
-        error: 'The record already exists.',
-        code: 'VALIDATION_ERROR',
-      });
+      refused.assertStatus(422);
+      assert.deepEqual(refused.body(), { errors: [{ message: 'The record already exists.' }] });
       assert.deepEqual(await readPlanningStorage(), before);
       const restored = await sendPlanning({
         client,

@@ -365,11 +365,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
 
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(
-      new PlanningCacheError(
-        'The allocation ends after this person is available.',
-        'VALIDATION_ERROR',
-        400,
-      ),
+      new PlanningCacheError('The allocation ends after this person is available.', undefined, 422),
     );
     fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' });
     await settlePlanning();

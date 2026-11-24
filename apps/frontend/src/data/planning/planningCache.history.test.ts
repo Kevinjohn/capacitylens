@@ -144,31 +144,30 @@ describe('planning cache history', () => {
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
   });
 
-  it.each([
-    { status: 400, code: 'VALIDATION_ERROR' },
-    { status: 403, code: 'AUTHORIZATION_DENIED' },
-    { status: 409 },
-  ])('rereads after a refused Undo so the ended history shows ($status)', async (refusal) => {
-    const undo = vi.fn<PlanningTransport['undo']>().mockRejectedValue(refusal);
-    const h = await loaded({ execute: committing(), read: vi.fn(), undo });
-    await h.cache.execute(h.cache.begin(), intent);
-    const reads = h.read.mock.calls.length;
-    // The server ends the history after refusing one of its steps; its next read says so.
-    h.read.mockResolvedValueOnce({
-      revision: 2,
-      access: makePlanningAccess(),
-      data: makeCanonicalData(),
-      today: companyToday,
-      capacity: emptyCapacity(),
-      history: { canUndo: false, canRedo: false },
-    });
-    await expect(h.cache.undo()).rejects.toMatchObject({ status: refusal.status });
-    expect(h.read.mock.calls.length).toBe(reads + 1);
-    expect(h.state().planning).toMatchObject({
-      phase: { kind: 'ready' },
-      history: { canUndo: false, canRedo: false },
-    });
-  });
+  it.each([{ status: 422 }, { status: 403, code: 'AUTHORIZATION_DENIED' }, { status: 409 }])(
+    'rereads after a refused Undo so the ended history shows ($status)',
+    async (refusal) => {
+      const undo = vi.fn<PlanningTransport['undo']>().mockRejectedValue(refusal);
+      const h = await loaded({ execute: committing(), read: vi.fn(), undo });
+      await h.cache.execute(h.cache.begin(), intent);
+      const reads = h.read.mock.calls.length;
+      // The server ends the history after refusing one of its steps; its next read says so.
+      h.read.mockResolvedValueOnce({
+        revision: 2,
+        access: makePlanningAccess(),
+        data: makeCanonicalData(),
+        today: companyToday,
+        capacity: emptyCapacity(),
+        history: { canUndo: false, canRedo: false },
+      });
+      await expect(h.cache.undo()).rejects.toMatchObject({ status: refusal.status });
+      expect(h.read.mock.calls.length).toBe(reads + 1);
+      expect(h.state().planning).toMatchObject({
+        phase: { kind: 'ready' },
+        history: { canUndo: false, canRedo: false },
+      });
+    },
+  );
 
   it('loses history when the company changes, even after switching back', async () => {
     const h = await loaded({ execute: committing(), read: vi.fn() });

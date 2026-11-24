@@ -27,7 +27,7 @@ import {
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isUnavailable } from '@capacitylens/shared/lib/capacity';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
 /** One prepared row of a table and the stored row it replaces, if any. */
 export type EntityWrite = {
@@ -204,11 +204,7 @@ export function assertAllocationStartsOnWorkingDay(
   if (!resource || typeof row.startDate !== 'string') return;
   const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
   if (!hasEffectiveWeekDay(effectiveWeek, getWeekday(row.startDate))) {
-    throw new PlanningOperationException(
-      400,
-      'VALIDATION_ERROR',
-      'The allocation must start on a working day.'
-    );
+    throw new ValidationRefusalException('The allocation must start on a working day.');
   }
 }
 
@@ -233,9 +229,7 @@ export function assertAllocationStartIsAvailable(
     closures: data.closures.filter((closure) => closure.companyId === companyId),
   });
   if (unavailable) {
-    throw new PlanningOperationException(
-      400,
-      'VALIDATION_ERROR',
+    throw new ValidationRefusalException(
       "The allocation cannot start during this person's time off or a company closure."
     );
   }

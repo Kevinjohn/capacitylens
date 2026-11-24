@@ -11,7 +11,7 @@ beforeEach(async () => {
 
 function refuseNextPlanningMutation(): void {
   getStubPlanningTransport().failNext(
-    new PlanningCacheError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
+    new PlanningCacheError('The server refused the planning change.', undefined, 422),
   );
 }
 
@@ -95,7 +95,7 @@ describe('typed planning domain refusals', () => {
       useStore
         .getState()
         .addActivity({ name: 'Operations', kind: 'internal', projectId: 'project-not-allowed' }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'catalogue.create',
       entity: {
@@ -117,7 +117,7 @@ describe('typed planning domain refusals', () => {
     refuseNextPlanningMutation();
     await expect(
       useStore.getState().addResource({ ...draft, engagement: 'supplementary' }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'resource.create',
       fields: { kind: 'placeholder', engagement: 'supplementary' },
@@ -127,7 +127,7 @@ describe('typed planning domain refusals', () => {
     refuseNextPlanningMutation();
     await expect(
       useStore.getState().updateResource(placeholder.id, { engagement: 'supplementary' }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'resource.update',
       id: placeholder.id,
@@ -136,7 +136,7 @@ describe('typed planning domain refusals', () => {
     refuseNextPlanningMutation();
     await expect(
       useStore.getState().updateResource(placeholder.id, { workingDays: [0, 6], halfDays: [6] }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     expect(useStore.getState().planning.history).toEqual(historyBefore);
     expect(
       useStore.getState().data.resources.find((row) => row.id === placeholder.id),
@@ -165,7 +165,7 @@ describe('typed planning domain refusals', () => {
       useStore
         .getState()
         .addClosure({ name: '  ', startDate: '2026-12-24', endDate: '2026-12-25' }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    ).rejects.toMatchObject({ status: 422 });
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'closure.create',
       fields: { name: '  ', startDate: '2026-12-24', endDate: '2026-12-25' },

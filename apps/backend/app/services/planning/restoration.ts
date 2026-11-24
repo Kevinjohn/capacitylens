@@ -22,6 +22,7 @@ import { transformRow } from '#transformers/row_transformer';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { asRecord, requireExistingRow, type WrittenRow } from '#services/planning/writer';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
 export interface RestorationIdentity {
@@ -343,10 +344,10 @@ export async function reclaimRetainedId(
     .first();
   if (!prior) return;
   if (prior.company_id !== companyId || !prior.deleted_at || !prior.deletion_group_id) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new ValidationRefusalException('The record already exists.');
   }
   if (!(await hasOwnUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new ValidationRefusalException('The record already exists.');
   }
   // Purges a row already deleted, which is not in the snapshot; the create that follows records it.
   const purged = await buildRetainedQuery(trx, companyId, table)
@@ -355,7 +356,7 @@ export async function reclaimRetainedId(
     .where('deletion_group_id', String(prior.deletion_group_id))
     .forceDelete();
   if (purged !== 1) {
-    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new ValidationRefusalException('The record already exists.');
   }
 }
 
