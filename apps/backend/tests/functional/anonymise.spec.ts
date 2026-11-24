@@ -12,7 +12,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import type { ApiClient } from '@japa/api-client';
 import { randomUUID } from 'node:crypto';
 import { getPlanningRevision } from '#services/planning_revision';
-import { encodeRow } from '#services/state_repository';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
 
@@ -134,14 +134,9 @@ test.group('company anonymisation', (group) => {
       'a-anonymise-other'
     );
     const person = seed().resources.find((row) => row.kind === 'person')!;
-    await db.table('resources').insert(
-      encodeRow('resources', {
-        ...person,
-        id: 'r-anonymise-other',
-        companyId: otherCompanyId,
-        disciplineId: null,
-      })
-    );
+    await insertProductRows('resources', [
+      { ...person, id: 'r-anonymise-other', companyId: otherCompanyId, disciplineId: null },
+    ]);
     const otherBefore = await readState(otherCompanyId, true);
     const resources = await db.from('resources').where('company_id', companyId).limit(2);
     const target = resources[0]!;
@@ -213,7 +208,8 @@ test.group('company anonymisation', (group) => {
     assert,
   }) => {
     const { cookie } = await resetAuthenticatedData(client, true);
-    const deletedAt = '2026-11-24T10:11:12.013Z';
+    // A soft-delete marker as the package stores it, in Lucid's date-time format.
+    const deletedAt = '2026-11-24 10:11:12';
     const noted = { note: 'Arkham visit', deleted_at: deletedAt };
     const allocation = await db.from('allocations').where('company_id', companyId).first();
     await db.from('allocations').where('id', allocation.id).update(noted);

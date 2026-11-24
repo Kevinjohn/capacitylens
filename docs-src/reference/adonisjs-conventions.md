@@ -381,10 +381,10 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
 
 **Queries and transactions**
 
-- In the framework, reads and writes go through the model. Here, a planning table with a
-  company-scoped model is read through that model; writes, eligibility checks inside a write,
-  checks that must see other companies or soft-deleted rows, and tables without a model use the
-  query builder on the caller's connection (departure 12).
+- Reads and writes of a table that has a model go through the model: `Model.create`,
+  `row.merge(values).save()`, `row.delete()`, or the model's query builder for many rows, with
+  `rowAttributes` turning a product row into model attributes. Checks that must see other
+  companies, and tables without a model, use the query builder on the caller's connection.
 - Inside a transaction, give every model query the client: `Model.query({ client: trx })`. A
   model write passes `{ client: trx }` or calls `model.useTransaction(trx)`.
 - Prefer the managed form, `db.transaction(async (trx) => { ... })`, which commits on return and

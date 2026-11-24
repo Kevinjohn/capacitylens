@@ -4,7 +4,6 @@ import { test } from '@japa/runner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
-import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import { deleteAllocations, deleteRows } from '#services/planning/restoration';
 import {
@@ -298,17 +297,20 @@ test.group('session-bound allocation restoration', (suite) => {
     const listedCount = 32_766;
     const seeded = await readState(companyId, true);
     const now = new Date().toISOString();
-    const rows = Array.from({ length: listedCount + 1 }, () =>
-      encodeRow('allocations', {
-        ...newAllocation(seeded),
-        companyId,
-        note,
-        createdAt: now,
-        updatedAt: now,
-      })
+    const rows = Array.from({ length: listedCount + 1 }, () => ({
+      ...newAllocation(seeded),
+      companyId,
+      note,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    // Stored directly in column form: 32,767 single-row model inserts would dominate the suite.
+    const columnOf = (key: string) => Allocation.$keys.attributesToColumns.resolve(key);
+    const columnRows = rows.map((row) =>
+      Object.fromEntries(Object.entries(row).map(([key, value]) => [columnOf(key), value]))
     );
-    for (let start = 0; start < rows.length; start += 500)
-      await db.table('allocations').multiInsert(rows.slice(start, start + 500));
+    for (let start = 0; start < columnRows.length; start += 500)
+      await db.table('allocations').multiInsert(columnRows.slice(start, start + 500));
     const [kept, ...listed] = rows.map((row) => String(row.id));
     const otherCompanies = () =>
       db.from('allocations').whereNot('company_id', companyId).count('* as n');
