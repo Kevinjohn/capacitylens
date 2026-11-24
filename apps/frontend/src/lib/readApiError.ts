@@ -1,3 +1,5 @@
+import { readValidationMessage } from '@capacitylens/shared/api/httpErrors';
+
 /**
  * Read the server's user-facing error from a failed response.
  * The response is cloned, so the caller can still read the original.
@@ -34,11 +36,15 @@ export async function readApiErrorCode(res: Response): Promise<string | null> {
   return typeof code === 'string' ? code : null;
 }
 
-/** Validate an already-decoded API error body without reading a response. */
+/**
+ * Validate an already-decoded API error body without reading a response: the product's `error`, or
+ * the first message of the framework's validation answer.
+ */
 export function extractApiErrorMessage(body: unknown): string | undefined {
   if (typeof body !== 'object' || body === null) return undefined;
   const error = (body as { error?: unknown }).error;
-  if (typeof error !== 'string') return undefined;
-  const trimmed = error.trim();
+  const message = typeof error === 'string' ? error : readValidationMessage(body);
+  if (message === undefined) return undefined;
+  const trimmed = message.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }

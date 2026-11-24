@@ -42,10 +42,10 @@ export function VerifyEmail() {
       .inspectEmailVerification(token)
       .then(({ data, error: failure }) => {
         // Only the server's answer about the link is authoritative; an outage is not an invalid link.
+        // A refused link answers 400, or 422 when request validation rejects the token.
+        const refused = failure && (failure.status === 400 || failure.status === 422);
         if (current) {
-          setState(
-            failure && failure.status !== 400 ? 'unavailable' : data?.valid ? 'form' : 'invalid',
-          );
+          setState(failure && !refused ? 'unavailable' : data?.valid ? 'form' : 'invalid');
         }
       })
       .catch((failure: unknown) => {
