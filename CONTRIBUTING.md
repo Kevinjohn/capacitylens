@@ -159,17 +159,16 @@ request. CI runs:
 - **Pull requests:** static analysis owns formatting, lint and the type-check (formatting only for
   a documentation-only change); `check:changed --tests-only` runs the selected tests; changed
   end-to-end specs run on their own, and a fixture, helper or Playwright configuration change runs
-  the Chromium and auth suites. Documentation changes run the docs build, code changes run
-  CodeQL, and packaging, runtime-dependency or container changes run the native package and
-  container smoke checks.
+  the Chromium and auth suites. Documentation changes run the docs build and code changes run
+  CodeQL.
 - **`main` pushes:** the production build, full frontend and backend tests, format, lint and
   type-check in parallel jobs, tooling-policy checks when their inputs change, and a short Chromium
   journey (sign-in, the planner and saving an allocation).
-- **Weekly and manual full validation:** every tooling check, frontend coverage, the native
-  packages, Chromium, Firefox and both WebKit shards, the full-history secret scan, container
-  scans, the ZAP baseline and Scorecard.
-- **`v*` tags:** full validation of the tagged commit, container smoke and release scans. Archives
-  and images publish only after the tag's Validation and Docker runs succeed.
+- **Weekly and manual full validation:** every tooling check, frontend coverage, Chromium, Firefox
+  and both WebKit shards, the full-history secret scan and Scorecard.
+- **`v*` tags:** full validation of the tagged commit, the container smoke, container scans and the
+  ZAP baseline. The tag push publishes the images, only after the tag's Validation run and the
+  container smoke succeed.
 
 Dispatch [Validation](.github/workflows/validation.yml) for any required pre-merge evidence.
 
@@ -272,9 +271,8 @@ Use `nvm use` and the pinned pnpm version before changing dependencies. Ranges l
 [shared](packages/shared/package.json) manifests; [pnpm-lock.yaml](pnpm-lock.yaml) records the
 resolved workspace graph. Upgrade related AdonisJS packages as a compatible set. Keep the backend
 and frontend Tuyau dependencies compatible, then regenerate the backend route client and type-check
-its consumers. Account Kit is pinned to a GitHub release asset URL: changing its pin also changes native
-packaging and can affect sign-in, admission and sessions, so include the relevant backend auth tests
-and packaged smoke checks.
+its consumers. Account Kit is pinned to a GitHub release asset URL: changing its pin can affect sign-in,
+admission and sessions, so include the relevant backend auth tests.
 
 TypeScript 5.9.3 is the tested compiler baseline for the launch dependency set and is pinned in the
 root, backend and frontend manifests. A package's consumer peer range may allow a newer compiler
@@ -294,9 +292,7 @@ or pull request that owns the change. Dependabot reads its configuration from th
 Choose checks for the changed boundary. Run focused tests first; framework or Tuyau changes also
 need generated route types and the relevant backend/client type checks. Dependency and code changes
 use the applicable [repository gate](.github/workflows/gate.yml) and
-[browser suite](.github/workflows/e2e.yml).
-Backend, runtime, native-module or packaged-runtime changes need the native package build and
-packaged-server smoke checks on the workflow's Linux x64 target. A prose-only change needs
+[browser suite](.github/workflows/e2e.yml). A prose-only change needs
 formatting and content/link review; changes under `docs-src/` also need `pnpm run docs:build`.
 
 When a release changes the runtime floor or host, required configuration, database migration,

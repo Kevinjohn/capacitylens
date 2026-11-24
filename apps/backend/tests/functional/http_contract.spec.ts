@@ -104,7 +104,7 @@ async function withServer(
     {
       cwd: backendRoot,
       env,
-      detached: process.platform !== 'win32',
+      detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   );

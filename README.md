@@ -99,10 +99,10 @@ one of them.
 
 ## Install it
 
-On a Linux host with systemd, Git, Node 24 installed system-wide, pnpm, Caddy (or another HTTPS
-proxy on the same machine) and your domain's DNS pointing at the host with ports 80 and 443 open,
-clone the repository at a release tag, install and build (the build needs placeholder
-production settings):
+On a Linux host with systemd, Git, Node 24 installed system-wide, pnpm, the `python3`, `make` and
+`g++` build tools, Caddy (or another HTTPS proxy on the same machine) and your domain's DNS pointing
+at the host with ports 80 and 443 open, clone the repository at a release tag, install and build
+(the build needs placeholder production settings):
 
 ```bash
 sudo git clone --branch vX.Y.Z --depth 1 https://github.com/Kevinjohn/capacitylens.git /opt/capacitylens
@@ -198,5 +198,4 @@ CapacityLens is [GPL-3.0-or-later](LICENSE). Product names and logos are handled
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![license: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
-Validation includes application/backend checks, native packages and Chromium, Firefox and WebKit
-E2E tests. Coverage measures frontend source files; backend coverage is not included.
+Validation includes application/backend checks and Chromium, Firefox and WebKit E2E tests. Coverage measures frontend source files; backend coverage is not included.

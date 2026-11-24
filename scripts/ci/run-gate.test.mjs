@@ -208,6 +208,7 @@ test("gateCommands('all') includes every retained policy, package and security c
     'policy:e2e-workers:test',
     'policy:sonner-csp:test',
     'docker:release:test',
+    'packaging:release:test',
     'security:screenshot-publication',
     'security:screenshot-publication:test',
     'security:gitleaks-config',
@@ -230,7 +231,7 @@ test('every scripts/ and tooling/ test file is named by a root package script', 
   );
   for (const folder of ['scripts', 'tooling']) {
     const testFiles = readdirSync(join(root, folder), { recursive: true })
-      .map((path) => `${folder}/${String(path).replaceAll('\\', '/')}`)
+      .map((path) => `${folder}/${String(path)}`)
       .filter((path) => /\.test\.[cm]?[jt]s$/.test(path));
     assert.ok(testFiles.length > 0, folder);
     for (const file of testFiles) assert.ok(named.has(file), `${file} is run by no script`);

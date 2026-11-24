@@ -1,11 +1,11 @@
 // Start the API and web server together because server-backed app mode needs the Vite proxy's API.
 
+import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { parsePort } from './parsePort.mjs';
-import { spawnPnpm } from '../shared/pnpmSpawn.mjs';
 import { ports, resolvePortLane } from '../../tooling/ports.mjs';
 import { createDisposableDemoStorage } from './disposableDemoStorage.mjs';
 import {
@@ -82,7 +82,7 @@ export async function runDevelopmentStack({ demo = false } = {}) {
   }
 
   function start(label, args, env, oneShot = false) {
-    const child = spawnPnpm(args, {
+    const child = spawn('pnpm', args, {
       // Ignore stdin (inherit stdout/stderr): with detached:true the child is outside the terminal's
       // foreground group, so handing it the TTY stdin risks SIGTTIN and trips Vite's stdin-EOF→SIGTERM
       // shortcut handler. Neither tsx-watch nor Vite needs interactive stdin under this launcher.

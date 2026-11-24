@@ -1,4 +1,4 @@
-import { spawnPnpm } from '../shared/pnpmSpawn.mjs';
+import { spawn } from 'node:child_process';
 import { E2E_RUN_PRESETS, presetEnvironment } from './playwrightRunMode.mjs';
 
 const [preset, ...forwardedArgs] = process.argv.slice(2);
@@ -19,7 +19,7 @@ if (!selected) {
   process.exit(2);
 }
 
-const child = spawnPnpm(selected.args, {
+const child = spawn('pnpm', selected.args, {
   stdio: 'inherit',
   env: presetEnvironment(process.env, selected.environment),
 });

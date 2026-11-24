@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import { client, buildScopeQueryKey } from '@/api/queryClient';
+import { useQueryScope } from '@/api/useQueryScope';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
 import { getMasqueradeToken } from '@/api/masqueradeToken';
@@ -17,7 +18,6 @@ export function useArchiveRecovery() {
   const mayWrite = useCan('planning:write');
   const companyId = useStore((state) => state.activeCompanyId);
   const planning = useStore((state) => state.planning);
-  const masquerade = useStore((state) => state.masquerade);
   const accessKey = buildAccessKey(planning.access);
   const enabled =
     mayWrite &&
@@ -31,11 +31,7 @@ export function useArchiveRecovery() {
     planning.access.canWrite &&
     planning.context?.companyId === companyId &&
     planning.phase.kind === 'ready';
-  const scope = {
-    userId: user?.id ?? null,
-    companyId,
-    masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
-  };
+  const scope = useQueryScope();
   const masqueradeToken = getMasqueradeToken();
   const query = useQuery<ArchiveRecovery>({
     queryKey: buildScopeQueryKey(scope, ['archive-recovery', role, accessKey, planning.revision]),

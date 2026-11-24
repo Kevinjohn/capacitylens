@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { m } from '@/i18n';
 import { teamAccessApi } from '@/account/teamAccessApi';
 import type { TeamMember } from '@/account/teamAccessApi';
 import { resolveRefusalMessage } from '@/account/accessResult';
-import { queryClient } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
+import { useQueryScope } from '@/api/useQueryScope';
 import { useAuth } from '@/auth/authContext';
 import { useCan, usePermissionStatus } from '@/auth/permissionContext';
 import { reprojectAccess } from '@/auth/reprojectAccess';
@@ -79,6 +80,7 @@ function readDirectoryError(error: Error | null): string | null {
 }
 
 async function reconcileCallerAccess(
+  queryClient: QueryClient,
   companyId: string,
   refreshAuth: () => Promise<void>,
 ): Promise<boolean> {
@@ -119,25 +121,27 @@ async function sendTransfer(
 }
 
 async function settleTransfer({
+  queryClient,
   result,
   companyId,
   refreshAuth,
   setError,
 }: {
+  queryClient: QueryClient;
   result: OwnershipTransferResult | null;
   companyId: string;
   refreshAuth: () => Promise<void>;
   setError: (message: string | null) => void;
 }): Promise<void> {
   if (result?.kind === 'ok') {
-    if (await reconcileCallerAccess(companyId, refreshAuth)) {
+    if (await reconcileCallerAccess(queryClient, companyId, refreshAuth)) {
       useStore.getState().setNotice(m.ownership_transfer_success());
     }
     return;
   }
   if (result === null || result.kind === 'unknown' || result.kind === 'invalid') {
     setError(m.ownership_transfer_uncertain());
-    await reconcileCallerAccess(companyId, refreshAuth);
+    await reconcileCallerAccess(queryClient, companyId, refreshAuth);
     return;
   }
   setError(resolveRefusalMessage(result, m.ownership_transfer_operation_failed()));
@@ -153,6 +157,7 @@ function useTransferOperation({
   refreshAuth: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const lock = useRef(false);
   const transfer = useCallback(
@@ -163,13 +168,13 @@ function useTransferOperation({
       setError(null);
       try {
         const result = await sendTransfer(companyId, targetUserId, confirmationId);
-        await settleTransfer({ result, companyId, refreshAuth, setError });
+        await settleTransfer({ queryClient, result, companyId, refreshAuth, setError });
       } finally {
         lock.current = false;
         setBusy(false);
       }
     },
-    [companyId, available, refreshAuth],
+    [companyId, available, refreshAuth, queryClient],
   );
   return { busy, error, transfer };
 }
@@ -183,11 +188,7 @@ export function useOwnershipTransfer(
   const mayTransfer = useCan('ownership:transfer');
   const permissionStatus = usePermissionStatus();
   const masquerade = useStore((state) => state.masquerade);
-  const scope: ApiQueryScope = {
-    userId: user?.id ?? null,
-    companyId,
-    masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
-  };
+  const scope = useQueryScope();
   const available =
     user !== null &&
     mayTransfer &&

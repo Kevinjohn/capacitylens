@@ -30,18 +30,18 @@ terms this page reserves.
 
 ## Enforcement
 
-`pnpm run policy:terminology` reads `tooling/terminology.mjs` and fails on a rejected synonym in a file
+`pnpm run policy:terminology` reads the table below and fails on a rejected synonym in a file
 name, in source, tests and scripts, in prose under `docs-src/`, `user-stories/` and root Markdown, and in
 `apps/frontend/messages/`. `pnpm run check:changed` runs it on the changed files and the gate on the whole
-tree. The list also holds the exemptions: this page, vendored `components/ui`, generated `.adonisjs/`
-output, lockfiles and the phrases that only contain a rejected word (`aria-modal`). A new ruling changes this
-page, the code and that list in one pull request. Names other software depends on (routes, environment
+tree. `tooling/terminology.mjs` holds the exemptions: this page, vendored `components/ui`, generated
+`.adonisjs/` output, lockfiles and the phrases that only contain a rejected word (`aria-modal`). A new
+ruling changes this page and the code in one pull request. Names other software depends on (routes, environment
 variables, wire values, error codes, table and column names, storage keys) keep their spelling until a
 migration renames them.
 
 ### Enforced rejections
 
-The table is generated from `tooling/terminology.mjs`; a test fails when the two differ.
+The check reads this table between its markers; it is the only list of rejected synonyms.
 
 <!-- terminology:enforced:start -->
 
@@ -87,8 +87,6 @@ The table is generated from `tooling/terminology.mjs`; a test fails when the two
 These words also have a legitimate second meaning, so the check cannot enforce them. A reviewer applies the
 entries below.
 
-<!-- terminology:review:start -->
-
 - guard: type guard, authentication guard
 - policy: Content-Security-Policy, passwordPolicy, CORS policy
 - exception: a special case in prose
@@ -104,8 +102,6 @@ entries below.
 - fake, double, support: fake timers, number types, ordinary support
 - purge, transfer, rejection: cache purge, ownership transfer, promise rejection
 - workspace: pnpm workspaces
-
-<!-- terminology:review:end -->
 
 ## Framework reserved words
 

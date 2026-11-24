@@ -38,7 +38,7 @@ async function waitForPortRelease(port: number) {
 }
 
 function signalOwnedProcessGroup(child: ReturnType<typeof spawn>, signal: NodeJS.Signals) {
-  if (process.platform === 'win32' || child.pid === undefined) return;
+  if (child.pid === undefined) return;
   try {
     process.kill(-child.pid, signal);
   } catch (error) {
@@ -72,7 +72,7 @@ test('both E2E server flavours require sign-in and expose no installation reset 
     if (flavour === 'db') args.push('--slot', String(slot));
     const child = spawn(process.execPath, args, {
       cwd: new URL('../../../', import.meta.url),
-      detached: process.platform !== 'win32',
+      detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

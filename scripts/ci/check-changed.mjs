@@ -105,7 +105,7 @@ function scriptTestsImporting(path) {
   return ['scripts', 'tooling']
     .flatMap((directory) =>
       readdirSync(new URL(`${directory}/`, pathToFileURL(root)), { recursive: true }).map(
-        (entry) => `${directory}/${entry.split('\\').join('/')}`,
+        (entry) => `${directory}/${entry}`,
       ),
     )
     .filter((test) => {
@@ -135,7 +135,7 @@ export function backendSpecsImportingFrom(path, sources) {
 let testSources;
 function backendSpecsImporting(path) {
   testSources ??= readdirSync(new URL(backendTests, pathToFileURL(root)), { recursive: true })
-    .map((entry) => `${backendTests}${entry.split('\\').join('/')}`)
+    .map((entry) => `${backendTests}${entry}`)
     .filter((file) => /\.ts$/.test(file))
     .map((file) => [file, readFileSync(new URL(file, pathToFileURL(root)), 'utf8')]);
   return backendSpecsImportingFrom(path, testSources);
@@ -634,7 +634,7 @@ function stopGroup(child, signal) {
 /** Run one planned step, stopping its whole process group if it outlives `limits.timeoutMs`. */
 export async function runStep(step, limits = stepLimits) {
   // Loaded here so the selection modes run before dependencies are installed.
-  const { nonColourEnvironment, spawnPnpm } = await import('../shared/pnpmSpawn.mjs');
+  const { nonColourEnvironment } = await import('../shared/childProcess.mjs');
   return new Promise((resolve) => {
     const options = {
       cwd: root,
@@ -642,10 +642,7 @@ export async function runStep(step, limits = stepLimits) {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: true,
     };
-    const child =
-      step.command === 'node'
-        ? spawn(process.execPath, step.args, options)
-        : spawnPnpm(step.args, options);
+    const child = spawn(step.command === 'node' ? process.execPath : 'pnpm', step.args, options);
     const chunks = [];
     let timedOut = false;
     let killTimer;

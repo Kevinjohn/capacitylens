@@ -5,18 +5,16 @@ import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password';
 import { MAX_NAME_LENGTH, countUnicodeCharacters } from '@capacitylens/shared/lib/strings';
 
 /** Refuses a body that carries a key outside `fields`. */
-export const allowedFields = vine.createRule(
-  (value, options: { fields: string[]; message?: string }, field) => {
-    if (
-      value &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      Object.keys(value).some((key) => !options.fields.includes(key))
-    ) {
-      field.report(options.message ?? 'Unsupported field.', 'unknownField', field);
-    }
+export const allowedFields = vine.createRule((value, options: { fields: string[] }, field) => {
+  if (
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.keys(value).some((key) => !options.fields.includes(key))
+  ) {
+    field.report('Unsupported field.', 'unknownField', field);
   }
-);
+});
 
 /**
  * Pass to `requiredWhen` on an optional field: the key may be left out, but a supplied `null`
