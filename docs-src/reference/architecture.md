@@ -307,7 +307,8 @@ lockfile records each archive's integrity. To change a pin, update the backend m
 lockfile together; pnpm records the new archive's integrity.
 
 Allocation, TimeOff, Closure, Phase and Discipline use the package for restorable deletion; their
-Luxon `deletedAt` attribute stays on the server. Client, Project, Activity and Resource have no
+Luxon `deletedAt` attribute is the package's own Lucid date-time column, stored in Lucid's
+format, and stays on the server. Client, Project, Activity and Resource have no
 deletion state: archive and restore are their only lifecycle. Product
 `createdAt`, `updatedAt` and `archivedAt` are Luxon attributes too, declared with
 `timestampColumn` (`app/models_support/scalar_column.ts`), which stores and serialises the same canonical
