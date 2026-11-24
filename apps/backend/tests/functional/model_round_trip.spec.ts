@@ -87,7 +87,7 @@ function buildFixture() {
   });
   const updates = KEYS.map((key) => ({
     key,
-    row: { ...data[key][0]!, ...filled[key], updatedAt: '2026-11-24T10:11:12.013Z' },
+    row: { ...data[key][0]!, ...filled[key], updatedAt: '2026-11-24T10:11:12.013Z' } as Row,
   }));
   return { data, updates };
 }
