@@ -229,6 +229,7 @@ Items:
 - [ ] **EXC-7** (F) Exception codes are `E_UPPER_SNAKE`.
 - [ ] **EXC-8** (F) Recognise a framework error with `instanceof` on its package's `errors` export (`errors.E_VALIDATION_ERROR`, `errors.E_ROUTE_NOT_FOUND`), never by its message.
 - [ ] **EXC-9** (H) Application code throws exceptions, never a bare `Error`, for anything a client can cause.
+- [ ] **EXC-10** (H) One exception class per cause. `static status`, `static code` and, when the sentence never varies, `static message` say what it is. No constructor takes a status or a code; it takes only what the message or the response needs (an id, a detail sentence, `{ cause }`).
 
 ## Responses and transformers
 
@@ -492,8 +493,10 @@ Mechanical checks:
 
 Items:
 
-- [ ] **PKG-31** (F) Every error the package throws is defined in `src/errors.ts`, as an `Exception` subclass or with `createError(message, code, status)`, and exported as the `errors` namespace: `import { errors } from '<package>'`.
-- [ ] **PKG-32** (F) Each has a stable `code` (`E_TOO_MANY_REQUESTS`) and a `status`. An application recognises it with `instanceof errors.E_...` or by `code`, never by message.
+- [ ] **PKG-31** (F) Every exception the package throws is defined in `src/errors.ts`, one class per cause: `<Cause>Exception extends Exception`, with `static code = 'E_<CODE>'` and `static status`. The file exports each class under its code, `export const E_<CODE> = <Cause>Exception`, and `index.ts` exports the file as the `errors` namespace: `import { errors } from '<package>'`.
+- [ ] **PKG-32** (F) The code is stable. The package throws by it, `throw new E_<CODE>()`, and an application recognises it with `instanceof errors.E_<CODE>` or by `code`, never by message.
+- [ ] **PKG-46** (H) No constructor takes a status or a code. It takes only what the message or the response needs (an id, a name, a detail sentence, `{ cause }`); a sentence that never varies is `static message`. A package does not use `createError`.
+- [ ] **PKG-47** (F) A package never throws a bare `Error`. Wrong configuration or wrong use by the application's developer throws `InvalidArgumentsException` or `RuntimeException` from `@adonisjs/core/exceptions`; everything else is a class in `src/errors.ts`.
 - [ ] **PKG-33** (F) An exception that maps to an HTTP response implements `handle` on itself, so the application's handler needs no special case.
 - [ ] **PKG-34** (F) Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console` and does not log through the application's logger unless the application asked it to.
 - [ ] **PKG-35** (F) A package is built from classes, with `defineConfig` and other small factory functions as the function exports.

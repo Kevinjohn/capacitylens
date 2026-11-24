@@ -313,9 +313,11 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
 - Recognise a known error with `instanceof` on its package's `errors` export, such as
   `errors.E_VALIDATION_ERROR` from `@vinejs/vine`, never by its message.
 - A custom exception extends `Exception` from `@adonisjs/core/exceptions`, lives in
-  `app/exceptions/<name>_exception.ts`, and sets `static status` and `static code`. A class whose
-  status or code varies per throw passes them to the constructor instead:
-  `super(message, { status, code })`.
+  `app/exceptions/<name>_exception.ts`, and sets `static status` and `static code`.
+- There is one exception class per cause. No constructor takes a status or a code; it takes only
+  what the message or the response needs. Classes that still take them are being split in
+  [#2494](https://github.com/Kevinjohn/capacitylens/issues/2494); until that lands, match the
+  surrounding code.
 - Framework exception codes are `E_UPPER_SNAKE`. Product codes on the wire are stable identifiers
   and keep their spelling.
 - A product exception extends `ProductException` (`app/exceptions/product_exception.ts`) and
