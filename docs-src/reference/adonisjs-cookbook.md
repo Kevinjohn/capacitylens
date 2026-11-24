@@ -1155,15 +1155,24 @@ export { limiter as default }
 
 - **PKG-31 (F)** Every exception the package throws is defined in `src/errors.ts`, one class per
   cause: `<Cause>Exception extends Exception`, with `static code = 'E_<CODE>'` and `static status`.
+  Each distinct cause has its own raw code, including distinct failures previously thrown by one
+  class. Parameter values that describe the same cause do not need separate classes.
   The file exports each class under its code, `export const E_<CODE> = <Cause>Exception`, and
   `index.ts` exports the file as the `errors` namespace: `import { errors } from '<package>'`.
   `@adonisjs/limiter` pairs `ThrottleException` with `E_TOO_MANY_REQUESTS` and `@adonisjs/bouncer`
   pairs `AuthorizationException` with `E_AUTHORIZATION_FAILURE`.
 - **PKG-32 (F)** The code is stable. The package throws by it, `throw new E_<CODE>()`, and an
   application recognises it with `instanceof errors.E_<CODE>` or by `code`, never by message.
-- **PKG-46 (H)** No constructor takes a status or a code. It takes only what the message or the
-  response needs (an id, a name, a detail sentence, `{ cause }`); a sentence that never varies is
-  `static message`. A package does not use `createError`, so every exception has one shape.
+  A wire code may cover multiple raw codes only to prevent enumeration or conceal configuration
+  details. Each such mapping has a one-line comment naming what it protects. Existing clients
+  alone do not justify a collapse; update the consuming application instead.
+- **PKG-46 (H)** No exported exception constructor takes a status or a code, including through
+  an inherited constructor. Declare a constructor where necessary to narrow that signature. It
+  takes only what the message or response needs (an id, a name, a detail sentence, `{ cause }`);
+  code and status are static on the class, and a sentence that never varies is `static message`.
+  Enforce this through the constructor signature, without runtime mutation guards. An application
+  changes its own response status in its exception handler, not through a package option. A
+  package does not use `createError`, so every exception has one shape.
 - **PKG-47 (F)** A package never throws a bare `Error`. Wrong configuration or wrong use by the
   application's developer throws `InvalidArgumentsException` or `RuntimeException` from
   `@adonisjs/core/exceptions` (PKG-21); everything else is a class in `src/errors.ts`.
@@ -1188,6 +1197,14 @@ export { limiter as default }
   example is enough; a second is for a second way to call it. Types, exception classes and what
   the framework calls instead of the application (the configure hook, the provider, commands, a
   middleware's `handle`, a controller's actions) need none.
+
+### Compound failures
+
+Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule only when the work
+fails and its cleanup fails too. Its `errors[0]` is the primary failure; subsequent failures follow
+in the order observed. Every function that can throw or propagate one documents it in `@throws`.
+Never use it for an expected 4xx outcome or a case on which a caller needs to branch; use a package
+exception class for that case instead.
 
 Recipe, `src/errors.ts` and a throw site:
 

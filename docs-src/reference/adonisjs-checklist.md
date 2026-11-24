@@ -493,10 +493,11 @@ Mechanical checks:
 
 Items:
 
-- [ ] **PKG-31** (F) Every exception the package throws is defined in `src/errors.ts`, one class per cause: `<Cause>Exception extends Exception`, with `static code = 'E_<CODE>'` and `static status`. The file exports each class under its code, `export const E_<CODE> = <Cause>Exception`, and `index.ts` exports the file as the `errors` namespace: `import { errors } from '<package>'`.
-- [ ] **PKG-32** (F) The code is stable. The package throws by it, `throw new E_<CODE>()`, and an application recognises it with `instanceof errors.E_<CODE>` or by `code`, never by message.
-- [ ] **PKG-46** (H) No constructor takes a status or a code. It takes only what the message or the response needs (an id, a name, a detail sentence, `{ cause }`); a sentence that never varies is `static message`. A package does not use `createError`.
+- [ ] **PKG-31** (F) Every exception the package throws is defined in `src/errors.ts`, one class per cause: `<Cause>Exception extends Exception`, with a unique raw `static code = 'E_<CODE>'` for each distinct cause and `static status`. The file exports each class under its code, `export const E_<CODE> = <Cause>Exception`, and `index.ts` exports the file as the `errors` namespace: `import { errors } from '<package>'`.
+- [ ] **PKG-32** (F) The code is stable. The package throws by it, `throw new E_<CODE>()`, and an application recognises it with `instanceof errors.E_<CODE>` or by `code`, never by message. Any many-to-one wire mapping prevents enumeration or conceals configuration details, with a one-line comment naming what it protects; compatibility alone is not a reason.
+- [ ] **PKG-46** (H) No exported exception constructor, including an inherited one, takes a status or a code. Enforce this through its signature, without runtime mutation guards. Applications choose different response statuses in their own handlers. It takes only what the message or the response needs (an id, a name, a detail sentence, `{ cause }`); a sentence that never varies is `static message`. A package does not use `createError`.
 - [ ] **PKG-47** (F) A package never throws a bare `Error`. Wrong configuration or wrong use by the application's developer throws `InvalidArgumentsException` or `RuntimeException` from `@adonisjs/core/exceptions`; everything else is a class in `src/errors.ts`.
+- [ ] Compound failures follow the single [compound-failure rule](./adonisjs-cookbook.md#compound-failures).
 - [ ] **PKG-33** (F) An exception that maps to an HTTP response implements `handle` on itself, so the application's handler needs no special case.
 - [ ] **PKG-34** (F) Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console` and does not log through the application's logger unless the application asked it to.
 - [ ] **PKG-35** (F) A package is built from classes, with `defineConfig` and other small factory functions as the function exports.
