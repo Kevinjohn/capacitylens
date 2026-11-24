@@ -52,7 +52,7 @@ Where a backend file goes, what it is called and how each framework layer is use
 ## Names inside a module
 
 A function name starts with a verb, and the verb tells the caller what comes back and whether
-anything happens on the way. Read these two calls from `app/services/auth/authorization.ts`:
+anything happens on the way. Read these two calls from `app/services/auth/authorization_service.ts`:
 
 ```ts
 const role = await getActiveCompanyRole(userId, companyId, trx); // Role | null: absence is a value
@@ -62,21 +62,21 @@ await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 | Verb               | Promise                                                                                              | Example in the tree                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                  | `canArchive` in `packages/shared/src/domain/lifecycle/transitions.ts`             |
-| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyPermission` in `apps/backend/app/services/auth/authorization.ts`        |
+| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyPermission` in `apps/backend/app/services/auth/authorization_service.ts`        |
 | `require`          | Returns what the caller needs or throws. The throwing partner of `get`.                              | `requireCompanyScope` in `apps/backend/app/models_support/scoped_model.ts`                |
 | `prepare`           | Prepares a resource for use according to its stated prerequisites.                                         | `prepareDirectory` from `@kevinjohn/adonisjs-sqlite-backup`  |
 | `get`              | Looks one thing up by key. Returns it, or `null` when absent. Never throws for absence.               | `getMasqueradeContextToken` in `apps/frontend/src/api/masqueradeContext.ts`         |
-| `list`             | Returns an array of matches, empty when there are none.                                              | `listActiveCompanyIds` in `apps/backend/app/services/auth/authorization.ts`                |
+| `list`             | Returns an array of matches, empty when there are none.                                              | `listActiveCompanyIds` in `apps/backend/app/services/auth/authorization_service.ts`                |
 | `read`             | Reads from storage, the network or the environment.                                                  | `readApiError` in `apps/frontend/src/lib/readApiError.ts`                         |
 | `parse`            | Turns untrusted input into a typed value and never returns garbage: `null`, a typed error or a default. | `parseISOTimestamp` in `packages/shared/src/lib/isoDates.ts`                    |
 | `validate`         | Checks a value that is already typed. Returns a `ValidationResult` and never throws.                 | `validateProjectClient` in `packages/shared/src/lib/integrity.ts`                 |
 | `normalize`        | Returns a repaired copy of the same type.                                                            | `normalizeAccountEmail` in `packages/shared/src/account/validation.ts`            |
 | `resolve`          | Picks one concrete value from preferences or candidates.                                             | `resolveBarColor` in `packages/shared/src/lib/color.ts`                           |
 | `build`            | Derives a new structure from its inputs. Pure.                                                       | `buildColumnGeometry` in `apps/frontend/src/components/scheduler/columnGeometry.ts` |
-| `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance.ts`            |
+| `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance_service.ts`            |
 | `make`             | Test fixtures only.                                                                                  | `makeResource` in `apps/frontend/src/test/fixtures.ts`                            |
 | `use`              | A React hook.                                                                                        | `useScopedData` in `apps/frontend/src/store/useScopedData.ts`                     |
-| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withActor` in `apps/backend/app/services/auth/current_actor.ts`                  |
+| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withActor` in `apps/backend/app/services/auth/current_actor_service.ts`                  |
 
 Functions that do something rather than answer something use a plain domain verb (`remove`,
 `revoke`, `send`, `record`, `transform`) and say which. Two verbs stay out: `find`, because `get`
@@ -127,7 +127,7 @@ one is a swallow too.
 Validation returns a value; enforcement throws. Validators return a `ValidationResult` or a VineJS
 schema result and never throw on bad input. The write boundary converts a failed result into a
 typed error whose message is safe to show, such as `PlanningOperationException` in
-`apps/backend/app/services/planning/writer.ts`, which carries its own status and code and answers
+`apps/backend/app/services/planning/planning_writer_service.ts`, which carries its own status and code and answers
 for itself. The frontend catches at the form or gesture handler and relays the message
 to the field or toast. Add to the typed error vocabulary rather than sniffing message strings; the
 one exception is a library's own wording, which a test pins.

@@ -1,18 +1,34 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import { withActor } from '#services/auth/current_actor';
-import { anonymiseResources } from '#services/anonymise';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { anonymiseResourceValidator } from '#validators/anonymise';
-import { assertCompanyPermission } from '#services/auth/authorization';
+import { AuthorizationService } from '#services/auth/authorization_service';
+import { AnonymisationService } from '#services/anonymisation_service';
 
 /** Anonymises one person. */
+@inject()
 export default class ResourceAnonymisationsController {
+  #currentActor: CurrentActorService;
+  #authorization: AuthorizationService;
+  #anonymisations: AnonymisationService;
+
+  constructor(
+    currentActor: CurrentActorService,
+    authorization: AuthorizationService,
+    anonymisations: AnonymisationService
+  ) {
+    this.#currentActor = currentActor;
+    this.#authorization = authorization;
+    this.#anonymisations = anonymisations;
+  }
+
   async store({ auth, params, request, response }: HttpContext) {
     await request.validateUsing(anonymiseResourceValidator, { data: request.body() });
     const { companyId, id } = params;
-    const applied = await withActor(auth, async (actor, trx) => {
+    const applied = await this.#currentActor.withActor(auth, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
-      await assertCompanyPermission(companyId, 'resources:anonymise', trx);
-      return anonymiseResources(trx, companyId, actor.userId, id);
+      await this.#authorization.assertCompanyPermission(companyId, 'resources:anonymise', trx);
+      return this.#anonymisations.anonymiseResources(trx, companyId, actor.userId, id);
     });
     if (applied === 'forbidden') return response.forbidden({ error: 'Forbidden.' });
     if (!applied) return response.notFound({ error: 'Not found.' });

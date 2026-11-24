@@ -17,7 +17,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 | Password creation, change and reset | 15–128 Unicode code points | Account Kit with application auth routes | Password length validation; no common-password or breached-password screening |
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
 | Registration, invitation, address-confirmation and reset links | Bounded JSON/path/header values; invitation 7 days, other emailed links 1 hour | Account Kit plus application routes and admission rules | One-time links are stored as SHA-256 digests; address confirmation and admission are checked before product access |
-| Password confirmation request | Password plus bounded action/intent payload | `@kevinjohn/adonisjs-confirm-action-with-password` and host `authorizePasswordConfirmation` in `app/services/auth/password_confirmation.ts`, registered by `providers/package_callbacks_provider.ts` | Owner authorization is checked in the current Kit transaction; the five-minute confirmation binds user, session, credential revision, company, action and intent and is consumed with the mutation |
+| Password confirmation request | Password plus bounded action/intent payload | `@kevinjohn/adonisjs-confirm-action-with-password` and host `authorizePasswordConfirmation` in `app/services/auth/password_confirmation_service.ts`, registered by `providers/package_callbacks_provider.ts` | Owner authorization is checked in the current Kit transaction; the five-minute confirmation binds user, session, credential revision, company, action and intent and is consumed with the mutation |
 | Operator commands | Shell arguments and current SQLite state | Registered Account Kit/operator commands (excluding `account-kit:reset-link`) | Bootstrap issues the first invitation; `owner:reset-password` requires a stopped server and eligible sole Owner and writes an audit row before displaying its link |
 | CORS, origin and forwarding headers | HTTP headers | Root middleware and configured proxy trust | Exact origin allow-list, unsafe cross-site refusal and configured trusted-proxy handling |
 | Environment and numeric settings | Process environment | Startup parsers and configuration provider | Bounded integers, explicit boolean grammar and production guards |
@@ -64,10 +64,10 @@ retaining its URL path.
 | Public TLS | TLS proxy and Node trust store | Public certificate and chain | Operator-managed certificate lifecycle |
 
 Runtime `node:crypto` importers are accounted for here: `apps/backend/app/models/user.ts` creates
-UUID identifiers; `account_operations.ts` creates command ids; `@kevinjohn/adonisjs-duplicate-request-guard` owns payload hashes and receipts;
+UUID identifiers; `account_operation_service.ts` creates command ids; `@kevinjohn/adonisjs-duplicate-request-guard` owns payload hashes and receipts;
 `@kevinjohn/adonisjs-confirm-action-with-password` creates confirmation UUIDs and intent hashes; `auth/request_limit.ts` hashes client
-IP keys; `company_import.ts` hashes import snapshots; and
-`planning/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto
+IP keys; `company_import_service.ts` hashes import snapshots; and
+`planning/restoration_service.ts` creates restoration-group UUIDs. The browser uses Web Crypto
 for UUIDs and a command digest. Build scripts use SHA-256 for file integrity; end-to-end test
 tooling uses UUIDs. These are identifiers or integrity/limiter hashes, not password or bearer-token
 storage.

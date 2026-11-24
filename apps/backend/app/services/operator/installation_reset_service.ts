@@ -1,0 +1,143 @@
+import { inject } from '@adonisjs/core';
+import { closeSync, existsSync, lstatSync, mkdtempSync, openSync, renameSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import app from '@adonisjs/core/services/app';
+import db from '@adonisjs/lucid/services/db';
+import {
+  createBundle,
+  operatorDatabasePath,
+  syncPath,
+  withOperatorDatabase,
+} from '@kevinjohn/adonisjs-sqlite-backup';
+import { SchemaIntegrityService } from '#services/schema_integrity_service';
+
+function hasDestinationEntry(path: string) {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+/** Replaces a stopped disposable installation with a new database, keeping the old one. */
+@inject()
+export class InstallationResetService {
+  #schemaIntegrity: SchemaIntegrityService;
+
+  constructor(schemaIntegrity: SchemaIntegrityService) {
+    this.#schemaIntegrity = schemaIntegrity;
+  }
+
+  /** Back up and archive a stopped installation, then create its replacement at a new path. */
+  async reset(input: {
+    newDatabasePath: string;
+    confirmServerStopped: boolean;
+    disposable: boolean;
+  }) {
+    if (app.inProduction) throw new Error('app:reset is unavailable in production');
+    if (!input.disposable) throw new Error('app:reset requires --disposable');
+    const sourcePath = resolve(operatorDatabasePath(db, input.confirmServerStopped));
+    const databasePath = resolve(input.newDatabasePath);
+    if (
+      sourcePath === databasePath ||
+      [databasePath, `${databasePath}-wal`, `${databasePath}-shm`, `${databasePath}-journal`].some(
+        hasDestinationEntry
+      )
+    ) {
+      throw new Error(
+        'Reset destination or its sidecars already exist; choose a new database path'
+      );
+    }
+    // The operator callback mutates this record. Separate `let` bindings would be narrowed to their
+    // initial values across the callback, so the lint rule reports the catch-block reads as
+    // impossible; a mutable record keeps those reads typed as they really are.
+    const progress: {
+      archivePath: string | undefined;
+      backupPath: string | undefined;
+      destinationReserved: boolean;
+      backupVerified: boolean;
+      archived: boolean;
+    } = {
+      archivePath: undefined,
+      backupPath: undefined,
+      destinationReserved: false,
+      backupVerified: false,
+      archived: false,
+    };
+    let stage = 'source validation';
+    try {
+      await withOperatorDatabase(db, async (connection) => {
+        await this.#schemaIntegrity.assertSchemaIntegrity();
+        // wx reserves the destination against concurrent operators; an unsuccessful reset leaves it visible.
+        closeSync(openSync(databasePath, 'wx', 0o600));
+        progress.destinationReserved = true;
+        const archive = mkdtempSync(`${sourcePath}.reset-archive-`);
+        progress.archivePath = join(archive, 'original.db');
+        stage = 'verified backup';
+        const bundle = await createBundle({ source: { database: connection }, directory: archive });
+        progress.backupPath = join(bundle.path, 'db.sqlite');
+        stage = 'source checkpoint';
+        progress.backupVerified = true;
+        const checkpoint = connection.pragma('wal_checkpoint(TRUNCATE)') as Array<{ busy: number }>;
+        if (checkpoint.some((row) => row.busy !== 0)) {
+          throw new Error('Reset could not checkpoint the source database');
+        }
+        stage = 'source journal switch';
+        const journal = connection.pragma('journal_mode = DELETE') as Array<{
+          journal_mode: string;
+        }>;
+        if (journal[0]?.journal_mode !== 'delete' || connection.inTransaction) {
+          throw new Error('Reset could not leave WAL mode');
+        }
+        stage = 'source sidecar archive';
+        for (const suffix of ['-wal', '-shm', '-journal']) {
+          const sidecar = `${sourcePath}${suffix}`;
+          if (existsSync(sidecar)) {
+            const retained = join(archive, `retained_source${suffix}`);
+            renameSync(sidecar, retained);
+            syncPath(retained);
+          }
+        }
+        // The verified checkpoint and DELETE mode make the main archive complete on both supported hosts.
+        stage = 'source archive';
+        renameSync(sourcePath, progress.archivePath);
+        progress.archived = true;
+        syncPath(progress.archivePath);
+        syncPath(archive);
+        syncPath(dirname(sourcePath));
+      });
+      stage = 'new database upgrade';
+      const migrated = spawnSync(process.execPath, ['ace.js', 'app:upgrade'], {
+        cwd: app.appRoot,
+        encoding: 'utf8',
+        timeout: 60000,
+        env: {
+          ...process.env,
+          CAPACITYLENS_DB: databasePath,
+          CAPACITYLENS_BACKUP_DIR: '',
+          CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
+          CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
+        },
+      });
+      if (migrated.error || migrated.status !== 0) {
+        throw new Error('New database upgrade failed', { cause: migrated.error });
+      }
+      return { databasePath, archivePath: progress.archivePath, backupPath: progress.backupPath };
+    } catch (cause) {
+      if (!progress.archivePath && !progress.destinationReserved) throw cause;
+      const original = progress.archived
+        ? `Original archive: ${progress.archivePath}`
+        : `Original source remains at: ${sourcePath}`;
+      const backupNote = progress.backupVerified
+        ? `Verified backup: ${progress.backupPath}`
+        : 'No verified backup was completed';
+      throw new Error(
+        `Reset failed during ${stage}. ${original}; ${backupNote}; inspect partial destination: ${databasePath}. Do not retry over these files.`,
+        { cause }
+      );
+    }
+  }
+}

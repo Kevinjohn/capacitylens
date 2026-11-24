@@ -1,25 +1,41 @@
+import { MemberMutationRequestService } from '#services/membership/member_mutation_request_service';
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import { parseAccountOperation } from '#services/account_operations';
-import { runMemberMutation } from '#services/membership/member_mutation_request';
-import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
+import { MemberResourceLinkService } from '#services/member_resources/member_resource_link_service';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
+import { AccountOperationService } from '#services/account_operation_service';
 
 /** Scoped member/person association. */
+@inject()
 export default class MemberResourceLinksController {
+  #memberMutationRequests: MemberMutationRequestService;
+  #links: MemberResourceLinkService;
+  #accountOperations: AccountOperationService;
+
+  constructor(
+    links: MemberResourceLinkService,
+    memberMutationRequests: MemberMutationRequestService,
+    accountOperations: AccountOperationService
+  ) {
+    this.#memberMutationRequests = memberMutationRequests;
+    this.#links = links;
+    this.#accountOperations = accountOperations;
+  }
+
   async update({ auth, params, request, serialize }: HttpContext) {
     const body = await request.validateUsing(setLinkValidator, { data: request.body() });
-    const command = parseAccountOperation(
+    const command = this.#accountOperations.parseAccountOperation(
       request.header('x-account-operation-id'),
       request.header('idempotency-key')
     );
     const { companyId, userId } = params;
-    const result = await runMemberMutation(auth, {
+    const result = await this.#memberMutationRequests.run(auth, {
       companyId,
       operation: 'set-member-resource-link',
       command,
       payload: { userId, ...body },
       work: async (trx, { actorId }) => {
-        const link = await setMemberResourceLink(trx, {
+        const link = await this.#links.set(trx, {
           companyId,
           userId,
           resourceId: body.resourceId,
@@ -34,18 +50,18 @@ export default class MemberResourceLinksController {
 
   async destroy({ auth, params, request, response }: HttpContext) {
     const body = await request.validateUsing(clearLinkValidator, { data: request.body() });
-    const command = parseAccountOperation(
+    const command = this.#accountOperations.parseAccountOperation(
       request.header('x-account-operation-id'),
       request.header('idempotency-key')
     );
     const { companyId, userId } = params;
-    await runMemberMutation(auth, {
+    await this.#memberMutationRequests.run(auth, {
       companyId,
       operation: 'clear-member-resource-link',
       command,
       payload: { userId, ...body },
       work: async (trx, { actorId }) => {
-        await clearMemberResourceLink(trx, {
+        await this.#links.clear(trx, {
           companyId,
           userId,
           expectedRevision: body.expectedRevision,

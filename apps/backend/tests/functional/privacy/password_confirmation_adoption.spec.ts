@@ -9,14 +9,8 @@ import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/ma
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
-import {
-  requireAdmissionDecision,
-  requireActor,
-  requireKitContext,
-  withActor,
-} from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { readState } from '#tests/helpers/state_fixture';
-import { getPlanningRevision } from '#services/planning_revision';
 import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import {
   clearIdentities,
@@ -26,6 +20,9 @@ import {
 } from '#tests/helpers/identities';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { asExportFile } from '#tests/helpers/export_file';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+
+const planningRevisions = new PlanningRevisionService();
 
 const companyId = 'a-studio';
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
@@ -70,10 +67,13 @@ test.group('package proof adoption boundaries', (group) => {
       } else {
         const admission = await app.container.make(AccountAdmission);
         await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
+        const currentActor = await app.container.make(CurrentActorService);
         expected = {
           error: 'Your access to this company is waiting on admission.',
           code: 'ADMISSION_REQUIRED',
-          decision: await db.transaction((trx) => requireAdmissionDecision(userId, trx)),
+          decision: await db.transaction((trx) =>
+            currentActor.requireAdmissionDecision(userId, trx)
+          ),
         };
       }
       const prove = proofs.confirmPassword;
@@ -188,7 +188,10 @@ test.group('package proof adoption boundaries', (group) => {
     await checking.promise;
     const admission = await app.container.make(AccountAdmission);
     await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
-    const decision = await db.transaction((trx) => requireAdmissionDecision(userId, trx));
+    const currentActor = await app.container.make(CurrentActorService);
+    const decision = await db.transaction((trx) =>
+      currentActor.requireAdmissionDecision(userId, trx)
+    );
     pending.resolve();
     const response = await request;
     response.assertStatus(403);
@@ -212,7 +215,9 @@ test.group('package proof adoption boundaries', (group) => {
         completeness: 'full',
       })
     );
-    const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, companyId));
+    const baseRevision = await db.transaction((trx) =>
+      planningRevisions.getPlanningRevision(trx, companyId)
+    );
     const responses = [
       await issue(client, cookie, { ...body, companyId: scope }),
       await asDataOwner(client.visit('api.imports.store'), cookie)
@@ -241,23 +246,24 @@ test.group('package proof adoption boundaries', (group) => {
     const original = PasswordConfirmationsController.prototype.store;
     let checked = 0;
     PasswordConfirmationsController.prototype.store = async function (ctx: HttpContext) {
+      const currentActor = await app.container.make(CurrentActorService);
       for (const interrupted of [false, true]) {
         let captured: Trx | undefined;
         const sentinel = new Error('INTERRUPTED_CALLBACK');
         try {
-          await withActor(ctx.auth, async (actor, trx) => {
+          await currentActor.withActor(ctx.auth, async (actor, trx) => {
             captured = trx;
-            assert.equal(String(requireKitContext(trx).account.id), actor.userId);
-            assert.equal(requireKitContext(trx).signInId, actor.sessionId);
-            assert.strictEqual(requireKitContext(trx).trx, trx);
+            assert.equal(String(currentActor.requireKitContext(trx).account.id), actor.userId);
+            assert.equal(currentActor.requireKitContext(trx).signInId, actor.sessionId);
+            assert.strictEqual(currentActor.requireKitContext(trx).trx, trx);
             if (interrupted) throw sentinel;
           });
         } catch (error) {
           if (error !== sentinel) throw error;
         }
         assert.isDefined(captured);
-        assert.throws(() => requireKitContext(captured!), /inside withActor/);
-        assert.throws(() => requireActor(captured!), /inside withActor/);
+        assert.throws(() => currentActor.requireKitContext(captured!), /inside withActor/);
+        assert.throws(() => currentActor.requireActor(captured!), /inside withActor/);
         checked++;
       }
       return original.call(this, ctx);

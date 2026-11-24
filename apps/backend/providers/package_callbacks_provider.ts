@@ -20,40 +20,53 @@ export default class PackageCallbacksProvider {
         await import('@kevinjohn/adonisjs-access-control/account-kit');
       const { withAdmissionCleanup, withInvitationEvidence } =
         await import('@kevinjohn/adonisjs-account-kit/admission');
-      const { recordInvitationAccepted, withDeletionRecords } =
-        await import('#services/account_kit/membership_effects');
-      const { onCredentialsChangedTransaction } =
-        await import('#services/account_kit/admission_rules');
-      const { requireRegistrationDisplayName, users } = await import('#services/account_kit/users');
+      const { MembershipEffectService } =
+        await import('#services/account_kit/membership_effect_service');
+      const { AdmissionRuleService } = await import('#services/account_kit/admission_rule_service');
+      const { AccountUserService, users } =
+        await import('#services/account_kit/account_user_service');
+      const membershipEffects = await container.make(MembershipEffectService);
+      const admissionRules = await container.make(AdmissionRuleService);
+      const accountUsers = await container.make(AccountUserService);
       // Access Control decides who may invite, creates the invited membership and removes memberships
       // when an account is deleted; the product adds its audit and planning-revision records.
       const memberships = accessControlKitCallbacks({
-        onInvitationAccepted: recordInvitationAccepted,
+        onInvitationAccepted: (user, invitation, trx) =>
+          membershipEffects.recordInvitationAccepted(user, invitation, trx),
       });
       return {
         users,
         authorize: memberships.authorize,
-        mapRegistrationFields: (data) => ({ name: requireRegistrationDisplayName(data) }),
+        mapRegistrationFields: (data) => ({
+          name: accountUsers.requireRegistrationDisplayName(data),
+        }),
         onInvitationAccepted: withInvitationEvidence(memberships.onInvitationAccepted),
         onAccountDeletingTransaction: withAdmissionCleanup(
-          withDeletionRecords(memberships.onAccountDeletingTransaction)
+          membershipEffects.withDeletionRecords(memberships.onAccountDeletingTransaction)
         ),
-        onCredentialsChangedTransaction,
+        onCredentialsChangedTransaction: (user, context, trx) =>
+          admissionRules.onCredentialsChangedTransaction(user, context, trx),
       };
     });
     admissionCallbacks.register(async () => {
-      const { admissionAuthorize } = await import('#services/account_kit/admission_rules');
-      return { approvalAuthorize: admissionAuthorize };
+      const { AdmissionRuleService } = await import('#services/account_kit/admission_rule_service');
+      const admissionRules = await container.make(AdmissionRuleService);
+      return { approvalAuthorize: admissionRules.admissionAuthorize };
     });
     masqueradeCallbacks.register(async () => {
-      const { nativeAdapter, masqueradePolicy } =
-        await import('#services/auth/masquerade_authority');
-      return { native: nativeAdapter, policy: masqueradePolicy };
+      const { MasqueradeAuthorityService, nativeAdapter } =
+        await import('#services/auth/masquerade_authority_service');
+      const masqueradeAuthority = await container.make(MasqueradeAuthorityService);
+      return { native: nativeAdapter, policy: masqueradeAuthority.masqueradePolicy };
     });
     passwordConfirmationCallbacks.register(async () => {
-      const { authorizePasswordConfirmation } =
-        await import('#services/auth/password_confirmation');
-      return { authorize: authorizePasswordConfirmation };
+      const { PasswordConfirmationService } =
+        await import('#services/auth/password_confirmation_service');
+      const passwordConfirmations = await container.make(PasswordConfirmationService);
+      return {
+        authorize: (context, request) =>
+          passwordConfirmations.authorizePasswordConfirmation(context, request),
+      };
     });
   }
 }

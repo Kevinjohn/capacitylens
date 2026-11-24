@@ -35,15 +35,15 @@ flowchart TD
   screen["MembersSection renders member controls and directory"] --> hidden["The current browser renders neither a tracking toggle nor a Signed in column"]
   api["Separate retained PUT member_sign_in_tracking endpoint"] --> auth["MemberSignInTrackingController checks members:signInTracking"]
   auth -->|Denied| refusal["Refuse request"]
-  auth -->|Allowed| tracking["changeMemberSignInTracking stores setting and audits changed value as company"]
+  auth -->|Allowed| tracking["MemberSignInTrackingService.changeTracking stores setting and audits changed value as company"]
   tracking -->|Newly enabled| window["Begin observation window and confirm the enabling Owner"]
   tracking -->|Disabled| remove["Erase retained observations"]
-  login["Successful password sign-in calls recordMemberSignIn"] --> producer["Record an observation for active memberships where tracking is enabled"]
-  status["Changed member status"] --> erase["resetMemberSignIn clears that member's observation"]
-  window --> directory["readMemberDirectory can return Boolean or null for confirmation"]
+  login["Successful password sign-in calls MemberSignInTrackingService.recordSignIn"] --> producer["Record an observation for active memberships where tracking is enabled"]
+  status["Changed member status"] --> erase["MemberSignInTrackingService.resetSignIn clears that member's observation"]
+  window --> directory["MemberDirectoryService.read can return Boolean or null for confirmation"]
   remove --> directory
   producer --> directory
   erase --> directory
 ```
 
-**Code references:** [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L143) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L260) · [member_sign_in_tracking_controller.ts](../../apps/backend/app/controllers/member_sign_in_tracking_controller.ts#L10) · [sign_in_tracking.ts](../../apps/backend/app/services/membership/sign_in_tracking.ts#L14) · [sign_in_tracking.ts](../../apps/backend/app/services/membership/sign_in_tracking.ts#L75) · [password_sign_in.ts](../../apps/backend/app/services/auth/password_sign_in.ts#L62) · [member_directory.ts](../../apps/backend/app/services/membership/member_directory.ts#L88) · [member_mutations.ts](../../apps/backend/app/services/membership/member_mutations.ts#L70) · [tracking_lifecycle.spec.ts](../../apps/backend/tests/functional/membership/tracking_lifecycle.spec.ts#L36)
+**Code references:** [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L143) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L260) · [member_sign_in_tracking_controller.ts](../../apps/backend/app/controllers/member_sign_in_tracking_controller.ts#L26) · [member_sign_in_tracking_service.ts](../../apps/backend/app/services/membership/member_sign_in_tracking_service.ts#L26) · [member_sign_in_tracking_service.ts](../../apps/backend/app/services/membership/member_sign_in_tracking_service.ts#L89) · [password_sign_in_service.ts](../../apps/backend/app/services/auth/password_sign_in_service.ts#L74) · [member_directory_service.ts](../../apps/backend/app/services/membership/member_directory_service.ts#L104) · [member_mutation_service.ts](../../apps/backend/app/services/membership/member_mutation_service.ts#L75) · [tracking_lifecycle.spec.ts](../../apps/backend/tests/functional/membership/tracking_lifecycle.spec.ts#L36)
