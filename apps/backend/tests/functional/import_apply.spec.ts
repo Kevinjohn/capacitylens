@@ -169,6 +169,34 @@ test.group('beta import apply', (group) => {
     }
   });
 
+  test('preview and apply both refuse a timestamp that is not in the stored form', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await resetAuthenticatedData(client);
+    const before = await readState(companyId, true);
+    const baseRevision = await revision();
+    const changed = await document();
+    const row = changed.data.clients[0];
+    if (!row) throw new Error('The import fixture has no client.');
+    // The same instant the models store as `2026-11-24T10:11:12.000Z`, spelt without milliseconds.
+    row.updatedAt = '2026-11-24T10:11:12Z';
+
+    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
+      .json({ companyId, document: asExportFile(changed) })
+      .send();
+    preview.assertStatus(400);
+    assert.deepEqual(preview.body(), {
+      error: 'data.clients[0].updatedAt: updatedAt must be a UTC timestamp with milliseconds.',
+    });
+
+    const applied = await apply(client, cookie, changed, baseRevision);
+    applied.assertStatus(400);
+    assert.deepEqual(applied.body(), { error: 'Invalid beta import request.' });
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.equal(await revision(), baseRevision);
+  });
+
   test('refuses a document whose scheduling IDs belong to another company on this server', async ({
     client,
     assert,

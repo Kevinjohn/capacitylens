@@ -1,3 +1,4 @@
+import { isIsoInstant } from '../account/types.js';
 import { isValidISODate, parseISOTimestamp } from '../lib/isoDates.js';
 import { isWeekdaySet } from '../lib/companyWorkingDays.js';
 import { isPresetColor, NEUTRAL_COLOR } from '../lib/color.js';
@@ -115,7 +116,12 @@ export function findFieldProblem(
     case 'date':
       return isValidISODate(value) ? undefined : fail('must be a valid calendar date (YYYY-MM-DD)');
     case 'timestamp':
-      return parseISOTimestamp(value) === null ? fail('must be an ISO timestamp') : undefined;
+      // The canonical form the models store; any other spelling of the instant is refused here,
+      // so a document the write would refuse never passes its check. The parser also has to read
+      // it, because the lifecycle reads a tombstone through it and refuses years outside 0001-9999.
+      return isIsoInstant(value) && parseISOTimestamp(value) !== null
+        ? undefined
+        : fail('must be a UTC timestamp with milliseconds');
     case 'weekdays':
       if (!isWeekdaySet(value)) return fail('must contain distinct weekdays from 0 to 6');
       if (field === 'workingDays' && value.length === 0) return fail('must contain a working day');
