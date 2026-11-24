@@ -2,21 +2,24 @@ import { inject } from '@adonisjs/core';
 import { MemberMutationService } from '#services/membership/member_mutation_service';
 import { MemberMutationRequestService } from '#services/membership/member_mutation_request_service';
 import type { HttpContext } from '@adonisjs/core/http';
-import { parseAccountOperation } from '#services/account_operations';
 import { changeStatusValidator } from '#validators/members';
+import { AccountOperationService } from '#services/account_operation_service';
 
 /** A member's status, changed under live management permission. */
 @inject()
 export default class MemberStatusController {
   #memberMutations: MemberMutationService;
   #memberMutationRequests: MemberMutationRequestService;
+  #accountOperations: AccountOperationService;
 
   constructor(
     memberMutations: MemberMutationService,
-    memberMutationRequests: MemberMutationRequestService
+    memberMutationRequests: MemberMutationRequestService,
+    accountOperations: AccountOperationService
   ) {
     this.#memberMutations = memberMutations;
     this.#memberMutationRequests = memberMutationRequests;
+    this.#accountOperations = accountOperations;
   }
 
   async update({ auth, params, request, serialize }: HttpContext) {
@@ -24,7 +27,7 @@ export default class MemberStatusController {
       data: request.body(),
     });
     const { companyId, userId } = params;
-    const command = parseAccountOperation(
+    const command = this.#accountOperations.parseAccountOperation(
       request.header('x-account-operation-id'),
       request.header('idempotency-key')
     );

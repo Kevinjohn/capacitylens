@@ -1,17 +1,25 @@
 import { inject } from '@adonisjs/core';
 import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
 import type { HttpContext } from '@adonisjs/core/http';
-import { assertCompanyPermission } from '#services/auth/authorization';
-import { withActor } from '#services/auth/current_actor';
+import { AuthorizationService } from '#services/auth/authorization_service';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { updateMemberTrackingValidator } from '#validators/members';
 
 /** Whether the company records its members' sign-ins. */
 @inject()
 export default class MemberSignInTrackingController {
+  #authorization: AuthorizationService;
+  #currentActor: CurrentActorService;
   #signInTracking: MemberSignInTrackingService;
 
-  constructor(signInTracking: MemberSignInTrackingService) {
+  constructor(
+    signInTracking: MemberSignInTrackingService,
+    authorization: AuthorizationService,
+    currentActor: CurrentActorService
+  ) {
     this.#signInTracking = signInTracking;
+    this.#authorization = authorization;
+    this.#currentActor = currentActor;
   }
 
   async update({ auth, params, request, serialize }: HttpContext) {
@@ -19,8 +27,12 @@ export default class MemberSignInTrackingController {
       data: request.body(),
     });
     const { companyId } = params;
-    await withActor(auth, async (_actor, trx) => {
-      const actor = await assertCompanyPermission(companyId, 'members:signInTracking', trx);
+    await this.#currentActor.withActor(auth, async (_actor, trx) => {
+      const actor = await this.#authorization.assertCompanyPermission(
+        companyId,
+        'members:signInTracking',
+        trx
+      );
       await this.#signInTracking.changeTracking(trx, {
         companyId,
         actorId: actor.actorId,

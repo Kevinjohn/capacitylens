@@ -1,7 +1,11 @@
+import { inject } from '@adonisjs/core';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { assertCompanyPermission } from '#services/auth/authorization';
-import { withActor, type RequestAuth } from '#services/auth/current_actor';
-import { runAccountOperation, type AccountOperationIdentity } from '#services/account_operations';
+import { AuthorizationService } from '#services/auth/authorization_service';
+import { CurrentActorService, type RequestAuth } from '#services/auth/current_actor_service';
+import {
+  AccountOperationService,
+  type AccountOperationIdentity,
+} from '#services/account_operation_service';
 
 /** One member operation: its company, operation name and identity, recorded payload and work. */
 export interface SemanticMutationInput<T> {
@@ -13,16 +17,35 @@ export interface SemanticMutationInput<T> {
 }
 
 /** Member operations run as account operations under live management permission. */
+@inject()
 export class MemberMutationRequestService {
+  #authorization: AuthorizationService;
+  #currentActor: CurrentActorService;
+  #accountOperations: AccountOperationService;
+
+  constructor(
+    authorization: AuthorizationService,
+    currentActor: CurrentActorService,
+    accountOperations: AccountOperationService
+  ) {
+    this.#authorization = authorization;
+    this.#currentActor = currentActor;
+    this.#accountOperations = accountOperations;
+  }
+
   /** Runs a member operation as an account operation under live management permission. */
   async run<T>(auth: RequestAuth, input: SemanticMutationInput<T>) {
     const { companyId, operation, command, payload, work } = input;
-    return withActor(auth, async (currentActor, trx) => {
-      let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
-      return runAccountOperation(trx, {
+    return this.#currentActor.withActor(auth, async (currentActor, trx) => {
+      let actor: Awaited<ReturnType<AuthorizationService['assertCompanyPermission']>>;
+      return this.#accountOperations.runAccountOperation(trx, {
         name: operation,
         authorizeAccess: async () => {
-          actor = await assertCompanyPermission(companyId, 'members:manage', trx);
+          actor = await this.#authorization.assertCompanyPermission(
+            companyId,
+            'members:manage',
+            trx
+          );
         },
         work: () => work(trx, actor),
         actorId: currentActor.userId,

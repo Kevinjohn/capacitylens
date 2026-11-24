@@ -39,4 +39,4 @@ flowchart TD
   details --> display["Render Company, Week start and Time zone as read-only table rows"]
 ```
 
-**Code references:** [SettingsView.tsx:45](../../apps/frontend/src/components/settings/SettingsView.tsx#L45) · [SettingsView.tsx:61](../../apps/frontend/src/components/settings/SettingsView.tsx#L61) · [SettingsCompanySections.tsx:12](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx#L12) · [selectors.ts:88](../../apps/frontend/src/store/selectors.ts#L88) · [DECISIONS.md](../../DECISIONS.md#data-and-company-separation) · [company_import.ts:165](../../apps/backend/app/services/company_import.ts#L165)
+**Code references:** [SettingsView.tsx:45](../../apps/frontend/src/components/settings/SettingsView.tsx#L45) · [SettingsView.tsx:61](../../apps/frontend/src/components/settings/SettingsView.tsx#L61) · [SettingsCompanySections.tsx:12](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx#L12) · [selectors.ts:88](../../apps/frontend/src/store/selectors.ts#L88) · [DECISIONS.md](../../DECISIONS.md#data-and-company-separation) · [company_import_service.ts:165](../../apps/backend/app/services/company_import_service.ts#L157)

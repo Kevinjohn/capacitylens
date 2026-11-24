@@ -3,8 +3,10 @@ import {
   E_DUPLICATE_REQUEST_CONFLICT,
   E_INVALID_COMMAND_VALUE,
 } from '@kevinjohn/adonisjs-duplicate-request-guard';
-import { mapAccountOperationError } from '#services/account_operations';
 import { ProductException } from '#exceptions/product_exception';
+import { AccountOperationService } from '#services/account_operation_service';
+
+const accountOperations = new AccountOperationService();
 
 test('package refusals for an account operation retain the exact HTTP status and body', ({
   assert,
@@ -17,11 +19,11 @@ test('package refusals for an account operation retain the exact HTTP status and
       { error: 'Operation id already used.', code: 'IDEMPOTENCY_CONFLICT' },
     ],
   ] as const) {
-    const mapped = mapAccountOperationError(error);
+    const mapped = accountOperations.mapAccountOperationError(error);
     assert.instanceOf(mapped, ProductException);
     const refusal = mapped as ProductException;
     assert.deepEqual({ status: refusal.status, body: refusal.body() }, { status, body });
   }
   const unexpected = new Error('Database unavailable.');
-  assert.strictEqual(mapAccountOperationError(unexpected), unexpected);
+  assert.strictEqual(accountOperations.mapAccountOperationError(unexpected), unexpected);
 });

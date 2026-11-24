@@ -42,7 +42,7 @@ flowchart TD
   role -->|Cancel| close["Close without sending"]
   role -->|Save| save["Close role dialog; createRoleMutation skips unchanged role"]
   status -->|Cancel| close
-  status -->|Confirm| confirmed["confirmedMemberAction dispatches changeMemberStatus"]
+  status -->|Confirm| confirmed["confirmedMemberAction dispatches MemberMutationService.changeStatus"]
   save -->|Changed| transaction["MembersController or MemberStatusController runs the scoped Access Control mutation"]
   confirmed --> transaction
   transaction -->|Denied| error["Show action refusal"]
@@ -53,4 +53,4 @@ flowchart TD
   transaction -->|Unknown result| reload
 ```
 
-**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx#L19) · [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx#L40) · [buildMemberDirectoryPresentation.ts](../../apps/frontend/src/components/team/buildMemberDirectoryPresentation.ts#L50) · [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts#L56) · [member_directory_service.ts](../../apps/backend/app/services/membership/member_directory_service.ts#L104) · [member_mutation_service.ts](../../apps/backend/app/services/membership/member_mutation_service.ts#L31) · [member_administration.spec.ts](../../apps/backend/tests/functional/membership/member_administration.spec.ts#L355)
+**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx#L19) · [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx#L40) · [buildMemberDirectoryPresentation.ts](../../apps/frontend/src/components/team/buildMemberDirectoryPresentation.ts#L50) · [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts#L56) · [member_directory_service.ts](../../apps/backend/app/services/membership/member_directory_service.ts#L104) · [member_mutation_service.ts](../../apps/backend/app/services/membership/member_mutation_service.ts#L38) · [member_administration.spec.ts](../../apps/backend/tests/functional/membership/member_administration.spec.ts#L355)

@@ -62,7 +62,7 @@ The horizon covers the remainder of the company week and subsequent full weeks. 
 **Code references:**
 
 - [router.tsx](../../apps/frontend/src/router.tsx#L120)
-- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L130)
 - [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L56)
 - [CapacityOverviewView.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewView.tsx#L17)
 - [capacityOverviewModel.ts](../../apps/frontend/src/components/capacity-overview/capacityOverviewModel.ts#L69)

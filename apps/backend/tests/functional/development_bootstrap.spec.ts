@@ -4,8 +4,10 @@ import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import env from '#start/env';
 import User from '#models/user';
-import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import { freshDatabase } from '#tests/helpers/fresh_database';
+import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
+
+const developmentBootstrap = new DevelopmentBootstrapService();
 
 const password = 'kal-el-fortress-2026';
 
@@ -23,8 +25,8 @@ test.group('development bootstrap credential', (group) => {
   });
 
   test('creates one confirmed administrator through the User model', async ({ assert }) => {
-    await bootstrapDevelopmentCredential(app);
-    await bootstrapDevelopmentCredential(app);
+    await developmentBootstrap.bootstrapDevelopmentCredential(app);
+    await developmentBootstrap.bootstrapDevelopmentCredential(app);
 
     const rows = await db.from('users');
     assert.lengthOf(rows, 1);

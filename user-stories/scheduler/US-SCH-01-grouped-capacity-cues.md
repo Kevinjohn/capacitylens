@@ -47,7 +47,7 @@ Supplementary people can introduce staffing subgroups. Placeholder and External 
 
 **Code references:**
 
-- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L130)
 - [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts#L102)
 - [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L132)
 - [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L208)

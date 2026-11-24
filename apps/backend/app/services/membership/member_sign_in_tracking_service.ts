@@ -1,7 +1,8 @@
+import { inject } from '@adonisjs/core';
 import { createId } from '@capacitylens/shared/lib/id';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { listActiveCompanyIds, getActiveMembership } from '#services/auth/authorization';
-import { writeAudit } from '#services/audit';
+import { AuthorizationService } from '#services/auth/authorization_service';
+import { AuditService } from '#services/audit_service';
 
 const TRACKING_KEY = 'member-sign-in-tracking';
 const buildObservedKey = (userId: string) => `member-sign-in:${userId}`;
@@ -11,7 +12,16 @@ function isEnabled(value: unknown) {
 }
 
 /** A company's private sign-in tracking window and the observations recorded in it. */
+@inject()
 export class MemberSignInTrackingService {
+  #authorization: AuthorizationService;
+  #audit: AuditService;
+
+  constructor(authorization: AuthorizationService, audit: AuditService) {
+    this.#authorization = authorization;
+    this.#audit = audit;
+  }
+
   /** Reads a company's private Boolean tracking window without exposing sign-in times. */
   async readTracking(companyId: string, trx: TransactionClientContract) {
     const setting = await trx
@@ -69,7 +79,7 @@ export class MemberSignInTrackingService {
     trx: TransactionClientContract,
     now = new Date().toISOString()
   ) {
-    for (const companyId of await listActiveCompanyIds(userId, trx)) {
+    for (const companyId of await this.#authorization.listActiveCompanyIds(userId, trx)) {
       await this.confirmSignIn(companyId, userId, trx, now);
     }
   }
@@ -88,7 +98,7 @@ export class MemberSignInTrackingService {
     await this.setTracking(companyId, requested, trx, now);
     if (!current.enabled && requested) await this.confirmSignIn(companyId, actorId, trx, now);
     if (current.enabled !== requested) {
-      await writeAudit(
+      await this.#audit.writeAudit(
         trx,
         {
           companyId,
@@ -115,7 +125,7 @@ export class MemberSignInTrackingService {
       .where({ company_id: companyId, key: TRACKING_KEY })
       .first();
     if (!setting || !isEnabled(setting.value)) return;
-    if (!(await getActiveMembership(userId, companyId, trx))) return;
+    if (!(await this.#authorization.getActiveMembership(userId, companyId, trx))) return;
     await trx
       .table('company_settings')
       .insert({
