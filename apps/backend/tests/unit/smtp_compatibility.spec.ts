@@ -7,6 +7,11 @@ import { join } from 'node:path';
 import { createServer, type TLSSocket } from 'node:tls';
 import type { AddressInfo } from 'node:net';
 
+// Dependency canary for the `@adonisjs/mail>nodemailer` override in `pnpm-workspace.yaml`: it
+// imports nothing from the product and proves only that the overridden Nodemailer still works
+// with the mail package's SMTP adapter. Delete this file together with that override. The
+// product's own mail settings are tested in `mail_config.spec.ts`.
+
 /** A local authenticated TLS peer exercises the supported SMTP adapter without outbound mail. */
 async function createSmtpFixture(directory: string) {
   const key = join(directory, 'key.pem');
