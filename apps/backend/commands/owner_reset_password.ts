@@ -1,6 +1,7 @@
+import { inject } from '@adonisjs/core';
 import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { recoverOwner } from '#services/operator/owner_recovery';
+import { OwnerRecoveryService } from '#services/operator/owner_recovery_service';
 import { OperatorCommand } from './_operator_command.js';
 
 /** Recover a sole owner using an audited single-use link while the server is stopped. */
@@ -12,8 +13,9 @@ export default class OwnerResetPassword extends OperatorCommand {
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
   declare confirmServerStopped: boolean;
 
-  async run() {
-    const result = await recoverOwner(this);
+  @inject()
+  async run(ownerRecovery: OwnerRecoveryService) {
+    const result = await ownerRecovery.recover(this);
     this.logger.log(JSON.stringify(result));
   }
 
