@@ -156,6 +156,12 @@ test.group('model writes store what encodeRow stores', (group) => {
           /A company scope is required for model writes/
         );
       }
+      const stored = await Client.create(rowAttributes(Client, data.clients[0]!), {
+        client: trx,
+      });
+      stored.companyId = ' ';
+      await assert.rejects(() => stored.delete(), /A company scope is required for model writes/);
+      assert.isNotNull(await trx.from('clients').where('id', stored.id).first());
     });
   });
 
