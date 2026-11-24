@@ -5,7 +5,8 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
 import { readState } from '#tests/helpers/state_fixture';
-import { deleteAllocations, deleteRows } from '#services/planning/restoration';
+import app from '@adonisjs/core/services/app';
+import { RestorationService } from '#services/planning/restoration_service';
 import {
   companyId,
   configureAuth,
@@ -27,6 +28,8 @@ import {
   planningAudit,
   consumedAt,
 } from '#tests/functional/planning/restoration_helpers';
+
+const restoration = await app.container.make(RestorationService);
 
 test.group('session-bound allocation restoration', (suite) => {
   suite.setup(() => freshDatabase());
@@ -321,7 +324,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const storedCount = data.allocations.length;
     const sessionId = await fixtureSession('u-bruce');
     const groupId = await db.transaction((trx) =>
-      deleteAllocations(trx, data, companyId, listed, {
+      restoration.deleteAllocations(trx, data, companyId, listed, {
         actorId: 'u-bruce',
         sessionId,
         mutationId: randomUUID(),
@@ -357,7 +360,7 @@ test.group('session-bound allocation restoration', (suite) => {
     await assert.rejects(
       () =>
         db.transaction((trx) =>
-          deleteAllocations(trx, data, companyId, listed, {
+          restoration.deleteAllocations(trx, data, companyId, listed, {
             actorId: 'u-bruce',
             sessionId,
             mutationId: randomUUID(),
@@ -382,7 +385,7 @@ test.group('session-bound allocation restoration', (suite) => {
     await assert.rejects(
       () =>
         db.transaction((trx) =>
-          deleteRows(trx, data, companyId, 'disciplines', [disciplineId], {
+          restoration.deleteRows(trx, data, companyId, 'disciplines', [disciplineId], {
             actorId: 'u-bruce',
             sessionId,
             mutationId: randomUUID(),

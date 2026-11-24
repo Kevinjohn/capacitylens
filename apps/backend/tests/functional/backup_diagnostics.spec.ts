@@ -8,8 +8,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
-import { rememberSchemaIntegrity } from '#services/schema_integrity';
 import type { ApiClient } from '@japa/api-client';
+import { SchemaIntegrityService } from '#services/schema_integrity_service';
+
+const schemaIntegrity = new SchemaIntegrityService();
 
 test.group('backup diagnostics', (group) => {
   group.setup(() => freshDatabase());
@@ -45,7 +47,7 @@ test.group('backup diagnostics', (group) => {
   });
 
   test('readiness issues one query per probe', async ({ client, assert }) => {
-    await rememberSchemaIntegrity();
+    await schemaIntegrity.rememberSchemaIntegrity();
     const queries: string[] = [];
     const record = (query: { sql: string }) => queries.push(query.sql);
     const knex = db.connection().getWriteClient();
@@ -73,7 +75,7 @@ test.group('backup diagnostics', (group) => {
     assert.isDefined(record);
     await db.from('adonis_schema').where('id', record!.id).delete();
     // Readiness reports what boot recorded; re-running the check stands in for a restart.
-    await assert.rejects(() => rememberSchemaIntegrity());
+    await assert.rejects(() => schemaIntegrity.rememberSchemaIntegrity());
     const errors: unknown[][] = [];
     const originalError = logger.error;
     logger.error = ((...args: unknown[]) => {
@@ -101,7 +103,7 @@ test.group('backup diagnostics', (group) => {
     } finally {
       logger.error = originalError;
       await db.table('adonis_schema').insert(record!);
-      await rememberSchemaIntegrity();
+      await schemaIntegrity.rememberSchemaIntegrity();
     }
     const healthy = await client.get('/health/ready');
     assert.equal(healthy.status(), 200);

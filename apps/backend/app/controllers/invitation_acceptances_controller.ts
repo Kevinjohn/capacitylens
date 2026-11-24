@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
@@ -7,11 +8,18 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
 import { emailInUseAnswer, invalidLinkAnswer } from '#exceptions/credential_answers';
-import { signInWithPassword } from '#services/auth/password_sign_in';
+import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { acceptInvitationSignUpValidator } from '#validators/invitations';
 
 /** Accepting an invitation by creating the invited identity. */
+@inject()
 export default class InvitationAcceptancesController {
+  #passwordSignIn: PasswordSignInService;
+
+  constructor(passwordSignIn: PasswordSignInService) {
+    this.#passwordSignIn = passwordSignIn;
+  }
+
   /**
    * Creates the invited identity with a password and signs it in. The Kit refuses an address that
    * already has an account; a repeated request after a lost response gets the invalid-link answer
@@ -47,7 +55,7 @@ export default class InvitationAcceptancesController {
     try {
       return response.created(
         await serialize({
-          user: await signInWithPassword(auth, logger, {
+          user: await this.#passwordSignIn.signInWithPassword(auth, logger, {
             email,
             password: body.password,
             clientAddress: request.ip(),

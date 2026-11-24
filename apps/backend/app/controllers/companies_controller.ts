@@ -1,15 +1,23 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import access from '#config/access_control';
-import { withActor } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { hasMultipleCompanies } from '#services/installation_company';
 import { buildAccessGrant } from '#services/auth/access_grant';
 import { isRole } from '@capacitylens/shared/account/types';
 import CompanySummaryTransformer from '#transformers/company_summary_transformer';
 
 /** Returns the companies this user may enter, or 409 while the installation has more than one. */
+@inject()
 export default class CompaniesController {
+  #currentActor: CurrentActorService;
+
+  constructor(currentActor: CurrentActorService) {
+    this.#currentActor = currentActor;
+  }
+
   async index({ auth, response, serialize }: HttpContext) {
-    const summaries = await withActor(auth, async (actor, trx) => {
+    const summaries = await this.#currentActor.withActor(auth, async (actor, trx) => {
       if (await hasMultipleCompanies(trx)) return null;
       const rows = await trx
         .from(`${access.config.membershipsTable} as member`)

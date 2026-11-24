@@ -1,10 +1,11 @@
+import { inject } from '@adonisjs/core';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import access from '#config/access_control';
-import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
+import { SchemaIntegrityService } from '#services/schema_integrity_service';
 
 const ineligible = 'Recovery requires a sole active Owner with a local password';
 
@@ -27,7 +28,14 @@ async function requireSoleOwnerCompanyIds(userId: string, trx: Pick<Trx, 'from'>
 }
 
 /** Stopped-server recovery for a sole Owner who cannot sign in. */
+@inject()
 export class OwnerRecoveryService {
+  #schemaIntegrity: SchemaIntegrityService;
+
+  constructor(schemaIntegrity: SchemaIntegrityService) {
+    this.#schemaIntegrity = schemaIntegrity;
+  }
+
   /**
    * Prints an Account Kit reset link for a sole Owner while the server is stopped. The audit entry
    * is written after issuance; if it fails no link is shown, and the unseen link simply expires.
@@ -37,7 +45,7 @@ export class OwnerRecoveryService {
     const email = normalizeAccountEmail(input.email);
     if (!isAccountEmail(email)) throw new Error('The target is not a valid account address');
     return withOperatorDatabase(db, async () => {
-      await assertSchemaIntegrity();
+      await this.#schemaIntegrity.assertSchemaIntegrity();
       const user = await db.from('users').where('email', email).select('id', 'password').first();
       if (!user?.password) throw new Error(ineligible);
       const userId = String(user.id);
