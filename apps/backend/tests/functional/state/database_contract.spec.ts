@@ -1,4 +1,5 @@
-import { readdirSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
@@ -207,6 +208,33 @@ test.group('database contract', (group) => {
       await assert.rejects(() => databaseHealth.checkDatabase(), unrecorded);
     } finally {
       await db.table('adonis_schema').insert(record!);
+    }
+  });
+
+  test('readiness refuses a database without its migration record', async ({ assert }) => {
+    await db.rawQuery('ALTER TABLE adonis_schema RENAME TO adonis_schema_moved');
+    try {
+      const missing = /Database schema drift: the migration record is missing/;
+      await assert.rejects(() => schemaIntegrity.assertSchemaIntegrity(), missing);
+      await assert.rejects(() => databaseHealth.checkDatabase(), missing);
+    } finally {
+      await db.rawQuery('ALTER TABLE adonis_schema_moved RENAME TO adonis_schema');
+    }
+  });
+
+  test('readiness refuses a build that ships no migrations', async ({ assert }) => {
+    const config = db.getRawConnection(db.primaryConnectionName)!.config;
+    const migrations = config.migrations;
+    const empty = mkdtempSync(join(tmpdir(), 'capacitylens-no-migrations-'));
+    config.migrations = { ...migrations, paths: [empty] };
+    try {
+      await assert.rejects(
+        () => schemaIntegrity.assertSchemaIntegrity(),
+        /Database schema drift: this build ships no migrations to compare/
+      );
+    } finally {
+      config.migrations = migrations;
+      rmSync(empty, { recursive: true, force: true });
     }
   });
 
