@@ -208,7 +208,8 @@ test.group('company anonymisation', (group) => {
     assert,
   }) => {
     const { cookie } = await resetAuthenticatedData(client, true);
-    const deletedAt = '2026-11-24T10:11:12.013Z';
+    // A soft-delete marker as the package stores it, in Lucid's date-time format.
+    const deletedAt = '2026-11-24 10:11:12';
     const noted = { note: 'Arkham visit', deleted_at: deletedAt };
     const allocation = await db.from('allocations').where('company_id', companyId).first();
     await db.from('allocations').where('id', allocation.id).update(noted);
