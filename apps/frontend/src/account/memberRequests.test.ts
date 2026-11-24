@@ -13,13 +13,10 @@ vi.mock('@/data/requestTimeout', () => ({
   createRequestSignal: mocks.requestSignal,
 }));
 
-import { clearStoredAccountOperations } from './accountOperations';
-import { hasUnknownAccountOperationOutcome } from './operationOutcome';
 import { invitationRequests } from './invitationRequests';
 import { invitationSignUpRequests } from './invitationSignUpRequests';
 import { masqueradeRequests } from '@/auth/masqueradeRequests';
 import { memberRequests } from './memberRequests';
-import { operation, expectOperation } from './accountOperationsTestKit';
 
 function requestInitAt(
   calls: ReadonlyArray<Parameters<typeof mocks.fetchApi>>,
@@ -32,56 +29,55 @@ function requestInitAt(
   return call[1];
 }
 
+// The server mints the operation identity for a request that carries none, so the browser sends none.
+function expectPlainRequest(init: RequestInit, method: string): void {
+  expect(init.method).toBe(method);
+  expect(init.credentials).toBe('include');
+  const headers = new Headers(init.headers);
+  expect(headers.has('idempotency-key')).toBe(false);
+  expect(headers.has('x-account-operation-id')).toBe(false);
+}
+
 describe('browser account api', () => {
   beforeEach(() => {
-    clearStoredAccountOperations();
     mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
-    sessionStorage.clear();
   });
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-  it('routes member-resource operations with operation headers and ambiguous conflict handling', async () => {
-    mocks.fetchApi.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
-    const link = await memberRequests.setMemberResourceLink(
-      {
-        companyId: 'company / one',
-        userId: 'person / one',
-        resourceId: 'resource / one',
-        expectedRevision: null,
-      },
-      operation,
-    );
+  it('routes member-resource operations without operation headers', async () => {
+    await memberRequests.setMemberResourceLink({
+      companyId: 'company / one',
+      userId: 'person / one',
+      resourceId: 'resource / one',
+      expectedRevision: null,
+    });
 
-    expect(hasUnknownAccountOperationOutcome(link)).toBe(true);
     const [linkUrl, linkInit] = mocks.fetchApi.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
       '/api/companies/company%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
-    expectOperation(linkInit, 'PUT');
+    expectPlainRequest(linkInit, 'PUT');
     expect(JSON.parse(String(linkInit.body))).toEqual({
       resourceId: 'resource / one',
       expectedRevision: null,
     });
 
-    await memberRequests.clearMemberResourceLink(
-      {
-        companyId: 'company / one',
-        userId: 'person / one',
-        expectedRevision: 'revision-1',
-      },
-      operation,
-    );
+    await memberRequests.clearMemberResourceLink({
+      companyId: 'company / one',
+      userId: 'person / one',
+      expectedRevision: 'revision-1',
+    });
     const [unlinkUrl, unlinkInit] = mocks.fetchApi.mock.calls[1] as unknown as [
       string,
       RequestInit,
     ];
     expect(unlinkUrl).toBe(linkUrl);
-    expectOperation(unlinkInit, 'DELETE');
+    expectPlainRequest(unlinkInit, 'DELETE');
     expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: 'revision-1' });
   });
   it('owns member, invitation preview, and sign-up routes', async () => {
@@ -129,20 +125,60 @@ describe('browser account api', () => {
       body: JSON.stringify({ name: 'New user', password: 'example-password' }),
     });
   });
-  it('sends one operation and bound proof to the typed ownership route', async () => {
+  it('sends the bound proof to the typed ownership route', async () => {
     await memberRequests.transferOwnership({
       companyId: 'company / one',
       targetUserId: 'person / one',
       confirmationId: 'proof-1',
-      operation,
     });
 
     const [url, init] = mocks.fetchApi.mock.calls[0] ?? [];
     expect(url).toBe('/api/companies/company%20%2F%20one/ownership-transfer');
-    expectOperation(init as RequestInit, 'POST');
+    expectPlainRequest(init as RequestInit, 'POST');
+    expect(new Headers(init?.headers).get('content-type')).toBe('application/json');
     expect(JSON.parse(String(init?.body))).toEqual({
       toUserId: 'person / one',
       confirmationId: 'proof-1',
+    });
+  });
+  it('routes role, status, invitation and revocation writes with safe path encoding', async () => {
+    await memberRequests.changeMemberRole({
+      companyId: 'company / one',
+      userId: 'person / one',
+      role: 'editor',
+    });
+    await memberRequests.changeMemberStatus({
+      companyId: 'company / one',
+      userId: 'person / one',
+      status: 'suspended',
+    });
+    await invitationRequests.createInvitation({
+      companyId: 'company / one',
+      role: 'viewer',
+      email: 'selina@wayne.test',
+    });
+    await invitationRequests.revokeInvitation('company / one', 'invite / one');
+
+    expect(mocks.fetchApi.mock.calls.map((call) => String(call[0]))).toEqual([
+      '/api/companies/company%20%2F%20one/members/person%20%2F%20one',
+      '/api/companies/company%20%2F%20one/members/person%20%2F%20one/status',
+      '/api/invitations',
+      '/api/companies/company%20%2F%20one/invitations/invite%20%2F%20one',
+    ]);
+    const methods = ['PATCH', 'PATCH', 'POST', 'DELETE'];
+    methods.forEach((method, index) =>
+      expectPlainRequest(requestInitAt(mocks.fetchApi.mock.calls, index), method),
+    );
+    expect(requestInitAt(mocks.fetchApi.mock.calls, 0).body).toBe(
+      JSON.stringify({ role: 'editor' }),
+    );
+    expect(requestInitAt(mocks.fetchApi.mock.calls, 1).body).toBe(
+      JSON.stringify({ status: 'suspended' }),
+    );
+    expect(JSON.parse(String(requestInitAt(mocks.fetchApi.mock.calls, 2).body))).toEqual({
+      companyId: 'company / one',
+      role: 'viewer',
+      email: 'selina@wayne.test',
     });
   });
 });

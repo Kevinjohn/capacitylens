@@ -42,7 +42,7 @@ flowchart TD
   card -->|Choose another active Admin| dialog["PasswordConfirmationDialog requests transfer-ownership proof bound to toUserId"]
   dialog -->|Cancel| card
   dialog -->|Proof refused| inlineError["Show proof error"]
-  dialog -->|Confirmed| request["useOwnershipTransfer submits the target, proof and account-operation headers"]
+  dialog -->|Confirmed| request["useOwnershipTransfer submits the target and proof"]
   request --> guard["OwnershipTransfersController uses withActor(auth); transferOwnership calls runAccountOperation"]
   guard -->|Matching replay by current active former Owner| receipt["Return stored receipt without spending proof again"]
   guard -->|New operation| checks["Check live Owner, eligible active Admin and one-Owner invariant before consuming proof"]

@@ -88,10 +88,15 @@ export const teamAccessApi = {
     resourceId: string;
     expectedRevision: string | null;
   }) {
-    return readOperationResult(await memberRequests.setMemberResourceLink(input), (body) =>
-      isRecord(body) && typeof body.resourceId === 'string' && typeof body.revision === 'string'
-        ? { resourceId: body.resourceId, revision: body.revision }
-        : null,
+    // Any 409 to a link change is an unknown outcome, so the screen re-reads the link.
+    return readOperationResult(
+      await memberRequests.setMemberResourceLink(input),
+      (body) =>
+        isRecord(body) && typeof body.resourceId === 'string' && typeof body.revision === 'string'
+          ? { resourceId: body.resourceId, revision: body.revision }
+          : null,
+      undefined,
+      409,
     );
   },
 
@@ -100,6 +105,7 @@ export const teamAccessApi = {
       await memberRequests.clearMemberResourceLink({ companyId, userId, expectedRevision }),
       acceptNoContent,
       204,
+      409,
     );
   },
 

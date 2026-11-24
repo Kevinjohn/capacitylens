@@ -1,5 +1,5 @@
 import { isIsoInstant } from '@capacitylens/shared/account/types';
-import { operationOutcomeDecisions, readUnknownAccountOperationOutcome } from './operationOutcome';
+import { readUnknownAccountOperationOutcome } from './operationOutcome';
 import { extractApiErrorMessage, readApiError } from '@/lib/readApiError';
 import { readApiData } from '@/api/readApiData';
 
@@ -43,18 +43,22 @@ async function parseOkBody<T>(
     : { kind: 'ok', status: response.status, value };
 }
 
-/** Decodes a operation response and distinguishes a refusal from an unknown outcome. */
+/**
+ * Decodes a operation response and distinguishes a refusal from an unknown outcome. A response with
+ * `ambiguousStatus` is always an unknown outcome, whatever its body says.
+ */
 export async function readOperationResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
   expectedStatus?: number,
+  ambiguousStatus?: number,
 ): Promise<TeamAccessResult<T>> {
   if (!response.ok) {
     const clonedMessage = await readApiError(response);
     const body: unknown = await response.json().catch(() => null);
     const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
     const unknown =
-      operationOutcomeDecisions.get(response) ??
+      response.status === ambiguousStatus ||
       (await readUnknownAccountOperationOutcome(response, body));
     return unknown
       ? { kind: 'unknown', status: response.status, message }
