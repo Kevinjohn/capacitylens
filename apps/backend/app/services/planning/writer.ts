@@ -3,9 +3,11 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, AppDataKey, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { cleanText } from '@capacitylens/shared/lib/strings';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
-import { encodeRow } from '#services/state_repository';
+import type { LucidModel, LucidRow } from '@adonisjs/lucid/types/model';
+import Company from '#models/company';
+import { productModels } from '#models_support/product_models';
+import { rowAttributes } from '#models_support/row_attributes';
 import { assertFrozenCompanyFields } from '#services/planning/entity_rules';
-import { tables } from '#services/product_tables';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateRow } from '#validators/planning/row';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
@@ -45,13 +47,31 @@ export function requireExistingRow<K extends AppDataKey>(
 }
 
 /**
+ * The model row for a product row the company snapshot holds, bound to the caller's transaction.
+ * The snapshot was read in this transaction and follows each write, so it is the stored row, and
+ * `merge(...).save()` writes the changed columns without reading the row again.
+ */
+export function snapshotRow(
+  model: LucidModel,
+  row: object,
+  trx: TransactionClientContract
+): LucidRow {
+  const stored = new model();
+  stored.fill(rowAttributes(model, row));
+  // What Lucid does for a fetched row: these attributes are the stored state, not a new row.
+  stored.$hydrateOriginals();
+  stored.$isPersisted = true;
+  stored.$isLocal = false;
+  return stored.useTransaction(trx);
+}
+
+/**
  * Persists one prepared row in the caller's transaction and applies it to the unprojected company
  * snapshot, so later compound entries validate against it. `writeEntity` prepares the row.
  */
 export async function writeRow<K extends ScopedEntityKey>({
   trx,
   data,
-  companyId,
   table,
   row,
   existing,
@@ -59,22 +79,19 @@ export async function writeRow<K extends ScopedEntityKey>({
 }: {
   trx: TransactionClientContract;
   data: AppData;
-  companyId: string;
   table: K;
   row: AppData[K][number];
   existing: AppData[K][number] | undefined;
   written: WrittenRow[];
 }): Promise<AppData[K][number]> {
+  const model: LucidModel = productModels[table];
   if (existing) {
-    await trx
-      .from(tables[table])
-      .where({ id: row.id, company_id: companyId })
-      .update(encodeRow(tables[table], asRecord(row)));
+    await snapshotRow(model, existing, trx).merge(rowAttributes(model, row)).save();
     const before = { ...existing };
     Object.assign(existing, row);
     written.push({ entity: table, id: existing.id, before, after: { ...existing } });
   } else {
-    await trx.table(tables[table]).insert(encodeRow(tables[table], asRecord(row)));
+    await model.create(rowAttributes(model, row), { client: trx });
     const rows: AppData[K][number][] = data[table];
     rows.push(row);
     written.push({ entity: table, id: row.id, before: null, after: { ...row } });
@@ -115,10 +132,7 @@ export async function updateSettings(
   validated.name = cleanText(validated.name);
   // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
   fillNullableFields('companies', validated);
-  await trx
-    .from('companies')
-    .where('id', companyId)
-    .update(encodeRow('companies', asRecord(validated)));
+  await snapshotRow(Company, existing, trx).merge(rowAttributes(Company, validated)).save();
   const before = { ...existing };
   Object.assign(existing, validated);
   written.push({ entity: 'companies', id: companyId, before, after: { ...existing } });

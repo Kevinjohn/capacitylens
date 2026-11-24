@@ -14,11 +14,17 @@ import { reconcileReassignedHours } from '@capacitylens/shared/domain/placement'
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { encodeRow } from '#services/state_repository';
-import { tables } from '#services/product_tables';
+import Allocation from '#models/allocation';
+import { productModels } from '#models_support/product_models';
+import { rowAttributes } from '#models_support/row_attributes';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import { requireExistingRow, updateSettings, type WrittenRow } from '#services/planning/writer';
+import {
+  requireExistingRow,
+  snapshotRow,
+  updateSettings,
+  type WrittenRow,
+} from '#services/planning/writer';
 import { writeEntity } from '#services/planning/entity_write';
 import {
   buildAllocationOccurrences,
@@ -58,7 +64,6 @@ function resolveSeriesFrom(data: AppData, id: string): string[] {
 async function transitionLifecycle(
   trx: TransactionClientContract,
   data: AppData,
-  companyId: string,
   table: LifecycleTable,
   id: string,
   action: 'archive' | 'restore',
@@ -92,10 +97,8 @@ async function transitionLifecycle(
       updatedAt: now,
     };
   }
-  await trx
-    .from(tables[table])
-    .where({ id, company_id: companyId })
-    .update(encodeRow(tables[table], next));
+  const model = productModels[table];
+  await snapshotRow(model, current, trx).merge(rowAttributes(model, next)).save();
   const before = { ...current, id };
   Object.assign(current, next);
   written.push({ entity: table, id, before, after: { ...current, id } });
@@ -276,10 +279,11 @@ async function applyIntent(
             for (const allocation of data.allocations) {
               if (allocation.activityId !== entity.id || allocation.projectId === null) continue;
               const updatedAt = createServerRevision(allocation.updatedAt);
-              await trx
-                .from('allocations')
-                .where({ id: allocation.id, company_id: companyId })
-                .update({ project_id: null, updated_at: updatedAt });
+              // A builder update skips column prepare, so updatedAt goes in as its stored ISO string.
+              await Allocation.query({ client: trx })
+                .withScopes((scopes) => scopes.forCompany(companyId))
+                .where('id', allocation.id)
+                .update({ projectId: null, updatedAt });
               const before = { ...allocation };
               Object.assign(allocation, { projectId: null, updatedAt });
               written.push({
@@ -298,7 +302,6 @@ async function applyIntent(
         await transitionLifecycle(
           trx,
           data,
-          companyId,
           intent.entity.entity,
           intent.entity.id,
           intent.operation === 'catalogue.archive' ? 'archive' : 'restore',
@@ -332,7 +335,6 @@ async function applyIntent(
         await transitionLifecycle(
           trx,
           data,
-          companyId,
           'resources',
           intent.id,
           intent.operation === 'resource.archive' ? 'archive' : 'restore',

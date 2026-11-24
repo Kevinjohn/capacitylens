@@ -203,6 +203,41 @@ test.group('company anonymisation', (group) => {
     assert.equal(await db.transaction((trx) => getPlanningRevision(trx, companyId)), before + 1);
   });
 
+  test('resource anonymisation also scrubs the notes of soft-deleted rows outside any group', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await resetAuthenticatedData(client, true);
+    const deletedAt = '2026-11-24T10:11:12.013Z';
+    const noted = { note: 'Arkham visit', deleted_at: deletedAt };
+    const allocation = await db.from('allocations').where('company_id', companyId).first();
+    await db.from('allocations').where('id', allocation.id).update(noted);
+    const timeOff = await db
+      .from('time_off')
+      .where({ company_id: companyId, resource_id: allocation.resource_id })
+      .first();
+    assert.isDefined(timeOff);
+    await db.from('time_off').where('id', timeOff.id).update(noted);
+    const changed = await asDataOwner(
+      client.visit('api.resource_anonymisations.store', {
+        companyId,
+        id: allocation.resource_id,
+      }),
+      cookie
+    )
+      .json({})
+      .send();
+    changed.assertStatus(204);
+    for (const [table, id] of [
+      ['allocations', allocation.id],
+      ['time_off', timeOff.id],
+    ]) {
+      const row = await db.from(table).where('id', id).first();
+      assert.equal(row.deleted_at, deletedAt, table);
+      assert.isNull(row.note, table);
+    }
+  });
+
   test('an Editor cannot anonymise an individual resource', async ({ client, assert }) => {
     const { cookie, userId } = await resetAuthenticatedData(client, true);
     const target = await db.from('resources').where('company_id', companyId).first();
