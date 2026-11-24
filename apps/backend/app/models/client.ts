@@ -1,14 +1,22 @@
 import { ClientSchema } from '#database/schema';
-import { beforeFetch, beforeFind, column, hasMany } from '@adonisjs/lucid/orm';
+import {
+  beforeDelete,
+  beforeFetch,
+  beforeFind,
+  beforeSave,
+  column,
+  hasMany,
+} from '@adonisjs/lucid/orm';
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import { booleanColumn, timestampColumn } from '#models_support/scalar_column';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import { forCompany, requireCompanyScope, requireRowCompany } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import Project from '#models/project';
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
 export default class Client extends ClientSchema {
   static forCompany = forCompany;
+  static selfAssignPrimaryKey = true;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Client>) {
     requireCompanyScope(query);
@@ -16,6 +24,11 @@ export default class Client extends ClientSchema {
   @beforeFetch()
   static requireFetchScope(query: ModelQueryBuilderContract<typeof Client>) {
     requireCompanyScope(query);
+  }
+  @beforeSave()
+  @beforeDelete()
+  static requireWriteScope(row: Client) {
+    requireRowCompany(row);
   }
   @hasMany(() => Project, { foreignKey: 'clientId' }) declare projects: HasMany<typeof Project>;
   @column(booleanColumn('clients', 'is_private'))

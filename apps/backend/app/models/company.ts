@@ -8,6 +8,8 @@ import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scala
 
 export default class Company extends CompanySchema {
   static table = 'companies';
+  // Product ids are UUIDs; without this Lucid replaces the id with SQLite's row id after insert.
+  static selfAssignPrimaryKey = true;
 
   @column(jsonColumn('companies', 'week_starts_on', isOneOf([0, 1] as const)))
   declare weekStartsOn: 0 | 1 | null;
