@@ -38,7 +38,6 @@ esac
       encoding: 'utf8',
       env: {
         ...process.env,
-        FIRST_PUBLICATION: '',
         PATH: `${bin}:${process.env.PATH}`,
         PUBLISHED_IMAGE_STATE_RETRY_SECONDS: '0',
         ...env,
@@ -55,7 +54,8 @@ test('a published image is present', () => {
   assert.equal(result.status, 0);
 });
 
-for (const stderr of ['manifest unknown', 'No such manifest: x', 'name unknown']) {
+// A package that was never published answers `denied`, so the first tag push can publish.
+for (const stderr of ['manifest unknown', 'No such manifest: x', 'name unknown', 'denied']) {
   test(`a registry answer of "${stderr}" means the image is absent`, () => {
     const result = run([{ stderr, status: 1 }]);
     assert.equal(result.stdout, 'absent\n');
@@ -63,17 +63,11 @@ for (const stderr of ['manifest unknown', 'No such manifest: x', 'name unknown']
   });
 }
 
-test('a denied answer stops the job outside the first publication', () => {
-  const result = run([{ stderr: 'denied', status: 1 }]);
+test('an unexplained registry error stops the job after one retry', () => {
+  const result = run([{ stderr: 'unauthorized', status: 1 }]);
   assert.equal(result.status, 1);
   assert.equal(result.stdout, '');
   assert.match(result.stderr, /::error::Could not tell/);
-});
-
-test('a denied answer means absent for the first publication', () => {
-  const result = run([{ stderr: 'denied', status: 1 }], { FIRST_PUBLICATION: 'true' });
-  assert.equal(result.stdout, 'absent\n');
-  assert.equal(result.status, 0);
 });
 
 test('a passing registry error is retried once', () => {
