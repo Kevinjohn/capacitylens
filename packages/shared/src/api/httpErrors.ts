@@ -68,7 +68,7 @@ export type ProductHttpErrorBody =
     };
 
 /**
- * A product validation refusal (a domain rule or a database constraint) answers 400. A route's
+ * A product validation refusal (a domain rule) answers 400. A route's
  * request validation takes the framework's 422 `{ errors }` answer instead.
  */
 export interface ProductValidationFailure {
