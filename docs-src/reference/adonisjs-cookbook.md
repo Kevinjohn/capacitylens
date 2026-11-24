@@ -1216,7 +1216,7 @@ export class BackupLockedException extends Exception {
   static status = 500
 
   constructor(directory: string, options?: ErrorOptions) {
-    super(`backup directory ${directory} is locked`, options)
+    super(`backup directory ${directory} is locked`, { cause: options?.cause })
   }
 }
 
@@ -1224,6 +1224,10 @@ export class BackupDisabledException extends Exception {
   static code = 'E_BACKUP_DISABLED'
   static status = 500
   static message = 'backups are disabled'
+
+  constructor() {
+    super()
+  }
 }
 
 export const E_BACKUP_LOCKED = BackupLockedException
