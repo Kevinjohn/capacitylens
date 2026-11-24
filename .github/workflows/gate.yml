@@ -214,11 +214,16 @@ jobs:
           fail_ci_if_error: false
 
   backend:
-    name: Backend
+    name: Backend ${{ matrix.suite }}
     needs: build
     if: ${{ !inputs.tree_validated }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # One runner per suite in apps/backend/adonisrc.ts; together they are the whole backend suite.
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [unit, functional]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -229,4 +234,5 @@ jobs:
           name: application-public-${{ github.run_id }}-${{ github.run_attempt }}
           path: apps/backend/public/
       - run: pnpm run policy:node-runtime:test
-      - run: pnpm --dir apps/backend test
+        if: matrix.suite == 'unit'
+      - run: pnpm --dir apps/backend test ${{ matrix.suite }}
