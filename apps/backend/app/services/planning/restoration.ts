@@ -135,7 +135,6 @@ export async function deleteRows(
     // Only live rows load, so a row already deleted or missing refuses the whole deletion.
     const live = await buildRetainedQuery(trx, companyId, table).whereIn('id', selected);
     if (live.length !== selected.length) refuseRestorationConflict();
-    if (live.some((row) => row.deletionGroupId !== null)) refuseRestorationConflict();
     // Marks each row deleted in its group in one statement; their entries are recorded below.
     for (const row of live) {
       row.deletionGroupId = groupId;
