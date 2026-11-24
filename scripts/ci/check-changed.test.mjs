@@ -46,7 +46,7 @@ test('a backend spec-only change runs each spec through its own --files flag', (
 
 test('backend source or shared package changes run the full backend suite', () => {
   for (const path of [
-    'apps/backend/app/services/planning.ts',
+    'apps/backend/app/services/planning_service.ts',
     'packages/shared/src/domain/errors.ts',
   ]) {
     const steps = planChecks([path, 'apps/backend/tests/unit/b.spec.ts'], everything);
@@ -259,7 +259,7 @@ test('--static runs changed test files on their own and skips every whole suite'
   const steps = planChecks(
     [
       'pnpm-lock.yaml',
-      'apps/backend/app/services/planning.ts',
+      'apps/backend/app/services/planning_service.ts',
       'apps/backend/tests/unit/b.spec.ts',
       'apps/frontend/src/App.test.tsx',
       'packages/shared/src/lib/color.test.ts',
@@ -304,7 +304,7 @@ test("--static skips the related-test lookup for source but not the source's lin
 test("backend tests build the application first when its output is missing, with CI's build environment", () => {
   const missingBuild = (path) => path !== 'apps/backend/public/assets';
   for (const [paths, options] of [
-    [['apps/backend/app/services/planning.ts'], {}],
+    [['apps/backend/app/services/planning_service.ts'], {}],
     [['apps/backend/tests/unit/b.spec.ts'], staticOnly],
   ]) {
     const steps = planChecks(paths, missingBuild, noImporters, options);
@@ -713,11 +713,11 @@ test('a documentation-only change formats, runs the documentation policy spec an
 test('a backend source change runs the specs that import it, with the reason and a build', () => {
   const missingBuild = (path) => path !== 'apps/backend/public/assets';
   const importers = (path) =>
-    path === 'apps/backend/app/services/planning/execute.ts'
+    path === 'apps/backend/app/services/planning/planning_execution_service.ts'
       ? ['apps/backend/tests/unit/planning/execute.spec.ts']
       : [];
   const steps = planChecks(
-    ['apps/backend/app/services/planning/execute.ts', 'apps/backend/README.md'],
+    ['apps/backend/app/services/planning/planning_execution_service.ts', 'apps/backend/README.md'],
     missingBuild,
     noImporters,
     { backendImporters: importers },
@@ -726,12 +726,12 @@ test('a backend source change runs the specs that import it, with the reason and
   assert.deepEqual(specs.args.slice(-2), ['--files', 'tests/unit/planning/execute.spec.ts']);
   assert.match(
     specs.reason,
-    /unit\/planning\/execute\.spec\.ts: imports apps\/backend\/app\/services\/planning\/execute\.ts/,
+    /unit\/planning\/execute\.spec\.ts: imports apps\/backend\/app\/services\/planning\/planning_execution_service\.ts/,
   );
   assert.equal(step(steps, 'test: backend suite'), undefined);
   assert.ok(step(steps, 'prepare: build application'));
   const quick = planChecks(
-    ['apps/backend/app/services/planning/execute.ts'],
+    ['apps/backend/app/services/planning/planning_execution_service.ts'],
     everything,
     noImporters,
     {
@@ -745,14 +745,14 @@ test('a backend source change runs the specs that import it, with the reason and
 test('permissions, schema, configuration, test infrastructure and unmapped backend changes run the whole backend suite', () => {
   const importedByEverything = () => ['apps/backend/tests/unit/a.spec.ts'];
   for (const path of [
-    'apps/backend/app/services/auth/authorization.ts',
+    'apps/backend/app/services/auth/authorization_service.ts',
     'apps/backend/app/services/account_kit/admission_rule_service.ts',
-    'apps/backend/app/services/membership/member_directory.ts',
+    'apps/backend/app/services/membership/member_directory_service.ts',
     'apps/backend/app/services/planning/access_grant.ts',
     'apps/backend/app/services/planning/entity_rules.ts',
     'apps/backend/app/middleware/company_scope_middleware.ts',
     'apps/backend/app/models_support/scoped_model.ts',
-    'apps/backend/app/services/state_repository.ts',
+    'apps/backend/app/services/state_repository_service.ts',
     'apps/backend/database/migrations/0001_baseline.ts',
     'apps/backend/start/routes.ts',
     'apps/backend/config/admission.ts',
@@ -767,14 +767,19 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
     assert.match(suite.reason, /permission, schema, configuration or test infrastructure/, path);
   }
   const viaHelper = step(
-    planChecks(['apps/backend/app/services/planning_revision.ts'], everything, noImporters, {
-      backendImporters: () => null,
-    }),
+    planChecks(
+      ['apps/backend/app/services/planning_revision_service.ts'],
+      everything,
+      noImporters,
+      {
+        backendImporters: () => null,
+      },
+    ),
     'test: backend suite',
   );
   assert.match(
     viaHelper.reason,
-    /a shared backend test helper imports apps\/backend\/app\/services\/planning_revision\.ts/,
+    /a shared backend test helper imports apps\/backend\/app\/services\/planning_revision_service\.ts/,
   );
   const unmapped = step(
     planChecks(
@@ -807,7 +812,7 @@ test('every step that runs a command says why it was selected', () => {
       'README.md',
       'eslint.config.js',
       'apps/frontend/src/App.tsx',
-      'apps/backend/app/services/planning/execute.ts',
+      'apps/backend/app/services/planning/planning_execution_service.ts',
       'scripts/dev/lanes.mjs',
       'docs-src/index.md',
     ],
@@ -821,7 +826,10 @@ test('every step that runs a command says why it was selected', () => {
 
 test('main validation skips tooling checks only for application source, tests and prose', () => {
   for (const paths of [
-    ['apps/backend/app/services/planning/execute.ts', 'apps/backend/tests/unit/a.spec.ts'],
+    [
+      'apps/backend/app/services/planning/planning_execution_service.ts',
+      'apps/backend/tests/unit/a.spec.ts',
+    ],
     ['apps/frontend/src/App.tsx', 'apps/frontend/messages/en.json', 'packages/shared/src/a.ts'],
     ['README.md', 'user-stories/a.md', 'apps/backend/database/migrations/a.ts'],
   ])
@@ -847,12 +855,18 @@ test('main validation skips tooling checks only for application source, tests an
 
 test('backend specs are mapped by import, and a module a shared test helper imports is unmapped', () => {
   const sources = [
-    ['apps/backend/tests/unit/a.spec.ts', "import { run } from '#services/planning/execute';"],
+    [
+      'apps/backend/tests/unit/a.spec.ts',
+      "import { run } from '#services/planning/planning_execution_service';",
+    ],
     ['apps/backend/tests/unit/b.spec.ts', "import { other } from '#services/other';"],
     ['apps/backend/tests/helpers/fixture.ts', "import { read } from '#services/shared_read';"],
   ];
   assert.deepEqual(
-    backendSpecsImportingFrom('apps/backend/app/services/planning/execute.ts', sources),
+    backendSpecsImportingFrom(
+      'apps/backend/app/services/planning/planning_execution_service.ts',
+      sources,
+    ),
     ['apps/backend/tests/unit/a.spec.ts'],
   );
   assert.equal(

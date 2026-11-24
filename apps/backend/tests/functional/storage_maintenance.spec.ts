@@ -4,9 +4,10 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   REQUEST_RECEIPT_RETENTION_MS,
-  createMaintenance,
-  pruneRequestReceipts,
-} from '#services/storage_maintenance';
+  StorageMaintenanceService,
+} from '#services/storage_maintenance_service';
+
+const storageMaintenance = new StorageMaintenanceService();
 
 test.group('storage maintenance', (group) => {
   group.setup(() => freshDatabase());
@@ -40,7 +41,7 @@ test.group('storage maintenance', (group) => {
         receipt('completed-at-window', 'completed', atWindow),
       ]);
 
-    assert.equal(await pruneRequestReceipts(now), 1);
+    assert.equal(await storageMaintenance.pruneRequestReceipts(now), 1);
 
     const kept = await db.from('request_receipts').orderBy('id').select('id');
     assert.deepEqual(
@@ -55,7 +56,7 @@ test.group('maintenance passes', () => {
     const ran: string[] = [];
     const reported: [string, unknown][] = [];
     const failure = new Error('prune refused');
-    const maintenance = createMaintenance(
+    const maintenance = storageMaintenance.createMaintenance(
       [
         ['first', () => Promise.reject(failure)],
         ['second', async () => void ran.push('second')],
@@ -71,7 +72,7 @@ test.group('maintenance passes', () => {
     const ran: string[] = [];
     let release!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
-    const maintenance = createMaintenance(
+    const maintenance = storageMaintenance.createMaintenance(
       [
         [
           'first',

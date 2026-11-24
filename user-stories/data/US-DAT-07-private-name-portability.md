@@ -6,7 +6,7 @@ As an Owner, I want private names preserved safely in export and import so that 
 **Access:** Owner for import; role-tiered export
 **Entry:** Settings → Data and support → Import and export
 **Documentation:** [Settings](../../docs-src/using/settings.md#import-and-export)
-**Source:** [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Source:** [company_import_service.ts](../../apps/backend/app/services/company_import_service.ts)
 
 ## Acceptance criteria
 
@@ -42,4 +42,4 @@ flowchart TD
 
 See [Confirm the exact import operation](US-DAT-08-preview-exact-import.md#code-flow) for the apply proof and outcomes.
 
-**Code references:** [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts#L19) · [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L21) · [privateNames.ts](../../packages/shared/src/domain/privateNames.ts#L64) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L104) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L161) · [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts#L17) · [company_export.spec.ts](../../apps/backend/tests/functional/company_export.spec.ts#L71) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L410)
+**Code references:** [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts#L35) · [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L21) · [privateNames.ts](../../packages/shared/src/domain/privateNames.ts#L64) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L104) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L161) · [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts#L30) · [company_export.spec.ts](../../apps/backend/tests/functional/company_export.spec.ts#L71) · [import_apply.spec.ts](../../apps/backend/tests/functional/import_apply.spec.ts#L410)

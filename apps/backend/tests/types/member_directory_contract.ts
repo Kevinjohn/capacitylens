@@ -1,4 +1,4 @@
-import type { MemberDirectoryEntry } from '#services/membership/member_directory';
+import type { MemberDirectoryEntry } from '#services/membership/member_directory_service';
 
 const validMember: MemberDirectoryEntry = {
   userId: 'user-clark',

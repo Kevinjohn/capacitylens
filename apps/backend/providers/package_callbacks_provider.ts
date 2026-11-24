@@ -54,14 +54,19 @@ export default class PackageCallbacksProvider {
       return { approvalAuthorize: admissionRules.admissionAuthorize };
     });
     masqueradeCallbacks.register(async () => {
-      const { nativeAdapter, masqueradePolicy } =
-        await import('#services/auth/masquerade_authority');
-      return { native: nativeAdapter, policy: masqueradePolicy };
+      const { MasqueradeAuthorityService, nativeAdapter } =
+        await import('#services/auth/masquerade_authority_service');
+      const masqueradeAuthority = await container.make(MasqueradeAuthorityService);
+      return { native: nativeAdapter, policy: masqueradeAuthority.masqueradePolicy };
     });
     passwordConfirmationCallbacks.register(async () => {
-      const { authorizePasswordConfirmation } =
-        await import('#services/auth/password_confirmation');
-      return { authorize: authorizePasswordConfirmation };
+      const { PasswordConfirmationService } =
+        await import('#services/auth/password_confirmation_service');
+      const passwordConfirmations = await container.make(PasswordConfirmationService);
+      return {
+        authorize: (context, request) =>
+          passwordConfirmations.authorizePasswordConfirmation(context, request),
+      };
     });
   }
 }

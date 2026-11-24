@@ -1,17 +1,19 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
-import { getPlanningRevision } from '#services/planning_revision';
 import { readState } from '#tests/helpers/state_fixture';
 import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { createIdentity, fixturePassword, signIn } from '#tests/helpers/identities';
 import { asExportFile } from '#tests/helpers/export_file';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+
+const planningRevisions = new PlanningRevisionService();
 
 const companyId = 'a-studio';
 
 async function revision() {
-  return db.transaction((trx) => getPlanningRevision(trx, companyId));
+  return db.transaction((trx) => planningRevisions.getPlanningRevision(trx, companyId));
 }
 
 test.group('password confirmation bindings', (group) => {

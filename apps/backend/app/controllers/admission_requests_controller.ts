@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { readCurrentAccount } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { admissionQueryValidator } from '#validators/admission_query';
 
 /**
@@ -10,10 +10,12 @@ import { admissionQueryValidator } from '#validators/admission_query';
  */
 @inject()
 export default class AdmissionRequestsController {
+  #currentActor: CurrentActorService;
   #admission: AccountAdmission;
 
-  constructor(admission: AccountAdmission) {
+  constructor(admission: AccountAdmission, currentActor: CurrentActorService) {
     this.#admission = admission;
+    this.#currentActor = currentActor;
   }
 
   async store({ auth, serialize }: HttpContext) {
@@ -24,7 +26,7 @@ export default class AdmissionRequestsController {
   async index({ auth, request, serialize }: HttpContext) {
     const query = await request.validateUsing(admissionQueryValidator, { data: request.qs() });
     const { status, cursor } = query;
-    const actor = await readCurrentAccount(auth);
+    const actor = await this.#currentActor.readCurrentAccount(auth);
     const page = await this.#admission.list({ actorId: actor.id, status, cursor, limit: 100 });
     return serialize(page);
   }

@@ -1,8 +1,8 @@
+import { inject } from '@adonisjs/core';
 import { closeSync, existsSync, lstatSync, mkdtempSync, openSync, renameSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import app from '@adonisjs/core/services/app';
-import { assertSchemaIntegrity } from '#services/schema_integrity';
 import db from '@adonisjs/lucid/services/db';
 import {
   createBundle,
@@ -10,6 +10,7 @@ import {
   syncPath,
   withOperatorDatabase,
 } from '@kevinjohn/adonisjs-sqlite-backup';
+import { SchemaIntegrityService } from '#services/schema_integrity_service';
 
 function hasDestinationEntry(path: string) {
   try {
@@ -22,7 +23,14 @@ function hasDestinationEntry(path: string) {
 }
 
 /** Replaces a stopped disposable installation with a new database, keeping the old one. */
+@inject()
 export class InstallationResetService {
+  #schemaIntegrity: SchemaIntegrityService;
+
+  constructor(schemaIntegrity: SchemaIntegrityService) {
+    this.#schemaIntegrity = schemaIntegrity;
+  }
+
   /** Back up and archive a stopped installation, then create its replacement at a new path. */
   async reset(input: {
     newDatabasePath: string;
@@ -62,7 +70,7 @@ export class InstallationResetService {
     let stage = 'source validation';
     try {
       await withOperatorDatabase(db, async (connection) => {
-        await assertSchemaIntegrity();
+        await this.#schemaIntegrity.assertSchemaIntegrity();
         // wx reserves the destination against concurrent operators; an unsuccessful reset leaves it visible.
         closeSync(openSync(databasePath, 'wx', 0o600));
         progress.destinationReserved = true;
