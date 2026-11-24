@@ -1,10 +1,10 @@
-import { Exception } from '@adonisjs/core/exceptions';
+import { ProductException } from '#exceptions/product_exception';
 import type { PlanningMutationErrorCode } from '#validators/planning/contracts';
 
 /**
  * `ACCOUNT_MEMBERSHIP_LOST` is behaviour, not wording: it tells the browser to drop its planning
- * projection, so one sentence and one code answer every lost company membership. The central
- * mapper knows no route; the code is raised here, where the membership is found to be gone.
+ * projection, so one sentence and one code answer every lost company membership. The code is raised
+ * here, where the membership is found to be gone.
  */
 export function membershipUnavailable() {
   return new PlanningOperationException(
@@ -15,7 +15,7 @@ export function membershipUnavailable() {
 }
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
-export class PlanningOperationException extends Exception {
+export class PlanningOperationException extends ProductException {
   declare readonly code?: PlanningMutationErrorCode;
 
   constructor(status: number, code: PlanningMutationErrorCode | null, message: string) {

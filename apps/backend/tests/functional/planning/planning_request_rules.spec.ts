@@ -14,6 +14,9 @@ import {
 } from '#tests/functional/planning/helpers';
 
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+/** The framework's validation answer: one entry per refused field. */
+const validationErrors = (response: { body(): unknown }) =>
+  (response.body() as { errors?: Array<{ message: string }> }).errors;
 const body = (response: { body(): unknown; status(): number }) =>
   (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
     code: string;
@@ -141,8 +144,8 @@ test.group('planning request rule boundaries', (group) => {
           })
         )
         .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(422);
+      assert.isNotEmpty(validationErrors(refused));
     }
 
     assert.deepEqual(await readState(companyId, true), before);
@@ -269,20 +272,22 @@ test.group('planning request rule boundaries', (group) => {
     const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
+    // Request validation refuses a malformed pattern with 422; a planning rule refuses with 400.
     const invalidCases = [
-      { id: person.id, changes: { workingDays: [] } },
-      { id: person.id, changes: { workingDays: [1, 2], halfDays: [3] } },
-      { id: person.id, changes: { halfDays: [1, 1] } },
-      { id: person.id, changes: { workingHoursPerDay: 0 } },
-      { id: placeholder.id, changes: { engagement: 'supplementary' } },
-      { id: placeholder.id, changes: { workingDays: [0, 6], halfDays: [6] } },
+      { id: person.id, changes: { workingDays: [] }, status: 422 },
+      { id: person.id, changes: { workingDays: [1, 2], halfDays: [3] }, status: 422 },
+      { id: person.id, changes: { halfDays: [1, 1] }, status: 422 },
+      { id: person.id, changes: { workingHoursPerDay: 0 }, status: 422 },
+      { id: placeholder.id, changes: { engagement: 'supplementary' }, status: 400 },
+      { id: placeholder.id, changes: { workingDays: [0, 6], halfDays: [6] }, status: 400 },
     ];
-    for (const { id, changes } of invalidCases) {
+    for (const { id, changes, status } of invalidCases) {
       const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(input(1, { operation: 'resource.update', id, changes }))
         .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(status);
+      if (status === 422) assert.isNotEmpty(validationErrors(refused));
+      else assert.equal(body(refused).code, 'VALIDATION_ERROR');
     }
 
     const changedKind = await session(client.post(route('planning/mutations')), cookie)
@@ -290,8 +295,8 @@ test.group('planning request rule boundaries', (group) => {
         input(1, { operation: 'resource.update', id: person.id, changes: { kind: 'placeholder' } })
       )
       .send();
-    changedKind.assertStatus(400);
-    assert.equal(body(changedKind).code, 'VALIDATION_ERROR');
+    changedKind.assertStatus(422);
+    assert.isNotEmpty(validationErrors(changedKind));
 
     assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals);
     assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
@@ -332,8 +337,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    allocationRefusal.assertStatus(400);
-    assert.equal(body(allocationRefusal).code, 'VALIDATION_ERROR');
+    allocationRefusal.assertStatus(422);
+    assert.isNotEmpty(validationErrors(allocationRefusal));
     assert.deepEqual(await readState(companyId, true), initial);
     assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), initialAudits);
     assert.deepEqual(
@@ -410,8 +415,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    timeOffRefusal.assertStatus(400);
-    assert.equal(body(timeOffRefusal).code, 'VALIDATION_ERROR');
+    timeOffRefusal.assertStatus(422);
+    assert.isNotEmpty(validationErrors(timeOffRefusal));
     assert.deepEqual(await readState(companyId, true), beforeTimeOffRefusal);
     assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), timeOffAudits);
     assert.deepEqual(
@@ -462,25 +467,30 @@ test.group('planning request rule boundaries', (group) => {
     const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
+    // Request validation refuses a malformed allocation with 422; a planning rule refuses with 400.
     const invalidAllocations = [
-      { ...baseAllocation, hoursPerDay: 25 },
-      { ...baseAllocation, startDate: '2026-11-06', endDate: '2026-11-02' },
-      { ...baseAllocation, startDate: '', endDate: '' },
-      { ...baseAllocation, resourceId: external.id },
-      { ...baseAllocation, resourceId: randomUUID() },
-      { ...baseAllocation, activityId: randomUUID() },
-      {
-        ...baseAllocation,
-        resourceId: placeholder.id,
-        activityId: otherProjectActivity!.id,
-      },
-    ];
-    for (const allocation of invalidAllocations) {
+      [{ ...baseAllocation, hoursPerDay: 25 }, 422],
+      [{ ...baseAllocation, startDate: '2026-11-06', endDate: '2026-11-02' }, 422],
+      [{ ...baseAllocation, startDate: '', endDate: '' }, 422],
+      [{ ...baseAllocation, resourceId: external.id }, 400],
+      [{ ...baseAllocation, resourceId: randomUUID() }, 400],
+      [{ ...baseAllocation, activityId: randomUUID() }, 400],
+      [
+        {
+          ...baseAllocation,
+          resourceId: placeholder.id,
+          activityId: otherProjectActivity!.id,
+        },
+        400,
+      ],
+    ] as const;
+    for (const [allocation, status] of invalidAllocations) {
       const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(input(2, { operation: 'allocation.create', allocation }))
         .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(status);
+      if (status === 422) assert.isNotEmpty(validationErrors(refused));
+      else assert.equal(body(refused).code, 'VALIDATION_ERROR');
     }
 
     const storedAllocation = canonicalBeforeRefusals.allocations.find(
@@ -495,8 +505,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    excessiveUpdate.assertStatus(400);
-    assert.equal(body(excessiveUpdate).code, 'VALIDATION_ERROR');
+    excessiveUpdate.assertStatus(422);
+    assert.isNotEmpty(validationErrors(excessiveUpdate));
 
     const refusedUpdate = await session(client.post(route('planning/mutations')), cookie)
       .json(
@@ -533,12 +543,14 @@ test.group('planning request rule boundaries', (group) => {
         type: 'holiday',
       },
     ];
-    for (const timeOff of invalidTimeOff) {
+    // The reversed range is refused by request validation (422), the others by planning rules.
+    for (const [index, timeOff] of invalidTimeOff.entries()) {
       const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(input(2, { operation: 'timeOff.create', timeOff }))
         .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(index === 0 ? 422 : 400);
+      if (index === 0) assert.isNotEmpty(validationErrors(refused));
+      else assert.equal(body(refused).code, 'VALIDATION_ERROR');
     }
 
     assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals);
@@ -567,8 +579,8 @@ test.group('planning request rule boundaries', (group) => {
       const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(input(0, { operation: 'settings.update', changes }))
         .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(422);
+      assert.isNotEmpty(validationErrors(refused));
     }
 
     assert.deepEqual(await readState(companyId, true), before);
@@ -612,8 +624,8 @@ test.group('planning request rule boundaries', (group) => {
         })
       )
       .send();
-    refusedUpdate.assertStatus(400);
-    assert.equal(body(refusedUpdate).code, 'VALIDATION_ERROR');
+    refusedUpdate.assertStatus(422);
+    assert.isNotEmpty(validationErrors(refusedUpdate));
     assert.deepEqual(await readState(companyId, true), before);
     assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(

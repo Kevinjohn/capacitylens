@@ -1,5 +1,3 @@
-import type { HttpContext } from '@adonisjs/core/http';
-
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 
 /** Keep request methods bounded before they enter structured diagnostics. */
@@ -36,26 +34,4 @@ export function describeFailure(error: unknown): {
     cause = cause instanceof Error ? cause.cause : undefined;
   }
   return { errorName: error.constructor.name, stack, causes };
-}
-
-/** Report private account failures without exception text or changing the HTTP outcome. */
-export function reportPrivateFailure(
-  logger: HttpContext['logger'],
-  fields: {
-    event: string;
-    errorType: string;
-    method?: string;
-    path?: string;
-    status?: number;
-    errorName?: string;
-    stack?: string[];
-    causes?: string[];
-  },
-  message: string
-) {
-  try {
-    logger.error(fields, message);
-  } catch {
-    console.error('Private diagnostic logger failed');
-  }
 }

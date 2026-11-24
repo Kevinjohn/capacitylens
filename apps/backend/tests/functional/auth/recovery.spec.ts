@@ -88,7 +88,7 @@ test.group('password recovery', (group) => {
     assert.isTrue(await inspect(client, token), 'inspection does not spend the link');
     await expectStatus(
       post(client, '/api/auth/reset-password', { token, newPassword: 'short' }),
-      400
+      422
     );
     const reset = await post(client, '/api/auth/reset-password', { token, newPassword });
     reset.assertStatus(200);

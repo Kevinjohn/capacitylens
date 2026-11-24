@@ -2,6 +2,8 @@ import env from '#start/env';
 import app from '@adonisjs/core/services/app';
 import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types';
 import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger';
+import { UnexpectedException } from '#exceptions/unexpected_exception';
+import { describeFailure } from '#services/logging_safety';
 
 const ERROR_CATEGORIES = new Map<string, string>([
   ['E_VALIDATION_ERROR', 'validation'],
@@ -45,9 +47,19 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
       name: env.get('APP_NAME'),
       level: env.get('LOG_LEVEL'),
 
-      /** Keep Pino's standard `err` fields from exposing private messages or stacks. */
+      /**
+       * Keep Pino's standard `err` fields from exposing private messages. A reported unexpected
+       * error carries its cause's class, stack frames and cause classes, never a message.
+       */
       serializers: {
         err(error: unknown) {
+          if (error instanceof UnexpectedException) {
+            return {
+              errorType: error.errorType ?? classifyLogError(error.cause),
+              status: error.status,
+              ...describeFailure(error.cause),
+            };
+          }
           return { category: classifyLogError(error) };
         },
       },

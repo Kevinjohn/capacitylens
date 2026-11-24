@@ -10,10 +10,10 @@ import HttpExceptionHandler from '#exceptions/handler';
 test.group('private diagnostics', () => {
   test('error reporting survives a failed diagnostic logger', async ({ assert }) => {
     const ctx = {
-      request: { method: () => 'GET' },
+      request: { method: () => 'GET', id: () => undefined },
       route: { pattern: '/api/state' },
       logger: {
-        error() {
+        log() {
           throw new Error('PRIVATE_LOGGER_FAILURE');
         },
       },
@@ -30,10 +30,10 @@ test.group('private diagnostics', () => {
       status = value;
     };
     const context = {
-      request: { method: () => 'POST' },
+      request: { method: () => 'POST', id: () => undefined },
       route: { pattern: '/api/auth/sign-in' },
       logger: {
-        error: (...args: unknown[]) => {
+        log: (...args: unknown[]) => {
           records.push(args);
         },
       },
@@ -108,6 +108,11 @@ test.group('private diagnostics', () => {
           internalServerError(value: unknown) {
             body = value;
           },
+          status: () => ({
+            send(value: unknown) {
+              body = value;
+            },
+          }),
         },
       } as unknown as HttpContext;
       try {

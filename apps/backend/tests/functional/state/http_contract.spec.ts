@@ -21,31 +21,30 @@ test.group('HTTP contract', (group) => {
   test('validates state queries and scopes the company read', async ({ client, assert }) => {
     client = await resetAuthenticatedClient(client, true);
     const empty = await client.visit('api.company_state.show').qs({ companyId: '' });
-    assert.equal(empty.status(), 400);
-    assert.equal((empty.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
+    assert.equal(empty.status(), 422);
+    assert.isNotEmpty((empty.body() as unknown as { errors: unknown[] }).errors);
     const missing = await client.visit('api.company_state.show');
-    assert.equal(missing.status(), 400);
-    const refusal = missing.body() as unknown as { code: string; error: string };
-    assert.equal(refusal.code, 'VALIDATION_ERROR');
-    assert.include(refusal.error, 'companyId');
+    assert.equal(missing.status(), 422);
+    const refusal = missing.body() as unknown as { errors: Array<{ field: string }> };
+    assert.equal(refusal.errors[0]?.field, 'companyId');
     const repeated = await client.get('/api/state?companyId=a-studio&companyId=a-loft');
-    assert.equal(repeated.status(), 400);
+    assert.equal(repeated.status(), 422);
     const whitespace = await client.get('/api/state?companyId=%20%20');
-    assert.equal(whitespace.status(), 400);
-    assert.equal(whitespace.body().code, 'VALIDATION_ERROR');
+    assert.equal(whitespace.status(), 422);
+    assert.isNotEmpty(whitespace.body().errors);
     const invalidInactive = await client
       .visit('api.company_state.show')
       .qs({ companyId: 'a-studio', includeInactive: 'true' } as never);
-    assert.equal(invalidInactive.status(), 400);
-    assert.equal((invalidInactive.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
+    assert.equal(invalidInactive.status(), 422);
+    assert.isNotEmpty((invalidInactive.body() as unknown as { errors: unknown[] }).errors);
     for (const query of [
       'companyId=a-studio&unknown=1',
       'companyId=a-studio&includeInactive=1&includeInactive=1',
       'companyId[unexpected]=1',
     ]) {
       const invalid = await client.get(`/api/state?${query}`);
-      invalid.assertStatus(400);
-      assert.equal(invalid.body().code, 'VALIDATION_ERROR');
+      invalid.assertStatus(422);
+      assert.isNotEmpty(invalid.body().errors);
     }
     const scoped = await client.visit('api.company_state.show').qs({ companyId: 'a-studio' });
     assert.equal(scoped.status(), 200);

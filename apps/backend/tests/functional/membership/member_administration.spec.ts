@@ -315,8 +315,8 @@ test.group('company member administration', (group) => {
     const receipts = await db.from('request_receipts').where('scope_id', 'a-studio').orderBy('id');
     for (const request of requests) {
       const response = await request.send();
-      response.assertStatus(400);
-      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR', request.name);
+      response.assertStatus(422);
+      assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors, request.name);
     }
 
     const member = await db

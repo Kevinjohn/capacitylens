@@ -26,13 +26,13 @@ import {
   PasswordConfirmationThrottledException,
   InvalidPasswordConfirmationRequestException,
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
-import { mapHttpError } from '#exceptions/http_error_mapping';
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { PasswordConfirmationException } from '#exceptions/password_confirmation_exception';
 import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
 import {
   refuseConflictingAdmission,
   refuseInvalidAdmission,
+  refuseInvalidAdmissionBody,
   refuseMissingAdmission,
 } from '#services/admission/errors';
 import {
@@ -46,10 +46,15 @@ import {
   createInvitationValidator,
 } from '#validators/invitations';
 import { inspectResetValidator } from '#validators/credentials';
+import loggerConfig from '#config/logger';
+
+/** The `err` field as the logger writes it. */
+const serializeErr = (error: unknown) => loggerConfig.loggers.app.serializers!.err!(error);
 
 function context(error: unknown, routeName?: string) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
-  const diagnostics: Array<{ fields: Record<string, unknown>; message: string }> = [];
+  const diagnostics: Array<{ level: string; fields: Record<string, unknown>; message: string }> =
+    [];
   const response = {
     header(name: string, value: string) {
       result.headers[name] = value;
@@ -81,11 +86,11 @@ function context(error: unknown, routeName?: string) {
     ctx: {
       response,
       logger: {
-        error(fields: Record<string, unknown>, message: string) {
-          diagnostics.push({ fields, message });
+        log(level: string, fields: Record<string, unknown>, message: string) {
+          diagnostics.push({ level, fields, message });
         },
       },
-      request: { method: () => 'POST' },
+      request: { method: () => 'POST', id: () => undefined, accepts: () => 'json' },
       route: { pattern: '/api/companies/:companyId/resources', name: routeName },
       get params() {
         throw error;
@@ -105,20 +110,40 @@ async function answerOnPlanning(error: unknown) {
   return planning.result;
 }
 
-/** What the central handler answers for `error`. */
-function mapped(error: unknown) {
-  const outcome = mapHttpError(error);
-  return outcome && { status: outcome.status, body: outcome.body };
+/** What the exception handler answers for `error`. */
+async function answered(error: unknown) {
+  const { ctx, result } = context(error);
+  await new HttpExceptionHandler().handle(error, ctx);
+  return { status: result.status, body: result.body };
 }
 
 /** What the handler answers for the error a call throws. */
-async function mappedThrown(call: () => unknown) {
+async function answeredThrown(call: () => unknown) {
   try {
     await call();
   } catch (error) {
-    return mapped(error);
+    return answered(error);
   }
   throw new Error('Expected a refusal.');
+}
+
+/**
+ * The framework's answer to a route validator's failure, kept to the status and the first error's
+ * message: the sentence the validator fixes.
+ */
+async function routeValidationAnswer(call: () => unknown) {
+  const { status, body } = await answeredThrown(call);
+  const [first] = (body as { errors: Array<{ message: string }> }).errors;
+  return { status, body: { errors: [{ message: first?.message }] } };
+}
+
+/** The invitation controllers turn a validator's failure into the admission refusal. */
+async function invitationValidationAnswer(
+  validator: { tryValidate(data: unknown): Promise<[unknown, unknown]> },
+  data: unknown
+) {
+  const [error] = await validator.tryValidate(data);
+  return answeredThrown(() => refuseInvalidAdmissionBody(error));
 }
 
 const signUp = {
@@ -156,7 +181,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ).map(([code, status, error, wire]): [string, () => unknown, number, Record<string, unknown>] => [
     code,
     () =>
-      mapped(
+      answered(
         code === 'E_MASQUERADE_ACTION_BLOCKED'
           ? new MasqueradeError(code, { blockedBy: 'view_only' })
           : new MasqueradeError(code)
@@ -179,7 +204,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     ] as const
   ).map(([code, status, error, wire]): [string, () => unknown, number, Record<string, unknown>] => [
     code,
-    () => mapped(new AccessControlError(code)),
+    () => answered(new AccessControlError(code)),
     status,
     { error, code: wire },
   ]),
@@ -189,37 +214,37 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     PasswordConfirmationForbiddenException,
   ].map((Refusal): [string, () => unknown, number, Record<string, unknown>] => [
     Refusal.name,
-    () => mapped(new Refusal()),
+    () => answered(new Refusal()),
     403,
     { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' },
   ]),
   [
     'PasswordConfirmationDeniedException',
-    () => mapped(new PasswordConfirmationDeniedException()),
+    () => answered(new PasswordConfirmationDeniedException()),
     403,
     { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
   ],
   [
     'PasswordConfirmationThrottledException',
-    () => mapped(new PasswordConfirmationThrottledException(90)),
+    () => answered(new PasswordConfirmationThrottledException(90)),
     429,
     { error: 'Too many attempts. Try again in 2 minutes.' },
   ],
   [
     'InvalidPasswordConfirmationRequestException',
-    () => mapped(new InvalidPasswordConfirmationRequestException('SENTINEL_REASON')),
+    () => answered(new InvalidPasswordConfirmationRequestException('SENTINEL_REASON')),
     400,
     { error: 'Invalid password confirmation.' },
   ],
   [
     'PasswordConfirmationException',
-    () => mapped(new PasswordConfirmationException()),
+    () => answered(new PasswordConfirmationException()),
     403,
     { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' },
   ],
   [
     'FirstCompanyPendingException',
-    () => mapped(new FirstCompanyPendingException()),
+    () => answered(new FirstCompanyPendingException()),
     409,
     {
       error: 'Only the invited first Owner may join before the company exists.',
@@ -228,31 +253,31 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'refuseInvalidAdmission',
-    () => mappedThrown(() => refuseInvalidAdmission()),
+    () => answeredThrown(() => refuseInvalidAdmission()),
     400,
     { error: 'Invalid admission request.', code: 'VALIDATION_ERROR' },
   ],
   [
     'refuseMissingAdmission',
-    () => mappedThrown(() => refuseMissingAdmission()),
+    () => answeredThrown(() => refuseMissingAdmission()),
     404,
     { error: 'Invitation not found.', code: 'NOT_FOUND' },
   ],
   [
     'refuseConflictingAdmission',
-    () => mappedThrown(() => refuseConflictingAdmission()),
+    () => answeredThrown(() => refuseConflictingAdmission()),
     409,
     { error: 'Invitation has already been used.', code: 'CONFLICT' },
   ],
   [
     'membershipUnavailable',
-    () => mapped(membershipUnavailable()),
+    () => answered(membershipUnavailable()),
     403,
     { error: 'Company membership is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
   ],
   [
     'StalePlanningRevisionException',
-    () => mapped(new StalePlanningRevisionException('mutation', 1, 2)),
+    () => answered(new StalePlanningRevisionException('mutation', 1, 2)),
     409,
     {
       error: 'The planning revision changed before this mutation was applied.',
@@ -261,65 +286,66 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'unsupported field',
-    () => mappedThrown(() => signUpValidator.validate({ ...signUp, role: 'owner' })),
-    400,
-    { error: 'Unsupported field.', code: 'VALIDATION_ERROR' },
+    () => routeValidationAnswer(() => signUpValidator.validate({ ...signUp, role: 'owner' })),
+    422,
+    { errors: [{ message: 'Unsupported field.' }] },
   ],
   [
     'invalid email',
-    () => mappedThrown(() => signUpValidator.validate({ ...signUp, email: 'diana' })),
-    400,
-    { error: 'Invalid email.', code: 'VALIDATION_ERROR' },
+    () => routeValidationAnswer(() => signUpValidator.validate({ ...signUp, email: 'diana' })),
+    422,
+    { errors: [{ message: 'Invalid email.' }] },
   ],
   [
     'invalid name',
-    () => mappedThrown(() => signUpValidator.validate({ ...signUp, name: ' ' })),
-    400,
-    { error: 'Invalid name.', code: 'VALIDATION_ERROR' },
+    () => routeValidationAnswer(() => signUpValidator.validate({ ...signUp, name: ' ' })),
+    422,
+    { errors: [{ message: 'Invalid name.' }] },
   ],
   [
     'invalid password',
-    () => mappedThrown(() => signUpValidator.validate({ ...signUp, password: 'short' })),
-    400,
-    { error: 'Invalid password.', code: 'VALIDATION_ERROR' },
+    () => routeValidationAnswer(() => signUpValidator.validate({ ...signUp, password: 'short' })),
+    422,
+    { errors: [{ message: 'Invalid password.' }] },
   ],
   // Invitation sign-up and invitation creation read the same sentences as sign-up.
   [
     'invitation sign-up with a short password',
     () =>
-      mappedThrown(() =>
-        acceptInvitationSignUpValidator.validate({ name: 'Diana Prince', password: 'short' })
-      ),
+      invitationValidationAnswer(acceptInvitationSignUpValidator, {
+        name: 'Diana Prince',
+        password: 'short',
+      }),
     400,
     { error: 'Invalid password.', code: 'VALIDATION_ERROR' },
   ],
   [
     'invitation sign-up with an unsupported field',
     () =>
-      mappedThrown(() =>
-        acceptInvitationSignUpValidator.validate({
-          name: 'Diana Prince',
-          password: signUp.password,
-          role: 'owner',
-        })
-      ),
+      invitationValidationAnswer(acceptInvitationSignUpValidator, {
+        name: 'Diana Prince',
+        password: signUp.password,
+        role: 'owner',
+      }),
     400,
     { error: 'Unsupported field.', code: 'VALIDATION_ERROR' },
   ],
   [
     'invitation with an invalid email',
     () =>
-      mappedThrown(() =>
-        createInvitationValidator.validate({ companyId: 'c', role: 'editor', email: 'diana' })
-      ),
+      invitationValidationAnswer(createInvitationValidator, {
+        companyId: 'c',
+        role: 'editor',
+        email: 'diana',
+      }),
     400,
     { error: 'Invalid email.', code: 'VALIDATION_ERROR' },
   ],
   [
     'invalid token',
-    () => mappedThrown(() => inspectResetValidator.validate({ token: 'x'.repeat(513) })),
-    400,
-    { error: 'Invalid token.', code: 'VALIDATION_ERROR' },
+    () => routeValidationAnswer(() => inspectResetValidator.validate({ token: 'x'.repeat(513) })),
+    422,
+    { errors: [{ message: 'Invalid token.' }] },
   ],
   // The controllers that spend a link, create an account or change a password send these bodies.
   [
@@ -353,20 +379,20 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'unsupported content encoding',
-    () => mapped(Object.assign(new Error('Unsupported Content-Encoding: br'), { status: 415 })),
+    () => answered(Object.assign(new Error('Unsupported Content-Encoding: br'), { status: 415 })),
     415,
     { error: 'Unsupported media type.', code: 'UNSUPPORTED_MEDIA_TYPE' },
   ],
   [
     'invalid JSON',
-    () => mapped(Object.assign(new SyntaxError('Unexpected end'), { status: 400, body: '{' })),
+    () => answered(Object.assign(new SyntaxError('Unexpected end'), { status: 400, body: '{' })),
     400,
     { error: 'Request body must be valid JSON.', code: 'INVALID_JSON' },
   ],
   [
     'JSON that is not an object or array',
     () =>
-      mapped(
+      answered(
         Object.assign(new Error('Invalid JSON, only supports object and array'), { status: 422 })
       ),
     400,
@@ -374,25 +400,25 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'E_ROUTE_NOT_FOUND',
-    () => mapped(new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing'])),
+    () => answered(new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing'])),
     404,
     { error: 'Not found.', code: 'NOT_FOUND' },
   ],
   [
     'E_REQUEST_ENTITY_TOO_LARGE',
-    () => mapped(Object.assign(new Error('too large'), { code: 'E_REQUEST_ENTITY_TOO_LARGE' })),
+    () => answered(Object.assign(new Error('too large'), { code: 'E_REQUEST_ENTITY_TOO_LARGE' })),
     413,
     { error: 'Request body is too large.', code: 'PAYLOAD_TOO_LARGE' },
   ],
   [
     'E_ENCODING_UNSUPPORTED',
-    () => mapped(Object.assign(new Error('encoding'), { code: 'E_ENCODING_UNSUPPORTED' })),
+    () => answered(Object.assign(new Error('encoding'), { code: 'E_ENCODING_UNSUPPORTED' })),
     415,
     { error: 'Unsupported media type.', code: 'UNSUPPORTED_MEDIA_TYPE' },
   ],
   [
     'database constraint',
-    () => mapped(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' })),
+    () => answered(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' })),
     400,
     {
       error: 'That change references missing data or conflicts with an existing record.',
@@ -402,7 +428,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   [
     'E_TOO_MANY_REQUESTS',
     () =>
-      mapped(
+      answered(
         new limiterErrors.E_TOO_MANY_REQUESTS(
           new LimiterResponse({ limit: 1, remaining: 0, consumed: 2, availableIn: 30 })
         )
@@ -488,14 +514,11 @@ test.group('product error adapters', () => {
       });
     }
   });
-  test('a Vine failure without a message answers 400 with one sentence on every route', async ({
+  test('a Vine failure without a message takes the framework answer on every route', async ({
     assert,
   }) => {
     for (const answer of await answerOnEveryRoute(() => new vineErrors.E_VALIDATION_ERROR([]))) {
-      assert.deepEqual(answer, {
-        status: 400,
-        body: { error: 'Invalid request.', code: 'VALIDATION_ERROR' },
-      });
+      assert.deepEqual(answer, { status: 422, body: { errors: [] } });
     }
   });
   test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {
@@ -513,7 +536,10 @@ test.group('product error adapters', () => {
     const unexpected = context(new Error('SENTINEL'));
     await new HttpExceptionHandler().report(new Error('SENTINEL'), unexpected.ctx);
     assert.lengthOf(unexpected.diagnostics, 1);
-    assert.include(unexpected.diagnostics[0]!.fields, { errorType: 'unexpected', status: 500 });
+    assert.include(serializeErr(unexpected.diagnostics[0]!.fields.err), {
+      errorType: 'unexpected',
+      status: 500,
+    });
   });
   test('constraint refusals carry the validation code', async ({ assert }) => {
     const error = Object.assign(new Error('SENTINEL_SQL_TEXT SENTINEL_PAYLOAD'), {
@@ -527,28 +553,25 @@ test.group('product error adapters', () => {
     assert.equal(result.status, 400);
     assert.equal((result.body as { code: string }).code, 'VALIDATION_ERROR');
     assert.lengthOf(diagnostics, 1);
-    assert.deepEqual(diagnostics[0]!.fields, {
+    const { err, ...fields } = diagnostics[0]!.fields;
+    assert.deepEqual(fields, {
       event: 'http.request.error',
-      errorType: 'database_constraint',
       method: 'POST',
       path: '/api/companies/:companyId/resources',
-      status: 400,
     });
-    const serialized = JSON.stringify(diagnostics);
+    assert.include(serializeErr(err), { errorType: 'database_constraint', status: 500 });
+    const serialized = JSON.stringify([diagnostics[0]!.message, fields, serializeErr(err)]);
     assert.notInclude(serialized, 'SENTINEL_SQL_TEXT');
     assert.notInclude(serialized, 'SENTINEL_PAYLOAD');
     assert.notInclude(serialized, error.message);
   });
-  test('Vine validation is flat status 400 rather than the generated default 422', async ({
-    assert,
-  }) => {
-    const error = new vineErrors.E_VALIDATION_ERROR([
-      { message: 'Email is required.', field: 'email', rule: 'required' },
-    ]);
+  test('Vine validation takes the framework answer: 422 with its errors', async ({ assert }) => {
+    const messages = [{ message: 'Email is required.', field: 'email', rule: 'required' }];
+    const error = new vineErrors.E_VALIDATION_ERROR(messages);
     const { ctx, result } = context(error);
     await new HttpExceptionHandler().handle(error, ctx);
-    assert.equal(result.status, 400);
-    assert.deepEqual(result.body, { error: 'Email is required.', code: 'VALIDATION_ERROR' });
+    assert.equal(result.status, 422);
+    assert.deepEqual(result.body, { errors: messages });
   });
   test('planning operation refusals send the status and code the service states', async ({
     assert,

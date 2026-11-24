@@ -14,6 +14,9 @@ import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-passwor
 
 const handleKey = 'accountKitSession';
 
+/** The request's authenticator, which `withActor` reads the signed-in session from. */
+export type RequestAuth = HttpContext['auth'];
+
 /** The signed-in user, as the Account Kit verified it in the current transaction. */
 export interface CurrentActor {
   userId: string;

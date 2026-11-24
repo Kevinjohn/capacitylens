@@ -30,6 +30,21 @@ describe('flat HTTP failure boundary', () => {
       ).toBeUndefined();
     }
   });
+  it('reads the first message of the framework validation answer', () => {
+    expect(
+      readHttpErrorBody(
+        {
+          errors: [
+            { message: 'The email field must be defined', rule: 'required', field: 'email' },
+          ],
+        },
+        'Fallback',
+      ),
+    ).toEqual({ error: 'The email field must be defined' });
+    for (const errors of [[], [{ message: 1 }], [null], 'Invalid']) {
+      expect(readHttpErrorBody({ errors }, 'Fallback')).toEqual({ error: 'Fallback' });
+    }
+  });
   it('handles absent and non-object bodies', () => {
     for (const value of [null, undefined, [], 'error']) {
       expect(readHttpErrorBody(value, 'Fallback')).toEqual({ error: 'Fallback' });

@@ -371,12 +371,8 @@ test.group('native authorization and role projections', (group) => {
     const { cookie } = await createMember(client, 'owner');
     for (const body of [{}, { dismissed: false }, { dismissed: 'yes' }]) {
       const refused = await writeDismissal(client, cookie, body);
-      refused.assertStatus(400);
-      assert.equal(
-        (refused.body() as unknown as { code: string }).code,
-        'VALIDATION_ERROR',
-        JSON.stringify(body)
-      );
+      refused.assertStatus(422);
+      assert.isNotEmpty((refused.body() as { errors?: unknown[] }).errors, JSON.stringify(body));
     }
     assert.deepEqual(
       await db

@@ -151,7 +151,7 @@ test.group('account deletion', (group) => {
       // Deliberately outside the generated body type, to reach the server's refusal.
       .json({ currentPassword: editor.password, extra: true } as never)
       .send();
-    malformed.assertStatus(400);
+    malformed.assertStatus(422);
 
     const after = await rowsFor(userId);
     assert.lengthOf(after.users, 1);

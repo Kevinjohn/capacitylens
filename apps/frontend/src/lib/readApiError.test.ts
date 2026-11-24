@@ -16,6 +16,15 @@ describe('readApiError', () => {
     await expect(readApiError(responseWith({}))).resolves.toBeUndefined();
   });
 
+  it('reads the first message of the framework validation answer', async () => {
+    const invalid = responseWith({
+      errors: [{ message: ' The email field must be defined ', rule: 'required', field: 'email' }],
+    });
+    await expect(readApiError(invalid)).resolves.toBe('The email field must be defined');
+    await expect(readApiError(responseWith({ errors: [] }))).resolves.toBeUndefined();
+    await expect(readApiError(responseWith({ errors: [{ message: 1 }] }))).resolves.toBeUndefined();
+  });
+
   it.each([null, 'Denied.', 42, []])('rejects non-object API bodies: %j', async (body) => {
     await expect(readApiError(responseWith(body))).resolves.toBeUndefined();
   });

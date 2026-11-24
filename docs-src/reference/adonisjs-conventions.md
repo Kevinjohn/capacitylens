@@ -279,8 +279,8 @@ Source: [Validation](https://docs.adonisjs.com/guides/basics/validation).
   rules that need the database.
 - Global VineJS setup, such as shared messages, is in the `start/validator.ts` preload file.
 - Small helpers that build a schema field may live beside the validators that use them.
-- Validation failures use the product's flat error contract, and empty strings are not converted
-  to `null` (departure 2).
+- A validation failure takes the framework's answer: 422 with `{ errors: [...] }`. Empty strings
+  are not converted to `null` (departure 2).
 
 ## Middleware
 
@@ -318,9 +318,17 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
   `super(message, { status, code })`.
 - Framework exception codes are `E_UPPER_SNAKE`. Product codes on the wire are stable identifiers
   and keep their spelling.
-- The handler shows debug output in development only (departure 19). Every error leaves in the
-  flat error contract, and the handler does not call `super.handle` or `super.report`
-  (departure 2).
+- A product exception extends `ProductException` (`app/exceptions/product_exception.ts`) and
+  answers for itself: its `handle` sends the product's flat body `{ error, code? }`, so no central
+  table lists product exceptions.
+- The handler's `handle` answers only the errors that are not ours to describe (package, body
+  parser and database constraint errors) in the same flat body, then calls `super.handle`. Anything
+  else is answered as a 500 with a fixed sentence. The handler shows debug output in development
+  only (departure 19).
+- The handler's `report` calls `super.report`. Every status below 500 is in `ignoreStatuses`, and
+  `context()` adds the method and route pattern. A product exception is reported as it is; any
+  other error is reported as an `UnexpectedException` whose `cause` is the original, and the
+  logger's `err` serializer logs only the cause's class, frames and cause classes.
 - A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers.
 
 ## Responses and transformers
@@ -402,8 +410,10 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
 [container services](https://docs.adonisjs.com/guides/concepts/container-services) and
 [application lifecycle](https://docs.adonisjs.com/guides/concepts/application-lifecycle).
 
-- Business logic lives in `app/services`. A service does not read the HTTP context; the
-  controller passes it the verified actor and the transaction.
+- Business logic lives in `app/services`. A service does not receive the HTTP context or build a
+  response: the controller validates, reads route parameters and headers, passes plain values and
+  serialises the result. A service may take the context's `auth` only to open the actor's
+  transaction with `withActor`.
 - In the framework a service is a class the container constructs, taken with `@inject()` and
   replaced in a test with `container.swap`. CapacityLens services are modules of exported
   functions without `@inject`, and a package service is resolved with `app.container.make` where
