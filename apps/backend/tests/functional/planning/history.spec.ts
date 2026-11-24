@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { ApiClient } from '@japa/api-client';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { HISTORY_LIMIT } from '#services/planning/history';
+import { HISTORY_LIMIT } from '#services/planning/planning_history_service';
 import { readState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {

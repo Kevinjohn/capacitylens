@@ -22,8 +22,8 @@ import { StateRepositoryService } from '#services/state_repository_service';
 import { tables } from '#models_support/product_tables';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 import { AuditService } from '#services/audit_service';
-import { discardRestorationGroups } from '#services/planning/restoration';
-import { discardHistory } from '#services/planning/history';
+import { RestorationService } from '#services/planning/restoration_service';
+import { PlanningHistoryService } from '#services/planning/planning_history_service';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
 
 const INSERT_CHUNK_SIZE = 32;
@@ -120,15 +120,21 @@ export class CompanyImportService {
   #stateRepository: StateRepositoryService;
   #audit: AuditService;
   #planningRevisions: PlanningRevisionService;
+  #restoration: RestorationService;
+  #history: PlanningHistoryService;
 
   constructor(
     stateRepository: StateRepositoryService,
     audit: AuditService,
-    planningRevisions: PlanningRevisionService
+    planningRevisions: PlanningRevisionService,
+    restoration: RestorationService,
+    history: PlanningHistoryService
   ) {
     this.#stateRepository = stateRepository;
     this.#audit = audit;
     this.#planningRevisions = planningRevisions;
+    this.#restoration = restoration;
+    this.#history = history;
   }
 
   /**
@@ -209,8 +215,8 @@ export class CompanyImportService {
       return { imported: prepared.imported, changed: false, revision };
     }
 
-    await discardRestorationGroups(trx, companyId);
-    await discardHistory(trx, companyId);
+    await this.#restoration.discardRestorationGroups(trx, companyId);
+    await this.#history.discardHistory(trx, companyId);
     for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
       // A builder delete runs no fetch hooks, so soft-deleted rows go too.
       await companyRows(key, companyId, trx).delete();

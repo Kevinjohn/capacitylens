@@ -4,7 +4,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
-import { updateSettings } from '#services/planning/writer';
+import { PlanningWriterService } from '#services/planning/planning_writer_service';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
@@ -22,6 +22,7 @@ import { PlanningOperationException } from '#exceptions/planning_operation_excep
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();
+const writer = new PlanningWriterService();
 
 test.group('authenticated typed planning transactions', (group) => {
   group.setup(() => freshDatabase());
@@ -531,7 +532,7 @@ test.group('authenticated typed planning transactions', (group) => {
     await assert.rejects(
       async () => {
         await db.transaction(async (trx) => {
-          await updateSettings(
+          await writer.updateSettings(
             trx,
             structuredClone(before),
             companyId,

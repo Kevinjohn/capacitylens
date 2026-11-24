@@ -10,8 +10,8 @@ import { StateRepositoryService } from '#services/state_repository_service';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { discardRestorationGroups } from '#services/planning/restoration';
-import { discardHistory } from '#services/planning/history';
+import { RestorationService } from '#services/planning/restoration_service';
+import { PlanningHistoryService } from '#services/planning/planning_history_service';
 
 /** Resource anonymisation in the caller's transaction. */
 @inject()
@@ -19,15 +19,21 @@ export class AnonymisationService {
   #stateRepository: StateRepositoryService;
   #audit: AuditService;
   #planningRevisions: PlanningRevisionService;
+  #restoration: RestorationService;
+  #history: PlanningHistoryService;
 
   constructor(
     stateRepository: StateRepositoryService,
     audit: AuditService,
-    planningRevisions: PlanningRevisionService
+    planningRevisions: PlanningRevisionService,
+    restoration: RestorationService,
+    history: PlanningHistoryService
   ) {
     this.#stateRepository = stateRepository;
     this.#audit = audit;
     this.#planningRevisions = planningRevisions;
+    this.#restoration = restoration;
+    this.#history = history;
   }
 
   /** Scrubs planning identity and saved undo images in the caller's transaction. */
@@ -80,8 +86,8 @@ export class AnonymisationService {
         }
       }
     }
-    await discardRestorationGroups(trx, companyId);
-    await discardHistory(trx, companyId);
+    await this.#restoration.discardRestorationGroups(trx, companyId);
+    await this.#history.discardHistory(trx, companyId);
     await this.#audit.writeAudit(trx, {
       companyId,
       actorId,
