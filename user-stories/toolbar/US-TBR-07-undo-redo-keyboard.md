@@ -58,4 +58,4 @@ The dialog check matches an explicit `aria-modal="true"` marker. The shared conf
 - [planningSessionSlice.ts](../../apps/frontend/src/store/slices/planningSessionSlice.ts#L200)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L624)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts#L136)
-- [history_step.ts](../../apps/backend/app/services/planning/history_step.ts#L8)
+- [planning_history_step_service.ts](../../apps/backend/app/services/planning/planning_history_step_service.ts#L20)

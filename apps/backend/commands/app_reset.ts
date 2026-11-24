@@ -1,6 +1,7 @@
+import { inject } from '@adonisjs/core';
 import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { resetInstallation } from '#services/operator/reset_installation';
+import { InstallationResetService } from '#services/operator/installation_reset_service';
 import { OperatorCommand } from './_operator_command.js';
 
 /** Preserve the stopped installation before creating an empty replacement. */
@@ -16,8 +17,9 @@ export default class AppReset extends OperatorCommand {
   @flags.boolean({ description: 'Confirm this is a disposable non-production installation' })
   declare disposable: boolean;
 
-  async run() {
-    this.logger.log(JSON.stringify(await resetInstallation(this)));
+  @inject()
+  async run(installationReset: InstallationResetService) {
+    this.logger.log(JSON.stringify(await installationReset.reset(this)));
   }
 
   protected buildFailureMessage(error: unknown) {

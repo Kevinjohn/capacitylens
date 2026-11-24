@@ -50,7 +50,7 @@ Capacity uses tracked bookings independently of bar display filters. A missing s
 
 **Code references:**
 
-- [planning.ts](../../apps/backend/app/services/planning.ts#L96)
+- [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L130)
 - [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L115)
 - [primitives.ts](../../packages/shared/src/lib/capacity/primitives.ts#L29)
 - [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts#L33)

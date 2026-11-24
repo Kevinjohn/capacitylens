@@ -1,7 +1,7 @@
 import { BaseCheck, Result } from '@adonisjs/core/health';
 import type { HealthCheckResult } from '@adonisjs/core/types/health';
 import { classifyLogError } from '#config/logger';
-import { readSchemaIntegrity } from '#services/schema_integrity';
+import type { SchemaIntegrityService } from '#services/schema_integrity_service';
 import logger from '@adonisjs/core/services/logger';
 import db from '@adonisjs/lucid/services/db';
 
@@ -11,11 +11,17 @@ import db from '@adonisjs/lucid/services/db';
  */
 export class DatabaseReadinessCheck extends BaseCheck {
   name = 'Database health check (sqlite)';
+  #schemaIntegrity: SchemaIntegrityService;
+
+  constructor(schemaIntegrity: SchemaIntegrityService) {
+    super();
+    this.#schemaIntegrity = schemaIntegrity;
+  }
 
   async run(): Promise<HealthCheckResult> {
     try {
       await db.rawQuery('select 1');
-      const schema = readSchemaIntegrity();
+      const schema = this.#schemaIntegrity.readSchemaIntegrity();
       if (schema.kind === 'drift') throw new Error(schema.message);
       return Result.ok('Database and schema are ready');
     } catch (error) {

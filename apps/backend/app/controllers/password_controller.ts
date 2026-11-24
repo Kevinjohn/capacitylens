@@ -1,21 +1,29 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   IdentityNotConfirmedError,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
-import { readCurrentAccount } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { credentialUpdateCommitted } from '#exceptions/credential_answers';
 import { changePasswordValidator } from '#validators/credentials';
 
 /** The signed-in identity's password. */
+@inject()
 export default class PasswordController {
+  #currentActor: CurrentActorService;
+
+  constructor(currentActor: CurrentActorService) {
+    this.#currentActor = currentActor;
+  }
+
   /** Changes the password and ends every sign-in, this one included. */
   async update({ auth, request, response, serialize }: HttpContext) {
     const body = await request.validateUsing(changePasswordValidator, {
       data: request.body(),
     });
-    const account = await readCurrentAccount(auth);
+    const account = await this.#currentActor.readCurrentAccount(auth);
     let outcome: 'changed' | 'committed' = 'changed';
     try {
       await accountKit.emailPasswordManagement.changePassword({
