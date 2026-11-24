@@ -2,7 +2,8 @@ import { test } from '@japa/runner';
 import ConfigurationProvider, { assertProductionPosture } from '#providers/configuration_provider';
 import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
 
-const developmentBootstrap = new DevelopmentBootstrapService();
+// These tests pass the admission service to the method under test, so the injected one is unused.
+const developmentBootstrap = new DevelopmentBootstrapService({} as never);
 
 test.group('configuration provider', () => {
   test('production refuses bootstrap, invalid limiter, and reset settings', ({ assert }) => {

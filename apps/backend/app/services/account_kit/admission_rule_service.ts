@@ -1,5 +1,4 @@
 import { inject } from '@adonisjs/core';
-import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import type {
   AccountUser,
@@ -20,17 +19,23 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
 /**
  * The product's admission and invitation rules, and the credential audit, for the Account Kit.
- * The Kit's admission service is resolved when a rule runs, not injected: resolving it builds these
- * callbacks, so constructor injection would make the two wait on each other.
+ * The callbacks provider resolves this service when a callback runs, so it can take the Kit's
+ * admission service through its constructor.
  */
 @inject()
 export class AdmissionRuleService {
   #authorization: AuthorizationService;
   #audit: AuditService;
+  #admission: AccountAdmission;
 
-  constructor(authorization: AuthorizationService, audit: AuditService) {
+  constructor(
+    authorization: AuthorizationService,
+    audit: AuditService,
+    admission: AccountAdmission
+  ) {
     this.#authorization = authorization;
     this.#audit = audit;
+    this.#admission = admission;
   }
 
   // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
@@ -45,8 +50,7 @@ export class AdmissionRuleService {
 
   /** Admission is read through the supplied transaction so a callback never opens a second one. */
   async isAdmitted(userId: string, trx?: Trx) {
-    const admission = await app.container.make(AccountAdmission);
-    return admission.isAdmitted(userId, trx);
+    return this.#admission.isAdmitted(userId, trx);
   }
 
   async #canManageInvitations(userId: string, trx: Trx | undefined) {

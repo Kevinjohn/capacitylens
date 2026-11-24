@@ -67,7 +67,7 @@ export default class ConfigurationProvider {
       const schemaIntegrity = await this.app.container.make(SchemaIntegrityService);
       await schemaIntegrity.rememberSchemaIntegrity();
       const developmentBootstrap = await this.app.container.make(DevelopmentBootstrapService);
-      await developmentBootstrap.bootstrapDevelopmentCredential(this.app);
+      await developmentBootstrap.bootstrapDevelopmentCredential();
     }
   }
 

@@ -2,7 +2,7 @@
 // confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
 // proof.
 
-import type { ApplicationService } from '@adonisjs/core/types';
+import { inject } from '@adonisjs/core';
 import capacitylens from '#config/capacitylens';
 import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
@@ -11,11 +11,15 @@ import User from '#models/user';
 import { DateTime } from 'luxon';
 import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password';
 
-/**
- * The development bootstrap identity. The Kit's admission service is resolved when it is needed, not
- * injected: resolving it builds the admission callbacks, which depend on the product's services.
- */
+/** The development bootstrap identity. */
+@inject()
 export class DevelopmentBootstrapService {
+  #admission: AccountAdmission;
+
+  constructor(admission: AccountAdmission) {
+    this.#admission = admission;
+  }
+
   /** Keeps interrupted-bootstrap recovery explicit rather than adopting an identity by address. */
   buildBootstrapRecoveryMessage() {
     return [
@@ -40,7 +44,7 @@ export class DevelopmentBootstrapService {
     }
   }
 
-  async bootstrapDevelopmentCredential(app: ApplicationService) {
+  async bootstrapDevelopmentCredential() {
     if (!capacitylens.createAdmin) return;
     const password = capacitylens.bootstrapAdminPassword;
     if (!password || getPasswordLengthFailure(password)) {
@@ -53,8 +57,7 @@ export class DevelopmentBootstrapService {
     if (existing) {
       const user = await User.findBy('email', email);
       if (!user) return;
-      const admission = await app.container.make(AccountAdmission);
-      if (await admission.isAdmitted(user.id)) return;
+      if (await this.#admission.isAdmitted(user.id)) return;
       throw new Error(this.buildBootstrapRecoveryMessage());
     }
     const passwordHash = await hash.make(password);
@@ -73,7 +76,6 @@ export class DevelopmentBootstrapService {
         { client: trx }
       );
     });
-    const admission = await app.container.make(AccountAdmission);
-    await this.recordBootstrapAdmission(admission, email);
+    await this.recordBootstrapAdmission(this.#admission, email);
   }
 }
