@@ -419,11 +419,8 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   [
     'database constraint',
     () => answered(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' })),
-    400,
-    {
-      error: 'That change references missing data or conflicts with an existing record.',
-      code: 'VALIDATION_ERROR',
-    },
+    500,
+    { error: 'Internal server error.' },
   ],
   [
     'E_TOO_MANY_REQUESTS',
@@ -541,7 +538,7 @@ test.group('product error adapters', () => {
       status: 500,
     });
   });
-  test('constraint refusals carry the validation code', async ({ assert }) => {
+  test('a constraint failure is a server fault: 500 answered and logged', async ({ assert }) => {
     const error = Object.assign(new Error('SENTINEL_SQL_TEXT SENTINEL_PAYLOAD'), {
       code: 'SQLITE_CONSTRAINT_FOREIGNKEY',
       sql: 'SENTINEL_SQL_TEXT',
@@ -550,8 +547,8 @@ test.group('product error adapters', () => {
     const { ctx, result, diagnostics } = context(error);
     await new HttpExceptionHandler().handle(error, ctx);
     await new HttpExceptionHandler().report(error, ctx);
-    assert.equal(result.status, 400);
-    assert.equal((result.body as { code: string }).code, 'VALIDATION_ERROR');
+    assert.equal(result.status, 500);
+    assert.deepEqual(result.body, { error: 'Internal server error.' });
     assert.lengthOf(diagnostics, 1);
     const { err, ...fields } = diagnostics[0]!.fields;
     assert.deepEqual(fields, {
