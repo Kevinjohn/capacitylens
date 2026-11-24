@@ -281,6 +281,20 @@ describe('company import failure boundaries', () => {
     expect(document).toEqual(before);
   });
 
+  it.each(['clients', 'projects', 'resources', 'activities'] as const)(
+    'refuses a deleted %s record and drops an empty deletedAt',
+    (key) => {
+      const deleted = freshDocument();
+      Object.assign(requireValue(deleted.data[key][0]), { deletedAt: '2026-10-01T00:00:00.000Z' });
+      expect(() => prepareCompanyImport(deleted, context)).toThrow(
+        new RegExp(`data\\.${key}\\[0\\]\\.deletedAt`),
+      );
+      const empty = freshDocument();
+      Object.assign(requireValue(empty.data[key][0]), { deletedAt: null });
+      expect(prepareCompanyImport(empty, context).data[key][0]).not.toHaveProperty('deletedAt');
+    },
+  );
+
   it('projects access and device fields away rather than importing them', () => {
     const document = freshDocument();
     const input = {
