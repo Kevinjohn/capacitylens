@@ -21,7 +21,7 @@ type Row = Record<string, unknown>;
 // Parents before children, the order the cross-company triggers need.
 const KEYS = Object.keys(tables) as AppDataKey[];
 
-// Captured from encodeRow, the write path before #2459, on this fixture; stored bytes must not move.
+// Captured from the query-builder write path before #2459, on this fixture; stored bytes must not move.
 const expected = JSON.parse(
   await readFile(new URL('../fixtures-stored-rows.json', import.meta.url), 'utf8')
 ) as Partial<Record<AppDataKey, Row[]>>;
