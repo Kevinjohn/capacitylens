@@ -1,389 +1,580 @@
 import { describe, expect, it } from 'vitest';
-import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import { createEmptyAppData } from '../../types/entities.js';
-import type {
-  Company,
-  Activity,
-  AppData,
-  Client,
-  ID,
-  Phase,
-  Project,
-  Resource,
-  ScopedEntity,
-  ScopedEntityKey,
-} from '../../types/entities.js';
-import { DomainError } from '../errors.js';
+import type { AppData, ID, ScopedEntity, ScopedEntityKey } from '../../types/entities.js';
 import type { DomainErrorCode } from '../errors.js';
-import { assertAllocationRefs, assertScopedRefs } from './refs.js';
+import { assertAllocationRefs, assertScopedRefs, getOwned } from './refs.js';
+import {
+  A1,
+  A2,
+  TS,
+  captureFailure,
+  makeActivity,
+  makeClient,
+  makeCompany,
+  makeDiscipline,
+  makePerson,
+  makePhase,
+  makePlaceholder,
+  makeProject,
+} from './assertionTestKit.js';
+import type { Failure } from './assertionTestKit.js';
 
-// refs.messages.test.ts proves these rules reject bad writes by message; this file pins the code
-// each rule carries and the conditions that decide whether it runs.
+// Each row pins the code a rule refuses with and the English message the wire carries. The
+// server and the client share this module, so the rows pin the rules for both callers.
 
-const TS = '2026-01-01T00:00:00.000Z';
-const A1 = 'a-studio';
-const A2 = 'a-loft';
-
-const meta = (id: ID, companyId: ID = A1) => ({ id, companyId, createdAt: TS, updatedAt: TS });
-const company = (id: ID, name: string): Company => ({
-  ...NULLABLE_FIELDS.companies,
-  id,
-  name,
-  color: '#3b82f6',
-  createdAt: TS,
-  updatedAt: TS,
-});
-const client = (id: ID, overrides: Partial<Client> = {}): Client => ({
-  ...NULLABLE_FIELDS.clients,
-  ...meta(id),
-  name: 'Gotham City',
-  color: '#3b82f6',
-  ...overrides,
-});
-const project = (id: ID, overrides: Partial<Project> = {}): Project => ({
-  ...NULLABLE_FIELDS.projects,
-  ...meta(id),
-  name: `Project ${id}`,
-  clientId: 'c1',
-  color: '#3b82f6',
-  ...overrides,
-});
-const phase = (id: ID, projectId: ID, companyId: ID = A1): Phase => ({
-  ...meta(id, companyId),
-  name: 'Discovery',
-  projectId,
-});
-const person = (id: ID, overrides: Partial<Resource> = {}): Resource => ({
-  ...NULLABLE_FIELDS.resources,
-  ...meta(id),
-  kind: 'person',
-  name: 'Bruce Wayne',
-  jobTitle: 'Designer',
-  employmentType: 'permanent',
-  engagement: 'studio',
-  workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5],
-  halfDays: [],
-  color: '#3b82f6',
-  ...overrides,
-});
-const activity = (id: ID, overrides: Partial<Activity> = {}): Activity => ({
-  ...NULLABLE_FIELDS.activities,
-  ...meta(id),
-  name: `Activity ${id}`,
-  kind: 'project',
-  projectId: 'p1',
-  ...overrides,
-});
-
-// One company with an active and an archived row of each referenced kind, plus a second company
-// whose rows must never be referenced.
-function data(): AppData {
+/** One company with active, archived, hidden and corrupt rows of each referenced kind, plus a
+ * second company whose rows must never be referenced. */
+function makeWorld(): AppData {
   return {
     ...createEmptyAppData(),
-    companies: [company(A1, 'Wayne Enterprises'), company(A2, 'Stark Industries')],
+    companies: [makeCompany(A1, 'Wayne Enterprises'), makeCompany(A2, 'Stark Industries')],
     clients: [
-      client('c1'),
-      client('c-archived', { archivedAt: TS }),
-      { ...client('c-loft'), companyId: A2, name: 'Avengers Tower' },
+      makeClient('c1'),
+      makeClient('c-archived', { archivedAt: TS }),
+      makeClient('c-loft', { companyId: A2, name: 'Avengers Tower' }),
     ],
     projects: [
-      project('p1'),
-      project('p2'),
-      project('p-archived', { archivedAt: TS }),
-      { ...project('p-loft', { clientId: 'c-loft' }), companyId: A2 },
+      makeProject('p1'),
+      makeProject('p2'),
+      makeProject('p-archived', { archivedAt: TS }),
+      makeProject('p-loft', { clientId: 'c-loft', companyId: A2 }),
+      // Active itself, but hidden by its archived client.
+      makeProject('p-hidden', { clientId: 'c-archived' }),
     ],
-    phases: [phase('ph1', 'p1'), phase('ph-loft', 'p-loft', A2)],
+    phases: [
+      makePhase('ph1', 'p1'),
+      makePhase('ph-loft', 'p-loft', { companyId: A2 }),
+      makePhase('ph-hidden', 'p-hidden'),
+    ],
+    disciplines: [makeDiscipline('d-loft', { companyId: A2 })],
     activities: [
-      activity('t1'),
-      activity('t-all-projects', { kind: 'allProjects', projectId: null }),
-      activity('t-archived', { archivedAt: TS }),
-      { ...activity('t-loft', { projectId: 'p-loft' }), companyId: A2 },
+      makeActivity('t1'),
+      makeActivity('t2', { projectId: 'p2' }),
+      makeActivity('t-all', { kind: 'allProjects', projectId: null }),
+      makeActivity('t-archived', { archivedAt: TS }),
+      makeActivity('t-loft', { projectId: 'p-loft', companyId: A2 }),
+      makeActivity('t-hidden', { projectId: 'p-hidden' }),
+      makeActivity('t-in-archived', { projectId: 'p-archived' }),
+      // Corrupt rows: one project is gone, the other is in the other company.
+      makeActivity('t-orphan', { projectId: 'p-missing' }),
+      makeActivity('t-foreign', { projectId: 'p-loft' }),
     ],
     resources: [
-      person('r1'),
-      person('r-archived', { archivedAt: TS }),
-      person('ph-p1', { kind: 'placeholder', name: 'Batgirl', projectId: 'p1' }),
-      person('ext1', { kind: 'external', name: 'Kord Industries' }),
-      { ...person('r-loft', { name: 'Tony Stark' }), companyId: A2 },
+      makePerson('r1'),
+      makePerson('r-archived', { archivedAt: TS }),
+      makePlaceholder('ph-p1', 'p1'),
+      makePerson('ph-unbound', { kind: 'placeholder', name: 'Batgirl' }),
+      makePerson('ext1', { kind: 'external', name: 'Kord Industries' }),
+      makePerson('r-loft', { name: 'Tony Stark', companyId: A2 }),
     ],
   };
 }
 
-/** The domain code a call throws, or undefined when it passes. Any other throw fails the test. */
-function codeOf(run: () => void): DomainErrorCode | undefined {
-  try {
-    run();
-  } catch (error) {
-    expect(error).toBeInstanceOf(DomainError);
-    return (error as DomainError).code;
-  }
-  return undefined;
-}
+const pass = undefined;
+const refusal = (code: DomainErrorCode, message: string): Failure => ({ code, message });
+const wrongCompany = (message: string) => refusal('reference_wrong_company', message);
 
-function scoped(
-  key: ScopedEntityKey,
+const projectClient = wrongCompany('Project must reference a client in this company.');
+const phaseProject = wrongCompany('Phase must reference a project in this company.');
+const activityProject = wrongCompany('Activity must reference a project in this company.');
+const discipline = wrongCompany('Resource discipline must belong to this company.');
+const placeholderProject = wrongCompany('Placeholder project must belong to this company.');
+const projectRequired = refusal(
+  'activity_project_required',
+  'A project-specific activity must be assigned to a project.',
+);
+const projectForbidden = refusal(
+  'activity_project_forbidden',
+  'An internal or all-projects activity cannot belong to a project.',
+);
+const phaseForbidden = refusal(
+  'activity_phase_forbidden',
+  'An internal or all-projects activity cannot belong to a phase.',
+);
+const phaseWrongCompany = refusal(
+  'activity_phase_wrong_company',
+  'Activity phase must belong to this company.',
+);
+const phaseNeedsProject = refusal(
+  'activity_phase_project_required',
+  'An activity with a phase must also belong to that phase’s project.',
+);
+const phaseMismatch = refusal(
+  'activity_phase_project_mismatch',
+  'Activity phase must belong to the activity’s project.',
+);
+const avatarForbidden = refusal(
+  'resource_avatar_url_forbidden',
+  'Only a person can have an avatar URL.',
+);
+const avatarInvalid = refusal(
+  'resource_avatar_url_invalid',
+  'Avatar URL must be a normalised HTTPS URL without credentials.',
+);
+const bindingForbidden = refusal(
+  'resource_project_forbidden',
+  'Only a placeholder can be assigned to a project.',
+);
+const kindChanged = refusal(
+  'resource_kind_immutable',
+  'A resource’s kind cannot change after creation.',
+);
+const kindCorrupt = refusal(
+  'resource_kind_immutable',
+  'The stored resource kind is invalid and must be repaired by import.',
+);
+const references = refusal(
+  'allocation_references_invalid',
+  'Allocation must reference an existing resource and activity in this company.',
+);
+const resourceInactive = refusal(
+  'allocation_resource_inactive',
+  'Allocation must reference an active resource in this company.',
+);
+const activityInactive = refusal(
+  'allocation_activity_inactive',
+  'Allocation must reference an activity under an active project.',
+);
+const attributionForbidden = refusal(
+  'allocation_project_forbidden',
+  'Only an all-projects activity allocation can be attributed to a project.',
+);
+const projectInactive = refusal(
+  'allocation_project_inactive',
+  'Allocation must reference an activity under an active project in this company.',
+);
+const placeholderMismatch = refusal(
+  'placeholder_project_mismatch',
+  'A placeholder can only be assigned to activities from its bound project.',
+);
+const placeholderUnbound = refusal(
+  'placeholder_project_missing',
+  'This placeholder is not bound to a project yet.',
+);
+const externalHours = refusal(
+  'external_allocation_hours',
+  'An external party’s allocation can’t carry hours.',
+);
+
+describe('getOwned', () => {
+  it.each([
+    ['returns the row when it belongs to the active company', 'c1', 'c1'],
+    ['returns null for an absent id (stale-id no-op contract)', 'c-gone', null],
+  ])('%s', (_title, id, expected) => {
+    expect(getOwned(makeWorld(), A1, 'clients', id)?.id ?? null).toBe(expected);
+  });
+
+  it('refuses a row that belongs to another company', () => {
+    expect(captureFailure(() => getOwned(makeWorld(), A1, 'clients', 'c-loft'))).toEqual(
+      refusal('record_wrong_company', 'That record does not belong to the active company.'),
+    );
+  });
+});
+
+type Stored = ScopedEntity | Record<string, unknown>;
+type ScopedRow = [
+  title: string,
+  expected: Failure | undefined,
   record: Record<string, unknown>,
-  existing?: ScopedEntity | Record<string, unknown>,
+  existing?: Stored,
   options?: { fullRow?: boolean },
-) {
-  return codeOf(() => assertScopedRefs(data(), A1, key, record, existing, options));
+];
+
+/** Register one test per row, each calling assertScopedRefs on a fresh world. */
+function itRefusesScoped(key: ScopedEntityKey, rows: ScopedRow[]): void {
+  it.each(rows)('%s', (_title, expected, record, existing, options) => {
+    expect(
+      captureFailure(() => assertScopedRefs(makeWorld(), A1, key, record, existing, options)),
+    ).toEqual(expected);
+  });
 }
 
-describe('assertScopedRefs required references', () => {
-  it('accepts an active in-company reference', () => {
-    expect(scoped('projects', { clientId: 'c1' })).toBeUndefined();
-  });
+const storedProject = makeProject('p1');
+const storedPhase = makePhase('ph1', 'p1');
+const hiddenPhase = makePhase('ph-hidden', 'p-hidden');
+const storedPerson = makePerson('r1');
+const boundPerson = makePerson('r1', { projectId: 'p1' });
+const boundPlaceholder = makePlaceholder('r1', 'p1');
+const projectWithClient = (clientId: ID) => makeProject('p1', { clientId });
+const activityWith = (fields: { projectId?: ID; phaseId: ID }) => makeActivity('t1', fields);
+const avatar = 'https://images.example/bruce.png';
 
-  it('rejects a non-string, missing, cross-company or archived reference on create', () => {
-    for (const clientId of [42, 'c-missing', 'c-loft', 'c-archived']) {
-      expect(scoped('projects', { clientId })).toBe('reference_wrong_company');
-    }
-  });
+describe('assertScopedRefs projects', () => {
+  itRefusesScoped('projects', [
+    ['accepts an active in-company client', pass, { clientId: 'c1' }],
+    ['rejects a non-string client id', projectClient, { clientId: 42 }],
+    ['rejects a missing client', projectClient, { clientId: 'c-missing' }],
+    ['rejects a client in another company', projectClient, { clientId: 'c-loft' }],
+    ['rejects a new reference to an archived client', projectClient, { clientId: 'c-archived' }],
+    ['requires the client on create', projectClient, {}],
+    ['rejects a null client on create', projectClient, { clientId: null }],
+    ['rejects an update clearing the client', projectClient, { clientId: null }, storedProject],
+    ['lets a partial update omit the client', pass, { name: 'Renamed' }, storedProject],
+    ['accepts a changed active client', pass, { clientId: 'c1' }, storedProject],
+    ['rejects a changed archived client', projectClient, { clientId: 'c-archived' }, storedProject],
+    [
+      'rejects a changed client absent from the data',
+      projectClient,
+      { clientId: 'c-other' },
+      projectWithClient('c-gone'),
+    ],
+    [
+      'accepts an unchanged archived client',
+      pass,
+      { clientId: 'c-archived' },
+      projectWithClient('c-archived'),
+    ],
+    [
+      'accepts an unchanged client absent from the data',
+      pass,
+      { name: 'Renamed', clientId: 'c-gone' },
+      projectWithClient('c-gone'),
+    ],
+    [
+      'rejects an unchanged client in another company',
+      projectClient,
+      { clientId: 'c-loft' },
+      projectWithClient('c-loft'),
+    ],
+  ]);
+});
 
-  it('requires the parent on create, on a full row and when an update clears it', () => {
-    expect(scoped('projects', {})).toBe('reference_wrong_company');
-    expect(scoped('phases', {}, phase('ph1', 'p1'), { fullRow: true })).toBe(
-      'reference_wrong_company',
-    );
-    expect(scoped('phases', { projectId: null }, phase('ph1', 'p1'))).toBe(
-      'reference_wrong_company',
-    );
-  });
-
-  it('lets a partial update omit the parent', () => {
-    expect(scoped('phases', { name: 'Delivery' }, phase('ph1', 'p1'))).toBeUndefined();
-    expect(
-      scoped('phases', { name: 'Delivery' }, phase('ph1', 'p1'), { fullRow: false }),
-    ).toBeUndefined();
-  });
-
-  it('skips the active check for an unchanged reference but still rejects a foreign one', () => {
-    const stale = project('p1', { clientId: 'c-archived' });
-    expect(scoped('projects', { clientId: 'c-archived' }, stale)).toBeUndefined();
-    const gone = project('p1', { clientId: 'c-missing' });
-    expect(scoped('projects', { clientId: 'c-missing' }, gone)).toBeUndefined();
-    const foreign = project('p1', { clientId: 'c-loft' });
-    expect(scoped('projects', { clientId: 'c-loft' }, foreign)).toBe('reference_wrong_company');
-  });
-
-  it('checks a changed reference on update', () => {
-    expect(scoped('projects', { clientId: 'c-archived' }, project('p1'))).toBe(
-      'reference_wrong_company',
-    );
-    expect(scoped('projects', { clientId: 'c1' }, project('p1'))).toBeUndefined();
-  });
+describe('assertScopedRefs phases', () => {
+  itRefusesScoped('phases', [
+    ['accepts an in-company project', pass, { projectId: 'p1' }],
+    ['rejects a project in another company', phaseProject, { projectId: 'p-loft' }],
+    ['rejects a project whose client is archived', phaseProject, { projectId: 'p-hidden' }],
+    ['requires the project on create', phaseProject, { name: 'No parent' }],
+    ['rejects a null project on create', phaseProject, { projectId: null }],
+    ['requires the project on a full row', phaseProject, {}, storedPhase, { fullRow: true }],
+    ['rejects an update clearing the project', phaseProject, { projectId: null }, storedPhase],
+    [
+      'rejects an update unsetting the project',
+      phaseProject,
+      { projectId: undefined },
+      storedPhase,
+    ],
+    ['lets a partial update omit the project', pass, { name: 'Delivery' }, storedPhase],
+    ['lets a non-full row omit it', pass, { name: 'Delivery' }, storedPhase, { fullRow: false }],
+    [
+      'accepts an unrelated edit beneath an archived client',
+      pass,
+      { ...hiddenPhase, name: 'Renamed' },
+      hiddenPhase,
+    ],
+  ]);
 });
 
 describe('assertScopedRefs activities', () => {
-  it('requires a project for a project activity', () => {
-    expect(scoped('activities', { kind: 'project' })).toBe('activity_project_required');
-    expect(scoped('activities', { kind: 'project', projectId: 'p1' })).toBeUndefined();
-  });
-
-  it('forbids a project or phase on internal and all-projects activities', () => {
-    for (const kind of ['internal', 'allProjects']) {
-      expect(scoped('activities', { kind, projectId: 'p1' })).toBe('activity_project_forbidden');
-      expect(scoped('activities', { kind, phaseId: 'ph1' })).toBe('activity_phase_forbidden');
-      expect(scoped('activities', { kind })).toBeUndefined();
-    }
-  });
-
-  it('rejects a phase of another company or one that does not exist', () => {
-    expect(scoped('activities', { kind: 'project', projectId: 'p-loft', phaseId: 'ph-loft' })).toBe(
-      'reference_wrong_company',
-    );
-    expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-loft' })).toBe(
-      'activity_phase_wrong_company',
-    );
-    expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-missing' })).toBe(
-      'activity_phase_wrong_company',
-    );
-    expect(scoped('activities', { projectId: 'p1', phaseId: 7 })).toBe(
-      'activity_phase_wrong_company',
-    );
-  });
-
-  it('requires the phase’s own project', () => {
-    expect(scoped('activities', { phaseId: 'ph1' })).toBe('activity_phase_project_required');
-    expect(scoped('activities', { kind: 'project', projectId: 'p2', phaseId: 'ph1' })).toBe(
-      'activity_phase_project_mismatch',
-    );
-    expect(
-      scoped('activities', { kind: 'project', projectId: 'p1', phaseId: 'ph1' }),
-    ).toBeUndefined();
-  });
-
-  it('accepts an unchanged phase that is missing but not one in another company', () => {
-    const missing = activity('t1', { phaseId: 'ph-missing' });
-    expect(
-      scoped('activities', { projectId: 'p1', phaseId: 'ph-missing' }, missing),
-    ).toBeUndefined();
-    const foreign = activity('t1', { phaseId: 'ph-loft' });
-    expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-loft' }, foreign)).toBe(
-      'activity_phase_wrong_company',
-    );
-  });
-
-  it('rechecks an unchanged phase when the project changes', () => {
-    const stored = activity('t1', { phaseId: 'ph1' });
-    expect(scoped('activities', { projectId: 'p2', phaseId: 'ph1' }, stored)).toBe(
-      'activity_phase_project_mismatch',
-    );
-  });
+  itRefusesScoped('activities', [
+    ['requires a project for a project activity', projectRequired, { kind: 'project', name: 'T' }],
+    ['accepts a project activity with a project', pass, { kind: 'project', projectId: 'p1' }],
+    ['rejects a dangling project', activityProject, { projectId: 'ghost' }],
+    [
+      'rejects a project whose client is archived',
+      activityProject,
+      { kind: 'project', projectId: 'p-hidden', name: 'New activity' },
+    ],
+    ['forbids a project on internal work', projectForbidden, { kind: 'internal', projectId: 'p1' }],
+    ['forbids a phase on internal work', phaseForbidden, { kind: 'internal', phaseId: 'ph1' }],
+    ['accepts project-less internal work', pass, { kind: 'internal', name: 'Admin' }],
+    [
+      'forbids a project on all-projects work',
+      projectForbidden,
+      { kind: 'allProjects', projectId: 'p1' },
+    ],
+    [
+      'forbids a phase on all-projects work',
+      phaseForbidden,
+      { kind: 'allProjects', phaseId: 'ph1' },
+    ],
+    ['accepts project-less all-projects work', pass, { kind: 'allProjects' }],
+    ['does not treat an unknown kind as internal', pass, { kind: 'bogus', projectId: 'p1' }],
+    [
+      'checks the project before a phase of another company',
+      activityProject,
+      { kind: 'project', projectId: 'p-loft', phaseId: 'ph-loft' },
+    ],
+    [
+      'rejects a phase of another company',
+      phaseWrongCompany,
+      { projectId: 'p1', phaseId: 'ph-loft' },
+    ],
+    ['rejects a missing phase', phaseWrongCompany, { projectId: 'p1', phaseId: 'ph-missing' }],
+    ['rejects a non-string phase id', phaseWrongCompany, { projectId: 'p1', phaseId: 7 }],
+    ['requires a project alongside a phase', phaseNeedsProject, { phaseId: 'ph1' }],
+    ['rejects a phase of another project', phaseMismatch, { projectId: 'p2', phaseId: 'ph1' }],
+    [
+      'rejects a phase of another project on project work',
+      phaseMismatch,
+      { kind: 'project', projectId: 'p2', phaseId: 'ph1' },
+    ],
+    ['accepts a phase of its own project', pass, { projectId: 'p1', phaseId: 'ph1' }],
+    [
+      'accepts a phase of its own project on project work',
+      pass,
+      { kind: 'project', projectId: 'p1', phaseId: 'ph1' },
+    ],
+    [
+      'accepts an unchanged missing phase',
+      pass,
+      { projectId: 'p1', phaseId: 'ph-missing' },
+      activityWith({ phaseId: 'ph-missing' }),
+    ],
+    [
+      'accepts an unchanged missing project and phase',
+      pass,
+      { ...activityWith({ projectId: 'p-gone', phaseId: 'ph-gone' }), name: 'Renamed' },
+      activityWith({ projectId: 'p-gone', phaseId: 'ph-gone' }),
+    ],
+    [
+      'rejects an unchanged phase of another company',
+      phaseWrongCompany,
+      { projectId: 'p1', phaseId: 'ph-loft' },
+      activityWith({ phaseId: 'ph-loft' }),
+    ],
+    [
+      'rechecks an unchanged phase when the project changes',
+      phaseMismatch,
+      { projectId: 'p2', phaseId: 'ph1' },
+      activityWith({ phaseId: 'ph1' }),
+    ],
+    [
+      'rechecks a changed phase',
+      phaseWrongCompany,
+      { ...activityWith({ phaseId: 'ph-old' }), phaseId: 'ph-new' },
+      activityWith({ phaseId: 'ph-old' }),
+    ],
+  ]);
 });
 
 describe('assertScopedRefs resources', () => {
-  it('lets only a person carry an avatar URL', () => {
-    const url = 'https://images.example/bruce.png';
-    expect(scoped('resources', { kind: 'person', avatarUrl: url })).toBeUndefined();
-    expect(scoped('resources', { kind: 'placeholder', avatarUrl: url })).toBe(
-      'resource_avatar_url_forbidden',
-    );
-    expect(
-      scoped(
-        'resources',
-        { name: 'Batgirl' },
-        person('ph', { kind: 'placeholder', avatarUrl: url }),
-      ),
-    ).toBe('resource_avatar_url_forbidden');
-  });
-
-  it('rejects an avatar URL that is not already normalised HTTPS', () => {
-    for (const avatarUrl of ['http://images.example/a.png', 'https://Images.example/a.png']) {
-      expect(scoped('resources', { kind: 'person', avatarUrl })).toBe(
-        'resource_avatar_url_invalid',
-      );
-    }
-  });
-
-  it('leaves a resource without an avatar URL alone', () => {
-    expect(scoped('resources', { name: 'Clark Kent' }, person('r1'))).toBeUndefined();
-    expect(scoped('resources', { kind: 'placeholder', avatarUrl: null })).toBeUndefined();
-  });
-
-  it('forbids a project on a non-placeholder when kind or project is supplied', () => {
-    expect(scoped('resources', { kind: 'person', projectId: 'p1' })).toBe(
-      'resource_project_forbidden',
-    );
-    const bound = person('r1', { projectId: 'p1' });
-    expect(scoped('resources', { kind: 'person' }, bound)).toBe('resource_project_forbidden');
-    expect(scoped('resources', { projectId: 'p1' }, person('r1'))).toBe(
-      'resource_project_forbidden',
-    );
-    expect(scoped('resources', { name: 'Clark Kent' }, bound)).toBeUndefined();
-    expect(scoped('resources', { kind: 'placeholder', projectId: 'p1' })).toBeUndefined();
-    // Without a known kind the placeholder rule has nothing to compare.
-    expect(scoped('resources', { projectId: 'p1' })).toBeUndefined();
-    expect(scoped('resources', { kind: null, projectId: 'p1' })).toBeUndefined();
-  });
-
-  it('keeps the resource kind immutable and rejects a corrupt stored kind', () => {
-    expect(scoped('resources', { kind: 'placeholder' }, person('r1'))).toBe(
-      'resource_kind_immutable',
-    );
-    expect(scoped('resources', { name: 'Clark Kent' }, { ...person('r1'), kind: 'robot' })).toBe(
-      'resource_kind_immutable',
-    );
-    expect(scoped('resources', { name: 'Clark Kent' }, { ...person('r1'), kind: 7 })).toBe(
-      'resource_kind_immutable',
-    );
-    expect(scoped('resources', { kind: 'person' }, person('r1'))).toBeUndefined();
-  });
-
-  it('checks discipline and placeholder project references', () => {
-    expect(scoped('resources', { kind: 'person', disciplineId: 'd-missing' })).toBe(
-      'reference_wrong_company',
-    );
-    expect(scoped('resources', { kind: 'placeholder', projectId: 'p-loft' })).toBe(
-      'reference_wrong_company',
-    );
-  });
+  itRefusesScoped('resources', [
+    ['lets a person carry an avatar URL', pass, { kind: 'person', avatarUrl: avatar }],
+    [
+      'forbids an avatar on a placeholder',
+      avatarForbidden,
+      { kind: 'placeholder', avatarUrl: avatar },
+    ],
+    [
+      'forbids a stored avatar on a placeholder',
+      avatarForbidden,
+      { name: 'Batgirl' },
+      makePerson('ph', { kind: 'placeholder', avatarUrl: avatar }),
+    ],
+    [
+      'rejects an http avatar URL',
+      avatarInvalid,
+      { kind: 'person', avatarUrl: 'http://images.example/a.png' },
+    ],
+    [
+      'rejects an avatar URL that is not normalised',
+      avatarInvalid,
+      { kind: 'person', avatarUrl: 'https://Images.example/a.png' },
+    ],
+    [
+      'leaves a stored resource without an avatar alone',
+      pass,
+      { name: 'Clark Kent' },
+      storedPerson,
+    ],
+    ['leaves a null avatar URL alone', pass, { kind: 'placeholder', avatarUrl: null }],
+    ['forbids a project on a new person', bindingForbidden, { kind: 'person', projectId: 'p1' }],
+    [
+      'forbids a project on a new external',
+      bindingForbidden,
+      { kind: 'external', projectId: 'p1' },
+    ],
+    [
+      'forbids a stored binding when kind is supplied',
+      bindingForbidden,
+      { kind: 'person' },
+      boundPerson,
+    ],
+    [
+      'forbids a binding supplied to a stored person',
+      bindingForbidden,
+      { projectId: 'p1' },
+      storedPerson,
+    ],
+    [
+      'leaves a stored binding alone on an unrelated edit',
+      pass,
+      { name: 'Clark Kent' },
+      boundPerson,
+    ],
+    [
+      'leaves a legacy binding to a missing project alone',
+      pass,
+      { name: 'Renamed' },
+      makePerson('r1', { projectId: 'legacy-project' }),
+    ],
+    ['accepts a project on a placeholder', pass, { kind: 'placeholder', projectId: 'p1' }],
+    ['skips the binding rule without a known kind', pass, { projectId: 'p1' }],
+    ['skips the binding rule for a null kind', pass, { kind: null, projectId: 'p1' }],
+    [
+      'keeps a person from becoming a placeholder',
+      kindChanged,
+      { kind: 'placeholder' },
+      storedPerson,
+    ],
+    [
+      'keeps a placeholder from becoming a person',
+      kindChanged,
+      { kind: 'person' },
+      boundPlaceholder,
+    ],
+    [
+      'keeps a placeholder from becoming a person with no project',
+      kindChanged,
+      { kind: 'person', projectId: undefined },
+      boundPlaceholder,
+    ],
+    [
+      'rejects an unknown stored kind',
+      kindCorrupt,
+      { name: 'Clark Kent' },
+      { ...storedPerson, kind: 'robot' },
+    ],
+    [
+      'rejects a non-string stored kind',
+      kindCorrupt,
+      { name: 'Clark Kent' },
+      { ...storedPerson, kind: 7 },
+    ],
+    ['accepts the unchanged kind', pass, { kind: 'person' }, storedPerson],
+    ['rejects a missing discipline', discipline, { kind: 'person', disciplineId: 'd-missing' }],
+    ['rejects a discipline in another company', discipline, { disciplineId: 'd-loft' }],
+    [
+      'rejects a placeholder project in another company',
+      placeholderProject,
+      { kind: 'placeholder', projectId: 'p-loft' },
+    ],
+    ['rejects a kindless binding in another company', placeholderProject, { projectId: 'p-loft' }],
+    [
+      'rejects a placeholder project whose client is archived',
+      placeholderProject,
+      { kind: 'placeholder', projectId: 'p-hidden', jobTitle: 'Slot' },
+    ],
+    [
+      'accepts an unchanged placeholder project absent from the data',
+      pass,
+      { name: 'Renamed', projectId: 'p-gone' },
+      makePlaceholder('r1', 'p-gone'),
+    ],
+  ]);
 });
 
 describe('assertScopedRefs tables without catalogue references', () => {
-  it.each(['clients', 'disciplines', 'allocations', 'timeOff', 'closures'] as const)(
-    'ignores reference-looking fields on %s',
+  const referenceLooking = { clientId: 'c-loft', projectId: 'p-loft', kind: 'robot' };
+  describe.each(['clients', 'disciplines', 'allocations', 'timeOff', 'closures'] as const)(
+    '%s',
     (key) => {
-      expect(
-        scoped(key, { clientId: 'c-loft', projectId: 'p-loft', kind: 'robot' }),
-      ).toBeUndefined();
+      itRefusesScoped(key, [
+        ['ignores reference-looking fields', pass, referenceLooking],
+        ['accepts an empty record', pass, {}],
+      ]);
     },
   );
-
-  it('ignores an unknown table key', () => {
-    expect(scoped('unknown' as ScopedEntityKey, { clientId: 'c-loft' })).toBeUndefined();
-  });
+  itRefusesScoped('unknown' as ScopedEntityKey, [
+    ['ignores an unknown table key', pass, { clientId: 'c-loft' }],
+  ]);
 });
 
 describe('assertAllocationRefs', () => {
-  function allocationCode(
-    resourceId: ID,
-    activityId: ID,
-    hoursPerDay = 8,
-    projectId?: ID | null,
-    existing?: { resourceId: ID; activityId: ID; projectId?: ID | null },
-  ) {
-    return codeOf(() =>
-      assertAllocationRefs(data(), A1, resourceId, activityId, hoursPerDay, projectId, existing),
-    );
-  }
+  type Existing = { resourceId: ID; activityId: ID; projectId?: ID | null };
+  type AllocationRow = [
+    title: string,
+    expected: Failure | undefined,
+    call: [resourceId: ID, activityId: ID, hoursPerDay?: number, projectId?: ID | null],
+    existing?: Existing,
+  ];
+  const was = (resourceId: ID, activityId: ID, projectId?: ID): Existing =>
+    projectId === undefined ? { resourceId, activityId } : { resourceId, activityId, projectId };
 
-  it('accepts an active resource and activity', () => {
-    expect(allocationCode('r1', 't1')).toBeUndefined();
-  });
+  const rows: AllocationRow[] = [
+    ['accepts an active resource and activity', pass, ['r1', 't1']],
+    ['rejects a missing resource', references, ['r-missing', 't1']],
+    ['rejects a resource in another company', references, ['r-loft', 't1']],
+    ['rejects a missing activity', references, ['r1', 't-missing']],
+    ['rejects an activity in another company', references, ['r1', 't-loft']],
+    ['rejects a newly chosen archived resource', resourceInactive, ['r-archived', 't1']],
+    ['keeps an unchanged archived resource', pass, ['r-archived', 't1'], was('r-archived', 't1')],
+    [
+      'rejects switching to an archived resource',
+      resourceInactive,
+      ['r-archived', 't1'],
+      was('r1', 't1'),
+    ],
+    ['rejects a newly chosen archived activity', activityInactive, ['r1', 't-archived']],
+    ['keeps an unchanged archived activity', pass, ['r1', 't-archived'], was('r1', 't-archived')],
+    ['rejects new work under an archived project', activityInactive, ['r1', 't-in-archived']],
+    [
+      'rejects switching to work under an archived project',
+      activityInactive,
+      ['r1', 't-in-archived'],
+      was('r1', 't1'),
+    ],
+    [
+      'keeps unchanged archived references',
+      pass,
+      ['r-archived', 't-in-archived'],
+      was('r-archived', 't-in-archived'),
+    ],
+    ['rejects new work beneath an archived client', activityInactive, ['r1', 't-hidden']],
+    [
+      'keeps unchanged work beneath an archived client',
+      pass,
+      ['r1', 't-hidden'],
+      was('r1', 't-hidden'),
+    ],
+    ['rejects work whose project is missing', projectInactive, ['r1', 't-orphan']],
+    ['rejects work whose project is in another company', projectInactive, ['r1', 't-foreign']],
+    ['forbids attribution on project work', attributionForbidden, ['r1', 't1', 8, 'p1']],
+    ['allows attribution on all-projects work', pass, ['r1', 't-all', 8, 'p1']],
+    ['allows a null attribution on all-projects work', pass, ['r1', 't-all', 8, null]],
+    ['rejects attribution to a missing project', projectInactive, ['r1', 't-all', 8, 'p-missing']],
+    ['rejects attribution to another company', projectInactive, ['r1', 't-all', 8, 'p-loft']],
+    [
+      'rejects new attribution to an archived project',
+      projectInactive,
+      ['r1', 't-all', 8, 'p-archived'],
+    ],
+    [
+      'rejects changing attribution to an archived project',
+      projectInactive,
+      ['r1', 't-all', 8, 'p-archived'],
+      was('r1', 't-all'),
+    ],
+    [
+      'keeps unchanged attribution to an archived project',
+      pass,
+      ['r1', 't-all', 8, 'p-archived'],
+      was('r1', 't-all', 'p-archived'),
+    ],
+    ['accepts a placeholder on its bound project', pass, ['ph-p1', 't1']],
+    ['rejects a placeholder on another project', placeholderMismatch, ['ph-p1', 't2']],
+    ['accepts a placeholder attributed to its project', pass, ['ph-p1', 't-all', 8, 'p1']],
+    [
+      'rejects a placeholder attributed to another project',
+      placeholderMismatch,
+      ['ph-p1', 't-all', 8, 'p2'],
+    ],
+    ['rejects an unbound placeholder', placeholderUnbound, ['ph-unbound', 't-all', 8, 'p1']],
+    ['lets an external resource carry zero hours', pass, ['ext1', 't1', 0]],
+    ['rejects four hours on an external resource', externalHours, ['ext1', 't1', 4]],
+    ['rejects eight hours on an external resource', externalHours, ['ext1', 't1', 8]],
+    ['lets a person carry four hours', pass, ['r1', 't1', 4]],
+  ];
 
-  it('rejects a missing or foreign resource or activity', () => {
-    for (const [resourceId, activityId] of [
-      ['r-missing', 't1'],
-      ['r-loft', 't1'],
-      ['r1', 't-missing'],
-      ['r1', 't-loft'],
-    ] as const) {
-      expect(allocationCode(resourceId, activityId)).toBe('allocation_references_invalid');
-    }
-  });
-
-  it('rejects a newly chosen archived resource but keeps an unchanged one', () => {
-    expect(allocationCode('r-archived', 't1')).toBe('allocation_resource_inactive');
-    expect(
-      allocationCode('r-archived', 't1', 8, undefined, {
-        resourceId: 'r-archived',
-        activityId: 't1',
-      }),
-    ).toBeUndefined();
-  });
-
-  it('rejects a newly chosen archived activity but keeps an unchanged one', () => {
-    const existing = { resourceId: 'r1', activityId: 't-archived' };
-    expect(allocationCode('r1', 't-archived')).toBe('allocation_activity_inactive');
-    expect(allocationCode('r1', 't-archived', 8, undefined, existing)).toBeUndefined();
-  });
-
-  it('allows attribution only on a all-projects activity', () => {
-    expect(allocationCode('r1', 't1', 8, 'p1')).toBe('allocation_project_forbidden');
-    expect(allocationCode('r1', 't-all-projects', 8, 'p1')).toBeUndefined();
-    expect(allocationCode('r1', 't-all-projects', 8, null)).toBeUndefined();
-  });
-
-  it('rejects attribution to a missing, foreign or newly chosen archived project', () => {
-    for (const projectId of ['p-missing', 'p-loft', 'p-archived']) {
-      expect(allocationCode('r1', 't-all-projects', 8, projectId)).toBe(
-        'allocation_project_inactive',
-      );
-    }
-    const existing = { resourceId: 'r1', activityId: 't-all-projects', projectId: 'p-archived' };
-    expect(allocationCode('r1', 't-all-projects', 8, 'p-archived', existing)).toBeUndefined();
-  });
-
-  it('applies the placeholder project rule through the assignment check', () => {
-    expect(allocationCode('ph-p1', 't1')).toBeUndefined();
-    expect(allocationCode('ph-p1', 't-all-projects', 8, 'p2')).toBe('placeholder_project_mismatch');
-  });
-
-  it('lets an external resource carry only zero hours', () => {
-    expect(allocationCode('ext1', 't1', 0)).toBeUndefined();
-    expect(allocationCode('ext1', 't1', 4)).toBe('external_allocation_hours');
-    expect(allocationCode('r1', 't1', 4)).toBeUndefined();
-  });
+  it.each(rows)(
+    '%s',
+    (_title, expected, [resourceId, activityId, hours = 8, projectId], existing) => {
+      expect(
+        captureFailure(() =>
+          assertAllocationRefs(makeWorld(), A1, resourceId, activityId, hours, projectId, existing),
+        ),
+      ).toEqual(expected);
+    },
+  );
 });
