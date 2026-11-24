@@ -9,6 +9,10 @@ import type { ApplicationService } from '@adonisjs/core/types';
  * `AccountAdmission`. A service that takes either one through its constructor is therefore
  * resolved when its callback runs, never in a factory body: built there, the two would wait on
  * each other and the container would never settle.
+ *
+ * The Masquerade and Password Confirmations factories do build services that reach
+ * `AccountAdmission`. That is safe, because the Kit never resolves either package while building.
+ * It does mean the Masquerade provider's `boot()` builds the Kit's services in every environment.
  */
 export default class PackageCallbacksProvider {
   constructor(protected app: ApplicationService) {}

@@ -35,10 +35,10 @@ export class DevelopmentBootstrapService {
   }
 
   /** Preserves the committed identity when admission setup needs operator recovery. */
-  async recordBootstrapAdmission(admission: Pick<AccountAdmission, 'operator'>, email: string) {
+  async recordBootstrapAdmission(email: string) {
     try {
-      await admission.operator.grantInvitation({ email, role: 'admin' });
-      await admission.operator.approve({ email });
+      await this.#admission.operator.grantInvitation({ email, role: 'admin' });
+      await this.#admission.operator.approve({ email });
     } catch (cause) {
       throw new Error(this.buildBootstrapRecoveryMessage(), { cause });
     }
@@ -76,6 +76,6 @@ export class DevelopmentBootstrapService {
         { client: trx }
       );
     });
-    await this.recordBootstrapAdmission(this.#admission, email);
+    await this.recordBootstrapAdmission(email);
   }
 }
