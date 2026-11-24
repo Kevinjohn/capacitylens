@@ -2,7 +2,6 @@ import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
-import logger from '@adonisjs/core/services/logger';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { resetState } from '#tests/helpers/state_fixture';
