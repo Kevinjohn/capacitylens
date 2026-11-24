@@ -61,6 +61,6 @@ The slide math uses literal calendar movement for Ignore working days or zero me
 - [gestureMath.ts](../../apps/frontend/src/lib/gestureMath.ts#L110)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L138)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L211)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)

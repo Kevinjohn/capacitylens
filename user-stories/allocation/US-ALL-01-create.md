@@ -81,6 +81,6 @@ The repeat branch continues in [US-ALL-09](US-ALL-09-repeat-creation.md). A bloc
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L80)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L173)
 - [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L132)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)

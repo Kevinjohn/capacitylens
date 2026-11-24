@@ -3,14 +3,16 @@ import { MemberDirectoryService } from '#services/membership/member_directory_se
 import { MemberMutationService } from '#services/membership/member_mutation_service';
 import { MemberMutationRequestService } from '#services/membership/member_mutation_request_service';
 import type { HttpContext } from '@adonisjs/core/http';
-import { assertCompanyPermission } from '#services/auth/authorization';
-import { withActor } from '#services/auth/current_actor';
+import { AuthorizationService } from '#services/auth/authorization_service';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { parseAccountOperation } from '#services/account_operations';
 import { changeRoleValidator } from '#validators/members';
 
 /** Lists company members and applies member operations under live management permission. */
 @inject()
 export default class MembersController {
+  #authorization: AuthorizationService;
+  #currentActor: CurrentActorService;
   #memberDirectory: MemberDirectoryService;
   #memberMutations: MemberMutationService;
   #memberMutationRequests: MemberMutationRequestService;
@@ -18,17 +20,25 @@ export default class MembersController {
   constructor(
     memberDirectory: MemberDirectoryService,
     memberMutations: MemberMutationService,
-    memberMutationRequests: MemberMutationRequestService
+    memberMutationRequests: MemberMutationRequestService,
+    authorization: AuthorizationService,
+    currentActor: CurrentActorService
   ) {
     this.#memberDirectory = memberDirectory;
     this.#memberMutations = memberMutations;
     this.#memberMutationRequests = memberMutationRequests;
+    this.#authorization = authorization;
+    this.#currentActor = currentActor;
   }
 
   async index({ auth, params, serialize }: HttpContext) {
     const { companyId } = params;
-    const directory = await withActor(auth, async (_actor, trx) => {
-      const actor = await assertCompanyPermission(companyId, 'members:manage', trx);
+    const directory = await this.#currentActor.withActor(auth, async (_actor, trx) => {
+      const actor = await this.#authorization.assertCompanyPermission(
+        companyId,
+        'members:manage',
+        trx
+      );
       return this.#memberDirectory.read(trx, companyId, actor);
     });
     return serialize(directory);

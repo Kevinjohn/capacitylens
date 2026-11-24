@@ -10,19 +10,27 @@ import {
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
 import { isFirstCompanySetupRequired } from '#services/first_company_setup';
-import { signInWithPassword } from '#services/auth/password_sign_in';
+import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { buildUserProjection } from '#services/auth/user_projection';
-import { requireAdmissionDecision, withActor } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { signInValidator } from '#validators/auth_requests';
 import { hasAnyIdentity } from '#services/installation_company';
 
 /** The caller's sign-in: who is signed in, signing in with a password, and signing out. */
 @inject()
 export default class SessionController {
+  #passwordSignIn: PasswordSignInService;
+  #currentActor: CurrentActorService;
   #admissionMemberships: AdmissionMembershipService;
 
-  constructor(admissionMemberships: AdmissionMembershipService) {
+  constructor(
+    admissionMemberships: AdmissionMembershipService,
+    passwordSignIn: PasswordSignInService,
+    currentActor: CurrentActorService
+  ) {
     this.#admissionMemberships = admissionMemberships;
+    this.#passwordSignIn = passwordSignIn;
+    this.#currentActor = currentActor;
   }
 
   /**
@@ -32,10 +40,10 @@ export default class SessionController {
   async show({ auth, response, serialize }: HttpContext) {
     try {
       return serialize(
-        await withActor(
+        await this.#currentActor.withActor(
           auth,
           async (actor, trx) => {
-            const admission = await requireAdmissionDecision(actor.userId, trx);
+            const admission = await this.#currentActor.requireAdmissionDecision(actor.userId, trx);
             const admitted = actor.emailVerified && admission.admitted;
             return {
               user: buildUserProjection(actor),
@@ -69,7 +77,7 @@ export default class SessionController {
     const body = await request.validateUsing(signInValidator, { data: request.body() });
     const { email } = body;
     try {
-      const user = await signInWithPassword(auth, logger, {
+      const user = await this.#passwordSignIn.signInWithPassword(auth, logger, {
         email,
         password: body.password,
         clientAddress: request.ip(),

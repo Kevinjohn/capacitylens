@@ -55,7 +55,7 @@ The effective project can come from a Project-specific activity or the allocatio
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L220)
 - [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L366)
 - [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L410)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [AllocationBar.pointerDrag.interaction.test.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.pointerDrag.interaction.test.tsx#L202)

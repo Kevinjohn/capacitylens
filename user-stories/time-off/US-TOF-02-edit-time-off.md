@@ -69,7 +69,7 @@ An Editor patch omits the protected note, preserving the stored value. Owners an
 - [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L249)
 - [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L111)
 - [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L30)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [TimeOffList.test.tsx](../../apps/frontend/src/components/time-off/TimeOffList.test.tsx#L444)

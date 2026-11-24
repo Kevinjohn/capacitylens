@@ -1,4 +1,4 @@
-import type { CurrentActor } from '#services/auth/current_actor';
+import type { CurrentActor } from '#services/auth/current_actor_service';
 
 /** Projects the signed-in identity into the shared HTTP user shape. */
 export function buildUserProjection(actor: Pick<CurrentActor, 'userId' | 'email' | 'displayName'>) {

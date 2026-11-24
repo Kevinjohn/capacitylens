@@ -41,7 +41,7 @@ from missing controls. See [the template](TEMPLATE.md#diagram-conventions) for m
   Task and Overview. An absence caused by a configured switch is not a removed feature.
 
 Source of role permissions: [shared permissions](../packages/shared/src/domain/access.ts)
-[company authorization](../apps/backend/app/services/auth/authorization.ts) and each action's server
+[company authorization](../apps/backend/app/services/auth/authorization_service.ts) and each action's server
 handler. A story's role label is descriptive; the server owns enforcement.
 
 ## Screens and source map
@@ -100,7 +100,7 @@ use the existing tests and [testing guide](../docs-src/reference/how-it-is-teste
   provider. `web_effective` wraps that guard for member routes. It can supply the viewed-as member
   and a request context while keeping the raw sign-in available for account operations.
   [Guard configuration](../apps/backend/config/auth.ts#L8)
-- [`withActor(auth, …)`](../apps/backend/app/services/auth/current_actor.ts#L60) gets the registered
+- [`withActor(auth, …)`](../apps/backend/app/services/auth/current_actor_service.ts#L66) gets the registered
   sign-in from `web.current()`, then reads `web_effective.context`, authenticating that guard if it
   has yet to attempt authentication. It captures the view-as context before opening Account Kit's
   `authentication.withCurrent` transaction. Inside that transaction it requires a sign-in ID,
@@ -129,7 +129,7 @@ configuration files supply the options for those same operations.
 2. [`sendPlanningIntent`](../apps/frontend/src/store/slices/planningSessionSlice.ts#L139)
    checks the planning context and write readiness through the cache before
    [the transport](../apps/frontend/src/data/planning/planningTransport.ts#L57) sends
-   `settings.update` with the base revision. [`PlanningMutationsController.store`](../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+   `settings.update` with the base revision. [`PlanningMutationsController.store`](../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
    validates the request, records the validated `intent.operation` in `requestLog`, then calls
    `mutatePlanning` through [`withActor(auth, …)`](#signed-in-requests). The
    [request logging middleware](../apps/backend/app/middleware/request_logging_middleware.ts#L16)

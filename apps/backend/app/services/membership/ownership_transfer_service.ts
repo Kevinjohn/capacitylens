@@ -1,10 +1,11 @@
+import { inject } from '@adonisjs/core';
 import { OwnershipTransferException } from '#exceptions/ownership_transfer_exception';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
-import { getActiveCompanyRole } from '#services/auth/authorization';
+import { AuthorizationService } from '#services/auth/authorization_service';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { refuseWhileViewing } from '#services/auth/password_confirmation';
-import { requireKitContext, type CurrentActor } from '#services/auth/current_actor';
+import { PasswordConfirmationService } from '#services/auth/password_confirmation_service';
+import { CurrentActorService, type CurrentActor } from '#services/auth/current_actor_service';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { runAccountOperation, type AccountOperationIdentity } from '#services/account_operations';
 import access from '#config/access_control';
@@ -22,7 +23,22 @@ export interface OwnershipTransferInput {
 }
 
 /** Ownership transfer between a company's Owner and one of its Admins. */
+@inject()
 export class OwnershipTransferService {
+  #authorization: AuthorizationService;
+  #passwordConfirmationRules: PasswordConfirmationService;
+  #currentActor: CurrentActorService;
+
+  constructor(
+    authorization: AuthorizationService,
+    passwordConfirmationRules: PasswordConfirmationService,
+    currentActor: CurrentActorService
+  ) {
+    this.#authorization = authorization;
+    this.#passwordConfirmationRules = passwordConfirmationRules;
+    this.#currentActor = currentActor;
+  }
+
   /** Exchanges Owner and Admin inside one product transaction, with exact semantic replay. */
   async transfer({
     trx,
@@ -32,14 +48,14 @@ export class OwnershipTransferService {
     confirmationId,
     command,
   }: OwnershipTransferInput): Promise<OwnershipTransferReceipt> {
-    let currentRole: Awaited<ReturnType<typeof getActiveCompanyRole>>;
+    let currentRole: Awaited<ReturnType<AuthorizationService['getActiveCompanyRole']>>;
     return runAccountOperation(trx, {
       name: 'transfer-ownership',
       authorizeAccess: async () => {
-        refuseWhileViewing(actor);
+        this.#passwordConfirmationRules.refuseWhileViewing(actor);
         // A membership proves its company exists, so an unknown company is refused like any other
         // company the caller does not belong to.
-        currentRole = await getActiveCompanyRole(actor.userId, companyId, trx);
+        currentRole = await this.#authorization.getActiveCompanyRole(actor.userId, companyId, trx);
         if (!currentRole) throw new IdentityAuthorizationException('Forbidden.');
       },
       authorizeReplay: (_context, receipt) => {
@@ -73,7 +89,7 @@ export class OwnershipTransferService {
           .count('* as count')
           .first();
         if (Number(owners?.count) !== 1) throw new Error('Company Owner invariant failed.');
-        await passwordConfirmations.consume(requireKitContext(trx), {
+        await passwordConfirmations.consume(this.#currentActor.requireKitContext(trx), {
           confirmationId: authorization,
           action: 'transfer-ownership',
           scope: companyId,

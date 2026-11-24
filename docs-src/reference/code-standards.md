@@ -52,7 +52,7 @@ Where a backend file goes, what it is called and how each framework layer is use
 ## Names inside a module
 
 A function name starts with a verb, and the verb tells the caller what comes back and whether
-anything happens on the way. Read these two calls from `app/services/auth/authorization.ts`:
+anything happens on the way. Read these two calls from `app/services/auth/authorization_service.ts`:
 
 ```ts
 const role = await getActiveCompanyRole(userId, companyId, trx); // Role | null: absence is a value
@@ -62,11 +62,11 @@ await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 | Verb               | Promise                                                                                              | Example in the tree                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                  | `canArchive` in `packages/shared/src/domain/lifecycle/transitions.ts`             |
-| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyPermission` in `apps/backend/app/services/auth/authorization.ts`        |
+| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyPermission` in `apps/backend/app/services/auth/authorization_service.ts`        |
 | `require`          | Returns what the caller needs or throws. The throwing partner of `get`.                              | `requireCompanyScope` in `apps/backend/app/models_support/scoped_model.ts`                |
 | `prepare`           | Prepares a resource for use according to its stated prerequisites.                                         | `prepareDirectory` from `@kevinjohn/adonisjs-sqlite-backup`  |
 | `get`              | Looks one thing up by key. Returns it, or `null` when absent. Never throws for absence.               | `getMasqueradeContextToken` in `apps/frontend/src/api/masqueradeContext.ts`         |
-| `list`             | Returns an array of matches, empty when there are none.                                              | `listActiveCompanyIds` in `apps/backend/app/services/auth/authorization.ts`                |
+| `list`             | Returns an array of matches, empty when there are none.                                              | `listActiveCompanyIds` in `apps/backend/app/services/auth/authorization_service.ts`                |
 | `read`             | Reads from storage, the network or the environment.                                                  | `readApiError` in `apps/frontend/src/lib/readApiError.ts`                         |
 | `parse`            | Turns untrusted input into a typed value and never returns garbage: `null`, a typed error or a default. | `parseISOTimestamp` in `packages/shared/src/lib/isoDates.ts`                    |
 | `validate`         | Checks a value that is already typed. Returns a `ValidationResult` and never throws.                 | `validateProjectClient` in `packages/shared/src/lib/integrity.ts`                 |
@@ -76,7 +76,7 @@ await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 | `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance.ts`            |
 | `make`             | Test fixtures only.                                                                                  | `makeResource` in `apps/frontend/src/test/fixtures.ts`                            |
 | `use`              | A React hook.                                                                                        | `useScopedData` in `apps/frontend/src/store/useScopedData.ts`                     |
-| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withActor` in `apps/backend/app/services/auth/current_actor.ts`                  |
+| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withActor` in `apps/backend/app/services/auth/current_actor_service.ts`                  |
 
 Functions that do something rather than answer something use a plain domain verb (`remove`,
 `revoke`, `send`, `record`, `transform`) and say which. Two verbs stay out: `find`, because `get`

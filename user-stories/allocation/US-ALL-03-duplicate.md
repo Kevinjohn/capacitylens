@@ -62,7 +62,7 @@ The server duplicate copies the scoped source fields and clears `seriesId`. The 
 - [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L122)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L249)
 - [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L140)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [http_contract.spec.ts](../../apps/backend/tests/functional/planning/http_contract.spec.ts#L579)

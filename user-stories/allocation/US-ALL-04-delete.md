@@ -62,7 +62,7 @@ For future scope, `resolveSeriesFrom` selects rows in the same series beginning 
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L50)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L426)
 - [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts#L125)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [restoration_allocations.spec.ts](../../apps/backend/tests/functional/planning/restoration_allocations.spec.ts#L77)

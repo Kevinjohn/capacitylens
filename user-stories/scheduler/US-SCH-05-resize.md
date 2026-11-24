@@ -60,7 +60,7 @@ The grip keeps the source row. Hours mode preserves daily load. A measured Days-
 - [allocationDrag.ts](../../apps/frontend/src/components/scheduler/allocationDrag.ts#L24)
 - [gestureMath.ts](../../apps/frontend/src/lib/gestureMath.ts#L81)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L211)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [AllocationBar.resize.interaction.test.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.resize.interaction.test.tsx#L155)

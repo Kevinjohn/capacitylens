@@ -55,7 +55,7 @@ flowchart TD
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L326)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L411)
 - [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L92)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [CompanyClosureSection.test.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.test.tsx#L109)

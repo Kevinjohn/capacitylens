@@ -56,7 +56,7 @@ An eligible Undo restores that individual row. The mounted prompt suppresses dis
 - [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts#L4)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L288)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L395)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [TimeOffList.test.tsx](../../apps/frontend/src/components/time-off/TimeOffList.test.tsx#L283)

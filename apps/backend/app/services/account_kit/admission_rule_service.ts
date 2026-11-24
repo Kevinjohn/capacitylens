@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core';
 import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import type {
@@ -9,7 +10,7 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-kit/admission';
 import type { Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
-import { getActiveCompanyRole } from '#services/auth/authorization';
+import { AuthorizationService } from '#services/auth/authorization_service';
 import { writeAudit } from '#services/audit';
 import { getInstallationCompanyId } from '#services/installation_company';
 
@@ -17,18 +18,25 @@ import { getInstallationCompanyId } from '#services/installation_company';
 export const INVITABLE_ROLES = ['viewer', 'editor', 'admin'] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
-// Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
-async function getCompanyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
-  const companyId = await getInstallationCompanyId(trx ?? db);
-  return companyId ? getActiveCompanyRole(userId, companyId, trx) : null;
-}
-
 /**
  * The product's admission and invitation rules, and the credential audit, for the Account Kit.
  * The Kit's admission service is resolved when a rule runs, not injected: resolving it builds these
  * callbacks, so constructor injection would make the two wait on each other.
  */
+@inject()
 export class AdmissionRuleService {
+  #authorization: AuthorizationService;
+
+  constructor(authorization: AuthorizationService) {
+    this.#authorization = authorization;
+  }
+
+  // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
+  async #getCompanyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
+    const companyId = await getInstallationCompanyId(trx ?? db);
+    return companyId ? this.#authorization.getActiveCompanyRole(userId, companyId, trx) : null;
+  }
+
   isInvitableRole(value: unknown): value is InvitableRole {
     return INVITABLE_ROLES.includes(value as InvitableRole);
   }
@@ -40,7 +48,7 @@ export class AdmissionRuleService {
   }
 
   async #canManageInvitations(userId: string, trx: Trx | undefined) {
-    const role = await getCompanyRole(userId, trx);
+    const role = await this.#getCompanyRole(userId, trx);
     return Boolean(
       role && access.can(role, 'invitations:manage') && (await this.isAdmitted(userId, trx))
     );
@@ -50,9 +58,9 @@ export class AdmissionRuleService {
   readonly admissionAuthorize: AdmissionAuthorizeCallbacks = {
     decide: async (actor, subject, context) => {
       const trx = context?.trx;
-      const actorRole = await getCompanyRole(String(actor.id), trx);
+      const actorRole = await this.#getCompanyRole(String(actor.id), trx);
       if (!actorRole || !access.can(actorRole, 'invitations:manage')) return false;
-      const subjectRole = await getCompanyRole(String(subject.id), trx);
+      const subjectRole = await this.#getCompanyRole(String(subject.id), trx);
       const isSelf = String(actor.id) === String(subject.id);
       return (
         !subjectRole || access.canManage({ actorRole, targetRole: subjectRole, isSelf }).allowed

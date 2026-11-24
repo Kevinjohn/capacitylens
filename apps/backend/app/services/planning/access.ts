@@ -1,8 +1,9 @@
+import app from '@adonisjs/core/services/app';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
-import { getActiveMembership, requireStoredRole } from '#services/auth/authorization';
-import { resolveEffectiveReadUser } from '#services/auth/masquerade';
+import { AuthorizationService } from '#services/auth/authorization_service';
+import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
   PlanningOperationException,
@@ -17,8 +18,14 @@ export interface PlanningAccess extends PlanningAccessGrant {
 
 /** Resolves the caller's planning access and access grant inside the transaction. */
 export async function resolvePlanningAccess(trx: TransactionClientContract, companyId: string) {
-  const user = await resolveEffectiveReadUser(trx, companyId, membershipUnavailable);
-  const membership = await getActiveMembership(user.effectiveId, companyId, trx);
+  const masqueradeModes = await app.container.make(MasqueradeModeService);
+  const authorization = await app.container.make(AuthorizationService);
+  const user = await masqueradeModes.resolveEffectiveReadUser(
+    trx,
+    companyId,
+    membershipUnavailable
+  );
+  const membership = await authorization.getActiveMembership(user.effectiveId, companyId, trx);
   if (!membership || (user.companyId !== null && user.companyId !== companyId)) {
     throw new PlanningOperationException(
       403,
@@ -27,7 +34,7 @@ export async function resolvePlanningAccess(trx: TransactionClientContract, comp
     );
   }
   // Abilities belong to the effective member, whose membership this is.
-  const role = requireStoredRole(membership);
+  const role = authorization.requireStoredRole(membership);
   if (!access.can(role, 'planning:read')) {
     throw new PlanningOperationException(
       403,

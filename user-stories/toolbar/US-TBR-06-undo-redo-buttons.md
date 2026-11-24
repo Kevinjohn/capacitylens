@@ -60,7 +60,7 @@ The server keeps up to 50 entries for the last writer. A stale refusal refetches
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts#L136)
 - [planning_undo_controller.ts](../../apps/backend/app/controllers/planning_undo_controller.ts#L5)
 - [planning_redo_controller.ts](../../apps/backend/app/controllers/planning_redo_controller.ts#L5)
-- [history_step.ts](../../apps/backend/app/services/planning/history_step.ts#L8)
+- [history_step.ts](../../apps/backend/app/services/planning/history_step.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L206)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L530)
 - [history.spec.ts](../../apps/backend/tests/functional/planning/history.spec.ts#L113)

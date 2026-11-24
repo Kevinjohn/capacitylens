@@ -1,15 +1,17 @@
+import app from '@adonisjs/core/services/app';
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type db from '@adonisjs/lucid/services/db';
 import logger from '@adonisjs/core/services/logger';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
 import { checkDatabase } from '#services/database_health';
-import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
+import { AuthorizationService } from '#services/auth/authorization_service';
 
 /** Release level and backup timing are administration facts: Owners and Admins only. */
 export async function isOwnerOrAdminOfAnyCompany(userId: string, trx: TransactionClientContract) {
-  for (const companyId of await listActiveCompanyIds(userId, trx)) {
-    const role = await getActiveCompanyRole(userId, companyId, trx);
+  const authorization = await app.container.make(AuthorizationService);
+  for (const companyId of await authorization.listActiveCompanyIds(userId, trx)) {
+    const role = await authorization.getActiveCompanyRole(userId, companyId, trx);
     if (isOwnerOrAdmin(role)) return true;
   }
   return false;

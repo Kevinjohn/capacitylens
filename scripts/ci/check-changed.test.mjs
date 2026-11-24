@@ -745,7 +745,7 @@ test('a backend source change runs the specs that import it, with the reason and
 test('permissions, schema, configuration, test infrastructure and unmapped backend changes run the whole backend suite', () => {
   const importedByEverything = () => ['apps/backend/tests/unit/a.spec.ts'];
   for (const path of [
-    'apps/backend/app/services/auth/authorization.ts',
+    'apps/backend/app/services/auth/authorization_service.ts',
     'apps/backend/app/services/account_kit/admission_rule_service.ts',
     'apps/backend/app/services/membership/member_directory_service.ts',
     'apps/backend/app/services/planning/access_grant.ts',

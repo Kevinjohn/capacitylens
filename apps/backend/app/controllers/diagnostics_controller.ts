@@ -1,13 +1,21 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import logger from '@adonisjs/core/services/logger';
 import db from '@adonisjs/lucid/services/db';
 import capacitylens from '#config/capacitylens';
-import { withActor } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { isOwnerOrAdminOfAnyCompany, readServerDiagnostics } from '#services/diagnostics';
 
+@inject()
 export default class DiagnosticsController {
+  #currentActor: CurrentActorService;
+
+  constructor(currentActor: CurrentActorService) {
+    this.#currentActor = currentActor;
+  }
+
   async show({ auth, response, serialize }: HttpContext) {
-    const administers = await withActor(auth, (actor, trx) =>
+    const administers = await this.#currentActor.withActor(auth, (actor, trx) =>
       isOwnerOrAdminOfAnyCompany(actor.userId, trx)
     );
     if (!administers) {

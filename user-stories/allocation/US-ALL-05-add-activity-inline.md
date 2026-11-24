@@ -58,7 +58,7 @@ If the allocation draft is later discarded, the separately acknowledged activity
 - [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts#L70)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L117)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L273)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [AllocationDialog.activity-and-task.test.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.activity-and-task.test.tsx#L28)

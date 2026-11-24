@@ -73,7 +73,7 @@ Later occurrences use the [repeat policy](US-ALL-09-repeat-creation.md). The ser
 - [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L177)
 - [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts#L95)
 - [domain.ts](../../apps/backend/app/services/planning/entity_validation/domain.ts#L200)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [allocation_start_availability.spec.ts](../../apps/backend/tests/functional/planning/allocation_start_availability.spec.ts#L41)

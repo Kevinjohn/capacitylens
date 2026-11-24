@@ -1,6 +1,7 @@
+import app from '@adonisjs/core/services/app';
 import { abandonPlanningHistory, stepPlanningHistory } from '#services/planning';
 import type { PlanningHistoryStepInput } from '#validators/planning/contracts';
-import { withActor, type RequestAuth } from '#services/auth/current_actor';
+import { CurrentActorService, type RequestAuth } from '#services/auth/current_actor_service';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 import { EmptyHistoryException } from '#exceptions/empty_history_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
@@ -14,8 +15,9 @@ export async function runPlanningHistoryStep(
     input,
   }: { companyId: string; step: 'undo' | 'redo'; input: PlanningHistoryStepInput }
 ) {
+  const currentActor = await app.container.make(CurrentActorService);
   try {
-    return await withActor(auth, (actor, trx) =>
+    return await currentActor.withActor(auth, (actor, trx) =>
       stepPlanningHistory({ trx, actor, companyId, input, step })
     );
   } catch (error) {
@@ -27,7 +29,7 @@ export async function runPlanningHistoryStep(
         error.code !== 'STALE_REVISION' &&
         error.code !== 'MUTATION_ID_REUSED')
     ) {
-      await withActor(auth, (actor, trx) =>
+      await currentActor.withActor(auth, (actor, trx) =>
         abandonPlanningHistory({ trx, actor, companyId, historyId: input.historyId })
       );
     }

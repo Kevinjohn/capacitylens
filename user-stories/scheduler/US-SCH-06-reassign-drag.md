@@ -62,7 +62,7 @@ A zero-column drop can still reassign. It offers the original start and re-place
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L154)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L220)
 - [domain.ts](../../apps/backend/app/services/planning/entity_validation/domain.ts#L200)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [AllocationBar.pointerDrag.interaction.test.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.pointerDrag.interaction.test.tsx#L202)

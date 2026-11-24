@@ -10,7 +10,7 @@ import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/ca
 import { buildCapacitySection } from '#services/planning/capacity_section';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
-import type { CurrentActor } from '#services/auth/current_actor';
+import type { CurrentActor } from '#services/auth/current_actor_service';
 import {
   getPlanningRevision,
   advancePlanningRevision,

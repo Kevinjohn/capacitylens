@@ -69,7 +69,7 @@ The client mints the first ID. The advisory counts affected occurrences across t
 - [save_advisory.ts](../../apps/backend/app/services/planning/save_advisory.ts#L16)
 - [inverse.ts](../../apps/backend/app/services/planning/inverse.ts#L33)
 - [inverse.ts](../../apps/backend/app/services/planning/inverse.ts#L138)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [history.spec.ts](../../apps/backend/tests/functional/planning/history.spec.ts#L395)

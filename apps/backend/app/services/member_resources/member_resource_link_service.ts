@@ -1,7 +1,8 @@
+import { inject } from '@adonisjs/core';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { refuseConflictingAdmission } from '#exceptions/admission_errors';
 import access from '#config/access_control';
-import { getActiveMembership } from '#services/auth/authorization';
+import { AuthorizationService } from '#services/auth/authorization_service';
 import { parseAffectedRows } from '#models_support/affected_rows';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
@@ -13,12 +14,6 @@ async function getCurrentLink(trx: Trx, companyId: string, userId: string) {
     .from('account_member_resources')
     .where({ company_id: companyId, user_id: userId })
     .first();
-}
-
-async function assertEligibleMember(trx: Trx, companyId: string, userId: string) {
-  if (!(await getActiveMembership(userId, companyId, trx))) {
-    refuseConflictingAdmission('Only an active company member can be linked.');
-  }
 }
 
 async function getResource(trx: Trx, companyId: string, resourceId: string) {
@@ -34,7 +29,20 @@ async function assertAvailablePerson(trx: Trx, companyId: string, resourceId: st
 }
 
 /** Links a company member to the scheduled person who represents them. */
+@inject()
 export class MemberResourceLinkService {
+  #authorization: AuthorizationService;
+
+  constructor(authorization: AuthorizationService) {
+    this.#authorization = authorization;
+  }
+
+  async #assertEligibleMember(trx: Trx, companyId: string, userId: string) {
+    if (!(await this.#authorization.getActiveMembership(userId, companyId, trx))) {
+      refuseConflictingAdmission('Only an active company member can be linked.');
+    }
+  }
+
   /** Applies a CAS member/person association within the caller's product transaction. */
   async set(
     trx: Trx,
@@ -49,7 +57,7 @@ export class MemberResourceLinkService {
   ) {
     const { companyId, userId, resourceId, expectedRevision, actorId } = input;
     const now = input.now ?? new Date().toISOString();
-    await assertEligibleMember(trx, companyId, userId);
+    await this.#assertEligibleMember(trx, companyId, userId);
     await assertAvailablePerson(trx, companyId, resourceId);
     const current = await getCurrentLink(trx, companyId, userId);
     if ((current?.revision ?? null) !== expectedRevision) {

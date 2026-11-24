@@ -4,28 +4,26 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
-import { requireStoredRole } from '#services/auth/authorization';
+import { AuthorizationService } from '#services/auth/authorization_service';
 import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
 import { advancePlanningRevision } from '#services/planning_revision';
-
-async function requireTargetMember(
-  trx: TransactionClientContract,
-  companyId: string,
-  userId: string
-) {
-  const member = await access.memberships.find(companyId, userId, trx);
-  if (!member) throw new MembershipException('Not a member of this company.', 404, 'NOT_FOUND');
-  requireStoredRole(member);
-  return member;
-}
 
 /** Role and status changes to a company member. */
 @inject()
 export class MemberMutationService {
+  #authorization: AuthorizationService;
   #signInTracking: MemberSignInTrackingService;
 
-  constructor(signInTracking: MemberSignInTrackingService) {
+  constructor(signInTracking: MemberSignInTrackingService, authorization: AuthorizationService) {
     this.#signInTracking = signInTracking;
+    this.#authorization = authorization;
+  }
+
+  async #requireTargetMember(trx: TransactionClientContract, companyId: string, userId: string) {
+    const member = await access.memberships.find(companyId, userId, trx);
+    if (!member) throw new MembershipException('Not a member of this company.', 404, 'NOT_FOUND');
+    this.#authorization.requireStoredRole(member);
+    return member;
   }
 
   /** Changes an active non-Owner role; the package refuses self, Owner and higher-rank targets. */
@@ -33,7 +31,7 @@ export class MemberMutationService {
     trx: TransactionClientContract,
     input: { companyId: string; actorId: string; userId: string; role: Role }
   ) {
-    const member = await requireTargetMember(trx, input.companyId, input.userId);
+    const member = await this.#requireTargetMember(trx, input.companyId, input.userId);
     // The package would change a suspended member's role; CapacityLens changes active members only.
     if (member.status !== 'active') throw new MembershipException('Forbidden.', 403, 'FORBIDDEN');
     if (input.role === 'owner') {
@@ -69,7 +67,7 @@ export class MemberMutationService {
     trx: TransactionClientContract,
     input: { companyId: string; actorId: string; userId: string; status: MembershipStatus }
   ) {
-    const member = await requireTargetMember(trx, input.companyId, input.userId);
+    const member = await this.#requireTargetMember(trx, input.companyId, input.userId);
     await access.memberships.setStatus({
       actor: { id: input.actorId },
       scopeId: input.companyId,

@@ -67,7 +67,7 @@ The entries have independent IDs and no series field. Edit or Delete acts on one
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L244)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L371)
 - [inverse.ts](../../apps/backend/app/services/planning/inverse.ts#L45)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
 - [TimeOffForm.repeat.test.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.repeat.test.tsx#L167)

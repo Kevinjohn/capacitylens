@@ -75,6 +75,6 @@ The form disables controls during Save. Owner and Admin can edit the protected n
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts#L353)
 - [restricted_fields.ts](../../apps/backend/app/services/planning/restricted_fields.ts#L30)
 - [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts#L41)
-- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L7)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)
 - [planning.ts](../../apps/backend/app/services/planning.ts#L198)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts#L471)
