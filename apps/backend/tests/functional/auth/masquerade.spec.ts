@@ -266,6 +266,12 @@ test.group('native read-only masquerade', (group) => {
         canSeeTimeOffNote,
       };
       assert.deepEqual(grantOf(started.body().data), readOnly);
+      const { startedAt, expiresAt } = started.body().data as {
+        startedAt: string;
+        expiresAt: string;
+      };
+      // config/masquerade.ts sets durationSeconds: 900; the package derives the expiry from it.
+      assert.equal(Date.parse(expiresAt) - Date.parse(startedAt), 900_000);
       const status = await asSession(
         client.visit('api.masquerade.show').qs({ companyId: 'a-studio' }),
         cookie
