@@ -14,7 +14,6 @@ export interface ServerTarget {
   portLane: number;
   slot: number;
   api: string;
-  web: string;
   databasePath: string;
   templatePath: string;
 }
@@ -27,7 +26,6 @@ export function serverTarget(portLane: number, slot: number): ServerTarget {
     portLane,
     slot,
     api: `http://localhost:${endpoints.api}`,
-    web: `http://localhost:${endpoints.web}`,
     databasePath,
     templatePath: `${databasePath}.template`,
   });
@@ -35,7 +33,7 @@ export function serverTarget(portLane: number, slot: number): ServerTarget {
 
 let configuredTarget = serverTarget(resolvePortLane(), 0);
 let resetControlToken: string | undefined;
-let stopOwnedPair: (() => Promise<void>) | undefined;
+let stopOwnedServer: (() => Promise<void>) | undefined;
 /** Current worker API origin; imports observe configuration before a test starts. */
 export let API = configuredTarget.api;
 
@@ -47,30 +45,28 @@ export function configureServerTarget(
   configuredTarget = target;
   API = target.api;
   resetControlToken = control.controlToken;
-  stopOwnedPair = control.stop;
+  stopOwnedServer = control.stop;
 }
 
 const resetControlTimeoutMs = 5_000;
 
-async function resumePair(token: string, primary: unknown): Promise<never | void> {
+async function resumeApi(token: string, primary: unknown): Promise<never | void> {
   const errors: unknown[] = [];
-  for (const role of ['api', 'vite'] as const) {
-    try {
-      await requestResetControl(token, role, 'resume', resetControlTimeoutMs);
-    } catch (error) {
-      errors.push(error);
-    }
+  try {
+    await requestResetControl(token, 'api', 'resume', resetControlTimeoutMs);
+  } catch (error) {
+    errors.push(error);
   }
   if (errors.length) {
     let stopError: unknown;
     try {
-      await stopOwnedPair?.();
+      await stopOwnedServer?.();
     } catch (error) {
       stopError = error;
     }
     throw new AggregateError(
       [primary, ...errors, ...(stopError ? [stopError] : [])],
-      'Reset failed and the owned API/Vite pair could not be safely resumed; the pair was stopped.',
+      'Reset failed and the owned worker API could not be safely resumed; it was stopped.',
       { cause: primary },
     );
   }
@@ -79,34 +75,31 @@ async function resumePair(token: string, primary: unknown): Promise<never | void
 async function withDataListenersPaused<T>(target: ServerTarget, restore: () => T): Promise<T> {
   if (target !== configuredTarget)
     throw new Error('A reset must use this worker’s configured target.');
-  if (!resetControlToken || !stopOwnedPair)
+  if (!resetControlToken || !stopOwnedServer)
     throw new Error('The worker reset control boundary is not configured.');
 
   const token = resetControlToken;
-  const deadline = Date.now() + resetControlTimeoutMs;
   let result: T;
   try {
-    await requestResetControl(token, 'vite', 'pause', resetControlTimeoutMs);
-    await requestResetControl(token, 'api', 'pause', Math.max(1, deadline - Date.now()));
+    await requestResetControl(token, 'api', 'pause', resetControlTimeoutMs);
     result = restore();
   } catch (error) {
-    await resumePair(token, error);
+    await resumeApi(token, error);
     throw error;
   }
 
   try {
     await requestResetControl(token, 'api', 'resume', resetControlTimeoutMs);
-    await requestResetControl(token, 'vite', 'resume', resetControlTimeoutMs);
   } catch (error) {
     let stopError: unknown;
     try {
-      await stopOwnedPair();
+      await stopOwnedServer();
     } catch (cleanupError) {
       stopError = cleanupError;
     }
     throw new AggregateError(
       [error, ...(stopError ? [stopError] : [])],
-      'Reset completed but the owned API/Vite pair could not resume; the pair was stopped.',
+      'Reset completed but the owned worker API could not resume; it was stopped.',
       { cause: error },
     );
   }

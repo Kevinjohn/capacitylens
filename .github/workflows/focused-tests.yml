@@ -70,10 +70,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       # The default E2E command runs the Chromium, database and auth projects.
+      # Playwright's global setup builds the SPA that the database workers serve.
       - run: pnpm exec playwright install --with-deps chromium
-      # The native first-company journey serves the built SPA from the backend's public directory.
-      - name: Build and sync the production SPA
-        run: pnpm --dir apps/frontend build && node scripts/build/sync-adonis-public.mjs
       - name: Run the selected specs or suites
         env:
           RUN: ${{ fromJSON(needs.select-e2e.outputs.plan).run }}

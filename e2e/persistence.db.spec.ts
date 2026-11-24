@@ -3,7 +3,7 @@ import { isPlanningMutation, openApp, selectShadOption } from './browserTestKit'
 import { serverState, requireStateRows } from './serverTestState';
 
 test.describe('database-backed persistence', () => {
-  // The worker Vite proxy sends typed writes to its isolated SQLite-backed server.
+  // The built app sends typed writes to its worker's isolated SQLite-backed server.
   // A record surviving a planning-read reload proves the full UI-to-database round trip.
   test('hydrates the seeded dataset from the server on load', async ({ page }) => {
     await openApp(page);

@@ -19,20 +19,17 @@ if (slot !== null && flavour !== 'db') throw new Error('Only db fixtures have wo
 if (flavour === 'db' && slot === null) throw new Error('Database E2E fixtures require --slot <n>.');
 const worker = slot === null ? null : workerPorts(resolvePortLane(), slot);
 const port = worker?.api ?? portLane.authApi;
-const webPort = worker?.web ?? portLane.authWeb;
 const database = slot === null ? '.auth-e2e.db' : `.e2e-l${resolvePortLane()}-w${slot}.db`;
 if (worker) {
-  const [apiOccupied, webOccupied] = await Promise.all([portInUse(port), portInUse(webPort)]);
-  if (apiOccupied || webOccupied) {
-    const occupied = [apiOccupied && `API ${port}`, webOccupied && `web ${webPort}`]
-      .filter(Boolean)
-      .join(' and ');
+  if (await portInUse(port))
     throw new Error(
-      `Worker ${occupied} port is already occupied; refusing to replace its database.`
+      `Worker API ${port} port is already occupied; refusing to replace its database.`
     );
-  }
   console.info('E2E_WORKER_SLOT_READY_FOR_RESET');
 }
+// A database worker serves the built SPA from its own port; the auth flavour's page comes from its
+// Vite server. Naming the page's port keeps the development default origins out of either list.
+const webPort = worker ? port : portLane.authWeb;
 const serverDirectory = new URL('../', import.meta.url);
 const env = {
   ...process.env,

@@ -7,10 +7,6 @@ const viteConfigSource = await readFile(
   new URL('../../apps/frontend/vite.config.ts', import.meta.url),
   'utf8',
 );
-const workerRuntimeSource = await readFile(
-  new URL('./e2eWorkerRuntime.mjs', import.meta.url),
-  'utf8',
-);
 
 test('every automatically started Playwright server refuses an existing endpoint', () => {
   const reuseSettings = [...configSource.matchAll(/reuseExistingServer:\s*([^,\n]+)/g)].map(
@@ -40,16 +36,4 @@ test('the standard profile waits for real database readiness through both Vite p
     viteConfigSource,
     /'\/health':\s*{[\s\S]*?target: `http:\/\/localhost:\$\{devApiPort\}`/,
   );
-});
-
-test('worker startup waits for API readiness before Vite proxy readiness', () => {
-  const apiProbe = workerRuntimeSource.indexOf(
-    "await waitReady(api, `${target.api}/health/ready`, 'E2E API server');",
-  );
-  const webProbe = workerRuntimeSource.indexOf(
-    "await waitReady(vite, `${target.web}/health/ready`, 'E2E Vite proxy', processes);",
-  );
-
-  assert.ok(apiProbe >= 0, 'expected the worker API readiness probe');
-  assert.ok(webProbe > apiProbe, 'expected the Vite proxy probe after API readiness');
 });

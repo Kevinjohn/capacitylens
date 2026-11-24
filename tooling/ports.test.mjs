@@ -74,8 +74,8 @@ test('the pool leaves a core for everything that is not a test worker, and never
 });
 
 test('worker slots are bounded and keep each port lane in its reserved range', () => {
-  assert.deepEqual(workerPorts(0, 0), { api: 10000, web: 10001 });
-  assert.deepEqual(workerPorts(9, 49), { api: 10998, web: 10999 });
+  assert.deepEqual(workerPorts(0, 0), { api: 10000 });
+  assert.deepEqual(workerPorts(9, 49), { api: 10499 });
   for (const slot of [-1, 0.5, 50, NaN, Infinity])
     assert.throws(() => workerPorts(0, slot), RangeError);
   assert.throws(() => workerPorts(10, 0), RangeError);

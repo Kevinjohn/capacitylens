@@ -449,7 +449,7 @@ test('an occupied port is reported without killing its same-worktree process', a
 
 test('an occupied worker endpoint refuses the port lane without stopping its owner', async () => {
   const portLane = 3;
-  const port = 10399;
+  const port = 10199;
   const killed = [];
   await assert.rejects(
     assertPortLaneFree(portLane, {

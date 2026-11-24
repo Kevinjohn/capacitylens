@@ -2,7 +2,6 @@ export interface E2eWorkerTarget {
   portLane: number;
   slot: number;
   api: string;
-  web: string;
   databasePath: string;
   templatePath: string;
 }
@@ -35,7 +34,5 @@ export function acquireE2eWorkerLease(portLane: number, slot: number): Promise<E
 /** Release only this lease's owner record. */
 export function releaseE2eWorkerLease(paths: E2eWorkerLease['paths']): Promise<void>;
 
-/** Refuse a reset while the worker Vite has requests or upstream sockets open. */
-export function assertE2eProxyDrained(webOrigin: string): Promise<void>;
 /** Refuse a reset while the disposable API has handlers still completing. */
 export function assertE2eRequestsDrained(apiOrigin: string): Promise<void>;

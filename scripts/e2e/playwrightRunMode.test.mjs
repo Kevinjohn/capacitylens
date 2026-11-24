@@ -10,8 +10,8 @@ test('server API calls use the claimed port lane despite an inherited API overri
   process.env.VITE_CAPACITYLENS_API = 'http://localhost:9000';
   try {
     const { API, serverTarget } = await import('../../e2e/serverTestState.ts');
-    assert.equal(API, 'http://localhost:10300');
-    assert.equal(serverTarget(3, 1).api, 'http://localhost:10302');
+    assert.equal(API, 'http://localhost:10150');
+    assert.equal(serverTarget(3, 1).api, 'http://localhost:10151');
     assert.match(serverTarget(3, 1).databasePath, /\.e2e-l3-w1\.db$/);
   } finally {
     if (previousPortLane === undefined) delete process.env.CAPACITYLENS_PORT_LANE;
