@@ -515,6 +515,10 @@ export default class AuthMiddleware {
   (`errors.E_VALIDATION_ERROR`, `errors.E_ROUTE_NOT_FOUND`), never by its message.
 - **EXC-9 (H)** Application code throws exceptions, never a bare `Error`, for anything a client can
   cause.
+- **EXC-10 (H)** One exception class per cause. `static status`, `static code` and, when the
+  sentence never varies, `static message` say what it is. No constructor takes a status or a code;
+  it takes only what the message or the response needs (an id, a detail sentence, `{ cause }`). The
+  framework's packages are written this way (PKG-31).
 
 Recipes:
 
@@ -549,6 +553,17 @@ export default class PaymentFailedException extends Exception {
     response.status(error.status).send({ errors: [{ code: error.code, message: error.message }] })
   }
 }
+```
+
+```ts
+// The throw site names the cause. The class supplies the status, the code and the message.
+export default class StaleRevisionException extends Exception {
+  static status = 409
+  static code = 'E_STALE_REVISION'
+  static message = 'The record changed since it was read.'
+}
+
+throw new StaleRevisionException()
 ```
 
 ## Responses and transformers
@@ -1138,11 +1153,20 @@ export { limiter as default }
 
 ## Errors, logging and style
 
-- **PKG-31 (F)** Every error the package throws is defined in `src/errors.ts`, as an `Exception`
-  subclass or with `createError(message, code, status)`, and exported as the `errors` namespace:
-  `import { errors } from '<package>'`.
-- **PKG-32 (F)** Each has a stable `code` (`E_TOO_MANY_REQUESTS`) and a `status`. An application
-  recognises it with `instanceof errors.E_...` or by `code`, never by message.
+- **PKG-31 (F)** Every exception the package throws is defined in `src/errors.ts`, one class per
+  cause: `<Cause>Exception extends Exception`, with `static code = 'E_<CODE>'` and `static status`.
+  The file exports each class under its code, `export const E_<CODE> = <Cause>Exception`, and
+  `index.ts` exports the file as the `errors` namespace: `import { errors } from '<package>'`.
+  `@adonisjs/limiter` pairs `ThrottleException` with `E_TOO_MANY_REQUESTS` and `@adonisjs/bouncer`
+  pairs `AuthorizationException` with `E_AUTHORIZATION_FAILURE`.
+- **PKG-32 (F)** The code is stable. The package throws by it, `throw new E_<CODE>()`, and an
+  application recognises it with `instanceof errors.E_<CODE>` or by `code`, never by message.
+- **PKG-46 (H)** No constructor takes a status or a code. It takes only what the message or the
+  response needs (an id, a name, a detail sentence, `{ cause }`); a sentence that never varies is
+  `static message`. A package does not use `createError`, so every exception has one shape.
+- **PKG-47 (F)** A package never throws a bare `Error`. Wrong configuration or wrong use by the
+  application's developer throws `InvalidArgumentsException` or `RuntimeException` from
+  `@adonisjs/core/exceptions` (PKG-21); everything else is a class in `src/errors.ts`.
 - **PKG-33 (F)** An exception that maps to an HTTP response implements `handle` on itself, so the
   application's handler needs no special case.
 - **PKG-34 (F)** Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`.
@@ -1157,6 +1181,36 @@ export { limiter as default }
   registered with `rcFile.addCommand('<package>/commands')`.
 - **PKG-38 (H)** A package does not import from an application and makes no assumption about its
   folder names beyond the framework's.
+
+Recipe, `src/errors.ts` and a throw site:
+
+```ts
+import { Exception } from '@adonisjs/core/exceptions'
+
+export class BackupLockedException extends Exception {
+  static code = 'E_BACKUP_LOCKED'
+  static status = 500
+
+  constructor(directory: string, options?: ErrorOptions) {
+    super(`backup directory ${directory} is locked`, options)
+  }
+}
+
+export class BackupDisabledException extends Exception {
+  static code = 'E_BACKUP_DISABLED'
+  static status = 500
+  static message = 'backups are disabled'
+}
+
+export const E_BACKUP_LOCKED = BackupLockedException
+export const E_BACKUP_DISABLED = BackupDisabledException
+```
+
+```ts
+import { E_BACKUP_LOCKED } from './errors.ts'
+
+throw new E_BACKUP_LOCKED(directory, { cause })
+```
 
 ## Tests and release
 
@@ -1206,7 +1260,8 @@ the answer is recorded in the repository's departures list.
 5. No `try`/`catch` in a controller builds an error response; no controller has a private method
    (CTL-5, CTL-6).
 6. A new operation is a resourceful action on a noun controller, not a new verb (CTL-3).
-7. Thrown errors are `Exception` subclasses in `app/exceptions` with a status and a code (EXC-5).
+7. Thrown errors are `Exception` subclasses in `app/exceptions`, one per cause, with a static
+   status and code (EXC-5, EXC-10).
 8. Route requirements are named middleware on the route or its group (MID-5).
 9. A model extends its schema class; a query inside a transaction carries the client (MOD-2, DB-3).
 10. A new migration has `up()` and `down()`; no released migration changed (DB-6, DB-7).
@@ -1226,7 +1281,8 @@ the answer is recorded in the repository's departures list.
 5. The package reads no environment variable itself (PKG-23).
 6. The provider binds lazily, types its binding, and has a matching `services/main.ts`
    (PKG-26, PKG-27, PKG-29).
-7. Every thrown error is an `Exception` in `src/errors.ts` with a stable code (PKG-31, PKG-32).
+7. Every thrown exception is a class in `src/errors.ts`, one per cause, exported and thrown under
+   its stable code; no constructor takes a status or a code (PKG-31, PKG-32, PKG-46, PKG-47).
 8. No `console` output; diagnostics use `debuglog` (PKG-34).
 9. Public types are in `src/types.ts` and exported from `./types` (PKG-11).
 10. The configure hook and the provider each have a test (PKG-40, PKG-41).
