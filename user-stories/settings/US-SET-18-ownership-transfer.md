@@ -44,7 +44,7 @@ flowchart TD
   dialog -->|Proof refused| inlineError["Show proof error"]
   dialog -->|Confirmed| request["useOwnershipTransfer submits the target and proof"]
   request --> guard["OwnershipTransfersController uses withActor(auth); transferOwnership calls runAccountOperation"]
-  guard -->|Matching replay by current active former Owner| receipt["Return stored receipt without spending proof again"]
+  guard -->|Repeat carrying the same operation key; the browser sends none| receipt["Return stored receipt without spending proof again"]
   guard -->|New operation| checks["Check live Owner, eligible active Admin and one-Owner invariant before consuming proof"]
   checks -->|Refused| refusal["Show transfer refusal"]
   guard -->|Access or operation refused| refusal
