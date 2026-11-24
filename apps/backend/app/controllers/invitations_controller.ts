@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { isMailConfigured } from '#services/mail_delivery';
-import { refuseInvalidAdmission } from '#services/admission/errors';
+import { refuseInvalidAdmission } from '#exceptions/admission_errors';
 import {
   answerMailUnavailable,
   buildInvitationView,

@@ -1,8 +1,8 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { refuseConflictingAdmission } from '#services/admission/errors';
+import { refuseConflictingAdmission } from '#exceptions/admission_errors';
 import access from '#config/access_control';
 import { getActiveMembership } from '#services/auth/authorization';
-import { parseAffectedRows } from '#services/affected_rows';
+import { parseAffectedRows } from '#models_support/affected_rows';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 

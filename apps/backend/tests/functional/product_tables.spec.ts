@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { APP_DATA_KEYS } from '@capacitylens/shared/types/entities';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 import { readStateWithClient } from '#services/state_repository';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';

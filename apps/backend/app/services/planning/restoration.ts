@@ -11,13 +11,13 @@ import { DomainError } from '@capacitylens/shared/domain/errors';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
-import { parseAffectedRows } from '#services/affected_rows';
+import { parseAffectedRows } from '#models_support/affected_rows';
 import {
   buildRetainedQuery,
   isRetainedTable,
   type RetainedTable,
 } from '#services/planning/retained_rows';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 import { companyRows, productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
 import { transformRow } from '#transformers/row_transformer';

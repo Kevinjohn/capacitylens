@@ -5,7 +5,7 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { readCurrentAccount } from '#services/auth/current_actor';
-import { credentialUpdateCommitted } from '#services/auth/credential_answers';
+import { credentialUpdateCommitted } from '#exceptions/credential_answers';
 import { changePasswordValidator } from '#validators/credentials';
 
 /** The signed-in identity's password. */

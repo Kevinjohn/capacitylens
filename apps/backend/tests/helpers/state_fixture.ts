@@ -5,7 +5,7 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import access from '#config/access_control';
 import { readStateWithClient } from '#services/state_repository';
 import { insertProductRows } from '#tests/helpers/product_rows';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 
 /** Reads one company fixture or combines explicit company reads of every stored company. */
 export async function readState(

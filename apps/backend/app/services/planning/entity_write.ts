@@ -1,7 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
   applyCreateDefaults,

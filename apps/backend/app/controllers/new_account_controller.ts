@@ -9,7 +9,7 @@ import capacitylens from '#config/capacitylens';
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { signUpValidator } from '#validators/auth_requests';
-import { emailInUseAnswer } from '#services/auth/credential_answers';
+import { emailInUseAnswer } from '#exceptions/credential_answers';
 import { hasNoCompany } from '#services/installation_company';
 
 /** Open sign-up of a new account. */

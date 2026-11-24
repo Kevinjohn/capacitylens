@@ -6,7 +6,7 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
-import { emailInUseAnswer, invalidLinkAnswer } from '#services/auth/credential_answers';
+import { emailInUseAnswer, invalidLinkAnswer } from '#exceptions/credential_answers';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { acceptInvitationSignUpValidator } from '#validators/invitations';
 

@@ -3,7 +3,7 @@ import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { assertCompanyPermission } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { getInstallationCompanyId } from '#services/installation_company';
-import { refuseInvalidAdmission, refuseMissingAdmission } from '#services/admission/errors';
+import { refuseInvalidAdmission, refuseMissingAdmission } from '#exceptions/admission_errors';
 
 /** Reads an invitation route's id, or `null` when it is not a positive safe integer. */
 export function parseInvitationId(value: unknown) {

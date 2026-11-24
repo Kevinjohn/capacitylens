@@ -5,7 +5,7 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { initializeCompanyAccess } from '#services/initial_company_access';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 import type { LucidModel } from '@adonisjs/lucid/types/model';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import { productModels } from '#models_support/product_models';

@@ -17,8 +17,8 @@ import {
   PasswordConfirmationThrottledException,
   InvalidPasswordConfirmationRequestException,
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
-import { buildKitRefusal } from '#services/account_kit/refusal';
-import { buildAccessRefusal } from '#services/access_control/refusal';
+import { buildKitRefusal } from '#exceptions/account_kit_refusal';
+import { buildAccessRefusal } from '#exceptions/access_control_refusal';
 import { buildValidationBody } from '#exceptions/validation_refusal_exception';
 
 /**

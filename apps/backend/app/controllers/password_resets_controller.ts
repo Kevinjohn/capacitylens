@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidTokenError, isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
-import { credentialUpdateCommitted, invalidLinkAnswer } from '#services/auth/credential_answers';
+import { credentialUpdateCommitted, invalidLinkAnswer } from '#exceptions/credential_answers';
 import { inspectResetValidator, resetPasswordValidator } from '#validators/credentials';
 
 /** A password reset link: whether it is still usable, and spending it to set a new password. */

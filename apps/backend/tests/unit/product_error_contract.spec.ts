@@ -33,12 +33,12 @@ import {
   refuseConflictingAdmission,
   refuseInvalidAdmission,
   refuseMissingAdmission,
-} from '#services/admission/errors';
+} from '#exceptions/admission_errors';
 import {
   credentialUpdateCommitted,
   emailInUseAnswer,
   invalidLinkAnswer,
-} from '#services/auth/credential_answers';
+} from '#exceptions/credential_answers';
 import { signUpValidator } from '#validators/auth_requests';
 import {
   acceptInvitationSignUpValidator,

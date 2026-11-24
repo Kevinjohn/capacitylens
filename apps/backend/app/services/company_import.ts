@@ -18,7 +18,7 @@ import Company from '#models/company';
 import { companyRows, productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
 import { readStateWithClient } from '#services/state_repository';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 import { discardRestorationGroups } from '#services/planning/restoration';

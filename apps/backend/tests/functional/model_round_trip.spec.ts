@@ -13,7 +13,7 @@ import { rowAttributes } from '#models_support/row_attributes';
 import { applyCompanyImport } from '#services/company_import';
 import { getPlanningRevision } from '#services/planning_revision';
 import { readStateWithClient } from '#services/state_repository';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 
 type Row = Record<string, unknown>;

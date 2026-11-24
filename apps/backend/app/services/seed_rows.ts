@@ -4,7 +4,7 @@ import type { LucidModel } from '@adonisjs/lucid/types/model';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import { productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 
 /** Add the seed rows without replacing operator data or audit history. */
 export async function insertSeed() {
