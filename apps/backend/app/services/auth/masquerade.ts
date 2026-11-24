@@ -18,7 +18,7 @@ import type {
   TransactionClientContract,
 } from '@adonisjs/lucid/types/database';
 import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
-import { membershipUnavailable } from '#exceptions/planning_operation_exception';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { buildAccessGrant } from '#services/auth/access_grant';
@@ -121,10 +121,16 @@ export async function endMasquerade(ctx: HttpContext, expectedContext: string) {
   return service.stop(ctx, { expectedContext });
 }
 
-/** Resolves only the identity admitted before the product transaction; never substitutes on error. */
+/**
+ * Resolves only the identity admitted before the product transaction; never substitutes on error.
+ * A view whose company access changed is refused with `refuse`: planning passes its
+ * `ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection.
+ */
 export async function resolveEffectiveReadUser(
   trx: TransactionClientContract,
-  companyId: string | undefined
+  companyId: string | undefined,
+  refuse: () => Error = () =>
+    new IdentityAuthorizationException('Masquerade company access changed.')
 ) {
   const actor = requireActor(trx);
   const context = actor.masqueradeContext;
@@ -133,11 +139,11 @@ export async function resolveEffectiveReadUser(
   }
   if (context.isMasquerading) {
     // Without a company there is no rank to check, so a view never reads company-free.
-    if (!companyId) throw membershipUnavailable();
+    if (!companyId) throw refuse();
     const actorRole = await getActiveCompanyRole(actor.userId, companyId, trx);
     const targetRole = await getActiveCompanyRole(context.effectiveId, companyId, trx);
     if (!actorRole || !targetRole || !canMasqueradeAs(actorRole, targetRole)) {
-      throw membershipUnavailable();
+      throw refuse();
     }
   }
   return {

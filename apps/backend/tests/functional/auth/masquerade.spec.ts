@@ -1278,6 +1278,11 @@ test.group('native read-only masquerade', (group) => {
       cookie
     ).send();
     read.assertStatus(403);
+    // Only a planning read answers ACCOUNT_MEMBERSHIP_LOST; the state read keeps its own code.
+    assert.equal(
+      (read.body() as unknown as { code: string }).code,
+      'IDENTITY_AUTHORIZATION_DENIED'
+    );
     assert.notInclude(read.text(), privateClientName);
   });
 
