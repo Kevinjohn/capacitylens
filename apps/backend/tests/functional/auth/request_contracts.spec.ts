@@ -1,7 +1,8 @@
 import { planningMutationValidator } from '#validators/planning_operations';
 import { signUpValidator } from '#validators/auth_requests';
-import { requireRegistrationDisplayName } from '#services/account_kit/users';
+import { AccountUserService } from '#services/account_kit/account_user_service';
 import { test } from '@japa/runner';
+import app from '@adonisjs/core/services/app';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { RegistrationEmailAlreadyRegisteredError } from '@kevinjohn/adonisjs-account-kit/errors';
 import limiter from '@adonisjs/limiter/services/main';
@@ -63,9 +64,10 @@ test.group('ordinary authentication request contracts', (group) => {
     };
     const validated = await signUpValidator.validate(input);
     assert.equal(validated.name, input.name);
-    assert.equal(requireRegistrationDisplayName(input), input.name);
+    const accountUsers = await app.container.make(AccountUserService);
+    assert.equal(accountUsers.requireRegistrationDisplayName(input), input.name);
     await assert.rejects(() => signUpValidator.validate({ ...input, name: '𐐀'.repeat(101) }));
-    assert.throws(() => requireRegistrationDisplayName({ name: '𐐀'.repeat(101) }));
+    assert.throws(() => accountUsers.requireRegistrationDisplayName({ name: '𐐀'.repeat(101) }));
   });
 
   test('sign-in refuses a malformed body with the framework 422 before authentication', async ({

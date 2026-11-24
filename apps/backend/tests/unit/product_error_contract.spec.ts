@@ -7,6 +7,7 @@ import {
   accountErrorResponse,
 } from '@kevinjohn/adonisjs-account-kit';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
+import app from '@adonisjs/core/services/app';
 import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
@@ -33,12 +34,12 @@ import {
   refuseConflictingAdmission,
   refuseInvalidAdmission,
   refuseMissingAdmission,
-} from '#services/admission/errors';
+} from '#exceptions/admission_errors';
 import {
   credentialUpdateCommitted,
   emailInUseAnswer,
   invalidLinkAnswer,
-} from '#services/auth/credential_answers';
+} from '#exceptions/credential_answers';
 import { signUpValidator } from '#validators/auth_requests';
 import {
   acceptInvitationSignUpValidator,
@@ -102,7 +103,8 @@ function context(error: unknown, routeName?: string) {
 async function answerOnPlanning(error: unknown) {
   const planning = context(error, 'api.planning.show');
   try {
-    await new PlanningController().show(planning.ctx);
+    const controller = await app.container.make(PlanningController);
+    await controller.show(planning.ctx);
   } catch (thrown) {
     await new HttpExceptionHandler().handle(thrown, planning.ctx);
   }

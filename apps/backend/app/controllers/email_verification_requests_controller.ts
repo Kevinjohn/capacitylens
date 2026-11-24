@@ -1,11 +1,19 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { isMailConfigured } from '#services/mail_delivery';
-import { readCurrentAccount } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 
 /** Address confirmation for a signed-in identity, reachable before admission: sending the link. */
+@inject()
 export default class EmailVerificationRequestsController {
+  #currentActor: CurrentActorService;
+
+  constructor(currentActor: CurrentActorService) {
+    this.#currentActor = currentActor;
+  }
+
   async store({ auth, response, logger, serialize }: HttpContext) {
     if (!isMailConfigured()) {
       return response.serviceUnavailable({
@@ -13,7 +21,7 @@ export default class EmailVerificationRequestsController {
         code: 'MAIL_UNAVAILABLE',
       });
     }
-    const account = await readCurrentAccount(auth);
+    const account = await this.#currentActor.readCurrentAccount(auth);
     try {
       return serialize({
         result: await accountKit.emailVerification.send({ userId: account.id }),

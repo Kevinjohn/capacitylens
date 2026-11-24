@@ -1,16 +1,32 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
-import { withActor } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import access from '#config/access_control';
-import { resolvePlanningAccess } from '#services/planning/access';
+import { PlanningAccessService } from '#services/planning/planning_access_service';
 import {
   buildCompanyExport,
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyExport';
+import { StateRepositoryService } from '#services/state_repository_service';
 
 /** The company's export document. */
+@inject()
 export default class CompanyExportsController {
+  #currentActor: CurrentActorService;
+  #stateRepository: StateRepositoryService;
+  #planningAccess: PlanningAccessService;
+
+  constructor(
+    currentActor: CurrentActorService,
+    stateRepository: StateRepositoryService,
+    planningAccess: PlanningAccessService
+  ) {
+    this.#currentActor = currentActor;
+    this.#stateRepository = stateRepository;
+    this.#planningAccess = planningAccess;
+  }
+
   /**
    * Serves the company's export document as a download. The server reads the rows, projects them
    * for the effective member's role, includes inactive rows only for `members:manage`, and labels
@@ -18,9 +34,9 @@ export default class CompanyExportsController {
    */
   async show({ auth, params, response, serialize }: HttpContext) {
     const companyId = String(params.companyId);
-    const text = await withActor(auth, async (_actor, trx) => {
-      const { planningAccess } = await resolvePlanningAccess(trx, companyId);
-      const rows = await readStateWithClient(
+    const text = await this.#currentActor.withActor(auth, async (_actor, trx) => {
+      const { planningAccess } = await this.#planningAccess.resolvePlanningAccess(trx, companyId);
+      const rows = await this.#stateRepository.readStateWithClient(
         trx,
         companyId,
         access.can(planningAccess.role, 'members:manage')

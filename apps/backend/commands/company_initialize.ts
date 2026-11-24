@@ -1,6 +1,7 @@
+import { inject } from '@adonisjs/core';
 import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { initializeCompany } from '#services/operator/company_initialization';
+import { CompanyInitializationService } from '#services/operator/company_initialization_service';
 import { OperatorCommand } from './_operator_command.js';
 
 /** Initialise company access for an existing identity on an empty stopped installation. */
@@ -13,8 +14,9 @@ export default class CompanyInitialize extends OperatorCommand {
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
   declare confirmServerStopped: boolean;
 
-  async run() {
-    this.logger.log(JSON.stringify(await initializeCompany(this)));
+  @inject()
+  async run(companyInitialization: CompanyInitializationService) {
+    this.logger.log(JSON.stringify(await companyInitialization.initialize(this)));
   }
 
   protected buildFailureMessage(error: unknown) {

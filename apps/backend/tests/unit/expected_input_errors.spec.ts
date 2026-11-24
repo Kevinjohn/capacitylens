@@ -4,7 +4,10 @@ import {
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyExport';
 import { seed } from '@capacitylens/shared/data/seed';
-import { parseRequestDocument } from '#services/company_import';
+import app from '@adonisjs/core/services/app';
+import { CompanyImportService } from '#services/company_import_service';
+
+const companyImports = await app.container.make(CompanyImportService);
 
 // Expected invalid input becomes a 400; anything else must reach the exception handler and reporting.
 
@@ -16,12 +19,12 @@ test.group('expected input errors', () => {
         buildCompanyExport(seed(), { companyId: 'a-studio', completeness: 'full' })
       )
     ) as { format: string };
-    assert.equal(parseRequestDocument(document)?.format, document.format);
-    assert.isNull(parseRequestDocument({ format: 'something else' }));
-    assert.isNull(parseRequestDocument(undefined));
+    assert.equal(companyImports.parseRequestDocument(document)?.format, document.format);
+    assert.isNull(companyImports.parseRequestDocument({ format: 'something else' }));
+    assert.isNull(companyImports.parseRequestDocument(undefined));
     let nested: unknown[] = [];
     for (let depth = 0; depth < 200_000; depth += 1) nested = [nested];
-    assert.isNull(parseRequestDocument({ ...document, data: nested }));
+    assert.isNull(companyImports.parseRequestDocument({ ...document, data: nested }));
   });
 
   test('an unexpected failure while reading a request document propagates', ({ assert }) => {
@@ -31,6 +34,6 @@ test.group('expected input errors', () => {
         throw fault;
       },
     };
-    assert.throws(() => parseRequestDocument(document), 'unexpected reader fault');
+    assert.throws(() => companyImports.parseRequestDocument(document), 'unexpected reader fault');
   });
 });

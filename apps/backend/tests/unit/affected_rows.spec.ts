@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import { parseAffectedRows } from '#services/affected_rows';
+import { parseAffectedRows } from '#models_support/affected_rows';
 
 test('a row count is read from a number or a one-number array, and nothing else', ({ assert }) => {
   assert.equal(parseAffectedRows(3), 3);

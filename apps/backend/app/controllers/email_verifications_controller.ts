@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidTokenError, isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
-import { invalidLinkAnswer } from '#services/auth/credential_answers';
+import { invalidLinkAnswer } from '#exceptions/credential_answers';
 import {
   completeVerificationValidator,
   inspectVerificationValidator,

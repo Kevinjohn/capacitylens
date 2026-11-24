@@ -1,5 +1,6 @@
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { assertDisposableDemoDatabase, seedDisposableDemo } from '#services/disposable_demo';
+import { inject } from '@adonisjs/core';
+import { DisposableDemoService } from '#services/disposable_demo_service';
 import { OperatorCommand } from './_operator_command.js';
 
 export default class DemoSeed extends OperatorCommand {
@@ -7,9 +8,10 @@ export default class DemoSeed extends OperatorCommand {
   static description = 'Seed the disposable development demo installation';
   static options: CommandOptions = { startApp: true };
 
-  async run() {
-    assertDisposableDemoDatabase(this.app);
-    await seedDisposableDemo(this.app);
+  @inject()
+  async run(disposableDemo: DisposableDemoService) {
+    disposableDemo.assertDisposableDemoDatabase(this.app);
+    await disposableDemo.seedDisposableDemo(this.app);
   }
 
   protected buildFailureMessage(error: unknown) {

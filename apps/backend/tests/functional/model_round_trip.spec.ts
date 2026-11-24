@@ -10,11 +10,16 @@ import Client from '#models/client';
 import Company from '#models/company';
 import { companyRows, productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
-import { applyCompanyImport } from '#services/company_import';
-import { getPlanningRevision } from '#services/planning_revision';
-import { readStateWithClient } from '#services/state_repository';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
 import { freshDatabase } from '#tests/helpers/fresh_database';
+import app from '@adonisjs/core/services/app';
+import { CompanyImportService } from '#services/company_import_service';
+import { PlanningRevisionService } from '#services/planning_revision_service';
+import { StateRepositoryService } from '#services/state_repository_service';
+
+const companyImports = await app.container.make(CompanyImportService);
+const planningRevisions = new PlanningRevisionService();
+const stateRepository = new StateRepositoryService();
 
 type Row = Record<string, unknown>;
 
@@ -147,13 +152,22 @@ test.group('model writes store the rows stored before #2459', (group) => {
         await stored.merge(rowAttributes(modelOf(key), row)).save();
       }
       const before = await readStored(trx);
-      const document = buildCompanyExport(await readStateWithClient(trx, companyId, true), {
-        companyId,
-        completeness: 'full',
-      });
+      const document = buildCompanyExport(
+        await stateRepository.readStateWithClient(trx, companyId, true),
+        {
+          companyId,
+          completeness: 'full',
+        }
+      );
       document.data.companies[0]!.name = 'Wayne Enterprises Restored';
-      const revision = await getPlanningRevision(trx, companyId);
-      await applyCompanyImport(trx, companyId, document, revision, 'actor-alfred-pennyworth');
+      const revision = await planningRevisions.getPlanningRevision(trx, companyId);
+      await companyImports.applyCompanyImport(
+        trx,
+        companyId,
+        document,
+        revision,
+        'actor-alfred-pennyworth'
+      );
       const after = await readStored(trx);
       for (const key of SCOPED_KEYS) {
         assert.isNotEmpty(

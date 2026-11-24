@@ -3,9 +3,11 @@ import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { seed } from '@capacitylens/shared/data/seed';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import access from '#config/access_control';
-import { readStateWithClient } from '#services/state_repository';
 import { insertProductRows } from '#tests/helpers/product_rows';
-import { tables } from '#services/product_tables';
+import { tables } from '#models_support/product_tables';
+import { StateRepositoryService } from '#services/state_repository_service';
+
+const stateRepository = new StateRepositoryService();
 
 /** Reads one company fixture or combines explicit company reads of every stored company. */
 export async function readState(
@@ -13,11 +15,14 @@ export async function readState(
   includeInactive = companyId === undefined
 ): Promise<AppData> {
   const client = db.connection();
-  if (companyId !== undefined) return readStateWithClient(client, companyId, includeInactive);
+  if (companyId !== undefined)
+    return stateRepository.readStateWithClient(client, companyId, includeInactive);
   const companies = await client.from('companies').select('id');
   const slices: AppData[] = [];
   for (const company of companies) {
-    slices.push(await readStateWithClient(client, String(company.id), includeInactive));
+    slices.push(
+      await stateRepository.readStateWithClient(client, String(company.id), includeInactive)
+    );
   }
   return {
     companies: slices.flatMap((slice) => slice.companies),

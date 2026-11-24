@@ -1,3 +1,5 @@
+import { inject } from '@adonisjs/core';
+import { AdmissionMembershipService } from '#services/membership/admission_membership_service';
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
@@ -7,16 +9,33 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
-import { isFirstCompanySetupRequired } from '#services/first_company_setup';
-import { isMembershipRequired } from '#services/membership/admission_membership';
-import { signInWithPassword } from '#services/auth/password_sign_in';
+import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { buildUserProjection } from '#services/auth/user_projection';
-import { requireAdmissionDecision, withActor } from '#services/auth/current_actor';
+import { CurrentActorService } from '#services/auth/current_actor_service';
 import { signInValidator } from '#validators/auth_requests';
 import { hasAnyIdentity } from '#services/installation_company';
+import { FirstCompanySetupService } from '#services/first_company_setup_service';
 
 /** The caller's sign-in: who is signed in, signing in with a password, and signing out. */
+@inject()
 export default class SessionController {
+  #passwordSignIn: PasswordSignInService;
+  #currentActor: CurrentActorService;
+  #admissionMemberships: AdmissionMembershipService;
+  #firstCompanySetup: FirstCompanySetupService;
+
+  constructor(
+    admissionMemberships: AdmissionMembershipService,
+    passwordSignIn: PasswordSignInService,
+    currentActor: CurrentActorService,
+    firstCompanySetup: FirstCompanySetupService
+  ) {
+    this.#admissionMemberships = admissionMemberships;
+    this.#passwordSignIn = passwordSignIn;
+    this.#currentActor = currentActor;
+    this.#firstCompanySetup = firstCompanySetup;
+  }
+
   /**
    * The signed-in identity and what it may reach: a confirmed address, admission, company setup
    * and membership decide between the limited screens and the schedule.
@@ -24,19 +43,22 @@ export default class SessionController {
   async show({ auth, response, serialize }: HttpContext) {
     try {
       return serialize(
-        await withActor(
+        await this.#currentActor.withActor(
           auth,
           async (actor, trx) => {
-            const admission = await requireAdmissionDecision(actor.userId, trx);
+            const admission = await this.#currentActor.requireAdmissionDecision(actor.userId, trx);
             const admitted = actor.emailVerified && admission.admitted;
             return {
               user: buildUserProjection(actor),
               emailVerified: actor.emailVerified,
               admission,
               companySetupRequired:
-                admitted && (await isFirstCompanySetupRequired(actor.userId, trx)),
+                admitted &&
+                (await this.#firstCompanySetup.isFirstCompanySetupRequired(actor.userId, trx)),
               // Admitted but not yet a member: the person completes their membership explicitly.
-              membershipRequired: admitted && (await isMembershipRequired(actor.userId, trx)),
+              membershipRequired:
+                admitted &&
+                (await this.#admissionMemberships.isMembershipRequired(actor.userId, trx)),
             };
           },
           { limited: true }
@@ -59,7 +81,7 @@ export default class SessionController {
     const body = await request.validateUsing(signInValidator, { data: request.body() });
     const { email } = body;
     try {
-      const user = await signInWithPassword(auth, logger, {
+      const user = await this.#passwordSignIn.signInWithPassword(auth, logger, {
         email,
         password: body.password,
         clientAddress: request.ip(),

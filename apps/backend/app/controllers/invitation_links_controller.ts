@@ -3,7 +3,7 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import db from '@adonisjs/lucid/services/db';
 import { setProofHeaders } from '#services/request_helpers';
 import { getInstallationCompany } from '#services/installation_company';
-import { invalidLinkAnswer } from '#services/auth/credential_answers';
+import { invalidLinkAnswer } from '#exceptions/credential_answers';
 
 /** What an invitation link offers. */
 export default class InvitationLinksController {
