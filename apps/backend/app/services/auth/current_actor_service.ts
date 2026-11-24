@@ -1,5 +1,5 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import app from '@adonisjs/core/services/app';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   AccountAdmission,
@@ -33,12 +33,15 @@ export interface CurrentActor {
 const actors = new WeakMap<Trx, CurrentActor>();
 const kitContexts = new WeakMap<Trx, KitContext>();
 
-/**
- * The signed-in actor, verified in the Account Kit's transaction. The Kit's admission service is
- * resolved when a decision is read, not injected: resolving it builds the admission callbacks, which
- * depend on this service through AuthorizationService.
- */
+/** The signed-in actor, verified in the Account Kit's transaction. */
+@inject()
 export class CurrentActorService {
+  #admission: AccountAdmission;
+
+  constructor(admission: AccountAdmission) {
+    this.#admission = admission;
+  }
+
   /** The signed-in Account Kit account, checked in the Kit's own transaction. */
   async readCurrentAccount(auth: HttpContext['auth']) {
     return accountKit.authentication.current(await auth.use('web').current());
@@ -48,8 +51,7 @@ export class CurrentActorService {
   async requireAdmissionDecision(userId: string | number, trx: Trx) {
     const user = await users.findById(userId, trx);
     if (!user) throw new InvalidSessionError();
-    const admission = await app.container.make(AccountAdmission);
-    return admission.decide(user, trx);
+    return this.#admission.decide(user, trx);
   }
 
   /** Requires the confirmed address and admission shared by product and password confirmation transactions. */

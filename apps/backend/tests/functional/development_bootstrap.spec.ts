@@ -7,8 +7,6 @@ import User from '#models/user';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
 
-const developmentBootstrap = new DevelopmentBootstrapService();
-
 const password = 'kal-el-fortress-2026';
 
 test.group('development bootstrap credential', (group) => {
@@ -25,8 +23,9 @@ test.group('development bootstrap credential', (group) => {
   });
 
   test('creates one confirmed administrator through the User model', async ({ assert }) => {
-    await developmentBootstrap.bootstrapDevelopmentCredential(app);
-    await developmentBootstrap.bootstrapDevelopmentCredential(app);
+    const developmentBootstrap = await app.container.make(DevelopmentBootstrapService);
+    await developmentBootstrap.bootstrapDevelopmentCredential();
+    await developmentBootstrap.bootstrapDevelopmentCredential();
 
     const rows = await db.from('users');
     assert.lengthOf(rows, 1);

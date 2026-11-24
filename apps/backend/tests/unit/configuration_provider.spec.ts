@@ -2,8 +2,6 @@ import { test } from '@japa/runner';
 import ConfigurationProvider, { assertProductionPosture } from '#providers/configuration_provider';
 import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
 
-const developmentBootstrap = new DevelopmentBootstrapService();
-
 test.group('configuration provider', () => {
   test('production refuses bootstrap, invalid limiter, and reset settings', ({ assert }) => {
     const safe = { allowReset: false, rateLimit: '300' };
@@ -39,12 +37,10 @@ test.group('configuration provider', () => {
           return {} as never;
         },
       };
+      const developmentBootstrap = new DevelopmentBootstrapService({ operator } as never);
       let failure: unknown;
       try {
-        await developmentBootstrap.recordBootstrapAdmission(
-          { operator } as never,
-          'admin@admin.admin'
-        );
+        await developmentBootstrap.recordBootstrapAdmission('admin@admin.admin');
       } catch (error) {
         failure = error;
       }

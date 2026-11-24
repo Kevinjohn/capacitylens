@@ -14,22 +14,21 @@ import { rowAttributes } from '#models_support/row_attributes';
 import capacitylens from '#config/capacitylens';
 import { hasNoCompany } from '#services/installation_company';
 
-/**
- * The disposable development demo installation. The Kit's admission service is resolved when it is
- * needed, not injected: resolving it builds the admission callbacks, which depend on the product's
- * services.
- */
+/** The disposable development demo installation. */
 @inject()
 export class DisposableDemoService {
   #developmentBootstrap: DevelopmentBootstrapService;
   #initialCompanyAccess: InitialCompanyAccessService;
+  #admission: AccountAdmission;
 
   constructor(
     developmentBootstrap: DevelopmentBootstrapService,
-    initialCompanyAccess: InitialCompanyAccessService
+    initialCompanyAccess: InitialCompanyAccessService,
+    admission: AccountAdmission
   ) {
     this.#developmentBootstrap = developmentBootstrap;
     this.#initialCompanyAccess = initialCompanyAccess;
+    this.#admission = admission;
   }
 
   /** Insert the single disposable company graph and its first membership in one transaction. */
@@ -91,15 +90,14 @@ export class DisposableDemoService {
 
   async prepareDisposableDemo(app: ApplicationService) {
     await this.assertEmptyDemoInstallation(app);
-    await this.#developmentBootstrap.bootstrapDevelopmentCredential(app);
+    await this.#developmentBootstrap.bootstrapDevelopmentCredential();
   }
 
   async seedDisposableDemo(app: ApplicationService) {
     await this.assertEmptyDemoInstallation(app);
     const owner = await db.from('users').where('email', 'admin@admin.admin').first();
     if (!owner) throw new Error('Refusing demo seed: development administrator is missing');
-    const admission = await app.container.make(AccountAdmission);
-    if (!(await admission.isAdmitted(owner.id))) {
+    if (!(await this.#admission.isAdmitted(owner.id))) {
       throw new Error('Refusing demo seed: development administrator is not admitted');
     }
     await this.#insertDisposableDemoSeed(owner.id);
