@@ -16,8 +16,7 @@ const scope = new ScopeMiddleware();
  * on a route that takes the company id from the body.
  *
  * A planning route answers a missing membership with `ACCOUNT_MEMBERSHIP_LOST`, which the browser
- * reads to drop its planning projection; `membershipUnavailable` builds it, and the central mapper
- * knows no route.
+ * reads to drop its planning projection; `membershipUnavailable` builds it.
  */
 export default class CompanyScopeMiddleware {
   async handle(ctx: HttpContext, next: NextFn, options: { planning?: boolean } = {}) {

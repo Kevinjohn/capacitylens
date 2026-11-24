@@ -68,7 +68,7 @@ test.group('ordinary authentication request contracts', (group) => {
     assert.throws(() => requireRegistrationDisplayName({ name: '𐐀'.repeat(101) }));
   });
 
-  test('sign-in refuses a malformed body with 400 VALIDATION_ERROR before authentication', async ({
+  test('sign-in refuses a malformed body with the framework 422 before authentication', async ({
     client,
     assert,
   }) => {
@@ -86,8 +86,8 @@ test.group('ordinary authentication request contracts', (group) => {
         .header('sec-fetch-site', 'same-origin')
         .json(body)
         .send();
-      response.assertStatus(400);
-      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR');
+      response.assertStatus(422);
+      assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors);
     }
   });
 
@@ -152,8 +152,8 @@ test.group('ordinary authentication request contracts', (group) => {
         client.get(`/api/admission/requests?${query}`),
         cookie
       ).send();
-      response.assertStatus(400);
-      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR');
+      response.assertStatus(422);
+      assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors);
     }
   });
 
@@ -211,7 +211,7 @@ test.group('ordinary authentication request contracts', (group) => {
     });
   });
 
-  test('sign-up refuses unknown fields and invalid details with 400 VALIDATION_ERROR', async ({
+  test('sign-up refuses unknown fields and invalid details with the framework 422', async ({
     client,
     assert,
   }) => {
@@ -229,8 +229,8 @@ test.group('ordinary authentication request contracts', (group) => {
         .header('sec-fetch-site', 'same-origin')
         .json(body)
         .send();
-      response.assertStatus(400);
-      assert.equal((response.body() as { code?: string }).code, 'VALIDATION_ERROR');
+      response.assertStatus(422);
+      assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors);
     }
   });
 });

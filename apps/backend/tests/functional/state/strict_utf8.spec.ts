@@ -68,8 +68,8 @@ test.group('framework JSON parsing', (group) => {
     ]);
     const response = await postRawJson(body, session.cookieHeader, token);
 
-    assert.equal(response.statusCode, 400);
-    assert.equal(JSON.parse(response.body).code, 'VALIDATION_ERROR');
+    assert.equal(response.statusCode, 422);
+    assert.isNotEmpty(JSON.parse(response.body).errors);
   });
 
   test('passes valid non-ASCII UTF-8 JSON bytes to normal route validation', async ({
@@ -81,7 +81,7 @@ test.group('framework JSON parsing', (group) => {
     const body = Buffer.from('{"intent":"café"}', 'utf8');
     const response = await postRawJson(body, session.cookieHeader, token);
 
-    assert.equal(response.statusCode, 400);
-    assert.equal(JSON.parse(response.body).code, 'VALIDATION_ERROR');
+    assert.equal(response.statusCode, 422);
+    assert.isNotEmpty(JSON.parse(response.body).errors);
   });
 });

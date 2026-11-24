@@ -189,10 +189,10 @@ test.group('general HTTP logging privacy', (group) => {
       assert.equal(result.status(), 500);
       const line = output.split('\n').find((entry) => entry.includes('"http.request.error"'));
       assert.isDefined(line);
-      const logged = JSON.parse(line!) as { errorName?: string; stack?: string[] };
+      const logged = JSON.parse(line!) as { err?: { errorName?: string; stack?: string[] } };
       assert.include(line!, '"errorName":"Error"');
       assert.include(line!, '"causes":["TypeError"]');
-      assert.isTrue(logged.stack?.some((frame) => frame.includes(' at ')));
+      assert.isTrue(logged.err?.stack?.some((frame) => frame.includes(' at ')));
       assert.notInclude(output, 'Bruce Wayne');
       assert.notInclude(output, 'inner');
     } finally {

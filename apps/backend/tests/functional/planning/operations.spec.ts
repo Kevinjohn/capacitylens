@@ -17,6 +17,9 @@ import {
 import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers';
 
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+/** The framework's validation answer: one entry per refused field. */
+const validationErrors = (response: { body(): unknown }) =>
+  (response.body() as { errors?: Array<{ message: string }> }).errors;
 const body = (response: { body(): unknown; status(): number }) =>
   (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
     code: string;
@@ -272,8 +275,8 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
 
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    refused.assertStatus(422);
+    assert.isNotEmpty(validationErrors(refused));
     assert.deepEqual(await readState(companyId, true), before);
     assert.isNull(await db.from('closures').where({ id, company_id: companyId }).first());
     assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditBefore);

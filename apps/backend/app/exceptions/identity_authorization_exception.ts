@@ -1,6 +1,6 @@
-import { Exception } from '@adonisjs/core/exceptions';
+import { ProductException } from '#exceptions/product_exception';
 
-export class IdentityAuthorizationException extends Exception {
+export class IdentityAuthorizationException extends ProductException {
   static status = 403;
   static code = 'IDENTITY_AUTHORIZATION_DENIED';
 }

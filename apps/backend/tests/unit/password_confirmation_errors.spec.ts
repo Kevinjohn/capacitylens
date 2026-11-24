@@ -12,6 +12,7 @@ import {
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import HttpExceptionHandler from '#exceptions/handler';
 import { describeFailure } from '#services/logging_safety';
+import loggerConfig from '#config/logger';
 
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
 test.group('password confirmation errors', () => {
@@ -52,11 +53,11 @@ test.group('password confirmation errors', () => {
       let actualStatus: number | undefined;
       let body: unknown;
       const headers: Record<string, string> = {};
-      const reports: unknown[] = [];
+      const reports: Array<Record<string, unknown>> = [];
       const ctx = {
-        request: { method: () => 'POST' },
+        request: { method: () => 'POST', id: () => undefined },
         route: { pattern: '/api/auth/password-confirmation' },
-        logger: { error: (fields: unknown) => reports.push(fields) },
+        logger: { log: (_level: string, fields: Record<string, unknown>) => reports.push(fields) },
         response: {
           header(name: string, value: string) {
             headers[name] = value;
@@ -86,15 +87,19 @@ test.group('password confirmation errors', () => {
           : {};
       assert.deepEqual(headers, retryAfter);
       assert.lengthOf(reports, status === 500 ? 1 : 0);
-      if (status === 500)
-        assert.deepEqual(reports[0], {
+      if (status === 500) {
+        const { err, ...fields } = reports[0]!;
+        assert.deepEqual(fields, {
           event: 'http.request.error',
-          errorType: 'unexpected',
           method: 'POST',
           path: '/api/auth/password-confirmation',
+        });
+        assert.deepEqual(loggerConfig.loggers.app.serializers!.err!(err), {
+          errorType: 'unexpected',
           status: 500,
           ...describeFailure(error),
         });
+      }
     });
   }
 });

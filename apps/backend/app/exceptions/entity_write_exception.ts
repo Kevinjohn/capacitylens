@@ -1,7 +1,7 @@
-import { Exception } from '@adonisjs/core/exceptions';
+import { ProductException } from '#exceptions/product_exception';
 
-/** A refused entity write with a safe message; each caller maps `status` to its response. */
-export class EntityWriteException extends Exception {
+/** A refused entity write with a safe message, its stated status and code, and the current revision. */
+export class EntityWriteException extends ProductException {
   constructor(
     message: string,
     status = 400,
@@ -9,5 +9,9 @@ export class EntityWriteException extends Exception {
     code?: string
   ) {
     super(message, { status, code });
+  }
+
+  override body() {
+    return { ...super.body(), ...(this.current ?? {}) };
   }
 }
