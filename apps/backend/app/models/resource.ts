@@ -1,21 +1,14 @@
 import { ResourceSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
-import { compose } from '@adonisjs/core/helpers';
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
 import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
-import {
-  booleanColumn,
-  deletedAtColumn,
-  isWeekday,
-  timestampColumn,
-} from '#models_support/scalar_column';
+import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scalar_column';
 import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 
 /** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */
-export default class Resource extends compose(ResourceSchema, SoftDeletes) {
+export default class Resource extends ResourceSchema {
   static forCompany = forCompany;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Resource>) {
@@ -36,8 +29,6 @@ export default class Resource extends compose(ResourceSchema, SoftDeletes) {
 
   @column.dateTime(timestampColumn('resources', 'archived_at')) declare archivedAt: DateTime | null;
   @column.dateTime(timestampColumn('resources', 'created_at')) declare createdAt: DateTime;
-  @column.dateTime(deletedAtColumn)
-  declare deletedAt: DateTime | null;
   @column(isoDateColumn('resources', 'first_available_date'))
   declare firstAvailableDate: ISODate | null;
   @column(isoDateColumn('resources', 'last_available_date'))

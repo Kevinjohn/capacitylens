@@ -106,6 +106,11 @@ describe('diagnostics projection', () => {
     );
   });
 
+  it('reports the company export schema version as the export schema', async () => {
+    const { readDiagnostics } = await freshBuildInfo();
+    expect(readDiagnostics(null, undefined, client).exportSchema).toBe(2);
+  });
+
   it('returns a fresh unavailable server projection for each read', async () => {
     const { readDiagnostics } = await freshBuildInfo();
     const first = readDiagnostics(null, undefined, client);

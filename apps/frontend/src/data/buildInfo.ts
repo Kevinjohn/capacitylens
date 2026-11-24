@@ -5,7 +5,7 @@
 
 import { APP_NAME } from '@capacitylens/shared/brand';
 import { isAccountEmail } from '@capacitylens/shared/account/validation';
-import { EXPORT_SCHEMA_VERSION } from '@capacitylens/shared/types/entities';
+import { COMPANY_EXPORT_SCHEMA_VERSION } from '@capacitylens/shared/data/companyExport';
 import packageJson from '../../../../package.json';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 
@@ -169,7 +169,7 @@ export function readDiagnostics(
     deploymentMode: 'server',
     // The export schema is a client-side format marker; it is deliberately not presented as the
     // physical server schema, which is supplied separately by the authenticated diagnostics route.
-    exportSchema: EXPORT_SCHEMA_VERSION,
+    exportSchema: COMPANY_EXPORT_SCHEMA_VERSION,
     server: parseServerDiagnostics(isRecord(serverResponse) ? serverResponse.server : null),
     client: { ...client, browser: readBrowserProjection(client.browser) },
   };

@@ -198,6 +198,11 @@
       "types": "./src/types/entities.ts",
       "default": "./dist/types/entities.js"
     },
+    "./types/entityFieldRules": {
+      "development": "./src/types/entityFieldRules.ts",
+      "types": "./src/types/entityFieldRules.ts",
+      "default": "./dist/types/entityFieldRules.js"
+    },
     "./types/entityFields": {
       "development": "./src/types/entityFields.ts",
       "types": "./src/types/entityFields.ts",

@@ -92,27 +92,21 @@ describe('first-use outcome truth table', () => {
     },
   );
 
-  it('does not count archived or deleted people', () => {
+  it('does not count archived people', () => {
     expect(
       buildGettingStartedSteps(dataWith({ resources: [person({ archivedAt: NOW })] })).person,
-    ).toBe(false);
-    expect(
-      buildGettingStartedSteps(
-        dataWith({ resources: [person({ archivedAt: NOW, deletedAt: NOW })] }),
-      ).person,
     ).toBe(false);
   });
 
   it('treats malformed lifecycle tombstones as active, matching buildActiveData', () => {
     const malformed = 'not-a-date';
-    const malformedPerson = person({ archivedAt: malformed, deletedAt: malformed });
-    const malformedClient = client({ archivedAt: malformed, deletedAt: malformed });
-    const malformedProject = project({ archivedAt: malformed, deletedAt: malformed });
+    const malformedPerson = person({ archivedAt: malformed });
+    const malformedClient = client({ archivedAt: malformed });
+    const malformedProject = project({ archivedAt: malformed });
     const malformedActivity = activity({
       kind: 'project',
       projectId: 'p1',
       archivedAt: malformed,
-      deletedAt: malformed,
     });
     expect(buildGettingStartedSteps(dataWith({ resources: [malformedPerson] })).person).toBe(true);
     expect(
@@ -181,15 +175,6 @@ describe('first-use outcome truth table', () => {
           activities: [activity({ kind: 'project', projectId: 'p1' })],
           projects: [project({ archivedAt: NOW })],
           clients: [client()],
-        }),
-      ).activity,
-    ).toBe(false);
-    expect(
-      buildGettingStartedSteps(
-        dataWith({
-          activities: [activity({ kind: 'project', projectId: 'p1' })],
-          projects: [project()],
-          clients: [client({ deletedAt: NOW })],
         }),
       ).activity,
     ).toBe(false);

@@ -171,7 +171,7 @@ function buildGroupSeeds({
 type IsEligibleResourceOptions = { resource: Resource; placeholdersEnabled: boolean };
 function isEligibleResource({ resource, placeholdersEnabled }: IsEligibleResourceOptions): boolean {
   if (!isCapacityTracked(resource)) return false;
-  if (resource.archivedAt != null || resource.deletedAt != null) return false;
+  if (resource.archivedAt != null) return false;
   // External parties have no capacity, so the overview never shows them whatever the company chose.
   return isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false });
 }

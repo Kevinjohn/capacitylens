@@ -54,16 +54,9 @@ export function assertEntityDomain(
     if (
       table === 'clients' &&
       row.builtin === true &&
-      [row.archivedAt, row.deletedAt, existing?.archivedAt, existing?.deletedAt].some(
-        (value) => typeof value === 'string'
-      )
+      [row.archivedAt, existing?.archivedAt].some((value) => typeof value === 'string')
     ) {
       throw new EntityWriteException('The built-in Internal client must remain active.');
-    }
-    if (typeof existing?.deletedAt === 'string') {
-      throw new EntityWriteException(
-        'Soft-deleted records can only be changed through lifecycle endpoints.'
-      );
     }
   }
   // The caller has checked that the table is a lifecycle table, so its rows carry lifecycle fields.
@@ -77,7 +70,7 @@ export function assertEntityDomain(
   );
   if (ancestry.kind === 'hidden') {
     throw new EntityWriteException(
-      'Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.'
+      'Records beneath an archived ancestor cannot be changed through generic endpoints.'
     );
   }
   if (table === 'clients') {

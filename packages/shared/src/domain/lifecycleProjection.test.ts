@@ -15,7 +15,6 @@ import { createEmptyAppData } from '../types/entities.js';
 import type { AppData, Weekday } from '../types/entities.js';
 
 const T_ARCH = '2026-01-01T00:00:00.000Z';
-const T_DEL = '2026-02-01T00:00:00.000Z';
 
 const ACTIVE_ONLY_COMPANY = 'acct-1';
 
@@ -101,21 +100,12 @@ const ACTIVE_ONLY_DATA: AppData = {
       ...NULLABLE_FIELDS.resources,
       archivedAt: T_ARCH,
     }),
-    makeActiveOnlyResource('r-deleted', 'Deleted', {
-      ...NULLABLE_FIELDS.resources,
-      archivedAt: T_ARCH,
-      deletedAt: T_DEL,
-    }),
   ],
   clients: [
     makeActiveOnlyClient('c-active', 'Active Co'),
     makeActiveOnlyClient('c-archived', 'Archived Co', {
       ...NULLABLE_FIELDS.clients,
       archivedAt: T_ARCH,
-    }),
-    makeActiveOnlyClient('c-deleted', 'Deleted Co', {
-      ...NULLABLE_FIELDS.clients,
-      deletedAt: T_DEL,
     }),
   ],
   projects: [
@@ -137,13 +127,6 @@ const ACTIVE_ONLY_DATA: AppData = {
       name: 'Archived P',
       clientId: 'c-active',
       tombstones: { archivedAt: T_ARCH },
-    }),
-    makeActiveOnlyProject({
-      ...NULLABLE_FIELDS.projects,
-      id: 'p-deleted',
-      name: 'Deleted P',
-      clientId: 'c-active',
-      tombstones: { deletedAt: T_DEL },
     }),
   ],
   phases: [
@@ -255,7 +238,7 @@ const ACTIVE_ONLY_DATA: AppData = {
 const makeActiveOnlyData = (): AppData => structuredClone(ACTIVE_ONLY_DATA);
 
 describe('buildActiveData — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)', () => {
-  it('DROPS archived AND soft-deleted resources/clients/projects; KEEPS the active ones', () => {
+  it('DROPS archived resources/clients/projects; KEEPS the active ones', () => {
     const out = buildActiveData(makeActiveOnlyData());
     expect(out.resources.map((r) => r.id)).toEqual(['r-active']);
     expect(out.clients.map((c) => c.id)).toEqual(['c-active']);
@@ -279,7 +262,6 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
       makeActiveOnlyPlaceholder('r-bound-active', 'Bound active', 'p-active'),
       makeActiveOnlyPlaceholder('r-bound-hidden-client', 'Bound hidden client', 'p-hidden-parent'),
       makeActiveOnlyPlaceholder('r-bound-archived-project', 'Bound archived project', 'p-archived'),
-      makeActiveOnlyPlaceholder('r-bound-deleted-project', 'Bound deleted project', 'p-deleted'),
       makeActiveOnlyPlaceholder(
         'r-bound-missing-project',
         'Bound missing project',
@@ -449,9 +431,9 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
     const snapshot = structuredClone(input);
     const out = buildActiveData(input);
     expect(input).toEqual(snapshot);
-    expect(input.resources).toHaveLength(3);
-    expect(input.clients).toHaveLength(3);
-    expect(input.projects).toHaveLength(4);
+    expect(input.resources).toHaveLength(2);
+    expect(input.clients).toHaveLength(2);
+    expect(input.projects).toHaveLength(3);
     expect(out).not.toBe(input);
   });
   it('an all-active dataset is preserved (every row kept, every table present)', () => {
@@ -649,7 +631,6 @@ describe('archiveImpact', () => {
 
   it.each([
     ['archived', { archivedAt: T_ARCH }, 'already_inactive'],
-    ['deleted', { archivedAt: T_ARCH, deletedAt: T_DEL }, 'already_inactive'],
     ['missing', null, 'invalid_transition'],
   ] as const)('fails loudly when the impact target is %s', (_state, tombstones, code) => {
     const input = makeArchiveImpactData();

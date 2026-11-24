@@ -86,12 +86,10 @@ export async function resetPlanningFixture(): Promise<AppData> {
 
 export function newAllocation(data: AppData) {
   const resource = data.resources.find(
-    (row) =>
-      row.companyId === companyId && row.kind === 'person' && !row.archivedAt && !row.deletedAt
+    (row) => row.companyId === companyId && row.kind === 'person' && !row.archivedAt
   )!;
   const activity = data.activities.find(
-    (row) =>
-      row.companyId === companyId && row.kind === 'internal' && !row.archivedAt && !row.deletedAt
+    (row) => row.companyId === companyId && row.kind === 'internal' && !row.archivedAt
   )!;
   return {
     id: randomUUID(),

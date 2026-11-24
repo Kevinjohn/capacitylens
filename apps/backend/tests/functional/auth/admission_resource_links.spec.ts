@@ -87,12 +87,7 @@ test.group('direct member resource association', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const person = (
-      id: string,
-      companyId: string,
-      archivedAt: string | null = null,
-      deletedAt: string | null = null
-    ) => ({
+    const person = (id: string, companyId: string, archivedAt: string | null = null) => ({
       id,
       company_id: companyId,
       kind: 'person',
@@ -105,7 +100,6 @@ test.group('direct member resource association', (group) => {
       half_days: '[]',
       color: '#6366f1',
       archived_at: archivedAt,
-      deleted_at: deletedAt,
       created_at: now,
       updated_at: now,
     });
@@ -114,7 +108,6 @@ test.group('direct member resource association', (group) => {
       .insert([
         person('r-active', 'a-studio'),
         person('r-archived', 'a-studio', now),
-        person('r-deleted', 'a-studio', null, now),
         person('r-stark', 'a-loft'),
       ]);
     await db.table('account_member_resources').insert([
@@ -133,15 +126,6 @@ test.group('direct member resource association', (group) => {
         user_id: dianaId,
         resource_id: 'r-archived',
         revision: 'rev-diana',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'link-barbara',
-        company_id: 'a-studio',
-        user_id: barbaraId,
-        resource_id: 'r-deleted',
-        revision: 'rev-barbara',
         created_at: now,
         updated_at: now,
       },
@@ -177,7 +161,7 @@ test.group('direct member resource association', (group) => {
       resourceStatus: 'active',
     });
     assert.equal(body.members[2]!.resourceLink?.resourceStatus, 'archived');
-    assert.equal(body.members[3]!.resourceLink?.resourceStatus, 'archived');
+    assert.isNull(body.members[3]!.resourceLink);
     assert.sameDeepMembers(body.resourceCandidates, [
       { resourceId: 'r-active', label: 'r-active' },
     ]);

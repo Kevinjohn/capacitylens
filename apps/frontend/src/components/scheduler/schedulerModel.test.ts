@@ -222,26 +222,15 @@ describe('buildSchedulerModel', () => {
 
 function buildNonActiveResourceData(): AppData {
   const d = dataset();
-  d.disciplines.push(
-    {
-      id: 'd-ops',
-      color: null,
-      companyId: 'acct-test',
-      createdAt: 't',
-      updatedAt: 't',
-      name: 'Ops',
-      sortOrder: 2,
-    },
-    {
-      id: 'd-qa',
-      color: null,
-      companyId: 'acct-test',
-      createdAt: 't',
-      updatedAt: 't',
-      name: 'QA',
-      sortOrder: 3,
-    },
-  );
+  d.disciplines.push({
+    id: 'd-ops',
+    color: null,
+    companyId: 'acct-test',
+    createdAt: 't',
+    updatedAt: 't',
+    name: 'Ops',
+    sortOrder: 2,
+  });
   d.resources.push(
     makeResource({
       id: 'r-arch',
@@ -252,22 +241,10 @@ function buildNonActiveResourceData(): AppData {
       disciplineId: 'd-ops',
       color: '#6',
     }),
-
-    makeResource({
-      id: 'r-del',
-      companyId: 'acct-test',
-      archivedAt: '2026-05-01T00:00:00.000Z',
-      deletedAt: '2026-05-20T00:00:00.000Z',
-      name: 'Deleted Del',
-      jobTitle: 'QA',
-      disciplineId: 'd-qa',
-      color: '#7',
-    }),
   );
 
   d.allocations.push(
     makeAllocation({ id: 'a-arch', companyId: 'acct-test', resourceId: 'r-arch' }),
-    makeAllocation({ id: 'a-del', companyId: 'acct-test', resourceId: 'r-del' }),
   );
   return d;
 }
@@ -290,7 +267,7 @@ describe('buildSchedulerModel(buildActiveData(data), …) — non-active resourc
 
   // Exercise the shared active-only projection before modeling so retained inactive rows cannot create normal schedule lanes.
   const withNonActive: () => AppData = buildNonActiveResourceData;
-  it('RAW data renders the archived + deleted lanes; the active-only projection does NOT', () => {
+  it('RAW data renders the archived lane; the active-only projection does NOT', () => {
     const d = withNonActive();
 
     const raw = buildSchedulerModel({
@@ -307,21 +284,18 @@ describe('buildSchedulerModel(buildActiveData(data), …) — non-active resourc
       },
     });
     const rawResourceIds = raw.flatMap((g) => g.rows).map((r) => r.resource.id);
-    expect(rawResourceIds).toEqual(expect.arrayContaining(['r1', 'r2', 'r-arch', 'r-del']));
+    expect(rawResourceIds).toEqual(expect.arrayContaining(['r1', 'r2', 'r-arch']));
 
     const model = buildActive(d);
     const resourceIds = model.flatMap((g) => g.rows).map((r) => r.resource.id);
 
     expect(resourceIds).toEqual(['r1', 'r2']);
     expect(resourceIds).not.toContain('r-arch');
-    expect(resourceIds).not.toContain('r-del');
 
     const barIdsAll = listBarIds(model);
     expect(barIdsAll).not.toContain('a-arch');
-    expect(barIdsAll).not.toContain('a-del');
 
     expect(model.map((g) => g.title)).not.toContain('Ops');
-    expect(model.map((g) => g.title)).not.toContain('QA');
   });
 
   it('hides scheduled work beneath an archived client', () => {

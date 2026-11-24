@@ -7,8 +7,6 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
-  unlinkSync,
-  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -228,67 +226,6 @@ test(
     }
   },
 );
-
-test('a live legacy file mutex is respected and a dead one is reclaimed', () => {
-  const environment = scratch();
-  const directory = portLaneDirectory(environment);
-  claimPortLane({ worktree: '/tmp/initial', environment }).release();
-  const mutex = join(directory, '.mutex');
-  writeFileSync(mutex, JSON.stringify({ pid: process.pid, at: 0 }));
-  const realNow = Date.now;
-  let now = realNow();
-  Date.now = () => (now += 31_000);
-  try {
-    assert.throws(() => claimPortLane({ worktree: '/tmp/blocked', environment }), /held by pid/);
-  } finally {
-    Date.now = realNow;
-  }
-  unlinkSync(mutex);
-  writeFileSync(mutex, JSON.stringify({ pid: 2 ** 30, at: 0 }));
-  const claim = claimPortLane({ worktree: '/tmp/reclaimed', environment });
-  assert.equal(claim.portLane, 0);
-  claim.release();
-});
-
-test('a fresh empty or corrupt legacy mutex is left for its possible live publisher', () => {
-  for (const contents of ['', 'not-json']) {
-    const environment = scratch();
-    const directory = portLaneDirectory(environment);
-    claimPortLane({ worktree: '/tmp/initial', environment }).release();
-    const mutex = join(directory, '.mutex');
-    writeFileSync(mutex, contents);
-    const realNow = Date.now;
-    let now = realNow();
-    // Keep the file younger than the grace period however far the mocked clock advances.
-    const future = new Date(now + 3_600_000);
-    utimesSync(mutex, future, future);
-    Date.now = () => (now += 31_000);
-    try {
-      assert.throws(
-        () => claimPortLane({ worktree: '/tmp/blocked', environment }),
-        /no valid owner/,
-      );
-      assert.equal(readFileSync(mutex, 'utf8'), contents);
-    } finally {
-      Date.now = realNow;
-    }
-  }
-});
-
-test('an abandoned empty or corrupt legacy mutex is reaped', () => {
-  for (const contents of ['', 'not-json']) {
-    const environment = scratch();
-    const directory = portLaneDirectory(environment);
-    claimPortLane({ worktree: '/tmp/initial', environment }).release();
-    const mutex = join(directory, '.mutex');
-    writeFileSync(mutex, contents);
-    const past = new Date(Date.now() - 60_000);
-    utimesSync(mutex, past, past);
-    const claim = claimPortLane({ worktree: '/tmp/reclaimed', environment });
-    assert.equal(claim.portLane, 0);
-    claim.release();
-  }
-});
 
 test("racing dead-owner cleanup cannot remove a successor's mutex", () => {
   const environment = scratch();

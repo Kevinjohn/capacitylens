@@ -5,7 +5,6 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import type { ArchiveRecovery, ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
@@ -130,31 +129,6 @@ async function prepareArchiveFixture(archiveProject = false) {
     archived_at: stamp,
   });
 
-  const deletedClient = {
-    ...client,
-    id: 'c-deleted-parent',
-    name: 'Deleted Wayne Client',
-    isPrivate: false,
-    codeName: null,
-    archivedAt: null,
-    deletedAt: stamp,
-  };
-  const deletedProject = {
-    ...project,
-    id: 'p-deleted-child',
-    name: 'Archived LexCorp Project',
-    clientId: deletedClient.id,
-    isPrivate: false,
-    codeName: null,
-    archivedAt: stamp,
-    deletedAt: null,
-  };
-  await db.table('clients').insert(encodeRow('clients', deletedClient));
-  await db.table('projects').insert(encodeRow('projects', deletedProject));
-  await db.from('resources').where({ id: 'r-nike', company_id: companyId }).update({
-    project_id: deletedProject.id,
-  });
-
   const verified = await readState(companyId, true);
   if (
     verified.clients.find((row) => row.id === client.id)?.isPrivate !== true ||
@@ -267,8 +241,6 @@ test.group('identity-only archive recovery', (suite) => {
         'supplementary',
       ]);
       assert.equal(byId.has('c-internal-studio'), false);
-      assert.equal(byId.has('p-deleted-child'), false);
-      assert.equal(byId.has('r-nike'), false);
       assert.equal(byId.has('p-loft-app'), false);
       assert.equal(byId.has('t-design'), false);
       assert.equal(byId.has('r-pam'), false);
@@ -284,7 +256,6 @@ test.group('identity-only archive recovery', (suite) => {
       assert.notInclude(serialized, 'Secret Designer Role');
       assert.notInclude(serialized, 'private-avatar-sentinel');
       assert.notInclude(serialized, 'archivedAt');
-      assert.notInclude(serialized, 'deletedAt');
       assert.notInclude(serialized, 'codeName');
       assert.notInclude(serialized, 'employmentType');
       assert.notInclude(serialized, 'note');
@@ -554,17 +525,6 @@ test.group('identity-only archive recovery', (suite) => {
     const stale = await restore(client, editor.cookie, 'clients', clientId, 0);
     stale.assertStatus(409);
     assert.equal((stale.body() as { code: string }).code, 'STALE_REVISION');
-
-    const deleted = await db
-      .from('resources')
-      .where({ id: 'r-tyler', company_id: companyId })
-      .update({
-        deleted_at: stamp,
-      });
-    assert.equal(deleted, 1);
-    const deletedTarget = await restore(client, editor.cookie, 'resources', 'r-tyler', 1);
-    deletedTarget.assertStatus(400);
-    assert.equal((deletedTarget.body() as { code: string }).code, 'VALIDATION_ERROR');
 
     const foreignTarget = await session(client.post(route('planning/mutations')), editor.cookie)
       .json(

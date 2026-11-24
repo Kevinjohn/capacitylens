@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine';
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import { ENTITY_FIELDS, type FieldSpec } from '@capacitylens/shared/types/entityFields';
-import { findFieldProblem, type RowRuleContext } from '#validators/planning/fields';
+import { findFieldProblem, type RowRuleContext } from '@capacitylens/shared/types/entityFieldRules';
 
 const rowField = vine.createRule<{ field: string; spec: FieldSpec; context: RowRuleContext }>(
   (value, { field, spec, context }, ctx) => {
