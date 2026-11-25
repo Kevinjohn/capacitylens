@@ -458,7 +458,7 @@ Items:
 - [ ] **PKG-4** (Rule) The npm name is `@kevinjohn/adonisjs-<name>`; the repository is `oss-adonisjs-<name>`. The name says what the package does in the framework's vocabulary.
 - [ ] **PKG-5** (Law) `"type": "module"`, `engines.node >= 24`, `"files": ["build", "!build/bin", "!build/tests"]`, and an `exports` map.
 - [ ] **PKG-6** (Law) `@adonisjs/core` and every other framework package the code imports (`@adonisjs/lucid`, `@adonisjs/session`, `@adonisjs/assembler`) is a `peerDependency`, and a `devDependency` for the package's own tests. Optional ones are marked in `peerDependenciesMeta`.
-- [ ] **PKG-7** (Law) A peer range names the major: `^7.0.0`. Do not pin a peer to an exact version.
+- [ ] **PKG-7** (Rule) A peer range names the major: `^7.0.0`. Do not pin a peer to an exact version.
 - [ ] **PKG-8** (Law) The package builds with `tsdown` plus `tsc --emitDeclarationOnly --declaration`, and copies `stubs/**/*.stub` into `build` with `copyfiles --up=1`, as the official packages do.
 - [ ] **PKG-9** (Rule) `publishConfig` sets `access: public` and `provenance: true`.
 
@@ -507,7 +507,7 @@ Items:
 - [ ] **PKG-20** (Law) The application configures the package in `config/<name>.ts`, with the package's `defineConfig`.
 - [ ] **PKG-21** (Law) `defineConfig` validates its input and throws `InvalidArgumentsException` or `RuntimeException` from `@adonisjs/core/exceptions`, with a message that names the package's config and the key.
 - [ ] **PKG-22** (Law) When configuration needs the booted application or a lazily imported driver, `defineConfig` returns a config provider (`configProvider.create`), and the service provider resolves it with `configProvider.resolve`.
-- [ ] **PKG-23** (Law) The code a package ships (`src/`, `providers/`, `services/`, `commands/`) never reads `process.env` or the `env` service. The application's config file does. The repository's own `bin/` scripts are not shipped and may read `process.env`.
+- [ ] **PKG-23** (Rule) The code a package ships (`src/`, `providers/`, `services/`, `commands/`) never reads `process.env` or the `env` service. The application's config file does. The repository's own `bin/` scripts are not shipped and may read `process.env`.
 - [ ] **PKG-24** (Law) Environment variables a package introduces are UPPER_SNAKE with the package's name first: `LIMITER_STORE`, `SESSION_DRIVER`.
 
 ## Provider and container service
