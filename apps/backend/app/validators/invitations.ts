@@ -13,6 +13,9 @@ import {
   userAgentHeaders,
 } from '#validators/request_rules';
 
+const invitationParams = () =>
+  vine.object({ params: vine.object({ companyId: companyIdParam(), id: positiveIdParam() }) });
+
 export const createInvitationValidator = vine.create(
   vine
     .object({
@@ -45,9 +48,6 @@ export const showInvitationLinkValidator = vine.create(
 export const listInvitationsValidator = vine.create(
   vine.object({ params: vine.object({ companyId: companyIdParam() }) })
 );
-
-const invitationParams = () =>
-  vine.object({ params: vine.object({ companyId: companyIdParam(), id: positiveIdParam() }) });
 
 export const resendInvitationValidator = vine.create(invitationParams());
 
