@@ -13,7 +13,7 @@ import type { AllocationSaveAdvisory } from '@/store/StoreEntityActions';
 
 import type { FieldError } from '@/hooks/useFieldError';
 import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
-type IntentInput = Omit<AllocationDialogSnapshot, 'editId' | 'repeatUntilMinimum'> &
+type IntentInput = Omit<AllocationDialogSnapshot, 'repeatUntilMinimum'> &
   Pick<
     ReturnType<typeof useStore.getState>,
     | 'addAllocation'
@@ -87,28 +87,7 @@ function parseAllocationIntentDraft(input: IntentInput): ValidatedDraft | null {
           maximum: input.repeatUntilMaximum,
         }
       : null;
-  const valid = validateAllocationDraft(
-    {
-      resourceId: input.resourceId,
-      activityId: input.activityId,
-      startDate: input.startDate,
-      endDate: input.endDate,
-      usesTypedDateRange: input.usesTypedDateRange,
-      typedDateSpanTooLong: input.typedDateSpanTooLong,
-      isBlocks: input.isBlocks,
-      isDays: input.isDays,
-      isExternal: input.isExternal,
-      validDaysOver: input.validDaysOver,
-      spanFitsDateDomain: input.spanFitsDateDomain,
-      spanLimitedByDateDomain: input.spanLimitedByDateDomain,
-      maximumDaysOver: input.maximumDaysOver,
-      daysOfWork: input.daysOfWork,
-      hoursPerDay: input.hoursPerDay,
-      effHoursPerDay: input.effHoursPerDay,
-      repeat,
-    },
-    input.fail,
-  );
+  const valid = validateAllocationDraft({ ...input, repeat }, input.fail);
   if (!valid) return null;
   const cleanNote = parseText(input.note, input.fail, {
     field: 'note',

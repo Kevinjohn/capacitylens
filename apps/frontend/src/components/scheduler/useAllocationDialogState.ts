@@ -20,7 +20,7 @@ import {
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import { buildAllocationDialogSeed } from './buildAllocationDialogSeed';
-import type { AllocationDialogProps } from './allocationDialogTypes';
+import type { AllocationDialogProps, AllocationDialogSnapshot } from './AllocationDialogSnapshot';
 import { buildRepeatExpansion } from './buildRepeatExpansion';
 import { createAllocationIntents } from './allocationSubmit';
 import { useAllocationScheduleState } from './useAllocationScheduleState';
@@ -175,13 +175,27 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationDialogInputs>
     today: context.today,
     seed: context.seed,
   });
-  const repeatExpansion = useRepeatExpansion(buildRepeatExpansionInput(context, target, schedule));
+  // One snapshot of the current form values feeds the repeat preview and the submit intents.
+  const snapshot: AllocationDialogSnapshot = {
+    ...target.fields,
+    ...target,
+    ...schedule.fields,
+    ...schedule,
+    data: context.data,
+    create: context.create,
+    editing: context.editing,
+    mode: context.mode,
+    isDays: context.isDays,
+    isBlocks: context.isBlocks,
+    initialDaysOver: context.seed.initialDaysOver,
+  };
+  const repeatExpansion = buildRepeatExpansion(snapshot);
   // A typed span can produce an invalid date; guard formatWeekdayScheduleDate() to avoid crashing the dialog.
   const parsedEndDate = parseDate(schedule.effEndDate);
   const endDateHint = Number.isNaN(parsedEndDate.getTime())
     ? null
     : formatWeekdayScheduleDate(schedule.effEndDate);
-  return { target, schedule, repeatExpansion, endDateHint };
+  return { target, schedule, snapshot, repeatExpansion, endDateHint };
 }
 
 /** Coordinates allocation dialog fields, validation, and submission. */
@@ -194,19 +208,9 @@ function buildDialogState(
   context: ReturnType<typeof useAllocationDialogInputs>,
   state: ReturnType<typeof useTargetSchedule>,
 ) {
-  const { target, schedule, repeatExpansion, endDateHint } = state;
+  const { target, schedule, snapshot, repeatExpansion, endDateHint } = state;
   const { submit, onDuplicate, onDelete } = createAllocationIntents({
-    ...target.fields,
-    ...target,
-    ...schedule.fields,
-    ...schedule,
-    data: context.data,
-    create: context.create,
-    editing: context.editing,
-    mode: context.mode,
-    isDays: context.isDays,
-    isBlocks: context.isBlocks,
-    initialDaysOver: context.seed.initialDaysOver,
+    ...snapshot,
     fail: context.fieldError.fail,
     canEdit: context.canEdit,
     onClose: context.onClose,
@@ -257,87 +261,6 @@ function buildDialogState(
       onClose: context.onClose,
     },
   };
-}
-
-function buildRepeatExpansionInput(
-  context: ReturnType<typeof useAllocationDialogInputs>,
-  target: ReturnType<typeof useAllocationTargetState>,
-  schedule: ReturnType<typeof useAllocationScheduleState>,
-): Parameters<typeof buildRepeatExpansion>[0] {
-  return {
-    activityId: target.fields.activityId,
-    create: context.create,
-    attributedProjectId: target.attributedProjectId,
-    daysOfWork: schedule.fields.daysOfWork,
-    daysOver: schedule.fields.daysOver,
-    effEndDate: schedule.effEndDate,
-    effHoursPerDay: schedule.fields.effHoursPerDay,
-    ignoreWorkingDays: schedule.fields.ignoreWorkingDays,
-    isBlocks: context.isBlocks,
-    isDays: context.isDays,
-    isExternal: schedule.fields.isExternal,
-    mode: context.mode,
-    note: schedule.fields.note,
-    task: schedule.fields.task,
-    repeat: schedule.fields.repeat,
-    repeatUntil: schedule.fields.repeatUntil,
-    repeatUntilMaximum: schedule.fields.repeatUntilMaximum,
-    repeatUntilMinimum: schedule.fields.repeatUntilMinimum,
-    resourceId: target.fields.resourceId,
-    selectedActivity: target.selectedActivity,
-    selectedEffectiveProjectId: target.selectedEffectiveProjectId,
-    selectedResource: target.selectedResource,
-    selectedEffectiveWeek: schedule.selectedEffectiveWeek,
-    spanFitsDateDomain: schedule.spanFitsDateDomain,
-    startDate: schedule.fields.startDate,
-    status: schedule.fields.status,
-    validDaysOver: schedule.validDaysOver,
-  };
-}
-
-function useRepeatExpansion(input: Parameters<typeof buildRepeatExpansion>[0]) {
-  // prettier-ignore
-  const { activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
-    ignoreWorkingDays, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
-    repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
-    selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver } = input;
-  return useMemo(
-    () =>
-      buildRepeatExpansion({
-        activityId,
-        create,
-        attributedProjectId,
-        daysOfWork,
-        daysOver,
-        effEndDate,
-        effHoursPerDay,
-        ignoreWorkingDays,
-        isBlocks,
-        isDays,
-        isExternal,
-        mode,
-        note,
-        task,
-        repeat,
-        repeatUntil,
-        repeatUntilMaximum,
-        repeatUntilMinimum,
-        resourceId,
-        selectedActivity,
-        selectedEffectiveProjectId,
-        selectedResource,
-        selectedEffectiveWeek,
-        spanFitsDateDomain,
-        startDate,
-        status,
-        validDaysOver,
-      }),
-    // prettier-ignore
-    [activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
-      ignoreWorkingDays, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
-      repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
-      selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver],
-  );
 }
 
 type ResolveCreateNameOptions = {

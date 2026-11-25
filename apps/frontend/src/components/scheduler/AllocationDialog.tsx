@@ -4,7 +4,7 @@ import { AllocationFooter } from './AllocationFooter';
 import { AllocationScheduleFields } from './AllocationScheduleFields';
 import { AllocationTargetFields } from './AllocationTargetFields';
 import { useAllocationDialogState } from './useAllocationDialogState';
-import type { AllocationDialogProps } from './allocationDialogTypes';
+import type { AllocationDialogProps } from './AllocationDialogSnapshot';
 
 type BuildTitleOptions = { editing: boolean; createName: string | undefined };
 function buildTitle({ editing, createName }: BuildTitleOptions) {
