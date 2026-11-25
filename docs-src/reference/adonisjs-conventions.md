@@ -26,7 +26,7 @@ Three rules decide every case:
 2. **A deliberate difference is a numbered departure.** The list is "AdonisJS framework
    departures" in
    [`DECISIONS.md`](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md). This page
-   cites it as "departure 11". A new difference needs the owner's ruling first. An entry marked
+   cites it as "departure 11". A new difference is decided in an issue first. An entry marked
    **Aligning** there is being removed by the issue it names; until that issue lands, match the
    surrounding code.
 3. **An existing difference is debt.** Code that differs without a departure is tracked in

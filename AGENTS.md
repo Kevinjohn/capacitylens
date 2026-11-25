@@ -1,6 +1,6 @@
 # CapacityLens repository guidance
 
-Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS documentation for framework conventions and APIs. Follow the framework wherever it has an answer; a difference from it needs the owner's ruling. This file records only repository-specific requirements.
+Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS documentation for framework conventions and APIs. Follow the framework wherever it has an answer; a difference from it is a numbered departure, decided in an issue before the code that needs it; the owner rules only when it changes behaviour users see, scope, a public interface or data. This file records only repository-specific requirements.
 
 ## Scope and architecture
 

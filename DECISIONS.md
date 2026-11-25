@@ -295,7 +295,8 @@ does not inherit them.
 ## AdonisJS framework departures
 
 The AdonisJS documentation is the reference. A departure is a cost every later product built
-from this codebase inherits, so prefer aligning. A new departure needs the owner's ruling. An
+from this codebase inherits, so prefer aligning. A new departure is decided in an issue, before the code that needs it; the owner rules only when
+it changes behaviour users see, scope, a public interface or data. An
 entry marked **Aligning** is being removed by the issue it names; the code may still differ until
 that issue lands. Every other entry is kept for the reason it gives. Numbers are stable: a
 removed entry retires its number.

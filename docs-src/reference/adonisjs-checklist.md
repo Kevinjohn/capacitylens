@@ -23,7 +23,7 @@ Each item carries the tier that says what a failure does.
 | Tier | A failed item | Departure |
 | --- | --- | --- |
 | **Law** | Blocks the merge. | None. A law has no departure. |
-| **Rule** | Blocks the merge. | A numbered entry in the repository's departures list, which needs the owner's ruling before the code merges. |
+| **Rule** | Blocks the merge. | A numbered entry in the repository's departures list, decided in an issue before the code merges. |
 | **Guideline** | Does not block. The reviewer notes it once and the author answers once, with a fix or a reason. | A reason that will stand is recorded as a departure, so the item is not noted again. |
 
 - A law or a rule is decided by reading the files it names. An item that needs taste to decide is
@@ -33,8 +33,8 @@ Each item carries the tier that says what a failure does.
 - An item with several sentences passes only when every sentence holds.
 - **n/a** is valid in two cases only: the section's *When* line does not match the change, or the
   thing the item names does not exist in the repository. "Does not apply here" is not a reason.
-- Only the owner adds a departure. Whoever writes the code proposes it in an issue; the entry
-  lands in its own change, before the code that needs it.
+- A departure is decided in an issue and lands in its own change, before the code that needs it.
+  The change that needs a departure never adds it.
 - A tier or an item changes through an issue, between reviews. A review in progress keeps the
   draft it started with.
 
