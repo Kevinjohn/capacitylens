@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { hasHourlyLoad } from '@capacitylens/shared/types/entities';
 import type { ID } from '@capacitylens/shared/types/entities';
-import type { Weekday } from '@capacitylens/shared/types/entities';
 import { resolveSchedulingMode } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import type { ColumnGeometry } from './columnGeometry';
@@ -55,12 +54,10 @@ function useGestureRuntime(allocationId: ID): GestureRuntime {
   const lanesDirtyRef = useRef(false);
   const dropElementRef = useRef<HTMLElement | null>(null);
   const stopWatchRef = useRef<(() => void) | null>(null);
-  const previewDaysRef = useRef(new Map<ID, Weekday[] | undefined>());
   const stopGeometryWatch = () => {
     stopWatchRef.current?.();
     stopWatchRef.current = null;
     lanesDirtyRef.current = false;
-    previewDaysRef.current.clear();
   };
   const setDropTarget = (element: HTMLElement | null) => {
     if (dropElementRef.current === element) return;
@@ -82,7 +79,7 @@ function useGestureRuntime(allocationId: ID): GestureRuntime {
     },
     [allocationId],
   );
-  return { lanesRef, previewDaysRef, setDropTarget, startGeometryWatch, stopGeometryWatch };
+  return { lanesRef, setDropTarget, startGeometryWatch, stopGeometryWatch };
 }
 
 /**
