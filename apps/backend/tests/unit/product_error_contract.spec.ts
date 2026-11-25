@@ -749,6 +749,17 @@ test.group('product error adapters', () => {
       status: 500,
     });
   });
+  test('a package server fault is logged under its own category and status', async ({ assert }) => {
+    for (const [error, expected] of [
+      [new E_ACCOUNT_KIT_POST_COMMIT(), { errorType: 'account_kit_failure', status: 500 }],
+      [new masqueradeErrors.E_MASQUERADE_UNAVAILABLE(), { errorType: 'unexpected', status: 503 }],
+    ] as const) {
+      const { ctx, diagnostics } = context(error);
+      await new HttpExceptionHandler().report(error, ctx);
+      assert.lengthOf(diagnostics, 1);
+      assert.include(serializeErr(diagnostics[0]!.fields.err), expected);
+    }
+  });
   test('a constraint failure is a server fault: 500 answered and logged', async ({ assert }) => {
     const error = Object.assign(new Error('SENTINEL_SQL_TEXT SENTINEL_PAYLOAD'), {
       code: 'SQLITE_CONSTRAINT_FOREIGNKEY',

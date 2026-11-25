@@ -1,9 +1,12 @@
 import app from '@adonisjs/core/services/app';
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import { mapPackageError } from '#exceptions/http_error_mapping';
 import ProductException from '#exceptions/product_exception';
 import UnexpectedException from '#exceptions/unexpected_exception';
+import AccountKitFailureException from '#exceptions/account_kit_failure_exception';
+import MasqueradeUnavailableException from '#exceptions/masquerade_unavailable_exception';
 import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety';
 
 export default class HttpExceptionHandler extends ExceptionHandler {
@@ -37,12 +40,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
   /**
    * Reports what the log may see of an error. A product exception's message is a fixed sentence, so
    * it is reported as it is; anything else reaches the log as an `UnexpectedException` that keeps
-   * only its class, frames and causes. A package refusal is reported as the product refusal it is
-   * answered with, which the ignored statuses keep out of the log.
+   * only its class, frames and causes. A package server fault is reported as the fault it is
+   * answered with, and a package refusal below 500 is an expected outcome that is not logged.
    */
   async report(error: unknown, ctx: HttpContext) {
     try {
-      await super.report(this.#reportable(error), ctx);
+      const reportable = this.#reportable(error);
+      if (reportable) await super.report(reportable, ctx);
     } catch {
       // The server answers only after the report, so a failed logger must not stop the answer.
       console.error('Private diagnostic logger failed');
@@ -64,12 +68,11 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return error;
     }
     const answer = mapPackageError(error);
-    if (answer && answer.status < 500 && !answer.errorType) {
-      return new ProductException('Request refused.', { status: answer.status });
+    if (answer && answer.status < 500) return undefined;
+    if (answer?.errorType) return new AccountKitFailureException(error);
+    if (error instanceof masqueradeErrors.E_MASQUERADE_UNAVAILABLE) {
+      return new MasqueradeUnavailableException(error);
     }
-    return new UnexpectedException(error, {
-      status: answer && answer.status >= 500 ? answer.status : undefined,
-      errorType: answer?.errorType,
-    });
+    return new UnexpectedException(error);
   }
 }
