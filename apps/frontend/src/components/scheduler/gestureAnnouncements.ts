@@ -7,7 +7,7 @@ import { resolveResourceDisplayName } from '@/lib/metadata';
 import { readServerDayCapacity } from './schedulerRowCapacity';
 
 /** The server's capacity figures and the visible span a keyboard announcement counts over. */
-export interface CapacityAnnouncementInput {
+interface CapacityAnnouncementInput {
   resources: Resource[];
   capacity: CapacitySection | null;
   resourceId: ID;
@@ -15,7 +15,7 @@ export interface CapacityAnnouncementInput {
 }
 
 /** A capacity-tracked resource's name and its over-capacity days in the measured window. */
-export interface VisibleOverCapacity {
+interface VisibleOverCapacity {
   name: string;
   overDays: number;
 }
@@ -25,7 +25,7 @@ export interface VisibleOverCapacity {
  * figures the grid draws. A date the server has not sent counts as not over. Returns `undefined`
  * for an unknown resource or one whose capacity is not tracked.
  */
-export function buildVisibleOverCapacity({
+function buildVisibleOverCapacity({
   resources,
   capacity,
   resourceId,
@@ -40,7 +40,7 @@ export function buildVisibleOverCapacity({
 }
 
 /** Formats the screen-reader status for a measured resource; an unmeasured one is silent. */
-export function formatCapacityAnnouncement(overCapacity: VisibleOverCapacity | undefined): string {
+function formatCapacityAnnouncement(overCapacity: VisibleOverCapacity | undefined): string {
   if (!overCapacity) return '';
   const { name, overDays } = overCapacity;
   if (overDays === 0) return m.scheduler_sr_announce_clear({ name });

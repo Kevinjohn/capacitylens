@@ -308,12 +308,11 @@ export function SchedulerGrid() {
     calendarWeekStartsOn: companyPrefs.calendarWeekStartsOn,
   });
   const gridModel = useSchedulerGridModel(preferences, viewport);
-  const { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact } = gridModel;
+  const { model, today, todayX, visibleWeeksLabel, visibleSpanCompact } = gridModel;
   const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport;
   const virtualization = useSchedulerGridVirtualization({
     model,
     ui,
-    density,
     data: preferences.data,
     viewport,
   });
@@ -366,7 +365,6 @@ export function SchedulerGrid() {
           <SchedulerGridRows
             {...virtualization}
             ui={ui}
-            density={density}
             toggleGroup={toggleGroup}
             geom={geom}
             utilisationPrefs={utilisationPrefs}

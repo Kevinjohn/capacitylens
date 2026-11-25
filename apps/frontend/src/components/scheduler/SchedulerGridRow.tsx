@@ -4,7 +4,6 @@ import { m } from '@/i18n';
 import { formatUtilisationPercent } from '@/lib/formatUtilisationPercent';
 import { UTILISATION_WINDOW_DAYS } from '@/lib/schedulerConfig';
 import { resolveResourceDisplayName } from '@/lib/metadata';
-import type { buildSchedulerDensity } from './layout';
 import { LAYOUT } from './layout';
 import { ResourceLane } from './ResourceLane';
 import { buildRowScreenReaderSummary } from './buildRowScreenReaderSummary';
@@ -25,7 +24,6 @@ export interface SchedulerGridRowProps {
   group: GroupModel;
   row: RowModel;
   rowIndex: number;
-  density: ReturnType<typeof buildSchedulerDensity>;
   visibleWeeksLabel: string;
   days: LaneProps['days'];
   todayX: LaneProps['todayX'];
@@ -35,11 +33,7 @@ export interface SchedulerGridRowProps {
   onDraw: LaneProps['onDraw'];
 }
 
-function ResourceIdentity({
-  group,
-  row,
-  density,
-}: Pick<SchedulerGridRowProps, 'group' | 'row' | 'density'>) {
+function ResourceIdentity({ group, row }: Pick<SchedulerGridRowProps, 'group' | 'row'>) {
   const { resource } = row;
   const data = useActiveScopedData();
   const { onViewSchedule } = useSchedulerGridActions();
@@ -56,7 +50,7 @@ function ResourceIdentity({
   return (
     <div
       className="flex min-w-0 flex-1 items-center gap-2"
-      style={{ height: density.identityBandHeight }}
+      style={{ height: LAYOUT.identityBandHeight }}
     >
       <PersonScheduleTrigger
         resourceId={resource.id}
@@ -151,9 +145,8 @@ function ResourceActions({
 function SchedulerGridRowHeader({
   row,
   group,
-  density,
   visibleWeeksLabel,
-}: Pick<SchedulerGridRowProps, 'group' | 'row' | 'density' | 'visibleWeeksLabel'>) {
+}: Pick<SchedulerGridRowProps, 'group' | 'row' | 'visibleWeeksLabel'>) {
   const drawMode = useStore((state) => state.ui.drawMode);
   const showPersonalUtilisation = useStore((state) => state.utilisationPrefs.showPersonal);
   const { resource } = row;
@@ -173,7 +166,7 @@ function SchedulerGridRowHeader({
           drawMode,
         })}
       </span>
-      <ResourceIdentity group={group} row={row} density={density} />
+      <ResourceIdentity group={group} row={row} />
       <ResourceActions row={row} visibleWeeksLabel={visibleWeeksLabel} />
     </div>
   );
@@ -181,8 +174,7 @@ function SchedulerGridRowHeader({
 
 /** Renders one resource row in the scheduler grid. */
 export function SchedulerGridRow(props: SchedulerGridRowProps) {
-  const { row, rowIndex, density, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } =
-    props;
+  const { row, rowIndex, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } = props;
   const canEdit = useCanEdit();
   const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
   return (
@@ -201,7 +193,6 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
       <SchedulerGridRowHeader
         group={props.group}
         row={row}
-        density={density}
         visibleWeeksLabel={props.visibleWeeksLabel}
       />
 
@@ -213,7 +204,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         todayX={todayX}
         geom={geom}
         rowHeight={rowHeight}
-        barTop={density.rowPadding}
+        barTop={LAYOUT.rowPadding}
         bars={bars}
         placeholder={resource.kind === 'placeholder'}
         weekStartsOn={calendarWeekStartsOn}

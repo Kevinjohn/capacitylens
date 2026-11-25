@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { hasActiveFilters, useStore } from '@/store/useStore';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
+import { LAYOUT } from './layout';
 import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { buildVisibleSpanLabels, resolveVisibleWindow } from './visibleSpan';
@@ -30,7 +30,6 @@ interface SchedulerModelProjectionInput {
   viewport: GridViewport;
   visibleStart: string;
   visibleEnd: string;
-  rowLaneLayout: typeof SCHEDULER_LANE_LAYOUT;
   partiallyExposesNextColumn: boolean;
 }
 
@@ -104,7 +103,6 @@ function useSchedulerModelProjection({
   viewport: { days, geom },
   visibleStart,
   visibleEnd,
-  rowLaneLayout,
   partiallyExposesNextColumn: exposesNextColumn,
 }: SchedulerModelProjectionInput) {
   const modelPreferences = useMemo(
@@ -123,9 +121,8 @@ function useSchedulerModelProjection({
         capacity,
         filters: ui.filters,
         preferences: modelPreferences,
-        laneLayout: rowLaneLayout,
       }),
-    [data, geom, days, capacity, ui.filters, modelPreferences, rowLaneLayout],
+    [data, geom, days, capacity, ui.filters, modelPreferences],
   );
   return useMemo(
     () =>
@@ -134,10 +131,9 @@ function useSchedulerModelProjection({
         capacity,
         start: visibleStart,
         end: visibleEnd,
-        laneLayout: rowLaneLayout,
         partiallyExposesNextColumn: exposesNextColumn,
       }),
-    [staticModel, capacity, visibleStart, visibleEnd, rowLaneLayout, exposesNextColumn],
+    [staticModel, capacity, visibleStart, visibleEnd, exposesNextColumn],
   );
 }
 
@@ -203,15 +199,11 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
     [visibleStart, visibleEnd],
   );
 
-  const density = SCHEDULER_DENSITY;
-  const rowLaneLayout = SCHEDULER_LANE_LAYOUT;
-
   const model = useSchedulerModelProjection({
     preferences,
     viewport,
     visibleStart,
     visibleEnd,
-    rowLaneLayout,
     partiallyExposesNextColumn: partiallyExposesNextColumnState,
   });
 
@@ -227,7 +219,6 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
 
   return {
     model,
-    density,
     today,
     todayX,
     visibleWeeksLabel,

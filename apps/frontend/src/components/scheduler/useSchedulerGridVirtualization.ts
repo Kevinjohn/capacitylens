@@ -3,7 +3,7 @@ import { useStore } from '@/store/useStore';
 import type { SchedulerUI } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { GroupModel, RowModel } from './schedulerModel';
-import type { buildSchedulerDensity } from './layout';
+import { LAYOUT } from './layout';
 import { buildLayout, resolveVirtualWindow } from './virtualWindow';
 import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 import type { useSchedulerViewport } from './useSchedulerViewport';
@@ -11,7 +11,6 @@ import type { useSchedulerViewport } from './useSchedulerViewport';
 interface UseSchedulerGridVirtualizationInput {
   model: GroupModel[];
   ui: SchedulerUI;
-  density: ReturnType<typeof buildSchedulerDensity>;
   data: AppData;
   viewport: Pick<
     ReturnType<typeof useSchedulerViewport>,
@@ -49,7 +48,6 @@ function resolveTimelineBounds(days: readonly string[]) {
 export function useSchedulerGridVirtualization({
   model,
   ui,
-  density,
   data,
   viewport: { days, scrollRef, scrollTop, timelineHeight },
 }: UseSchedulerGridVirtualizationInput) {
@@ -66,9 +64,9 @@ export function useSchedulerGridVirtualization({
   const heights = useMemo(
     () =>
       items.map((interval) =>
-        interval.kind === 'group' ? density.groupHeaderHeight : interval.row.rowHeight,
+        interval.kind === 'group' ? LAYOUT.groupHeaderHeight : interval.row.rowHeight,
       ),
-    [items, density],
+    [items],
   );
   const layout = useMemo(() => buildLayout(heights), [heights]);
   const trackedGridHeight = resolveTrackedGridHeight(items, layout);

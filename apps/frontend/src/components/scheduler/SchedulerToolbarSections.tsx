@@ -11,7 +11,7 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { FilterSelect } from './FilterSelect';
-import type { SchedulerDensity } from './layout';
+import { CHROME_SPACING } from './layout';
 import type { buildFilterOptions } from './toolbarFilterOptions';
 import { ToolbarActivityFilter } from './ToolbarActivityFilter';
 import { ToolbarDateNavigation } from './ToolbarDateNavigation';
@@ -19,7 +19,6 @@ import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/loca
 
 type Options = ReturnType<typeof buildFilterOptions>;
 interface ChromeProps {
-  density: SchedulerDensity;
   zoom: StoreState['ui']['zoom'];
   setZoom: StoreState['setZoom'];
   panDays: StoreState['panDays'];
@@ -53,7 +52,7 @@ export function SchedulerToolbarChrome(props: ChromeProps) {
     <div
       data-chrome-band="toolbar"
       className="flex flex-wrap items-center gap-x-2 border-b border-chrome-toolbar-border bg-chrome-toolbar px-4"
-      style={{ paddingBlock: props.density.toolbarPadY, rowGap: props.density.toolbarGapY }}
+      style={{ paddingBlock: CHROME_SPACING.toolbarPadY, rowGap: CHROME_SPACING.toolbarGapY }}
     >
       <h1 className="mr-auto text-xl font-semibold">{m.scheduler_title()}</h1>
       <ToolbarDateNavigation

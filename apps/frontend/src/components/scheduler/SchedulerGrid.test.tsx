@@ -16,7 +16,7 @@ import { schedulerDataset } from '@/test/schedulerTestKit';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { capacityOver } from '@/test/capacityFixtures';
 import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
+import { LAYOUT, SCHEDULER_LANE_LAYOUT } from './layout';
 import { resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -293,22 +293,19 @@ describe('SchedulerGrid', () => {
     expect(within(firstRow).getByTestId('timeoff-block')).toBeInTheDocument();
     expect(within(secondRow).queryByTestId('timeoff-block')).not.toBeInTheDocument();
     expect(band.style.height).toBe(
-      `${SCHEDULER_DENSITY.groupHeaderHeight + Number.parseInt(firstRow.style.height, 10)}px`,
+      `${LAYOUT.groupHeaderHeight + Number.parseInt(firstRow.style.height, 10)}px`,
     );
   });
 
-  // The rendered density reaches both pipelines: the model (row heights, bar offsets) and the view
-  // (group headers). Rows use the scaled lane layout while the discipline band keeps its base height.
-  it('renders rows at the scaled density while the discipline band stays put', () => {
+  // The lane layout reaches the model (row heights, bar offsets) and the view keeps the discipline
+  // band at its fixed height.
+  it('renders rows with the lane layout while the discipline band keeps its height', () => {
     renderGrid();
     const [row] = screen.getAllByTestId('scheduler-row');
     const [group] = screen.getAllByTestId('discipline-group');
     if (!row || !group) throw new Error('Expected the scheduler row and discipline group.');
     expect(Number.parseInt(row.style.height, 10)).toBeGreaterThanOrEqual(
       resolveRowHeightForLanes(1, SCHEDULER_LANE_LAYOUT),
-    );
-    expect(Number.parseInt(row.style.height, 10)).toBeGreaterThan(
-      resolveRowHeightForLanes(1, laneLayout),
     );
     expect(group.style.height).toBe(`${LAYOUT.groupHeaderHeight}px`);
   });
@@ -319,7 +316,7 @@ describe('SchedulerGrid', () => {
 
     act(() => useStore.getState().jumpToResource('r1'));
 
-    expect(grid.scrollTop).toBe(SCHEDULER_DENSITY.groupHeaderHeight);
+    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
     await act(async () => {
@@ -345,7 +342,7 @@ describe('SchedulerGrid', () => {
 
     act(() => useStore.getState().jumpToResource('r1'));
     expect(useStore.getState().ui.collapsedGroups).not.toContain('d1');
-    expect(grid.scrollTop).toBe(SCHEDULER_DENSITY.groupHeaderHeight);
+    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
   });
 

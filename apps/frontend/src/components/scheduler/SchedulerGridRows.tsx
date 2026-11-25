@@ -23,17 +23,8 @@ function SchedulerGridItem({
   itemIndex: number;
   position: number;
 }) {
-  const {
-    items,
-    renderedIndices,
-    layout,
-    heights,
-    ui,
-    density,
-    toggleGroup,
-    geom,
-    utilisationPrefs,
-  } = props;
+  const { items, renderedIndices, layout, heights, ui, toggleGroup, geom, utilisationPrefs } =
+    props;
   const item = items[itemIndex];
   if (!item) return null;
   const previousIndex = renderedIndices[position - 1];
@@ -50,7 +41,6 @@ function SchedulerGridItem({
         group={item.group}
         rowIndex={rowIndex}
         ui={ui}
-        density={density}
         toggleGroup={toggleGroup}
         geom={geom}
         utilisationPrefs={utilisationPrefs}

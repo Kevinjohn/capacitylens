@@ -25,14 +25,23 @@ export const rect = (top: number, bottom: number): DOMRect => ({
   toJSON: () => ({}),
 });
 
+/** Creates the stored client, project and project activity that interaction tests book against. */
+export async function createActivityScaffold() {
+  const s = useStore.getState();
+  const client = await requireCreated(s.addClient({ name: 'Ferris', color: '#1' }));
+  const project = await requireCreated(
+    s.addProject({ name: 'P', clientId: client.id, color: '#2' }),
+  );
+  const activity = await requireCreated(
+    s.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
+  );
+  return { client, project, activity };
+}
+
 /** Creates a stored allocation with optional field overrides for interaction tests. */
 export async function createAllocation(overrides: Partial<Allocation> = {}): Promise<Allocation> {
   const s = useStore.getState();
-  const c = await requireCreated(s.addClient({ name: 'Ferris', color: '#1' }));
-  const p = await requireCreated(s.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-  const t = await requireCreated(
-    s.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-  );
+  const { activity: t } = await createActivityScaffold();
   const r = await requireCreated(
     s.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
   );
