@@ -7,7 +7,7 @@ import {
   installE2eRequestActivity,
 } from '../../tooling/e2e_request_activity.ts';
 
-/** A reset-enabled server whose `/api/held` handler runs until the test releases it. */
+/** A reset-enabled server whose `/api/held` and `/assets/held.js` handlers run until released. */
 async function withTaggedServer(run, options) {
   const handled = [];
   let releaseHeld;
@@ -19,7 +19,7 @@ async function withTaggedServer(run, options) {
     server,
     async (request, response) => {
       handled.push(request.url);
-      if (request.url === '/api/held') {
+      if (request.url === '/api/held' || request.url === '/assets/held.js') {
         enteredHeld();
         await held;
       }
@@ -99,6 +99,20 @@ test('the control request fails with the running handlers listed when its wait e
       );
       release();
       assert.equal((await running).status, 200);
+    },
+    { settleTimeoutMs: 200 },
+  );
+});
+
+test('an unfinished response outside /api/ does not hold the control request', async () => {
+  await withTaggedServer(
+    async ({ send, advance, entered, release }) => {
+      assert.equal((await advance('test-1')).status, 200);
+      const download = send('/assets/held.js');
+      await entered;
+      assert.equal((await advance('test-2')).status, 200, 'a static file reaches no data');
+      release();
+      assert.equal((await download).status, 200);
     },
     { settleTimeoutMs: 200 },
   );

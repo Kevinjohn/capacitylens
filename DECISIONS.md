@@ -406,8 +406,8 @@ removed entry retires its number.
 - The browser-test reset switch stays: it is the only switch that loads the browser-test worker
   reset harness, and production refuses to start with it set. There is no HTTP reset route: the
   harness's one control request, `POST /__e2e/epoch`, restores nothing. It sets the current
-  test's request tag and answers once no request is running; the harness then refuses any `/api/`
-  request carrying another tag. The test restores the database itself, through SQLite.
+  test's request tag and answers once no `/api/` handler is running; the harness then refuses any
+  `/api/` request carrying another tag. The test restores the database itself, through SQLite.
 
 ## Module boundaries
 

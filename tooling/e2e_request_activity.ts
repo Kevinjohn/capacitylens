@@ -16,11 +16,14 @@ const DEFAULT_SETTLE_TIMEOUT_MS = 5_000;
  * Installs request accounting and the per-test request tag on a reset-enabled server.
  *
  * A database reset is atomic when no handler from the previous test is still running as the
- * restore starts, and none can start after it. The control request sets the new tag first, so
- * from that moment any `/api/` request carrying another tag is refused before it reaches the
- * application, and then answers only once every running handler has finished. Enforcement starts
- * with the first tag: a server that never receives a control request (the auth-backed browser
- * server) handles every request as usual.
+ * restore starts, and none can start after it. Only `/api/` requests reach handlers that read or
+ * write data, so only they are tagged and counted. Static files and pages are neither: a page
+ * closed mid-download leaves its asset response unfinished, and counting it would hold every
+ * reset until the wait expired. The control request sets the new tag first, so from that moment
+ * any `/api/` request carrying another tag is refused before it reaches the application, and then
+ * answers only once every running `/api/` handler has finished, even one whose client has gone.
+ * Enforcement starts with the first tag: a server that never receives a control request (the
+ * auth-backed browser server) handles every request as usual.
  */
 export function installE2eRequestActivity(
   server: Server,
@@ -53,11 +56,8 @@ export function installE2eRequestActivity(
       return answer(response, 200, { tag: next });
     }
 
-    if (
-      currentTag !== undefined &&
-      path.startsWith('/api/') &&
-      request.headers[E2E_TAG_HEADER] !== currentTag
-    )
+    if (!path.startsWith('/api/')) return handler(request, response);
+    if (currentTag !== undefined && request.headers[E2E_TAG_HEADER] !== currentTag)
       return answer(response, 409, {
         error: `stale e2e epoch: ${request.method} ${path} does not carry the current test's ${E2E_TAG_HEADER} header.`,
       });
