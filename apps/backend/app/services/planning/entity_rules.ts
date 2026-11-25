@@ -38,7 +38,7 @@ import FrozenCompanyFieldException from '#exceptions/frozen_company_field_except
 import ResourceAvatarUrlForbiddenException from '#exceptions/resource_avatar_url_forbidden_exception';
 import ResourceAvatarUrlInvalidException from '#exceptions/resource_avatar_url_invalid_exception';
 import ResourceKindImmutableException from '#exceptions/resource_kind_immutable_exception';
-import EntityDomainRuleException from '#exceptions/entity_domain_rule_exception';
+import { toDomainRuleException } from '#services/planning/domain_rule_exceptions';
 
 // Widened so a stored value of unknown type can be checked against the known kinds.
 const resourceKinds: readonly unknown[] = RESOURCE_KINDS;
@@ -382,7 +382,7 @@ export function completeEntityWrite<K extends ScopedEntityKey>(
   } catch (error) {
     if (error instanceof EntityWriteException) throw error;
     if (error instanceof DomainError) {
-      throw new EntityDomainRuleException(error);
+      throw toDomainRuleException(error);
     }
     throw error;
   }
