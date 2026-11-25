@@ -64,16 +64,6 @@ export const allowedInFiles = [
     terms: ['tenant'],
     reason: 'the vocabulary page names the rejected word to reject it',
   },
-  {
-    path: 'docs-src/reference/adonisjs-cookbook.md',
-    terms: ['signup'],
-    reason: 'framework-neutral example code quotes the AdonisJS starter names',
-  },
-  {
-    path: 'docs-src/reference/adonisjs-checklist.md',
-    terms: ['signup'],
-    reason: 'framework-neutral rule examples quote the AdonisJS starter names',
-  },
 ];
 
 /** Phrases that contain a rejected word but name something else. Matched like rejected terms. */

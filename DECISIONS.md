@@ -295,7 +295,8 @@ does not inherit them.
 ## AdonisJS framework departures
 
 The AdonisJS documentation is the reference. A departure is a cost every later product built
-from this codebase inherits, so prefer aligning. A new departure needs the owner's ruling. An
+from this codebase inherits, so prefer aligning. A new departure is decided in an issue, before the code that needs it; the owner rules only when
+it changes behaviour users see, scope, a public interface or data. An
 entry marked **Aligning** is being removed by the issue it names; the code may still differ until
 that issue lands. Every other entry is kept for the reason it gives. Numbers are stable: a
 removed entry retires its number.
@@ -358,10 +359,22 @@ removed entry retires its number.
 24. **Aligning (#2352, waiting on package releases).** Account Kit checks credentials. The
     `User` model does not compose `withAuthFinder`, and no product code calls
     `verifyCredentials`: sign-in, sessions and password checks are the kit's.
-25. The view-as control actions (`store`, `show`, `destroy` in `masquerade_controller.ts`) take the
+25. **Aligning (#2550).** The view-as control actions (`store`, `show`, `destroy` in `masquerade_controller.ts`) take the
     whole HTTP context and pass it to the Masquerade service. The service treats the context as the
     request: it admits each request once, authenticates through its guard and reads its route
     parameters. Every other controller action destructures.
+26. Product error codes on the wire are stable identifiers and keep their spelling
+    (`FIRST_COMPANY_PENDING`). Only framework exception codes are `E_UPPER_SNAKE`.
+27. The API has no version in its path (`/api`, not `/api/v1`). The SPA is its only client and is
+    built and released with the backend.
+28. **Aligning (#2550).** Prettier keeps semicolons (`semi: true` over the AdonisJS preset).
+29. **Aligning (#2550).** The `dbAssertions` plugin is not registered; tests read rows with the
+    query builder and check them with `assert`.
+30. **Aligning (#2550).** A provider connects or spawns in `start` behind an `app.getMode()`
+    check.
+31. **Aligning (#2550).** `bin/test.ts` holds the test values computed per port lane; the rest are
+    in `.env.test`.
+32. **Aligning (#2550).** The licence file is `LICENSE`, not `LICENSE.md`.
 
 ## Installation
 
