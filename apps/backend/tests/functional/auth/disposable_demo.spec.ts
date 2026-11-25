@@ -195,7 +195,7 @@ test.group('disposable development demo', (group) => {
     const f = operatorFixture();
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
-      for (const command of ['capacitylens:demo:prepare', 'capacitylens:demo:seed']) {
+      for (const command of ['demo:prepare', 'demo:seed']) {
         const result = f.command([command], {
           NODE_ENV: 'development',
           CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
