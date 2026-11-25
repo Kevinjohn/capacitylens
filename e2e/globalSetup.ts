@@ -47,5 +47,5 @@ export default function globalSetup(): void {
       },
     },
   );
-  run('SPA sync', process.execPath, ['scripts/build/sync-adonis-public.mjs']);
+  run('SPA sync', process.execPath, ['scripts/build/sync-adonisjs-public.mjs']);
 }

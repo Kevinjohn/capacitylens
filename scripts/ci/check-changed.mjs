@@ -93,10 +93,12 @@ const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
 // Vitest and Japa summarise as "Tests  12 passed (12)"; node --test reports "tests 12".
 const testCounts = [/^\s*Tests\s+(\d+) passed/m, /^(?:# |ℹ )tests (\d+)$/m];
 
-// The terminology list, its checker and the dictionary it enforces: a change to any of them can fail
-// files the branch never touched, so the whole tree is checked.
+// The dictionary, its exemptions and the lockfile that pins the shared checker: a change to any of
+// them can fail files the branch never touched, so the whole tree is checked.
 const terminologyInput =
-  /^(?:tooling\/terminology\.mjs|scripts\/maintenance\/check-terminology\.mjs|code_convention_terminology\.md)$/;
+  /^(?:terminology\.config\.json|code_convention_terminology\.md|pnpm-lock\.yaml)$/;
+const terminologyCheck =
+  'node_modules/@kevinjohn/adonisjs-code-conventions/scripts/check-terminology.mjs';
 
 const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 
@@ -316,7 +318,7 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const terminologyChanged = paths.some((path) => terminologyInput.test(path));
   const scriptTests = [
     ...new Set(
-      [...paths, ...(terminologyChanged ? ['tooling/terminology.mjs'] : [])]
+      paths
         .filter((path) => /^(?:scripts|tooling)\/.+\.(?:mjs|ts)$/.test(path))
         .flatMap((path) => {
           if (path.endsWith('.test.mjs')) return [path];
@@ -398,10 +400,10 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
         ? 'terminology: whole tree'
         : `terminology: ${present.length} file(s)`,
       command: 'node',
-      args: ['scripts/maintenance/check-terminology.mjs', ...(terminologyChanged ? [] : present)],
+      args: [terminologyCheck, ...(terminologyChanged ? [] : present)],
       owner: 'static',
       reason: terminologyChanged
-        ? 'the terminology list, its checker or the dictionary changed'
+        ? 'the dictionary, its exemptions or the pinned checker changed'
         : 'changed files',
     });
   // Each package's own lint script decides whether warnings fail: the backend's allows them.

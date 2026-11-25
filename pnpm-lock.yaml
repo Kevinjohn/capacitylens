@@ -35,6 +35,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.14.0)
+      '@kevinjohn/adonisjs-code-conventions':
+        specifier: github:Kevinjohn/oss-adonisjs-code-conventions#8211ab2438719db0714e815fe15b64426c133c03
+        version: https://codeload.github.com/Kevinjohn/oss-adonisjs-code-conventions/tar.gz/8211ab2438719db0714e815fe15b64426c133c03
       '@playwright/test':
         specifier: ^1.64.1
         version: 1.64.1
@@ -1536,6 +1539,12 @@ packages:
         optional: true
       typescript:
         optional: true
+
+  '@kevinjohn/adonisjs-code-conventions@https://codeload.github.com/Kevinjohn/oss-adonisjs-code-conventions/tar.gz/8211ab2438719db0714e815fe15b64426c133c03':
+    resolution: {gitHosted: true, integrity: sha512-+bNNk6d3lFvdMitwIkuSJZ0ktmIMWXbT+A5zeylULqQGjHMcHCmtxwtxfR3guPu9rF2ceV38vvUx8DATVFxHSg==, tarball: https://codeload.github.com/Kevinjohn/oss-adonisjs-code-conventions/tar.gz/8211ab2438719db0714e815fe15b64426c133c03}
+    version: 0.1.0
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@kevinjohn/adonisjs-confirm-action-with-password@https://github.com/Kevinjohn/oss-adonisjs-confirm-action-with-password/releases/download/v0.6.0/kevinjohn-adonisjs-confirm-action-with-password-0.6.0.tgz':
     resolution: {integrity: sha512-UPF8z6Ozh0H8jHHyAKgTJFtolMfg04zNtjB6oHsBVRueYTCoz1btCd3wChUH88ZGH9Y7jj0LtQSpFo9M9mqhnQ==, tarball: https://github.com/Kevinjohn/oss-adonisjs-confirm-action-with-password/releases/download/v0.6.0/kevinjohn-adonisjs-confirm-action-with-password-0.6.0.tgz}
@@ -7373,6 +7382,8 @@ snapshots:
       '@adonisjs/session': 8.3.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@5.4.0))(@japa/runner@5.4.0))(@japa/plugin-adonisjs@5.2.0(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@5.4.0))(@japa/runner@5.4.0))(@japa/runner@5.4.0))
       '@vinejs/vine': 4.4.0
       typescript: 5.9.3
+
+  '@kevinjohn/adonisjs-code-conventions@https://codeload.github.com/Kevinjohn/oss-adonisjs-code-conventions/tar.gz/8211ab2438719db0714e815fe15b64426c133c03': {}
 
   '@kevinjohn/adonisjs-confirm-action-with-password@https://github.com/Kevinjohn/oss-adonisjs-confirm-action-with-password/releases/download/v0.6.0/kevinjohn-adonisjs-confirm-action-with-password-0.6.0.tgz(54f259537fc09dd74a05e7e5370bfbd9)':
     dependencies:

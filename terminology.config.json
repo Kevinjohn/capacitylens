@@ -1,0 +1,33 @@
+{
+  "dictionary": "code_convention_terminology.md",
+  "textRoots": ["apps/", "packages/", "scripts/", "tooling/", "e2e/", "docs-src/", "user-stories/"],
+  "allowedPaths": [
+    { "path": "apps/frontend/src/components/ui/", "reason": "vendored shadcn components" },
+    { "path": "apps/backend/.adonisjs/", "reason": "generated AdonisJS output" },
+    { "path": "docs-src/public/", "reason": "published review artefacts and assets" },
+    { "path": "graphify-out/", "reason": "hand-built graph snapshots" }
+  ],
+  "allowedInFiles": [
+    {
+      "path": "docs-src/reference/adonisjs-conventions.md",
+      "terms": ["tenant", "adonis"],
+      "reason": "the vocabulary page names the rejected words to reject them"
+    }
+  ],
+  "allowedPhrases": [
+    { "phrase": "aria modal", "reason": "the WAI-ARIA attribute `aria-modal`" },
+    { "phrase": "modal dialog", "reason": "the WAI-ARIA term for a dialog that traps focus" },
+    {
+      "phrase": "non modal",
+      "reason": "the WAI-ARIA and Radix term for a dialog that does not trap focus"
+    },
+    {
+      "phrase": "account command id",
+      "reason": "`commandId`, the paired handle of an account operation"
+    },
+    {
+      "phrase": "account command palette",
+      "reason": "the command palette entry for the Account page"
+    }
+  ]
+}
