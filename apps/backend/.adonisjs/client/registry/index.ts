@@ -350,6 +350,12 @@ const routes = {
     tokens: [[0,"health"],[0,"ready"]],
     types: placeholder as Registry['health_checks']['types'],
   },
+  'spa_fallback': {
+    methods: ["GET","HEAD"],
+    pattern: '/*',
+    tokens: [[2,"*"]],
+    types: placeholder as Registry['spa_fallback']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

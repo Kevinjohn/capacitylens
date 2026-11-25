@@ -354,6 +354,7 @@ const replies: Record<string, Exposure> = {
   'api.liveness': { none: IDENTITY },
   'liveness': { none: IDENTITY },
   'health_checks': { none: IDENTITY },
+  'spa_fallback': { none: IDENTITY },
   'api.first_company_setup.store': { none: IDENTITY },
   'api.invitations.store': { none: IDENTITY },
   'api.invitations.index': { none: IDENTITY },

@@ -143,4 +143,5 @@ export interface ApiDefinition {
   }
   liveness: typeof routes['liveness']
   healthChecks: typeof routes['health_checks']
+  spaFallback: typeof routes['spa_fallback']
 }

@@ -231,8 +231,8 @@ Source: [Routing](https://docs.adonisjs.com/guides/basics/routing) and
 - An unmatched request raises `E_ROUTE_NOT_FOUND`, and the exception handler answers it.
 - Routes are registered from one file per area in `start/`. An area file exports
   one `register<Area>Routes()` function that `start/routes.ts` calls.
-- The backend serves the SPA with a history fallback route (departure 6). Apart from that
-  fallback, a routes file holds no logic.
+- The backend serves the SPA with a history fallback route to `SpaFallbackController`
+  (departure 6).
 
 ## Controllers
 

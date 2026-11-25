@@ -61,6 +61,7 @@ export type ScannedRoutes = {
     'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'liveness': { paramsTuple?: []; params?: {} }
     'health_checks': { paramsTuple?: []; params?: {} }
+    'spa_fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
     'api.liveness': { paramsTuple?: []; params?: {} }
@@ -81,6 +82,7 @@ export type ScannedRoutes = {
     'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'liveness': { paramsTuple?: []; params?: {} }
     'health_checks': { paramsTuple?: []; params?: {} }
+    'spa_fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
     'api.liveness': { paramsTuple?: []; params?: {} }
@@ -101,6 +103,7 @@ export type ScannedRoutes = {
     'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
     'liveness': { paramsTuple?: []; params?: {} }
     'health_checks': { paramsTuple?: []; params?: {} }
+    'spa_fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
     'api.planning_mutations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
