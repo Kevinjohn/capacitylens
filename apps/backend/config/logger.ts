@@ -28,6 +28,15 @@ export function classifyLogError(error: unknown): string {
   }
 }
 
+/** The class name and an upper-case error code, never a message or a caller-controlled value. */
+export function describeErrorIdentity(error: unknown): { errorName: string; code?: string } {
+  if (!(error instanceof Error)) return { errorName: typeof error };
+  const code = 'code' in error ? error.code : undefined;
+  return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code)
+    ? { errorName: error.constructor.name, code }
+    : { errorName: error.constructor.name };
+}
+
 type AppLoggerConfig = LoggerConfig & {
   enabled: true;
   name: string | undefined;
@@ -60,7 +69,7 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
               ...describeFailure(error.cause),
             };
           }
-          return { category: classifyLogError(error) };
+          return { category: classifyLogError(error), ...describeErrorIdentity(error) };
         },
       },
 

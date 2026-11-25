@@ -123,7 +123,7 @@ test.group('general HTTP logging privacy', (group) => {
     }
     assert.include(output, '"event":"test.logger.redaction"');
     assert.include(output, '"path":"/api/safe-pattern"');
-    assert.include(output, '"err":{"category":"unexpected"}');
+    assert.include(output, '"err":{"category":"unexpected","errorName":"Error"}');
   });
 
   test('keeps completion logging disabled by default and for other values', async ({
