@@ -13,10 +13,6 @@ import {
   type ExecuteInput,
   type Operation,
 } from '@kevinjohn/adonisjs-duplicate-request-guard';
-import {
-  isAccountCommandId,
-  isAccountIdempotencyKey,
-} from '@capacitylens/shared/account/validation';
 import { IdempotencyConflictException } from '#exceptions/account_operation_exception';
 
 export interface AccountOperationIdentity {
@@ -27,18 +23,16 @@ export interface AccountOperationIdentity {
 /** Account operation headers, receipts and their HTTP errors. */
 export class AccountOperationService {
   /**
-   * Parses the paired account-operation headers (`X-Account-Operation-Id`, `Idempotency-Key`), minting
-   * both for a caller that sends neither, as the browser does.
+   * The paired account-operation headers (`X-Account-Operation-Id`, `Idempotency-Key`), which the
+   * validator accepts only together, minting both for a caller that sends neither, as the browser
+   * does.
    */
-  parseAccountOperation(
+  resolveAccountOperation(
     commandId: string | undefined,
     requestKey: string | undefined
   ): AccountOperationIdentity {
-    if (commandId === undefined && requestKey === undefined) {
+    if (commandId === undefined || requestKey === undefined) {
       return { commandId: randomUUID(), requestKey: randomUUID() };
-    }
-    if (!isAccountCommandId(commandId) || !isAccountIdempotencyKey(requestKey)) {
-      throw new ValidationRefusalException('Invalid or unpaired operation headers.');
     }
     return { commandId, requestKey };
   }

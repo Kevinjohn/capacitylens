@@ -145,9 +145,9 @@ diagnostics such as reading an error body. Each carries a one-line why comment, 
 whose cause would otherwise be invisible leaves a `console.warn` breadcrumb.
 
 Backend boundary rule: `ctx.params`, `request.body()` and Lucid query rows arrive typed `any`.
-Narrow them where they enter, with a `validateUsing` schema for bodies and queries, a one-line
-checked read for route parameters (`parseUserId` in `app/services/admission/admission_decision_service.ts`),
-and `String(row.column)` or a typed model for rows. An `as` cast is not a narrowing; a comment
+Narrow them where they enter, with a `validateUsing` schema for bodies, queries, route parameters
+and headers (under its `params` and `headers` keys), and `String(row.column)` or a typed model for
+rows. An `as` cast is not a narrowing; a comment
 beside any remaining cast says why it is sound.
 
 ## Comments and TSDoc

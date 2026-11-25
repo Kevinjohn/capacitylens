@@ -23,7 +23,8 @@ import type {
 
 // Planning wire contracts: inferred input types, receipts, refusal codes and the failure body.
 
-export type PlanningMutationInput = Infer<typeof planningMutationValidator>;
+/** The validated mutation body; the controller takes the route's company from `params`. */
+export type PlanningMutationInput = Omit<Infer<typeof planningMutationValidator>, 'params'>;
 type SuppliedIntent = PlanningMutationInput['intent'];
 type SuppliedAllocationRepeat = Extract<SuppliedIntent, { operation: 'allocation.createGroup' }>;
 /**
@@ -33,7 +34,7 @@ type SuppliedAllocationRepeat = Extract<SuppliedIntent, { operation: 'allocation
 export type PlanningIntent =
   | Exclude<SuppliedIntent, SuppliedAllocationRepeat>
   | (SuppliedAllocationRepeat & { occurrenceIds?: string[] });
-export type PlanningHistoryStepInput = Infer<typeof planningHistoryStepValidator>;
+export type PlanningHistoryStepInput = Omit<Infer<typeof planningHistoryStepValidator>, 'params'>;
 
 /** Whether the page that sent the request can step back or forward through its own changes. */
 export interface PlanningHistoryState {

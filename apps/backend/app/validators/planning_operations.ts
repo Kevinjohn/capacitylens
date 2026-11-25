@@ -12,6 +12,7 @@ import {
 import { resourceIntent } from '#validators/planning/resource';
 import { settingsIntent } from '#validators/planning/settings';
 import { timeOffIntent } from '#validators/planning/time_off';
+import { companyIdParam } from '#validators/request_rules';
 
 const planningIntent = vine.union([
   vine.union.if(
@@ -33,10 +34,19 @@ const planningIntent = vine.union([
  * validation only; the write transaction owns authorization and integrity.
  */
 export const planningMutationValidator = vine.create(
-  vine.object({ ...meta(), intent: planningIntent })
+  vine.object({
+    ...meta(),
+    intent: planningIntent,
+    params: vine.object({ companyId: companyIdParam() }),
+  })
 );
 
 /** One undo or redo: the server holds the intent, so the body names only the page's history. */
 export const planningHistoryStepValidator = vine.create(
-  vine.object({ mutationId: uuid(), baseRevision: revision(), historyId: uuid() })
+  vine.object({
+    mutationId: uuid(),
+    baseRevision: revision(),
+    historyId: uuid(),
+    params: vine.object({ companyId: companyIdParam() }),
+  })
 );

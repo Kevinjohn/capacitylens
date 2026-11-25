@@ -1,6 +1,12 @@
 import vine from '@vinejs/vine';
-import { USER_ID_PATTERN } from '#services/request_helpers';
-import { allowedFields, isSupplied } from '#validators/request_rules';
+import {
+  REQUEST_CONTEXT_FIELDS,
+  USER_ID_PATTERN,
+  accountOperationHeaders,
+  allowedFields,
+  companyIdParam,
+  isSupplied,
+} from '#validators/request_rules';
 
 export const transferOwnershipValidator = vine.create(
   vine
@@ -11,6 +17,8 @@ export const transferOwnershipValidator = vine.create(
         .regex(/^[0-9a-f-]{36}$/)
         .optional()
         .requiredWhen(isSupplied),
+      params: vine.object({ companyId: companyIdParam() }),
+      headers: accountOperationHeaders(),
     })
-    .use(allowedFields({ fields: ['toUserId', 'confirmationId'] }))
+    .use(allowedFields({ fields: ['toUserId', 'confirmationId', ...REQUEST_CONTEXT_FIELDS] }))
 );

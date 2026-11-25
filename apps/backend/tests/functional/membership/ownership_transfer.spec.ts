@@ -14,6 +14,10 @@ import { createIdentity, signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 
+/** The field each error of a framework validation failure names. */
+const failedFields = (body: unknown) =>
+  (body as { errors: Array<{ field: string }> }).errors.map(({ field }) => field);
+
 async function findUserId(email: string) {
   const row = await db.from('users').where('email', email).first();
   if (!row) throw new Error(`Missing test user: ${email}`);
@@ -253,6 +257,17 @@ test.group('atomic ownership transfer', (group) => {
       .json({ toUserId: adminId })
       .send();
     unpaired.assertStatus(422);
+    assert.deepEqual(failedFields(unpaired.body()), ['headers.idempotency-key']);
+    const malformedKey = await signed(
+      client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
+      ownerCookie
+    )
+      .header('x-account-operation-id', 'ownership-malformed-command-0001')
+      .header('idempotency-key', 'short')
+      .json({ toUserId: adminId })
+      .send();
+    malformedKey.assertStatus(422);
+    assert.deepEqual(failedFields(malformedKey.body()), ['headers.idempotency-key']);
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: adminId })

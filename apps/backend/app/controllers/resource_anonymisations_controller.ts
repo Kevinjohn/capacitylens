@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { anonymiseResourceValidator } from '#validators/anonymise';
+import { requestData } from '#validators/request_rules';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { AnonymisationService } from '#services/anonymisation_service';
 
@@ -22,8 +23,10 @@ export default class ResourceAnonymisationsController {
     this.#anonymisations = anonymisations;
   }
 
-  async store({ auth, params, request, response }: HttpContext) {
-    await request.validateUsing(anonymiseResourceValidator, { data: request.body() });
+  async store({ auth, request, response }: HttpContext) {
+    const { params } = await request.validateUsing(anonymiseResourceValidator, {
+      data: requestData(request, request.body()),
+    });
     const { companyId, id } = params;
     const applied = await this.#currentActor.withActor(auth, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';

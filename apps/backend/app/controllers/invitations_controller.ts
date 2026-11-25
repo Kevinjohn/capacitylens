@@ -3,9 +3,13 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { isMailConfigured } from '#services/mail_delivery';
-import { refuseInvalidAdmission } from '#exceptions/admission_errors';
 import { InvitationAnswerService } from '#services/admission/invitation_answer_service';
-import { createInvitationValidator } from '#validators/invitations';
+import {
+  createInvitationValidator,
+  listInvitationsValidator,
+  revokeInvitationValidator,
+} from '#validators/invitations';
+import { requestData } from '#validators/request_rules';
 
 /**
  * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.
@@ -44,7 +48,10 @@ export default class InvitationsController {
     }
   }
 
-  async index({ auth, params, serialize }: HttpContext) {
+  async index({ auth, request, serialize }: HttpContext) {
+    const { params } = await request.validateUsing(listInvitationsValidator, {
+      data: requestData(request),
+    });
     const actorId = await this.#invitations.requireInvitationManager(auth, params.companyId);
     // The Kit pages at 100; a small company's open invitations are read in full.
     const invites = [];
@@ -54,7 +61,7 @@ export default class InvitationsController {
         actorId,
         limit: 100,
         cursor,
-        scope: params.companyId as string,
+        scope: params.companyId,
       });
       invites.push(...page.items.map((item) => this.#invitations.buildInvitationView(item)));
       cursor = page.nextCursor ?? undefined;
@@ -62,9 +69,11 @@ export default class InvitationsController {
     return serialize({ invites });
   }
 
-  async destroy({ auth, params, response }: HttpContext) {
-    const id = this.#invitations.parseInvitationId(params.id);
-    if (!id) refuseInvalidAdmission();
+  async destroy({ auth, request, response }: HttpContext) {
+    const { params } = await request.validateUsing(revokeInvitationValidator, {
+      data: requestData(request),
+    });
+    const { id } = params;
     const actorId = await this.#invitations.requireInvitationManager(auth, params.companyId);
     await accountKit.invitations.revoke({ actorId, invitationId: id });
     return response.noContent();

@@ -13,6 +13,7 @@ import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { buildUserProjection } from '#services/auth/user_projection';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { signInValidator } from '#validators/auth_requests';
+import { requestData } from '#validators/request_rules';
 import { hasAnyIdentity } from '#services/installation_company';
 import { FirstCompanySetupService } from '#services/first_company_setup_service';
 
@@ -78,14 +79,16 @@ export default class SessionController {
   }
 
   async store({ auth, request, response, logger, serialize }: HttpContext) {
-    const body = await request.validateUsing(signInValidator, { data: request.body() });
+    const body = await request.validateUsing(signInValidator, {
+      data: requestData(request, request.body()),
+    });
     const { email } = body;
     try {
       const user = await this.#passwordSignIn.signInWithPassword(auth, logger, {
         email,
         password: body.password,
         clientAddress: request.ip(),
-        userAgent: request.header('user-agent'),
+        userAgent: body.headers['user-agent'],
       });
       return serialize({ user });
     } catch (error) {

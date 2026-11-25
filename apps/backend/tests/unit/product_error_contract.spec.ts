@@ -25,11 +25,7 @@ import {
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { PasswordConfirmationException } from '#exceptions/password_confirmation_exception';
 import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
-import {
-  refuseConflictingAdmission,
-  refuseInvalidAdmission,
-  refuseMissingAdmission,
-} from '#exceptions/admission_errors';
+import { refuseConflictingAdmission, refuseMissingAdmission } from '#exceptions/admission_errors';
 import {
   credentialUpdateCommitted,
   emailInUseAnswer,
@@ -123,11 +119,17 @@ function context(error: unknown, routeName?: string) {
           diagnostics.push({ level, fields, message });
         },
       },
-      request: { method: () => 'POST', id: () => undefined, accepts: () => 'json' },
-      route: { pattern: '/api/companies/:companyId/resources', name: routeName },
-      get params() {
-        throw error;
+      request: {
+        method: () => 'POST',
+        id: () => undefined,
+        accepts: () => 'json',
+        qs: () => ({}),
+        // The planning read's first step reads the route parameters; that is where `error` is thrown.
+        params() {
+          throw error;
+        },
       },
+      route: { pattern: '/api/companies/:companyId/resources', name: routeName },
     } as unknown as HttpContext,
   };
 }
@@ -175,7 +177,11 @@ const signUp = {
   email: 'diana.prince@themyscira.example',
   password: 'lasso-of-truth-26',
   name: 'Diana',
+  headers: {},
 };
+
+/** The route parameter and headers `requestData` places beside an invitation sign-up body. */
+const invitationRequest = { params: { token: 'invitation-token' }, headers: {} };
 
 /**
  * One row per refusal sentence the backend fixes in one place, with the status and code it is
@@ -456,12 +462,6 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     { error: 'Forbidden.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
   ],
   [
-    'refuseInvalidAdmission',
-    () => answeredThrown(() => refuseInvalidAdmission()),
-    422,
-    { errors: [{ message: 'Invalid admission request.' }] },
-  ],
-  [
     'refuseMissingAdmission',
     () => answeredThrown(() => refuseMissingAdmission()),
     404,
@@ -517,7 +517,11 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'invitation sign-up with a short password',
     () =>
       routeValidationAnswer(() =>
-        acceptInvitationSignUpValidator.validate({ name: 'Diana Prince', password: 'short' })
+        acceptInvitationSignUpValidator.validate({
+          ...invitationRequest,
+          name: 'Diana Prince',
+          password: 'short',
+        })
       ),
     422,
     { errors: [{ message: 'Invalid password.' }] },
@@ -527,6 +531,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     () =>
       routeValidationAnswer(() =>
         acceptInvitationSignUpValidator.validate({
+          ...invitationRequest,
           name: 'Diana Prince',
           password: signUp.password,
           role: 'owner',

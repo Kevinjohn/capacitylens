@@ -8,6 +8,7 @@ import { IdentityAuthorizationException } from '#exceptions/identity_authorizati
 import { E_ACCOUNT_KIT_INVALID_SESSION } from '@kevinjohn/adonisjs-account-kit/errors';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { endMasqueradeValidator, startMasqueradeValidator } from '#validators/masquerade';
+import { requestData } from '#validators/request_rules';
 
 @inject()
 export default class MasqueradeController {
@@ -26,17 +27,14 @@ export default class MasqueradeController {
   }
 
   async store(ctx: HttpContext) {
-    const companyId = ctx.params.companyId;
-    if (typeof companyId !== 'string' || !companyId) {
-      return ctx.response.badRequest({ error: 'Target member is required.' });
-    }
     const body = await ctx.request.validateUsing(startMasqueradeValidator, {
-      data: ctx.request.body(),
+      data: requestData(ctx.request, ctx.request.body()),
     });
+    const { companyId } = body.params;
     const started = await this.#masqueradeModes.startMasquerade(
       ctx,
       body.targetUserId,
-      ctx.request.header('X-Masquerade-Context') ?? ''
+      body.headers['x-masquerade-context'] ?? ''
     );
     if (!started.isMasquerading) throw new masqueradeErrors.E_MASQUERADE_UNAVAILABLE();
     return ctx.serialize({
@@ -79,10 +77,10 @@ export default class MasqueradeController {
 
   async destroy(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(endMasqueradeValidator, {
-      data: ctx.request.body(),
+      data: requestData(ctx.request, ctx.request.body()),
     });
-    const header = ctx.request.header('X-Masquerade-Context');
-    if (typeof header !== 'string' || !header) {
+    const header = body.headers['x-masquerade-context'];
+    if (!header) {
       throw new masqueradeErrors.E_MASQUERADE_CONTEXT_REQUIRED();
     }
     if (header !== body.token) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();

@@ -64,6 +64,10 @@ const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>
     .json({ name, password })
     .send();
 
+/** The field each error of a framework validation failure names. */
+const failedFields = (body: unknown) =>
+  (body as { errors: Array<{ field: string }> }).errors.map(({ field }) => field);
+
 async function revision() {
   const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
   return Number(row?.revision);
@@ -305,6 +309,29 @@ test.group('company invitations', (group) => {
     });
     assert.equal(response.header('cache-control'), 'no-store');
     assert.equal(response.header('referrer-policy'), 'no-referrer');
+  });
+
+  test('a malformed invitation id or link token answers the framework validation failure', async ({
+    client,
+    assert,
+  }) => {
+    await company();
+    const { cookie } = await signIn(client, owner);
+    for (const id of ['abc', '0', '1.5', '9007199254740992']) {
+      for (const route of ['api.invitation_deliveries.store', 'api.invitations.destroy'] as const) {
+        const response = await asDataOwner(client.visit(route, { companyId, id }), cookie).send();
+        response.assertStatus(422);
+        assert.deepEqual(failedFields(response.body()), ['params.id'], `${route} ${id}`);
+      }
+    }
+    const token = 'x'.repeat(513);
+    for (const response of [
+      await client.visit('api.invitation_links.show', { token }).send(),
+      await accept(client, token),
+    ]) {
+      response.assertStatus(422);
+      assert.deepEqual(failedFields(response.body()), ['params.token']);
+    }
   });
 
   test('a resent invitation replaces its link and a revoked one stops working', async ({

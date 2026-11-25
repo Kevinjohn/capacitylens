@@ -4,6 +4,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { MemberResourceLinkService } from '#services/member_resources/member_resource_link_service';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
 import { AccountOperationService } from '#services/account_operation_service';
+import { requestData } from '#validators/request_rules';
 
 /** Scoped member/person association. */
 @inject()
@@ -22,11 +23,13 @@ export default class MemberResourceLinksController {
     this.#accountOperations = accountOperations;
   }
 
-  async update({ auth, params, request, serialize }: HttpContext) {
-    const body = await request.validateUsing(setLinkValidator, { data: request.body() });
-    const command = this.#accountOperations.parseAccountOperation(
-      request.header('x-account-operation-id'),
-      request.header('idempotency-key')
+  async update({ auth, request, serialize }: HttpContext) {
+    const { params, headers, ...body } = await request.validateUsing(setLinkValidator, {
+      data: requestData(request, request.body()),
+    });
+    const command = this.#accountOperations.resolveAccountOperation(
+      headers['x-account-operation-id'],
+      headers['idempotency-key']
     );
     const { companyId, userId } = params;
     const result = await this.#memberMutationRequests.run(auth, {
@@ -48,11 +51,13 @@ export default class MemberResourceLinksController {
     return serialize(result);
   }
 
-  async destroy({ auth, params, request, response }: HttpContext) {
-    const body = await request.validateUsing(clearLinkValidator, { data: request.body() });
-    const command = this.#accountOperations.parseAccountOperation(
-      request.header('x-account-operation-id'),
-      request.header('idempotency-key')
+  async destroy({ auth, request, response }: HttpContext) {
+    const { params, headers, ...body } = await request.validateUsing(clearLinkValidator, {
+      data: requestData(request, request.body()),
+    });
+    const command = this.#accountOperations.resolveAccountOperation(
+      headers['x-account-operation-id'],
+      headers['idempotency-key']
     );
     const { companyId, userId } = params;
     await this.#memberMutationRequests.run(auth, {

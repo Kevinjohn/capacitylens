@@ -9,6 +9,8 @@ import {
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyExport';
 import { StateRepositoryService } from '#services/state_repository_service';
+import { showCompanyExportValidator } from '#validators/export_query';
+import { requestData } from '#validators/request_rules';
 
 /** The company's export document. */
 @inject()
@@ -32,8 +34,11 @@ export default class CompanyExportsController {
    * for the effective member's role, includes inactive rows only for `members:manage`, and labels
    * the document `full` only for a reader who may see private names.
    */
-  async show({ auth, params, response, serialize }: HttpContext) {
-    const companyId = String(params.companyId);
+  async show({ auth, request, response, serialize }: HttpContext) {
+    const { params } = await request.validateUsing(showCompanyExportValidator, {
+      data: requestData(request),
+    });
+    const { companyId } = params;
     const text = await this.#currentActor.withActor(auth, async (_actor, trx) => {
       const { planningAccess } = await this.#planningAccess.resolvePlanningAccess(trx, companyId);
       const rows = await this.#stateRepository.readStateWithClient(
