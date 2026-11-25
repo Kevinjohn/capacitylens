@@ -6,7 +6,7 @@ import { isRole, type Role } from '@capacitylens/shared/account/types';
 import type { PermissionKey } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 
 /** A transaction, or none where a caller has none; reads then use the default connection. */
 type Reader = TransactionClientContract | undefined;

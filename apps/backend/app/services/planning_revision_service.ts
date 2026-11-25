@@ -2,7 +2,7 @@
 // `assertPlanningBaseRevision` refuses a mismatch with 409 `STALE_REVISION`.
 
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
+import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception';
 
 const revisionsByTransaction = new WeakMap<
   TransactionClientContract,

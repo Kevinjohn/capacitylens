@@ -18,7 +18,7 @@ import {
   trusted,
   validationSentence,
 } from '#tests/functional/planning/helpers';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import PlanningOperationException from '#exceptions/planning_operation_exception';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();

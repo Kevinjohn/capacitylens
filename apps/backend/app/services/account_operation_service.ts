@@ -3,7 +3,7 @@
 // CapacityLens's own names follow it (`idempotencyKey`, `isAccountIdempotencyKey`,
 // `IDEMPOTENCY_CONFLICT`); only values passed to the package use its `requestKey` name.
 
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
 import { randomUUID } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
@@ -17,7 +17,7 @@ import {
   isAccountCommandId,
   isAccountIdempotencyKey,
 } from '@capacitylens/shared/account/validation';
-import { IdempotencyConflictException } from '#exceptions/account_operation_exception';
+import IdempotencyConflictException from '#exceptions/idempotency_conflict_exception';
 
 export interface AccountOperationIdentity {
   commandId: string;

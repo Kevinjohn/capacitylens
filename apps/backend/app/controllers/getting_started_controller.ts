@@ -3,7 +3,7 @@ import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { HttpContext } from '@adonisjs/core/http';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 import { updateGettingStartedValidator } from '#validators/getting_started';
 import { GettingStartedService } from '#services/getting_started_service';
 
