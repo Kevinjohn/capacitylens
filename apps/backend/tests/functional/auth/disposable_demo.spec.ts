@@ -3,6 +3,7 @@ import app from '@adonisjs/core/services/app';
 import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
+import { setSecretSetting } from '#tests/helpers/secret_settings';
 import { readState } from '#tests/helpers/state_fixture';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '#tests/helpers/fresh_database';
@@ -57,11 +58,11 @@ test.group('disposable development demo', (group) => {
     const originalPassword = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
     try {
       env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
-      env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', password);
+      setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', password);
       await disposableDemo.prepareDisposableDemo(app);
     } finally {
       env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', originalCreate ?? false);
-      env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', originalPassword ?? '');
+      setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', originalPassword?.release());
     }
     const owner = await db.from('users').where('email', email).firstOrFail();
     assert.lengthOf(await db.from('companies'), 0);

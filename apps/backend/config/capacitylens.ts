@@ -28,7 +28,7 @@ const capacitylens = {
   },
   /** The password the development bootstrap gives the administrator account. */
   get bootstrapAdminPassword() {
-    return env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
+    return env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD')?.release();
   },
   /** The SQLite database file path. */
   get databasePath() {
