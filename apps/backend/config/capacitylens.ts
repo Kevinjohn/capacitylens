@@ -28,7 +28,7 @@ const capacitylens = {
   },
   /** The password the development bootstrap gives the administrator account. */
   get bootstrapAdminPassword() {
-    return env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
+    return env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD')?.release();
   },
   /** The SQLite database file path. */
   get databasePath() {
@@ -41,6 +41,10 @@ const capacitylens = {
   /** Whether the browser-test reset harness may run; production refuses it. */
   get allowReset() {
     return env.get('CAPACITYLENS_ALLOW_RESET');
+  },
+  /** This process's environment, which an operator child process such as `app:upgrade` inherits. */
+  get processEnvironment() {
+    return process.env;
   },
 };
 

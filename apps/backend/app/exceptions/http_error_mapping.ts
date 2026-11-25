@@ -130,6 +130,8 @@ function buildConfirmationResponse(error: unknown): HttpErrorResponse | undefine
   }
 }
 
+// `@adonisjs/bodyparser` and `inflation` export no error classes, so the parser failures below
+// are recognised by their status with the parser's own fixed text or code.
 function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefined {
   if (
     error instanceof Error &&

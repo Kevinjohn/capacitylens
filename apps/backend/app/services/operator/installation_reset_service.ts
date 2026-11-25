@@ -10,6 +10,7 @@ import {
   syncPath,
   withOperatorDatabase,
 } from '@kevinjohn/adonisjs-sqlite-backup';
+import capacitylens from '#config/capacitylens';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
 
 /** Replaces a stopped disposable installation with a new database, keeping the old one. */
@@ -115,7 +116,7 @@ export class InstallationResetService {
         encoding: 'utf8',
         timeout: 60000,
         env: {
-          ...process.env,
+          ...capacitylens.processEnvironment,
           CAPACITYLENS_DB: databasePath,
           CAPACITYLENS_BACKUP_DIR: '',
           CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',

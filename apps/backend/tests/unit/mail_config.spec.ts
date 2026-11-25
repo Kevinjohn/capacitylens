@@ -2,6 +2,7 @@ import { mock } from 'node:test';
 import { test } from '@japa/runner';
 import { transports } from '@adonisjs/mail';
 import env from '#start/env';
+import { setSecretSetting } from '#tests/helpers/secret_settings';
 
 const keys = [
   'CAPACITYLENS_MAIL_HOST',
@@ -25,7 +26,10 @@ async function smtpOptions(settings: MailSettings) {
   const previous = keys.map((key) => [key, env.get(key), process.env[key]] as const);
   const smtp = mock.method(transports, 'smtp');
   try {
-    for (const key of keys) env.set(key, (settings[key] ?? '') as never);
+    for (const key of keys) {
+      if (key === 'CAPACITYLENS_MAIL_PASSWORD') setSecretSetting(key, settings[key]);
+      else env.set(key, (settings[key] ?? '') as never);
+    }
     const url = new URL(`../../config/mail.ts?mail-config=${Math.random()}`, import.meta.url);
     await import(url.href);
     return smtp.mock.calls[0]!.arguments[0] as Record<string, unknown>;

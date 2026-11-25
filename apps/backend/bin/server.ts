@@ -58,8 +58,8 @@ const start = new Ignitor(APP_ROOT, { importer: IMPORTER })
 
       // The isolated-worker harness is loaded only for a reset-enabled server, so an ordinary
       // start keeps the framework's own request wiring and never evaluates the harness modules.
-      const { default: env } = await import('#start/env');
-      if (!env.get('CAPACITYLENS_ALLOW_RESET')) return;
+      const { default: capacitylens } = await import('#config/capacitylens');
+      if (!capacitylens.allowReset) return;
       const { installE2eRequestActivity } = (await import(
         new URL('../../tooling/e2e_request_activity.ts', APP_ROOT).href
       )) as { installE2eRequestActivity: E2eRequestActivity };

@@ -30,6 +30,7 @@ type NumberValidator = ReturnType<typeof Env.schema.number>;
 type SecretValidator = ReturnType<typeof Env.schema.secret>;
 type OptionalStringValidator = ReturnType<typeof Env.schema.string.optional>;
 type OptionalBooleanValidator = ReturnType<typeof Env.schema.boolean.optional>;
+type OptionalSecretValidator = ReturnType<typeof Env.schema.secret.optional>;
 type EnumValidator<Value extends string> = ReturnType<typeof Env.schema.enum<Value>>;
 type ProxyTrustValidator = (key: string, value?: string) => 'off' | 'loopback' | 'private';
 
@@ -45,17 +46,16 @@ const parseProxyTrust: ProxyTrustValidator = (key, value) => {
 };
 
 type OptionalStringKey =
+  | 'APP_NAME'
   | 'CAPACITYLENS_ALLOWED_EMAIL_DOMAINS'
   | 'CAPACITYLENS_BACKUP_DIR'
   | 'CAPACITYLENS_BACKUP_KEEP'
-  | 'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'
   | 'CAPACITYLENS_CORS_ORIGIN'
   | 'CAPACITYLENS_DB'
   | 'CAPACITYLENS_DEV_WEB_ORIGINS'
   | 'CAPACITYLENS_FIXED_TODAY'
   | 'CAPACITYLENS_MAIL_FROM'
   | 'CAPACITYLENS_MAIL_HOST'
-  | 'CAPACITYLENS_MAIL_PASSWORD'
   | 'CAPACITYLENS_MAIL_PORT'
   | 'CAPACITYLENS_MAIL_USER'
   | 'CAPACITYLENS_PUBLIC_URL'
@@ -74,7 +74,10 @@ type CapacityLensEnvironmentSchema = {
   LOG_LEVEL: EnumValidator<'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'silent'>;
   APP_KEY: SecretValidator;
   APP_URL: StringValidator;
+  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: OptionalSecretValidator;
+  CAPACITYLENS_E2E_WORKER_API: OptionalBooleanValidator;
   CAPACITYLENS_LOG: ReturnType<typeof Env.schema.enum.optional<'0' | '1'>>;
+  CAPACITYLENS_MAIL_PASSWORD: OptionalSecretValidator;
   CAPACITYLENS_TRUST_PROXY_HEADERS: ProxyTrustValidator;
 } & { [Key in OptionalStringKey]: OptionalStringValidator } & {
   [Key in OptionalBooleanKey]: OptionalBooleanValidator;
@@ -96,6 +99,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   ] as const),
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
+  APP_NAME: optional,
   CAPACITYLENS_ALLOW_OPEN_SIGN_UP: optionalBoolean,
   CAPACITYLENS_ALLOW_RESET: optionalBoolean,
   // Admission owns the domain-list rules; CORS owns its explicit origin-list validation.
@@ -103,10 +107,12 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_BACKUP_DIR: optional,
   // Retention deliberately accepts raw text for the backup parser’s warning/default/clamp behavior.
   CAPACITYLENS_BACKUP_KEEP: optional,
-  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: optional,
+  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: Env.schema.secret.optional(),
   CAPACITYLENS_CORS_ORIGIN: optional,
   CAPACITYLENS_CREATE_ADMIN_ADMIN: optionalBoolean,
   CAPACITYLENS_DB: optional,
+  // Set by scripts/e2e/e2eWorkerRuntime.mjs; read by hooks/generate_registry.ts in the dev server.
+  CAPACITYLENS_E2E_WORKER_API: optionalBoolean,
   // Set by scripts/dev/dev-fullstack.mjs to its port lane's Vite origins; ignored outside development.
   CAPACITYLENS_DEV_WEB_ORIGINS: optional,
   // Set by scripts/e2e_server.mjs so the server's today matches the browser tests' frozen date.
@@ -114,7 +120,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_LOG: Env.schema.enum.optional(['0', '1'] as const),
   CAPACITYLENS_MAIL_FROM: Env.schema.string.optional({ format: 'email' }),
   CAPACITYLENS_MAIL_HOST: Env.schema.string.optional({ format: 'host' }),
-  CAPACITYLENS_MAIL_PASSWORD: optional,
+  CAPACITYLENS_MAIL_PASSWORD: Env.schema.secret.optional(),
   CAPACITYLENS_MAIL_PORT: createOptionalIntegerValidator(65535),
   CAPACITYLENS_MAIL_USER: optional,
   CAPACITYLENS_PUBLIC_URL: optional,

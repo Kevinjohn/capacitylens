@@ -3,6 +3,7 @@ import { test } from '@japa/runner';
 import { configProvider } from '@adonisjs/core';
 import app from '@adonisjs/core/services/app';
 import env from '#start/env';
+import { setSecretSetting } from '#tests/helpers/secret_settings';
 
 type SmtpTransport = {
   send(message: { from: string; to: string; subject: string; text: string }): Promise<unknown>;
@@ -34,7 +35,7 @@ test('configured SMTP delivery times out when a peer accepts but never greets', 
     env.set('CAPACITYLENS_MAIL_HOST', '127.0.0.1');
     env.set('CAPACITYLENS_MAIL_PORT', String((server.address() as AddressInfo).port));
     env.set('CAPACITYLENS_MAIL_USER', 'mailer');
-    env.set('CAPACITYLENS_MAIL_PASSWORD', 'test-mail-password');
+    setSecretSetting('CAPACITYLENS_MAIL_PASSWORD', 'test-mail-password');
     env.set('CAPACITYLENS_MAIL_FROM', 'alfred@capacitylens.dev');
     const configUrl = new URL(`../../config/mail.ts?timeout-test=${Date.now()}`, import.meta.url);
     const module = await import(configUrl.href);
