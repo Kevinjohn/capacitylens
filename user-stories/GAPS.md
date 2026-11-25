@@ -34,7 +34,7 @@ The matrix keeps every historical story discoverable by status.
   toggle nor its column; the [existing visibility test](../apps/frontend/src/components/team/MembersSection.lifecycle.test.tsx#L261)
   explicitly expects them to be hidden. The retained team story is Hidden, not a claim of a
   current menu action.
-- **Open self-service sign-up:** [auth routes](../apps/backend/start/auth_routes.ts#L11) expose
+- **Open self-service sign-up:** [auth routes](../apps/backend/start/routes/auth.ts#L13) expose
   password sign-up under the configured admission rules, but the current
   [sign-in screen](../apps/frontend/src/auth/SignInScreen.tsx) has no sign-up form or link.
   The available account-creation journey is the emailed invitation. The agreed sign-up rules

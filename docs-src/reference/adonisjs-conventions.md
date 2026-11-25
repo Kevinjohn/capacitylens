@@ -111,7 +111,7 @@ apps/backend/
   config/           one file per package
   database/         migrations/, seeders/, schema.ts, schema_rules.ts
   providers/        service providers
-  start/            env.ts, the preload files and the area route files
+  start/            env.ts, the preload files, routes.ts and routes/<area>.ts
   tests/            bootstrap.ts, unit/, functional/, helpers/, types/
   ace.js            never edited
   adonisrc.ts       the application manifest
@@ -128,8 +128,8 @@ apps/backend/
   domain inside a framework folder (`app/services/planning/`).
 - A framework folder holds only its own kind of file. `app/models` holds models and
   `app/validators` holds validators. `start/` holds files imported while the application boots:
-  `env.ts`, the preload files listed in `adonisrc.ts` and the area route files. It holds no
-  helper modules.
+  `env.ts`, the preload files listed in `adonisrc.ts` and the area route files in `start/routes/`.
+  It holds no helper modules.
 - `.adonisjs/` and `database/schema.ts` are generated and committed. Never edit them by hand.
   Regenerate `.adonisjs/` with `node ace codegen`, and `database/schema.ts` with
   `node ace schema:generate` or a migration run.
@@ -229,8 +229,9 @@ Source: [Routing](https://docs.adonisjs.com/guides/basics/routing) and
   `PATCH` changes part, `DELETE` removes.
 - Constrain a route parameter with `.where()` or `router.matchers`.
 - An unmatched request raises `E_ROUTE_NOT_FOUND`, and the exception handler answers it.
-- Routes are registered from one file per area in `start/`. An area file exports
-  one `register<Area>Routes()` function that `start/routes.ts` calls.
+- Routes are split by area into plain route files, `start/routes/<area>.ts`, that
+  `start/routes.ts` imports. `start/routes.ts` keeps the parameter matchers and the catch-all
+  routes, registered after every area file.
 - The backend serves the SPA with a history fallback route to `SpaFallbackController`
   (departure 6).
 

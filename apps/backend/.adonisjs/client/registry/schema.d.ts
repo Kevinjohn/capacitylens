@@ -21,6 +21,32 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
     }
   }
+  'liveness': {
+    methods: ["GET","HEAD"]
+    pattern: '/health/live'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
+    }
+  }
+  'health_checks': {
+    methods: ["GET","HEAD"]
+    pattern: '/health/ready'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+    }
+  }
   'api.planning.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/planning'
@@ -721,32 +747,6 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/not_found_controller').default['handle']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/not_found_controller').default['handle']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/not_found_controller').default['handle']>>>
-    }
-  }
-  'liveness': {
-    methods: ["GET","HEAD"]
-    pattern: '/health/live'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-    }
-  }
-  'health_checks': {
-    methods: ["GET","HEAD"]
-    pattern: '/health/ready'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
     }
   }
   'spa_fallback': {

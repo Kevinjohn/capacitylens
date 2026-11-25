@@ -2,19 +2,20 @@ import router from '@adonisjs/core/services/router';
 import { controllers } from '#generated/controllers';
 import { middleware } from '#start/kernel';
 import { throttle } from '#start/limiter';
-import { registerAuthRoutes } from '#start/auth_routes';
-import { registerMembershipRoutes } from '#start/membership_routes';
-import { registerAdmissionRoutes } from '#start/admission_routes';
-import { registerMasqueradeRoutes } from '#start/masquerade_routes';
-import { registerOwnershipRoutes } from '#start/ownership_routes';
-import { registerPlanningRoutes } from '#start/planning_routes';
-import { registerCompanyRoutes } from '#start/company_routes';
-import { registerImportRoutes } from '#start/import_routes';
-import { registerExportRoutes } from '#start/export_routes';
-import { registerAnonymiseRoutes } from '#start/anonymise_routes';
-import { registerExampleDataRoutes } from '#start/example_data_routes';
-import { registerGettingStartedRoutes } from '#start/getting_started_routes';
-import { registerDiagnosticsRoutes } from '#start/diagnostics_routes';
+import '#start/routes/health';
+import '#start/routes/planning';
+import '#start/routes/company';
+import '#start/routes/import';
+import '#start/routes/export';
+import '#start/routes/anonymise';
+import '#start/routes/example_data';
+import '#start/routes/getting_started';
+import '#start/routes/auth';
+import '#start/routes/membership';
+import '#start/routes/admission';
+import '#start/routes/masquerade';
+import '#start/routes/ownership';
+import '#start/routes/diagnostics';
 
 // The Access Control package accepts string keys of 1 to 254 characters. A longer company or member
 // identifier matches no route and answers 404 instead of reaching the package.
@@ -24,35 +25,13 @@ for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
 router.where('id', /^.{1,128}$/);
 router.where('token', /^.{1,512}$/);
 
-// Health is registered first, in its own group, so the API throttle does not count it.
+// The catch-alls are registered after every area file, so they match only what no route does.
 router
   .group(() => {
-    router.get('/health', [controllers.Liveness]);
-  })
-  .prefix('/api')
-  .as('api');
-
-router
-  .group(() => {
-    registerPlanningRoutes();
-    registerCompanyRoutes();
-    registerImportRoutes();
-    registerExportRoutes();
-    registerAnonymiseRoutes();
-    registerExampleDataRoutes();
-    registerGettingStartedRoutes();
-    registerAuthRoutes();
-    registerMembershipRoutes();
-    registerAdmissionRoutes();
-    registerMasqueradeRoutes();
-    registerOwnershipRoutes();
-    registerDiagnosticsRoutes();
     router.get('/*', [controllers.NotFound]).use(middleware.accountGate({ access: 'limited' }));
   })
   .prefix('/api')
   .as('api')
   .use(throttle);
 
-router.get('/health/live', [controllers.Liveness]);
-router.get('/health/ready', [controllers.HealthChecks]);
 router.get('*', [controllers.SpaFallback]);

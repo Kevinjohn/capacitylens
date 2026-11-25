@@ -14,6 +14,18 @@ const routes = {
     tokens: [[0,"api"],[0,"health"]],
     types: placeholder as Registry['api.liveness']['types'],
   },
+  'liveness': {
+    methods: ["GET","HEAD"],
+    pattern: '/health/live',
+    tokens: [[0,"health"],[0,"live"]],
+    types: placeholder as Registry['liveness']['types'],
+  },
+  'health_checks': {
+    methods: ["GET","HEAD"],
+    pattern: '/health/ready',
+    tokens: [[0,"health"],[0,"ready"]],
+    types: placeholder as Registry['health_checks']['types'],
+  },
   'api.planning.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/companies/:companyId/planning',
@@ -337,18 +349,6 @@ const routes = {
     pattern: '/api/*',
     tokens: [[0,"api"],[2,"*"]],
     types: placeholder as Registry['api.not_found']['types'],
-  },
-  'liveness': {
-    methods: ["GET","HEAD"],
-    pattern: '/health/live',
-    tokens: [[0,"health"],[0,"live"]],
-    types: placeholder as Registry['liveness']['types'],
-  },
-  'health_checks': {
-    methods: ["GET","HEAD"],
-    pattern: '/health/ready',
-    tokens: [[0,"health"],[0,"ready"]],
-    types: placeholder as Registry['health_checks']['types'],
   },
   'spa_fallback': {
     methods: ["GET","HEAD"],
