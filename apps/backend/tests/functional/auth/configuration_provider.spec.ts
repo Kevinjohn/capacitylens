@@ -2,6 +2,7 @@ import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
+import { setSecretSetting } from '#tests/helpers/secret_settings';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import ConfigurationProvider from '#providers/configuration_provider';
 import { freshDatabase } from '#tests/helpers/fresh_database';
@@ -18,12 +19,12 @@ test.group('development bootstrap provider recovery', (group) => {
   group.each.setup(async () => {
     await clearIdentities();
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', false);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', '');
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', undefined);
   });
   group.each.teardown(async () => {
     await clearIdentities();
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', originalCreateAdmin ?? false);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', originalBootstrapPassword ?? '');
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', originalBootstrapPassword?.release());
   });
 
   test('empty installation creates one admitted identity and restart keeps its password', async ({
@@ -31,7 +32,7 @@ test.group('development bootstrap provider recovery', (group) => {
     assert,
   }) => {
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
     const provider = new ConfigurationProvider(app);
     await provider.start();
     const rows = await db.from('users').where('email', bootstrapEmail);
@@ -63,7 +64,7 @@ test.group('development bootstrap provider recovery', (group) => {
     });
     const before = await db.from('users').where('id', identityId).first();
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', 'different-local-password-2026');
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', 'different-local-password-2026');
     await assert.rejects(
       () => new ConfigurationProvider(app).start(),
       /Verify this is the identity/
@@ -93,7 +94,7 @@ test.group('development bootstrap provider recovery', (group) => {
     await admission.operator.grantInvitation({ email: bootstrapEmail, role: 'admin' });
 
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
     const provider = new ConfigurationProvider(app);
     await assert.rejects(() => provider.start(), /Verify this is the identity/);
     assert.isFalse(await admission.isAdmitted(identityId));
@@ -134,7 +135,7 @@ test.group('development bootstrap provider recovery', (group) => {
     });
     const before = await db.from('users').where('id', identityId).first();
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
     const provider = new ConfigurationProvider(app);
     await assert.rejects(() => provider.start(), /Verify this is the identity/);
 
@@ -178,7 +179,7 @@ test.group('development bootstrap provider recovery', (group) => {
     });
     const before = await db.from('users').where('id', otherId).first();
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
     await new ConfigurationProvider(app).start();
     const usersAfterOtherAddress = await db.from('users');
     assert.equal(usersAfterOtherAddress.length, 1);

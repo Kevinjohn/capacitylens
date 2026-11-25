@@ -51,4 +51,18 @@ test.group('environment schema', () => {
     for (const value of ['2026-02-30', '2026-6-3', 'today'])
       assert.throws(() => envSchema[key](key, value), key);
   });
+
+  test('passwords are secrets that stay out of logs and stringification', ({ assert }) => {
+    for (const key of [
+      'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD',
+      'CAPACITYLENS_MAIL_PASSWORD',
+    ] as const) {
+      assert.isUndefined(envSchema[key](key, undefined));
+      assert.isUndefined(envSchema[key](key, ''));
+      const secret = envSchema[key](key, 'wayne-manor-2026')!;
+      assert.equal(secret.release(), 'wayne-manor-2026');
+      assert.notInclude(String(secret), 'wayne-manor-2026');
+      assert.notInclude(JSON.stringify({ secret }), 'wayne-manor-2026');
+    }
+  });
 });

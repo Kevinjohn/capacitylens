@@ -3,6 +3,7 @@ import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import env from '#start/env';
+import { setSecretSetting } from '#tests/helpers/secret_settings';
 import User from '#models/user';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
@@ -15,10 +16,10 @@ test.group('development bootstrap credential', (group) => {
     const createAdmin = env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN');
     const bootstrapPassword = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
-    env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', password);
+    setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', password);
     return () => {
       env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', createAdmin);
-      env.set('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword);
+      setSecretSetting('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', bootstrapPassword?.release());
     };
   });
 

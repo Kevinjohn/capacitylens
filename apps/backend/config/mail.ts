@@ -5,7 +5,7 @@ import type { InferMailers } from '@adonisjs/mail/types';
 const host = env.get('CAPACITYLENS_MAIL_HOST')?.trim();
 const from = env.get('CAPACITYLENS_MAIL_FROM')?.trim();
 const user = env.get('CAPACITYLENS_MAIL_USER')?.trim();
-const password = env.get('CAPACITYLENS_MAIL_PASSWORD');
+const password = env.get('CAPACITYLENS_MAIL_PASSWORD')?.release();
 const port = Number(env.get('CAPACITYLENS_MAIL_PORT'));
 
 if (
