@@ -3,9 +3,7 @@ import type { routes } from './index.ts'
 
 export interface ApiDefinition {
   api: {
-    healthChecks: {
-      live: typeof routes['api.health_checks.live']
-    }
+    liveness: typeof routes['api.liveness']
     planning: {
       show: typeof routes['api.planning.show']
     }
@@ -143,8 +141,6 @@ export interface ApiDefinition {
     }
     notFound: typeof routes['api.not_found']
   }
-  healthChecks: {
-    live: typeof routes['health_checks.live']
-    ready: typeof routes['health_checks.ready']
-  }
+  liveness: typeof routes['liveness']
+  healthChecks: typeof routes['health_checks']
 }

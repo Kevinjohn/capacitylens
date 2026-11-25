@@ -482,8 +482,8 @@ Source: [Logger](https://docs.adonisjs.com/guides/digging-deeper/logger),
   has none.
 - An event is a class in `app/events` and a listener a class in `app/listeners` with a `handle`
   method. Listeners are imported lazily through `#generated/listeners`.
-- Health checks are registered in `start/health.ts` as `healthChecks`. A `HealthChecksController`
-  serves `/health/live` and `/health/ready`. A custom check extends `BaseCheck` and ends in
+- Health checks are registered in `start/health.ts` as `healthChecks`. The single action
+  `HealthChecksController` serves `/health/ready` and `LivenessController` serves `/health/live`. A custom check extends `BaseCheck` and ends in
   `Check`.
 
 ## Ace commands

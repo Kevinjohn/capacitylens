@@ -4,7 +4,7 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
-    'api.health_checks.live': { paramsTuple?: []; params?: {} }
+    'api.liveness': { paramsTuple?: []; params?: {} }
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_mutations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -59,11 +59,11 @@ export type ScannedRoutes = {
     'api.ownership_transfers.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.diagnostics.show': { paramsTuple?: []; params?: {} }
     'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
-    'health_checks.live': { paramsTuple?: []; params?: {} }
-    'health_checks.ready': { paramsTuple?: []; params?: {} }
+    'liveness': { paramsTuple?: []; params?: {} }
+    'health_checks': { paramsTuple?: []; params?: {} }
   }
   GET: {
-    'api.health_checks.live': { paramsTuple?: []; params?: {} }
+    'api.liveness': { paramsTuple?: []; params?: {} }
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
@@ -79,11 +79,11 @@ export type ScannedRoutes = {
     'api.masquerade.show': { paramsTuple?: []; params?: {} }
     'api.diagnostics.show': { paramsTuple?: []; params?: {} }
     'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
-    'health_checks.live': { paramsTuple?: []; params?: {} }
-    'health_checks.ready': { paramsTuple?: []; params?: {} }
+    'liveness': { paramsTuple?: []; params?: {} }
+    'health_checks': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
-    'api.health_checks.live': { paramsTuple?: []; params?: {} }
+    'api.liveness': { paramsTuple?: []; params?: {} }
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
@@ -99,8 +99,8 @@ export type ScannedRoutes = {
     'api.masquerade.show': { paramsTuple?: []; params?: {} }
     'api.diagnostics.show': { paramsTuple?: []; params?: {} }
     'api.not_found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
-    'health_checks.live': { paramsTuple?: []; params?: {} }
-    'health_checks.ready': { paramsTuple?: []; params?: {} }
+    'liveness': { paramsTuple?: []; params?: {} }
+    'health_checks': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'api.planning_mutations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
