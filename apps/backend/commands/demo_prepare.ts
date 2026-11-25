@@ -4,7 +4,7 @@ import { DisposableDemoService } from '#services/disposable_demo_service';
 import { OperatorCommand } from './_operator_command.js';
 
 export default class DemoPrepare extends OperatorCommand {
-  static commandName = 'capacitylens:demo:prepare';
+  static commandName = 'demo:prepare';
   static description = 'Prepare the disposable development demo installation';
   static options: CommandOptions = { startApp: true };
 
