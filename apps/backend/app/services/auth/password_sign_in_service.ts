@@ -41,8 +41,16 @@ export class PasswordSignInService {
         logger.info(fields, 'Authentication outcome');
       }
     } catch {
-      // Logging must not change the authentication outcome or skip member tracking.
-      console.error('Authentication outcome logging failed');
+      // Logging must not change the authentication outcome or skip member tracking. The fallback
+      // line carries fixed fields only, and a logger that fails again is left alone.
+      try {
+        logger.error(
+          { event: 'auth.sign_in', errorType: 'logging_failure' },
+          'Authentication outcome logging failed'
+        );
+      } catch {
+        // The sign-in must survive when the logger and its fallback both fail.
+      }
     }
   }
 

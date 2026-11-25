@@ -665,7 +665,7 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/masquerade').showMasqueradeValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>

@@ -17,7 +17,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
 
-async function captureLogs<T>(work: () => Promise<T>) {
+async function captureLogs<T>(work: () => Promise<T>, { failOutcomeLine = false } = {}) {
   const lines: string[] = [];
   const capture = new LoggerFactory()
     .merge({ ...loggerConfig.loggers.app, level: 'trace' })
@@ -30,6 +30,13 @@ async function captureLogs<T>(work: () => Promise<T>) {
     const nestedChild = child.child;
     child.child = ((...args: Parameters<typeof child.child>) =>
       instrument(nestedChild.apply(child, args))) as typeof child.child;
+    if (failOutcomeLine) {
+      const warn = child.warn;
+      child.warn = ((...args: unknown[]) => {
+        if (args[1] === 'Authentication outcome') throw new Error('logger failure');
+        return (warn as (...rest: unknown[]) => void).apply(child, args);
+      }) as typeof child.warn;
+    }
     return child;
   };
   logger.child = ((...args: Parameters<typeof logger.child>) =>
@@ -202,6 +209,31 @@ test.group('authentication outcome events', (group) => {
     );
     assert.notInclude(lines.join('\n'), signUpEmail);
     assert.notInclude(lines.join('\n'), password);
+  });
+
+  test('logs a fixed-field fallback line when the outcome line fails, keeping the refusal', async ({
+    client,
+    assert,
+  }) => {
+    await createIdentity(email, { name: 'Bruce Wayne', password });
+    const { lines, result } = await captureLogs(
+      () =>
+        client
+          .visit('api.session.store')
+          .header('sec-fetch-site', 'same-origin')
+          .json({ email, password: 'incorrect-private-password' })
+          .send(),
+      { failOutcomeLine: true }
+    );
+
+    result.assertStatus(401);
+    const entries = lines.map((line) => JSON.parse(line));
+    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in');
+    assert.lengthOf(authEvents, 1);
+    assert.equal(authEvents[0].errorType, 'logging_failure');
+    assert.equal(authEvents[0].msg, 'Authentication outcome logging failed');
+    assert.notInclude(lines.join('\n'), email);
+    assert.notInclude(lines.join('\n'), 'incorrect-private-password');
   });
 
   test('keeps the successful sign-in event when post-sign-in tracking fails', async ({
