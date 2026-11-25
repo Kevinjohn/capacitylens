@@ -55,9 +55,9 @@ A zero-column drop can still reassign. It offers the original start and re-place
 
 - [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L193)
 - [useDragResize.ts](../../apps/frontend/src/hooks/useDragResize.ts#L126)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L131)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L200)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L240)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L183)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L255)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L295)
 - [gestureMath.ts](../../apps/frontend/src/lib/gestureMath.ts#L110)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L154)
 - [planning_execution_service.ts](../../apps/backend/app/services/planning/planning_execution_service.ts#L191)

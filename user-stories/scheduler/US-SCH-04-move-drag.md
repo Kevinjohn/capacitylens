@@ -32,7 +32,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  Bar["Editable Work-mode AllocationBar arms useDragResize on its body"] --> Gesture["useAllocationGestureViewModel previews the move"]
+  Bar["Editable Work-mode AllocationBar arms useDragResize on its body"] --> Gesture["useAllocationGesture previews the move"]
   Gesture -->|release below drag threshold| Edit["onEdit opens allocation dialog"]
   Gesture -->|Escape, pointer cancel or lost capture| Cancel["Clear preview and release gesture"]
   Gesture -->|drag release| Hit["commitPointerGesture repeats hit test"]
@@ -54,9 +54,9 @@ The slide math uses literal calendar movement for Ignore working days or zero me
 - [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx#L193)
 - [useDragResize.ts](../../apps/frontend/src/hooks/useDragResize.ts#L99)
 - [useDragResize.ts](../../apps/frontend/src/hooks/useDragResize.ts#L126)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L200)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L240)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L374)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L255)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L295)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L454)
 - [allocationDrag.ts](../../apps/frontend/src/components/scheduler/allocationDrag.ts#L40)
 - [gestureMath.ts](../../apps/frontend/src/lib/gestureMath.ts#L110)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L138)
