@@ -311,7 +311,7 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
     writeOwner();
     api.start(
       process.execPath,
-      [join(backend, 'scripts/e2e-server.mjs'), 'db', '--slot', String(slot)],
+      [join(backend, 'scripts/e2e_server.mjs'), 'db', '--slot', String(slot)],
       {
         cwd: root,
         env: {

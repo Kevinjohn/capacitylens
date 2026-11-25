@@ -839,7 +839,7 @@ test('main validation skips tooling checks only for application source, tests an
     'package.json',
     'apps/frontend/src/index.css',
     'apps/frontend/vite.config.ts',
-    'apps/backend/scripts/e2e-server.mjs',
+    'apps/backend/scripts/e2e_server.mjs',
     'docs-src/screenshots/publication-review.json',
     'packaging/README.txt',
     '.gitleaks.toml',

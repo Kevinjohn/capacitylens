@@ -68,7 +68,7 @@ test('both E2E server flavours require sign-in and expose no installation reset 
     const portLane = ports();
     const slot = E2E_SCRIPT_TEST_SLOTS.serverBoundary;
     const port = flavour === 'db' ? workerPorts(resolvePortLane(), slot).api : portLane.authApi;
-    const args = ['scripts/e2e-server.mjs', flavour];
+    const args = ['scripts/e2e_server.mjs', flavour];
     if (flavour === 'db') args.push('--slot', String(slot));
     const child = spawn(process.execPath, args, {
       cwd: new URL('../../../', import.meta.url),

@@ -154,7 +154,7 @@ test('the real E2E API launcher failure reaches the guardian stderr stream', asy
       type: 'START',
       command: process.execPath,
       args: [
-        join(process.cwd(), 'apps/backend/scripts/e2e-server.mjs'),
+        join(process.cwd(), 'apps/backend/scripts/e2e_server.mjs'),
         'db',
         '--slot',
         String(slot),
