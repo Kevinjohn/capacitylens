@@ -100,12 +100,16 @@ export const test = base.extend<CapacityLensFixtures>({
       context.off('page', observePage);
     }
   },
-  newObservedContext: async ({ browser, pageErrorObserver }, use) => {
+  newObservedContext: async ({ browser, pageErrorObserver, extraHTTPHeaders }, use) => {
     const observePage = pageErrorObserver.observePage;
     const contexts: BrowserContext[] = [];
     try {
       await use(async (options) => {
-        const context = await browser.newContext(options);
+        // `browser.newContext` does not inherit fixture options; a database spec's request tag is one.
+        const context = await browser.newContext({
+          ...options,
+          extraHTTPHeaders: { ...extraHTTPHeaders, ...options?.extraHTTPHeaders },
+        });
         await exposePlanningMutationBodies(context);
         context.pages().forEach(observePage);
         context.on('page', observePage);

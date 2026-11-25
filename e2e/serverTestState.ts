@@ -3,9 +3,10 @@ import type { APIRequestContext } from '@playwright/test';
 import { resolvePortLane, workerPorts } from '../tooling/ports.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, realpathSync, rmSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { requestResetControl } from '../tooling/e2e_reset_control.ts';
+import { E2E_TAG_HEADER, E2E_TAG_PATH } from '../tooling/e2e_request_activity.ts';
 
 const backendDirectory = fileURLToPath(new URL('../apps/backend/', import.meta.url));
 
@@ -32,78 +33,45 @@ export function serverTarget(portLane: number, slot: number): ServerTarget {
 }
 
 let configuredTarget = serverTarget(resolvePortLane(), 0);
-let resetControlToken: string | undefined;
-let stopOwnedServer: (() => Promise<void>) | undefined;
+let currentTag: string | undefined;
 /** Current worker API origin; imports observe configuration before a test starts. */
 export let API = configuredTarget.api;
 
-/** Bind this Playwright worker to its owned target and request-drain boundary. */
-export function configureServerTarget(
-  target: ServerTarget,
-  control: { controlToken: string; stop: () => Promise<void> },
-) {
+/** Bind this Playwright worker to its owned target. */
+export function configureServerTarget(target: ServerTarget) {
   configuredTarget = target;
   API = target.api;
-  resetControlToken = control.controlToken;
-  stopOwnedServer = control.stop;
+  currentTag = undefined;
 }
 
-const resetControlTimeoutMs = 5_000;
-
-async function resumeApi(token: string, primary: unknown): Promise<never | void> {
-  const errors: unknown[] = [];
-  try {
-    await requestResetControl(token, 'api', 'resume', resetControlTimeoutMs);
-  } catch (error) {
-    errors.push(error);
-  }
-  if (errors.length) {
-    let stopError: unknown;
-    try {
-      await stopOwnedServer?.();
-    } catch (error) {
-      stopError = error;
-    }
-    throw new AggregateError(
-      [primary, ...errors, ...(stopError ? [stopError] : [])],
-      'Reset failed and the owned worker API could not be safely resumed; it was stopped.',
-      { cause: primary },
-    );
-  }
+/** The headers every request of the current test sends, so the worker API accepts it. */
+export function requireTestTagHeaders(): Record<string, string> {
+  if (!currentTag) throw new Error('No database reset has issued a request tag yet.');
+  return { [E2E_TAG_HEADER]: currentTag };
 }
 
-async function withDataListenersPaused<T>(target: ServerTarget, restore: () => T): Promise<T> {
+/**
+ * Settles the worker API before a restore: the API makes `tag` current, refusing every request
+ * that carries another, and answers once no handler is running. A new test passes a fresh tag; a
+ * reset inside a test keeps the current one, so the test's own pages stay accepted.
+ */
+async function withRequestsSettled<T>(
+  target: ServerTarget,
+  tag: string,
+  restore: () => T,
+): Promise<T> {
   if (target !== configuredTarget)
     throw new Error('A reset must use this worker’s configured target.');
-  if (!resetControlToken || !stopOwnedServer)
-    throw new Error('The worker reset control boundary is not configured.');
-
-  const token = resetControlToken;
-  let result: T;
-  try {
-    await requestResetControl(token, 'api', 'pause', resetControlTimeoutMs);
-    result = restore();
-  } catch (error) {
-    await resumeApi(token, error);
-    throw error;
-  }
-
-  try {
-    await requestResetControl(token, 'api', 'resume', resetControlTimeoutMs);
-  } catch (error) {
-    let stopError: unknown;
-    try {
-      await stopOwnedServer();
-    } catch (cleanupError) {
-      stopError = cleanupError;
-    }
-    throw new AggregateError(
-      [error, ...(stopError ? [stopError] : [])],
-      'Reset completed but the owned worker API could not resume; it was stopped.',
-      { cause: error },
+  const response = await fetch(`${target.api}${E2E_TAG_PATH}?next=${encodeURIComponent(tag)}`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok)
+    throw new Error(
+      `The worker API did not settle (HTTP ${response.status}): ${await response.text()}`,
     );
-  }
-  return result;
+  currentTag = tag;
+  return restore();
 }
 
 function assertDisposableDatabase(target: ServerTarget) {
@@ -189,7 +157,7 @@ function bindFixtureOwner(db: DatabaseSync) {
 
 /** Snapshot the worker's initial company once; identities are never restored from this template. */
 export async function prepareServerTemplate(target: ServerTarget): Promise<void> {
-  await withDataListenersPaused(target, () => {
+  await withRequestsSettled(target, randomUUID(), () => {
     ensureDbTestAdmin(target);
     const db = new DatabaseSync(target.databasePath);
     try {
@@ -219,14 +187,18 @@ export async function prepareServerTemplate(target: ServerTarget): Promise<void>
 type ResetServerOptions = {
   withSeed?: boolean;
   target?: ServerTarget;
+  /** Start a new test: issue a fresh request tag, so requests from the previous test are refused. */
+  newTest?: boolean;
 };
 
 /** Restore only company-owned tables through SQLite; users, sessions and Account Kit records survive. */
 export async function resetServer({
   withSeed = true,
   target = configuredTarget,
+  newTest = false,
 }: ResetServerOptions): Promise<void> {
-  await withDataListenersPaused(target, () => {
+  const tag = newTest || !currentTag ? randomUUID() : currentTag;
+  await withRequestsSettled(target, tag, () => {
     ensureDbTestAdmin(target);
     if (
       !existsSync(target.templatePath) ||

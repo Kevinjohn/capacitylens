@@ -1,5 +1,5 @@
 import { test as base, expect } from './fixtures';
-import { ensureDbTestAdmin, resetServer } from './serverTestState';
+import { ensureDbTestAdmin, requireTestTagHeaders, resetServer } from './serverTestState';
 import { startWorkerServer } from './workerServer';
 import type { E2eWorkerServer } from './workerServer';
 
@@ -26,11 +26,17 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   baseURL: [async ({ dbServer }, use) => use(dbServer.baseURL), { scope: 'test' }],
   dbReset: [
     async ({ dbServer }, use) => {
-      await resetServer({ target: dbServer.target });
+      await resetServer({ target: dbServer.target, newTest: true });
       await use();
     },
     { auto: true },
   ],
+  // The page, `context.request` and the `request` fixture all send the tag of the reset that just
+  // ran; the worker API refuses an `/api/` request without it.
+  extraHTTPHeaders: async ({ dbReset, extraHTTPHeaders }, use) => {
+    void dbReset;
+    await use({ ...extraHTTPHeaders, ...requireTestTagHeaders() });
+  },
   dbAuthentication: [
     async ({ dbReset, dbServer, request, context }, use) => {
       void dbReset;

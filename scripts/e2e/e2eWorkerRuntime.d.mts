@@ -9,7 +9,6 @@ export interface E2eWorkerTarget {
 export interface E2eWorkerServer {
   target: E2eWorkerTarget;
   baseURL: string;
-  controlToken: string;
   stop(): Promise<void>;
 }
 
@@ -33,6 +32,3 @@ export interface E2eWorkerLease {
 export function acquireE2eWorkerLease(portLane: number, slot: number): Promise<E2eWorkerLease>;
 /** Release only this lease's owner record. */
 export function releaseE2eWorkerLease(paths: E2eWorkerLease['paths']): Promise<void>;
-
-/** Refuse a reset while the disposable API has handlers still completing. */
-export function assertE2eRequestsDrained(apiOrigin: string): Promise<void>;

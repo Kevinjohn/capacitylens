@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fork, spawnSync } from 'node:child_process';
 import http from 'node:http';
-import net from 'node:net';
 import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
@@ -14,21 +13,14 @@ import {
   portInUse,
   terminateProcessTree,
 } from '../../tooling/devProcesses.mjs';
-import {
-  createResetControlServer,
-  createResetControlToken,
-  cleanupResetControlEndpoints,
-  requestResetControl,
-  resetControlEndpoint,
-} from '../../tooling/e2e_reset_control.ts';
-import { createRetirableListener } from '../../tooling/e2e_retirable_listener.ts';
+import { E2E_TAG_PATH } from '../../tooling/e2e_request_activity.ts';
 import {
   configureServerTarget,
   prepareServerTemplate,
+  requireTestTagHeaders,
   resetServer,
   serverTarget,
 } from '../../e2e/serverTestState.ts';
-import { assertE2eRequestsDrained } from './e2eWorkerRuntime.mjs';
 
 function waitForChildMessage(child, type, timeoutMs = 10_000) {
   return new Promise((resolve, reject) => {
@@ -63,6 +55,7 @@ function requestPendingConfirmation(target, cookie, masqueradeToken) {
       'sec-fetch-site': 'same-origin',
       'x-masquerade-context': masqueradeToken,
       'content-type': 'application/json',
+      ...requireTestTagHeaders(),
     },
   });
   request.on('error', () => {});
@@ -80,95 +73,19 @@ function requestPendingConfirmation(target, cookie, masqueradeToken) {
   return { request, socketClosed };
 }
 
-async function waitForApiIdle(apiOrigin) {
-  const deadline = Date.now() + 10_000;
-  while (Date.now() < deadline) {
-    try {
-      await assertE2eRequestsDrained(apiOrigin);
-      return;
-    } catch (error) {
-      if (!/API has \d+ active requests/.test(error.message)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 25));
-    }
-  }
-  throw new Error('Timed out waiting for the API request counter to reach zero.');
+/** Waits, through the worker's control request, until no API handler is running. */
+async function settleApi(target) {
+  const [tag] = Object.values(requireTestTagHeaders());
+  const response = await fetch(`${target.api}${E2E_TAG_PATH}?next=${tag}`, { method: 'POST' });
+  assert.equal(response.status, 200, await response.text());
 }
 
-test('listener pause observes a rejected drain while listener close is still pending', async () => {
-  const server = net.createServer();
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  const address = server.address();
-  assert.ok(address && typeof address !== 'string');
-  let releaseCloseCallback;
-  let didCloseResolve;
-  const didClose = new Promise((resolve) => (didCloseResolve = resolve));
-  const originalClose = server.close.bind(server);
-  server.close = (callback) => {
-    originalClose((error) => {
-      releaseCloseCallback = () => callback(error);
-      didCloseResolve();
-    });
-    return server;
-  };
-  const unhandled = [];
-  const observeUnhandled = (reason) => unhandled.push(reason);
-  process.on('unhandledRejection', observeUnhandled);
-  const listener = createRetirableListener(server, {
-    role: 'api',
-    listen: async () => {
-      await new Promise((resolve, reject) => {
-        server.once('error', reject);
-        server.once('listening', resolve);
-        server.listen(address.port, '127.0.0.1');
-      });
-    },
-    async waitForQuiescence() {
-      throw new Error('staged quiescence failure');
-    },
-    status: () => ({}),
-  });
-  const accepted = new Promise((resolve) => server.once('connection', resolve));
-  const client = net.connect(address.port, '127.0.0.1');
-  client.on('error', () => {});
-  await accepted;
-  const pause = listener.pause(1_000).then(
-    () => ({ kind: 'resolved' }),
-    (error) => ({ kind: 'rejected', error }),
-  );
-  try {
-    const outcome = await Promise.race([
-      pause,
-      didClose.then(() => ({ kind: 'listener-close-held' })),
-    ]);
-    assert.equal(outcome.kind, 'rejected', 'drain rejection is observed without waiting for close');
-    assert.match(outcome.error.message, /staged quiescence failure/);
-    await new Promise(setImmediate);
-    assert.deepEqual(unhandled, [], 'concurrent drain rejection has no unhandled window');
-  } finally {
-    releaseCloseCallback?.();
-    process.off('unhandledRejection', observeUnhandled);
-    await pause;
-    server.close = originalClose;
-    if (listener.status().paused) await listener.resume(1_000);
-    if (server.listening)
-      await new Promise((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      );
-    client.destroy();
-  }
-});
-
 test(
-  'company template resets preserve identities and sessions, clear history and honor request drain',
+  'company template resets preserve identities and sessions, clear history and wait for running handlers',
   { timeout: 90_000 },
   async () => {
     const target = serverTarget(resolvePortLane(), E2E_SCRIPT_TEST_SLOTS.reset);
     const release = acquireExclusiveFile(`${target.databasePath}.reset-test.lock`);
-    const controlToken = createResetControlToken();
-    let fakeApiControl;
 
     const environment = {
       ...process.env,
@@ -181,7 +98,6 @@ test(
       CAPACITYLENS_DB: target.databasePath,
       CAPACITYLENS_PUBLIC_URL: target.api,
       CAPACITYLENS_ALLOW_RESET: 'true',
-      CAPACITYLENS_E2E_RESET_TOKEN: controlToken,
       CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: 'auth-e2e-password-2026',
       CAPACITYLENS_BACKUP_DIR: '',
@@ -241,17 +157,7 @@ test(
       const instrumented = waitForChildMessage(server, 'instrumented');
       server.send({ type: 'install' });
       await instrumented;
-      configureServerTarget(target, {
-        controlToken,
-        stop: async () => {
-          if (server) {
-            const ownedServer = server;
-            server = undefined;
-            await terminateProcessTree(ownedServer);
-          }
-        },
-      });
-      await waitForApiIdle(target.api);
+      configureServerTarget(target);
       await prepareServerTemplate(target);
       database = new DatabaseSync(target.databasePath);
 
@@ -311,6 +217,7 @@ test(
           'content-type': 'application/json',
           origin: target.api,
           'sec-fetch-site': 'same-origin',
+          ...requireTestTagHeaders(),
         },
         body: JSON.stringify({
           email: 'admin@admin.admin',
@@ -324,12 +231,12 @@ test(
         .join('; ');
       assert.notEqual(cookie, '', 'the administrator receives a session cookie');
       const contextResponse = await fetch(`${target.api}/api/masquerade?companyId=a-studio`, {
-        headers: { cookie },
+        headers: { cookie, ...requireTestTagHeaders() },
       });
       assert.equal(contextResponse.status, 200);
       const context = (await contextResponse.json()).data;
       assert.equal(typeof context.masqueradeToken, 'string');
-      await waitForApiIdle(target.api);
+      await settleApi(target);
       for (const table of ['adonis_sessions', 'account_sessions'])
         preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
 
@@ -337,7 +244,7 @@ test(
       server.send({ type: 'arm-before-handler' });
       const pendingNative = http.request(`${target.api}/api/masquerade?companyId=a-studio`, {
         method: 'GET',
-        headers: { cookie },
+        headers: { cookie, ...requireTestTagHeaders() },
       });
       pendingNative.on('error', () => {});
       const nativeSocketClosed = new Promise((resolve) => {
@@ -347,16 +254,9 @@ test(
       await enteredNativeHandler;
       pendingNative.destroy();
       await nativeSocketClosed;
-      const nativeActivity = await (await fetch(`${target.api}/api/health/e2e-idle`)).json();
-      assert.deepEqual(
-        nativeActivity.pendingRequests.map(({ method, path }) => ({ method, path })),
-        [{ method: 'GET', path: '/api/masquerade' }],
-        'native accounting sees the request before AdonisJS begins handling it',
-      );
-      assert.ok(nativeActivity.pendingRequests[0].elapsedMs >= 0);
       await assert.rejects(
         resetServer({ target }),
-        /api pause failed:.*pause timed out with 1 active handlers/i,
+        /did not settle \(HTTP 503\).*1 handlers still running.*GET.*\/api\/masquerade/,
         'reset refuses before SQLite while the native handler has not entered AdonisJS',
       );
       assert.equal(
@@ -368,7 +268,7 @@ test(
         0,
       );
       server.send({ type: 'release-before-handler' });
-      await waitForApiIdle(target.api);
+      await settleApi(target);
       for (const table of ['adonis_sessions', 'account_sessions'])
         preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
 
@@ -378,22 +278,10 @@ test(
       await entered;
       pending.request.destroy();
       await pending.socketClosed;
-      const activity = await (await fetch(`${target.api}/api/health/e2e-idle`)).json();
-      assert.deepEqual(
-        activity.pendingRequests.map(({ method, path }) => ({ method, path })),
-        [{ method: 'POST', path: '/api/auth/password-confirmation' }],
-        'the drain failure identifies the pending handler without exposing query or body data',
-      );
-      assert.ok(activity.pendingRequests[0].elapsedMs >= 0);
-      await assert.rejects(
-        assertE2eRequestsDrained(target.api),
-        /API has 1 active requests/,
-        'the API counter observes the handler after its client socket closes',
-      );
       await assert.rejects(
         resetServer({ target }),
-        /api pause failed:.*pause timed out with 1 active handlers/i,
-        'reset refuses before opening SQLite while the handler is pending',
+        /did not settle \(HTTP 503\).*1 handlers still running.*POST.*\/api\/auth\/password-confirmation/,
+        'reset refuses before opening SQLite while the handler is pending after its client left',
       );
       assert.equal(
         database.prepare("SELECT name FROM clients WHERE id='c-acme'").get().name,
@@ -405,7 +293,7 @@ test(
       );
 
       server.send({ type: 'release' });
-      await waitForApiIdle(target.api);
+      await settleApi(target);
       assert.equal(
         database.prepare('SELECT COUNT(*) AS count FROM password_confirmations').get().count,
         1,
@@ -413,24 +301,13 @@ test(
       );
       for (const table of ['adonis_sessions', 'account_sessions'])
         preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
-      const bufferedSocketHeld = waitForChildMessage(server, 'buffered-socket-held');
-      server.send({ type: 'arm-buffered-connection' });
-      const bufferedSocket = net.connect(Number(new URL(target.api).port), '127.0.0.1');
-      await bufferedSocketHeld;
-      const bufferedSocketClosed = new Promise((resolve) => bufferedSocket.once('close', resolve));
-      bufferedSocket.write(
-        `GET /api/masquerade?companyId=a-studio&bufferedNativeProbe=1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nCookie: ${cookie}\r\n\r\n`,
-        () => bufferedSocket.destroy(),
-      );
-      await bufferedSocketClosed;
-      await resetServer({ target });
-      const bufferedDispatchCount = waitForChildMessage(server, 'buffered-dispatch-count');
-      server.send({ type: 'buffered-dispatch-count' });
-      assert.equal(
-        (await bufferedDispatchCount).count,
-        0,
-        'the incomplete request on the retired API socket never reaches AdonisJS after resume',
-      );
+      const previousTest = requireTestTagHeaders();
+      await resetServer({ target, newTest: true });
+      const late = await fetch(`${target.api}/api/masquerade?companyId=a-studio`, {
+        headers: { cookie, ...previousTest },
+      });
+      assert.equal(late.status, 409, 'a request from the previous test is refused after the reset');
+      assert.match((await late.json()).error, /stale e2e epoch/);
       assert.equal((await fetch(`${target.api}/health/ready`)).ok, true);
       assert.deepEqual(database.prepare('SELECT * FROM clients ORDER BY id').all(), clients);
       assert.equal(
@@ -501,36 +378,9 @@ test(
         database.prepare('SELECT COUNT(*) AS count FROM users WHERE id = ?').get(admin.id).count,
         0,
       );
-      // A listener that cannot reopen after the restore must stop the worker, not leave it paused.
-      await terminateProcessTree(server);
-      server = undefined;
-      await cleanupResetControlEndpoints(controlToken);
-      let fakeApiStopped = false;
-      fakeApiControl = createResetControlServer(controlToken, 'api', {
-        status: () => ({ paused: false }),
-        pause: async () => ({ paused: true }),
-        async resume() {
-          throw new Error('API listener failed to reopen');
-        },
-      });
-      await fakeApiControl.ready;
-      configureServerTarget(target, {
-        controlToken,
-        stop: async () => {
-          await fakeApiControl.close();
-          fakeApiStopped = true;
-        },
-      });
-      await assert.rejects(
-        resetServer({ target }),
-        /owned worker API could not resume; it was stopped/,
-        'a failed listener resume stops the worker after restoring SQLite',
-      );
-      assert.equal(fakeApiStopped, true, 'the owned worker is stopped after a failed resume');
     } finally {
       database?.close();
       if (server) await terminateProcessTree(server);
-      await fakeApiControl?.close();
       if (created)
         for (const suffix of ['', '-wal', '-shm', '.template'])
           rmSync(`${target.databasePath}${suffix}`, { force: true });
@@ -538,87 +388,3 @@ test(
     }
   },
 );
-
-for (const frameCase of ['oversized', 'truncated', 'multiple']) {
-  test(
-    `reset control rejects ${frameCase} frames without terminating its server`,
-    { timeout: 10_000 },
-    async () => {
-      const token = createResetControlToken();
-      const helperUrl = new URL('../../tooling/e2e_reset_control.ts', import.meta.url).href;
-      const program = `
-      import assert from 'node:assert/strict';
-      import net from 'node:net';
-      import { once } from 'node:events';
-      import { createResetControlServer, createResetControlToken, requestResetControl, resetControlEndpoint } from ${JSON.stringify(helperUrl)};
-      const token = ${JSON.stringify(token)};
-      const control = createResetControlServer(token, 'api', {
-        status: () => ({ alive: true }), pause: async () => ({}), resume: async () => ({}),
-      });
-      await control.ready;
-      try {
-        const socket = net.createConnection(resetControlEndpoint(token, 'api'));
-        socket.on('error', () => {});
-        let received = 0;
-        socket.on('data', (chunk) => { received += chunk.length; });
-        const closed = new Promise((resolve) => socket.once('close', resolve));
-        await once(socket, 'connect');
-        const frameCase = process.argv[1];
-        if (frameCase === 'oversized') {
-          const frame = Buffer.alloc(4); frame.writeUInt32BE(16 * 1024 + 1); socket.write(frame);
-        } else if (frameCase === 'truncated') socket.write(Buffer.from([0, 0]));
-        else {
-          const body = Buffer.from(JSON.stringify({ token, command: 'status' }));
-          const frame = Buffer.alloc(4 + body.length); frame.writeUInt32BE(body.length); body.copy(frame, 4);
-          socket.write(Buffer.concat([frame, frame]));
-        }
-        await closed;
-        assert.equal(received, 0, 'invalid framing must not receive a command result');
-        assert.deepEqual(await requestResetControl(token, 'api', 'status'), { alive: true });
-        console.log('CONTROL_SURVIVED_INVALID_FRAME');
-      } finally { await control.close(); }
-    `;
-      const result = spawnSync(
-        process.execPath,
-        ['--input-type=module', '-e', program, frameCase],
-        {
-          encoding: 'utf8',
-          timeout: 8_000,
-        },
-      );
-      try {
-        assert.equal(
-          result.status,
-          0,
-          `control server must survive ${frameCase} framing: ${result.stderr}`,
-        );
-        assert.match(result.stdout, /CONTROL_SURVIVED_INVALID_FRAME/);
-      } finally {
-        await cleanupResetControlEndpoints(token);
-      }
-    },
-  );
-}
-
-test('reset control reports an incomplete response at peer close', { timeout: 5_000 }, async () => {
-  const token = createResetControlToken();
-  const endpoint = resetControlEndpoint(token, 'api');
-  const peers = new Set();
-  const server = net.createServer((socket) => {
-    peers.add(socket);
-    socket.once('close', () => peers.delete(socket));
-    socket.on('error', () => socket.destroy());
-    socket.resume();
-    socket.end(Buffer.from([0, 0]));
-  });
-  await new Promise((resolve) => server.listen(endpoint, resolve));
-  try {
-    await assert.rejects(
-      requestResetControl(token, 'api', 'status', 1_000),
-      /closed before a complete response/,
-    );
-  } finally {
-    for (const peer of peers) peer.destroy();
-    await new Promise((resolve) => server.close(resolve));
-  }
-});

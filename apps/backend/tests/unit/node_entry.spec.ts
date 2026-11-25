@@ -76,7 +76,7 @@ test.group('node entry', () => {
     assert.notMatch(output, /Node\.js v\d/);
   });
 
-  test('native web entry loads the isolated-worker harness only when reset is enabled', async ({
+  test('native web entry loads the isolated-worker harness and its request tag only when reset is enabled', async ({
     assert,
     test: t,
   }) => {
@@ -100,10 +100,23 @@ registerHooks({
         ['false', false],
         ['true', true],
       ] as const) {
-        const stderr = await withOperatorServer(f, async () => {}, {
-          nodeArgs: [`--import=${preload}`],
-          environment: { CAPACITYLENS_ALLOW_RESET: allowReset },
-        });
+        const stderr = await withOperatorServer(
+          f,
+          async (origin) => {
+            // The per-test request tag exists only on a reset-enabled server: without the switch
+            // the control request is an ordinary unknown address and no request is refused as stale.
+            const control = await fetch(`${origin}/__e2e/epoch?next=probe-tag`, { method: 'POST' });
+            assert.equal(control.status === 200, loaded, `control reset=${allowReset}`);
+            const stale = await fetch(`${origin}/api/health`, {
+              headers: { 'x-e2e-epoch': 'another-tag' },
+            });
+            assert.equal(stale.status, loaded ? 409 : 200, `stale tag reset=${allowReset}`);
+          },
+          {
+            nodeArgs: [`--import=${preload}`],
+            environment: { CAPACITYLENS_ALLOW_RESET: allowReset },
+          }
+        );
         assert.equal(stderr.includes('harness-loaded'), loaded, `reset=${allowReset}: ${stderr}`);
       }
     } finally {

@@ -1,6 +1,6 @@
 import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -8,11 +8,6 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { resolvePortLane, workerPorts } from '../../tooling/ports.mjs';
 import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs';
-import {
-  cleanupResetControlEndpoints,
-  createResetControlToken,
-  resetControlEndpoint,
-} from '../../tooling/e2e_reset_control.ts';
 
 const portLane = resolvePortLane();
 const slot = E2E_SCRIPT_TEST_SLOTS.runtime;
@@ -231,7 +226,6 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
   await mkdir(lock, { recursive: true });
   await writeFile(db, 'stale');
   await writeFile(`${db}.template`, 'stale template');
-  let resetToken;
   const runtime = await import('./e2eWorkerRuntime.mjs');
   const guardianScript = new URL('./e2eProcessGuardian.mjs', import.meta.url);
   const waitExit = (child) =>
@@ -253,29 +247,11 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
     return guardian;
   };
   const resetLease = async () => rm(lock, { recursive: true, force: true });
-  const putOwner = async (groups, resetToken) => {
+  const putOwner = async (groups) => {
     await mkdir(lock, { recursive: true });
-    await writeFile(owner, JSON.stringify({ pid: 999_999_999, groups, resetToken }));
+    await writeFile(owner, JSON.stringify({ pid: 999_999_999, groups }));
   };
   try {
-    // A crashed worker may leave its private control socket behind after its process group exits.
-    resetToken = createResetControlToken();
-    const endpoint = resetControlEndpoint(resetToken, 'api');
-    const crash = spawnSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        `import { createResetControlServer } from ${JSON.stringify(new URL('../../tooling/e2e_reset_control.ts', import.meta.url).href)}; const server = createResetControlServer(${JSON.stringify(resetToken)}, 'api', { status: () => ({}), pause: async () => ({}), resume: async () => ({}) }); await server.ready; process.exit(0);`,
-      ],
-      { cwd: process.cwd(), encoding: 'utf8' },
-    );
-    assert.equal(crash.status, 0, crash.stderr);
-    await access(endpoint);
-    await putOwner([], resetToken);
-    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
-    await assert.rejects(access(endpoint), { code: 'ENOENT' });
-
     // Crash after spawn but before recording the guardian: no service has been STARTed.
     await resetLease();
     await putOwner([]);
@@ -340,7 +316,6 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
       false,
     );
   } finally {
-    if (resetToken) await cleanupResetControlEndpoints(resetToken);
     await rm(db, { force: true });
     await rm(`${db}.template`, { force: true });
     await resetLease();
