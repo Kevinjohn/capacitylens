@@ -2,7 +2,11 @@ import { inject } from '@adonisjs/core';
 import { PlanningService } from '#services/planning_service';
 import type { PlanningHistoryStepInput } from '#validators/planning/contracts';
 import { CurrentActorService, type RequestAuth } from '#services/auth/current_actor_service';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import {
+  MutationIdReusedException,
+  PlanningOperationException,
+  RecordChangedException,
+} from '#exceptions/planning_operation_exception';
 import { EmptyHistoryException } from '#exceptions/empty_history_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 
@@ -36,8 +40,8 @@ export class PlanningHistoryStepService {
         error instanceof ValidationRefusalException ||
         (error instanceof PlanningOperationException &&
           !(error instanceof EmptyHistoryException) &&
-          error.code !== 'STALE_REVISION' &&
-          error.code !== 'MUTATION_ID_REUSED')
+          !(error instanceof RecordChangedException) &&
+          !(error instanceof MutationIdReusedException))
       ) {
         await this.#currentActor.withActor(auth, (actor, trx) =>
           this.#planning.abandonPlanningHistory({

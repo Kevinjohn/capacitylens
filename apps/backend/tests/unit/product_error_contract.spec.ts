@@ -12,11 +12,6 @@ import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import {
-  PlanningOperationException,
-  membershipUnavailable,
-} from '#exceptions/planning_operation_exception';
-import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
 import { errors as limiterErrors, LimiterResponse } from '@adonisjs/limiter';
 import {
@@ -47,6 +42,15 @@ import {
 } from '#validators/invitations';
 import { inspectResetValidator } from '#validators/credentials';
 import loggerConfig from '#config/logger';
+import {
+  MembershipLostException,
+  RecordChangedException,
+  PlanningConflictException,
+} from '#exceptions/planning_operation_exception';
+import {
+  RestorationConfirmationRequiredException,
+  RestorationConfirmationStaleException,
+} from '#exceptions/restoration_confirmation_exception';
 
 /** The `err` field as the logger writes it. */
 const serializeErr = (error: unknown) => loggerConfig.loggers.app.serializers!.err!(error);
@@ -267,8 +271,8 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     { error: 'Invitation has already been used.', code: 'CONFLICT' },
   ],
   [
-    'membershipUnavailable',
-    () => answered(membershipUnavailable()),
+    'MembershipLostException',
+    () => answered(new MembershipLostException()),
     403,
     { error: 'Company membership is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
   ],
@@ -571,25 +575,14 @@ test.group('product error adapters', () => {
     assert.equal(result.status, 422);
     assert.deepEqual(result.body, { errors: messages });
   });
-  test('planning operation refusals send the status and code the service states', async ({
+  test('planning operation refusals send the status and code their class states', async ({
     assert,
   }) => {
-    const conflict = await answerOnPlanning(
-      new PlanningOperationException(409, null, 'The record is in use.')
-    );
+    const conflict = await answerOnPlanning(new PlanningConflictException('The record is in use.'));
     assert.equal(conflict.status, 409);
     assert.deepEqual(conflict.body, { error: 'The record is in use.' });
 
-    // No code is inferred from the status, and a stated code does not rewrite the status.
-    const uncoded = await answerOnPlanning(
-      new PlanningOperationException(400, null, 'Nothing to restore.')
-    );
-    assert.equal(uncoded.status, 400);
-    assert.deepEqual(uncoded.body, { error: 'Nothing to restore.' });
-
-    const stale = await answerOnPlanning(
-      new PlanningOperationException(409, 'STALE_REVISION', 'Reload first.')
-    );
+    const stale = await answerOnPlanning(new RecordChangedException('Reload first.'));
     assert.equal(stale.status, 409);
     assert.deepEqual(stale.body, { error: 'Reload first.', code: 'STALE_REVISION' });
   });
@@ -597,7 +590,9 @@ test.group('product error adapters', () => {
     assert,
   }) => {
     for (const stale of [false, true]) {
-      const error = new RestorationConfirmationException(3, stale);
+      const error = stale
+        ? new RestorationConfirmationStaleException(3)
+        : new RestorationConfirmationRequiredException(3);
       const result = await answerOnPlanning(error);
       assert.equal(result.status, 409);
       assert.deepEqual(result.body, {

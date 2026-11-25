@@ -6,8 +6,8 @@ import { AuthorizationService } from '#services/auth/authorization_service';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
-  PlanningOperationException,
-  membershipUnavailable,
+  MembershipLostException,
+  PlanningAuthorizationException,
 } from '#exceptions/planning_operation_exception';
 
 /** The verified actor behind one planning operation and what that member may do and see. */
@@ -32,7 +32,7 @@ export class PlanningAccessService {
     const user = await this.#masqueradeModes.resolveEffectiveReadUser(
       trx,
       companyId,
-      membershipUnavailable
+      () => new MembershipLostException()
     );
     const membership = await this.#authorization.getActiveMembership(
       user.effectiveId,
@@ -40,20 +40,12 @@ export class PlanningAccessService {
       trx
     );
     if (!membership || (user.companyId !== null && user.companyId !== companyId)) {
-      throw new PlanningOperationException(
-        403,
-        'ACCOUNT_MEMBERSHIP_LOST',
-        'Company membership is unavailable.'
-      );
+      throw new MembershipLostException();
     }
     // Abilities belong to the effective member, whose membership this is.
     const role = this.#authorization.requireStoredRole(membership);
     if (!access.can(role, 'planning:read')) {
-      throw new PlanningOperationException(
-        403,
-        'AUTHORIZATION_DENIED',
-        'This action is not allowed.'
-      );
+      throw new PlanningAuthorizationException();
     }
     const masquerading = user.isMasquerading;
     const planningAccess: PlanningAccess = {

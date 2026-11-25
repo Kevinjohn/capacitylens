@@ -33,7 +33,7 @@ import {
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { PlanningAuthorizationException } from '#exceptions/planning_operation_exception';
 
 // Widened so a stored value of unknown type can be checked against the known kinds.
 const resourceKinds: readonly unknown[] = RESOURCE_KINDS;
@@ -75,7 +75,7 @@ export function assertMayWriteRestrictedFields(
       Object.hasOwn(fields, field) &&
       !(mode === 'create' && rule.emptyAllowedOnCreate && isEmptyValue(fields[field]))
   );
-  if (named) throw new PlanningOperationException(403, 'AUTHORIZATION_DENIED', rule.refusal);
+  if (named) throw new PlanningAuthorizationException(rule.refusal);
 }
 
 const IMMUTABLE_COMPANY_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const;

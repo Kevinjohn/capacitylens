@@ -42,9 +42,16 @@ import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 import { EmptyHistoryException } from '#exceptions/empty_history_exception';
-import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
+import {
+  PlanningAuthorizationException,
+  MutationIdReusedException,
+  NoChangeException,
+} from '#exceptions/planning_operation_exception';
+import {
+  RestorationConfirmationRequiredException,
+  RestorationConfirmationStaleException,
+} from '#exceptions/restoration_confirmation_exception';
 
 export type { PlanningAccess };
 
@@ -169,11 +176,7 @@ export class PlanningService {
   async readArchiveRecovery(trx: TransactionClientContract, companyId: string) {
     const { planningAccess } = await this.#access.resolvePlanningAccess(trx, companyId);
     if (!planningAccess.canWrite) {
-      throw new PlanningOperationException(
-        403,
-        'AUTHORIZATION_DENIED',
-        'This action is not allowed.'
-      );
+      throw new PlanningAuthorizationException();
     }
     const data = await this.#stateRepository.readStateWithClient(trx, companyId, true);
     return archiveRecovery(data, companyId, planningAccess.role);
@@ -232,18 +235,10 @@ export class PlanningService {
       companyId
     );
     if (!planningAccess.canWrite) {
-      throw new PlanningOperationException(
-        403,
-        'AUTHORIZATION_DENIED',
-        'This action is not allowed.'
-      );
+      throw new PlanningAuthorizationException();
     }
     if (await this.#restoration.isMutationCommitted(trx, companyId, input.mutationId)) {
-      throw new PlanningOperationException(
-        409,
-        'MUTATION_ID_REUSED',
-        'This mutation identity has already committed.'
-      );
+      throw new MutationIdReusedException();
     }
     this.#planningRevisions.assertPlanningBaseRevision(
       input.baseRevision,
@@ -290,11 +285,7 @@ export class PlanningService {
         ? archiveImpact(before, intent.entity.entity, intent.entity.id)
         : undefined;
     if (changesNothing(written)) {
-      throw new PlanningOperationException(
-        400,
-        'NO_CHANGE',
-        'The operation does not change planning data.'
-      );
+      throw new NoChangeException('The operation does not change planning data.');
     }
     // Private names and activity kind can change what a saved before-image may safely reveal.
     // A restoration group is valid only until one of those fields actually changes.
@@ -305,10 +296,10 @@ export class PlanningService {
         input.confirmedRestorationCount !== undefined &&
         input.confirmedRestorationCount !== count
       ) {
-        throw new RestorationConfirmationException(count, true);
+        throw new RestorationConfirmationStaleException(count);
       }
       if (count > 0 && input.confirmedRestorationCount === undefined) {
-        throw new RestorationConfirmationException(count, false);
+        throw new RestorationConfirmationRequiredException(count);
       }
       await this.#restoration.discardRestorationGroups(trx, companyId);
     }
