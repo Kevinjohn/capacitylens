@@ -1,4 +1,5 @@
 import logger from '@adonisjs/core/services/logger';
+import loggerConfig from '#config/logger';
 import { test } from '@japa/runner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
@@ -83,14 +84,14 @@ test.group('backup diagnostics', (group) => {
     }) as typeof logger.error;
     try {
       const response = await client.get('/health/ready');
-      assert.deepEqual(errors, [
-        [
-          {
-            reason: `Database schema drift: shipped migrations are not recorded (${String(record!.name)})`,
-          },
-          'Database readiness check failed',
-        ],
-      ]);
+      assert.lengthOf(errors, 1);
+      const [fields, message] = errors[0] as [{ err: unknown; reason: string }, string];
+      assert.equal(message, 'Database readiness check failed');
+      assert.instanceOf(fields.err, Error);
+      assert.equal(
+        fields.reason,
+        `Database schema drift: shipped migrations are not recorded (${String(record!.name)})`
+      );
       assert.equal(response.status(), 503);
       assert.isFalse(response.body().isHealthy);
       const check = response
@@ -184,10 +185,12 @@ test.group('backup diagnostics', (group) => {
           backup: { newestBackupAt: null },
         },
       });
-      assert.deepEqual(warnings, [
-        [{ code: 'Error' }, 'Diagnostics could not read database state'],
-      ]);
-      assert.notInclude(JSON.stringify(warnings), 'PRIVATE_DATABASE_PATH_TOKEN');
+      assert.lengthOf(warnings, 1);
+      const [fields, message] = warnings[0] as [{ err: unknown }, string];
+      assert.equal(message, 'Diagnostics could not read database state');
+      const logged = loggerConfig.loggers.app.serializers!.err!(fields.err);
+      assert.deepEqual(logged, { category: 'unexpected', errorName: 'Error' });
+      assert.notInclude(JSON.stringify(logged), 'PRIVATE_DATABASE_PATH_TOKEN');
       assert.notInclude(JSON.stringify(response.body()), 'PRIVATE_DATABASE_PATH_TOKEN');
     } finally {
       logger.warn = originalWarn;

@@ -3,7 +3,7 @@ import {
   E_DUPLICATE_REQUEST_CONFLICT,
   E_INVALID_COMMAND_VALUE,
 } from '@kevinjohn/adonisjs-duplicate-request-guard';
-import { ProductException } from '#exceptions/product_exception';
+import ProductException from '#exceptions/product_exception';
 import { AccountOperationService } from '#services/account_operation_service';
 
 const accountOperations = new AccountOperationService();

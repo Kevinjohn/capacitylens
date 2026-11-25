@@ -2,7 +2,7 @@
 // limit, or of whether a company exists yet, reads through these functions.
 
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
-import { MultipleCompaniesException } from '#exceptions/admission_exception';
+import MultipleCompaniesException from '#exceptions/multiple_companies_exception';
 
 type CompanyReader = Pick<Trx, 'from'>;
 

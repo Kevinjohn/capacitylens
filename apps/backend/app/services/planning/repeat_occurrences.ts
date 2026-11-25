@@ -11,7 +11,7 @@ import {
 import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { requireExistingRow } from '#services/planning/writer';
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
 
 // The server's expansion of a repeat pattern into dated occurrences, using the shared rules.
 

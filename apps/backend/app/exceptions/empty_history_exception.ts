@@ -1,6 +1,6 @@
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import PlanningOperationException from '#exceptions/planning_operation_exception';
 
 /** The caller's history holds no step in that direction; nothing was attempted or refused. */
-export class EmptyHistoryException extends PlanningOperationException {
+export default class EmptyHistoryException extends PlanningOperationException {
   static status = 409;
 }

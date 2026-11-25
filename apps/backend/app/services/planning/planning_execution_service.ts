@@ -31,14 +31,12 @@ import {
   RestorationService,
   type RestorationIdentity,
 } from '#services/planning/restoration_service';
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
-import {
-  PlanningOperationException,
-  PlanningAuthorizationException,
-  NoChangeException,
-  PlanningConflictException,
-} from '#exceptions/planning_operation_exception';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
+import PlanningOperationException from '#exceptions/planning_operation_exception';
+import PlanningAuthorizationException from '#exceptions/planning_authorization_exception';
+import NoChangeException from '#exceptions/no_change_exception';
+import PlanningConflictException from '#exceptions/planning_conflict_exception';
+import EntityWriteException from '#exceptions/entity_write_exception';
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
 

@@ -2,7 +2,7 @@ import env from '#start/env';
 import app from '@adonisjs/core/services/app';
 import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types';
 import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger';
-import { UnexpectedException } from '#exceptions/unexpected_exception';
+import UnexpectedException from '#exceptions/unexpected_exception';
 import { describeFailure } from '#services/logging_safety';
 
 const ERROR_CATEGORIES = new Map<string, string>([
@@ -26,6 +26,15 @@ export function classifyLogError(error: unknown): string {
   } catch {
     return 'unexpected';
   }
+}
+
+/** The class name and an upper-case error code, never a message or a caller-controlled value. */
+export function describeErrorIdentity(error: unknown): { errorName: string; code?: string } {
+  if (!(error instanceof Error)) return { errorName: typeof error };
+  const code = 'code' in error ? error.code : undefined;
+  return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code)
+    ? { errorName: error.constructor.name, code }
+    : { errorName: error.constructor.name };
 }
 
 type AppLoggerConfig = LoggerConfig & {
@@ -60,7 +69,7 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
               ...describeFailure(error.cause),
             };
           }
-          return { category: classifyLogError(error) };
+          return { category: classifyLogError(error), ...describeErrorIdentity(error) };
         },
       },
 

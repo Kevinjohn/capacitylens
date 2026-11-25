@@ -7,7 +7,7 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import capacitylens from '#config/capacitylens';
-import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
+import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
 import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { signUpValidator } from '#validators/auth_requests';
 import { emailInUseAnswer } from '#exceptions/credential_answers';
@@ -65,10 +65,7 @@ export default class NewAccountController {
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
-      logger.warn(
-        { code: error instanceof Error ? error.name : 'UNKNOWN' },
-        'Sign-in after registration failed'
-      );
+      logger.warn({ err: error }, 'Sign-in after registration failed');
       return response.accepted(await serialize({ accountCreated: true, signInRequired: true }));
     }
   }
