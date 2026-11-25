@@ -19,7 +19,7 @@ async function getCurrentLink(trx: Trx, companyId: string, userId: string) {
 
 async function getResource(trx: Trx, companyId: string, resourceId: string) {
   return Resource.query({ client: trx })
-    .where('company_id', companyId)
+    .withScopes((scopes) => scopes.forCompany(companyId))
     .where('id', resourceId)
     .first();
 }
