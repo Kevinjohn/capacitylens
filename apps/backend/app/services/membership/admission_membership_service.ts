@@ -2,7 +2,6 @@ import { inject } from '@adonisjs/core';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { AdmissionRuleService } from '#services/account_kit/admission_rule_service';
-import { hasNoCompany, getInstallationCompanyId } from '#services/installation_company';
 import access from '#config/access_control';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
@@ -10,6 +9,7 @@ import {
   CompanySetupRequiredException,
   MembershipSuspendedException,
 } from '#exceptions/admission_exception';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** Company membership for an identity the Account Kit has admitted. */
 @inject()
@@ -18,17 +18,20 @@ export class AdmissionMembershipService {
   #admissionRules: AdmissionRuleService;
   #audit: AuditService;
   #planningRevisions: PlanningRevisionService;
+  #installationCompany: InstallationCompanyService;
 
   constructor(
     admission: AccountAdmission,
     admissionRules: AdmissionRuleService,
     audit: AuditService,
-    planningRevisions: PlanningRevisionService
+    planningRevisions: PlanningRevisionService,
+    installationCompany: InstallationCompanyService
   ) {
     this.#admission = admission;
     this.#admissionRules = admissionRules;
     this.#audit = audit;
     this.#planningRevisions = planningRevisions;
+    this.#installationCompany = installationCompany;
   }
 
   /**
@@ -38,7 +41,7 @@ export class AdmissionMembershipService {
    * membership is returned unchanged; a suspended one is never restored here.
    */
   async completeMembership(userId: string, trx: TransactionClientContract) {
-    const companyId = await getInstallationCompanyId(trx);
+    const companyId = await this.#installationCompany.getInstallationCompanyId(trx);
     if (!companyId) {
       throw new CompanySetupRequiredException();
     }
@@ -69,7 +72,7 @@ export class AdmissionMembershipService {
   /** Whether any company exists while this identity has no membership row in any company. */
   async isMembershipRequired(userId: string, trx: TransactionClientContract) {
     return (
-      !(await hasNoCompany(trx)) &&
+      !(await this.#installationCompany.hasNoCompany(trx)) &&
       !(await trx.from(access.config.membershipsTable).where('user_id', userId).first())
     );
   }

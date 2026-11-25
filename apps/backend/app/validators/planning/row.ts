@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
+import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import { ENTITY_FIELDS, type FieldSpec } from '@capacitylens/shared/types/entityFields';
 import { findFieldProblem, type RowRuleContext } from '@capacitylens/shared/types/entityFieldRules';
 
@@ -11,37 +11,18 @@ const rowField = vine.createRule<{ field: string; spec: FieldSpec; context: RowR
   { name: 'entityField', implicit: true }
 );
 
-const validators = new Map<string, ReturnType<typeof vine.create>>();
-
 /**
- * Checks one complete stored row against its table's field specs without coercing supplied scalar
- * values. Fields the table does not list are dropped from the result.
- *
- * @throws Vine's validation error when a field is refused.
+ * Compiles the validator for one complete stored row of `table` under `context`. It checks each
+ * field the table lists without coercing supplied scalar values and drops fields the table does
+ * not list.
  */
-export async function validateRow<K extends AppDataKey>(
-  table: K,
-  row: Record<string, unknown>
-): Promise<AppData[K][number]> {
-  // Only these row facts change a field rule, so one compiled schema serves each combination.
-  const context: RowRuleContext = {
-    externalResource: table === 'resources' && row.kind === 'external',
-    builtinClient: table === 'clients' && row.builtin === true,
-  };
-  const cacheKey = `${table}:${context.externalResource}:${context.builtinClient}`;
-  let validator = validators.get(cacheKey);
-  if (!validator) {
-    const specs: Record<string, FieldSpec> = ENTITY_FIELDS[table];
-    const properties = Object.fromEntries(
-      Object.entries(specs).map(([field, spec]) => [
-        field,
-        vine.any().optional().use(rowField({ field, spec, context })),
-      ])
-    );
-    validator = vine.create(vine.object(properties));
-    validators.set(cacheKey, validator);
-  }
-  // The row was just validated against this table's field specs, which the compiler holds equal
-  // to the entity interface, so it is a row of this table.
-  return (await validator.validate(row)) as AppData[K][number];
+export function buildRowValidator(table: AppDataKey, context: RowRuleContext) {
+  const specs: Record<string, FieldSpec> = ENTITY_FIELDS[table];
+  const properties = Object.fromEntries(
+    Object.entries(specs).map(([field, spec]) => [
+      field,
+      vine.any().optional().use(rowField({ field, spec, context })),
+    ])
+  );
+  return vine.create(vine.object(properties));
 }

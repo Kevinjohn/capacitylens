@@ -1,18 +1,26 @@
+import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import db from '@adonisjs/lucid/services/db';
 import { setProofHeaders } from '#services/request_helpers';
-import { getInstallationCompany } from '#services/installation_company';
 import { invalidLinkAnswer } from '#exceptions/credential_answers';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** What an invitation link offers. */
+@inject()
 export default class InvitationLinksController {
+  #installationCompany: InstallationCompanyService;
+
+  constructor(installationCompany: InstallationCompanyService) {
+    this.#installationCompany = installationCompany;
+  }
+
   /** What the link offers, without spending it. */
   async show({ params, response, serialize }: HttpContext) {
     setProofHeaders(response);
     const invitation = await accountKit.invitations.inspect({ token: params.token });
     if (!invitation) return response.notFound(invalidLinkAnswer);
-    const { companyId, companyName } = await getInstallationCompany(db);
+    const { companyId, companyName } = await this.#installationCompany.getInstallationCompany(db);
     return serialize({
       companyId,
       companyName,

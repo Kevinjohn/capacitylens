@@ -6,6 +6,7 @@ import {
 } from '@capacitylens/shared/domain/lifecycle';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
+import capacitylens from '#config/capacitylens';
 import { readCompanyToday } from '#services/company_today';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { buildCapacitySection } from '#services/planning/capacity_section';
@@ -144,7 +145,7 @@ export class PlanningService {
     const revision = await this.#planningRevisions.getPlanningRevision(trx, companyId);
     const data = await this.#stateRepository.readStateWithClient(trx, companyId, true);
     const company = data.companies.find((row) => row.id === companyId);
-    const today = readCompanyToday(company?.timezone ?? null);
+    const today = readCompanyToday(company?.timezone ?? null, capacitylens.fixedToday, Date.now());
     const visible = transformState(buildActiveData(data), companyId, planningAccess.role);
     const base: PlanningReadBase = {
       companyId,

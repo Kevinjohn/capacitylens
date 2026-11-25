@@ -6,8 +6,10 @@ import {
   prepareCompanyImport,
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyExport';
-import { validateRow } from '#validators/planning/row';
+import { RowValidationService } from '#services/planning/row_validation_service';
 import { transformState } from '#transformers/state_transformer';
+
+const rowValidation = new RowValidationService();
 
 function confidentialSource() {
   const source = seed();
@@ -121,7 +123,7 @@ test.group('company import contract regressions', () => {
       const keys = ['companies', 'clients', 'projects', 'resources', 'disciplines'] as const;
       for (const [index, row] of rows.entries()) {
         row.color = color;
-        const validated = await validateRow(
+        const validated = await rowValidation.validateRow(
           keys[index]!,
           row as unknown as Record<string, unknown>
         );

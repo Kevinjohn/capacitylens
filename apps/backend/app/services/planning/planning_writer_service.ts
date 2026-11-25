@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core';
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities';
@@ -10,7 +11,7 @@ import { rowAttributes } from '#models_support/row_attributes';
 import { assertFrozenCompanyFields } from '#services/planning/entity_rules';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { requireExistingRow, type WrittenRow } from '#services/planning/writer';
-import { validateRow } from '#validators/planning/row';
+import { RowValidationService } from '#services/planning/row_validation_service';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
   PlanningAuthorizationException,
@@ -19,7 +20,14 @@ import {
 import { FrozenCompanyFieldException } from '#exceptions/entity_write_exception';
 
 /** Planning row writes in the caller's transaction. */
+@inject()
 export class PlanningWriterService {
+  #rowValidation: RowValidationService;
+
+  constructor(rowValidation: RowValidationService) {
+    this.#rowValidation = rowValidation;
+  }
+
   /**
    * The model row for a product row the company snapshot holds, bound to the caller's transaction.
    * The snapshot was read in this transaction and follows each write, so it is the stored row, and
@@ -94,7 +102,7 @@ export class PlanningWriterService {
     }
     const now = createServerRevision(existing.updatedAt);
     candidate.updatedAt = now;
-    const validated = await validateRow('companies', candidate);
+    const validated = await this.#rowValidation.validateRow('companies', candidate);
     validated.name = cleanText(validated.name);
     // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
     fillNullableFields('companies', validated);

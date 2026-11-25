@@ -1,10 +1,6 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import {
-  hasMultipleCompanies,
-  hasNoCompany,
-  getInstallationCompanyId,
-} from '#services/installation_company';
+import { InstallationCompanyService } from '#services/installation_company_service';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
@@ -13,30 +9,32 @@ import {
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
 
+const installationCompany = new InstallationCompanyService();
+
 test.group('installation company', (group) => {
   group.setup(() => freshDatabase());
 
   test('an installation without a company has none to name', async ({ assert }) => {
     await resetState(false);
-    assert.isTrue(await hasNoCompany(db));
-    assert.isFalse(await hasMultipleCompanies(db));
-    assert.isNull(await getInstallationCompanyId(db));
+    assert.isTrue(await installationCompany.hasNoCompany(db));
+    assert.isFalse(await installationCompany.hasMultipleCompanies(db));
+    assert.isNull(await installationCompany.getInstallationCompanyId(db));
   });
 
   test('a single company is the installation company', async ({ assert }) => {
     await resetState('single');
     const [company] = await db.from('companies').select('id');
-    assert.isFalse(await hasNoCompany(db));
-    assert.isFalse(await hasMultipleCompanies(db));
-    assert.equal(await getInstallationCompanyId(db), String(company.id));
+    assert.isFalse(await installationCompany.hasNoCompany(db));
+    assert.isFalse(await installationCompany.hasMultipleCompanies(db));
+    assert.equal(await installationCompany.getInstallationCompanyId(db), String(company.id));
   });
 
   test('a second company is refused with one code', async ({ assert }) => {
     await resetState(true);
-    assert.isFalse(await hasNoCompany(db));
-    assert.isTrue(await hasMultipleCompanies(db));
+    assert.isFalse(await installationCompany.hasNoCompany(db));
+    assert.isTrue(await installationCompany.hasMultipleCompanies(db));
     try {
-      await getInstallationCompanyId(db);
+      await installationCompany.getInstallationCompanyId(db);
       assert.fail('Expected the second company to be refused');
     } catch (error) {
       assert.include(error, {

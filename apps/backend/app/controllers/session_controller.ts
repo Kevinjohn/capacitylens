@@ -8,13 +8,13 @@ import {
   E_ACCOUNT_KIT_INVALID_SESSION,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
-import { isMailConfigured } from '#services/mail_delivery';
 import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { buildUserProjection } from '#services/auth/user_projection';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { signInValidator } from '#validators/auth_requests';
-import { hasAnyIdentity } from '#services/installation_company';
 import { FirstCompanySetupService } from '#services/first_company_setup_service';
+import { InstallationCompanyService } from '#services/installation_company_service';
+import { MailDeliveryService } from '#services/mail_delivery_service';
 
 /** The caller's sign-in: who is signed in, signing in with a password, and signing out. */
 @inject()
@@ -23,17 +23,23 @@ export default class SessionController {
   #currentActor: CurrentActorService;
   #admissionMemberships: AdmissionMembershipService;
   #firstCompanySetup: FirstCompanySetupService;
+  #installationCompany: InstallationCompanyService;
+  #mailDelivery: MailDeliveryService;
 
   constructor(
     admissionMemberships: AdmissionMembershipService,
     passwordSignIn: PasswordSignInService,
     currentActor: CurrentActorService,
-    firstCompanySetup: FirstCompanySetupService
+    firstCompanySetup: FirstCompanySetupService,
+    installationCompany: InstallationCompanyService,
+    mailDelivery: MailDeliveryService
   ) {
     this.#admissionMemberships = admissionMemberships;
     this.#passwordSignIn = passwordSignIn;
     this.#currentActor = currentActor;
     this.#firstCompanySetup = firstCompanySetup;
+    this.#installationCompany = installationCompany;
+    this.#mailDelivery = mailDelivery;
   }
 
   /**
@@ -67,11 +73,11 @@ export default class SessionController {
     } catch (error) {
       // Does work: a missing session reads whether any identity exists for the 401 body.
       if (!(error instanceof E_ACCOUNT_KIT_INVALID_SESSION)) throw error;
-      const hasUsers = await hasAnyIdentity(db);
+      const hasUsers = await this.#installationCompany.hasAnyIdentity(db);
       return response.unauthorized({
         error: 'Sign-in required.',
         code: 'SIGN_IN_REQUIRED',
-        passwordResetEmail: isMailConfigured(),
+        passwordResetEmail: this.#mailDelivery.isMailConfigured(),
         ...(!hasUsers ? { needsSetup: true } : {}),
       });
     }

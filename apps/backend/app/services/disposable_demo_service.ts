@@ -12,7 +12,7 @@ import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import { productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
 import capacitylens from '#config/capacitylens';
-import { hasNoCompany } from '#services/installation_company';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** The disposable development demo installation. */
 @inject()
@@ -20,21 +20,24 @@ export class DisposableDemoService {
   #developmentBootstrap: DevelopmentBootstrapService;
   #initialCompanyAccess: InitialCompanyAccessService;
   #admission: AccountAdmission;
+  #installationCompany: InstallationCompanyService;
 
   constructor(
     developmentBootstrap: DevelopmentBootstrapService,
     initialCompanyAccess: InitialCompanyAccessService,
-    admission: AccountAdmission
+    admission: AccountAdmission,
+    installationCompany: InstallationCompanyService
   ) {
     this.#developmentBootstrap = developmentBootstrap;
     this.#initialCompanyAccess = initialCompanyAccess;
     this.#admission = admission;
+    this.#installationCompany = installationCompany;
   }
 
   /** Insert the single disposable company graph and its first membership in one transaction. */
   async #insertDisposableDemoSeed(ownerId: string) {
     await db.transaction(async (trx) => {
-      if (!(await hasNoCompany(trx))) {
+      if (!(await this.#installationCompany.hasNoCompany(trx))) {
         throw new Error('Refusing demo seed: companies already exist');
       }
       if (await trx.from('memberships').first()) {
@@ -80,7 +83,7 @@ export class DisposableDemoService {
   /** Demo preparation and seeding are restricted to an empty development installation. */
   async assertEmptyDemoInstallation(app: ApplicationService) {
     if (app.inProduction) throw new Error('Disposable demo preparation is forbidden in production');
-    if (!(await hasNoCompany(db))) {
+    if (!(await this.#installationCompany.hasNoCompany(db))) {
       throw new Error('Refusing demo seed: companies already exist');
     }
     if (await db.from('memberships').first()) {

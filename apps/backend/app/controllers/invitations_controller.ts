@@ -2,10 +2,10 @@ import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
-import { isMailConfigured } from '#services/mail_delivery';
 import { refuseInvalidAdmission } from '#exceptions/admission_errors';
 import { InvitationAnswerService } from '#services/admission/invitation_answer_service';
 import { createInvitationValidator } from '#validators/invitations';
+import { MailDeliveryService } from '#services/mail_delivery_service';
 
 /**
  * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.
@@ -14,16 +14,18 @@ import { createInvitationValidator } from '#validators/invitations';
 @inject()
 export default class InvitationsController {
   #invitations: InvitationAnswerService;
+  #mailDelivery: MailDeliveryService;
 
-  constructor(invitations: InvitationAnswerService) {
+  constructor(invitations: InvitationAnswerService, mailDelivery: MailDeliveryService) {
     this.#invitations = invitations;
+    this.#mailDelivery = mailDelivery;
   }
 
   async store({ auth, request, response, logger, serialize }: HttpContext) {
     const body = await request.validateUsing(createInvitationValidator, { data: request.body() });
     const { email } = body;
     const actorId = await this.#invitations.requireInvitationManager(auth, body.companyId);
-    if (!isMailConfigured()) {
+    if (!this.#mailDelivery.isMailConfigured()) {
       return response.serviceUnavailable(this.#invitations.buildMailUnavailableBody());
     }
     try {
