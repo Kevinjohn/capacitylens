@@ -2,7 +2,6 @@ import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { transformState } from '#transformers/state_transformer';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import access from '#config/access_control';
 import { PlanningAccessService } from '#services/planning/planning_access_service';
 import {
   buildCompanyExport,
@@ -44,7 +43,7 @@ export default class CompanyExportsController {
       const rows = await this.#stateRepository.readStateWithClient(
         trx,
         companyId,
-        access.can(planningAccess.role, 'members:manage')
+        this.#stateRepository.mayReadInactive(planningAccess.role)
       );
       return serializeCompanyExport(
         buildCompanyExport(transformState(rows, companyId, planningAccess.role), {
