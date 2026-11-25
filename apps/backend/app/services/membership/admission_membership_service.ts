@@ -6,10 +6,8 @@ import { hasNoCompany, getInstallationCompanyId } from '#services/installation_c
 import access from '#config/access_control';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
-import {
-  CompanySetupRequiredException,
-  MembershipSuspendedException,
-} from '#exceptions/admission_exception';
+import CompanySetupRequiredException from '#exceptions/company_setup_required_exception';
+import MembershipSuspendedException from '#exceptions/membership_suspended_exception';
 
 /** Company membership for an identity the Account Kit has admitted. */
 @inject()

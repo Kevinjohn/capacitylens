@@ -7,7 +7,7 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import capacitylens from '#config/capacitylens';
-import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
+import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
 import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { signUpValidator } from '#validators/auth_requests';
 import { requestData } from '#validators/request_rules';

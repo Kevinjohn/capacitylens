@@ -4,7 +4,7 @@ import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
 import User from '#models/user';
-import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
+import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import {

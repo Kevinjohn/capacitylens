@@ -1,7 +1,7 @@
-import { ProductException } from '#exceptions/product_exception';
+import ProductException from '#exceptions/product_exception';
 
 /** A stale-revision conflict; the authoritative comparison occurs under the write transaction. */
-export class StalePlanningRevisionException extends ProductException {
+export default class StalePlanningRevisionException extends ProductException {
   static status = 409;
   static code = 'STALE_REVISION';
 

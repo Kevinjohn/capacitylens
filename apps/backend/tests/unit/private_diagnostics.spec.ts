@@ -4,8 +4,8 @@ import {
   E_ACCOUNT_KIT_UNVERIFIED_EMAIL,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { PasswordConfirmationException } from '#exceptions/password_confirmation_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
+import PasswordConfirmationException from '#exceptions/password_confirmation_exception';
 import { test } from '@japa/runner';
 import { PasswordConfirmationRequiredException } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import type { HttpContext } from '@adonisjs/core/http';

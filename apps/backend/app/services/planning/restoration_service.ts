@@ -20,11 +20,9 @@ import { rowAttributes } from '#models_support/row_attributes';
 import { transformRow } from '#transformers/row_transformer';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { asRecord, requireExistingRow, type WrittenRow } from '#services/planning/writer';
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
-import {
-  PlanningAuthorizationException,
-  PlanningConflictException,
-} from '#exceptions/planning_operation_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
+import PlanningAuthorizationException from '#exceptions/planning_authorization_exception';
+import PlanningConflictException from '#exceptions/planning_conflict_exception';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
 export interface RestorationIdentity {

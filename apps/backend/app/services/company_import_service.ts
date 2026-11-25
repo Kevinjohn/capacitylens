@@ -24,11 +24,9 @@ import { PlanningRevisionService } from '#services/planning_revision_service';
 import { AuditService } from '#services/audit_service';
 import { RestorationService } from '#services/planning/restoration_service';
 import { PlanningHistoryService } from '#services/planning/planning_history_service';
-import {
-  EntityNotFoundException,
-  ImportIdCollisionException,
-  ImportSnapshotStaleException,
-} from '#exceptions/entity_write_exception';
+import EntityNotFoundException from '#exceptions/entity_not_found_exception';
+import ImportIdCollisionException from '#exceptions/import_id_collision_exception';
+import ImportSnapshotStaleException from '#exceptions/import_snapshot_stale_exception';
 
 const INSERT_CHUNK_SIZE = 32;
 const ID_LOOKUP_CHUNK_SIZE = 200;

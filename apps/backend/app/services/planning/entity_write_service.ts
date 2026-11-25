@@ -20,8 +20,8 @@ import {
 } from '#services/planning/restoration_service';
 import { asRecord, type WrittenRow } from '#services/planning/writer';
 import { PlanningWriterService } from '#services/planning/planning_writer_service';
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
-import { RecordChangedException } from '#exceptions/planning_operation_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
+import RecordChangedException from '#exceptions/record_changed_exception';
 
 interface WriteEntityOptions<K extends ScopedEntityKey> {
   trx: TransactionClientContract;

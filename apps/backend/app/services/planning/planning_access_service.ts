@@ -5,10 +5,8 @@ import access from '#config/access_control';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import {
-  MembershipLostException,
-  PlanningAuthorizationException,
-} from '#exceptions/planning_operation_exception';
+import MembershipLostException from '#exceptions/membership_lost_exception';
+import PlanningAuthorizationException from '#exceptions/planning_authorization_exception';
 
 /** The verified actor behind one planning operation and what that member may do and see. */
 export interface PlanningAccess extends PlanningAccessGrant {

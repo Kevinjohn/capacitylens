@@ -4,7 +4,7 @@ import { transformState } from '#transformers/state_transformer';
 import { assertMayWriteRestrictedFields } from '#services/planning/entity_rules';
 import { RESTRICTED_FIELDS } from '#services/planning/restricted_fields';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import PlanningOperationException from '#exceptions/planning_operation_exception';
 
 // An Editor sees neither private names nor time-off notes.
 const editor = {

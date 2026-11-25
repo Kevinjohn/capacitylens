@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
 import {
   firstCompanySetupMessage,
   createFirstCompanyValidator,
