@@ -9,16 +9,12 @@ import { controllers } from '#generated/controllers';
 export function registerPlanningRoutes() {
   router
     .group(() => {
-      router.get('/companies/:companyId/planning', [controllers.Planning, 'show']);
-      router
-        .get('/companies/:companyId/planning/archive', [controllers.PlanningArchive, 'show'])
-        .use(sensitive());
-      router.post('/companies/:companyId/planning/mutations', [
-        controllers.PlanningMutations,
-        'store',
-      ]);
-      router.post('/companies/:companyId/planning/undo', [controllers.PlanningUndo, 'store']);
-      router.post('/companies/:companyId/planning/redo', [controllers.PlanningRedo, 'store']);
+      router.get('/', [controllers.Planning, 'show']);
+      router.get('/archive', [controllers.PlanningArchive, 'show']).use(sensitive());
+      router.post('/mutations', [controllers.PlanningMutations, 'store']);
+      router.post('/undo', [controllers.PlanningUndo, 'store']);
+      router.post('/redo', [controllers.PlanningRedo, 'store']);
     })
+    .prefix('/companies/:companyId/planning')
     .use([middleware.accountGate({ access: 'admitted' }), ...asPlanningMember()]);
 }

@@ -12,59 +12,55 @@ import { controllers } from '#generated/controllers';
 /** Registers invitation, admission and member resource routes. */
 export function registerAdmissionRoutes() {
   router
-    .post('/invitations', [controllers.Invitations, 'store'])
-    .use([middleware.accountGate({ access: 'admitted' }), ...asMember()]);
+    .group(() => {
+      router.post('/invitations', [controllers.Invitations, 'store']).use(asMember());
+      router
+        .group(() => {
+          router.get('/', [controllers.Invitations, 'index']).use(asCompanyMemberOnly());
+          router
+            .post('/:id/resend', [controllers.InvitationDeliveries, 'store'])
+            .use(asCompanyMember());
+          router.delete('/:id', [controllers.Invitations, 'destroy']).use(asCompanyMember());
+        })
+        .prefix('/companies/:companyId/invitations');
+    })
+    .use(middleware.accountGate({ access: 'admitted' }));
   router
-    .get('/companies/:companyId/invitations', [controllers.Invitations, 'index'])
-    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMemberOnly()]);
-  router
-    .post('/companies/:companyId/invitations/:id/resend', [
-      controllers.InvitationDeliveries,
-      'store',
-    ])
-    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
-  router
-    .delete('/companies/:companyId/invitations/:id', [controllers.Invitations, 'destroy'])
-    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
-  router
-    .get('/invitations/:token/preview', [controllers.InvitationLinks, 'show'])
-    .use(asOwnAccount());
-  router
-    .post('/invitations/:token/sign-up', [controllers.InvitationAcceptances, 'store'])
+    .group(() => {
+      router.get('/preview', [controllers.InvitationLinks, 'show']);
+      router.post('/sign-up', [controllers.InvitationAcceptances, 'store']);
+    })
+    .prefix('/invitations/:token')
     .use(asOwnAccount());
 
   router
-    .get('/admission', [controllers.Admission, 'show'])
-    .use([middleware.accountGate({ access: 'limited' }), ...asMemberOnly()]);
-  router
-    .post('/admission/request', [controllers.AdmissionRequests, 'store'])
-    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
-  router
-    .post('/admission/complete', [controllers.Memberships, 'store'])
-    .use([middleware.accountGate({ access: 'admitted' }), ...asMember()]);
-  router
-    .get('/admission/requests', [controllers.AdmissionRequests, 'index'])
-    .use([middleware.accountGate({ access: 'limited' }), ...asMemberOnly()]);
-  router
-    .post('/admission/:userId/approve', [controllers.AdmissionApprovals, 'store'])
-    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
-  router
-    .post('/admission/:userId/reject', [controllers.AdmissionRejections, 'store'])
-    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
-  router
-    .post('/admission/:userId/revoke', [controllers.AdmissionRevocations, 'store'])
-    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
+    .group(() => {
+      router
+        .group(() => {
+          router.get('/', [controllers.Admission, 'show']).use(asMemberOnly());
+          router.post('/request', [controllers.AdmissionRequests, 'store']).use(asMember());
+          router.get('/requests', [controllers.AdmissionRequests, 'index']).use(asMemberOnly());
+          router
+            .group(() => {
+              router.post('/approve', [controllers.AdmissionApprovals, 'store']);
+              router.post('/reject', [controllers.AdmissionRejections, 'store']);
+              router.post('/revoke', [controllers.AdmissionRevocations, 'store']);
+            })
+            .prefix('/:userId')
+            .use(asMember());
+        })
+        .use(middleware.accountGate({ access: 'limited' }));
+      router
+        .post('/complete', [controllers.Memberships, 'store'])
+        .use([middleware.accountGate({ access: 'admitted' }), ...asMember()]);
+    })
+    .prefix('/admission');
 
   router
-    .put('/companies/:companyId/members/:userId/resource-link', [
-      controllers.MemberResourceLinks,
-      'update',
-    ])
-    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
-  router
-    .delete('/companies/:companyId/members/:userId/resource-link', [
-      controllers.MemberResourceLinks,
-      'destroy',
-    ])
+    .group(() => {
+      router.put('/', [controllers.MemberResourceLinks, 'update']);
+      router.delete('/', [controllers.MemberResourceLinks, 'destroy']);
+    })
+    .prefix('/companies/:companyId/members/:userId/resource-link')
     .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
 }

@@ -7,21 +7,15 @@ import { controllers } from '#generated/controllers';
 export function registerMembershipRoutes() {
   router
     .group(() => {
+      router.get('/members', [controllers.Members, 'index']).use(asCompanyMemberOnly());
       router
-        .get('/companies/:companyId/members', [controllers.Members, 'index'])
-        .use(asCompanyMemberOnly());
-      router
-        .put('/companies/:companyId/member-sign-in-tracking', [
-          controllers.MemberSignInTracking,
-          'update',
-        ])
-        .use(asCompanyMember());
-      router
-        .patch('/companies/:companyId/members/:userId', [controllers.Members, 'update'])
-        .use(asCompanyMember());
-      router
-        .patch('/companies/:companyId/members/:userId/status', [controllers.MemberStatus, 'update'])
+        .group(() => {
+          router.put('/member-sign-in-tracking', [controllers.MemberSignInTracking, 'update']);
+          router.patch('/members/:userId', [controllers.Members, 'update']);
+          router.patch('/members/:userId/status', [controllers.MemberStatus, 'update']);
+        })
         .use(asCompanyMember());
     })
+    .prefix('/companies/:companyId')
     .use(middleware.accountGate({ access: 'admitted' }));
 }

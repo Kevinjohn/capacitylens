@@ -128,12 +128,6 @@ const routes = {
     tokens: [[0,"api"],[0,"auth"],[0,"sign-in"]],
     types: placeholder as Registry['api.session.store']['types'],
   },
-  'api.session.destroy': {
-    methods: ["POST"],
-    pattern: '/api/auth/sign-out',
-    tokens: [[0,"api"],[0,"auth"],[0,"sign-out"]],
-    types: placeholder as Registry['api.session.destroy']['types'],
-  },
   'api.password_confirmations.store': {
     methods: ["POST"],
     pattern: '/api/auth/password-confirmation',
@@ -187,6 +181,12 @@ const routes = {
     pattern: '/api/auth/verification/complete',
     tokens: [[0,"api"],[0,"auth"],[0,"verification"],[0,"complete"]],
     types: placeholder as Registry['api.email_verifications.update']['types'],
+  },
+  'api.session.destroy': {
+    methods: ["POST"],
+    pattern: '/api/auth/sign-out',
+    tokens: [[0,"api"],[0,"auth"],[0,"sign-out"]],
+    types: placeholder as Registry['api.session.destroy']['types'],
   },
   'api.members.index': {
     methods: ["GET","HEAD"],
@@ -260,12 +260,6 @@ const routes = {
     tokens: [[0,"api"],[0,"admission"],[0,"request"]],
     types: placeholder as Registry['api.admission_requests.store']['types'],
   },
-  'api.memberships.store': {
-    methods: ["POST"],
-    pattern: '/api/admission/complete',
-    tokens: [[0,"api"],[0,"admission"],[0,"complete"]],
-    types: placeholder as Registry['api.memberships.store']['types'],
-  },
   'api.admission_requests.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/admission/requests',
@@ -290,6 +284,12 @@ const routes = {
     tokens: [[0,"api"],[0,"admission"],[1,"userId"],[0,"revoke"]],
     types: placeholder as Registry['api.admission_revocations.store']['types'],
   },
+  'api.memberships.store': {
+    methods: ["POST"],
+    pattern: '/api/admission/complete',
+    tokens: [[0,"api"],[0,"admission"],[0,"complete"]],
+    types: placeholder as Registry['api.memberships.store']['types'],
+  },
   'api.member_resource_links.update': {
     methods: ["PUT"],
     pattern: '/api/companies/:companyId/members/:userId/resource-link',
@@ -308,17 +308,17 @@ const routes = {
     tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"masquerade"]],
     types: placeholder as Registry['api.masquerade.store']['types'],
   },
-  'api.masquerade.show': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/masquerade',
-    tokens: [[0,"api"],[0,"masquerade"]],
-    types: placeholder as Registry['api.masquerade.show']['types'],
-  },
   'api.masquerade.destroy': {
     methods: ["DELETE"],
     pattern: '/api/masquerade',
     tokens: [[0,"api"],[0,"masquerade"]],
     types: placeholder as Registry['api.masquerade.destroy']['types'],
+  },
+  'api.masquerade.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/masquerade',
+    tokens: [[0,"api"],[0,"masquerade"]],
+    types: placeholder as Registry['api.masquerade.show']['types'],
   },
   'api.ownership_transfers.store': {
     methods: ["POST"],

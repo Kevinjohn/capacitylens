@@ -7,15 +7,9 @@ import { controllers } from '#generated/controllers';
 export function registerAnonymiseRoutes() {
   router
     .group(() => {
-      router
-        .post('/companies/:companyId/anonymise', [controllers.CompanyAnonymisations, 'store'])
-        .use(asCompanyMember());
-      router
-        .post('/companies/:companyId/resources/:id/anonymise', [
-          controllers.ResourceAnonymisations,
-          'store',
-        ])
-        .use(asCompanyMember());
+      router.post('/anonymise', [controllers.CompanyAnonymisations, 'store']);
+      router.post('/resources/:id/anonymise', [controllers.ResourceAnonymisations, 'store']);
     })
-    .use(middleware.accountGate({ access: 'admitted' }));
+    .prefix('/companies/:companyId')
+    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
 }

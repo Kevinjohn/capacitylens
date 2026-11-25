@@ -3,27 +3,29 @@ import { asOwnAccount } from '#start/route_middleware';
 import { controllers } from '#generated/controllers';
 
 export function registerAuthRoutes() {
-  router.get('/auth/me', [controllers.Session, 'show']).use(asOwnAccount());
-  router.post('/auth/sign-up', [controllers.NewAccount, 'store']).use(asOwnAccount());
-  router.post('/auth/sign-in', [controllers.Session, 'store']).use(asOwnAccount());
-  router.post('/auth/sign-out', [controllers.Session, 'destroy']);
   router
-    .post('/auth/password-confirmation', [controllers.PasswordConfirmations, 'store'])
-    .use(asOwnAccount());
-  router
-    .post('/auth/request-reset', [controllers.PasswordResetRequests, 'store'])
-    .use(asOwnAccount());
-  router.post('/auth/inspect-reset', [controllers.PasswordResets, 'show']).use(asOwnAccount());
-  router.post('/auth/reset-password', [controllers.PasswordResets, 'update']).use(asOwnAccount());
-  router.post('/auth/change-password', [controllers.Password, 'update']).use(asOwnAccount());
-  router.post('/auth/delete-account', [controllers.Account, 'destroy']).use(asOwnAccount());
-  router
-    .post('/auth/verification/send', [controllers.EmailVerificationRequests, 'store'])
-    .use(asOwnAccount());
-  router
-    .post('/auth/verification/inspect', [controllers.EmailVerifications, 'show'])
-    .use(asOwnAccount());
-  router
-    .post('/auth/verification/complete', [controllers.EmailVerifications, 'update'])
-    .use(asOwnAccount());
+    .group(() => {
+      router
+        .group(() => {
+          router.get('/me', [controllers.Session, 'show']);
+          router.post('/sign-up', [controllers.NewAccount, 'store']);
+          router.post('/sign-in', [controllers.Session, 'store']);
+          router.post('/password-confirmation', [controllers.PasswordConfirmations, 'store']);
+          router.post('/request-reset', [controllers.PasswordResetRequests, 'store']);
+          router.post('/inspect-reset', [controllers.PasswordResets, 'show']);
+          router.post('/reset-password', [controllers.PasswordResets, 'update']);
+          router.post('/change-password', [controllers.Password, 'update']);
+          router.post('/delete-account', [controllers.Account, 'destroy']);
+          router
+            .group(() => {
+              router.post('/send', [controllers.EmailVerificationRequests, 'store']);
+              router.post('/inspect', [controllers.EmailVerifications, 'show']);
+              router.post('/complete', [controllers.EmailVerifications, 'update']);
+            })
+            .prefix('/verification');
+        })
+        .use(asOwnAccount());
+      router.post('/sign-out', [controllers.Session, 'destroy']);
+    })
+    .prefix('/auth');
 }

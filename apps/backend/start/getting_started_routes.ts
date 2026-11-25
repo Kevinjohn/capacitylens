@@ -7,12 +7,9 @@ import { controllers } from '#generated/controllers';
 export function registerGettingStartedRoutes() {
   router
     .group(() => {
-      router
-        .get('/companies/:companyId/getting-started', [controllers.GettingStarted, 'show'])
-        .use(asCompanyMemberOnly());
-      router
-        .put('/companies/:companyId/getting-started', [controllers.GettingStarted, 'update'])
-        .use(asCompanyMember());
+      router.get('/', [controllers.GettingStarted, 'show']).use(asCompanyMemberOnly());
+      router.put('/', [controllers.GettingStarted, 'update']).use(asCompanyMember());
     })
+    .prefix('/companies/:companyId/getting-started')
     .use(middleware.accountGate({ access: 'admitted' }));
 }

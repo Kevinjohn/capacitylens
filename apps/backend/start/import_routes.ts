@@ -7,8 +7,9 @@ import { controllers } from '#generated/controllers';
 export function registerImportRoutes() {
   router
     .group(() => {
-      router.post('/import/preview', [controllers.ImportPreviews, 'store']).use(asMember());
-      router.post('/import/apply', [controllers.Imports, 'store']).use(asMember());
+      router.post('/preview', [controllers.ImportPreviews, 'store']);
+      router.post('/apply', [controllers.Imports, 'store']);
     })
-    .use(middleware.accountGate({ access: 'admitted' }));
+    .prefix('/import')
+    .use([middleware.accountGate({ access: 'admitted' }), ...asMember()]);
 }
