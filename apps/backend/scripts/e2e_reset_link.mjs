@@ -10,11 +10,14 @@ const importer = (filePath) => {
 };
 
 const email = process.argv[2];
-const refuse = () => {
+if (
+  process.env.NODE_ENV !== 'development' ||
+  process.env.CAPACITYLENS_DB !== '.auth-e2e.db' ||
+  !email?.endsWith('@capacitylens.dev')
+) {
   console.error('The reset-link fixture requires the disposable auth E2E environment.');
   process.exit(1);
-};
-if (!email?.endsWith('@capacitylens.dev')) refuse();
+}
 
 const ignitor = new Ignitor(appRoot, { importer }).tap((app) => {
   app.booting(async () => {
@@ -27,11 +30,6 @@ let initialized = false;
 try {
   await app.init();
   initialized = true;
-  const { default: capacitylens } = await import('#config/capacitylens');
-  if (!app.inDev || capacitylens.databasePath !== '.auth-e2e.db') {
-    await app.terminate();
-    refuse();
-  }
   await app.boot();
   const accountKit = await app.container.make(AccountKit);
   const result = await accountKit.operator.resetLink({ email, deliver: 'print' });
