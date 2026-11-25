@@ -19,6 +19,10 @@ import { registerDiagnosticsRoutes } from '#start/diagnostics_routes';
 // The Access Control package accepts string keys of 1 to 254 characters. A longer company or member
 // identifier matches no route and answers 404 instead of reaching the package.
 for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
+// A record id is at most 128 characters and an invitation link token at most 512. A longer one
+// matches no route; a malformed one within the bound still answers the params validation failure.
+router.where('id', /^.{1,128}$/);
+router.where('token', /^.{1,512}$/);
 
 // Health is registered first, in its own group, so the API throttle does not count it.
 router

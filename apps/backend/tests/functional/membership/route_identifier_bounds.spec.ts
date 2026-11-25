@@ -21,7 +21,7 @@ test.group('company route identifier bounds', (group) => {
     await clearIdentities();
   });
 
-  test('identifiers longer than the package accepts match no route', async ({ client }) => {
+  test('identifiers longer than their route bound match no route', async ({ client }) => {
     const user = await User.findOrFail(
       await createIdentity(owner.email, { name: owner.name, password: owner.password })
     );
@@ -31,6 +31,10 @@ test.group('company route identifier bounds', (group) => {
       client.get(`/api/companies/${tooLong}/members`),
       client.patch(`/api/companies/a-studio/members/${tooLong}`).json({ role: 'editor' }),
       client.put(`/api/companies/a-studio/members/${tooLong}/resource-link`).json({}),
+      client.post(`/api/companies/a-studio/resources/${'a'.repeat(129)}/anonymise`).json({}),
+      client.post(`/api/companies/a-studio/invitations/${'1'.repeat(129)}/resend`).json({}),
+      client.delete(`/api/companies/a-studio/invitations/${'1'.repeat(129)}`),
+      client.get(`/api/invitations/${'t'.repeat(513)}/preview`),
     ];
     for (const request of refused) {
       const response = await asLoggedInDataOwner(request, user).send();
