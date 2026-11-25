@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
+import { errors as vineErrors } from '@vinejs/vine';
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import {
   archive,
@@ -458,14 +459,7 @@ export class PlanningExecutionService {
           ? new NoChangeException(error.message)
           : new ValidationRefusalException(error.message);
       }
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'E_VALIDATION_ERROR' &&
-        'messages' in error &&
-        Array.isArray(error.messages)
-      ) {
+      if (error instanceof vineErrors.E_VALIDATION_ERROR) {
         const first = error.messages[0];
         throw new ValidationRefusalException(
           typeof first?.message === 'string' ? first.message : 'The operation is invalid.'
