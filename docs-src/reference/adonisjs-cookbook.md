@@ -897,7 +897,7 @@ export default class HealthChecksController {
 - **TST-11 (P)** A test file contains tests only. Reusable code is in `tests/helpers/`.
 - **TST-12 (P)** No `let` or `var` is shared across tests at file scope. A test creates what it
   needs, or a group hook does.
-- **TST-13 (P)** A Playwright text locator states `exact`.
+- **TST-13 (P)** Every `getByText('...')` call given a string passes `exact: true` or `exact: false`. A role locator or a `filter` call needs none.
 - **TST-14 (H)** A test title is a lowercase sentence that says what happens. A group title is a
   noun phrase.
 - **TST-15 (F)** `.env.test` sets `SESSION_DRIVER=memory`, so `loginAs` and `withSession` work in
@@ -997,9 +997,7 @@ README.
 
 - **PKG-10 (F)** Nothing outside the export map is importable. A consumer never imports from
   `build/src/...`.
-- **PKG-11 (F)** Public types live in `src/types.ts` and are exported from `./types`. Lists the
-  application extends (`LimitersList`) are interfaces there, augmented from the application's
-  config file.
+- **PKG-11 (F)** Public types live in `src/types.ts`, exported from `./types`; the file may re-export from other type files. Lists the application extends (`LimitersList`) are interfaces there, augmented from the application's config file. Types that need an optional peer dependency are exported from `./types/<name>` instead, as `@adonisjs/auth` exports `./types/session`.
 - **PKG-12 (H)** The export map is public API. Removing or renaming a subpath is a breaking change.
 
 Recipe, `index.ts` (`@adonisjs/limiter`, shortened):
@@ -1024,9 +1022,7 @@ export { defineConfig, stores } from './src/define_config.ts'
   `defineEnvVariables`, `defineEnvValidations`, `registerJapaPlugin`, `registerPolicies`.
   `@adonisjs/assembler` is an optional peer dependency because the codemods need it.
 - **PKG-15 (H)** The hook is safe to run twice.
-- **PKG-16 (F)** Choices come from a flag first, then a prompt: `command.parsedFlags.store`, else
-  `command.prompt.choice(...)`. An invalid choice sets `command.exitCode = 1`, logs through
-  `command.logger` and returns.
+- **PKG-16 (F)** Choices come from a flag first, then a prompt: `command.parsedFlags.store`, else `command.prompt.choice(...)`. An invalid choice sets `command.exitCode = 1`, logs through `command.logger` and returns. With no flag and no terminal to prompt on, the hook does the same and names the missing flag.
 - **PKG-17 (F)** Templates are `.stub` files under `stubs/`, in folders that mirror where they
   land: `stubs/config/<name>.stub`, `stubs/start/<name>.stub`, `stubs/make/migration/<name>.stub`.
   Each stub states its destination with `exports({ to: app.configPath('<name>.ts') })`.
@@ -1099,9 +1095,7 @@ export async function configure(command: Configure) {
 - **PKG-29 (F)** A named binding has a `services/main.ts` that resolves it after boot and
   default-exports it, so the application writes `import limiter from
   '@adonisjs/limiter/services/main'`.
-- **PKG-30 (F)** Macros, `HttpContext` properties and Edge plugins are registered by the provider,
-  with their type augmentation beside them. A Japa plugin is exported from `./plugins/<tool>` for
-  the application to register in `tests/bootstrap.ts`.
+- **PKG-30 (F)** A property a middleware sets on `HttpContext` is typed in that middleware's file (MID-6), as `@adonisjs/session` does. Macros, getters and Edge plugins the provider registers have their type augmentation in the provider file. A Japa plugin is exported from `./plugins/<tool>` for the application to register in `tests/bootstrap.ts`.
 
 Recipes (`@adonisjs/limiter`; the provider omits its `EventsList` line):
 
@@ -1159,7 +1153,7 @@ export { limiter as default }
 - **PKG-31 (F)** Every exception the package throws is defined in `src/errors.ts`, one class per
   cause: `<Cause>Exception extends Exception`, with `static code = 'E_<CODE>'` and `static status`.
   Each distinct cause has its own raw code, including distinct failures previously thrown by one
-  class. Parameter values that describe the same cause do not need separate classes.
+  class. A cause is the rule or contract that failed; a different field, value, message or route alone is not a different cause.
   A subclass that answers with its parent's response keeps its parent's code and is still exported
   under its own `E_<CODE>` name.
   The file exports each class under its code, `export const E_<CODE> = <Cause>Exception`, and
@@ -1181,15 +1175,10 @@ export { limiter as default }
 - **PKG-47 (F)** A package never throws a bare `Error`. Wrong configuration or wrong use by the
   application's developer throws `InvalidArgumentsException` or `RuntimeException` from
   `@adonisjs/core/exceptions` (PKG-21); everything else is a class in `src/errors.ts`.
-- **PKG-33 (F)** An exception that maps to an HTTP response implements `handle` on itself, so the
-  application's handler needs no special case.
-- **PKG-34 (F)** Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`.
-  A package does not write to `console` and does not log through the application's logger unless
-  the application asked it to.
-- **PKG-35 (F)** A package is built from classes, with `defineConfig` and other small factory
-  functions as the function exports.
-- **PKG-36 (F)** A middleware the package ships is a class with `handle(ctx, next, options?)`,
-  exported from its own subpath and registered by the configure hook.
+- **PKG-33 (F)** An exception whose response needs more than its status, code and message (a header, a redirect, a different body) implements `handle` on itself, so the application's handler needs no special case. Every other exception is left for the framework to render.
+- **PKG-34 (F)** Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console`. It logs through the application's logger only when the application's configuration passes a logger or selects a reporting mode that says so.
+- **PKG-35 (F)** State, I/O and anything that takes a dependency is a class. An exported function is one of: `defineConfig`; `configure`; a factory that returns an instance or a config provider; a decorator; a mixin; a plugin for Edge, Japa or the assembler; or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable.
+- **PKG-36 (F)** A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath. A function that returns middleware builds on that class. The configure hook registers the middleware, except one that must run after the application's own authentication middleware: the README tells the application where to mount that one.
 - **PKG-37 (F)** A command the package ships is a file in `commands/`. The build writes
   `build/commands/main.js` with `adonis-kit index build/commands`, exported as `./commands` and
   registered with `rcFile.addCommand('<package>/commands')`.
@@ -1277,16 +1266,11 @@ it.
 
 ### Compound failures
 
-**PKG-49 (H)** Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule and PKG-47's
-`src/errors.ts` rule only when the work fails and its cleanup fails too. Its `errors[0]` is the
-primary failure; subsequent failures follow in the order observed. Every function that can throw or
-propagate one documents it in `@throws`. Never use it for an expected 4xx outcome or a case on which
-a caller needs to branch; use a package exception class for that case instead.
+**PKG-49 (H)** Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule and PKG-47's `src/errors.ts` rule in two cases only: the work fails and its cleanup fails too, or the work succeeds and more than one cleanup step fails. `errors[0]` is the work's failure, or the first cleanup failure when the work succeeded; later failures follow in the order observed. An `AggregateError` received from another layer is passed on unchanged. Every function that throws one or passes one on documents it in `@throws`. Never use it for an expected 4xx outcome or a case on which a caller needs to branch; use a package exception class for that case instead.
 
 ## Tests and release
 
-- **PKG-39 (F)** Tests run on Japa through `bin/test.ts`, in `tests/**/*.spec.ts`. Shared test code
-  is in one helpers file.
+- **PKG-39 (F)** Tests run on Japa through `bin/test.ts`, in `tests/**/*.spec.ts`. Shared test code is in `tests/helpers.ts`, or in files under `tests/helpers/`.
 - **PKG-40 (F)** The configure hook has a test (`tests/configure.spec.ts`) that runs it against a
   scratch application with `@japa/file-system` and asserts the files it wrote.
 - **PKG-41 (F)** The provider has a test that boots an application with it and resolves the
