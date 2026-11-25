@@ -29,7 +29,7 @@ flowchart TD
   entry["AccountView, AccessScreen or CompanySetup triggers auth.signOut"] --> request["AuthProvider calls signOutAndReload and authApi.signOut"]
   request --> current["SessionController.destroy reads the current sign-in through the raw web guard"]
   current -->|Valid sign-in| identified["Use this user ID and registry handle"]
-  current -->|InvalidSessionError| previous["Read stored user ID and previous handle from this browser session"]
+  current -->|E_ACCOUNT_KIT_INVALID_SESSION| previous["Read stored user ID and previous handle from this browser session"]
   previous -->|Valid ID and handle, including after idle expiry| identified
   previous -->|No usable ID or handle| terminate["Account Kit terminates the browser session"]
   identified --> remove["Account Kit deletes the matching registry row for this sign-in"]

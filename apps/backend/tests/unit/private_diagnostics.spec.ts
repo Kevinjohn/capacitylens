@@ -1,6 +1,9 @@
 import app from '@adonisjs/core/services/app';
-import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
-import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
+import {
+  E_ACCOUNT_KIT_INVALID_SESSION,
+  E_ACCOUNT_KIT_UNVERIFIED_EMAIL,
+} from '@kevinjohn/adonisjs-account-kit/errors';
+import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { PasswordConfirmationException } from '#exceptions/password_confirmation_exception';
 import { test } from '@japa/runner';
@@ -56,8 +59,8 @@ test.group('private diagnostics', () => {
   }) => {
     const handler = new HttpExceptionHandler();
     for (const [error, status] of [
-      [new InvalidSessionError(), 401],
-      [new UnverifiedEmailError(), 403],
+      [new E_ACCOUNT_KIT_INVALID_SESSION(), 401],
+      [new E_ACCOUNT_KIT_UNVERIFIED_EMAIL(), 403],
       [new IdentityAuthorizationException('PRIVATE_AUTHORIZATION'), 403],
       [new PasswordConfirmationException(), 403],
       [new PasswordConfirmationRequiredException(), 403],
@@ -75,16 +78,16 @@ test.group('private diagnostics', () => {
   }) => {
     const handler = new HttpExceptionHandler();
     const refused = diagnosticContext();
-    const refusal = new AccessControlError('E_ACCESS_CONTROL_FORBIDDEN');
+    const refusal = new accessControlErrors.E_ACCESS_CONTROL_FORBIDDEN();
     await handler.handle(refusal, refused.context);
     await handler.report(refusal, refused.context);
     assert.equal(refused.status(), 403);
     assert.deepEqual(refused.records, []);
 
     const faulted = diagnosticContext();
-    const fault = new AccessControlError('E_ACCESS_CONTROL_INVALID_INPUT', {
-      message: 'access-control: acceptInvitation requires a transaction',
-    });
+    const fault = new accessControlErrors.E_ACCESS_CONTROL_INVALID_INPUT(
+      'access-control: acceptInvitation requires a transaction'
+    );
     await handler.handle(fault, faulted.context);
     await handler.report(fault, faulted.context);
     assert.equal(faulted.status(), 500);

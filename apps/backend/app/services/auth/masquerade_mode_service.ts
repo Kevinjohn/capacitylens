@@ -9,7 +9,7 @@ import { inject } from '@adonisjs/core';
 // separate explicit, company-switch or sign-out classification.
 
 import type { HttpContext } from '@adonisjs/core/http';
-import { MasqueradeError as PackageMasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade';
 import app from '@adonisjs/core/services/app';
 import { nativeAdapter } from '#services/auth/masquerade_authority_service';
@@ -24,7 +24,6 @@ import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { buildAccessGrant } from '#services/auth/access_grant';
 
-export { PackageMasqueradeError as MasqueradeError };
 export type { ModeView };
 
 /** The view-as mode: its current state, start and end, and the identity a read uses. */
@@ -57,10 +56,7 @@ export class MasqueradeModeService {
     try {
       await service.resolve(ctx);
     } catch (error) {
-      if (
-        !(error instanceof PackageMasqueradeError) ||
-        error.code !== 'E_MASQUERADE_CONTEXT_CHANGED'
-      ) {
+      if (!(error instanceof masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED)) {
         throw error;
       }
     }
@@ -72,7 +68,7 @@ export class MasqueradeModeService {
       .where('id', view.targetId)
       .select('display_name', 'email')
       .first();
-    if (!target) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+    if (!target) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
     let companyId: string | null = null;
     let effectiveRole: Role | null = null;
     if (requestedCompanyId) {
@@ -113,12 +109,12 @@ export class MasqueradeModeService {
           break;
         }
       }
-      if (!companyId) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+      if (!companyId) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
     }
     // An empty display name falls through to the email, so these are string-or-empty, not nullable.
     const displayName = String(target.display_name ?? '');
     const email = String(target.email ?? '');
-    if (!effectiveRole) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+    if (!effectiveRole) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
     return {
       active: true as const,
       companyId,
@@ -160,7 +156,7 @@ export class MasqueradeModeService {
     const actor = this.#currentActor.requireActor(trx);
     const context = actor.masqueradeContext;
     if (!context || context.actorId !== actor.userId) {
-      throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+      throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
     }
     if (context.isMasquerading) {
       // Without a company there is no rank to check, so a view never reads company-free.

@@ -1,11 +1,11 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
-import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { E_ACCOUNT_KIT_INVALID_SESSION } from '@kevinjohn/adonisjs-account-kit/errors';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { endMasqueradeValidator, startMasqueradeValidator } from '#validators/masquerade';
 
@@ -38,7 +38,7 @@ export default class MasqueradeController {
       body.targetUserId,
       ctx.request.header('X-Masquerade-Context') ?? ''
     );
-    if (!started.isMasquerading) throw new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
+    if (!started.isMasquerading) throw new masqueradeErrors.E_MASQUERADE_UNAVAILABLE();
     return ctx.serialize({
       ...(await this.#masqueradeModes.readCurrentMasquerade(ctx, db.connection(), companyId)),
       companyId,
@@ -70,7 +70,7 @@ export default class MasqueradeController {
       );
     } catch (error) {
       // Does work: no session is the inactive status, not a refusal.
-      if (error instanceof InvalidSessionError) {
+      if (error instanceof E_ACCOUNT_KIT_INVALID_SESSION) {
         return ctx.serialize({ active: false, masqueradeToken: null });
       }
       throw error;
@@ -83,9 +83,9 @@ export default class MasqueradeController {
     });
     const header = ctx.request.header('X-Masquerade-Context');
     if (typeof header !== 'string' || !header) {
-      throw new MasqueradeError('E_MASQUERADE_CONTEXT_REQUIRED');
+      throw new masqueradeErrors.E_MASQUERADE_CONTEXT_REQUIRED();
     }
-    if (header !== body.token) throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+    if (header !== body.token) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
     const mode = await this.#masqueradeModes.endMasquerade(ctx, header);
     return ctx.serialize({ active: false, masqueradeToken: mode.contextToken });
   }

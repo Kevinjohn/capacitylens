@@ -4,7 +4,7 @@ import { AccountUserService } from '#services/account_kit/account_user_service';
 import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { RegistrationEmailAlreadyRegisteredError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED } from '@kevinjohn/adonisjs-account-kit/errors';
 import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
@@ -189,7 +189,7 @@ test.group('ordinary authentication request contracts', (group) => {
     const originalRegister = accountKit.registration.register;
     env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
     accountKit.registration.register = async () => {
-      throw new RegistrationEmailAlreadyRegisteredError();
+      throw new E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED();
     };
     cleanup(() => {
       env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', previousSignUp);

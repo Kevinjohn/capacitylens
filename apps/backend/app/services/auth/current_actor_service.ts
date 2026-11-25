@@ -3,12 +3,15 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   AccountAdmission,
-  AdmissionRequiredError,
+  E_ACCOUNT_KIT_ADMISSION_REQUIRED,
 } from '@kevinjohn/adonisjs-account-kit/admission';
-import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
+import {
+  E_ACCOUNT_KIT_INVALID_SESSION,
+  E_ACCOUNT_KIT_UNVERIFIED_EMAIL,
+} from '@kevinjohn/adonisjs-account-kit/errors';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import { users } from '#services/account_kit/account_user_service';
-import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-password';
 
@@ -50,15 +53,15 @@ export class CurrentActorService {
   /** The Kit's admission decision for an account, read under the lock `trx` already holds. */
   async requireAdmissionDecision(userId: string | number, trx: Trx) {
     const user = await users.findById(userId, trx);
-    if (!user) throw new InvalidSessionError();
+    if (!user) throw new E_ACCOUNT_KIT_INVALID_SESSION();
     return this.#admission.decide(user, trx);
   }
 
   /** Requires the confirmed address and admission shared by product and password confirmation transactions. */
   async requireConfirmedAdmission(account: KitContext['account'], trx: Trx) {
-    if (!account.active) throw new UnverifiedEmailError();
+    if (!account.active) throw new E_ACCOUNT_KIT_UNVERIFIED_EMAIL();
     const decision = await this.requireAdmissionDecision(account.id, trx);
-    if (!decision.admitted) throw new AdmissionRequiredError(decision);
+    if (!decision.admitted) throw new E_ACCOUNT_KIT_ADMISSION_REQUIRED(decision);
   }
 
   /**
@@ -82,7 +85,7 @@ export class CurrentActorService {
     const masqueradeContext = effective.context;
     return accountKit.authentication.withCurrent(input, async (context) => {
       const { account, signInId, trx } = context;
-      if (signInId === undefined) throw new InvalidSessionError();
+      if (signInId === undefined) throw new E_ACCOUNT_KIT_INVALID_SESSION();
       if (!options.limited) {
         await this.requireConfirmedAdmission(account, trx);
       }
@@ -100,7 +103,7 @@ export class CurrentActorService {
         masqueradeContext,
       };
       if (masqueradeContext && masqueradeContext.actorId !== actor.userId) {
-        throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+        throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
       }
       actors.set(trx, actor);
       kitContexts.set(trx, context);
@@ -136,7 +139,7 @@ export class CurrentActorService {
     try {
       return await this.withActor(auth, async (actor) => actor, { limited: true });
     } catch (error) {
-      if (error instanceof InvalidSessionError) return null;
+      if (error instanceof E_ACCOUNT_KIT_INVALID_SESSION) return null;
       throw error;
     }
   }

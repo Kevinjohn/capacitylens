@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
-import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
 import { clearIdentities, signIn, signUpAndIn } from '#tests/helpers/identities';
@@ -325,7 +325,7 @@ test.group('native read-only masquerade', (group) => {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
     const originalResolve = service.resolve.bind(service);
-    const failure = new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
+    const failure = new masqueradeErrors.E_MASQUERADE_UNAVAILABLE();
     serviceWithTestFailure.resolve = async () => {
       throw failure;
     };
@@ -887,7 +887,7 @@ test.group('native read-only masquerade', (group) => {
         ],
       ] as const) {
         service.start = async () => {
-          throw new MasqueradeError(code);
+          throw new masqueradeErrors[code]();
         };
         const refused = await startView(client, cookie, targetId);
         refused.assertStatus(status);

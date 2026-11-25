@@ -2,8 +2,8 @@ import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
-  InvalidTokenError,
-  RegistrationEmailAlreadyRegisteredError,
+  E_ACCOUNT_KIT_INVALID_TOKEN,
+  E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
@@ -42,8 +42,10 @@ export default class InvitationAcceptancesController {
     } catch (error) {
       // Keeps the product codes `INVALID_TOKEN` and `EMAIL_IN_USE`, which the browser reads and
       // the Kit's own codes do not carry.
-      if (error instanceof InvalidTokenError) return response.badRequest(invalidLinkAnswer);
-      if (error instanceof RegistrationEmailAlreadyRegisteredError) {
+      if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
+        return response.badRequest(invalidLinkAnswer);
+      }
+      if (error instanceof E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED) {
         return response.conflict(emailInUseAnswer);
       }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.

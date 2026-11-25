@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
+import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
 import type { Membership } from '@kevinjohn/adonisjs-access-control/types';
 import { isRole, type Role } from '@capacitylens/shared/account/types';
 import type { PermissionKey } from '@capacitylens/shared/domain/access';
@@ -56,7 +56,7 @@ export class AuthorizationService {
       });
       return { actorId: actor.userId, role: this.requireStoredRole(membership) };
     } catch (error) {
-      if (error instanceof AccessControlError && error.code === 'E_ACCESS_CONTROL_FORBIDDEN') {
+      if (error instanceof accessControlErrors.E_ACCESS_CONTROL_FORBIDDEN) {
         throw new IdentityAuthorizationException('Forbidden.');
       }
       throw error;

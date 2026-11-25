@@ -3,7 +3,7 @@ import type { NextFn } from '@adonisjs/core/types/http';
 import app from '@adonisjs/core/services/app';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { AccountAdmission, admissionMiddleware } from '@kevinjohn/adonisjs-account-kit/admission';
-import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { E_ACCOUNT_KIT_INVALID_SESSION } from '@kevinjohn/adonisjs-account-kit/errors';
 import { managedAccountMiddleware } from '@kevinjohn/adonisjs-account-kit/http';
 import { managedGuard } from '#services/auth/managed_guard';
 
@@ -36,7 +36,7 @@ export default class AccountGateMiddleware {
     } catch (error) {
       // Keeps `SIGN_IN_REQUIRED`, which the browser reads, where the handler sends the Kit's own
       // code; every other refusal reaches the handler.
-      if (error instanceof InvalidSessionError) {
+      if (error instanceof E_ACCOUNT_KIT_INVALID_SESSION) {
         return ctx.response.unauthorized({
           error: 'Sign-in required.',
           code: 'SIGN_IN_REQUIRED',

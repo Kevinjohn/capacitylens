@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
-import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
+import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
 import ScopeMiddleware from '@kevinjohn/adonisjs-access-control/middleware';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { membershipUnavailable } from '#exceptions/planning_operation_exception';
@@ -26,7 +26,7 @@ export default class CompanyScopeMiddleware {
       });
     } catch (error) {
       // Translates the package's FORBIDDEN into the product's class; the handler answers it.
-      if (!(error instanceof AccessControlError) || error.code !== 'E_ACCESS_CONTROL_FORBIDDEN') {
+      if (!(error instanceof accessControlErrors.E_ACCESS_CONTROL_FORBIDDEN)) {
         throw error;
       }
       if (!options.planning) throw new IdentityAuthorizationException('Forbidden.');

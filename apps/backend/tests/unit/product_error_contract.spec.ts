@@ -2,22 +2,22 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
 import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
 import {
-  ThrottledError,
-  PostCommitError,
+  E_ACCOUNT_KIT_THROTTLED,
+  E_ACCOUNT_KIT_POST_COMMIT,
   accountErrorResponse,
 } from '@kevinjohn/adonisjs-account-kit';
-import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
+import { E_ACCOUNT_KIT_ADMISSION_REQUIRED } from '@kevinjohn/adonisjs-account-kit/admission';
 import app from '@adonisjs/core/services/app';
 import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
-import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import {
   PlanningOperationException,
   membershipUnavailable,
 } from '#exceptions/planning_operation_exception';
 import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
-import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
+import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
 import { errors as limiterErrors, LimiterResponse } from '@adonisjs/limiter';
 import {
   PasswordConfirmationRequiredException,
@@ -174,15 +174,15 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     () =>
       answered(
         code === 'E_MASQUERADE_ACTION_BLOCKED'
-          ? new MasqueradeError(code, { blockedBy: 'view_only' })
-          : new MasqueradeError(code)
+          ? new masqueradeErrors.E_MASQUERADE_ACTION_BLOCKED('view_only')
+          : new masqueradeErrors[code]()
       ),
     status,
     { error, code: wire },
   ]),
   [
     'E_MASQUERADE_INVALID_INPUT',
-    () => answered(new MasqueradeError('E_MASQUERADE_INVALID_INPUT')),
+    () => answered(new masqueradeErrors.E_MASQUERADE_INVALID_INPUT()),
     422,
     { errors: [{ message: 'Invalid masquerade request.' }] },
   ],
@@ -201,7 +201,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     ] as const
   ).map(([code, status, error, wire]): [string, () => unknown, number, Record<string, unknown>] => [
     code,
-    () => answered(new AccessControlError(code)),
+    () => answered(new accessControlErrors[code]()),
     status,
     { error, code: wire },
   ]),
@@ -436,7 +436,7 @@ test.group('product error adapters', () => {
     test(`${adapter} preserves kit codes, status, headers and committed metadata`, async ({
       assert,
     }) => {
-      for (const error of [new ThrottledError(37), new PostCommitError()]) {
+      for (const error of [new E_ACCOUNT_KIT_THROTTLED(37), new E_ACCOUNT_KIT_POST_COMMIT()]) {
         const { ctx, result } = context(error);
         if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
         else Object.assign(result, await answerOnPlanning(error));
@@ -453,7 +453,7 @@ test.group('product error adapters', () => {
     });
     test(`${adapter} preserves admission decisions`, async ({ assert }) => {
       const decision = { admitted: false, requirements: { invitation: { met: false } } };
-      const error = new AdmissionRequiredError(decision);
+      const error = new E_ACCOUNT_KIT_ADMISSION_REQUIRED(decision);
       const { ctx, result } = context(error);
       if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
       else Object.assign(result, await answerOnPlanning(error));
@@ -492,11 +492,13 @@ test.group('product error adapters', () => {
       });
     }
   });
-  test('AdmissionRequiredError answers 403 with one sentence and the decision on every route', async ({
+  test('E_ACCOUNT_KIT_ADMISSION_REQUIRED answers 403 with one sentence and the decision on every route', async ({
     assert,
   }) => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
-    for (const answer of await answerOnEveryRoute(() => new AdmissionRequiredError(decision))) {
+    for (const answer of await answerOnEveryRoute(
+      () => new E_ACCOUNT_KIT_ADMISSION_REQUIRED(decision)
+    )) {
       assert.deepEqual(answer, {
         status: 403,
         body: {
@@ -516,9 +518,12 @@ test.group('product error adapters', () => {
   });
   test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {
     for (const error of [
-      new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED'),
-      new MasqueradeError('E_MASQUERADE_NOT_ALLOWED'),
-      new AdmissionRequiredError({ admitted: false, requirements: { invitation: { met: false } } }),
+      new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED(),
+      new masqueradeErrors.E_MASQUERADE_NOT_ALLOWED(),
+      new E_ACCOUNT_KIT_ADMISSION_REQUIRED({
+        admitted: false,
+        requirements: { invitation: { met: false } },
+      }),
       new IdentityAuthorizationException('Invalid membership role.'),
       new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing']),
     ]) {

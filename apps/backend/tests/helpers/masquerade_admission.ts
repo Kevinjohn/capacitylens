@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
-import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
+import type { MasqueradeRuntime, ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 
 type Admission = { resolve(ctx: HttpContext): Promise<ResolvedContext> };
 
@@ -21,21 +21,26 @@ export async function masqueradeAdmission(): Promise<Admission> {
     },
   };
   const resolved = new WeakMap<HttpContext, Promise<ResolvedContext>>();
-  app.container.bindValue(
-    'masquerade.runtime',
-    Object.freeze({
-      ...runtime,
-      admit: async (ctx: HttpContext) => {
-        let pending = resolved.get(ctx);
-        if (!pending) {
-          pending = admission.resolve(ctx);
-          resolved.set(ctx, pending);
-        }
-        await pending;
-        return runtime.admit(ctx);
-      },
-    })
-  );
+  // The runtime is an abstract class type, so a spread would not carry its methods into the type.
+  const wrapped: MasqueradeRuntime = {
+    service: runtime.service,
+    config: runtime.config,
+    effectiveGuardName: runtime.effectiveGuardName,
+    effectiveGuardNames: runtime.effectiveGuardNames,
+    selectGuard: (ctx) => runtime.selectGuard(ctx),
+    activeMode: (owner) => runtime.activeMode(owner),
+    actor: (ctx) => runtime.actor(ctx),
+    admit: async (ctx: HttpContext) => {
+      let pending = resolved.get(ctx);
+      if (!pending) {
+        pending = admission.resolve(ctx);
+        resolved.set(ctx, pending);
+      }
+      await pending;
+      return runtime.admit(ctx);
+    },
+  };
+  app.container.bindValue('masquerade.runtime', Object.freeze(wrapped));
   seam = admission;
   return admission;
 }

@@ -1,6 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { InvalidTokenError, isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
+import {
+  E_ACCOUNT_KIT_INVALID_TOKEN,
+  isCommittedFailure,
+} from '@kevinjohn/adonisjs-account-kit/errors';
 import { setProofHeaders } from '#services/request_helpers';
 import { credentialUpdateCommitted, invalidLinkAnswer } from '#exceptions/credential_answers';
 import { inspectResetValidator, resetPasswordValidator } from '#validators/credentials';
@@ -29,7 +32,7 @@ export default class PasswordResetsController {
       return serialize({ ok: true });
     } catch (error) {
       // Keeps `INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
-      if (error instanceof InvalidTokenError) {
+      if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
         return response.badRequest(invalidLinkAnswer);
       }
       if (isCommittedFailure(error)) return response.serviceUnavailable(credentialUpdateCommitted);

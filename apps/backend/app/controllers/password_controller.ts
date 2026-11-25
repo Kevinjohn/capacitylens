@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
-  IdentityNotConfirmedError,
+  E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { CurrentActorService } from '#services/auth/current_actor_service';
@@ -33,7 +33,7 @@ export default class PasswordController {
       });
     } catch (error) {
       // Does work: a committed change is recorded before the session ends.
-      if (error instanceof IdentityNotConfirmedError) {
+      if (error instanceof E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED) {
         return response.forbidden({
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
