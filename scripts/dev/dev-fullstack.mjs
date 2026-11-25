@@ -143,8 +143,8 @@ export async function runDevelopmentStack({ demo = false } = {}) {
       });
       const acePreparations = [
         ['migration:run', '--force', '--no-schema-generate'],
-        ['capacitylens:demo:prepare'],
-        ['capacitylens:demo:seed'],
+        ['demo:prepare'],
+        ['demo:seed'],
       ].map((args) => ['--dir', 'apps/backend', 'exec', 'node', 'ace.js', ...args]);
       // A fresh frozen install has no compiled shared-package exports yet.
       for (const args of [

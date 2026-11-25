@@ -7,7 +7,6 @@ import { isArrayOf, isOneOf, jsonColumn } from '@kevinjohn/adonisjs-lucid-checke
 import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scalar_column';
 
 export default class Company extends CompanySchema {
-  static table = 'companies';
   // Product ids are UUIDs; without this Lucid replaces the id with SQLite's row id after insert.
   static selfAssignPrimaryKey = true;
 

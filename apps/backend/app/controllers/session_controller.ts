@@ -1,7 +1,6 @@
 import { inject } from '@adonisjs/core';
 import { AdmissionMembershipService } from '#services/membership/admission_membership_service';
 import type { HttpContext } from '@adonisjs/core/http';
-import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   E_INVALID_CREDENTIALS,
@@ -74,7 +73,7 @@ export default class SessionController {
     } catch (error) {
       // Does work: a missing session reads whether any identity exists for the 401 body.
       if (!(error instanceof E_ACCOUNT_KIT_INVALID_SESSION)) throw error;
-      const hasUsers = await this.#installationCompany.hasAnyIdentity(db);
+      const hasUsers = await this.#installationCompany.hasAnyIdentity();
       return response.unauthorized({
         error: 'Sign-in required.',
         code: 'SIGN_IN_REQUIRED',

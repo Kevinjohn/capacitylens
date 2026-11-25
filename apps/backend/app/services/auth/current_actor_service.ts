@@ -11,6 +11,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import { users } from '#services/account_kit/account_user_service';
+import User from '#models/user';
 import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-password';
@@ -89,8 +90,7 @@ export class CurrentActorService {
       if (!options.limited) {
         await this.requireConfirmedAdmission(account, trx);
       }
-      const row = await trx
-        .from('users')
+      const row = await User.query({ client: trx })
         .where('id', String(account.id))
         .select('display_name')
         .first();
@@ -98,7 +98,7 @@ export class CurrentActorService {
         userId: String(account.id),
         sessionId: signInId,
         email: account.email,
-        displayName: row?.display_name ?? null,
+        displayName: row?.displayName ?? null,
         emailVerified: account.active,
         masqueradeContext,
       };
