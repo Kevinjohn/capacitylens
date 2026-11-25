@@ -1,5 +1,4 @@
 import { inject } from '@adonisjs/core';
-import db from '@adonisjs/lucid/services/db';
 import type {
   AccountUser,
   CredentialChangeContext,
@@ -43,7 +42,7 @@ export class AdmissionRuleService {
 
   // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
   async #getCompanyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
-    const companyId = await this.#installationCompany.getInstallationCompanyId(trx ?? db);
+    const companyId = await this.#installationCompany.getInstallationCompanyId(trx);
     return companyId ? this.#authorization.getActiveCompanyRole(userId, companyId, trx) : null;
   }
 

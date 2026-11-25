@@ -9,6 +9,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import { createIdentity, signIn } from '#tests/helpers/identities';
 import { assertSafeFailure, operatorFixture } from '#tests/helpers/operator_command_helpers';
 import { DisposableDemoService } from '#services/disposable_demo_service';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 const disposableDemo = await app.container.make(DisposableDemoService);
 
@@ -120,11 +121,8 @@ test.group('disposable development demo', (group) => {
     await disposableDemo.seedDisposableDemo(app);
     // Keep a membership while making the company existence probe report empty. This stages the
     // independent membership check without manufacturing an invalid persisted foreign key.
-    const originalFrom = db.from;
-    db.from = ((table: string) =>
-      table === 'companies'
-        ? { first: async () => undefined }
-        : originalFrom.call(db, table)) as typeof db.from;
+    const originalHasNoCompany = InstallationCompanyService.prototype.hasNoCompany;
+    InstallationCompanyService.prototype.hasNoCompany = async () => true;
     try {
       await assert.rejects(
         () => disposableDemo.prepareDisposableDemo(app),
@@ -135,7 +133,7 @@ test.group('disposable development demo', (group) => {
         /memberships already exist/
       );
     } finally {
-      db.from = originalFrom;
+      InstallationCompanyService.prototype.hasNoCompany = originalHasNoCompany;
     }
     const membership = await db.from('memberships').firstOrFail();
     assert.equal(membership.user_id, owner);
@@ -195,7 +193,7 @@ test.group('disposable development demo', (group) => {
     const f = operatorFixture();
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
-      for (const command of ['capacitylens:demo:prepare', 'capacitylens:demo:seed']) {
+      for (const command of ['demo:prepare', 'demo:seed']) {
         const result = f.command([command], {
           NODE_ENV: 'development',
           CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',

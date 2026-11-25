@@ -3,7 +3,7 @@ import {
   buildExternalCapacityDefaults,
   buildPlaceholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
-import { planningMutationValidator } from '#validators/planning_operations';
+import { planningMutationValidator } from '#validators/planning';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
