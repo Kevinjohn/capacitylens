@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { ports } from '../../../tooling/ports.mjs';
 
 const testHttpPort = ports().testHttp;
+const testDatabase = fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url));
 // Fixed values are in .env.test. A shell value would win over that file, so these are dropped: a
 // date pinned in the developer's shell, for one, must not leak into tests that read the real clock.
 for (const key of [
@@ -34,7 +35,7 @@ Object.assign(process.env, {
   APP_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_TEST_HTTP_PORT: String(testHttpPort),
-  CAPACITYLENS_DB: fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url)),
+  CAPACITYLENS_DB: testDatabase,
 });
 
 import 'reflect-metadata';
@@ -89,9 +90,7 @@ const start = ignitor
     process.exitCode = 1;
     await prettyPrintError(error);
     if (error instanceof Error && error.message.startsWith('Database schema drift')) {
-      console.error(
-        `The test database is stale. Delete ${process.env.CAPACITYLENS_DB} and run the tests again.`
-      );
+      console.error(`The test database is stale. Delete ${testDatabase} and run the tests again.`);
     }
     // A failed start never reaches the runner teardown, and the open database pool would keep the
     // process alive.

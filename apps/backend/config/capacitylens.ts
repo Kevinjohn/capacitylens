@@ -42,6 +42,10 @@ const capacitylens = {
   get allowReset() {
     return env.get('CAPACITYLENS_ALLOW_RESET');
   },
+  /** This process's environment, which an operator child process such as `app:upgrade` inherits. */
+  get processEnvironment() {
+    return process.env;
+  },
 };
 
 export default capacitylens;
