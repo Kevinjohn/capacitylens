@@ -24,7 +24,11 @@ import { PlanningRevisionService } from '#services/planning_revision_service';
 import { AuditService } from '#services/audit_service';
 import { RestorationService } from '#services/planning/restoration_service';
 import { PlanningHistoryService } from '#services/planning/planning_history_service';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
+import {
+  EntityNotFoundException,
+  ImportIdCollisionException,
+  ImportSnapshotStaleException,
+} from '#exceptions/entity_write_exception';
 
 const INSERT_CHUNK_SIZE = 32;
 const ID_LOOKUP_CHUNK_SIZE = 200;
@@ -89,12 +93,7 @@ async function assertNoForeignIdCollision(
         .select('id')
         .first();
       if (foreign) {
-        throw new EntityWriteException(
-          'The import contains scheduling IDs used by another company on this server.',
-          409,
-          undefined,
-          'IMPORT_ID_COLLISION'
-        );
+        throw new ImportIdCollisionException();
       }
     }
   }
@@ -173,7 +172,7 @@ export class CompanyImportService {
     document: CompanyExport
   ) {
     const current = await this.#stateRepository.readStateWithClient(trx, companyId, true);
-    if (current.companies.length !== 1) throw new EntityWriteException('Company not found.', 404);
+    if (current.companies.length !== 1) throw new EntityNotFoundException('Company not found.');
     const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
     await assertNoForeignIdCollision(trx, companyId, prepared.data);
     const changed =
@@ -199,15 +198,10 @@ export class CompanyImportService {
     actorId: string
   ) {
     const current = await this.#stateRepository.readStateWithClient(trx, companyId, true);
-    if (current.companies.length !== 1) throw new EntityWriteException('Company not found.', 404);
+    if (current.companies.length !== 1) throw new EntityNotFoundException('Company not found.');
     const revision = await this.#planningRevisions.getPlanningRevision(trx, companyId);
     if (revision !== baseRevision) {
-      throw new EntityWriteException(
-        'The company changed. Preview the current data again.',
-        409,
-        { revision },
-        'IMPORT_SNAPSHOT_STALE'
-      );
+      throw new ImportSnapshotStaleException(revision);
     }
     const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
     await assertNoForeignIdCollision(trx, companyId, prepared.data);

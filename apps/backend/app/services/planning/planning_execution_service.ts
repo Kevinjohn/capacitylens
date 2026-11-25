@@ -31,7 +31,6 @@ import {
   RestorationService,
   type RestorationIdentity,
 } from '#services/planning/restoration_service';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 import {
   PlanningOperationException,
@@ -39,6 +38,7 @@ import {
   NoChangeException,
   PlanningConflictException,
 } from '#exceptions/planning_operation_exception';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
 

@@ -32,8 +32,16 @@ import {
 } from '#services/planning/restricted_fields';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
 import { PlanningAuthorizationException } from '#exceptions/planning_operation_exception';
+import {
+  EntityWriteException,
+  EntityNotFoundException,
+  FrozenCompanyFieldException,
+  ResourceAvatarUrlForbiddenException,
+  ResourceAvatarUrlInvalidException,
+  ResourceKindImmutableException,
+  EntityDomainRuleException,
+} from '#exceptions/entity_write_exception';
 
 // Widened so a stored value of unknown type can be checked against the known kinds.
 const resourceKinds: readonly unknown[] = RESOURCE_KINDS;
@@ -174,32 +182,19 @@ function assertResourceFields(
   }
   if (Object.hasOwn(requested, 'avatarUrl')) {
     if (requested.avatarUrl !== null && requested.avatarUrl !== undefined) {
-      throw new EntityWriteException(
-        'Only a person can have an avatar URL.',
-        400,
-        undefined,
-        'resource_avatar_url_forbidden'
-      );
+      throw new ResourceAvatarUrlForbiddenException();
     }
   }
 }
 
 function assertResourceKind(candidate: Record<string, unknown>, existing: Record<string, unknown>) {
   if (!resourceKinds.includes(existing.kind)) {
-    throw new EntityWriteException(
-      'The stored resource kind is invalid and must be repaired by import.',
-      400,
-      undefined,
-      'resource_kind_immutable'
+    throw new ResourceKindImmutableException(
+      'The stored resource kind is invalid and must be repaired by import.'
     );
   }
   if (candidate.kind !== existing.kind) {
-    throw new EntityWriteException(
-      'A resource’s kind cannot change after creation.',
-      400,
-      undefined,
-      'resource_kind_immutable'
-    );
+    throw new ResourceKindImmutableException('A resource’s kind cannot change after creation.');
   }
 }
 
@@ -246,10 +241,7 @@ export function assertFrozenCompanyFields(
       existing[field] !== null &&
       requested[field] !== existing[field]
     ) {
-      throw new EntityWriteException(
-        'Language, week start and time zone are set when the company is created and cannot be changed.',
-        409
-      );
+      throw new FrozenCompanyFieldException();
     }
     if (!Object.hasOwn(requested, field) && existing[field] !== undefined) {
       candidate[field] = existing[field];
@@ -299,7 +291,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
     throw new EntityWriteException('A string companyId is required.');
   }
   if (existing && existing.companyId !== row.companyId) {
-    throw new EntityWriteException('Not found.', 404);
+    throw new EntityNotFoundException('Not found.');
   }
   const hidden = listHiddenFields(table, accessGrant, existing);
   for (const [field, value] of Object.entries(row)) {
@@ -323,12 +315,9 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
     if (error instanceof errors.E_VALIDATION_ERROR) {
       const first = error.messages[0];
       if (typeof first?.message === 'string') {
-        throw new EntityWriteException(
-          first.message,
-          400,
-          undefined,
-          first.rule === 'resource_avatar_url_invalid' ? first.rule : undefined
-        );
+        throw first.rule === 'resource_avatar_url_invalid'
+          ? new ResourceAvatarUrlInvalidException(first.message)
+          : new EntityWriteException(first.message);
       }
     }
     throw error;
@@ -369,7 +358,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   } catch (error) {
     if (error instanceof EntityWriteException) throw error;
     if (error instanceof DomainError) {
-      throw new EntityWriteException(error.message, 400, undefined, error.code);
+      throw new EntityDomainRuleException(error);
     }
     throw error;
   }
