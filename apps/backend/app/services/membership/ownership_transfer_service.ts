@@ -15,6 +15,7 @@ import {
 } from '#services/account_operation_service';
 import TargetIneligibleException from '#exceptions/target_ineligible_exception';
 import NotFoundException from '#exceptions/not_found_exception';
+import IdempotencyConflictException from '#exceptions/idempotency_conflict_exception';
 
 /** One ownership transfer in the caller's transaction, by its verified actor. */
 export interface OwnershipTransferInput {
@@ -72,8 +73,9 @@ export class OwnershipTransferService {
         if (!currentRole) throw new IdentityAuthorizationException();
       },
       authorizeReplay: (_context, receipt) => {
+        // A receipt for another actor or target reuses this operation id for a different transfer.
         if (receipt.fromUserId !== actor.userId || receipt.toUserId !== toUserId) {
-          throw new Error('Invalid ownership transfer receipt.');
+          throw new IdempotencyConflictException();
         }
       },
       // The controller supplies a string; eligibility checks must precede the empty-confirmation refusal.
