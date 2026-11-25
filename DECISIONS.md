@@ -375,11 +375,10 @@ removed entry retires its number.
 31. **Aligning (#2550).** `bin/test.ts` holds the test values computed per port lane; the rest are
     in `.env.test`.
 32. **Aligning (#2550).** The licence file is `LICENSE`, not `LICENSE.md`.
-33. **Aligning (#2553).** Eleven `catch` blocks in ten controllers answer with the product's
+33. **Aligning (#2553).** Ten `catch` blocks in nine controllers answer with the product's
     own error body (a status of 400 or above) instead of letting the exception reach the exception
     handler. The answers on the wire do not change when they move.
-34. **Aligning (#2554).** `health_checks_controller.ts` holds two operations, `live` and `ready`,
-    that are not resourceful actions.
+34. Retired (#2554). The health check controllers are single action controllers.
 
 ## Installation
 
