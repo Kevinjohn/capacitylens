@@ -6,6 +6,7 @@ import { AuthorizationService } from '#services/auth/authorization_service';
 import { parseAffectedRows } from '#models_support/affected_rows';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
+import Resource from '#models/resource';
 
 type Trx = TransactionClientContract;
 
@@ -17,13 +18,16 @@ async function getCurrentLink(trx: Trx, companyId: string, userId: string) {
 }
 
 async function getResource(trx: Trx, companyId: string, resourceId: string) {
-  return trx.from('resources').where({ company_id: companyId, id: resourceId }).first();
+  return Resource.query({ client: trx })
+    .withScopes((scopes) => scopes.forCompany(companyId))
+    .where('id', resourceId)
+    .first();
 }
 
 /** Checks the scheduled person is still available to link. */
 async function assertAvailablePerson(trx: Trx, companyId: string, resourceId: string) {
   const row = await getResource(trx, companyId, resourceId);
-  if (row?.kind !== 'person' || row.archived_at) {
+  if (row?.kind !== 'person' || row.archivedAt) {
     refuseConflictingAdmission('The selected scheduled person is no longer available.');
   }
 }
@@ -73,7 +77,7 @@ export class MemberResourceLinkService {
     }
     if (current && current.resource_id !== resourceId) {
       const previous = await getResource(trx, companyId, String(current.resource_id));
-      if (previous?.kind !== 'person' || previous.archived_at) {
+      if (previous?.kind !== 'person' || previous.archivedAt) {
         refuseConflictingAdmission(
           'The current scheduled person is unavailable; unlink it before changing the link.'
         );

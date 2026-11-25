@@ -99,7 +99,7 @@ Then, in order:
    the URL, names the operation.
 2. `apps/backend/app/controllers/planning_mutations_controller.ts` validates the body with
    `ctx.request.validateUsing(planningMutationValidator)` from
-   `apps/backend/app/validators/planning_operations.ts`, whose union covers every operation.
+   `apps/backend/app/validators/planning.ts`, whose union covers every operation.
 3. The controller records the validated operation as `planningOperation` on the request's
    completion log line (`apps/backend/app/middleware/request_logging_middleware.ts`).
 4. `mutatePlanning` in `apps/backend/app/services/planning_service.ts` takes over.

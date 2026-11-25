@@ -1,4 +1,4 @@
-import { planningMutationValidator } from '#validators/planning_operations';
+import { planningMutationValidator } from '#validators/planning';
 import { signUpValidator } from '#validators/auth_requests';
 import { AccountUserService } from '#services/account_kit/account_user_service';
 import { test } from '@japa/runner';

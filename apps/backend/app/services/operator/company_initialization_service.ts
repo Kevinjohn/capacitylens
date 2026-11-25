@@ -9,6 +9,7 @@ import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
 import { InitialCompanyDefaultsService } from '#services/initial_company_defaults_service';
 import { InstallationCompanyService } from '#services/installation_company_service';
+import User from '#models/user';
 
 /** Operator initialisation of the first company on an empty stopped installation. */
 @inject()
@@ -50,8 +51,7 @@ export class CompanyInitializationService {
             'Refusing company initialization: installation already has company access'
           );
         }
-        const user = await trx
-          .from('users')
+        const user = await User.query({ client: trx })
           .where('email', email)
           .select('id', 'email', 'password', 'unverified_email')
           .first();
@@ -64,7 +64,7 @@ export class CompanyInitializationService {
           );
         }
         // Account Kit treats an address as confirmed unless it is still awaiting its own proof.
-        if (user.unverified_email === user.email) {
+        if (user.unverifiedEmail === user.email) {
           throw new Error('Refusing company initialization: identity has not confirmed its email');
         }
         if (!(await this.#admissionRules.isAdmitted(String(user.id), trx))) {
