@@ -75,6 +75,8 @@ test(
         return [row.firstAvailableDate, row.lastAvailableDate];
       })
       .toEqual(['2026-06-05', '2026-06-25']);
+    // The server holds the redone value before the page has read it back; a save sent in that gap is refused.
+    await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
     await page.getByRole('link', { name: 'Resources', exact: true }).click();
     await saveAvailability(page, '', '');
     await expect
