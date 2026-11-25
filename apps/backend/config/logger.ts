@@ -2,7 +2,7 @@ import env from '#start/env';
 import app from '@adonisjs/core/services/app';
 import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types';
 import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger';
-import { UnexpectedException } from '#exceptions/unexpected_exception';
+import UnexpectedException from '#exceptions/unexpected_exception';
 import { describeFailure } from '#services/logging_safety';
 
 const ERROR_CATEGORIES = new Map<string, string>([

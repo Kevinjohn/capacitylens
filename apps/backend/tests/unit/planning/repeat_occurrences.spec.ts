@@ -10,7 +10,7 @@ import {
   buildTimeOffOccurrences,
   type RepeatRange,
 } from '#services/planning/repeat_occurrences';
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
 
 const companyId = FIXTURE_COMPANY.id;
 const first = {

@@ -8,7 +8,7 @@ import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
-import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
+import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();

@@ -3,7 +3,7 @@ import { exportQueryValidator } from '#validators/export_query';
 import type { HttpContext } from '@adonisjs/core/http';
 import { transformState } from '#transformers/state_transformer';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import access from '#config/access_control';

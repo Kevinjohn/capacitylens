@@ -9,10 +9,8 @@ import { rowAttributes } from '#models_support/row_attributes';
 import { StateRepositoryService } from '#services/state_repository_service';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
-import {
-  EntityNotFoundException,
-  ExampleDataCompanyNotEmptyException,
-} from '#exceptions/entity_write_exception';
+import EntityNotFoundException from '#exceptions/entity_not_found_exception';
+import ExampleDataCompanyNotEmptyException from '#exceptions/example_data_company_not_empty_exception';
 
 const INSERT_ORDER = [
   'clients',
