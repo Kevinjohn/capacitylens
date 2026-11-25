@@ -13,12 +13,12 @@ function parsePrivateErrorCode(error: unknown) {
 /** Requests a password reset link by email. */
 export default class PasswordResetRequestsController {
   async store({ request, response, logger, serialize }: HttpContext) {
-    if (!isMailConfigured()) {
-      return response.notFound({ error: 'Password recovery is unavailable.' });
-    }
     const { email } = await request.validateUsing(requestResetValidator, {
       data: request.body(),
     });
+    if (!isMailConfigured()) {
+      return response.notFound({ error: 'Password recovery is unavailable.' });
+    }
     try {
       await accountKit.passwordReset.request({ email, clientKey: request.ip() });
     } catch (error) {

@@ -6,6 +6,8 @@ export default class SecurityHeadersMiddleware {
   async handle({ request, response }: HttpContext, next: NextFn) {
     response.header('Cross-Origin-Opener-Policy', 'same-origin');
     response.header('Cross-Origin-Resource-Policy', 'same-origin');
+    // Every answer, validation failures included, is kept out of shared caches and referrers, which
+    // the reset, confirmation and invitation link routes rely on.
     response.header('Referrer-Policy', 'no-referrer');
     response.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     response.header('Access-Control-Expose-Headers', 'x-capacitylens-audit-warning');

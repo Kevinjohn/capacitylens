@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import db from '@adonisjs/lucid/services/db';
-import { setProofHeaders } from '#services/request_helpers';
 import { getInstallationCompany } from '#services/installation_company';
 import { invalidLinkAnswer } from '#exceptions/credential_answers';
 import { showInvitationLinkValidator } from '#validators/invitations';
@@ -11,7 +10,6 @@ import { requestData } from '#validators/request_rules';
 export default class InvitationLinksController {
   /** What the link offers, without spending it. */
   async show({ request, response, serialize }: HttpContext) {
-    setProofHeaders(response);
     const { params } = await request.validateUsing(showInvitationLinkValidator, {
       data: requestData(request),
     });

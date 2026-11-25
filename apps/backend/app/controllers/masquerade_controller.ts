@@ -7,7 +7,11 @@ import { AuthorizationService } from '#services/auth/authorization_service';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { E_ACCOUNT_KIT_INVALID_SESSION } from '@kevinjohn/adonisjs-account-kit/errors';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import { endMasqueradeValidator, startMasqueradeValidator } from '#validators/masquerade';
+import {
+  endMasqueradeValidator,
+  showMasqueradeValidator,
+  startMasqueradeValidator,
+} from '#validators/masquerade';
 import { requestData } from '#validators/request_rules';
 
 @inject()
@@ -44,11 +48,12 @@ export default class MasqueradeController {
   }
 
   async show(ctx: HttpContext) {
+    const { companyId } = await ctx.request.validateUsing(showMasqueradeValidator, {
+      data: ctx.request.qs(),
+    });
     try {
       const signIn = await this.#currentActor.getSignedInSession(ctx.auth, ctx.session);
       if (!signIn) return ctx.serialize({ active: false, masqueradeToken: null });
-      const input: unknown = ctx.request.input('companyId');
-      const companyId = typeof input === 'string' && input ? input : undefined;
       if (companyId) {
         const mode = await this.#masqueradeModes.readCurrentMasquerade(
           ctx,

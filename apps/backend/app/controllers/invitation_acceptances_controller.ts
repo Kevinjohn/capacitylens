@@ -6,7 +6,6 @@ import {
   E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
-import { setProofHeaders } from '#services/request_helpers';
 import { emailInUseAnswer, invalidLinkAnswer } from '#exceptions/credential_answers';
 import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { acceptInvitationSignUpValidator } from '#validators/invitations';
@@ -27,7 +26,6 @@ export default class InvitationAcceptancesController {
    * and the person signs in instead.
    */
   async store({ auth, request, response, logger, serialize }: HttpContext) {
-    setProofHeaders(response);
     const body = await request.validateUsing(acceptInvitationSignUpValidator, {
       data: requestData(request, request.body()),
     });

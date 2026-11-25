@@ -5,7 +5,6 @@ import {
   E_ACCOUNT_KIT_INVALID_TOKEN,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
-import { setProofHeaders } from '#services/request_helpers';
 import { invalidLinkAnswer } from '#exceptions/credential_answers';
 import {
   completeVerificationValidator,
@@ -15,8 +14,7 @@ import {
 /** Address confirmation for a signed-in identity, reachable before admission: spending the link. */
 export default class EmailVerificationsController {
   /** Reports whether a confirmation link is still usable without spending it. */
-  async show({ request, response, serialize }: HttpContext) {
-    setProofHeaders(response);
+  async show({ request, serialize }: HttpContext) {
     const body = await request.validateUsing(inspectVerificationValidator, {
       data: request.body(),
     });
@@ -30,7 +28,6 @@ export default class EmailVerificationsController {
    * proves the mailbox, which could reset the password anyway.
    */
   async update({ request, response, serialize }: HttpContext) {
-    setProofHeaders(response);
     const body = await request.validateUsing(completeVerificationValidator, {
       data: request.body(),
     });

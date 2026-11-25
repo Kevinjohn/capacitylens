@@ -64,6 +64,8 @@ test.group('password recovery', (group) => {
   }) => {
     await company();
     await expectStatus(requestReset(client, editor), 404);
+    // The request is validated first, so a malformed one is refused even without mail.
+    await expectStatus(requestReset(client, 'not-an-email'), 422);
     const mail = captureMail(cleanup);
     for (const email of [editor, 'joker@wayne.example']) {
       const response = await requestReset(client, email);
@@ -72,6 +74,26 @@ test.group('password recovery', (group) => {
     }
     assert.equal(mail.count(editor), 1);
     assert.equal(mail.count('joker@wayne.example'), 0);
+  });
+
+  test('every link route keeps its answers out of caches and referrers, refusals included', async ({
+    client,
+    assert,
+  }) => {
+    const token = 'x'.repeat(513);
+    const refusals = [
+      await client.get(`/api/invitations/${token}/preview`).send(),
+      await post(client, `/api/invitations/${token}/sign-up`, {}),
+      await post(client, '/api/auth/inspect-reset', {}),
+      await post(client, '/api/auth/reset-password', {}),
+      await post(client, '/api/auth/verification/inspect', {}),
+      await post(client, '/api/auth/verification/complete', {}),
+    ];
+    for (const response of refusals) {
+      response.assertStatus(422);
+      assert.equal(response.header('cache-control'), 'no-store');
+      assert.equal(response.header('referrer-policy'), 'no-referrer');
+    }
   });
 
   test('a reset link survives inspection, ends every sign-in and works once', async ({
