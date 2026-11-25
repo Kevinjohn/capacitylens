@@ -20,15 +20,19 @@ import { fileURLToPath } from 'node:url';
 import { ports } from '../../../tooling/ports.mjs';
 
 const testHttpPort = ports().testHttp;
-// HOST, LOG_LEVEL and APP_KEY are in .env.test; what stays here is port-lane-computed or must beat the shell.
+// Fixed values are in .env.test. A shell value would win over that file, so these are dropped: a
+// date pinned in the developer's shell, for one, must not leak into tests that read the real clock.
+for (const key of [
+  'CAPACITYLENS_RATE_LIMIT',
+  'CAPACITYLENS_ALLOW_RESET',
+  'CAPACITYLENS_FIXED_TODAY',
+])
+  delete process.env[key];
+// What stays here is computed from the port lane.
 Object.assign(process.env, {
   PORT: String(testHttpPort),
   APP_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${testHttpPort}`,
-  CAPACITYLENS_RATE_LIMIT: '10000',
-  CAPACITYLENS_ALLOW_RESET: 'true',
-  // Tests read the real clock; a date pinned in the developer's shell must not leak in.
-  CAPACITYLENS_FIXED_TODAY: '',
   CAPACITYLENS_TEST_HTTP_PORT: String(testHttpPort),
   CAPACITYLENS_DB: fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url)),
 });
