@@ -29,7 +29,7 @@ export default class CompanyScopeMiddleware {
       if (!(error instanceof accessControlErrors.E_ACCESS_CONTROL_FORBIDDEN)) {
         throw error;
       }
-      if (!options.planning) throw new IdentityAuthorizationException('Forbidden.');
+      if (!options.planning) throw new IdentityAuthorizationException();
       throw new MembershipLostException();
     }
     return next();

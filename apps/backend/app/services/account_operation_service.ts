@@ -3,7 +3,6 @@
 // CapacityLens's own names follow it (`idempotencyKey`, `isAccountIdempotencyKey`,
 // `IDEMPOTENCY_CONFLICT`); only values passed to the package use its `requestKey` name.
 
-import { AccountOperationException } from '#exceptions/account_operation_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
 import { randomUUID } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
@@ -18,6 +17,7 @@ import {
   isAccountCommandId,
   isAccountIdempotencyKey,
 } from '@capacitylens/shared/account/validation';
+import { IdempotencyConflictException } from '#exceptions/account_operation_exception';
 
 export interface AccountOperationIdentity {
   commandId: string;
@@ -46,11 +46,7 @@ export class AccountOperationService {
   /** Adapts package refusals to the existing account-operation HTTP contract. */
   mapAccountOperationError(error: unknown): unknown {
     if (error instanceof E_DUPLICATE_REQUEST_CONFLICT) {
-      return new AccountOperationException(
-        'Operation id already used.',
-        409,
-        'IDEMPOTENCY_CONFLICT'
-      );
+      return new IdempotencyConflictException();
     }
     if (error instanceof E_INVALID_COMMAND_VALUE) {
       return new ValidationRefusalException('Invalid operation payload.');

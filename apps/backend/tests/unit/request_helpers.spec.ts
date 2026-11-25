@@ -2,10 +2,9 @@ import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import env from '#start/env';
 import HttpExceptionHandler from '#exceptions/handler';
-import { RefusalException } from '#exceptions/refusal_exception';
-import { AdmissionException } from '#exceptions/admission_exception';
-import { MembershipException } from '#exceptions/membership_exception';
-import { OwnershipTransferException } from '#exceptions/ownership_transfer_exception';
+import { NotFoundException, RefusalException } from '#exceptions/refusal_exception';
+import { MembershipSuspendedException } from '#exceptions/admission_exception';
+import { TargetIneligibleException } from '#exceptions/ownership_transfer_exception';
 import { isMailConfigured } from '#services/mail_delivery';
 
 test.group('request helpers', () => {
@@ -20,18 +19,24 @@ test.group('request helpers', () => {
     assert.isTrue(isMailConfigured());
   });
 
-  for (const [error, body] of [
+  for (const [error, status, body] of [
     [
-      new MembershipException('Not a member of this company.', 404, 'NOT_FOUND'),
+      new NotFoundException('Not a member of this company.'),
+      404,
       { error: 'Not a member of this company.', code: 'NOT_FOUND' },
     ],
     [
-      new OwnershipTransferException('Company not found.', 404, 'NOT_FOUND'),
-      { error: 'Company not found.', code: 'NOT_FOUND' },
+      new TargetIneligibleException('Choose another Admin.'),
+      409,
+      { error: 'Choose another Admin.', code: 'TARGET_INELIGIBLE' },
     ],
     [
-      new AdmissionException('Admission is not permitted.', 404, 'FORBIDDEN', { state: 'pending' }),
-      { error: 'Admission is not permitted.', code: 'FORBIDDEN', decision: { state: 'pending' } },
+      new MembershipSuspendedException(),
+      409,
+      {
+        error: 'Your membership in this company is suspended. Ask an Owner or Admin to restore it.',
+        code: 'MEMBERSHIP_SUSPENDED',
+      },
     ],
   ] as const) {
     test(`the handler renders ${error.constructor.name} from its own status and code`, async ({
@@ -39,11 +44,11 @@ test.group('request helpers', () => {
     }) => {
       assert.instanceOf(error, RefusalException);
       let sent: unknown;
-      let status = 0;
+      let sentStatus = 0;
       const ctx = {
         response: {
           status(value: number) {
-            status = value;
+            sentStatus = value;
             return this;
           },
           send(value: unknown) {
@@ -52,7 +57,7 @@ test.group('request helpers', () => {
         },
       } as unknown as HttpContext;
       await new HttpExceptionHandler().handle(error, ctx);
-      assert.equal(status, 404);
+      assert.equal(sentStatus, status);
       assert.deepEqual(sent, body);
     });
   }

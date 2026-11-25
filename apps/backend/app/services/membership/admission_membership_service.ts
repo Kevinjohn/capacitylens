@@ -3,10 +3,13 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { AdmissionRuleService } from '#services/account_kit/admission_rule_service';
 import { hasNoCompany, getInstallationCompanyId } from '#services/installation_company';
-import { AdmissionException } from '#exceptions/admission_exception';
 import access from '#config/access_control';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
+import {
+  CompanySetupRequiredException,
+  MembershipSuspendedException,
+} from '#exceptions/admission_exception';
 
 /** Company membership for an identity the Account Kit has admitted. */
 @inject()
@@ -37,22 +40,14 @@ export class AdmissionMembershipService {
   async completeMembership(userId: string, trx: TransactionClientContract) {
     const companyId = await getInstallationCompanyId(trx);
     if (!companyId) {
-      throw new AdmissionException(
-        'The company has not been set up yet.',
-        409,
-        'COMPANY_SETUP_REQUIRED'
-      );
+      throw new CompanySetupRequiredException();
     }
     const existing = await access.memberships.find(companyId, userId, trx);
     if (existing?.status === 'active') {
       return { companyId, role: String(existing.role), created: false };
     }
     if (existing) {
-      throw new AdmissionException(
-        'Your membership in this company is suspended. Ask an Owner or Admin to restore it.',
-        409,
-        'MEMBERSHIP_SUSPENDED'
-      );
+      throw new MembershipSuspendedException();
     }
     // The Account Kit's admission record keeps the invited role as evidence.
     const evidence = await this.#admission.record(userId, trx);

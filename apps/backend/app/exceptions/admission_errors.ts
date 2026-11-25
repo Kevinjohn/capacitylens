@@ -1,5 +1,5 @@
-import { AdmissionException } from '#exceptions/admission_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import { ConflictException, NotFoundException } from '#exceptions/refusal_exception';
 
 /** Refuses a malformed admission id before any product write. */
 export function refuseInvalidAdmission(): never {
@@ -8,10 +8,10 @@ export function refuseInvalidAdmission(): never {
 
 /** Conceals a missing or cross-company control record. */
 export function refuseMissingAdmission(message = 'Invitation not found.'): never {
-  throw new AdmissionException(message, 404, 'NOT_FOUND');
+  throw new NotFoundException(message);
 }
 
 /** Refuses stale or already completed admission without replay. */
 export function refuseConflictingAdmission(message = 'Invitation has already been used.'): never {
-  throw new AdmissionException(message, 409, 'CONFLICT');
+  throw new ConflictException(message);
 }
