@@ -1076,8 +1076,7 @@ export async function configure(command: Configure) {
 - **PKG-22 (F)** When configuration needs the booted application or a lazily imported driver,
   `defineConfig` returns a config provider (`configProvider.create`), and the service provider
   resolves it with `configProvider.resolve`.
-- **PKG-23 (F)** A package never reads `process.env` or the `env` service. The application's config
-  file does.
+- **PKG-23 (F)** The code a package ships (`src/`, `providers/`, `services/`, `commands/`) never reads `process.env` or the `env` service. The application's config file does. The repository's own `bin/` scripts are not shipped and may read `process.env`.
 - **PKG-24 (F)** Environment variables a package introduces are UPPER_SNAKE with the package's
   name first: `LIMITER_STORE`, `SESSION_DRIVER`.
 
