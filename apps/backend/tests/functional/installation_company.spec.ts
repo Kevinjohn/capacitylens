@@ -16,25 +16,25 @@ test.group('installation company', (group) => {
 
   test('an installation without a company has none to name', async ({ assert }) => {
     await resetState(false);
-    assert.isTrue(await installationCompany.hasNoCompany(db));
-    assert.isFalse(await installationCompany.hasMultipleCompanies(db));
-    assert.isNull(await installationCompany.getInstallationCompanyId(db));
+    assert.isTrue(await installationCompany.hasNoCompany());
+    assert.isFalse(await installationCompany.hasMultipleCompanies());
+    assert.isNull(await installationCompany.getInstallationCompanyId());
   });
 
   test('a single company is the installation company', async ({ assert }) => {
     await resetState('single');
     const [company] = await db.from('companies').select('id');
-    assert.isFalse(await installationCompany.hasNoCompany(db));
-    assert.isFalse(await installationCompany.hasMultipleCompanies(db));
-    assert.equal(await installationCompany.getInstallationCompanyId(db), String(company.id));
+    assert.isFalse(await installationCompany.hasNoCompany());
+    assert.isFalse(await installationCompany.hasMultipleCompanies());
+    assert.equal(await installationCompany.getInstallationCompanyId(), String(company.id));
   });
 
   test('a second company is refused with one code', async ({ assert }) => {
     await resetState(true);
-    assert.isFalse(await installationCompany.hasNoCompany(db));
-    assert.isTrue(await installationCompany.hasMultipleCompanies(db));
+    assert.isFalse(await installationCompany.hasNoCompany());
+    assert.isTrue(await installationCompany.hasMultipleCompanies());
     try {
-      await installationCompany.getInstallationCompanyId(db);
+      await installationCompany.getInstallationCompanyId();
       assert.fail('Expected the second company to be refused');
     } catch (error) {
       assert.include(error, {

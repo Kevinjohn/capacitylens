@@ -7,6 +7,7 @@ import { inject } from '@adonisjs/core';
 
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import PasswordConfirmationException from '#exceptions/password_confirmation_exception';
+import Company from '#models/company';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { AuthorizationService } from '#services/auth/authorization_service';
@@ -79,7 +80,7 @@ export class PasswordConfirmationService {
     this.refuseWhileViewing(actor);
     // The company id arrives in a request body with no length bound, and the membership lookup
     // rejects an overlong id as a fault. This probe turns any unknown id into the proof refusal.
-    if (!(await trx.from('companies').where('id', companyId).select('id').first())) {
+    if (!(await Company.query({ client: trx }).where('id', companyId).select('id').first())) {
       throw new PasswordConfirmationException();
     }
     if (

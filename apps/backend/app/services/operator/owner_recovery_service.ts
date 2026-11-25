@@ -6,6 +6,7 @@ import access from '#config/access_control';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
+import User from '#models/user';
 
 const ineligible = 'Recovery requires a sole active Owner with a local password';
 
@@ -46,7 +47,10 @@ export class OwnerRecoveryService {
     if (!isAccountEmail(email)) throw new Error('The target is not a valid account address');
     return withOperatorDatabase(db, async () => {
       await this.#schemaIntegrity.assertSchemaIntegrity();
-      const user = await db.from('users').where('email', email).select('id', 'password').first();
+      const user = await User.query({ client: db.connection() })
+        .where('email', email)
+        .select('id', 'password')
+        .first();
       if (!user?.password) throw new Error(ineligible);
       const userId = String(user.id);
       const companyIds = await requireSoleOwnerCompanyIds(userId, db);

@@ -13,6 +13,7 @@ import { productModels } from '#models_support/product_models';
 import { rowAttributes } from '#models_support/row_attributes';
 import capacitylens from '#config/capacitylens';
 import { InstallationCompanyService } from '#services/installation_company_service';
+import User from '#models/user';
 
 /** The disposable development demo installation. */
 @inject()
@@ -83,7 +84,7 @@ export class DisposableDemoService {
   /** Demo preparation and seeding are restricted to an empty development installation. */
   async assertEmptyDemoInstallation(app: ApplicationService) {
     if (app.inProduction) throw new Error('Disposable demo preparation is forbidden in production');
-    if (!(await this.#installationCompany.hasNoCompany(db))) {
+    if (!(await this.#installationCompany.hasNoCompany())) {
       throw new Error('Refusing demo seed: companies already exist');
     }
     if (await db.from('memberships').first()) {
@@ -98,7 +99,7 @@ export class DisposableDemoService {
 
   async seedDisposableDemo(app: ApplicationService) {
     await this.assertEmptyDemoInstallation(app);
-    const owner = await db.from('users').where('email', 'admin@admin.admin').first();
+    const owner = await User.findBy('email', 'admin@admin.admin');
     if (!owner) throw new Error('Refusing demo seed: development administrator is missing');
     if (!(await this.#admission.isAdmitted(owner.id))) {
       throw new Error('Refusing demo seed: development administrator is not admitted');

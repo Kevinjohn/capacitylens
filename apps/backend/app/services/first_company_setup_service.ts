@@ -3,6 +3,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import access from '#config/access_control';
 import { parseUserName } from '@capacitylens/shared/lib/strings';
 import { InstallationCompanyService } from '#services/installation_company_service';
+import User from '#models/user';
 
 /** Whether first-company setup is open, and its input rules. */
 @inject()
@@ -15,7 +16,7 @@ export class FirstCompanySetupService {
 
   /** Only the sole native user can claim an entirely uninitialised installation. */
   async isFirstCompanySetupRequired(userId: string, connection: TransactionClientContract) {
-    const users = await connection.from('users').select('id').limit(2);
+    const users = await User.query({ client: connection }).select('id').limit(2);
     return (
       users.length === 1 &&
       String(users[0]?.id) === userId &&

@@ -27,7 +27,7 @@ export default class User extends UserSchema {
     if (!trx) throw new Error('Identities are created only inside the Account Kit transaction.');
     const installationCompany = await app.container.make(InstallationCompanyService);
     if (!(await installationCompany.hasNoCompany(trx))) return;
-    if (user.unverifiedEmail !== null || (await trx.from('users').select('id').first())) {
+    if (user.unverifiedEmail !== null || (await User.query({ client: trx }).select('id').first())) {
       throw new FirstCompanyPendingException();
     }
   }
