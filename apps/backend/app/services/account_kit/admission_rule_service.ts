@@ -10,8 +10,8 @@ import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-ki
 import type { Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { getInstallationCompanyId } from '#services/installation_company';
 import { AuditService } from '#services/audit_service';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** Roles an invitation may carry; ownership moves only through company setup or transfer. */
 export const INVITABLE_ROLES = ['viewer', 'editor', 'admin'] as const;
@@ -27,20 +27,23 @@ export class AdmissionRuleService {
   #authorization: AuthorizationService;
   #audit: AuditService;
   #admission: AccountAdmission;
+  #installationCompany: InstallationCompanyService;
 
   constructor(
     authorization: AuthorizationService,
     audit: AuditService,
-    admission: AccountAdmission
+    admission: AccountAdmission,
+    installationCompany: InstallationCompanyService
   ) {
     this.#authorization = authorization;
     this.#audit = audit;
     this.#admission = admission;
+    this.#installationCompany = installationCompany;
   }
 
   // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
   async #getCompanyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
-    const companyId = await getInstallationCompanyId(trx ?? db);
+    const companyId = await this.#installationCompany.getInstallationCompanyId(trx ?? db);
     return companyId ? this.#authorization.getActiveCompanyRole(userId, companyId, trx) : null;
   }
 

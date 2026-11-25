@@ -359,7 +359,7 @@ test('the port lane launcher reports startup failure and the backend launcher re
 
   const server = spawnSync(
     process.execPath,
-    [new URL('../../apps/backend/scripts/e2e-server.mjs', import.meta.url).pathname, 'invalid'],
+    [new URL('../../apps/backend/scripts/e2e_server.mjs', import.meta.url).pathname, 'invalid'],
     {
       env: { ...process.env, PATH: '', CAPACITYLENS_PORT_LANE: '0' },
       encoding: 'utf8',

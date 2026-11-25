@@ -5,6 +5,7 @@ import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
 import { PlanningWriterService } from '#services/planning/planning_writer_service';
+import { RowValidationService } from '#services/planning/row_validation_service';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
@@ -22,7 +23,7 @@ import PlanningOperationException from '#exceptions/planning_operation_exception
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();
-const writer = new PlanningWriterService();
+const writer = new PlanningWriterService(new RowValidationService());
 
 test.group('authenticated typed planning transactions', (group) => {
   group.setup(() => freshDatabase());

@@ -1,20 +1,20 @@
 import { ActivitySchema } from '#database/schema';
 import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope, requireRowCompany } from '#models_support/scoped_model';
+import { CompanyScope, requireRowCompany } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import { timestampColumn } from '#models_support/scalar_column';
 /** A company-scoped activity; its kind governs project and phase references. */
 export default class Activity extends ActivitySchema {
-  static forCompany = forCompany;
+  static forCompany = CompanyScope.forCompany;
   static selfAssignPrimaryKey = true;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Activity>) {
-    requireCompanyScope(query);
+    CompanyScope.requireCompanyScope(query);
   }
   @beforeFetch()
   static requireFetchScope(query: ModelQueryBuilderContract<typeof Activity>) {
-    requireCompanyScope(query);
+    CompanyScope.requireCompanyScope(query);
   }
   @beforeSave()
   @beforeDelete()

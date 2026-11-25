@@ -5,20 +5,20 @@ import { timestampColumn } from '#models_support/scalar_column';
 import type { DateTime } from 'luxon';
 import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm';
 import type { ISODate } from '@capacitylens/shared/types/entities';
-import { forCompany, requireCompanyScope, requireRowCompany } from '#models_support/scoped_model';
+import { CompanyScope, requireRowCompany } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import { isoDateColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 /** A company-scoped time-off row; deletion metadata stays internal to restoration. */
 export default class TimeOff extends compose(TimeOffSchema, SoftDeletes) {
-  static forCompany = forCompany;
+  static forCompany = CompanyScope.forCompany;
   static selfAssignPrimaryKey = true;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof TimeOff>) {
-    requireCompanyScope(query);
+    CompanyScope.requireCompanyScope(query);
   }
   @beforeFetch()
   static requireFetchScope(query: ModelQueryBuilderContract<typeof TimeOff>) {
-    requireCompanyScope(query);
+    CompanyScope.requireCompanyScope(query);
   }
   @beforeSave()
   @beforeDelete()

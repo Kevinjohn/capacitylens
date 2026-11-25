@@ -3,7 +3,9 @@ import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient';
 import { NEUTRAL_COLOR, PRESET_COLORS } from '@capacitylens/shared/lib/color';
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings';
-import { validateRow } from '#validators/planning/row';
+import { RowValidationService } from '#services/planning/row_validation_service';
+
+const rowValidation = new RowValidationService();
 
 const swatch = PRESET_COLORS[0]!;
 
@@ -228,7 +230,7 @@ const cases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
 
 async function outcome(table: AppDataKey, row: Record<string, unknown>) {
   try {
-    await validateRow(table, row);
+    await rowValidation.validateRow(table, row);
     return 'accepted';
   } catch (error) {
     const first = (error as { messages: Array<{ message: string; rule: string }> }).messages[0]!;

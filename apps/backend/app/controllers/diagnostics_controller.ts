@@ -28,11 +28,8 @@ export default class DiagnosticsController {
         await this.#diagnostics.readServerDiagnostics(db, capacitylens.backupDirectory)
       );
     } catch (error) {
-      // Only the error's class is logged: its message can carry a database path.
-      logger.warn(
-        { code: error instanceof Error ? error.name : 'UNKNOWN' },
-        'Diagnostics could not read database state'
-      );
+      // The `err` serializer logs the error's class, never its message, which can carry a database path.
+      logger.warn({ err: error }, 'Diagnostics could not read database state');
       return response.serviceUnavailable({
         server: {
           connectivity: 'ok',

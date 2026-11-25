@@ -12,15 +12,20 @@ import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { signUpValidator } from '#validators/auth_requests';
 import { requestData } from '#validators/request_rules';
 import { emailInUseAnswer } from '#exceptions/credential_answers';
-import { hasNoCompany } from '#services/installation_company';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** Open sign-up of a new account. */
 @inject()
 export default class NewAccountController {
   #passwordSignIn: PasswordSignInService;
+  #installationCompany: InstallationCompanyService;
 
-  constructor(passwordSignIn: PasswordSignInService) {
+  constructor(
+    passwordSignIn: PasswordSignInService,
+    installationCompany: InstallationCompanyService
+  ) {
     this.#passwordSignIn = passwordSignIn;
+    this.#installationCompany = installationCompany;
   }
 
   /**
@@ -32,7 +37,7 @@ export default class NewAccountController {
       data: requestData(request, request.body()),
     });
     const { email, name } = body;
-    if (!capacitylens.allowOpenSignUp || (await hasNoCompany(db))) {
+    if (!capacitylens.allowOpenSignUp || (await this.#installationCompany.hasNoCompany(db))) {
       return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
     }
     try {
@@ -68,10 +73,7 @@ export default class NewAccountController {
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
-      logger.warn(
-        { code: error instanceof Error ? error.name : 'UNKNOWN' },
-        'Sign-in after registration failed'
-      );
+      logger.warn({ err: error }, 'Sign-in after registration failed');
       return response.accepted(await serialize({ accountCreated: true, signInRequired: true }));
     }
   }

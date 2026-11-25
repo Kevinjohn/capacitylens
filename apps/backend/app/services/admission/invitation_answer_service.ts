@@ -3,18 +3,24 @@ import type { HttpContext } from '@adonisjs/core/http';
 import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import { getInstallationCompanyId } from '#services/installation_company';
 import { refuseMissingAdmission } from '#exceptions/admission_errors';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** The checks and shapes the invitation controllers share. */
 @inject()
 export class InvitationAnswerService {
   #authorization: AuthorizationService;
   #currentActor: CurrentActorService;
+  #installationCompany: InstallationCompanyService;
 
-  constructor(authorization: AuthorizationService, currentActor: CurrentActorService) {
+  constructor(
+    authorization: AuthorizationService,
+    currentActor: CurrentActorService,
+    installationCompany: InstallationCompanyService
+  ) {
     this.#authorization = authorization;
     this.#currentActor = currentActor;
+    this.#installationCompany = installationCompany;
   }
 
   /** The invitation fields a manager sees. */
@@ -44,7 +50,7 @@ export class InvitationAnswerService {
         'invitations:manage',
         trx
       );
-      if ((await getInstallationCompanyId(trx)) !== companyId) {
+      if ((await this.#installationCompany.getInstallationCompanyId(trx)) !== companyId) {
         refuseMissingAdmission('Company not found.');
       }
       return actorId;

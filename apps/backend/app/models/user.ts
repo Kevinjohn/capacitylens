@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
 import { UserSchema } from '#database/schema';
 import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm';
-import { hasNoCompany } from '#services/installation_company';
+import app from '@adonisjs/core/services/app';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 export default class User extends UserSchema {
   // Identities use UUIDs; without this Lucid replaces the id with SQLite's row id after insert.
@@ -24,7 +25,8 @@ export default class User extends UserSchema {
     user.createdAt = new Date().toISOString();
     const trx = user.$trx;
     if (!trx) throw new Error('Identities are created only inside the Account Kit transaction.');
-    if (!(await hasNoCompany(trx))) return;
+    const installationCompany = await app.container.make(InstallationCompanyService);
+    if (!(await installationCompany.hasNoCompany(trx))) return;
     if (user.unverifiedEmail !== null || (await trx.from('users').select('id').first())) {
       throw new FirstCompanyPendingException();
     }

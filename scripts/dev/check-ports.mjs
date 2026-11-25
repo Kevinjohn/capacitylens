@@ -19,7 +19,7 @@ export const GUARDED_FILES = Object.freeze([
   'e2e/serverTestState.ts',
   'e2e/workerServer.ts',
   'scripts/e2e/e2eWorkerRuntime.mjs',
-  'apps/backend/scripts/e2e-server.mjs',
+  'apps/backend/scripts/e2e_server.mjs',
 ]);
 
 // Port lane 0 holds each base port, so the registry is the only list.

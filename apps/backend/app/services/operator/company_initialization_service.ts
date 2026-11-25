@@ -6,9 +6,9 @@ import { AdmissionRuleService } from '#services/account_kit/admission_rule_servi
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import access from '#config/access_control';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
-import { hasNoCompany } from '#services/installation_company';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
 import { InitialCompanyDefaultsService } from '#services/initial_company_defaults_service';
+import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** Operator initialisation of the first company on an empty stopped installation. */
 @inject()
@@ -16,15 +16,18 @@ export class CompanyInitializationService {
   #admissionRules: AdmissionRuleService;
   #schemaIntegrity: SchemaIntegrityService;
   #initialCompanyDefaults: InitialCompanyDefaultsService;
+  #installationCompany: InstallationCompanyService;
 
   constructor(
     admissionRules: AdmissionRuleService,
     schemaIntegrity: SchemaIntegrityService,
-    initialCompanyDefaults: InitialCompanyDefaultsService
+    initialCompanyDefaults: InitialCompanyDefaultsService,
+    installationCompany: InstallationCompanyService
   ) {
     this.#admissionRules = admissionRules;
     this.#schemaIntegrity = schemaIntegrity;
     this.#initialCompanyDefaults = initialCompanyDefaults;
+    this.#installationCompany = installationCompany;
   }
 
   /** Establish the first company role for an existing native identity without changing admission. */
@@ -40,7 +43,7 @@ export class CompanyInitializationService {
       // The Kit runner holds the writer lock its package writes rely on.
       return transaction(db, async (trx) => {
         if (
-          !(await hasNoCompany(trx)) ||
+          !(await this.#installationCompany.hasNoCompany(trx)) ||
           (await trx.from(access.config.membershipsTable).first())
         ) {
           throw new Error(

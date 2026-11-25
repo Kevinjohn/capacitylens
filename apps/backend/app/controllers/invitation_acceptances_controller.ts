@@ -67,10 +67,7 @@ export default class InvitationAcceptancesController {
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
-      logger.warn(
-        { code: error instanceof Error ? error.name : 'UNKNOWN' },
-        'Sign-in after invitation acceptance failed'
-      );
+      logger.warn({ err: error }, 'Sign-in after invitation acceptance failed');
       return response.accepted(await serialize({ accepted: true, signInRequired: true }));
     }
   }

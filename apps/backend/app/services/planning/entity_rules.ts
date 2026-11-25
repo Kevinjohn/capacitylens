@@ -20,7 +20,6 @@ import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvat
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { requiredFields } from '@capacitylens/shared/types/entityFields';
-import { validateRow } from '#validators/planning/row';
 import { asRecord } from '#services/planning/writer';
 import { isEntityId } from '@capacitylens/shared/types/entityFieldRules';
 import { assertEntityDomain, type EntityWrite } from '#services/planning/entity_validation/domain';
@@ -270,15 +269,25 @@ export interface EntityWriteOptions {
   companyWorkingDays: Weekday[];
 }
 
-/** Prepare one complete entity row for a typed write against the current transaction projection. */
-export async function prepareEntityWrite<K extends ScopedEntityKey>(
+/** One entity row checked before field validation: the row, its hidden fields and the field view. */
+export interface EntityWriteDraft {
+  candidate: Record<string, unknown>;
+  hidden: readonly string[];
+  /** What field validation reads: the row without the fields the caller cannot see. */
+  visible: Record<string, unknown>;
+}
+
+/**
+ * Checks one complete entity row for a typed write before field validation, against the current
+ * transaction projection. `RowValidationService.validateRow` then checks the draft's `visible`
+ * row and `completeEntityWrite` finishes it.
+ */
+export function beginEntityWrite<K extends ScopedEntityKey>(
   table: K,
   row: Record<string, unknown>,
   stored: AppData[K][number] | undefined,
-  state: AppData,
-  accessGrant: PlanningAccessGrant,
-  options: EntityWriteOptions
-): Promise<AppData[K][number]> {
+  accessGrant: PlanningAccessGrant
+): EntityWriteDraft {
   const existing = stored && asRecord(stored);
   if (!isEntityId(row.id)) {
     throw new EntityWriteException(
@@ -296,30 +305,47 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
     if (value !== undefined || hidden.includes(field)) continue;
     reject(field, 'cannot be undefined');
   }
-  let candidate = { ...row };
+  const candidate = { ...row };
   pinHiddenFields(table, candidate, existing, accessGrant);
   assertRequired(table, candidate);
   if (table === 'resources' && existing) assertResourceKind(candidate, existing);
-  let validated: AppData[K][number];
-  try {
-    const visible = buildValidationView(table, candidate, existing, accessGrant);
-    validated = await validateRow(table, visible);
-    // The validated row keeps what the caller cannot see as stored; `candidate` is its field view.
-    for (const field of hidden) {
-      if (Object.hasOwn(candidate, field)) asRecord(validated)[field] = candidate[field];
+  return {
+    candidate,
+    hidden,
+    visible: buildValidationView(table, candidate, existing, accessGrant),
+  };
+}
+
+/** The entity write's refusal for a field validation error; any other error is returned as it is. */
+export function toEntityWriteError(error: unknown): unknown {
+  if (error instanceof errors.E_VALIDATION_ERROR) {
+    const first = error.messages[0];
+    if (typeof first?.message === 'string') {
+      return first.rule === 'resource_avatar_url_invalid'
+        ? new ResourceAvatarUrlInvalidException(first.message)
+        : new EntityWriteException(first.message);
     }
-    candidate = asRecord(validated);
-  } catch (error) {
-    if (error instanceof errors.E_VALIDATION_ERROR) {
-      const first = error.messages[0];
-      if (typeof first?.message === 'string') {
-        throw first.rule === 'resource_avatar_url_invalid'
-          ? new ResourceAvatarUrlInvalidException(first.message)
-          : new EntityWriteException(first.message);
-      }
-    }
-    throw error;
   }
+  return error;
+}
+
+/** Completes one entity row for a typed write from its draft and the validated field view. */
+export function completeEntityWrite<K extends ScopedEntityKey>(
+  table: K,
+  row: Record<string, unknown>,
+  stored: AppData[K][number] | undefined,
+  state: AppData,
+  accessGrant: PlanningAccessGrant,
+  options: EntityWriteOptions,
+  draft: EntityWriteDraft,
+  validated: AppData[K][number]
+): AppData[K][number] {
+  const existing = stored && asRecord(stored);
+  // The validated row keeps what the caller cannot see as stored; `candidate` is its field view.
+  for (const field of draft.hidden) {
+    if (Object.hasOwn(draft.candidate, field)) asRecord(validated)[field] = draft.candidate[field];
+  }
+  const candidate = asRecord(validated);
   assertManagedFields(table, row, candidate, existing);
   if (table === 'resources') {
     assertResourceFields(row, candidate);

@@ -1,19 +1,27 @@
 import { scope } from '@adonisjs/lucid/orm';
 import type { LucidRow } from '@adonisjs/lucid/types/model';
 
-const scopedQueries = new WeakSet<object>();
+/**
+ * Model reads that applied an explicit company scope. The record is private to this class, so only
+ * `forCompany` marks a query and a read without it fails closed.
+ */
+export class CompanyScope {
+  static #scopedQueries = new WeakSet<object>();
 
-/** Restricts a model read to a nonblank company and marks its explicit scope. */
-export const forCompany = scope((query, companyId: string) => {
-  if (companyId.trim() === '') throw new Error('A company scope is required');
-  scopedQueries.add(query);
-  // Lucid applies this scope to the caller's awaited builder.
-  void query.where('company_id', companyId);
-});
+  /** Restricts a model read to a nonblank company and marks its explicit scope. */
+  static forCompany = scope((query, companyId: string) => {
+    if (companyId.trim() === '') throw new Error('A company scope is required');
+    CompanyScope.#scopedQueries.add(query);
+    // Lucid applies this scope to the caller's awaited builder.
+    void query.where('company_id', companyId);
+  });
 
-/** Refuses model reads that did not apply an explicit company scope. */
-export function requireCompanyScope(query: object) {
-  if (!scopedQueries.has(query)) throw new Error('A company scope is required for model reads');
+  /** Refuses model reads that did not apply an explicit company scope. */
+  static requireCompanyScope(query: object) {
+    if (!CompanyScope.#scopedQueries.has(query)) {
+      throw new Error('A company scope is required for model reads');
+    }
+  }
 }
 
 /**

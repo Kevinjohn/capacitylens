@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ports, resolvePortLane, workerPorts } from '../../../tooling/ports.mjs';
 import { portInUse } from '../../../tooling/devProcesses.mjs';
-import { admitIdentity } from './e2e-identity.mjs';
+import { admitIdentity } from './e2e_identity.mjs';
 
 const flavour = process.argv[2];
 if (flavour !== 'db' && flavour !== 'auth') {

@@ -2,19 +2,19 @@ import { ClientSchema } from '#database/schema';
 import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm';
 import { booleanColumn, timestampColumn } from '#models_support/scalar_column';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope, requireRowCompany } from '#models_support/scoped_model';
+import { CompanyScope, requireRowCompany } from '#models_support/scoped_model';
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
 export default class Client extends ClientSchema {
-  static forCompany = forCompany;
+  static forCompany = CompanyScope.forCompany;
   static selfAssignPrimaryKey = true;
   @beforeFind()
   static requireFindScope(query: ModelQueryBuilderContract<typeof Client>) {
-    requireCompanyScope(query);
+    CompanyScope.requireCompanyScope(query);
   }
   @beforeFetch()
   static requireFetchScope(query: ModelQueryBuilderContract<typeof Client>) {
-    requireCompanyScope(query);
+    CompanyScope.requireCompanyScope(query);
   }
   @beforeSave()
   @beforeDelete()

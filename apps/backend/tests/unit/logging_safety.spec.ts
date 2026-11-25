@@ -1,5 +1,6 @@
 import { test } from '@japa/runner';
 import { describeFailure } from '#services/logging_safety';
+import { describeErrorIdentity } from '#config/logger';
 
 test.group('describeFailure', () => {
   test('names a thrown non-Error value by its type and reports no frames', ({ assert }) => {
@@ -36,5 +37,26 @@ test.group('describeFailure', () => {
       'EvalError',
       'URIError',
     ]);
+  });
+});
+
+test.group('describeErrorIdentity', () => {
+  test('keeps an upper-case code and the class, never the message', ({ assert }) => {
+    const error = Object.assign(new TypeError('Mail to clark.kent@wayne.example refused'), {
+      code: 'E_MAIL_TRANSPORT',
+    });
+    assert.deepEqual(describeErrorIdentity(error), {
+      errorName: 'TypeError',
+      code: 'E_MAIL_TRANSPORT',
+    });
+  });
+
+  test('drops a code a caller could shape', ({ assert }) => {
+    const error = Object.assign(new Error('x'), { code: 'clark.kent@wayne.example' });
+    assert.deepEqual(describeErrorIdentity(error), { errorName: 'Error' });
+  });
+
+  test('names a thrown non-Error value by its type', ({ assert }) => {
+    assert.deepEqual(describeErrorIdentity('Bruce Wayne'), { errorName: 'string' });
   });
 });
