@@ -1,5 +1,4 @@
 import { inject } from '@adonisjs/core';
-import { OwnershipTransferException } from '#exceptions/ownership_transfer_exception';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { AuthorizationService } from '#services/auth/authorization_service';
@@ -14,6 +13,8 @@ import {
   AccountOperationService,
   type AccountOperationIdentity,
 } from '#services/account_operation_service';
+import { TargetIneligibleException } from '#exceptions/ownership_transfer_exception';
+import { NotFoundException } from '#exceptions/refusal_exception';
 
 /** One ownership transfer in the caller's transaction, by its verified actor. */
 export interface OwnershipTransferInput {
@@ -68,7 +69,7 @@ export class OwnershipTransferService {
         // A membership proves its company exists, so an unknown company is refused like any other
         // company the caller does not belong to.
         currentRole = await this.#authorization.getActiveCompanyRole(actor.userId, companyId, trx);
-        if (!currentRole) throw new IdentityAuthorizationException('Forbidden.');
+        if (!currentRole) throw new IdentityAuthorizationException();
       },
       authorizeReplay: (_context, receipt) => {
         if (receipt.fromUserId !== actor.userId || receipt.toUserId !== toUserId) {
@@ -79,20 +80,16 @@ export class OwnershipTransferService {
       parseAuthorization: (raw) => raw as string,
       authorizeExecute: async (_context, authorization) => {
         if (!currentRole || !access.can(currentRole, 'ownership:transfer')) {
-          throw new IdentityAuthorizationException('Forbidden.');
+          throw new IdentityAuthorizationException();
         }
         if (actor.userId === toUserId) {
-          throw new OwnershipTransferException('Choose another Admin.', 409, 'TARGET_INELIGIBLE');
+          throw new TargetIneligibleException('Choose another Admin.');
         }
         const target = await access.memberships.find(companyId, toUserId, trx);
-        if (!target) throw new OwnershipTransferException('Member not found.', 404, 'NOT_FOUND');
+        if (!target) throw new NotFoundException('Member not found.');
         // The package accepts any active member; CapacityLens hands ownership to an Admin only.
         if (target.status !== 'active' || target.role !== 'admin') {
-          throw new OwnershipTransferException(
-            'Target is no longer an active Admin.',
-            409,
-            'TARGET_INELIGIBLE'
-          );
+          throw new TargetIneligibleException('Target is no longer an active Admin.');
         }
         // The package checks only the actor and nominee, so a second stored Owner would survive it.
         const owners = await trx

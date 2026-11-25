@@ -31,9 +31,14 @@ import {
   RestorationService,
   type RestorationIdentity,
 } from '#services/planning/restoration_service';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import {
+  PlanningOperationException,
+  PlanningAuthorizationException,
+  NoChangeException,
+  PlanningConflictException,
+} from '#exceptions/planning_operation_exception';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
 
@@ -121,11 +126,7 @@ export class PlanningExecutionService {
   ): Promise<PlanningMutationSuccess['restoration']> {
     const unchanged = { consumedGroupId: null, replacementGroupId: null };
     if (!accessGrant.canWrite) {
-      throw new PlanningOperationException(
-        403,
-        'AUTHORIZATION_DENIED',
-        'Write access is required.'
-      );
+      throw new PlanningAuthorizationException('Write access is required.');
     }
     if (!data.companies.some((row) => row.id === companyId)) {
       throw new ValidationRefusalException('The company was not found.');
@@ -437,11 +438,7 @@ export class PlanningExecutionService {
           );
           return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null };
         default:
-          throw new PlanningOperationException(
-            403,
-            'AUTHORIZATION_DENIED',
-            'This operation is unavailable.'
-          );
+          throw new PlanningAuthorizationException('This operation is unavailable.');
       }
     } catch (error) {
       if (
@@ -452,7 +449,7 @@ export class PlanningExecutionService {
       }
       if (error instanceof EntityWriteException) {
         throw error.status === 403
-          ? new PlanningOperationException(403, 'AUTHORIZATION_DENIED', error.message)
+          ? new PlanningAuthorizationException(error.message)
           : new ValidationRefusalException(error.message);
       }
       if (error instanceof DomainError) {
@@ -460,7 +457,7 @@ export class PlanningExecutionService {
       }
       if (error instanceof LifecycleTransitionError) {
         throw error.code === 'already_inactive'
-          ? new PlanningOperationException(400, 'NO_CHANGE', error.message)
+          ? new NoChangeException(error.message)
           : new ValidationRefusalException(error.message);
       }
       if (
@@ -491,9 +488,7 @@ export class PlanningExecutionService {
     const current = requireExistingRow(data, table, id);
     // Checking the table does not narrow the row, but a clients row is a Client.
     if (table === 'clients' && (current as Client).builtin === true) {
-      throw new PlanningOperationException(
-        409,
-        null,
+      throw new PlanningConflictException(
         `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'restored'}.`
       );
     }
@@ -507,7 +502,7 @@ export class PlanningExecutionService {
     } else {
       if (!canRestore(current)) {
         if (resolveLifecycleStatus(current) === 'active') {
-          throw new PlanningOperationException(400, 'NO_CHANGE', 'The record is already active.');
+          throw new NoChangeException('The record is already active.');
         }
         throw new ValidationRefusalException('The record is not archived and cannot be restored.');
       }

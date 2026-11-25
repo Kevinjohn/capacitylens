@@ -26,8 +26,11 @@ import {
   hasEffectiveWeekDay,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isUnavailable } from '@capacitylens/shared/lib/capacity';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import {
+  EntityWriteException,
+  ActivityPhaseProjectMismatchException,
+} from '#exceptions/entity_write_exception';
 
 /** One prepared row of a table and the stored row it replaces, if any. */
 export type EntityWrite = {
@@ -111,12 +114,7 @@ export function assertEntityDomain(
         activity.projectId !== row.projectId
     )
   ) {
-    throw new EntityWriteException(
-      'A phase with activities cannot move to a different project.',
-      400,
-      undefined,
-      'activity_phase_project_mismatch'
-    );
+    throw new ActivityPhaseProjectMismatchException();
   }
   if (write.table === 'resources') {
     const { row: resource, existing: previous } = write;

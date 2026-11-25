@@ -20,8 +20,8 @@ import {
 } from '#services/planning/restoration_service';
 import { asRecord, type WrittenRow } from '#services/planning/writer';
 import { PlanningWriterService } from '#services/planning/planning_writer_service';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import { RecordChangedException } from '#exceptions/planning_operation_exception';
 
 interface WriteEntityOptions<K extends ScopedEntityKey> {
   trx: TransactionClientContract;
@@ -107,11 +107,7 @@ export class EntityWriteService {
       expectedUpdatedAt !== undefined &&
       existing?.updatedAt !== expectedUpdatedAt
     ) {
-      throw new PlanningOperationException(
-        409,
-        'STALE_REVISION',
-        'The record changed since it was opened.'
-      );
+      throw new RecordChangedException();
     }
     const candidate: Record<string, unknown> = {
       ...(existing ?? {}),

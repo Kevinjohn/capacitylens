@@ -12,8 +12,11 @@ import { createServerRevision } from '#services/planning/server_timestamp';
 import { requireExistingRow, type WrittenRow } from '#services/planning/writer';
 import { validateRow } from '#validators/planning/row';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import {
+  PlanningAuthorizationException,
+  PlanningConflictException,
+} from '#exceptions/planning_operation_exception';
+import { FrozenCompanyFieldException } from '#exceptions/entity_write_exception';
 
 /** Planning row writes in the caller's transaction. */
 export class PlanningWriterService {
@@ -79,19 +82,15 @@ export class PlanningWriterService {
     written: WrittenRow[] = []
   ) {
     if (Object.hasOwn(changes, 'capacityOverviewAccess') && !isOwnerOrAdmin(accessGrant.role)) {
-      throw new PlanningOperationException(
-        403,
-        'AUTHORIZATION_DENIED',
-        'This setting requires an Owner or Admin.'
-      );
+      throw new PlanningAuthorizationException('This setting requires an Owner or Admin.');
     }
     const existing = requireExistingRow(data, 'companies', companyId);
     const candidate = { ...existing, ...changes };
     try {
       assertFrozenCompanyFields(changes, candidate, existing);
     } catch (error) {
-      if (!(error instanceof EntityWriteException) || error.status !== 409) throw error;
-      throw new PlanningOperationException(409, null, error.message);
+      if (!(error instanceof FrozenCompanyFieldException)) throw error;
+      throw new PlanningConflictException(error.message);
     }
     const now = createServerRevision(existing.updatedAt);
     candidate.updatedAt = now;

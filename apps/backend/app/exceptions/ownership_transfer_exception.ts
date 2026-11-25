@@ -1,3 +1,7 @@
 import { RefusalException } from '#exceptions/refusal_exception';
 
-export class OwnershipTransferException extends RefusalException {}
+/** The chosen member cannot receive ownership; the sentence names why. */
+export class TargetIneligibleException extends RefusalException {
+  static status = 409;
+  static code = 'TARGET_INELIGIBLE';
+}

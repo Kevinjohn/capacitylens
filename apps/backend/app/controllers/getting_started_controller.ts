@@ -45,7 +45,7 @@ export default class GettingStartedController {
         trx
       );
       if (!isOwnerOrAdmin(role)) {
-        throw new IdentityAuthorizationException('Forbidden.');
+        throw new IdentityAuthorizationException();
       }
       await this.#gettingStarted.dismissGettingStarted(trx, params.companyId, now);
     });

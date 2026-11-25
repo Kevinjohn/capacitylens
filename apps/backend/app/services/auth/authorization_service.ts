@@ -57,7 +57,7 @@ export class AuthorizationService {
       return { actorId: actor.userId, role: this.requireStoredRole(membership) };
     } catch (error) {
       if (error instanceof accessControlErrors.E_ACCESS_CONTROL_FORBIDDEN) {
-        throw new IdentityAuthorizationException('Forbidden.');
+        throw new IdentityAuthorizationException();
       }
       throw error;
     }

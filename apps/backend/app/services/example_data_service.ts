@@ -9,7 +9,10 @@ import { rowAttributes } from '#models_support/row_attributes';
 import { StateRepositoryService } from '#services/state_repository_service';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
-import { EntityWriteException } from '#exceptions/entity_write_exception';
+import {
+  EntityNotFoundException,
+  ExampleDataCompanyNotEmptyException,
+} from '#exceptions/entity_write_exception';
 
 const INSERT_ORDER = [
   'clients',
@@ -46,19 +49,14 @@ export class ExampleDataService {
   async addExampleData(trx: TransactionClientContract, companyId: string, actorId: string) {
     const state = await this.#stateRepository.readStateWithClient(trx, companyId, true);
     const company = state.companies.at(0);
-    if (!company) throw new EntityWriteException('Company not found.', 404);
+    if (!company) throw new EntityNotFoundException('Company not found.');
     if (
       state.resources.length > 0 ||
       state.clients.some((client) => client.builtin !== true) ||
       state.projects.length > 0 ||
       state.allocations.length > 0
     ) {
-      throw new EntityWriteException(
-        'Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.',
-        409,
-        undefined,
-        'EXAMPLE_DATA_COMPANY_NOT_EMPTY'
-      );
+      throw new ExampleDataCompanyNotEmptyException();
     }
     const today = resolveCalendarToday(company.timezone ?? undefined);
     if (today.kind === 'invalid-time-zone') {

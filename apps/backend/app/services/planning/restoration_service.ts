@@ -20,8 +20,11 @@ import { rowAttributes } from '#models_support/row_attributes';
 import { transformRow } from '#transformers/row_transformer';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { asRecord, requireExistingRow, type WrittenRow } from '#services/planning/writer';
-import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import {
+  PlanningAuthorizationException,
+  PlanningConflictException,
+} from '#exceptions/planning_operation_exception';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
 export interface RestorationIdentity {
@@ -36,7 +39,7 @@ type SavedRow = { kind: 'row' };
 type SavedLink = { kind: 'link'; parentId: string };
 
 function refuseRestorationConflict(): never {
-  throw new PlanningOperationException(409, null, 'The deleted records can no longer be restored.');
+  throw new PlanningConflictException('The deleted records can no longer be restored.');
 }
 
 /** Maps expected domain refusals to a restoration conflict while surfacing implementation faults. */
@@ -201,7 +204,7 @@ export class RestorationService {
     );
     if (consumed === 0) {
       if (await trx.from('deleted_groups').where(owner).select('group_id').first()) {
-        throw new PlanningOperationException(409, null, 'This deletion has already been restored.');
+        throw new PlanningConflictException('This deletion has already been restored.');
       }
       const origin = await trx
         .from('planning_mutations')
@@ -214,13 +217,9 @@ export class RestorationService {
         .select('mutation_id')
         .first();
       if (origin) {
-        throw new PlanningOperationException(409, null, 'This deletion can no longer be restored.');
+        throw new PlanningConflictException('This deletion can no longer be restored.');
       }
-      throw new PlanningOperationException(
-        403,
-        'AUTHORIZATION_DENIED',
-        'This action is not allowed.'
-      );
+      throw new PlanningAuthorizationException();
     }
     const saved = await trx
       .from('deleted_rows')

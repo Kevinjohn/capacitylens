@@ -40,9 +40,9 @@ export default class CompanyStateController {
           companyId,
           trx
         );
-        if (!role) throw new IdentityAuthorizationException('Forbidden.');
+        if (!role) throw new IdentityAuthorizationException();
         if (includeInactive === '1' && !access.can(role, 'members:manage')) {
-          throw new IdentityAuthorizationException('Forbidden.');
+          throw new IdentityAuthorizationException();
         }
         const state = await this.#stateRepository.readStateWithClient(
           trx,
