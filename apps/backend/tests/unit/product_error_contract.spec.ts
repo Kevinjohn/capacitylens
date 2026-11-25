@@ -46,7 +46,7 @@ import RecordChangedException from '#exceptions/record_changed_exception';
 import PlanningConflictException from '#exceptions/planning_conflict_exception';
 import EmptyHistoryException from '#exceptions/empty_history_exception';
 import ActivityPhaseProjectMismatchException from '#exceptions/activity_phase_project_mismatch_exception';
-import EntityDomainRuleException from '#exceptions/entity_domain_rule_exception';
+import { toDomainRuleException } from '#services/planning/domain_rule_exceptions';
 import EntityNotFoundException from '#exceptions/entity_not_found_exception';
 import EntityWriteException from '#exceptions/entity_write_exception';
 import ExampleDataCompanyNotEmptyException from '#exceptions/example_data_company_not_empty_exception';
@@ -63,7 +63,7 @@ import CompanySetupRequiredException from '#exceptions/company_setup_required_ex
 import MultipleCompaniesException from '#exceptions/multiple_companies_exception';
 import OwnerTransferRequiredException from '#exceptions/owner_transfer_required_exception';
 import IdempotencyConflictException from '#exceptions/idempotency_conflict_exception';
-import { DomainError } from '@capacitylens/shared/domain/errors';
+import { DOMAIN_ERROR_CODES, DomainError } from '@capacitylens/shared/domain/errors';
 import RestorationConfirmationRequiredException from '#exceptions/restoration_confirmation_required_exception';
 import RestorationConfirmationStaleException from '#exceptions/restoration_confirmation_stale_exception';
 
@@ -391,11 +391,9 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     },
   ],
   [
-    'EntityDomainRuleException',
+    'a domain rule exception',
     () =>
-      answered(
-        new EntityDomainRuleException(new DomainError('record_wrong_company', 'Wrong company.'))
-      ),
+      answered(toDomainRuleException(new DomainError('record_wrong_company', 'Wrong company.'))),
     400,
     { error: 'Wrong company.', code: 'record_wrong_company' },
   ],
@@ -634,6 +632,16 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
 ];
 
 test.group('product error adapters', () => {
+  test('each domain rule answers 400 with its own code and sentence', async ({ assert }) => {
+    for (const code of DOMAIN_ERROR_CODES) {
+      const { status, body } = await answered(
+        toDomainRuleException(new DomainError(code, 'Refused.'))
+      );
+      assert.equal(status, 400, code);
+      assert.deepEqual(body, { error: 'Refused.', code }, code);
+    }
+  });
+
   for (const adapter of ['global', 'planning'] as const) {
     test(`${adapter} preserves kit codes, status, headers and committed metadata`, async ({
       assert,
