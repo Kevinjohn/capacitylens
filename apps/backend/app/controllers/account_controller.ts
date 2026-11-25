@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import {
-  IdentityNotConfirmedError,
+  E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { deleteAccountValidator } from '#validators/credentials';
@@ -47,7 +47,7 @@ export default class AccountController {
       });
     } catch (error) {
       // Does work: a committed deletion is recorded before the session ends.
-      if (error instanceof IdentityNotConfirmedError) {
+      if (error instanceof E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED) {
         return response.forbidden({
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',

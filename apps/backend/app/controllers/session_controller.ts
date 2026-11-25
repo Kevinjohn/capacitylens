@@ -4,8 +4,8 @@ import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
-  InvalidCredentialsError,
-  InvalidSessionError,
+  E_INVALID_CREDENTIALS,
+  E_ACCOUNT_KIT_INVALID_SESSION,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
@@ -66,7 +66,7 @@ export default class SessionController {
       );
     } catch (error) {
       // Does work: a missing session reads whether any identity exists for the 401 body.
-      if (!(error instanceof InvalidSessionError)) throw error;
+      if (!(error instanceof E_ACCOUNT_KIT_INVALID_SESSION)) throw error;
       const hasUsers = await hasAnyIdentity(db);
       return response.unauthorized({
         error: 'Sign-in required.',
@@ -91,7 +91,7 @@ export default class SessionController {
     } catch (error) {
       // Keeps the 401 without a code and the actionable sentence: the Kit's code for this failure
       // is one the browser's error reader does not list, and its sentence names nothing to fix.
-      if (error instanceof InvalidCredentialsError) {
+      if (error instanceof E_INVALID_CREDENTIALS) {
         return response.unauthorized({ error: 'Invalid email or password.' });
       }
       throw error;
@@ -107,7 +107,7 @@ export default class SessionController {
       current = await guard.current();
     } catch (error) {
       // Does work: signing out without a session is a normal outcome, not a refusal.
-      if (!(error instanceof InvalidSessionError)) throw error;
+      if (!(error instanceof E_ACCOUNT_KIT_INVALID_SESSION)) throw error;
       // Does work: an idle-expired sign-in fails `current` but still names its own registry row.
       const userId: unknown = session.get(guard.sessionKeyName);
       const sessionHandle = request.strategy === 'session' ? request.previousHandle?.() : undefined;

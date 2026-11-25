@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { ThrottledError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { E_ACCOUNT_KIT_THROTTLED } from '@kevinjohn/adonisjs-account-kit/errors';
 import { isMailConfigured } from '#services/mail_delivery';
 import { requestResetValidator } from '#validators/credentials';
 
@@ -22,7 +22,7 @@ export default class PasswordResetRequestsController {
     try {
       await accountKit.passwordReset.request({ email, clientKey: request.ip() });
     } catch (error) {
-      if (error instanceof ThrottledError) throw error;
+      if (error instanceof E_ACCOUNT_KIT_THROTTLED) throw error;
       // Public recovery does not disclose recipient or delivery state.
       logger.error({ code: parsePrivateErrorCode(error) }, 'Password recovery request failed');
     }

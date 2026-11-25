@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { PostCommitError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { E_ACCOUNT_KIT_POST_COMMIT } from '@kevinjohn/adonisjs-account-kit/errors';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
@@ -311,7 +311,7 @@ test.group('address confirmation', (group) => {
   }) => {
     const original = accountKit.emailVerification.complete;
     accountKit.emailVerification.complete = async () => {
-      throw new PostCommitError('A follow-up failed.');
+      throw new E_ACCOUNT_KIT_POST_COMMIT('A follow-up failed.');
     };
     cleanup(() => {
       accountKit.emailVerification.complete = original;

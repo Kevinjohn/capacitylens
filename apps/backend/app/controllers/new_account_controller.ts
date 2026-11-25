@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
-  RegistrationEmailAlreadyRegisteredError,
+  E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import capacitylens from '#config/capacitylens';
@@ -44,7 +44,7 @@ export default class NewAccountController {
       if (error instanceof FirstCompanyPendingException) {
         return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
       }
-      if (error instanceof RegistrationEmailAlreadyRegisteredError) {
+      if (error instanceof E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED) {
         return response.conflict(emailInUseAnswer);
       }
       // The account exists; only the confirmation email may be missing, and it can be resent.

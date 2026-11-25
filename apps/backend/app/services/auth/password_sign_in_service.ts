@@ -1,7 +1,10 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { InvalidCredentialsError, ThrottledError } from '@kevinjohn/adonisjs-account-kit/errors';
+import {
+  E_INVALID_CREDENTIALS,
+  E_ACCOUNT_KIT_THROTTLED,
+} from '@kevinjohn/adonisjs-account-kit/errors';
 import capacitylens from '#config/capacitylens';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
@@ -63,8 +66,8 @@ export class PasswordSignInService {
       );
     } catch (error) {
       // Record expected credential refusals, then preserve the original package failure.
-      if (error instanceof InvalidCredentialsError) logSignInOutcome(logger, 'failure');
-      if (error instanceof ThrottledError) logSignInOutcome(logger, 'throttled');
+      if (error instanceof E_INVALID_CREDENTIALS) logSignInOutcome(logger, 'failure');
+      if (error instanceof E_ACCOUNT_KIT_THROTTLED) logSignInOutcome(logger, 'throttled');
       throw error;
     }
     logSignInOutcome(logger, 'success');

@@ -5,8 +5,8 @@ import limiter from '@adonisjs/limiter/services/main';
 import mailService from '@adonisjs/mail/services/main';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
-  DeliveryError,
-  RegistrationEmailAlreadyRegisteredError,
+  E_ACCOUNT_KIT_DELIVERY,
+  E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
@@ -273,7 +273,7 @@ test.group('company invitations', (group) => {
   }) => {
     const original = accountKit.invitations.accept;
     accountKit.invitations.accept = async () => {
-      throw new DeliveryError('The welcome notification failed.');
+      throw new E_ACCOUNT_KIT_DELIVERY('The welcome notification failed.');
     };
     cleanup(() => {
       accountKit.invitations.accept = original;
@@ -290,7 +290,7 @@ test.group('company invitations', (group) => {
   }) => {
     const original = accountKit.invitations.accept;
     accountKit.invitations.accept = async () => {
-      throw new RegistrationEmailAlreadyRegisteredError();
+      throw new E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED();
     };
     cleanup(() => {
       accountKit.invitations.accept = original;

@@ -7,8 +7,8 @@ import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { errors as httpServerErrors } from '@adonisjs/core/http';
 import { errors as limiterErrors } from '@adonisjs/limiter';
 import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
-import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
-import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import { E_ACCOUNT_KIT_ADMISSION_REQUIRED } from '@kevinjohn/adonisjs-account-kit/admission';
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import {
   PasswordConfirmationRequiredException,
   PasswordConfirmationStaleException,
@@ -37,7 +37,9 @@ export interface HttpErrorResponse {
  * refusals (`ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection)
  * are produced in `company_scope_middleware.ts` and the planning access check, not here.
  */
-function buildAdmissionRequiredResponse(error: AdmissionRequiredError): HttpErrorResponse {
+function buildAdmissionRequiredResponse(
+  error: InstanceType<typeof E_ACCOUNT_KIT_ADMISSION_REQUIRED>
+): HttpErrorResponse {
   return {
     status: 403,
     body: {
@@ -48,52 +50,50 @@ function buildAdmissionRequiredResponse(error: AdmissionRequiredError): HttpErro
   };
 }
 
-const MASQUERADE_RESPONSES: Record<string, { status: number; code: string; message: string }> = {
-  E_MASQUERADE_CONTEXT_REQUIRED: {
-    status: 428,
-    code: 'MASQUERADE_CONTEXT_REQUIRED',
-    message: 'Masquerade context is required.',
-  },
-  E_MASQUERADE_CONTEXT_CHANGED: {
-    status: 409,
-    code: 'MASQUERADE_CONTEXT_CHANGED',
-    message: 'Masquerade context changed.',
-  },
-  E_MASQUERADE_ACTION_BLOCKED: {
-    status: 403,
-    code: 'MASQUERADE_READ_ONLY',
-    message: 'Masquerade is read-only.',
-  },
-  E_MASQUERADE_NOT_ALLOWED: {
-    status: 403,
-    code: 'AUTHORIZATION_DENIED',
-    message: 'This action is not allowed.',
-  },
-  E_MASQUERADE_ALREADY_ACTIVE: {
-    status: 409,
-    code: 'MASQUERADE_ACTIVE',
-    message: 'Masquerade is already active.',
-  },
-  E_MASQUERADE_UNAUTHENTICATED: {
-    status: 401,
-    code: 'SIGN_IN_REQUIRED',
-    message: 'Sign-in required.',
-  },
-  E_MASQUERADE_UNAVAILABLE: {
-    status: 503,
-    code: 'MASQUERADE_UNAVAILABLE',
-    message: 'Masquerade is unavailable.',
-  },
-};
+// The stop, prune and unknown-commit exceptions extend `E_MASQUERADE_UNAVAILABLE`.
+const masqueradeResponses: ReadonlyArray<
+  readonly [new (...args: never[]) => Error, { status: number; code: string; message: string }]
+> = [
+  [
+    masqueradeErrors.E_MASQUERADE_CONTEXT_REQUIRED,
+    {
+      status: 428,
+      code: 'MASQUERADE_CONTEXT_REQUIRED',
+      message: 'Masquerade context is required.',
+    },
+  ],
+  [
+    masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED,
+    { status: 409, code: 'MASQUERADE_CONTEXT_CHANGED', message: 'Masquerade context changed.' },
+  ],
+  [
+    masqueradeErrors.E_MASQUERADE_ACTION_BLOCKED,
+    { status: 403, code: 'MASQUERADE_READ_ONLY', message: 'Masquerade is read-only.' },
+  ],
+  [
+    masqueradeErrors.E_MASQUERADE_NOT_ALLOWED,
+    { status: 403, code: 'AUTHORIZATION_DENIED', message: 'This action is not allowed.' },
+  ],
+  [
+    masqueradeErrors.E_MASQUERADE_ALREADY_ACTIVE,
+    { status: 409, code: 'MASQUERADE_ACTIVE', message: 'Masquerade is already active.' },
+  ],
+  [
+    masqueradeErrors.E_MASQUERADE_UNAUTHENTICATED,
+    { status: 401, code: 'SIGN_IN_REQUIRED', message: 'Sign-in required.' },
+  ],
+  [
+    masqueradeErrors.E_MASQUERADE_UNAVAILABLE,
+    { status: 503, code: 'MASQUERADE_UNAVAILABLE', message: 'Masquerade is unavailable.' },
+  ],
+];
 
-function buildMasqueradeResponse(error: MasqueradeError): HttpErrorResponse | undefined {
+function buildMasqueradeResponse(error: unknown): HttpErrorResponse | undefined {
   // Invalid input answers like any other validation refusal.
-  if (error.code === 'E_MASQUERADE_INVALID_INPUT') {
+  if (error instanceof masqueradeErrors.E_MASQUERADE_INVALID_INPUT) {
     return { status: 422, body: buildValidationBody('Invalid masquerade request.') };
   }
-  const known = Object.hasOwn(MASQUERADE_RESPONSES, error.code)
-    ? MASQUERADE_RESPONSES[error.code]
-    : undefined;
+  const known = masqueradeResponses.find(([exception]) => error instanceof exception)?.[1];
   return known && { status: known.status, body: { error: known.message, code: known.code } };
 }
 
@@ -213,11 +213,9 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
  * send the package's envelope, so the handler must answer them before `super.handle`.
  */
 export function mapPackageError(error: unknown): HttpErrorResponse | undefined {
-  if (error instanceof MasqueradeError) {
-    const masquerade = buildMasqueradeResponse(error);
-    if (masquerade) return masquerade;
-  }
-  if (error instanceof AdmissionRequiredError) {
+  const masquerade = buildMasqueradeResponse(error);
+  if (masquerade) return masquerade;
+  if (error instanceof E_ACCOUNT_KIT_ADMISSION_REQUIRED) {
     return buildAdmissionRequiredResponse(error);
   }
   const kitRefusal = buildKitRefusal(error);
