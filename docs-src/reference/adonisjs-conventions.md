@@ -26,7 +26,7 @@ Three rules decide every case:
 2. **A deliberate difference is a numbered departure.** The list is "AdonisJS framework
    departures" in
    [`DECISIONS.md`](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md). This page
-   cites it as "departure 11". A new difference needs the owner's ruling first. An entry marked
+   cites it as "departure 11". A new difference is decided in an issue first. An entry marked
    **Aligning** there is being removed by the issue it names; until that issue lands, match the
    surrounding code.
 3. **An existing difference is debt.** Code that differs without a departure is tracked in
@@ -35,8 +35,8 @@ Three rules decide every case:
    code.
 
 The rules that apply to every AdonisJS repository, applications and packages alike, are in the
-[AdonisJS cookbook](./adonisjs-cookbook.md), and the
-[pre-PR checklist](./adonisjs-checklist.md) turns each one into a check. This page says how
+[AdonisJS cookbook](https://github.com/Kevinjohn/oss-adonisjs-code-conventions/blob/main/adonisjs/cookbook.md), and the
+[pre-PR checklist](https://github.com/Kevinjohn/oss-adonisjs-code-conventions/blob/main/adonisjs/checklist.md) turns each one into a check. This page says how
 CapacityLens stands against them.
 
 Names, errors, comments and TSDoc inside a file are in [Code standards](./code-standards.md).
@@ -589,4 +589,4 @@ the work at the top of the function, and do not wrap the main logic in an `if`.
 9. A test file holds only tests; shared code is in `tests/helpers/`.
 10. Framework words are used for framework concepts, and "guard", "policy", "exception" and
     "factory" are not reused for anything else.
-11. Any difference from the framework cites a numbered departure, or adds one.
+11. Any difference from the framework cites a numbered departure.

@@ -85,7 +85,6 @@ test('exempt paths and per-file allowances are skipped as data', () => {
     assert.ok(isExempt(path), path);
     assert.deepEqual(findViolations([path], read), [], path);
   }
-  assert.equal(findViolations(['docs-src/reference/adonisjs-cookbook.md'], read).length, 1);
   assert.equal(findViolations(['docs-src/reference/adonisjs-conventions.md'], read).length, 1);
 });
 
