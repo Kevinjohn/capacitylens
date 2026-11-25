@@ -2,27 +2,6 @@ import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import { sourceFiles } from '@adonisjs/lucid/utils';
 
-function readMigrationsConfig() {
-  const connection = db.getRawConnection(db.primaryConnectionName);
-  if (!connection) throw new Error(`Database connection ${db.primaryConnectionName} is missing`);
-  return connection.config.migrations ?? {};
-}
-
-/**
- * The migrations shipped with this build, named as Lucid records them in `adonis_schema`: read
- * from the configured migration directories the way Lucid's migrator reads them.
- */
-async function listShippedMigrations() {
-  const config = readMigrationsConfig();
-  const directories = config.paths?.length
-    ? config.paths
-    : [`./${app.relativePath(app.migrationsPath())}`];
-  const sources = await Promise.all(
-    directories.map((directory) => sourceFiles(app.appRoot, directory, config.naturalSort ?? false))
-  );
-  return sources.flatMap(({ files }) => files.map((file) => file.name));
-}
-
 type SchemaIntegrity = { kind: 'ok' } | { kind: 'drift'; message: string } | { kind: 'unchecked' };
 
 let remembered: SchemaIntegrity = { kind: 'unchecked' };
@@ -32,17 +11,40 @@ let remembered: SchemaIntegrity = { kind: 'unchecked' };
  * state, so every instance reads the one boot recorded.
  */
 export class SchemaIntegrityService {
+  #readMigrationsConfig() {
+    const connection = db.getRawConnection(db.primaryConnectionName);
+    if (!connection) throw new Error(`Database connection ${db.primaryConnectionName} is missing`);
+    return connection.config.migrations ?? {};
+  }
+
+  /**
+   * The migrations shipped with this build, named as Lucid records them in `adonis_schema`: read
+   * from the configured migration directories the way Lucid's migrator reads them.
+   */
+  async #listShippedMigrations() {
+    const config = this.#readMigrationsConfig();
+    const directories = config.paths?.length
+      ? config.paths
+      : [`./${app.relativePath(app.migrationsPath())}`];
+    const sources = await Promise.all(
+      directories.map((directory) =>
+        sourceFiles(app.appRoot, directory, config.naturalSort ?? false)
+      )
+    );
+    return sources.flatMap(({ files }) => files.map((file) => file.name));
+  }
+
   /**
    * Refuses a database that has not recorded every migration shipped with the running build, such
    * as an older backup restored under newer code. Migrations are the only writer of the schema, so
    * the record is the one fact checked; tables, columns, indexes and triggers are not compared.
    */
   async assertSchemaIntegrity() {
-    const shipped = await listShippedMigrations();
+    const shipped = await this.#listShippedMigrations();
     if (shipped.length === 0) {
       throw new Error('Database schema drift: this build ships no migrations to compare');
     }
-    const tableName = readMigrationsConfig().tableName ?? 'adonis_schema';
+    const tableName = this.#readMigrationsConfig().tableName ?? 'adonis_schema';
     if (!(await db.connection().schema.hasTable(tableName))) {
       throw new Error('Database schema drift: the migration record is missing');
     }

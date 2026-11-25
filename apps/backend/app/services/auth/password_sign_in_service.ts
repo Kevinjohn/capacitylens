@@ -10,24 +10,6 @@ import { CurrentActorService } from '#services/auth/current_actor_service';
 import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
 import { buildUserProjection } from '#services/auth/user_projection';
 
-function logSignInOutcome(
-  logger: HttpContext['logger'],
-  outcome: 'success' | 'failure' | 'throttled'
-) {
-  if (!capacitylens.requestLogging) return;
-  try {
-    const fields = { event: 'auth.sign_in', outcome };
-    if (outcome === 'failure' || outcome === 'throttled') {
-      logger.warn(fields, 'Authentication outcome');
-    } else {
-      logger.info(fields, 'Authentication outcome');
-    }
-  } catch {
-    // Logging must not change the authentication outcome or skip member tracking.
-    console.error('Authentication outcome logging failed');
-  }
-}
-
 /** The credentials and the request facts the controller read for one sign-in. */
 export interface PasswordSignInInput {
   email: string;
@@ -48,6 +30,22 @@ export class PasswordSignInService {
     this.#signInTracking = signInTracking;
   }
 
+  /** Logs the sign-in outcome when request logging is on, never changing the outcome itself. */
+  #logSignInOutcome(logger: HttpContext['logger'], outcome: 'success' | 'failure' | 'throttled') {
+    if (!capacitylens.requestLogging) return;
+    try {
+      const fields = { event: 'auth.sign_in', outcome };
+      if (outcome === 'failure' || outcome === 'throttled') {
+        logger.warn(fields, 'Authentication outcome');
+      } else {
+        logger.info(fields, 'Authentication outcome');
+      }
+    } catch {
+      // Logging must not change the authentication outcome or skip member tracking.
+      console.error('Authentication outcome logging failed');
+    }
+  }
+
   /** Signs in through Account Kit and records the observed sign-in for tracked companies. */
   async signInWithPassword(
     auth: HttpContext['auth'],
@@ -66,11 +64,11 @@ export class PasswordSignInService {
       );
     } catch (error) {
       // Record expected credential refusals, then preserve the original package failure.
-      if (error instanceof E_INVALID_CREDENTIALS) logSignInOutcome(logger, 'failure');
-      if (error instanceof E_ACCOUNT_KIT_THROTTLED) logSignInOutcome(logger, 'throttled');
+      if (error instanceof E_INVALID_CREDENTIALS) this.#logSignInOutcome(logger, 'failure');
+      if (error instanceof E_ACCOUNT_KIT_THROTTLED) this.#logSignInOutcome(logger, 'throttled');
       throw error;
     }
-    logSignInOutcome(logger, 'success');
+    this.#logSignInOutcome(logger, 'success');
     return this.#currentActor.withActor(
       auth,
       async (actor, trx) => {
