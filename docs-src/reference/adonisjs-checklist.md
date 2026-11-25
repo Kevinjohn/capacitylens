@@ -26,17 +26,17 @@ Each item carries the tier that says what a failure does.
 | **Rule** | Blocks the merge. | A numbered entry in the repository's departures list, decided in an issue before the code merges. |
 | **Guideline** | Does not block. The reviewer notes it once and the author answers once, with a fix or a reason. | A reason that will stand is recorded as a departure, so the item is not noted again. |
 
-- A law is decided by reading the files it names or running the command it names. An item that
-  needs other evidence (git history, a release, a running server) is a rule. An item that needs
-  taste to decide is a guideline.
+- The tier printed on an item is the tier. Nothing on this page moves an item to another one.
+- A law or a rule is decided from the repository: its files, its commands and its git history.
+  An item that needs taste to decide is a guideline.
 - An item with several sentences passes only when every sentence holds.
 - **n/a** is valid when the item's condition is false: the section's *When* line does not match
   the change, or the item starts from something the code does not have ("a middleware the package
   ships", "when an action uses route parameters"). An item that requires something to exist is
   never n/a because that thing is missing: that is a fail.
 - A departure is decided in an issue and lands in its own change, before the code that needs it.
-  The change that needs a departure never adds it. An entry the repository marks as being
-  aligned, with the issue that removes it, counts as a departure until that issue closes.
+  The change that needs a departure never adds it. An entry the departures list marks
+  **Aligning** covers a rule, never a law, until the issue it names lands.
 - A tier or an item changes through an issue, between reviews. A review in progress keeps the
   draft it started with.
 
@@ -49,10 +49,9 @@ Each item carries the tier that says what a failure does.
    **departure**, citing the numbered entry in the repository's departures list. A failed item is
    fixed before the pull request. There is no fourth state.
 4. Run the mechanical checks first. They are the commands at the head of a section. A check points
-   at lines to read; the item decides. Output from a line the change added or edited is a failure
-   unless the item passes on that line. Output from code the change did not touch, or from code a
-   numbered departure covers, goes under "exceptions" in the summary block, with its path or its
-   departure number.
+   at lines to read; the item decides. Output the change caused is a failure unless the item passes on it. Output that
+   the same check gives on the base branch, or that a numbered departure covers, goes under
+   "exceptions" in the summary block, with its path or its departure number.
 5. Paste the summary block at the end into the pull request description.
 6. Code the diff did not touch is not in scope. A failure seen there gets an issue.
 
@@ -124,7 +123,7 @@ Items:
 - [ ] **TOOL-3** (Law) `tsconfig.json` extends `@adonisjs/tsconfig/tsconfig.app.json` in an application and `@adonisjs/tsconfig/tsconfig.package.json` in a package.
 - [ ] **TOOL-4** (Law) Node is version 24 or later, declared under `engines`. The framework requires it; the package starter kit declares it.
 - [ ] **TOOL-5** (Rule) Script names are the starter kit's: `dev`, `build`, `start`, `test`, `lint`, `format`, `typecheck`, plus `codegen` in a monorepo backend and `compile`, `quick:test` and `release` in a package.
-- [ ] **TOOL-6** (Rule) The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and `LICENSE.md`. The kits ship the first four.
+- [ ] **TOOL-6** (Rule) The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and a licence file named `LICENSE` or `LICENSE.md`. The kits ship the first four.
 - [ ] **TOOL-7** (Guideline) Return early. Check each condition that ends the work at the top of the function; do not wrap the main logic in an `if`.
 - [ ] **TOOL-8** (Law) Private state in a class is a `#field` or `#method`. Use `protected` only for a member a subclass or the framework reads.
 
@@ -170,7 +169,7 @@ Items:
 - [ ] **CFG-5** (Law) A config file that defines a named list (mailers, hash drivers, limiter stores, guards) carries the `declare module` block that types it.
 - [ ] **CFG-6** (Law) `adonisrc.ts` is environment-agnostic: no `process.env`, no logic. `providers`, `preloads` and `commands` are lazy imports. A provider or preload that belongs to some environments says so with `{ file, environment }`.
 - [ ] **CFG-7** (Law) Resolve paths with `app.makePath()`, `app.publicPath()`, `app.tmpPath()` and `app.configPath()`.
-- [ ] **CFG-8** (Rule) `.env.example` lists every variable with a placeholder, never a real secret. Values for tests are in `.env.test`.
+- [ ] **CFG-8** (Rule) `.env.example` lists every variable with a placeholder, never a real secret. Test values that are the same on every run are in `.env.test`.
 - [ ] **CFG-9** (Rule) A product's own variables share one prefix (`MYAPP_`). Framework variables keep the framework's names (`APP_KEY`, `PORT`, `HOST`, `LOG_LEVEL`).
 - [ ] **CFG-10** (Guideline) Add a variable with `node ace env:add`, which writes `.env`, `.env.example` and the `start/env.ts` validation together.
 - [ ] **CFG-11** (Law) `adonisrc.ts` keeps `indexEntities(...)` and, for a typed client, `generateRegistry()` in `hooks.init`.
@@ -193,7 +192,7 @@ Items:
 - [ ] **RTE-5** (Law) Attach middleware with `.use(middleware.name(options))`, importing `middleware` from `#start/kernel`.
 - [ ] **RTE-6** (Rule) Use `router.resource()` for a resource with the standard actions, and `.apiOnly()` for an API.
 - [ ] **RTE-7** (Guideline) The verb says what the route does: `GET` reads, `POST` creates or acts, `PUT` replaces, `PATCH` changes part, `DELETE` removes.
-- [ ] **RTE-8** (Rule) Constrain a route parameter with `.where()` or `router.matchers`.
+- [ ] **RTE-8** (Guideline) Constrain a route parameter with `.where()` or `router.matchers`.
 - [ ] **RTE-9** (Rule) An API is versioned in the outer group's prefix: `/api/v1`.
 - [ ] **RTE-10** (Guideline) When `start/routes.ts` grows past one screen, split it by area into `start/routes/<area>.ts` files that `start/routes.ts` imports. Each stays a plain route file.
 
@@ -330,18 +329,18 @@ Items:
 
 Mechanical checks:
 
-- [ ] `grep -rnE "^export (async )?function" app` prints nothing
+- [ ] `grep -rnE "^export (async )?function" app` prints only factories and pure functions (SVC-5)
 - [ ] `grep -rnE "^\s*console\." app providers start` prints nothing
 
 Items:
 
 - [ ] **SVC-1** (Rule) Business logic that more than one entry point needs lives in a class in `app/services/<name>_service.ts`, created with `node ace make:service`, which writes a named export.
-- [ ] **SVC-2** (Rule) A service is taken through the constructor with `@inject()`. The container builds it; nothing calls `new` on it.
+- [ ] **SVC-2** (Rule) The container builds a service: a controller or another service takes it through the constructor with `@inject()`, an Ace command through an `@inject()` `run` method, and code with no constructor to inject into through `app.container.make`. Nothing under `app/` calls `new` on a service.
 - [ ] **SVC-3** (Rule) A service does not read the HTTP context unless it is injected with it.
 - [ ] **SVC-4** (Rule) Replace a service in a test with the test context's `swap(Service, fake)`, which restores itself.
-- [ ] **SVC-5** (Rule) Behaviour is a class method. A file does not export loose top-level functions; an exported function only builds and returns an instance.
+- [ ] **SVC-5** (Rule) Under `app/`, behaviour that has state, does I/O or takes a dependency is a class method. An exported function is a factory that builds and returns an instance, or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable.
 - [ ] **SVC-6** (Rule) Write a provider only for container bindings, framework extensions (macros, `HttpContext` properties), or work that starts and stops with the application. One-off setup is a preload file.
-- [ ] **SVC-7** (Rule) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in `ready` and stops in `shutdown`.
+- [ ] **SVC-7** (Rule) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`. Nothing in `register` or `boot` connects, listens or spawns; `start` does so only behind an `app.getMode()` check. Long-running work starts in `ready` and stops in `shutdown`.
 - [ ] **SVC-8** (Law) Application code logs through the logger, not `console`.
 
 ## Authentication and authorization

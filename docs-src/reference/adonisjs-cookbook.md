@@ -141,8 +141,7 @@ and **logout** (the framework's words for starting and ending a session).
 - **TOOL-5 (F)** Script names are the starter kit's: `dev`, `build`, `start`, `test`, `lint`,
   `format`, `typecheck`, plus `codegen` in a monorepo backend and `compile`, `quick:test` and
   `release` in a package.
-- **TOOL-6 (H)** The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`,
-  `README.md` and `LICENSE.md`. The kits ship the first four.
+- **TOOL-6 (H)** The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and a licence file named `LICENSE` or `LICENSE.md`. The kits ship the first four.
 - **TOOL-7 (P)** Return early. Check each condition that ends the work at the top of the function;
   do not wrap the main logic in an `if`.
 - **TOOL-8 (H)** Private state in a class is a `#field` or `#method`. Use `protected` only for a
@@ -264,8 +263,7 @@ The alias set, from the `api-monorepo` kit:
   environments says so with `{ file, environment }`.
 - **CFG-7 (F)** Resolve paths with `app.makePath()`, `app.publicPath()`, `app.tmpPath()` and
   `app.configPath()`.
-- **CFG-8 (F)** `.env.example` lists every variable with a placeholder, never a real secret. Values
-  for tests are in `.env.test`.
+- **CFG-8 (F)** `.env.example` lists every variable with a placeholder, never a real secret. Test values that are the same on every run are in `.env.test`.
 - **CFG-9 (H)** A product's own variables share one prefix (`MYAPP_`). Framework variables keep the
   framework's names (`APP_KEY`, `PORT`, `HOST`, `LOG_LEVEL`).
 - **CFG-10 (F)** Add a variable with `node ace env:add`, which writes `.env`, `.env.example` and the
@@ -683,21 +681,16 @@ export default class extends BaseSchema {
 - **SVC-1 (F)** Business logic that more than one entry point needs lives in a class in
   `app/services/<name>_service.ts`, created with `node ace make:service`, which writes a named
   export.
-- **SVC-2 (F)** A service is taken through the constructor with `@inject()`. The container builds
-  it; nothing calls `new` on it.
+- **SVC-2 (F)** The container builds a service: a controller or another service takes it through the constructor with `@inject()`, an Ace command through an `@inject()` `run` method, and code with no constructor to inject into through `app.container.make`. Nothing under `app/` calls `new` on a service.
 - **SVC-3 (F)** A service does not read the HTTP context unless it is injected with it. Prefer
   passing the values it needs.
 - **SVC-4 (F)** Replace a service in a test with the test context's `swap(Service, fake)`, which
   restores itself.
-- **SVC-5 (P)** Behaviour is a class method. A file does not export loose top-level functions; an
-  exported function only builds and returns an instance.
+- **SVC-5 (P)** Under `app/`, behaviour that has state, does I/O or takes a dependency is a class method. An exported function is a factory that builds and returns an instance, or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable.
 - **SVC-6 (F)** Write a provider only for container bindings, framework extensions (macros,
   `HttpContext` properties), or work that starts and stops with the application. One-off setup is
   a preload file.
-- **SVC-7 (F)** In a provider: `register` only binds and is synchronous; `boot` configures.
-  `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are
-  imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in
-  `ready` and stops in `shutdown`.
+- **SVC-7 (F)** In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`. Nothing in `register` or `boot` connects, listens or spawns; `start` does so only behind an `app.getMode()` check. Long-running work starts in `ready` and stops in `shutdown`.
 - **SVC-8 (F)** Application code logs through the logger, not `console`.
 
 Recipe (documentation, shortened):
@@ -959,7 +952,7 @@ index.ts           the entry point
   `oss-adonisjs-<name>`. The name says what the package does in the framework's vocabulary.
 - **PKG-5 (F)** `"type": "module"`, `engines.node >= 24`, `"files": ["build", "!build/bin",
   "!build/tests"]`, and an `exports` map.
-- **PKG-6 (F)** `@adonisjs/core` and every other framework package the code imports
+- **PKG-6 (H)** `@adonisjs/core` and every other framework package the code imports
   (`@adonisjs/lucid`, `@adonisjs/session`, `@adonisjs/assembler`) is a `peerDependency`, and a
   `devDependency` for the package's own tests. Optional ones are marked in
   `peerDependenciesMeta`.
@@ -1165,9 +1158,9 @@ export { limiter as default }
   application's developer throws `InvalidArgumentsException` or `RuntimeException` from
   `@adonisjs/core/exceptions` (PKG-21); everything else is a class in `src/errors.ts`.
 - **PKG-33 (F)** An exception whose response needs more than its status, code and message (a header, a redirect, a different body) implements `handle` on itself, so the application's handler needs no special case. Every other exception is left for the framework to render.
-- **PKG-34 (F)** Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console`. It logs through the application's logger only when the application's configuration passes that logger in.
-- **PKG-35 (F)** State, I/O and anything that takes a dependency is a class. An exported function is one of: `defineConfig`; `configure`; a factory that returns an instance or a config provider; a decorator; a mixin; a plugin for Edge, Japa or the assembler; or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable. A generated file, such as the commands index, is not checked.
-- **PKG-36 (F)** A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath. The configure hook registers it, unless the middleware reads `ctx.auth`: the README then tells the application where to mount it.
+- **PKG-34 (H)** Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console`. It logs through the application's logger only when the application's configuration passes that logger in.
+- **PKG-35 (H)** State, I/O and anything that takes a dependency is a class. An exported function is one of: `defineConfig`; `configure`; a factory that returns an instance or a config provider; a decorator; a mixin; a plugin for Edge, Japa or the assembler; or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable. A generated file, such as the commands index, is not checked.
+- **PKG-36 (H)** A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath. The configure hook registers it, unless the middleware reads `ctx.auth`: the README then tells the application where to mount it.
 - **PKG-37 (F)** A command the package ships is a file in `commands/`. The build writes
   `build/commands/main.js` with `adonis-kit index build/commands`, exported as `./commands` and
   registered with `rcFile.addCommand('<package>/commands')`.
@@ -1285,7 +1278,6 @@ the answer is recorded in the repository's departures list.
 | D7 | Package manager | Kits ship npm scripts and work with any manager. | pnpm everywhere; scripts written so they do not name the manager. |
 | D8 | Authentication in applications that use Account Kit | `@adonisjs/auth` guards, `withAuthFinder`, `loginAs`. | Account Kit is itself an AdonisJS package, so it should expose the framework's surface (guards, `auth.user`, a `loginAs`-style test plugin) rather than each application recording a departure. Audit it against Part 3 first. |
 | D9 | Authorization in applications that use Access Control | Bouncer abilities and policies called from the controller. | Same as D8: the package should present Bouncer's vocabulary (`ability`, `policy`, `authorize`), and the application calls it from the controller. |
-| D10 | Which AdonisJS Plus rules are binding | Published as optional lint rules. | CTL-5, TST-11, TST-12, TST-13 and SVC-5 block a merge. TOOL-7 is a guideline. |
 
 ---
 

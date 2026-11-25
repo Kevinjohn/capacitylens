@@ -363,6 +363,13 @@ removed entry retires its number.
     whole HTTP context and pass it to the Masquerade service. The service treats the context as the
     request: it admits each request once, authenticates through its guard and reads its route
     parameters. Every other controller action destructures.
+26. Product error codes on the wire are stable identifiers and keep their spelling
+    (`FIRST_COMPANY_PENDING`). Only framework exception codes are `E_UPPER_SNAKE`.
+27. The API has no version in its path (`/api`, not `/api/v1`). The SPA is its only client and is
+    built and released with the backend.
+28. **Aligning (#2550).** Prettier keeps semicolons (`semi: true` over the AdonisJS preset).
+29. **Aligning (#2550).** The `dbAssertions` plugin is not registered; tests read rows with the
+    query builder and check them with `assert`.
 
 ## Installation
 
