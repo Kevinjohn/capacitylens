@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { m } from '@/i18n';
 import { hasRangeOverlap } from '@capacitylens/shared/lib/dateMath';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
-import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
+import type { Allocation, ID } from '@capacitylens/shared/types/entities';
 import { useDragResize } from '@/hooks/useDragResize';
 import type { DragResizePreviewInput, Pointer } from '@/hooks/useDragResize';
 import { isShownByPlanningState } from '@/data/planning/planningNotices';
@@ -20,9 +20,7 @@ import { buildGesturePreviewDates } from './gestureGeometry';
 import {
   hasEffectiveDaysFor,
   isDropStartBlocked,
-  isPreviewDropBlocked,
   resolveGestureWorkingDays,
-  resolveMemoisedWorkingDays,
 } from './gestureWorkingWeeks';
 import type { GestureCalendar } from './gestureWorkingWeeks';
 import { readLaneSnapshots, resolveLaneAt } from './gestureLanes';
@@ -50,7 +48,6 @@ interface ViewModelOptions {
 /** Per-allocation refs and geometry watch shared by the gesture hook and its view model. */
 export interface GestureRuntime {
   lanesRef: React.RefObject<LaneSnapshot[]>;
-  previewDaysRef: React.RefObject<Map<ID, Weekday[] | undefined>>;
   setDropTarget: (element: HTMLElement | null) => void;
   startGeometryWatch: () => void;
   stopGeometryWatch: () => void;
@@ -97,35 +94,21 @@ interface ReadPreviewDatesInput {
   bar: {
     allocation: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate' | 'ignoreWorkingDays'>;
   };
-  runtime: Pick<GestureRuntime, 'previewDaysRef'>;
+  calendar: GestureCalendar;
   input: Pick<DragResizePreviewInput, 'mode' | 'deltaDays'>;
   destination: Pick<LaneSnapshot, 'id'> | null;
 }
 
-function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDatesInput) {
+function readPreviewDates({ bar, calendar, input, destination }: ReadPreviewDatesInput) {
   const resourceId = bar.allocation.resourceId;
-  const previewDays = resolveMemoisedWorkingDays(
-    runtime.previewDaysRef.current,
-    destination?.id ?? resourceId,
-    readGestureCalendar,
-  );
-  return {
-    result: buildGesturePreviewDates({
-      allocation: bar.allocation,
-      mode: input.mode,
-      deltaDays: input.deltaDays,
-      previewDays,
-      sourceDays: destination
-        ? resolveMemoisedWorkingDays(
-            runtime.previewDaysRef.current,
-            resourceId,
-            readGestureCalendar,
-          )
-        : undefined,
-      isReassignment: destination !== null,
-    }),
-    previewDays,
-  };
+  return buildGesturePreviewDates({
+    allocation: bar.allocation,
+    mode: input.mode,
+    deltaDays: input.deltaDays,
+    previewDays: resolveGestureWorkingDays(calendar, destination?.id ?? resourceId),
+    sourceDays: destination ? resolveGestureWorkingDays(calendar, resourceId) : undefined,
+    isReassignment: destination !== null,
+  });
 }
 
 function previewGesture(
@@ -140,17 +123,22 @@ function previewGesture(
       ? resolveLaneAt(runtime.lanesRef.current, input.pointer.clientX, input.pointer.clientY)
       : null;
   const destination = target && target.id !== resourceId ? target : null;
-  const { result, previewDays } = readPreviewDates({ bar, runtime, input, destination });
+  // Each frame reads the live calendar, so the preview and the commit judge the same data.
+  const calendar = readGestureCalendar();
+  const result = readPreviewDates({ bar, calendar, input, destination });
   // A refused reassignment previews the source-row range so the bar continues following horizontal movement without painting a destination placement that commit rejects.
-  const blocked = isPreviewDropBlocked({
-    workingDays: previewDays,
-    result,
-    isReassignment: input.mode === 'move' && destination !== null,
-    ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
-  });
-  const settled = blocked
-    ? readPreviewDates({ bar, runtime, input, destination: null }).result
-    : result;
+  const blocked =
+    input.mode === 'move' &&
+    destination !== null &&
+    (result.kind === 'blocked' ||
+      (result.kind === 'ready' &&
+        isDropStartBlocked({
+          calendar,
+          resourceId: destination.id,
+          date: result.dates.startDate,
+          ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
+        })));
+  const settled = blocked ? readPreviewDates({ bar, calendar, input, destination: null }) : result;
   const preview: GesturePreview = {
     mode: input.mode,
     deltaDays: input.deltaDays,

@@ -105,68 +105,6 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     expect([moved.startDate, moved.endDate]).toEqual(['2026-06-08', '2026-06-08']);
   });
 
-  it('does not reread a destination resource from the store on every preview frame', async () => {
-    const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
-    const src = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
-    );
-    const dst = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Sam', jobTitle: 'Dev', color: '#4' })),
-    );
-    const a = requireCreated(
-      await st.addAllocation({
-        resourceId: src.id,
-        activityId: t.id,
-        startDate: '2026-06-01',
-        endDate: '2026-06-03',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      }),
-    );
-    render(
-      <>
-        <div data-resource-id={src.id} data-testid="lane-src" />
-        <div data-resource-id={dst.id} data-testid="lane-dst" />
-        <AllocationBar
-          bar={barFor(a)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />
-      </>,
-    );
-    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50);
-    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
-
-    const bar = screen.getByTestId('allocation-bar');
-    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
-    act(() => {
-      document.dispatchEvent(
-        new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true }),
-      );
-    });
-
-    const getState = vi.spyOn(useStore, 'getState');
-    try {
-      act(() => {
-        document.dispatchEvent(
-          new MouseEvent('pointermove', { clientX: 60, clientY: 125, bubbles: true }),
-        );
-      });
-
-      expect(getState).not.toHaveBeenCalled();
-    } finally {
-      getState.mockRestore();
-    }
-    act(() => {
-      document.dispatchEvent(new MouseEvent('pointercancel', { bubbles: true }));
-    });
-  });
   const midWeek = [2, 3, 4] as const;
   const monToFri = [1, 2, 3, 4, 5] as const;
 
@@ -350,6 +288,81 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     const after = getStoredAllocation(a.id);
     expect(after.resourceId).toBe(src.id);
     expect([after.startDate, after.endDate]).toEqual(['2026-06-08', '2026-06-12']);
+  });
+
+  it('follows a destination working-week change made while the pointer is down', async () => {
+    const st = useStore.getState();
+    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
+    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
+    const t = await requireCreated(
+      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
+    );
+    const src = await requireCreated(
+      st.addResource(
+        makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3', workingDays: [...monToFri] }),
+      ),
+    );
+    const dst = await requireCreated(
+      st.addResource(
+        makeResourceDraft({
+          name: 'Sam',
+          jobTitle: 'Dev',
+          color: '#4',
+          workingDays: [...monToFri],
+        }),
+      ),
+    );
+    const a = requireCreated(
+      await st.addAllocation({
+        resourceId: src.id,
+        activityId: t.id,
+        startDate: '2026-06-08',
+        endDate: '2026-06-12',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+    render(
+      <>
+        <div data-resource-id={src.id} data-testid="lane-src" />
+        <div data-resource-id={dst.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={barFor(a)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    );
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50);
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
+
+    const bar = screen.getByTestId('allocation-bar');
+    const startX = GEOM.getDateX('2026-06-08') + 10;
+    fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
+    act(() => {
+      document.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: startX, clientY: 125, bubbles: true }),
+      );
+    });
+    // Monday is a working day for the destination, so the preview accepts the drop.
+    expect(screen.getByTestId('lane-dst')).toHaveAttribute('data-droptarget', '');
+
+    // The destination stops working Mondays while the pointer is still down.
+    await act(async () => {
+      await useStore.getState().updateResource(dst.id, { workingDays: [...midWeek] });
+    });
+    act(() => {
+      document.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: startX + 1, clientY: 125, bubbles: true }),
+      );
+    });
+
+    // The next frame reads the live calendar and refuses the drop the commit would refuse.
+    expect(screen.getByTestId('lane-dst')).not.toHaveAttribute('data-droptarget');
+    act(() => {
+      document.dispatchEvent(new MouseEvent('pointercancel', { bubbles: true }));
+    });
   });
 
   it('keeps following the pointer sideways while the row under it refuses the drop', async () => {
