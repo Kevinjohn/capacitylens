@@ -13,11 +13,9 @@ import { createServerRevision } from '#services/planning/server_timestamp';
 import { requireExistingRow, type WrittenRow } from '#services/planning/writer';
 import { RowValidationService } from '#services/planning/row_validation_service';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import {
-  PlanningAuthorizationException,
-  PlanningConflictException,
-} from '#exceptions/planning_operation_exception';
-import { FrozenCompanyFieldException } from '#exceptions/entity_write_exception';
+import PlanningAuthorizationException from '#exceptions/planning_authorization_exception';
+import PlanningConflictException from '#exceptions/planning_conflict_exception';
+import FrozenCompanyFieldException from '#exceptions/frozen_company_field_exception';
 
 /** Planning row writes in the caller's transaction. */
 @inject()

@@ -4,7 +4,7 @@ import db from '@adonisjs/lucid/services/db';
 import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 import { E_ACCOUNT_KIT_INVALID_SESSION } from '@kevinjohn/adonisjs-account-kit/errors';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { endMasqueradeValidator, startMasqueradeValidator } from '#validators/masquerade';

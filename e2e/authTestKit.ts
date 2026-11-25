@@ -606,7 +606,7 @@ export async function signUpUserWithId(
 /**
  * Issues an operator invitation against the auth E2E server's database and returns its acceptance
  * link, which the operator command prints instead of emailing. Keep the settings aligned with the
- * auth flavour in `apps/backend/scripts/e2e-server.mjs`. When `companyId` is given, the invitation
+ * auth flavour in `apps/backend/scripts/e2e_server.mjs`. When `companyId` is given, the invitation
  * names that company.
  * @throws When the command fails or prints no link.
  */
@@ -632,7 +632,7 @@ export function printTestResetLink(email: string): string {
   assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
   const result = spawnSync(
     process.execPath,
-    ['--import=@poppinss/ts-exec', 'scripts/e2e-reset-link.mjs', email],
+    ['--import=@poppinss/ts-exec', 'scripts/e2e_reset_link.mjs', email],
     {
       cwd: BACKEND_DIRECTORY,
       encoding: 'utf8',

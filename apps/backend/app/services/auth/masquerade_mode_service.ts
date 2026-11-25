@@ -19,7 +19,7 @@ import type {
   TransactionClientContract,
 } from '@adonisjs/lucid/types/database';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { AccessGrantService } from '#services/auth/access_grant_service';

@@ -2,9 +2,10 @@ import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import env from '#start/env';
 import HttpExceptionHandler from '#exceptions/handler';
-import { NotFoundException, RefusalException } from '#exceptions/refusal_exception';
-import { MembershipSuspendedException } from '#exceptions/admission_exception';
-import { TargetIneligibleException } from '#exceptions/ownership_transfer_exception';
+import NotFoundException from '#exceptions/not_found_exception';
+import RefusalException from '#exceptions/refusal_exception';
+import MembershipSuspendedException from '#exceptions/membership_suspended_exception';
+import TargetIneligibleException from '#exceptions/target_ineligible_exception';
 import { MailDeliveryService } from '#services/mail_delivery_service';
 
 test.group('request helpers', () => {

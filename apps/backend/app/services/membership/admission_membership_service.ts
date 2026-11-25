@@ -5,10 +5,8 @@ import { AdmissionRuleService } from '#services/account_kit/admission_rule_servi
 import access from '#config/access_control';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
-import {
-  CompanySetupRequiredException,
-  MembershipSuspendedException,
-} from '#exceptions/admission_exception';
+import CompanySetupRequiredException from '#exceptions/company_setup_required_exception';
+import MembershipSuspendedException from '#exceptions/membership_suspended_exception';
 import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** Company membership for an identity the Account Kit has admitted. */

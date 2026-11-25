@@ -1,4 +1,4 @@
-import { ProductException } from '#exceptions/product_exception';
+import ProductException from '#exceptions/product_exception';
 
 /** The framework's validation body, `{ errors: [{ message }] }`, for one refusal sentence. */
 export function buildValidationBody(message: string) {
@@ -10,7 +10,7 @@ export function buildValidationBody(message: string) {
  * like a request validation failure, 422 with the framework's `{ errors }` body, so the browser
  * reads one shape for invalid input.
  */
-export class ValidationRefusalException extends ProductException {
+export default class ValidationRefusalException extends ProductException {
   constructor(message: string) {
     super(message, { status: 422 });
   }

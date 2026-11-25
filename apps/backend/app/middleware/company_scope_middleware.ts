@@ -2,8 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
 import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
 import ScopeMiddleware from '@kevinjohn/adonisjs-access-control/middleware';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { MembershipLostException } from '#exceptions/planning_operation_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
+import MembershipLostException from '#exceptions/membership_lost_exception';
 
 const scope = new ScopeMiddleware();
 

@@ -31,16 +31,14 @@ import {
 } from '#services/planning/restricted_fields';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import { PlanningAuthorizationException } from '#exceptions/planning_operation_exception';
-import {
-  EntityWriteException,
-  EntityNotFoundException,
-  FrozenCompanyFieldException,
-  ResourceAvatarUrlForbiddenException,
-  ResourceAvatarUrlInvalidException,
-  ResourceKindImmutableException,
-  EntityDomainRuleException,
-} from '#exceptions/entity_write_exception';
+import PlanningAuthorizationException from '#exceptions/planning_authorization_exception';
+import EntityWriteException from '#exceptions/entity_write_exception';
+import EntityNotFoundException from '#exceptions/entity_not_found_exception';
+import FrozenCompanyFieldException from '#exceptions/frozen_company_field_exception';
+import ResourceAvatarUrlForbiddenException from '#exceptions/resource_avatar_url_forbidden_exception';
+import ResourceAvatarUrlInvalidException from '#exceptions/resource_avatar_url_invalid_exception';
+import ResourceKindImmutableException from '#exceptions/resource_kind_immutable_exception';
+import EntityDomainRuleException from '#exceptions/entity_domain_rule_exception';
 
 // Widened so a stored value of unknown type can be checked against the known kinds.
 const resourceKinds: readonly unknown[] = RESOURCE_KINDS;

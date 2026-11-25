@@ -1,5 +1,5 @@
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
 
 /** One row a planning operation wrote: its table, id, and the row before and after. */
 export interface WrittenRow {

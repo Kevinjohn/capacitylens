@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
+import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
 import { UserSchema } from '#database/schema';
 import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm';
 import app from '@adonisjs/core/services/app';
