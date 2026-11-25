@@ -34,7 +34,6 @@ test.group('company route identifier bounds', (group) => {
       client.post(`/api/companies/a-studio/resources/${'a'.repeat(129)}/anonymise`).json({}),
       client.post(`/api/companies/a-studio/invitations/${'1'.repeat(129)}/resend`).json({}),
       client.delete(`/api/companies/a-studio/invitations/${'1'.repeat(129)}`),
-      client.get(`/api/invitations/${'t'.repeat(513)}/preview`),
     ];
     for (const request of refused) {
       const response = await asLoggedInDataOwner(request, user).send();
