@@ -22,7 +22,7 @@ import {
 } from './ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { m } from '@/i18n';
-import { SCHEDULER_DENSITY } from './scheduler/layout';
+import { CHROME_SPACING } from './scheduler/layout';
 import type React from 'react';
 import { APP_NAME } from '@capacitylens/shared/brand';
 
@@ -45,7 +45,7 @@ export function AppSidebar({ adminLinks, navLinks, open }: AppSidebarProps) {
   };
 
   // Sidebar spacing flows through shared CSS variables so menu groups use one rhythm while icon-rail buttons retain square geometry.
-  const density = SCHEDULER_DENSITY;
+  const spacing = CHROME_SPACING;
 
   return (
     <Sidebar
@@ -53,9 +53,9 @@ export function AppSidebar({ adminLinks, navLinks, open }: AppSidebarProps) {
       data-testid="app-sidebar"
       style={
         {
-          '--nav-menu-gap-y': `${density.navMenuGapY}px`,
-          '--nav-section-pad-y': `${density.navSectionPadY}px`,
-          '--nav-section-gap-y': `${density.navSectionGapY}px`,
+          '--nav-menu-gap-y': `${spacing.navMenuGapY}px`,
+          '--nav-section-pad-y': `${spacing.navSectionPadY}px`,
+          '--nav-section-gap-y': `${spacing.navSectionGapY}px`,
         } as React.CSSProperties
       }
     >

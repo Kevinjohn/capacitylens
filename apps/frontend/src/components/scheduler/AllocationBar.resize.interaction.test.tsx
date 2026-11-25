@@ -9,6 +9,7 @@ import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/tes
 import {
   barFor,
   getStoredAllocation,
+  createActivityScaffold,
   createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
@@ -89,11 +90,7 @@ describe('AllocationBar day-mode resize interactions', () => {
     it('surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap', async () => {
       await enableDays();
       const st = useStore.getState();
-      const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-      const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-      const t = await requireCreated(
-        st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-      );
+      const { activity: t } = await createActivityScaffold();
       const r = await requireCreated(
         st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
       );
@@ -156,11 +153,7 @@ describe('AllocationBar day-mode resize interactions', () => {
       // Pointer resize must publish the same persistent truncation warning as keyboard resize when the hours cap reduces work volume.
       await enableDays();
       const st = useStore.getState();
-      const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-      const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-      const t = await requireCreated(
-        st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-      );
+      const { activity: t } = await createActivityScaffold();
       const r = await requireCreated(
         st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
       );

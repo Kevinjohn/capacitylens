@@ -11,6 +11,7 @@ import {
   barFor,
   getStoredAllocation,
   rect,
+  createActivityScaffold,
   createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
@@ -20,11 +21,7 @@ beforeEach(async () => resetStoreWithCompany());
 describe('AllocationBar target-calendar and weekend preview interactions', () => {
   it('a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s', async () => {
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
+    const { activity: t } = await createActivityScaffold();
 
     const src = await requireCreated(
       st.addResource({
@@ -118,11 +115,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
 
   async function createCrossWeekPair() {
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
+    const { activity: t } = await createActivityScaffold();
     const src = await requireCreated(
       st.addResource(
         makeResourceDraft({ name: 'Mid', jobTitle: 'Dev', color: '#3', workingDays: [...midWeek] }),
@@ -210,11 +203,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   it('a reassignment the drop will refuse previews nothing, so the bar does not stretch then snap back', async () => {
     // A refused drop must preview the source-row range, not a destination range that would snap back after rejection.
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
+    const { activity: t } = await createActivityScaffold();
     const src = await requireCreated(
       st.addResource(
         makeResourceDraft({
@@ -370,11 +359,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     // take the destination's re-placement, and it must not freeze at its old column either: it
     // previews the range this drag would give it on its own row, so it tracks the pointer.
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
+    const { activity: t } = await createActivityScaffold();
     const src = await requireCreated(
       st.addResource(
         makeResourceDraft({
@@ -453,11 +438,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
 
   it('keeps previewing a zero-column reassignment when the source resource disappears', async () => {
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
+    const { activity: t } = await createActivityScaffold();
     const src = await requireCreated(
       st.addResource(
         makeResourceDraft({
@@ -560,11 +541,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
 
   it('a same-row vertical wiggle previews nothing, even for a range its own week would renormalise', async () => {
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
+    const { activity: t } = await createActivityScaffold();
     const r = await requireCreated(
       st.addResource(
         makeResourceDraft({
@@ -636,11 +613,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   });
   it('previews the SAME weekend-snapped geometry the commit applies (no jump on release)', async () => {
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
+    const { activity: t } = await createActivityScaffold();
     const r = await requireCreated(
       st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );

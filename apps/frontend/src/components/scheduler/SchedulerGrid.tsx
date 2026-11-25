@@ -1,10 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SlidersHorizontal, Users } from 'lucide-react';
 import { m } from '@/i18n';
 import { useStore } from '@/store/useStore';
 import type { SchedulerUI } from '@/store/useStore';
-import { useCanEdit } from '@/auth/permissionContext';
 import { resolveSharedScopedData } from '@/store/useScopedData';
 import { listCompanyWorkingDays } from '@/store/selectors';
 import { EmptyState } from '@/components/common/ui';
@@ -18,6 +18,7 @@ import { isCreationStartBlocked } from './creationAvailability';
 import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 import { SchedulerGridRows } from './SchedulerGridRows';
 import type { DialogState } from './schedulerGridDialog';
+import { SchedulerGridActionsContext } from './schedulerGridActions';
 import { useSchedulerGridPreferences, useSchedulerGridModel } from './useSchedulerGridModel';
 import { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization';
 import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet';
@@ -175,28 +176,10 @@ function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
   return { screenReaderAnnouncement, dialog, setDialog, editAllocation, createFromDraw };
 }
 
-type GridViewProps = {
-  preferences: ReturnType<typeof useSchedulerGridPreferences>;
-  gridModel: ReturnType<typeof useSchedulerGridModel>;
-  virtualization: ReturnType<typeof useSchedulerGridVirtualization>;
-  headerRef: ReturnType<typeof useSchedulerViewport>['headerRef'];
-  timelineWidth: number;
-  days: ReturnType<typeof useSchedulerViewport>['days'];
-  geom: ReturnType<typeof useSchedulerViewport>['geom'];
-  visibleStartDate: ReturnType<typeof useSchedulerViewport>['visibleStartDate'];
-  canEdit: boolean;
-  toggleGroup: ReturnType<typeof useStore.getState>['toggleGroup'];
-  clearFilters: ReturnType<typeof useStore.getState>['clearFilters'];
-  navigateToResources: () => void;
-  interactions: ReturnType<typeof useSchedulerInteractions>;
-  personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
-  onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
-};
-
 function SchedulerDialogHost({
   dialog,
   setDialog,
-}: Pick<GridViewProps['interactions'], 'dialog' | 'setDialog'>) {
+}: Pick<ReturnType<typeof useSchedulerInteractions>, 'dialog' | 'setDialog'>) {
   if (!dialog) return null;
   return (
     <Suspense fallback={null}>
@@ -205,71 +188,10 @@ function SchedulerDialogHost({
   );
 }
 
-function SchedulerGridContents(props: GridViewProps) {
-  const { preferences, gridModel, virtualization, interactions } = props;
-  const { headerRef, timelineWidth, days, geom, visibleStartDate } = props;
-  const { canEdit, toggleGroup, clearFilters, navigateToResources } = props;
-  const { ui, utilisationPrefs, companyPrefs } = preferences;
-  const {
-    model,
-    density,
-    today,
-    todayX,
-    visibleWeeksLabel,
-    visibleSpanCompact,
-    overallUtil,
-    filtersActive,
-  } = gridModel;
-  return (
-    <>
-      <SchedulerGridHeader
-        headerRef={headerRef}
-        utilisationPrefs={utilisationPrefs}
-        visibleWeeksLabel={visibleWeeksLabel}
-        visibleSpanCompact={visibleSpanCompact}
-        overallUtil={overallUtil}
-        days={days}
-        geom={geom}
-        ui={ui}
-        calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
-        today={today}
-      />
-      {model.length === 0 && (
-        <SchedulerEmptyRow
-          filtersActive={filtersActive}
-          timelineWidth={timelineWidth}
-          clearFilters={clearFilters}
-          navigateToResources={navigateToResources}
-        />
-      )}
-      <SchedulerGridRows
-        {...virtualization}
-        ui={ui}
-        density={density}
-        toggleGroup={toggleGroup}
-        geom={geom}
-        utilisationPrefs={utilisationPrefs}
-        visibleWeeksLabel={visibleWeeksLabel}
-        canEdit={canEdit}
-        visibleStartDate={visibleStartDate}
-        setDialog={interactions.setDialog}
-        days={days}
-        todayX={todayX}
-        calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
-        onEdit={interactions.editAllocation}
-        onDraw={interactions.createFromDraw}
-        personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
-        onViewSchedule={props.onViewSchedule}
-      />
-      <SchedulerDialogHost dialog={interactions.dialog} setDialog={interactions.setDialog} />
-    </>
-  );
-}
-
 function SchedulerGridFooter({
   visibleClosures,
   screenReaderAnnouncement,
-}: Pick<GridViewProps['virtualization'], 'visibleClosures'> & {
+}: Pick<ReturnType<typeof useSchedulerGridVirtualization>, 'visibleClosures'> & {
   screenReaderAnnouncement: ReturnType<typeof useSchedulerInteractions>['screenReaderAnnouncement'];
 }) {
   return (
@@ -328,15 +250,20 @@ function buildViewportVariables({
 }
 
 function SchedulerGridSurface({
-  contents,
   viewport,
   personScheduleDrawer,
+  drawMode,
+  rowCount,
+  footer,
+  children,
 }: {
-  contents: GridViewProps;
   viewport: ReturnType<typeof useSchedulerViewport>;
   personScheduleDrawer: ReturnType<typeof usePersonScheduleDrawer>;
+  drawMode: SchedulerUI['drawMode'];
+  rowCount: number;
+  footer: ReactNode;
+  children: ReactNode;
 }) {
-  const { gridModel, virtualization, interactions, preferences } = contents;
   const { scrollRef, stickyHeaderHeight, timelineWidth, timelineHeight, onScroll } = viewport;
   return (
     <div className="h-full">
@@ -345,15 +272,15 @@ function SchedulerGridSurface({
         className="relative flex h-full flex-col overflow-auto overscroll-x-contain bg-scheduler-canvas"
         data-testid="scheduler-grid"
         tabIndex={-1}
-        data-draw-mode={preferences.ui.drawMode}
+        data-draw-mode={drawMode}
         role="grid"
         aria-label={m.scheduler_grid_aria()}
         aria-colcount={2}
-        aria-rowcount={virtualization.items.length + 1 + (gridModel.model.length === 0 ? 1 : 0)}
+        aria-rowcount={rowCount}
         onScroll={onScroll}
         style={buildViewportVariables({ stickyHeaderHeight, timelineWidth, timelineHeight })}
       >
-        <SchedulerGridContents {...contents} />
+        {children}
       </div>
       <PersonScheduleSheet
         open={personScheduleDrawer.open}
@@ -361,10 +288,7 @@ function SchedulerGridSurface({
         onOpenChange={personScheduleDrawer.setOpen}
         onRestoreFocus={personScheduleDrawer.restoreFocus}
       />
-      <SchedulerGridFooter
-        visibleClosures={virtualization.visibleClosures}
-        screenReaderAnnouncement={interactions.screenReaderAnnouncement}
-      />
+      {footer}
     </div>
   );
 }
@@ -373,10 +297,9 @@ function SchedulerGridSurface({
 export function SchedulerGrid() {
   const navigate = useNavigate();
   const preferences = useSchedulerGridPreferences();
-  const canEdit = useCanEdit();
   const toggleGroup = useStore((state) => state.toggleGroup);
   const clearFilters = useStore((state) => state.clearFilters);
-  const { companyPrefs, ui, minimiseWeekends, weekSnapEnabled } = preferences;
+  const { companyPrefs, ui, utilisationPrefs, minimiseWeekends, weekSnapEnabled } = preferences;
   const interactions = useSchedulerInteractions(ui);
   const viewport = useSchedulerViewport({
     ui,
@@ -385,11 +308,11 @@ export function SchedulerGrid() {
     calendarWeekStartsOn: companyPrefs.calendarWeekStartsOn,
   });
   const gridModel = useSchedulerGridModel(preferences, viewport);
+  const { model, today, todayX, visibleWeeksLabel, visibleSpanCompact } = gridModel;
   const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport;
   const virtualization = useSchedulerGridVirtualization({
-    model: gridModel.model,
+    model,
     ui,
-    density: gridModel.density,
     data: preferences.data,
     viewport,
   });
@@ -397,31 +320,64 @@ export function SchedulerGrid() {
     data: preferences.data,
     fallbackRef: scrollRef,
   });
+  const { setDialog } = interactions;
+  const { viewSchedule } = personScheduleDrawer;
+  const actions = useMemo(
+    () => ({ setDialog, onViewSchedule: viewSchedule, visibleStartDate }),
+    [setDialog, viewSchedule, visibleStartDate],
+  );
 
-  const contents = {
-    preferences,
-    gridModel,
-    virtualization,
-    headerRef,
-    timelineWidth,
-    days,
-    geom,
-    visibleStartDate,
-    canEdit,
-    toggleGroup,
-    clearFilters,
-    navigateToResources: () => void navigate('/resources'),
-    interactions,
-    personScheduleTitlesByResourceId: personScheduleDrawer.titlesByResourceId,
-    onViewSchedule: personScheduleDrawer.viewSchedule,
-  };
   return (
     <TooltipProvider>
-      <SchedulerGridSurface
-        contents={contents}
-        viewport={viewport}
-        personScheduleDrawer={personScheduleDrawer}
-      />
+      <SchedulerGridActionsContext.Provider value={actions}>
+        <SchedulerGridSurface
+          viewport={viewport}
+          personScheduleDrawer={personScheduleDrawer}
+          drawMode={ui.drawMode}
+          rowCount={virtualization.items.length + 1 + (model.length === 0 ? 1 : 0)}
+          footer={
+            <SchedulerGridFooter
+              visibleClosures={virtualization.visibleClosures}
+              screenReaderAnnouncement={interactions.screenReaderAnnouncement}
+            />
+          }
+        >
+          <SchedulerGridHeader
+            headerRef={headerRef}
+            utilisationPrefs={utilisationPrefs}
+            visibleWeeksLabel={visibleWeeksLabel}
+            visibleSpanCompact={visibleSpanCompact}
+            overallUtil={gridModel.overallUtil}
+            days={days}
+            geom={geom}
+            ui={ui}
+            calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
+            today={today}
+          />
+          {model.length === 0 && (
+            <SchedulerEmptyRow
+              filtersActive={gridModel.filtersActive}
+              timelineWidth={timelineWidth}
+              clearFilters={clearFilters}
+              navigateToResources={() => void navigate('/resources')}
+            />
+          )}
+          <SchedulerGridRows
+            {...virtualization}
+            ui={ui}
+            toggleGroup={toggleGroup}
+            geom={geom}
+            utilisationPrefs={utilisationPrefs}
+            visibleWeeksLabel={visibleWeeksLabel}
+            days={days}
+            todayX={todayX}
+            calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
+            onEdit={interactions.editAllocation}
+            onDraw={interactions.createFromDraw}
+          />
+          <SchedulerDialogHost dialog={interactions.dialog} setDialog={setDialog} />
+        </SchedulerGridSurface>
+      </SchedulerGridActionsContext.Provider>
     </TooltipProvider>
   );
 }

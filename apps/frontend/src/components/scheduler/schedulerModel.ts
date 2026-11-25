@@ -11,7 +11,7 @@ import type { AppData, ISODate, Weekday } from '@capacitylens/shared/types/entit
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { packLanes, resolveLaneTop, resolveRowHeightForLanes } from '@/lib/lanePacking';
 import type { LaneLayout } from '@/lib/lanePacking';
-import { laneLayout as compactLaneLayout } from './layout';
+import { SCHEDULER_LANE_LAYOUT } from './layout';
 import {
   buildEngagementGroups,
   buildResourceBand,
@@ -33,7 +33,6 @@ interface ApplyVisibleUtilisationInput {
   capacity: CapacitySection | null;
   start: ISODate;
   end: ISODate;
-  laneLayout?: LaneLayout | undefined;
   partiallyExposesNextColumn?: boolean | undefined;
 }
 
@@ -100,7 +99,6 @@ export function applyVisibleUtilisation({
   capacity,
   start,
   end,
-  laneLayout = compactLaneLayout,
   partiallyExposesNextColumn = false,
 }: ApplyVisibleUtilisationInput): GroupModel[] {
   const days = listDaysISO(start, end);
@@ -110,7 +108,7 @@ export function applyVisibleUtilisation({
         row,
         start,
         end,
-        layout: laneLayout,
+        layout: SCHEDULER_LANE_LAYOUT,
         partiallyExposesNextColumn,
       });
       const next = isExternalResource(row.resource)
@@ -192,7 +190,7 @@ function createSchedulerRowBuilder({
     buildRow: createRowBuilder({
       model: { geom, days },
       companyWorkingDays,
-      laneLayout: options.laneLayout ?? compactLaneLayout,
+      laneLayout: SCHEDULER_LANE_LAYOUT,
       allocationsByResource,
       timeOffByResource: groupByResourceId(data.timeOff.filter(includeRenderableDateRange)),
       closures,

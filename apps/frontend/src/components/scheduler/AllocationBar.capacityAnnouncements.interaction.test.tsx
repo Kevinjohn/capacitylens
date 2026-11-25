@@ -15,6 +15,7 @@ import {
   barFor,
   getSrAnnouncement,
   getStoredAllocation,
+  createActivityScaffold,
   createAllocation,
   createVisibleAllocationWithHiddenCapacity,
   settlePlanning,
@@ -24,11 +25,7 @@ beforeEach(async () => resetStoreWithCompany());
 
 async function createConflictPair() {
   const st = useStore.getState();
-  const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-  const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-  const t = await requireCreated(
-    st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-  );
+  const { activity: t } = await createActivityScaffold();
   const r = await requireCreated(
     st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
   );

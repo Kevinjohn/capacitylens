@@ -6,7 +6,6 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { hasActiveFilters, useStore } from '@/store/useStore';
 import { hasDisciplinesEnabled } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
-import { SCHEDULER_DENSITY } from './layout';
 import { SchedulerToolbarChrome, SchedulerToolbarFilters } from './SchedulerToolbarSections';
 import { buildFilterOptions } from './toolbarFilterOptions';
 import { useToolbarSearch } from './useToolbarSearch';
@@ -51,7 +50,6 @@ export function SchedulerToolbar() {
   );
   const search = useToolbarSearch({ filters, activeCompanyId, setFilters, clearFilters });
   const chromeProps = {
-    density: SCHEDULER_DENSITY,
     zoom,
     setZoom,
     panDays,

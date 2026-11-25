@@ -11,7 +11,7 @@ import {
 import type { Activity, Resource, SchedulingMode } from '@capacitylens/shared/types/entities';
 import { FULL_DAY_HOURS, isExternalResource } from '@capacitylens/shared/types/entities';
 
-import type { EffectiveAllocationInput } from './allocationDialogTypes';
+import type { EffectiveAllocationInput } from './AllocationDialogSnapshot';
 /** Rounds seeded days to six decimal places to remove floating-point noise without changing useful fractions such as 0.5 or 0.125. */
 export const roundDays = (dayCount: number) => Math.round(dayCount * 1e6) / 1e6;
 /** Sentinel choice for work without a project attribution. */
@@ -150,34 +150,15 @@ function buildWorkingWeekValues({ input, external, validDaysOver }: BuildWorking
 }
 
 /** Resolves effective dates and hours plus flags for invalid or excessive scheduling spans. */
-export function buildEffectiveAllocationValues({
-  resource,
-  effectiveWeek,
-  mode,
-  startDate,
-  endDate,
-  hoursPerDay,
-  daysOver,
-  daysOfWork,
-  ignoreWorkingDays,
-}: EffectiveAllocationInput) {
+export function buildEffectiveAllocationValues(input: EffectiveAllocationInput) {
+  const { resource, effectiveWeek, mode, daysOver, ignoreWorkingDays } = input;
   const external = !!resource && isExternalResource(resource);
   const validDaysOver =
     Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const usesWorkingSpan = hasWorkingSpan(resource, mode);
   if (!usesWorkingSpan) {
     return buildLiteralAllocationValues({
-      input: {
-        resource,
-        effectiveWeek,
-        mode,
-        startDate,
-        endDate,
-        hoursPerDay,
-        daysOver,
-        daysOfWork,
-        ignoreWorkingDays,
-      },
+      input,
       external,
       validDaysOver,
     });
@@ -186,34 +167,14 @@ export function buildEffectiveAllocationValues({
   if (hasNoEffectiveWorkingDays(effectiveWeek, ignoreWorkingDays)) {
     // With no effective workdays, keep the seeded span quantity unchanged so unrelated edits cannot dilute stored work volume.
     return buildUnavailableWeekValues({
-      input: {
-        resource,
-        effectiveWeek,
-        mode,
-        startDate,
-        endDate,
-        hoursPerDay,
-        daysOver,
-        daysOfWork,
-        ignoreWorkingDays,
-      },
+      input,
       external,
       validDaysOver,
     });
   }
 
   return buildWorkingWeekValues({
-    input: {
-      resource,
-      effectiveWeek,
-      mode,
-      startDate,
-      endDate,
-      hoursPerDay,
-      daysOver,
-      daysOfWork,
-      ignoreWorkingDays,
-    },
+    input,
     external,
     validDaysOver,
   });

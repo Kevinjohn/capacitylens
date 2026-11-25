@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/useStore';
 
 interface UseToolbarSearchInput {
@@ -37,12 +36,7 @@ export function useToolbarSearch({
   const changeSearch = (value: string) => {
     setSearchInput(value);
     cancelSearchTimer();
-    // Recheck filter ownership when the timer fires because effect cleanup may run after the replacement render, allowing a stale timer to execute first.
-    const armedOn = useStore.getState().ui.filters;
-    searchTimer.current = setTimeout(() => {
-      if (useStore.getState().ui.filters !== armedOn) return;
-      setFilters({ search: value });
-    }, 180);
+    searchTimer.current = setTimeout(() => setFilters({ search: value }), 180);
   };
   const setToolbarFilters = (patch: Parameters<typeof setFilters>[0]) => {
     cancelSearchTimer();

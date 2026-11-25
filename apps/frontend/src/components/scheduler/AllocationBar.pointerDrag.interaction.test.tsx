@@ -21,6 +21,7 @@ import {
   getStoredAllocation,
   laneRect,
   rect,
+  createActivityScaffold,
   createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
@@ -69,13 +70,7 @@ async function verifyWorkingDayRefusal({
 }: (typeof workingDayRejectionCases)[number]) {
   const st = useStore.getState();
   await st.updateCompany(DEFAULT_COMPANY_ID, { workingDays: companyWorkingDays });
-  const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-  const project = await requireCreated(
-    st.addProject({ name: 'P', clientId: client.id, color: '#2' }),
-  );
-  const activity = await requireCreated(
-    st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
-  );
+  const { activity } = await createActivityScaffold();
   const source = await requireCreated(
     st.addResource({
       kind: 'person',
@@ -201,12 +196,8 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   });
   it('leaves assignee, dates and hours unchanged when a diagonal reassign is rejected', async () => {
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p1 = await requireCreated(st.addProject({ name: 'P1', clientId: c.id, color: '#2' }));
+    const { client: c, activity: t1 } = await createActivityScaffold();
     const p2 = await requireCreated(st.addProject({ name: 'P2', clientId: c.id, color: '#3' }));
-    const t1 = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p1.id }),
-    );
     const person = await requireCreated(
       st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
@@ -286,13 +277,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   it('allows that literal vertical drop when the allocation ignores working days', async () => {
     const st = useStore.getState();
     await st.updateCompany(DEFAULT_COMPANY_ID, { workingDays: [1, 2, 3, 4] });
-    const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const project = await requireCreated(
-      st.addProject({ name: 'P', clientId: client.id, color: '#2' }),
-    );
-    const activity = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
-    );
+    const { activity } = await createActivityScaffold();
     const source = await requireCreated(
       st.addResource({
         kind: 'person',
@@ -395,13 +380,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
 
   it('assigns a shared lane-boundary drop to the following lane', async () => {
     const st = useStore.getState();
-    const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const project = await requireCreated(
-      st.addProject({ name: 'P', clientId: client.id, color: '#2' }),
-    );
-    const activity = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
-    );
+    const { activity } = await createActivityScaffold();
     const source = await requireCreated(
       st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
@@ -461,13 +440,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   it('keeps an External block at zero hours when it is reassigned to a person', async () => {
     const st = useStore.getState();
     await st.updateCompany(DEFAULT_COMPANY_ID, { schedulingMode: 'blocks' });
-    const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const project = await requireCreated(
-      st.addProject({ name: 'P', clientId: client.id, color: '#2' }),
-    );
-    const activity = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
-    );
+    const { activity } = await createActivityScaffold();
     const external = await requireCreated(
       st.addResource({
         kind: 'external',
@@ -547,11 +520,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
         .mockImplementation(() => undefined);
       try {
         const st = useStore.getState();
-        const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-        const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-        const t = await requireCreated(
-          st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-        );
+        const { activity: t } = await createActivityScaffold();
         const r1 = await requireCreated(
           st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
         );

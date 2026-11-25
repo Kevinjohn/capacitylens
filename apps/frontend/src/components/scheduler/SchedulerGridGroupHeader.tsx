@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import type { buildSchedulerDensity } from './layout';
 import { LAYOUT } from './layout';
 import type { GroupModel } from './schedulerModel';
 import type { SchedulerUI, StoreState } from '@/store/useStore';
@@ -12,7 +11,6 @@ interface SchedulerGridGroupHeaderProps {
   group: GroupModel;
   rowIndex: number;
   ui: Pick<SchedulerUI, 'collapsedGroups'>;
-  density: ReturnType<typeof buildSchedulerDensity>;
   toggleGroup: (key: string) => void;
   geom: ColumnGeometry;
   utilisationPrefs: StoreState['utilisationPrefs'];
@@ -40,7 +38,6 @@ export function SchedulerGridGroupHeader({
   group,
   rowIndex,
   ui,
-  density,
   toggleGroup,
   geom: geometry,
   utilisationPrefs: utilisationPreferences,
@@ -52,7 +49,7 @@ export function SchedulerGridGroupHeader({
       aria-rowindex={rowIndex}
       data-testid="discipline-group"
       className="relative z-10 flex border-y border-line-soft bg-scheduler-group text-faint"
-      style={{ height: density.groupHeaderHeight }}
+      style={{ height: LAYOUT.groupHeaderHeight }}
     >
       <div
         role="rowheader"

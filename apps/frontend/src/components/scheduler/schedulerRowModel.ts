@@ -1,4 +1,5 @@
 import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from '@/lib/lanePacking';
+import type { LaneLayout } from '@/lib/lanePacking';
 import { isHalfDay } from '@capacitylens/shared/lib/capacity';
 import { hasRangeOverlap, getWeekday } from '@capacitylens/shared/lib/dateMath';
 import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
@@ -28,7 +29,7 @@ import type {
 interface CreateRowBuilderInput {
   model: Pick<SchedulerModelOptions, 'geom' | 'days'>;
   companyWorkingDays: NonNullable<SchedulerModelOptions['preferences']['companyWorkingDays']>;
-  laneLayout: NonNullable<SchedulerModelOptions['laneLayout']>;
+  laneLayout: LaneLayout;
   allocationsByResource: Map<ID, Allocation[]>;
   timeOffByResource: Map<ID, TimeOff[]>;
   // Renderable closures only, so day states and capacity omit the same invalid rows.
@@ -79,7 +80,7 @@ function listVisibleAllocations(input: {
 function buildBars(input: {
   allocations: Allocation[];
   geometry: SchedulerModelOptions['geom'];
-  laneLayout: NonNullable<SchedulerModelOptions['laneLayout']>;
+  laneLayout: LaneLayout;
   seriesEndByKey: Map<string, ISODate>;
   filters: Pick<AllocationFilters, 'projectClientFor' | 'activityById' | 'colorMaps'>;
   external: boolean;

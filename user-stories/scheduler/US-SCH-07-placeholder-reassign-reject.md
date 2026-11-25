@@ -48,9 +48,9 @@ The effective project can come from a Project-specific activity or the allocatio
 
 **Code references:**
 
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L131)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L200)
-- [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts#L240)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L183)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L255)
+- [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts#L295)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts#L154)
 - [planning_execution_service.ts](../../apps/backend/app/services/planning/planning_execution_service.ts#L191)
 - [refs.ts](../../packages/shared/src/domain/assertions/refs.ts#L366)

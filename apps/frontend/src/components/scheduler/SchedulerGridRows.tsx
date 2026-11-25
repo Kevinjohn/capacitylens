@@ -4,12 +4,13 @@ import { ClosureBand } from './ClosureBand';
 import { SchedulerGridRow } from './SchedulerGridRow';
 import type { SchedulerGridRowProps } from './SchedulerGridRow';
 import { SchedulerGridGroupHeader } from './SchedulerGridGroupHeader';
-import type { SchedulerUI } from '@/store/useStore';
+import type { SchedulerUI, StoreState } from '@/store/useStore';
 import type { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization';
 
 type Props = ReturnType<typeof useSchedulerGridVirtualization> &
-  Omit<SchedulerGridRowProps, 'group' | 'row' | 'rowIndex' | 'ui'> & {
+  Omit<SchedulerGridRowProps, 'group' | 'row' | 'rowIndex'> & {
     ui: SchedulerUI;
+    utilisationPrefs: StoreState['utilisationPrefs'];
     toggleGroup: (key: string) => void;
   };
 
@@ -22,17 +23,8 @@ function SchedulerGridItem({
   itemIndex: number;
   position: number;
 }) {
-  const {
-    items,
-    renderedIndices,
-    layout,
-    heights,
-    ui,
-    density,
-    toggleGroup,
-    geom,
-    utilisationPrefs,
-  } = props;
+  const { items, renderedIndices, layout, heights, ui, toggleGroup, geom, utilisationPrefs } =
+    props;
   const item = items[itemIndex];
   if (!item) return null;
   const previousIndex = renderedIndices[position - 1];
@@ -49,7 +41,6 @@ function SchedulerGridItem({
         group={item.group}
         rowIndex={rowIndex}
         ui={ui}
-        density={density}
         toggleGroup={toggleGroup}
         geom={geom}
         utilisationPrefs={utilisationPrefs}

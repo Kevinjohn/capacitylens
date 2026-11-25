@@ -9,7 +9,28 @@ import type {
   SchedulingMode,
 } from '@capacitylens/shared/types/entities';
 import type { RepeatSelection } from '@/lib/repeatingAllocations';
-import type { AllocationDialogProps } from './allocationDialogTypes';
+
+/** Creation and editing variants for the allocation dialog. */
+export type AllocationDialogProps =
+  | { kind: 'edit'; allocationId: string; onClose: () => void }
+  | {
+      kind: 'create';
+      create: { resourceId: string; startDate: ISODate; endDate: ISODate };
+      onClose: () => void;
+    };
+
+/** Resolved resource, working week and scheduling inputs used to derive effective allocation values. */
+export interface EffectiveAllocationInput {
+  resource: Resource | undefined;
+  effectiveWeek: EffectiveWorkingWeek | undefined;
+  mode: SchedulingMode;
+  startDate: ISODate;
+  endDate: ISODate;
+  hoursPerDay: number;
+  daysOver: number;
+  daysOfWork: number;
+  ignoreWorkingDays: boolean;
+}
 
 /** Current form values consumed by pure projections and the command factory. */
 export interface AllocationDialogSnapshot {
@@ -17,7 +38,6 @@ export interface AllocationDialogSnapshot {
   data: Pick<AppData, 'activities' | 'allocations' | 'closures' | 'timeOff'>;
   create: Extract<AllocationDialogProps, { create: unknown }>['create'] | undefined;
   editing: Allocation | undefined;
-  editId: string | undefined;
   mode: SchedulingMode;
   resourceId: string;
   activityId: string;

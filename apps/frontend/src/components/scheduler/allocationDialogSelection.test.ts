@@ -20,7 +20,7 @@ import {
   resolveAttributedProject,
   resolveProjectSelection,
 } from './allocationDialogSelection';
-import type { EffectiveAllocationInput } from './allocationDialogTypes';
+import type { EffectiveAllocationInput } from './AllocationDialogSnapshot';
 
 // The dialog derives its selector choice and effective span from these helpers alone, so each
 // branch is pinned here directly instead of through the dialog.

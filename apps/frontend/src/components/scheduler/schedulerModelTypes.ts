@@ -1,4 +1,3 @@
-import type { LaneLayout } from '@/lib/lanePacking';
 import type { CapacitySection, DayCapacity } from '@capacitylens/shared/lib/capacity';
 import type { DisciplineGroup } from '@/store/selectors';
 import type { ColumnGeometry } from './columnGeometry';
@@ -109,8 +108,6 @@ export interface SchedulerModelOptions {
     /** Company-wide hard boundary for the start of a schedule creation gesture. */
     companyWorkingDays?: Weekday[];
   };
-  // Lane geometry controls both bar positions and row heights. The grid supplies its density projection; callers omitting it receive the base layout.
-  laneLayout?: LaneLayout;
 }
 
 /** Capacity projection for one row. External rows can hold scheduled allocations but carry no utilisation, overload or personal time-off capacity cues. tracked distinguishes their zero-capacity projection from unavailable tracked resources. */

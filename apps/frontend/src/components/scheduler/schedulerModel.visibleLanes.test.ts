@@ -86,19 +86,19 @@ describe('visible-window lane projection', () => {
   it('packs the partially exposed next column with the visible window', () => {
     const row = projectWindow({ partiallyExposesNextColumn: true });
     expect(Object.fromEntries(row.bars.map((bar) => [bar.allocation.id, bar.top]))).toEqual({
-      'visible-allocation': 10,
-      'partially-exposed-allocation': 40,
+      'visible-allocation': 20,
+      'partially-exposed-allocation': 62,
     });
-    expect(row.rowHeight).toBe(76);
+    expect(row.rowHeight).toBe(108);
   });
 
   it('does not pack a fully off-screen next column', () => {
     const row = projectWindow({ partiallyExposesNextColumn: false });
     expect(Object.fromEntries(row.bars.map((bar) => [bar.allocation.id, bar.top]))).toEqual({
-      'visible-allocation': 10,
-      'partially-exposed-allocation': 10,
+      'visible-allocation': 20,
+      'partially-exposed-allocation': 20,
     });
-    expect(row.rowHeight).toBe(46);
+    expect(row.rowHeight).toBe(66);
   });
 
   it('does not retain row height from an off-screen overlap', () => {
@@ -165,11 +165,11 @@ describe('visible-window lane projection', () => {
       );
 
     const septemberRow = windowRow('2026-09-14', '2026-09-27');
-    expect(septemberRow.rowHeight).toBe(46);
-    expect(new Set(septemberRow.bars.map((bar) => bar.top))).toEqual(new Set([10]));
+    expect(septemberRow.rowHeight).toBe(66);
+    expect(new Set(septemberRow.bars.map((bar) => bar.top))).toEqual(new Set([20]));
 
     const augustRow = windowRow('2026-08-17', '2026-08-30');
-    expect(augustRow.rowHeight).toBe(76);
+    expect(augustRow.rowHeight).toBe(108);
     expect(new Set(augustRow.bars.slice(0, 2).map((bar) => bar.top)).size).toBe(2);
   });
 });
