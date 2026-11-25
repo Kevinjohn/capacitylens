@@ -1,6 +1,5 @@
 import { BaseCheck, Result } from '@adonisjs/core/health';
 import type { HealthCheckResult } from '@adonisjs/core/types/health';
-import { classifyLogError } from '#config/logger';
 import type { SchemaIntegrityService } from '#services/schema_integrity_service';
 import logger from '@adonisjs/core/services/logger';
 import db from '@adonisjs/lucid/services/db';
@@ -27,11 +26,11 @@ export class DatabaseReadinessCheck extends BaseCheck {
     } catch (error) {
       // The public readiness report must not expose database paths or schema details, so the
       // operator log carries the reason: drift messages name only migration files.
-      const reason =
-        error instanceof Error && error.message.startsWith('Database schema drift:')
-          ? error.message
-          : classifyLogError(error);
-      logger.error({ reason }, 'Database readiness check failed');
+      const drift = error instanceof Error && error.message.startsWith('Database schema drift:');
+      logger.error(
+        drift ? { err: error, reason: error.message } : { err: error },
+        'Database readiness check failed'
+      );
       return Result.failed('Database readiness check failed');
     }
   }
