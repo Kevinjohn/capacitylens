@@ -24,7 +24,7 @@ for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
 // Health is registered first, in its own group, so the API throttle does not count it.
 router
   .group(() => {
-    router.get('/health', [controllers.HealthChecks, 'live']);
+    router.get('/health', [controllers.Liveness]);
   })
   .prefix('/api')
   .as('api');
@@ -53,8 +53,8 @@ router
   .as('api')
   .use(throttle);
 
-router.get('/health/live', [controllers.HealthChecks, 'live']);
-router.get('/health/ready', [controllers.HealthChecks, 'ready']);
+router.get('/health/live', [controllers.Liveness]);
+router.get('/health/ready', [controllers.HealthChecks]);
 // A page address is single-slash segments of URL-safe characters. Only such an address is ever a
 // redirect target, so a trailing-slash request cannot be answered with a link to another host.
 const PAGE_ADDRESS = /^(?:\/[\w.~%-]+)+$/;

@@ -8,11 +8,11 @@ export type { Route, Path } from './schema.d.ts'
 const placeholder: any = {}
 
 const routes = {
-  'api.health_checks.live': {
+  'api.liveness': {
     methods: ["GET","HEAD"],
     pattern: '/api/health',
     tokens: [[0,"api"],[0,"health"]],
-    types: placeholder as Registry['api.health_checks.live']['types'],
+    types: placeholder as Registry['api.liveness']['types'],
   },
   'api.planning.show': {
     methods: ["GET","HEAD"],
@@ -338,17 +338,17 @@ const routes = {
     tokens: [[0,"api"],[2,"*"]],
     types: placeholder as Registry['api.not_found']['types'],
   },
-  'health_checks.live': {
+  'liveness': {
     methods: ["GET","HEAD"],
     pattern: '/health/live',
     tokens: [[0,"health"],[0,"live"]],
-    types: placeholder as Registry['health_checks.live']['types'],
+    types: placeholder as Registry['liveness']['types'],
   },
-  'health_checks.ready': {
+  'health_checks': {
     methods: ["GET","HEAD"],
     pattern: '/health/ready',
     tokens: [[0,"health"],[0,"ready"]],
-    types: placeholder as Registry['health_checks.ready']['types'],
+    types: placeholder as Registry['health_checks']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 
