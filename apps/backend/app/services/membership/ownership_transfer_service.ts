@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { AuthorizationService } from '#services/auth/authorization_service';
-import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 import { PasswordConfirmationService } from '#services/auth/password_confirmation_service';
 import { CurrentActorService, type CurrentActor } from '#services/auth/current_actor_service';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
@@ -13,8 +13,8 @@ import {
   AccountOperationService,
   type AccountOperationIdentity,
 } from '#services/account_operation_service';
-import { TargetIneligibleException } from '#exceptions/ownership_transfer_exception';
-import { NotFoundException } from '#exceptions/refusal_exception';
+import TargetIneligibleException from '#exceptions/target_ineligible_exception';
+import NotFoundException from '#exceptions/not_found_exception';
 
 /** One ownership transfer in the caller's transaction, by its verified actor. */
 export interface OwnershipTransferInput {

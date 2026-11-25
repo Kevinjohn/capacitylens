@@ -1,5 +1,6 @@
-import { ValidationRefusalException } from '#exceptions/validation_refusal_exception';
-import { ConflictException, NotFoundException } from '#exceptions/refusal_exception';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception';
+import ConflictException from '#exceptions/conflict_exception';
+import NotFoundException from '#exceptions/not_found_exception';
 
 /** Refuses a malformed admission id before any product write. */
 export function refuseInvalidAdmission(): never {

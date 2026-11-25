@@ -2,8 +2,8 @@ import app from '@adonisjs/core/services/app';
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { mapPackageError } from '#exceptions/http_error_mapping';
-import { ProductException } from '#exceptions/product_exception';
-import { UnexpectedException } from '#exceptions/unexpected_exception';
+import ProductException from '#exceptions/product_exception';
+import UnexpectedException from '#exceptions/unexpected_exception';
 import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety';
 
 export default class HttpExceptionHandler extends ExceptionHandler {

@@ -6,7 +6,7 @@ import { inject } from '@adonisjs/core';
 // remain Account Kit-owned.
 
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { PasswordConfirmationException } from '#exceptions/password_confirmation_exception';
+import PasswordConfirmationException from '#exceptions/password_confirmation_exception';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { AuthorizationService } from '#services/auth/authorization_service';

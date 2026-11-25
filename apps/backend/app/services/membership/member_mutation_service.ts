@@ -6,8 +6,9 @@ import { AuthorizationService } from '#services/auth/authorization_service';
 import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
 import { AuditService } from '#services/audit_service';
 import { PlanningRevisionService } from '#services/planning_revision_service';
-import { OwnerTransferRequiredException } from '#exceptions/membership_exception';
-import { ForbiddenException, NotFoundException } from '#exceptions/refusal_exception';
+import OwnerTransferRequiredException from '#exceptions/owner_transfer_required_exception';
+import ForbiddenException from '#exceptions/forbidden_exception';
+import NotFoundException from '#exceptions/not_found_exception';
 
 /** Role and status changes to a company member. */
 @inject()
