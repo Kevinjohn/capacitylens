@@ -30,6 +30,9 @@ its origin:
 | **P** | A lint rule or style note on the public pages of AdonisJS Plus. Stricter than the documentation. The rule sources are paid and were not read. | Follow it unless Part 4 says otherwise. |
 | **H** | A house rule: ours, where the framework is silent or we chose between two framework options. | Follow it; listed in Part 4 until agreed. |
 
+The origin says where a rule comes from. What a failure does is the rule's tier (law, rule or
+guideline), which the [pre-PR checklist](./adonisjs-checklist.md) sets.
+
 Three rules decide every case:
 
 1. **Follow the framework.** When this book is silent, the AdonisJS documentation decides, then
@@ -1274,7 +1277,7 @@ it.
 
 ### Compound failures
 
-Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule and PKG-47's
+**PKG-49 (H)** Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule and PKG-47's
 `src/errors.ts` rule only when the work fails and its cleanup fails too. Its `errors[0]` is the
 primary failure; subsequent failures follow in the order observed. Every function that can throw or
 propagate one documents it in `@throws`. Never use it for an expected 4xx outcome or a case on which
