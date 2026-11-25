@@ -644,25 +644,23 @@ test('changed files run the terminology check on their own paths and nothing els
   );
   const terminology = step(steps, 'terminology: 2 file(s)');
   assert.deepEqual(terminology.args, [
-    'scripts/maintenance/check-terminology.mjs',
+    'node_modules/@kevinjohn/adonisjs-code-conventions/scripts/check-terminology.mjs',
     'user-stories/a/US-1.md',
     'apps/frontend/messages/en.json',
   ]);
   assert.equal(terminology.owner, 'static');
 });
 
-test('a change to the terminology list, its checker or the dictionary checks the whole tree', () => {
+test('a change to the dictionary, its exemptions or the pinned checker checks the whole tree', () => {
   for (const path of [
-    'tooling/terminology.mjs',
-    'scripts/maintenance/check-terminology.mjs',
+    'terminology.config.json',
     'code_convention_terminology.md',
+    'pnpm-lock.yaml',
   ]) {
     const steps = planChecks([path], everything, noImporters);
-    assert.deepEqual(step(steps, 'terminology: whole tree').args, [
-      'scripts/maintenance/check-terminology.mjs',
-    ]);
-    assert.ok(
-      steps.find((item) => item.args[0] === '--test').args.includes('tooling/terminology.test.mjs'),
+    assert.deepEqual(
+      step(steps, 'terminology: whole tree').args,
+      ['node_modules/@kevinjohn/adonisjs-code-conventions/scripts/check-terminology.mjs'],
       path,
     );
   }

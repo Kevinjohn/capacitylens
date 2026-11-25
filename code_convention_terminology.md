@@ -33,8 +33,11 @@ terms this page reserves.
 `pnpm run policy:terminology` reads the table below and fails on a rejected synonym in a file
 name, in source, tests and scripts, in prose under `docs-src/`, `user-stories/` and root Markdown, and in
 `apps/frontend/messages/`. `pnpm run check:changed` runs it on the changed files and the gate on the whole
-tree. `tooling/terminology.mjs` holds the exemptions: this page, vendored `components/ui`, generated
-`.adonisjs/` output, lockfiles and the phrases that only contain a rejected word (`aria-modal`). A new
+tree. The check itself is the shared one from the
+[code conventions](https://github.com/Kevinjohn/oss-adonisjs-code-conventions/blob/main/adonisjs/terminology.md),
+installed as a development dependency; it also reads that repository's own table.
+`terminology.config.json` holds the exemptions: vendored `components/ui`, generated
+`.adonisjs/` output and the phrases that only contain a rejected word (`aria-modal`). A new
 ruling changes this page and the code in one pull request. Names other software depends on (routes, environment
 variables, wire values, error codes, table and column names, storage keys) keep their spelling until a
 migration renames them.
