@@ -6,18 +6,19 @@ import NotFoundException from '#exceptions/not_found_exception';
 import RefusalException from '#exceptions/refusal_exception';
 import MembershipSuspendedException from '#exceptions/membership_suspended_exception';
 import TargetIneligibleException from '#exceptions/target_ineligible_exception';
-import { isMailConfigured } from '#services/mail_delivery';
+import { MailDeliveryService } from '#services/mail_delivery_service';
 
 test.group('request helpers', () => {
   test('mail is configured only with a non-blank host', ({ assert, cleanup }) => {
+    const mailDelivery = new MailDeliveryService();
     const host = env.get('CAPACITYLENS_MAIL_HOST');
     cleanup(() => env.set('CAPACITYLENS_MAIL_HOST', host ?? ''));
     env.set('CAPACITYLENS_MAIL_HOST', '');
-    assert.isFalse(isMailConfigured());
+    assert.isFalse(mailDelivery.isMailConfigured());
     env.set('CAPACITYLENS_MAIL_HOST', '   ');
-    assert.isFalse(isMailConfigured());
+    assert.isFalse(mailDelivery.isMailConfigured());
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example');
-    assert.isTrue(isMailConfigured());
+    assert.isTrue(mailDelivery.isMailConfigured());
   });
 
   for (const [error, status, body] of [

@@ -22,7 +22,7 @@ import { AuthorizationService } from '#services/auth/authorization_service';
 import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
-import { buildAccessGrant } from '#services/auth/access_grant';
+import { AccessGrantService } from '#services/auth/access_grant_service';
 
 export type { ModeView };
 
@@ -31,10 +31,16 @@ export type { ModeView };
 export class MasqueradeModeService {
   #currentActor: CurrentActorService;
   #authorization: AuthorizationService;
+  #accessGrant: AccessGrantService;
 
-  constructor(currentActor: CurrentActorService, authorization: AuthorizationService) {
+  constructor(
+    currentActor: CurrentActorService,
+    authorization: AuthorizationService,
+    accessGrant: AccessGrantService
+  ) {
     this.#currentActor = currentActor;
     this.#authorization = authorization;
+    this.#accessGrant = accessGrant;
   }
 
   /** The Masquerade service the package's provider builds and owns. */
@@ -126,7 +132,7 @@ export class MasqueradeModeService {
       masqueradeToken: view.contextToken,
       token: view.contextToken,
       actor: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
-      ...buildAccessGrant(effectiveRole, true),
+      ...this.#accessGrant.buildAccessGrant(effectiveRole, true),
     };
   }
 

@@ -7,7 +7,10 @@ import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
   applyCreateDefaults,
   assertMayWriteRestrictedFields,
-  prepareEntityWrite,
+  beginEntityWrite,
+  completeEntityWrite,
+  toEntityWriteError,
+  type EntityWriteOptions,
 } from '#services/planning/entity_rules';
 import {
   assertAllocationStartIsAvailable,
@@ -20,6 +23,7 @@ import {
 } from '#services/planning/restoration_service';
 import { asRecord, type WrittenRow } from '#services/planning/writer';
 import { PlanningWriterService } from '#services/planning/planning_writer_service';
+import { RowValidationService } from '#services/planning/row_validation_service';
 import ValidationRefusalException from '#exceptions/validation_refusal_exception';
 import RecordChangedException from '#exceptions/record_changed_exception';
 
@@ -53,15 +57,37 @@ export class EntityWriteService {
   #retainedRows: RetainedRowService;
   #restoration: RestorationService;
   #writer: PlanningWriterService;
+  #rowValidation: RowValidationService;
 
   constructor(
     retainedRows: RetainedRowService,
     restoration: RestorationService,
-    writer: PlanningWriterService
+    writer: PlanningWriterService,
+    rowValidation: RowValidationService
   ) {
     this.#retainedRows = retainedRows;
     this.#restoration = restoration;
     this.#writer = writer;
+    this.#rowValidation = rowValidation;
+  }
+
+  /** Prepares one complete entity row for a typed write against the current transaction projection. */
+  async prepareEntityWrite<K extends ScopedEntityKey>(
+    table: K,
+    row: Record<string, unknown>,
+    stored: AppData[K][number] | undefined,
+    state: AppData,
+    accessGrant: PlanningAccessGrant,
+    options: EntityWriteOptions
+  ): Promise<AppData[K][number]> {
+    const draft = beginEntityWrite(table, row, stored, accessGrant);
+    let validated: AppData[K][number];
+    try {
+      validated = await this.#rowValidation.validateRow(table, draft.visible);
+    } catch (error) {
+      throw toEntityWriteError(error);
+    }
+    return completeEntityWrite(table, row, stored, state, accessGrant, options, draft, validated);
   }
 
   /**
@@ -124,7 +150,7 @@ export class EntityWriteService {
       company?.workingDays,
       company?.weekStartsOn === 0 ? 0 : 1
     );
-    const clean = await prepareEntityWrite(table, candidate, existing, data, accessGrant, {
+    const clean = await this.prepareEntityWrite(table, candidate, existing, data, accessGrant, {
       companyWorkingDays,
     });
     if (table === 'allocations' && !permissiveRepeatStart) {
