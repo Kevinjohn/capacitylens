@@ -26,15 +26,17 @@ Each item carries the tier that says what a failure does.
 | **Rule** | Blocks the merge. | A numbered entry in the repository's departures list, decided in an issue before the code merges. |
 | **Guideline** | Does not block. The reviewer notes it once and the author answers once, with a fix or a reason. | A reason that will stand is recorded as a departure, so the item is not noted again. |
 
-- A law or a rule is decided by reading the files it names. An item that needs taste to decide is
-  a guideline.
-- A rule is a law unless one of these holds: a repository's departures list departs from it, an
-  open issue proposes changing it, or deciding it takes more than reading the files it names.
+- A law is decided by reading the files it names or running the command it names. An item that
+  needs other evidence (git history, a release, a running server) is a rule. An item that needs
+  taste to decide is a guideline.
 - An item with several sentences passes only when every sentence holds.
-- **n/a** is valid in two cases only: the section's *When* line does not match the change, or the
-  thing the item names does not exist in the repository. "Does not apply here" is not a reason.
+- **n/a** is valid when the item's condition is false: the section's *When* line does not match
+  the change, or the item starts from something the code does not have ("a middleware the package
+  ships", "when an action uses route parameters"). An item that requires something to exist is
+  never n/a because that thing is missing: that is a fail.
 - A departure is decided in an issue and lands in its own change, before the code that needs it.
-  The change that needs a departure never adds it.
+  The change that needs a departure never adds it. An entry the repository marks as being
+  aligned, with the issue that removes it, counts as a departure until that issue closes.
 - A tier or an item changes through an issue, between reviews. A review in progress keeps the
   draft it started with.
 
@@ -46,8 +48,11 @@ Each item carries the tier that says what a failure does.
 3. Every law and rule ends as one of: **pass**; **n/a**, with the reason; or, for a rule only,
    **departure**, citing the numbered entry in the repository's departures list. A failed item is
    fixed before the pull request. There is no fourth state.
-4. Run the mechanical checks first. They are the commands at the head of a section; each must come
-   out as stated. They catch the common failures; the items below them still need reading.
+4. Run the mechanical checks first. They are the commands at the head of a section. A check points
+   at lines to read; the item decides. Output from a line the change added or edited is a failure
+   unless the item passes on that line. Output from code the change did not touch, or from code a
+   numbered departure covers, goes under "exceptions" in the summary block, with its path or its
+   departure number.
 5. Paste the summary block at the end into the pull request description.
 6. Code the diff did not touch is not in scope. A failure seen there gets an issue.
 
@@ -55,14 +60,15 @@ Each item carries the tier that says what a failure does.
 
 1. State the scope first: the lines a pull request changes, or the folders of a repository review.
 2. Give every item in the sections that apply one result: pass, n/a, departure or fail. Check
-   each n/a against the two valid cases, and each departure against the numbered entry it cites;
+   each n/a against the n/a rule above, and each departure against the numbered entry it cites;
    one that does not hold is a fail.
 3. A finding names the item id, the `path:line`, and quotes the sentence of the item that fails.
    Without all three it is not a finding.
 4. The first pass covers every item that applies. The second pass covers only the first pass's
-   findings and the lines changed to fix them. There is no third pass: what is left gets an issue.
+   findings and the lines changed to fix them. A review has no third pass. A law or a rule that
+   still fails after the second pass blocks the merge: the author fixes it and asks for a new
+   review, which starts again at the first pass.
 5. Cite the draft of this page the review used.
-
 
 ---
 
@@ -83,7 +89,7 @@ Each item carries the tier that says what a failure does.
 
 - [ ] **NAM-1** (Law) Files and folders are `snake_case`. The official ESLint preset enforces it with `@unicorn/filename-case`.
 - [ ] **NAM-2** (Law) Classes and types are PascalCase. Interfaces have no `I` prefix. Variables and functions are camelCase; constants may be UPPER_CASE.
-- [ ] **NAM-3** (Law) A file holds one class and exports it as the generator does: a default export for a controller, model, middleware, exception, event, listener, mail, policy, transformer, provider, seeder and command; a named export for a service (`export class AvatarService`). Validators, factories, config helpers and errors are named exports.
+- [ ] **NAM-3** (Law) A file that holds a class holds one class, and exports it as the generator does: a default export for a controller, model, middleware, exception, event, listener, mail, policy, transformer, provider, seeder and command; a named export for a service (`export class AvatarService`). Validators, factories, config helpers and errors are named exports. A package's `src/errors.ts` holds every exception class of the package (PKG-31).
 - [ ] **NAM-4** (Guideline) Create a file with its generator (`node ace make:*`), so the name, suffix and folder are the framework's.
 
 ## Imports and modules
@@ -118,7 +124,7 @@ Items:
 - [ ] **TOOL-3** (Law) `tsconfig.json` extends `@adonisjs/tsconfig/tsconfig.app.json` in an application and `@adonisjs/tsconfig/tsconfig.package.json` in a package.
 - [ ] **TOOL-4** (Law) Node is version 24 or later, declared under `engines`. The framework requires it; the package starter kit declares it.
 - [ ] **TOOL-5** (Rule) Script names are the starter kit's: `dev`, `build`, `start`, `test`, `lint`, `format`, `typecheck`, plus `codegen` in a monorepo backend and `compile`, `quick:test` and `release` in a package.
-- [ ] **TOOL-6** (Law) The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and `LICENSE.md`. The kits ship the first four.
+- [ ] **TOOL-6** (Rule) The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and `LICENSE.md`. The kits ship the first four.
 - [ ] **TOOL-7** (Guideline) Return early. Check each condition that ends the work at the top of the function; do not wrap the main logic in an `if`.
 - [ ] **TOOL-8** (Law) Private state in a class is a `#field` or `#method`. Use `protected` only for a member a subclass or the framework reads.
 
@@ -164,7 +170,7 @@ Items:
 - [ ] **CFG-5** (Law) A config file that defines a named list (mailers, hash drivers, limiter stores, guards) carries the `declare module` block that types it.
 - [ ] **CFG-6** (Law) `adonisrc.ts` is environment-agnostic: no `process.env`, no logic. `providers`, `preloads` and `commands` are lazy imports. A provider or preload that belongs to some environments says so with `{ file, environment }`.
 - [ ] **CFG-7** (Law) Resolve paths with `app.makePath()`, `app.publicPath()`, `app.tmpPath()` and `app.configPath()`.
-- [ ] **CFG-8** (Law) `.env.example` lists every variable with a placeholder, never a real secret. Values for tests are in `.env.test`.
+- [ ] **CFG-8** (Rule) `.env.example` lists every variable with a placeholder, never a real secret. Values for tests are in `.env.test`.
 - [ ] **CFG-9** (Rule) A product's own variables share one prefix (`MYAPP_`). Framework variables keep the framework's names (`APP_KEY`, `PORT`, `HOST`, `LOG_LEVEL`).
 - [ ] **CFG-10** (Guideline) Add a variable with `node ace env:add`, which writes `.env`, `.env.example` and the `start/env.ts` validation together.
 - [ ] **CFG-11** (Law) `adonisrc.ts` keeps `indexEntities(...)` and, for a typed client, `generateRegistry()` in `hooks.init`.
@@ -187,7 +193,7 @@ Items:
 - [ ] **RTE-5** (Law) Attach middleware with `.use(middleware.name(options))`, importing `middleware` from `#start/kernel`.
 - [ ] **RTE-6** (Rule) Use `router.resource()` for a resource with the standard actions, and `.apiOnly()` for an API.
 - [ ] **RTE-7** (Guideline) The verb says what the route does: `GET` reads, `POST` creates or acts, `PUT` replaces, `PATCH` changes part, `DELETE` removes.
-- [ ] **RTE-8** (Guideline) Constrain a route parameter with `.where()` or `router.matchers`.
+- [ ] **RTE-8** (Rule) Constrain a route parameter with `.where()` or `router.matchers`.
 - [ ] **RTE-9** (Rule) An API is versioned in the outer group's prefix: `/api/v1`.
 - [ ] **RTE-10** (Guideline) When `start/routes.ts` grows past one screen, split it by area into `start/routes/<area>.ts` files that `start/routes.ts` imports. Each stays a plain route file.
 
@@ -206,7 +212,7 @@ Items:
 - [ ] **CTL-1** (Guideline) A controller maps HTTP to the application: validate, do the work or call a service, return the result.
 - [ ] **CTL-2** (Rule) One controller per resource. Its actions are the resourceful names: `index`, `show`, `store`, `update`, `destroy` (and `create` and `edit` when it renders forms).
 - [ ] **CTL-3** (Rule) An operation that is not one of those becomes its own controller: a noun controller with a resourceful action (the kit: sign-up is `NewAccountController.store`, login and logout are `AccessTokensController.store` and `.destroy`), or a single action controller with one `handle` method, made with `node ace make:controller <name> handle --singular` (the documentation). Do not grow a controller into a list of verbs.
-- [ ] **CTL-4** (Law) An action destructures what it uses from the HTTP context: `async store({ request, serialize }: HttpContext)`.
+- [ ] **CTL-4** (Rule) An action destructures what it uses from the HTTP context: `async store({ request, serialize }: HttpContext)`.
 - [ ] **CTL-5** (Law) A controller has no `private` or `protected` method. A step two actions share moves to a service or the model.
 - [ ] **CTL-6** (Law) A controller does not wrap its work in `try`/`catch` to build an error response. It lets the exception reach the exception handler.
 - [ ] **CTL-7** (Rule) Return a value, or use the response helper that names the status: `response.created()`, `response.notFound()`, `response.forbidden()`.
@@ -226,7 +232,7 @@ Mechanical checks:
 Items:
 
 - [ ] **VAL-1** (Law) A validator is `vine.create({ ... })`, exported by name from `app/validators/<resource>.ts`. One file holds every validator for its resource.
-- [ ] **VAL-2** (Law) The export ends in `Validator` and says what it validates: `signupValidator`, `createPostValidator`, `updatePostValidator`.
+- [ ] **VAL-2** (Law) The export ends in `Validator`: `signupValidator`, `createPostValidator`, `updatePostValidator`.
 - [ ] **VAL-3** (Law) A validator's name is unique across the application.
 - [ ] **VAL-4** (Rule) Validate with `request.validateUsing(validator)` as the first step of the action. Nothing reads `request.body()`, `request.all()`, `request.qs()`, `request.input()`, `request.only()` or `request.except()` unvalidated. The framework allows it; we do not.
 - [ ] **VAL-5** (Rule) When an action uses route parameters, headers or cookies, they are validated in the same validator, under its `params`, `headers` and `cookies` keys.
@@ -264,7 +270,7 @@ Items:
 - [ ] **EXC-4** (Guideline) Expected errors are kept out of the log with `ignoreCodes` and `ignoreStatuses`.
 - [ ] **EXC-5** (Law) A custom exception extends `Exception` from `@adonisjs/core/exceptions`, lives in `app/exceptions/<name>_exception.ts`, and sets `static status`. It sets `static code` when a client or a handler matches on it.
 - [ ] **EXC-6** (Guideline) An exception that needs its own response or log line implements `handle` and `report` on itself (framework option). We prefer that to an `instanceof` branch per exception in the handler.
-- [ ] **EXC-7** (Law) Exception codes are `E_UPPER_SNAKE`.
+- [ ] **EXC-7** (Rule) Exception codes are `E_UPPER_SNAKE`.
 - [ ] **EXC-8** (Law) Recognise a framework error with `instanceof` on its package's `errors` export (`errors.E_VALIDATION_ERROR`, `errors.E_ROUTE_NOT_FOUND`), never by its message.
 - [ ] **EXC-9** (Rule) Application code throws exceptions, never a bare `Error`, for anything a client can cause.
 - [ ] **EXC-10** (Rule) One exception class per cause. `static status`, `static code` and, when the sentence never varies, `static message` say what it is. No constructor takes a status or a code; it takes only what the message or the response needs (an id, a detail sentence, `{ cause }`).
@@ -273,7 +279,7 @@ Items:
 
 *When:* You changed what an endpoint returns.
 
-- [ ] **RES-1** (Law) Never return a Lucid model from an action. Return a transformer result or a plain object. The framework recommends transformers; we require them.
+- [ ] **RES-1** (Law) Never return a Lucid model from an action. Return a transformer result or a plain object.
 - [ ] **RES-2** (Rule) A transformer extends `BaseTransformer<T>` and implements `toObject()`. Pick fields with `this.pick(this.resource, [...])`.
 - [ ] **RES-3** (Law) A transformer runs no query. Load relationships with `preload()` first.
 - [ ] **RES-4** (Rule) An API answers with `serialize(Transformer.transform(model))`, which wraps the result in `{ data }`. The `serialize` helper is added to the HTTP context by `providers/api_provider.ts`, as in the kit.
@@ -311,12 +317,12 @@ Items:
 - [ ] **DB-3** (Law) Inside a transaction every query carries the client: `Model.query({ client: trx })`, `Model.create(data, { client: trx })` or `model.useTransaction(trx)`.
 - [ ] **DB-4** (Law) Bind values in `db.rawQuery`. Never build SQL from input.
 - [ ] **DB-5** (Law) Network calls, mail and password hashing stay outside a transaction.
-- [ ] **DB-6** (Rule) A migration extends `BaseSchema`, sets `protected tableName`, has `up()` and `down()`, and makes one reviewable change. Its file is named by `node ace make:migration`.
+- [ ] **DB-6** (Rule) A migration extends `BaseSchema`, sets `protected tableName`, and has `up()` and `down()`. Its file is named by `node ace make:migration`.
 - [ ] **DB-7** (Law) A released migration is never edited. A fix is a new migration.
 - [ ] **DB-8** (Rule) Data changes go in `this.defer()`.
 - [ ] **DB-9** (Law) A foreign key is declared with `.references().inTable()` and an explicit `.onDelete()`.
 - [ ] **DB-10** (Law) Production does not roll back: `disableRollbacksInProduction: true` in `config/database.ts`. The framework offers it as an option.
-- [ ] **DB-11** (Law) A seeder is a default-exported `<Name>Seeder` that extends `BaseSeeder`. One that holds development or test data limits itself with `static environment`. A model factory lives in `database/factories`.
+- [ ] **DB-11** (Law) A seeder is a default-exported class that extends `BaseSeeder`. One that holds development or test data limits itself with `static environment`. A model factory lives in `database/factories`.
 
 ## Services, providers and the container
 
@@ -330,12 +336,12 @@ Mechanical checks:
 Items:
 
 - [ ] **SVC-1** (Rule) Business logic that more than one entry point needs lives in a class in `app/services/<name>_service.ts`, created with `node ace make:service`, which writes a named export.
-- [ ] **SVC-2** (Law) A service is taken through the constructor with `@inject()`. The container builds it; nothing calls `new` on it.
+- [ ] **SVC-2** (Rule) A service is taken through the constructor with `@inject()`. The container builds it; nothing calls `new` on it.
 - [ ] **SVC-3** (Rule) A service does not read the HTTP context unless it is injected with it.
 - [ ] **SVC-4** (Rule) Replace a service in a test with the test context's `swap(Service, fake)`, which restores itself.
-- [ ] **SVC-5** (Law) Behaviour is a class method. A file does not export loose top-level functions; an exported function only builds and returns an instance.
+- [ ] **SVC-5** (Rule) Behaviour is a class method. A file does not export loose top-level functions; an exported function only builds and returns an instance.
 - [ ] **SVC-6** (Rule) Write a provider only for container bindings, framework extensions (macros, `HttpContext` properties), or work that starts and stops with the application. One-off setup is a preload file.
-- [ ] **SVC-7** (Law) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in `ready` and stops in `shutdown`.
+- [ ] **SVC-7** (Rule) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in `ready` and stops in `shutdown`.
 - [ ] **SVC-8** (Law) Application code logs through the logger, not `console`.
 
 ## Authentication and authorization
@@ -350,7 +356,7 @@ Items:
 - [ ] **AUT-6** (Rule) A policy has one method per action, even when two have the same body.
 - [ ] **AUT-7** (Rule) An action authorizes with `bouncer.with(PostPolicy).authorize('edit', post)`, or `.denies()` when it answers itself.
 - [ ] **AUT-8** (Law) Hash with the `hash` service; encrypt with the `encryption` service. No custom hashing.
-- [ ] **AUT-9** (Law) The server authorizes every request itself. A hidden button is not authorization.
+- [ ] **AUT-9** (Law) Every route that is not public is authorized on the server: by middleware on the route or its group, or by a check in the action or the service it calls. A hidden button is not authorization.
 
 ## Security
 
@@ -360,7 +366,7 @@ Items:
 - [ ] **SEC-2** (Rule) A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers.
 - [ ] **SEC-3** (Law) `config/cors.ts` lists real origins. Never pair `credentials: true` with a wildcard origin.
 - [ ] **SEC-4** (Rule) `config/shield.ts` carries CSRF, CSP, HSTS, frame and content-type settings. A server-rendered or session application keeps CSRF protection on.
-- [ ] **SEC-5** (Law) `APP_KEY` is a secret, generated with `node ace generate:key`, never committed.
+- [ ] **SEC-5** (Law) `APP_KEY` is a secret and is never committed.
 - [ ] **SEC-6** (Law) Bearers (reset tokens, invitation tokens, session ids) are never logged.
 
 ## Logging, mail, events and health checks
@@ -369,7 +375,7 @@ Items:
 
 - [ ] **OPS-1** (Rule) Inside a request, log with `ctx.logger`, so the line carries the request id. Use the logger service outside a request.
 - [ ] **OPS-2** (Rule) Log an error under the `err` key. Hide sensitive values with the logger's `redact` option.
-- [ ] **OPS-3** (Law) A mail is a class in `app/mails`, created with `node ace make:mail`.
+- [ ] **OPS-3** (Law) A mail is a class in `app/mails`.
 - [ ] **OPS-4** (Law) An event is a class in `app/events` that extends `BaseEvent` and only carries data. It is dispatched with `events.UserRegistered.dispatch(user)`.
 - [ ] **OPS-5** (Law) A listener is a class in `app/listeners` with a `handle` method. Listeners are attached in the `start/events.ts` preload file, through the `#generated/events` and `#generated/listeners` barrel files.
 - [ ] **OPS-6** (Rule) Health checks are registered in `start/health.ts` as `healthChecks`. A `HealthChecksController` serves `/health/live` and `/health/ready`. A custom check extends `BaseCheck` and its name ends in `Check`.
@@ -418,7 +424,7 @@ Items:
 - [ ] **TST-10** (Rule) A command is tested with `ace.create(Command, args)`, `command.exec()` and `command.assertSucceeded()`.
 - [ ] **TST-11** (Law) A test file contains tests only. Reusable code is in `tests/helpers/`.
 - [ ] **TST-12** (Law) No `let` or `var` is shared across tests at file scope. A test creates what it needs, or a group hook does.
-- [ ] **TST-13** (Law) Every `getByText('...')` call given a string passes `exact: true` or `exact: false`. A role locator or a `filter` call needs none.
+- [ ] **TST-13** (Law) Every `getByText('...')` call given a string passes `exact: true` or `exact: false`. Other locators are not covered.
 - [ ] **TST-14** (Guideline) A test title is a lowercase sentence that says what happens. A group title is a noun phrase.
 - [ ] **TST-15** (Rule) `.env.test` sets `SESSION_DRIVER=memory`, so `loginAs` and `withSession` work in API tests.
 
@@ -440,7 +446,7 @@ Items:
 
 *When:* You added, moved or renamed a file.
 
-- [ ] **PKG-1** (Law) The implementation is in `src/`. The repository root holds only `index.ts`, `configure.ts` and configuration.
+- [ ] **PKG-1** (Law) The implementation is in `src/`. At the repository root the only source files are `index.ts` and `configure.ts`; everything else there is configuration or one of the framework's folders (`providers/`, `services/`, `commands/`, `stubs/`, `bin/`, `tests/`).
 - [ ] **PKG-2** (Rule) Create only the folders the package needs. A package with no container binding has no `providers/` and no `services/`.
 - [ ] **PKG-3** (Law) A static import is a relative path that ends in `.ts`; a lazy `import()` ends in `.js` (IMP-5).
 
@@ -489,7 +495,7 @@ Items:
 - [ ] **PKG-13** (Law) A package that needs anything in the application (a config file, a provider, a middleware, an environment variable, a migration) ships a `configure` function, so `node ace add <package>` sets it up. The README does not ask for manual edits the hook could make.
 - [ ] **PKG-14** (Law) The hook changes the application only through codemods: `makeUsingStub`, `updateRcFile` (`addProvider`, `addCommand`, `addPreloadFile`), `registerMiddleware`, `defineEnvVariables`, `defineEnvValidations`, `registerJapaPlugin`, `registerPolicies`. `@adonisjs/assembler` is an optional peer dependency because the codemods need it.
 - [ ] **PKG-15** (Law) The hook is safe to run twice.
-- [ ] **PKG-16** (Law) Choices come from a flag first, then a prompt: `command.parsedFlags.store`, else `command.prompt.choice(...)`. An invalid choice sets `command.exitCode = 1`, logs through `command.logger` and returns. With no flag and no terminal to prompt on, the hook does the same and names the missing flag.
+- [ ] **PKG-16** (Law) Choices come from a flag first, then a prompt: `command.parsedFlags.store`, else `command.prompt.choice(...)`. An invalid choice sets `command.exitCode = 1`, logs through `command.logger` and returns.
 - [ ] **PKG-17** (Law) Templates are `.stub` files under `stubs/`, in folders that mirror where they land: `stubs/config/<name>.stub`, `stubs/start/<name>.stub`, `stubs/make/migration/<name>.stub`. Each stub states its destination with `exports({ to: app.configPath('<name>.ts') })`.
 - [ ] **PKG-18** (Law) `stubs/main.ts` exports `stubsRoot = import.meta.dirname`.
 - [ ] **PKG-19** (Law) A stub writes code the application owns afterwards, in this book's application style: `env` read in the config file, `defineConfig`, the `declare module` block.
@@ -500,7 +506,7 @@ Items:
 
 Mechanical checks:
 
-- [ ] `grep -rnE "process\.env|services/env" src providers services 2>/dev/null` prints nothing
+- [ ] `grep -rnE "process\.env|services/env" src providers services commands 2>/dev/null` prints nothing
 
 Items:
 
@@ -535,25 +541,25 @@ Items:
 - [ ] **PKG-32** (Law) The code is stable. The package throws by it, `throw new E_<CODE>()`, and an application recognises it with `instanceof errors.E_<CODE>` or by `code`, never by message. A wire code covers several raw codes only to prevent enumeration or conceal configuration details, with a one-line comment naming what it protects; compatibility alone is not a reason.
 - [ ] **PKG-46** (Law) No exported exception constructor, including an inherited one, takes a status or a code. Enforce this through its signature, without runtime mutation guards. Applications choose different response statuses in their own handlers. It takes only what the message or the response needs (an id, a name, a detail sentence, `{ cause }`); a sentence that never varies is `static message`. A package does not use `createError`.
 - [ ] **PKG-47** (Law) A package never throws a bare `Error`. Wrong configuration or wrong use by the application's developer throws `InvalidArgumentsException` or `RuntimeException` from `@adonisjs/core/exceptions`; everything else is a class in `src/errors.ts`.
-- [ ] **PKG-49** (Law) Compound failures follow the single [compound-failure rule](./adonisjs-cookbook.md#compound-failures).
+- [ ] **PKG-49** (Law) Native `AggregateError` is allowed in two cases only: the work fails and its cleanup fails too, or the work succeeds and more than one cleanup step fails. `errors[0]` is the work's failure, or the first cleanup failure when the work succeeded; later failures follow in the order observed. An `AggregateError` received from another layer is passed on unchanged, unless this layer's cleanup also fails: it is then `errors[0]` of a new one. Every function that throws one or passes one on documents it in `@throws`. It is never used for an expected 4xx outcome or a case a caller branches on; that is a package exception class.
 - [ ] **PKG-33** (Law) An exception whose response needs more than its status, code and message (a header, a redirect, a different body) implements `handle` on itself, so the application's handler needs no special case. Every other exception is left for the framework to render.
-- [ ] **PKG-34** (Law) Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console`. It logs through the application's logger only when the application's configuration passes a logger or selects a reporting mode that says so.
-- [ ] **PKG-35** (Law) State, I/O and anything that takes a dependency is a class. An exported function is one of: `defineConfig`; `configure`; a factory that returns an instance or a config provider; a decorator; a mixin; a plugin for Edge, Japa or the assembler; or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable.
-- [ ] **PKG-36** (Law) A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath. A function that returns middleware builds on that class. The configure hook registers the middleware, except one that must run after the application's own authentication middleware: the README tells the application where to mount that one.
+- [ ] **PKG-34** (Law) Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console`. It logs through the application's logger only when the application's configuration passes that logger in.
+- [ ] **PKG-35** (Law) State, I/O and anything that takes a dependency is a class. An exported function is one of: `defineConfig`; `configure`; a factory that returns an instance or a config provider; a decorator; a mixin; a plugin for Edge, Japa or the assembler; or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable. A generated file, such as the commands index, is not checked.
+- [ ] **PKG-36** (Law) A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath. The configure hook registers it, unless the middleware reads `ctx.auth`: the README then tells the application where to mount it.
 - [ ] **PKG-37** (Law) A command the package ships is a file in `commands/`. The build writes `build/commands/main.js` with `adonis-kit index build/commands`, exported as `./commands` and registered with `rcFile.addCommand('<package>/commands')`.
 - [ ] **PKG-38** (Law) A package does not import from an application and makes no assumption about its folder names beyond the framework's.
 - [ ] **PKG-48** (Rule) Everything an application calls from the export map has an `@example` in its TSDoc: each exported function, class, decorator and mixin, and each public method on an exported class or service. The example is the application's code, fenced as `ts`. A top-level export's example starts with its import from the public subpath; a method's starts from the instance. One example is enough; a second is for a second way to call it. Types, exception classes and what the framework calls instead of the application (the configure hook, the provider, commands, a middleware's `handle`, a controller's actions) need none.
 
 ## Tests and release
 
-*When:* You wrote a test or are releasing.
+*When:* You touched the provider, the configure hook, the export map or a test, or are releasing.
 
 - [ ] **PKG-39** (Law) Tests run on Japa through `bin/test.ts`, in `tests/**/*.spec.ts`. Shared test code is in `tests/helpers.ts`, or in files under `tests/helpers/`.
 - [ ] **PKG-40** (Law) The configure hook has a test (`tests/configure.spec.ts`) that runs it against a scratch application with `@japa/file-system` and asserts the files it wrote.
 - [ ] **PKG-41** (Law) The provider has a test that boots an application with it and resolves the binding.
 - [ ] **PKG-42** (Guideline) Public types are tested with `@japa/expect-type` where inference matters.
 - [ ] **PKG-43** (Law) Coverage is collected with `c8`, as the package starter kit sets up.
-- [ ] **PKG-44** (Law) Versions follow semver. Each release has a changelog entry and a git tag `v<version>`.
+- [ ] **PKG-44** (Rule) Versions follow semver. Each release has a changelog entry and a git tag `v<version>`.
 - [ ] **PKG-45** (Rule) The README has, in this order: what it does, `node ace add <package>`, what the configure hook changed, configuration, usage, errors, and the supported AdonisJS versions.
 
 ---
@@ -568,5 +574,4 @@ Laws failed: none
 Items n/a (id: reason):
 Guideline notes answered (id: fix or reason):
 Departures cited (id: departure number):
-New departures recorded in this change:
 ```

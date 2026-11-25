@@ -5,7 +5,7 @@ description: House rules, vocabulary and recipes for every AdonisJS application 
 
 # AdonisJS cookbook
 
-Draft 2, 2026-11-21. Written against AdonisJS 7 (`@adonisjs/core` 7.x), Lucid 22, VineJS 4, Japa
+Draft 4, 2026-11-25. Written against AdonisJS 7 (`@adonisjs/core` 7.x), Lucid 22, VineJS 4, Japa
 and Tuyau 1.
 
 This is the coding guidebook for every AdonisJS repository we own: applications, and the
@@ -27,8 +27,8 @@ its origin:
 | Tag | Origin | Weight |
 | --- | --- | --- |
 | **F** | The AdonisJS or Lucid documentation, an official starter kit, an official package, or the official lint and format presets. | Follow it. |
-| **P** | A lint rule or style note on the public pages of AdonisJS Plus. Stricter than the documentation. The rule sources are paid and were not read. | Follow it unless Part 4 says otherwise. |
-| **H** | A house rule: ours, where the framework is silent or we chose between two framework options. | Follow it; listed in Part 4 until agreed. |
+| **P** | A lint rule or style note on the public pages of AdonisJS Plus. Stricter than the documentation. The rule sources are paid and were not read. | Follow it. |
+| **H** | A house rule: ours, where the framework is silent or we chose between two framework options. | Follow it. |
 
 The origin says where a rule comes from. What a failure does is the rule's tier (law, rule or
 guideline), which the [pre-PR checklist](./adonisjs-checklist.md) sets.
@@ -38,8 +38,7 @@ Three rules decide every case:
 1. **Follow the framework.** When this book is silent, the AdonisJS documentation decides, then
    the `api` starter kit, then the official packages' source.
 2. **A deliberate difference is written down.** Each repository keeps a numbered list of its
-   departures from this book, with the reason. A new difference is added to that list before the
-   code is merged.
+   departures from this book, with the reason. A new difference is decided in an issue and added to that list in its own change, before the code that needs it. An item the checklist marks as a law has no departure.
 3. **An unrecorded difference is debt.** It gets an issue. It is not a pattern to copy.
 
 Sources: [AdonisJS documentation](https://docs.adonisjs.com),
@@ -112,10 +111,7 @@ and **logout** (the framework's words for starting and ending a session).
   `@unicorn/filename-case`.
 - **NAM-2 (F)** Classes and types are PascalCase. Interfaces have no `I` prefix. Variables and
   functions are camelCase; constants may be UPPER_CASE.
-- **NAM-3 (F)** A file holds one class and exports it as the generator does: a default export for a
-  controller, model, middleware, exception, event, listener, mail, policy, transformer, provider,
-  seeder and command; a named export for a service (`export class AvatarService`). Validators,
-  factories, config helpers and errors are named exports.
+- **NAM-3 (F)** A file that holds a class holds one class, and exports it as the generator does: a default export for a controller, model, middleware, exception, event, listener, mail, policy, transformer, provider, seeder and command; a named export for a service (`export class AvatarService`). Validators, factories, config helpers and errors are named exports. A package's `src/errors.ts` holds every exception class of the package (PKG-31).
 - **NAM-4 (F)** Create a file with its generator (`node ace make:*`), so the name, suffix and folder
   are the framework's.
 
@@ -399,8 +395,7 @@ export default class NewAccountController {
 
 - **VAL-1 (F)** A validator is `vine.create({ ... })`, exported by name from
   `app/validators/<resource>.ts`. One file holds every validator for its resource.
-- **VAL-2 (F)** The export ends in `Validator` and says what it validates: `signupValidator`,
-  `createPostValidator`, `updatePostValidator`.
+- **VAL-2 (F)** The export ends in `Validator`: `signupValidator`, `createPostValidator`, `updatePostValidator`.
 - **VAL-3 (H)** A validator's name is unique across the application.
 - **VAL-4 (H)** Validate with `request.validateUsing(validator)` as the first step of the action.
   Nothing reads `request.body()`, `request.all()`, `request.qs()`, `request.input()`,
@@ -571,8 +566,7 @@ throw new StaleRevisionException()
 
 ## Responses and transformers
 
-- **RES-1 (H)** Never return a Lucid model from an action. Return a transformer result or a plain
-  object. The framework recommends transformers; we require them.
+- **RES-1 (H)** Never return a Lucid model from an action. Return a transformer result or a plain object.
 - **RES-2 (F)** A transformer extends `BaseTransformer<T>` and implements `toObject()`. Pick fields
   with `this.pick(this.resource, [...])`.
 - **RES-3 (F)** A transformer runs no query. Load relationships with `preload()` first.
@@ -634,17 +628,14 @@ export default class UserTransformer extends BaseTransformer<User> {
 
 **Migrations, seeders and factories**
 
-- **DB-6 (F)** A migration extends `BaseSchema`, sets `protected tableName`, has `up()` and
-  `down()`, and makes one reviewable change. Its file is named by `node ace make:migration`.
+- **DB-6 (F)** A migration extends `BaseSchema`, sets `protected tableName`, and has `up()` and `down()`. Its file is named by `node ace make:migration`.
 - **DB-7 (F)** A released migration is never edited. A fix is a new migration.
 - **DB-8 (F)** Data changes go in `this.defer()`.
 - **DB-9 (H)** A foreign key is declared with `.references().inTable()` and an explicit
   `.onDelete()`.
 - **DB-10 (H)** Production does not roll back: `disableRollbacksInProduction: true` in
   `config/database.ts`. The framework offers it as an option.
-- **DB-11 (F)** A seeder is a default-exported `<Name>Seeder` that extends `BaseSeeder`. One that
-  holds development or test data limits itself with `static environment`. A model factory lives in
-  `database/factories`.
+- **DB-11 (F)** A seeder is a default-exported class that extends `BaseSeeder`. One that holds development or test data limits itself with `static environment`. A model factory lives in `database/factories`.
 
 Recipes (kit; the model omits its access-token lines):
 
@@ -752,7 +743,7 @@ export default class UsersController {
   `.denies()` when it answers itself.
 - **AUT-8 (F)** Hash with the `hash` service; encrypt with the `encryption` service. No custom
   hashing.
-- **AUT-9 (H)** The server authorizes every request itself. A hidden button is not authorization.
+- **AUT-9 (H)** Every route that is not public is authorized on the server: by middleware on the route or its group, or by a check in the action or the service it calls. A hidden button is not authorization.
 
 Recipe (documentation):
 
@@ -783,7 +774,7 @@ export default class PostPolicy extends BasePolicy {
   origin.
 - **SEC-4 (F)** `config/shield.ts` carries CSRF, CSP, HSTS, frame and content-type settings. A
   server-rendered or session application keeps CSRF protection on.
-- **SEC-5 (F)** `APP_KEY` is a secret, generated with `node ace generate:key`, never committed.
+- **SEC-5 (F)** `APP_KEY` is a secret and is never committed.
 - **SEC-6 (H)** Bearers (reset tokens, invitation tokens, session ids) are never logged.
 
 Recipe (documentation):
@@ -803,7 +794,7 @@ export const throttle = limiter.define('global', () => {
   the logger service outside a request.
 - **OPS-2 (F)** Log an error under the `err` key. Hide sensitive values with the logger's `redact`
   option.
-- **OPS-3 (F)** A mail is a class in `app/mails`, created with `node ace make:mail`.
+- **OPS-3 (F)** A mail is a class in `app/mails`.
 - **OPS-4 (F)** An event is a class in `app/events` that extends `BaseEvent` and only carries data.
   It is dispatched with `events.UserRegistered.dispatch(user)`.
 - **OPS-5 (F)** A listener is a class in `app/listeners` with a `handle` method. Listeners are
@@ -897,7 +888,7 @@ export default class HealthChecksController {
 - **TST-11 (P)** A test file contains tests only. Reusable code is in `tests/helpers/`.
 - **TST-12 (P)** No `let` or `var` is shared across tests at file scope. A test creates what it
   needs, or a group hook does.
-- **TST-13 (P)** Every `getByText('...')` call given a string passes `exact: true` or `exact: false`. A role locator or a `filter` call needs none.
+- **TST-13 (P)** Every `getByText('...')` call given a string passes `exact: true` or `exact: false`. Other locators are not covered.
 - **TST-14 (H)** A test title is a lowercase sentence that says what happens. A group title is a
   noun phrase.
 - **TST-15 (F)** `.env.test` sets `SESSION_DRIVER=memory`, so `loginAs` and `withSession` work in
@@ -956,8 +947,7 @@ configure.ts       the configure hook
 index.ts           the entry point
 ```
 
-- **PKG-1 (F)** The implementation is in `src/`. The repository root holds only `index.ts`,
-  `configure.ts` and configuration.
+- **PKG-1 (F)** The implementation is in `src/`. At the repository root the only source files are `index.ts` and `configure.ts`; everything else there is configuration or one of the framework's folders (`providers/`, `services/`, `commands/`, `stubs/`, `bin/`, `tests/`).
 - **PKG-2 (F)** Create only the folders the package needs. A package with no container binding has
   no `providers/` and no `services/`.
 - **PKG-3 (F)** A static import is a relative path that ends in `.ts`; a lazy `import()` ends in
@@ -1022,7 +1012,7 @@ export { defineConfig, stores } from './src/define_config.ts'
   `defineEnvVariables`, `defineEnvValidations`, `registerJapaPlugin`, `registerPolicies`.
   `@adonisjs/assembler` is an optional peer dependency because the codemods need it.
 - **PKG-15 (H)** The hook is safe to run twice.
-- **PKG-16 (F)** Choices come from a flag first, then a prompt: `command.parsedFlags.store`, else `command.prompt.choice(...)`. An invalid choice sets `command.exitCode = 1`, logs through `command.logger` and returns. With no flag and no terminal to prompt on, the hook does the same and names the missing flag.
+- **PKG-16 (F)** Choices come from a flag first, then a prompt: `command.parsedFlags.store`, else `command.prompt.choice(...)`. An invalid choice sets `command.exitCode = 1`, logs through `command.logger` and returns.
 - **PKG-17 (F)** Templates are `.stub` files under `stubs/`, in folders that mirror where they
   land: `stubs/config/<name>.stub`, `stubs/start/<name>.stub`, `stubs/make/migration/<name>.stub`.
   Each stub states its destination with `exports({ to: app.configPath('<name>.ts') })`.
@@ -1175,9 +1165,9 @@ export { limiter as default }
   application's developer throws `InvalidArgumentsException` or `RuntimeException` from
   `@adonisjs/core/exceptions` (PKG-21); everything else is a class in `src/errors.ts`.
 - **PKG-33 (F)** An exception whose response needs more than its status, code and message (a header, a redirect, a different body) implements `handle` on itself, so the application's handler needs no special case. Every other exception is left for the framework to render.
-- **PKG-34 (F)** Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console`. It logs through the application's logger only when the application's configuration passes a logger or selects a reporting mode that says so.
-- **PKG-35 (F)** State, I/O and anything that takes a dependency is a class. An exported function is one of: `defineConfig`; `configure`; a factory that returns an instance or a config provider; a decorator; a mixin; a plugin for Edge, Japa or the assembler; or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable.
-- **PKG-36 (F)** A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath. A function that returns middleware builds on that class. The configure hook registers the middleware, except one that must run after the application's own authentication middleware: the README tells the application where to mount that one.
+- **PKG-34 (F)** Diagnostics use `debuglog('<scope>:<name>')` from `node:util` in `src/debug.ts`. A package does not write to `console`. It logs through the application's logger only when the application's configuration passes that logger in.
+- **PKG-35 (F)** State, I/O and anything that takes a dependency is a class. An exported function is one of: `defineConfig`; `configure`; a factory that returns an instance or a config provider; a decorator; a mixin; a plugin for Edge, Japa or the assembler; or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable. A generated file, such as the commands index, is not checked.
+- **PKG-36 (F)** A middleware the package ships is a class with `handle(ctx, next, options?)`, exported from its own subpath. The configure hook registers it, unless the middleware reads `ctx.auth`: the README then tells the application where to mount it.
 - **PKG-37 (F)** A command the package ships is a file in `commands/`. The build writes
   `build/commands/main.js` with `adonis-kit index build/commands`, exported as `./commands` and
   registered with `rcFile.addCommand('<package>/commands')`.
@@ -1265,7 +1255,7 @@ it.
 
 ### Compound failures
 
-**PKG-49 (H)** Native `AggregateError` is the exception to PKG-31's one-class-per-cause rule and PKG-47's `src/errors.ts` rule in two cases only: the work fails and its cleanup fails too, or the work succeeds and more than one cleanup step fails. `errors[0]` is the work's failure, or the first cleanup failure when the work succeeded; later failures follow in the order observed. An `AggregateError` received from another layer is passed on unchanged. Every function that throws one or passes one on documents it in `@throws`. Never use it for an expected 4xx outcome or a case on which a caller needs to branch; use a package exception class for that case instead.
+**PKG-49 (H)** This is the one exception to PKG-31's one-class-per-cause rule and PKG-47's `src/errors.ts` rule. Native `AggregateError` is allowed in two cases only: the work fails and its cleanup fails too, or the work succeeds and more than one cleanup step fails. `errors[0]` is the work's failure, or the first cleanup failure when the work succeeded; later failures follow in the order observed. An `AggregateError` received from another layer is passed on unchanged, unless this layer's cleanup also fails: it is then `errors[0]` of a new one. Every function that throws one or passes one on documents it in `@throws`. It is never used for an expected 4xx outcome or a case a caller branches on; that is a package exception class.
 
 ## Tests and release
 
@@ -1295,7 +1285,7 @@ the answer is recorded in the repository's departures list.
 | D7 | Package manager | Kits ship npm scripts and work with any manager. | pnpm everywhere; scripts written so they do not name the manager. |
 | D8 | Authentication in applications that use Account Kit | `@adonisjs/auth` guards, `withAuthFinder`, `loginAs`. | Account Kit is itself an AdonisJS package, so it should expose the framework's surface (guards, `auth.user`, a `loginAs`-style test plugin) rather than each application recording a departure. Audit it against Part 3 first. |
 | D9 | Authorization in applications that use Access Control | Bouncer abilities and policies called from the controller. | Same as D8: the package should present Bouncer's vocabulary (`ability`, `policy`, `authorize`), and the application calls it from the controller. |
-| D10 | Which AdonisJS Plus rules are binding | Published as optional lint rules. | Binding: CTL-5, TST-11, TST-12, TST-13, TOOL-7, SVC-5. |
+| D10 | Which AdonisJS Plus rules are binding | Published as optional lint rules. | CTL-5, TST-11, TST-12, TST-13 and SVC-5 block a merge. TOOL-7 is a guideline. |
 
 ---
 
@@ -1332,14 +1322,15 @@ the answer is recorded in the repository's departures list.
 3. Framework packages are caret peer dependencies (PKG-6, PKG-7).
 4. `node ace add` leaves a working install: config file, provider, middleware, environment
    variables and validations, migration (PKG-13, PKG-14).
-5. The package reads no environment variable itself (PKG-23).
+5. The code the package ships reads no environment variable (PKG-23).
 6. The provider binds lazily, types its binding, and has a matching `services/main.ts`
    (PKG-26, PKG-27, PKG-29).
 7. Every thrown exception is a class in `src/errors.ts`, one per cause, exported and thrown under
    its stable code; no constructor takes a status or a code (PKG-31, PKG-32, PKG-46, PKG-47).
 8. No `console` output; diagnostics use `debuglog` (PKG-34).
 9. Everything an application calls from the export map has an `@example` (PKG-48).
-10. Public types are in `src/types.ts` and exported from `./types` (PKG-11).
+10. Public types are in `src/types.ts` and exported from `./types`; types that need an optional
+    peer are on `./types/<name>` (PKG-11).
 11. The configure hook and the provider each have a test (PKG-40, PKG-41).
 12. The README follows PKG-45, and its vocabulary is the framework's (VOC-1).
 13. Any difference from this book is in the repository's departures list.

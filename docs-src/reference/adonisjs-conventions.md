@@ -589,4 +589,4 @@ the work at the top of the function, and do not wrap the main logic in an `if`.
 9. A test file holds only tests; shared code is in `tests/helpers/`.
 10. Framework words are used for framework concepts, and "guard", "policy", "exception" and
     "factory" are not reused for anything else.
-11. Any difference from the framework cites a numbered departure, or adds one.
+11. Any difference from the framework cites a numbered departure.
