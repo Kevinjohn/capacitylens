@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import { planningHistoryStepValidator } from '#validators/planning_operations';
+import { planningHistoryStepValidator } from '#validators/planning';
 import { PlanningHistoryStepService } from '#services/planning/planning_history_step_service';
 import { requestData } from '#validators/request_rules';
 

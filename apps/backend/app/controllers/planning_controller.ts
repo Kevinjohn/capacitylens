@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import { PlanningService } from '#services/planning_service';
-import { planningReadValidator } from '#validators/planning/read';
+import { planningReadValidator } from '#validators/planning';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { requestData } from '#validators/request_rules';
 
