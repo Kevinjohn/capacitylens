@@ -1,4 +1,4 @@
-import type { ComponentProps, Dispatch, SetStateAction } from 'react';
+import type { ComponentProps } from 'react';
 import { Plus } from 'lucide-react';
 import { m } from '@/i18n';
 import { formatUtilisationPercent } from '@/lib/formatUtilisationPercent';
@@ -10,12 +10,14 @@ import { ResourceLane } from './ResourceLane';
 import { buildRowScreenReaderSummary } from './buildRowScreenReaderSummary';
 import type { GroupModel, RowModel } from './schedulerModel';
 import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
-import type { ISODate } from '@capacitylens/shared/types/entities';
 import { Button } from '@/components/ui/button';
 import { PersonScheduleTrigger } from '@/components/person-schedule/PersonScheduleTrigger';
 import { resolveResourceAvatarUrl } from '@/account/resolveResourceAvatarUrl';
-import type { DialogState } from './schedulerGridDialog';
-import type { SchedulerUI, StoreState } from '@/store/useStore';
+import { useStore } from '@/store/useStore';
+import { useCanEdit } from '@/auth/permissionContext';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { resolvePersonScheduleIdentity } from '@/components/person-schedule/usePersonSchedule';
+import { useSchedulerGridActions } from './schedulerGridActions';
 
 type LaneProps = ComponentProps<typeof ResourceLane>;
 /** Props passed to the scheduler grid row component. */
@@ -24,35 +26,24 @@ export interface SchedulerGridRowProps {
   row: RowModel;
   rowIndex: number;
   density: ReturnType<typeof buildSchedulerDensity>;
-  utilisationPrefs: StoreState['utilisationPrefs'];
   visibleWeeksLabel: string;
-  ui: Pick<SchedulerUI, 'drawMode'>;
-  canEdit: boolean;
-  visibleStartDate: () => ISODate;
-  setDialog: Dispatch<SetStateAction<DialogState | null>>;
   days: LaneProps['days'];
   todayX: LaneProps['todayX'];
   geom: LaneProps['geom'];
   calendarWeekStartsOn: LaneProps['weekStartsOn'];
   onEdit: LaneProps['onEdit'];
   onDraw: LaneProps['onDraw'];
-  personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
-  onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
 }
 
 function ResourceIdentity({
   group,
   row,
   density,
-  personScheduleTitlesByResourceId,
-  onViewSchedule,
-}: Pick<
-  SchedulerGridRowProps,
-  'group' | 'row' | 'density' | 'personScheduleTitlesByResourceId' | 'onViewSchedule'
->) {
+}: Pick<SchedulerGridRowProps, 'group' | 'row' | 'density'>) {
   const { resource } = row;
-  const scheduleTitle =
-    personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
+  const data = useActiveScopedData();
+  const { onViewSchedule } = useSchedulerGridActions();
+  const scheduleTitle = resolvePersonScheduleIdentity(resource, data);
   const imageUrl = resolveResourceAvatarUrl(resource);
   // A placeholder in a discipline band takes the discipline colour; one without a discipline keeps
   // its own colour instead of the neutral Unassigned band colour. The capacity overview differs on
@@ -111,24 +102,14 @@ function UtilisationCell({
 
 function ResourceActions({
   row,
-  ui,
-  canEdit,
-  visibleStartDate,
-  setDialog,
-  utilisationPrefs,
   visibleWeeksLabel,
-}: Pick<
-  SchedulerGridRowProps,
-  | 'row'
-  | 'ui'
-  | 'canEdit'
-  | 'visibleStartDate'
-  | 'setDialog'
-  | 'utilisationPrefs'
-  | 'visibleWeeksLabel'
->) {
+}: Pick<SchedulerGridRowProps, 'row' | 'visibleWeeksLabel'>) {
+  const drawMode = useStore((state) => state.ui.drawMode);
+  const utilisationPrefs = useStore((state) => state.utilisationPrefs);
+  const canEdit = useCanEdit();
+  const { visibleStartDate, setDialog } = useSchedulerGridActions();
   const { resource, utilisation, overSoon } = row;
-  const canCreate = canEdit && (ui.drawMode !== 'timeOff' || !isExternalResource(resource));
+  const canCreate = canEdit && (drawMode !== 'timeOff' || !isExternalResource(resource));
   const showUtilisation = utilisationPrefs.showPersonal && isCapacityTracked(resource);
   return (
     <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
@@ -139,20 +120,18 @@ function ResourceActions({
           onClick={() => {
             const day = visibleStartDate();
             setDialog({
-              kind: ui.drawMode === 'timeOff' ? 'timeOff' : 'create',
+              kind: drawMode === 'timeOff' ? 'timeOff' : 'create',
               resourceId: resource.id,
               startDate: day,
               endDate: day,
             });
           }}
           aria-label={
-            ui.drawMode === 'timeOff'
+            drawMode === 'timeOff'
               ? m.scheduler_add_time_off_for({ name: resolveResourceDisplayName(resource) })
               : m.scheduler_add_allocation_for({ name: resolveResourceDisplayName(resource) })
           }
-          title={
-            ui.drawMode === 'timeOff' ? m.scheduler_add_time_off() : m.scheduler_add_allocation()
-          }
+          title={drawMode === 'timeOff' ? m.scheduler_add_time_off() : m.scheduler_add_allocation()}
           className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
         >
           <Plus />
@@ -169,23 +148,14 @@ function ResourceActions({
   );
 }
 
-type RowHeaderProps = Pick<
-  SchedulerGridRowProps,
-  | 'group'
-  | 'row'
-  | 'density'
-  | 'utilisationPrefs'
-  | 'visibleWeeksLabel'
-  | 'ui'
-  | 'canEdit'
-  | 'visibleStartDate'
-  | 'setDialog'
-  | 'personScheduleTitlesByResourceId'
-  | 'onViewSchedule'
->;
-
-function SchedulerGridRowHeader(props: RowHeaderProps) {
-  const { row, group, density, utilisationPrefs, visibleWeeksLabel, ui } = props;
+function SchedulerGridRowHeader({
+  row,
+  group,
+  density,
+  visibleWeeksLabel,
+}: Pick<SchedulerGridRowProps, 'group' | 'row' | 'density' | 'visibleWeeksLabel'>) {
+  const drawMode = useStore((state) => state.ui.drawMode);
+  const showPersonalUtilisation = useStore((state) => state.utilisationPrefs.showPersonal);
   const { resource } = row;
   return (
     <div
@@ -198,37 +168,22 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
     >
       <span className="sr-only">
         {buildRowScreenReaderSummary(row, {
-          showPersonalUtilisation: utilisationPrefs.showPersonal,
+          showPersonalUtilisation,
           visibleSpanLabel: visibleWeeksLabel,
-          drawMode: ui.drawMode,
+          drawMode,
         })}
       </span>
-      <ResourceIdentity
-        group={group}
-        row={row}
-        density={density}
-        personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
-        onViewSchedule={props.onViewSchedule}
-      />
-      <ResourceActions {...props} />
+      <ResourceIdentity group={group} row={row} density={density} />
+      <ResourceActions row={row} visibleWeeksLabel={visibleWeeksLabel} />
     </div>
   );
 }
 
 /** Renders one resource row in the scheduler grid. */
 export function SchedulerGridRow(props: SchedulerGridRowProps) {
-  const {
-    row,
-    rowIndex,
-    density,
-    canEdit,
-    days,
-    todayX,
-    geom,
-    calendarWeekStartsOn,
-    onEdit,
-    onDraw,
-  } = props;
+  const { row, rowIndex, density, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } =
+    props;
+  const canEdit = useCanEdit();
   const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
   return (
     /* One scheduler-row surface on the whole row (not just the sticky header) keeps the divider
@@ -247,14 +202,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         group={props.group}
         row={row}
         density={density}
-        utilisationPrefs={props.utilisationPrefs}
         visibleWeeksLabel={props.visibleWeeksLabel}
-        ui={props.ui}
-        canEdit={canEdit}
-        visibleStartDate={props.visibleStartDate}
-        setDialog={props.setDialog}
-        personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
-        onViewSchedule={props.onViewSchedule}
       />
 
       <ResourceLane

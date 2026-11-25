@@ -4,12 +4,13 @@ import { ClosureBand } from './ClosureBand';
 import { SchedulerGridRow } from './SchedulerGridRow';
 import type { SchedulerGridRowProps } from './SchedulerGridRow';
 import { SchedulerGridGroupHeader } from './SchedulerGridGroupHeader';
-import type { SchedulerUI } from '@/store/useStore';
+import type { SchedulerUI, StoreState } from '@/store/useStore';
 import type { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization';
 
 type Props = ReturnType<typeof useSchedulerGridVirtualization> &
-  Omit<SchedulerGridRowProps, 'group' | 'row' | 'rowIndex' | 'ui'> & {
+  Omit<SchedulerGridRowProps, 'group' | 'row' | 'rowIndex'> & {
     ui: SchedulerUI;
+    utilisationPrefs: StoreState['utilisationPrefs'];
     toggleGroup: (key: string) => void;
   };
 
