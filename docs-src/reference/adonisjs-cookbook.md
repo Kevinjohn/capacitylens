@@ -1157,6 +1157,8 @@ export { limiter as default }
   cause: `<Cause>Exception extends Exception`, with `static code = 'E_<CODE>'` and `static status`.
   Each distinct cause has its own raw code, including distinct failures previously thrown by one
   class. Parameter values that describe the same cause do not need separate classes.
+  A subclass that answers with its parent's response keeps its parent's code and is still exported
+  under its own `E_<CODE>` name.
   The file exports each class under its code, `export const E_<CODE> = <Cause>Exception`, and
   `index.ts` exports the file as the `errors` namespace: `import { errors } from '<package>'`.
   `@adonisjs/limiter` pairs `ThrottleException` with `E_TOO_MANY_REQUESTS` and `@adonisjs/bouncer`
