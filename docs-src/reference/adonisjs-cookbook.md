@@ -38,7 +38,7 @@ Three rules decide every case:
 1. **Follow the framework.** When this book is silent, the AdonisJS documentation decides, then
    the `api` starter kit, then the official packages' source.
 2. **A deliberate difference is written down.** Each repository keeps a numbered list of its
-   departures from this book, with the reason. A new difference is decided in an issue and added to that list in its own change, before the code that needs it. An item the checklist marks as a law has no departure.
+   departures from this book, with the reason. A new difference is decided in an issue and added to that list in its own change, before the code that needs it. An item the checklist marks as a law has no lasting departure: only an entry marked Aligning, until its issue lands.
 3. **An unrecorded difference is debt.** It gets an issue. It is not a pattern to copy.
 
 Sources: [AdonisJS documentation](https://docs.adonisjs.com),
@@ -141,7 +141,7 @@ and **logout** (the framework's words for starting and ending a session).
 - **TOOL-5 (F)** Script names are the starter kit's: `dev`, `build`, `start`, `test`, `lint`,
   `format`, `typecheck`, plus `codegen` in a monorepo backend and `compile`, `quick:test` and
   `release` in a package.
-- **TOOL-6 (H)** The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and a licence file named `LICENSE` or `LICENSE.md`. The kits ship the first four.
+- **TOOL-6 (H)** The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and `LICENSE.md`. The kits ship the first four.
 - **TOOL-7 (P)** Return early. Check each condition that ends the work at the top of the function;
   do not wrap the main logic in an `if`.
 - **TOOL-8 (H)** Private state in a class is a `#field` or `#method`. Use `protected` only for a
@@ -263,7 +263,7 @@ The alias set, from the `api-monorepo` kit:
   environments says so with `{ file, environment }`.
 - **CFG-7 (F)** Resolve paths with `app.makePath()`, `app.publicPath()`, `app.tmpPath()` and
   `app.configPath()`.
-- **CFG-8 (F)** `.env.example` lists every variable with a placeholder, never a real secret. Test values that are the same on every run are in `.env.test`.
+- **CFG-8 (F)** `.env.example` lists every variable with a placeholder, never a real secret. Values for tests are in `.env.test`.
 - **CFG-9 (H)** A product's own variables share one prefix (`MYAPP_`). Framework variables keep the
   framework's names (`APP_KEY`, `PORT`, `HOST`, `LOG_LEVEL`).
 - **CFG-10 (F)** Add a variable with `node ace env:add`, which writes `.env`, `.env.example` and the
@@ -690,7 +690,7 @@ export default class extends BaseSchema {
 - **SVC-6 (F)** Write a provider only for container bindings, framework extensions (macros,
   `HttpContext` properties), or work that starts and stops with the application. One-off setup is
   a preload file.
-- **SVC-7 (F)** In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`. Nothing in `register` or `boot` connects, listens or spawns; `start` does so only behind an `app.getMode()` check. Long-running work starts in `ready` and stops in `shutdown`.
+- **SVC-7 (F)** In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in `ready` and stops in `shutdown`.
 - **SVC-8 (F)** Application code logs through the logger, not `console`.
 
 Recipe (documentation, shortened):

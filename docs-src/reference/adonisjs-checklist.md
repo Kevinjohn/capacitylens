@@ -22,7 +22,7 @@ Each item carries the tier that says what a failure does.
 
 | Tier | A failed item | Departure |
 | --- | --- | --- |
-| **Law** | Blocks the merge. | None. A law has no departure. |
+| **Law** | Blocks the merge. | None that lasts. Only an **Aligning** entry, which names the issue that brings the code into line, and only until that issue lands. |
 | **Rule** | Blocks the merge. | A numbered entry in the repository's departures list, decided in an issue before the code merges. |
 | **Guideline** | Does not block. The reviewer notes it once and the author answers once, with a fix or a reason. | A reason that will stand is recorded as a departure, so the item is not noted again. |
 
@@ -35,8 +35,9 @@ Each item carries the tier that says what a failure does.
   ships", "when an action uses route parameters"). An item that requires something to exist is
   never n/a because that thing is missing: that is a fail.
 - A departure is decided in an issue and lands in its own change, before the code that needs it.
-  The change that needs a departure never adds it. An entry the departures list marks
-  **Aligning** covers a rule, never a law, until the issue it names lands.
+  The change that needs a departure never adds it. The standard does not
+  bend to a repository: code that does not meet an item yet gets an entry marked **Aligning**,
+  which covers a law or a rule until the issue it names lands.
 - A tier or an item changes through an issue, between reviews. A review in progress keeps the
   draft it started with.
 
@@ -123,7 +124,7 @@ Items:
 - [ ] **TOOL-3** (Law) `tsconfig.json` extends `@adonisjs/tsconfig/tsconfig.app.json` in an application and `@adonisjs/tsconfig/tsconfig.package.json` in a package.
 - [ ] **TOOL-4** (Law) Node is version 24 or later, declared under `engines`. The framework requires it; the package starter kit declares it.
 - [ ] **TOOL-5** (Rule) Script names are the starter kit's: `dev`, `build`, `start`, `test`, `lint`, `format`, `typecheck`, plus `codegen` in a monorepo backend and `compile`, `quick:test` and `release` in a package.
-- [ ] **TOOL-6** (Rule) The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and a licence file named `LICENSE` or `LICENSE.md`. The kits ship the first four.
+- [ ] **TOOL-6** (Law) The repository root has `.editorconfig`, `.gitignore`, `.prettierignore`, `README.md` and `LICENSE.md`. The kits ship the first four.
 - [ ] **TOOL-7** (Guideline) Return early. Check each condition that ends the work at the top of the function; do not wrap the main logic in an `if`.
 - [ ] **TOOL-8** (Law) Private state in a class is a `#field` or `#method`. Use `protected` only for a member a subclass or the framework reads.
 
@@ -169,7 +170,7 @@ Items:
 - [ ] **CFG-5** (Law) A config file that defines a named list (mailers, hash drivers, limiter stores, guards) carries the `declare module` block that types it.
 - [ ] **CFG-6** (Law) `adonisrc.ts` is environment-agnostic: no `process.env`, no logic. `providers`, `preloads` and `commands` are lazy imports. A provider or preload that belongs to some environments says so with `{ file, environment }`.
 - [ ] **CFG-7** (Law) Resolve paths with `app.makePath()`, `app.publicPath()`, `app.tmpPath()` and `app.configPath()`.
-- [ ] **CFG-8** (Rule) `.env.example` lists every variable with a placeholder, never a real secret. Test values that are the same on every run are in `.env.test`.
+- [ ] **CFG-8** (Law) `.env.example` lists every variable with a placeholder, never a real secret. Values for tests are in `.env.test`.
 - [ ] **CFG-9** (Rule) A product's own variables share one prefix (`MYAPP_`). Framework variables keep the framework's names (`APP_KEY`, `PORT`, `HOST`, `LOG_LEVEL`).
 - [ ] **CFG-10** (Guideline) Add a variable with `node ace env:add`, which writes `.env`, `.env.example` and the `start/env.ts` validation together.
 - [ ] **CFG-11** (Law) `adonisrc.ts` keeps `indexEntities(...)` and, for a typed client, `generateRegistry()` in `hooks.init`.
@@ -211,7 +212,7 @@ Items:
 - [ ] **CTL-1** (Guideline) A controller maps HTTP to the application: validate, do the work or call a service, return the result.
 - [ ] **CTL-2** (Rule) One controller per resource. Its actions are the resourceful names: `index`, `show`, `store`, `update`, `destroy` (and `create` and `edit` when it renders forms).
 - [ ] **CTL-3** (Rule) An operation that is not one of those becomes its own controller: a noun controller with a resourceful action (the kit: sign-up is `NewAccountController.store`, login and logout are `AccessTokensController.store` and `.destroy`), or a single action controller with one `handle` method, made with `node ace make:controller <name> handle --singular` (the documentation). Do not grow a controller into a list of verbs.
-- [ ] **CTL-4** (Rule) An action destructures what it uses from the HTTP context: `async store({ request, serialize }: HttpContext)`.
+- [ ] **CTL-4** (Law) An action destructures what it uses from the HTTP context: `async store({ request, serialize }: HttpContext)`.
 - [ ] **CTL-5** (Law) A controller has no `private` or `protected` method. A step two actions share moves to a service or the model.
 - [ ] **CTL-6** (Law) A controller does not wrap its work in `try`/`catch` to build an error response. It lets the exception reach the exception handler.
 - [ ] **CTL-7** (Rule) Return a value, or use the response helper that names the status: `response.created()`, `response.notFound()`, `response.forbidden()`.
@@ -335,12 +336,12 @@ Mechanical checks:
 Items:
 
 - [ ] **SVC-1** (Rule) Business logic that more than one entry point needs lives in a class in `app/services/<name>_service.ts`, created with `node ace make:service`, which writes a named export.
-- [ ] **SVC-2** (Rule) The container builds a service: a controller or another service takes it through the constructor with `@inject()`, an Ace command through an `@inject()` `run` method, and code with no constructor to inject into through `app.container.make`. Nothing under `app/` calls `new` on a service.
+- [ ] **SVC-2** (Law) The container builds a service: a controller or another service takes it through the constructor with `@inject()`, an Ace command through an `@inject()` `run` method, and code with no constructor to inject into through `app.container.make`. Nothing under `app/` calls `new` on a service.
 - [ ] **SVC-3** (Rule) A service does not read the HTTP context unless it is injected with it.
 - [ ] **SVC-4** (Rule) Replace a service in a test with the test context's `swap(Service, fake)`, which restores itself.
-- [ ] **SVC-5** (Rule) Under `app/`, behaviour that has state, does I/O or takes a dependency is a class method. An exported function is a factory that builds and returns an instance, or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable.
+- [ ] **SVC-5** (Law) Under `app/`, behaviour that has state, does I/O or takes a dependency is a class method. An exported function is a factory that builds and returns an instance, or a pure function, which takes every input as an argument, awaits nothing and reads no module-level variable.
 - [ ] **SVC-6** (Rule) Write a provider only for container bindings, framework extensions (macros, `HttpContext` properties), or work that starts and stops with the application. One-off setup is a preload file.
-- [ ] **SVC-7** (Rule) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`. Nothing in `register` or `boot` connects, listens or spawns; `start` does so only behind an `app.getMode()` check. Long-running work starts in `ready` and stops in `shutdown`.
+- [ ] **SVC-7** (Law) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in `ready` and stops in `shutdown`.
 - [ ] **SVC-8** (Law) Application code logs through the logger, not `console`.
 
 ## Authentication and authorization
