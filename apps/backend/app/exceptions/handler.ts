@@ -48,8 +48,16 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       const reportable = this.#reportable(error);
       if (reportable) await super.report(reportable, ctx);
     } catch {
-      // The server answers only after the report, so a failed logger must not stop the answer.
-      console.error('Private diagnostic logger failed');
+      // The server answers only after the report, so a failed report must not stop the answer. The
+      // fallback line carries fixed fields only, and a logger that fails again is left alone.
+      try {
+        ctx.logger.error(
+          { event: 'http.request.report_failed', errorType: 'logging_failure' },
+          'Private diagnostic logger failed'
+        );
+      } catch {
+        // The answer must survive when the logger and its safe fallback both fail.
+      }
     }
   }
 

@@ -749,6 +749,34 @@ test.group('product error adapters', () => {
       status: 500,
     });
   });
+  test('a failed report falls back to one fixed logger line and never throws', async ({
+    assert,
+  }) => {
+    const error = new Error('SENTINEL');
+    const { ctx } = context(error);
+    const fallback: unknown[] = [];
+    Object.assign(ctx.logger, {
+      log() {
+        throw new Error('logger down');
+      },
+      error(fields: unknown, message: string) {
+        fallback.push({ fields, message });
+      },
+    });
+    await new HttpExceptionHandler().report(error, ctx);
+    assert.deepEqual(fallback, [
+      {
+        fields: { event: 'http.request.report_failed', errorType: 'logging_failure' },
+        message: 'Private diagnostic logger failed',
+      },
+    ]);
+    Object.assign(ctx.logger, {
+      error() {
+        throw new Error('fallback down');
+      },
+    });
+    await new HttpExceptionHandler().report(error, ctx);
+  });
   test('a package server fault is logged under its own category and status', async ({ assert }) => {
     for (const [error, expected] of [
       [new E_ACCOUNT_KIT_POST_COMMIT(), { errorType: 'account_kit_failure', status: 500 }],
