@@ -11,8 +11,10 @@ export function buildValidationBody(message: string) {
  * reads one shape for invalid input.
  */
 export default class ValidationRefusalException extends ProductException {
+  static status = 422;
+
   constructor(message: string) {
-    super(message, { status: 422 });
+    super(message);
   }
 
   override body() {
