@@ -135,7 +135,7 @@ test(
         if (result.error) throw result.error;
         assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
       }
-      server = fork(join(dirname(target.databasePath), 'scripts/e2e-pending-handler.mjs'), [], {
+      server = fork(join(dirname(target.databasePath), 'scripts/e2e_pending_handler.mjs'), [], {
         execArgv: ['--import=@poppinss/ts-exec'],
         cwd: dirname(target.databasePath),
         env: environment,
