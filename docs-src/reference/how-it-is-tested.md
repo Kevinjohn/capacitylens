@@ -21,7 +21,7 @@ The suites cover the frontend, backend and shared workspace packages.
 
 - Backup and upgrade tests cover supported databases and recovery behaviour.
 - End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in, and run only the tests tagged `@engine`: those whose result can differ between engines, such as dragging, keyboard movement, focus, scrolling, native inputs and layout. Chromium runs every test.
-- Every browser project exercises the real server. Each database-project worker owns an API and a SQLite database, and its API serves the production build of the app under the product's Content Security Policy; fixture resets preserve sign-ins and restore company data before authentication. The authentication project runs the app on a Vite development server.
+- Every browser project exercises the real server. Each database-project worker owns an API and a SQLite database, and its API serves the production build of the app under the product's Content Security Policy; fixture resets preserve sign-ins and restore company data before authentication. Each test's requests carry a tag issued by its reset, and the API refuses a request carrying an earlier test's tag, so a late request from one test never reaches the next test's data. The authentication project runs the app on a Vite development server.
 - Database-project scenarios use authenticated sessions against SQLite; persisted server data is
   never available anonymously.
 - The dedicated authenticated scheduler suite signs

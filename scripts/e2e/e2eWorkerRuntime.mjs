@@ -7,11 +7,6 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workerPorts, resolvePortLane } from '../../tooling/ports.mjs';
 import { portInUse } from '../../tooling/devProcesses.mjs';
-import {
-  cleanupResetControlEndpoints,
-  createResetControlToken,
-  requestResetControl,
-} from '../../tooling/e2e_reset_control.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const backend = join(root, 'apps/backend');
@@ -56,8 +51,7 @@ async function readOwner(ownerPath) {
       !Number.isInteger(owner.pid) ||
       owner.pid <= 0 ||
       !Array.isArray(owner.groups) ||
-      owner.groups.some((group) => !Number.isInteger(group) || group <= 0) ||
-      (owner.resetToken !== undefined && !/^[a-f0-9]{32}$/.test(owner.resetToken))
+      owner.groups.some((group) => !Number.isInteger(group) || group <= 0)
     )
       throw new Error(`Worker lease owner record is invalid: ${ownerPath}`);
     return owner;
@@ -147,7 +141,6 @@ async function acquireLease(portLane, slot) {
             cause: error,
           });
         await waitForRecordedGroups(owner.groups);
-        if (owner.resetToken) await cleanupResetControlEndpoints(owner.resetToken);
         // An owner that died between writing and publishing a record update leaves its temporary file.
         await rm(`${oldPaths.owner}.${owner.pid}.tmp`, { force: true });
         // A delayed reaper removes only this dead owner's unique filename. A successor's
@@ -261,47 +254,10 @@ async function assertPortFree(apiPort) {
     throw new Error(`E2E worker API ${apiPort} port is occupied; refusing to remove its database.`);
 }
 
-async function waitForControlServer(token) {
-  const deadline = Date.now() + 5_000;
-  let lastError;
-  while (Date.now() < deadline) {
-    try {
-      await requestResetControl(token, 'api', 'status', 1_000);
-      return;
-    } catch (error) {
-      lastError = error;
-      await sleep(25);
-    }
-  }
-  throw new Error('api reset control did not become ready within 5,000 ms.', {
-    cause: lastError,
-  });
-}
-
 async function removeDatabaseFiles(target) {
   for (const suffix of ['', '-wal', '-shm'])
     await rm(`${target.databasePath}${suffix}`, { force: true });
   await rm(target.templatePath, { force: true });
-}
-
-class BusyWorkerError extends Error {}
-
-async function assertRequestsDrained(apiOrigin) {
-  const response = await fetch(`${apiOrigin}/api/health/e2e-idle`, {
-    signal: AbortSignal.timeout(1_000),
-  });
-  if (!response.ok) throw new Error(`Worker API drain probe returned HTTP ${response.status}.`);
-  const value = await response.json();
-  if (!Number.isInteger(value.activeRequests) || value.activeRequests < 0)
-    throw new Error('Worker API drain probe returned an invalid active request count.');
-  if (value.activeRequests !== 0) {
-    const pending = Array.isArray(value.pendingRequests)
-      ? ` Pending handlers: ${JSON.stringify(value.pendingRequests)}.`
-      : '';
-    throw new BusyWorkerError(
-      `Refusing database reset while the API has ${value.activeRequests} active requests.${pending}`,
-    );
-  }
 }
 
 /** Starts the isolated API serving the built SPA for one Playwright parallelIndex; owns its lifecycle. */
@@ -309,7 +265,6 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
   const ports = workerPorts(portLane, slot);
   const lease = await acquireLease(portLane, slot);
   const { paths } = lease;
-  const resetToken = createResetControlToken();
   const processes = [];
   let stopped = false;
   let databaseOwned = false;
@@ -319,7 +274,6 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
     const contents = JSON.stringify({
       pid: process.pid,
       groups: processes.map(({ group }) => group).filter((group) => Number.isInteger(group)),
-      resetToken,
     });
     writeFileSync(ownerTmp, contents, { mode: 0o600 });
     renameSync(ownerTmp, paths.owner);
@@ -343,13 +297,6 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
       terminationError ??= error;
     }
     if (!terminationError) {
-      try {
-        await cleanupResetControlEndpoints(resetToken);
-      } catch (error) {
-        terminationError ??= error;
-      }
-    }
-    if (!terminationError) {
       if (removeDatabase) await removeDatabaseFiles(target);
       await releaseLease(paths);
     }
@@ -371,18 +318,15 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
           ...process.env,
           CAPACITYLENS_PORT_LANE: String(portLane),
           CAPACITYLENS_E2E_WORKER_API: '1',
-          CAPACITYLENS_E2E_RESET_TOKEN: resetToken,
         },
       },
     );
     await waitReady(api, `${target.api}/health/ready`, 'E2E API server');
     databaseOwned = true;
-    await waitForControlServer(resetToken);
 
     return {
       target,
       baseURL: target.api,
-      controlToken: resetToken,
       async stop() {
         await stop();
       },
@@ -416,8 +360,4 @@ export async function recoverE2eWorker(target, portLane = resolvePortLane(), slo
   }
 }
 
-export {
-  acquireLease as acquireE2eWorkerLease,
-  releaseLease as releaseE2eWorkerLease,
-  assertRequestsDrained as assertE2eRequestsDrained,
-};
+export { acquireLease as acquireE2eWorkerLease, releaseLease as releaseE2eWorkerLease };

@@ -166,14 +166,14 @@ test('a changed tooling module runs its own test file', () => {
 });
 
 test('a changed reset harness runs the backend suite and the script tests that load it', () => {
-  const harness = 'tooling/e2e_reset_control.ts';
+  const harness = 'tooling/e2e_request_activity.ts';
   const steps = planChecks([harness], everything, (path) =>
-    path === harness ? ['scripts/e2e/e2eReset.test.mjs'] : [],
+    path === harness ? ['scripts/e2e/e2eRequestTag.test.mjs'] : [],
   );
   assert.ok(step(steps, 'test: backend suite'));
   assert.deepEqual(step(steps, 'test: 1 script test').args, [
     '--test',
-    'scripts/e2e/e2eReset.test.mjs',
+    'scripts/e2e/e2eRequestTag.test.mjs',
   ]);
 });
 
