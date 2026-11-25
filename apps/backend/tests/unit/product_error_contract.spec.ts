@@ -44,9 +44,38 @@ import { inspectResetValidator } from '#validators/credentials';
 import loggerConfig from '#config/logger';
 import {
   MembershipLostException,
+  MutationIdReusedException,
+  NoChangeException,
+  PlanningAuthorizationException,
   RecordChangedException,
   PlanningConflictException,
 } from '#exceptions/planning_operation_exception';
+import { EmptyHistoryException } from '#exceptions/empty_history_exception';
+import {
+  ActivityPhaseProjectMismatchException,
+  EntityDomainRuleException,
+  EntityNotFoundException,
+  EntityWriteException,
+  ExampleDataCompanyNotEmptyException,
+  FrozenCompanyFieldException,
+  ImportIdCollisionException,
+  ImportSnapshotStaleException,
+  ResourceAvatarUrlForbiddenException,
+  ResourceAvatarUrlInvalidException,
+  ResourceKindImmutableException,
+} from '#exceptions/entity_write_exception';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '#exceptions/refusal_exception';
+import {
+  CompanySetupRequiredException,
+  MultipleCompaniesException,
+} from '#exceptions/admission_exception';
+import { OwnerTransferRequiredException } from '#exceptions/membership_exception';
+import { IdempotencyConflictException } from '#exceptions/account_operation_exception';
+import { DomainError } from '@capacitylens/shared/domain/errors';
 import {
   RestorationConfirmationRequiredException,
   RestorationConfirmationStaleException,
@@ -251,6 +280,180 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
       error: 'Only the invited first Owner may join before the company exists.',
       code: 'FIRST_COMPANY_PENDING',
     },
+  ],
+  [
+    'PlanningAuthorizationException',
+    () => answered(new PlanningAuthorizationException()),
+    403,
+    { error: 'This action is not allowed.', code: 'AUTHORIZATION_DENIED' },
+  ],
+  [
+    'RecordChangedException',
+    () => answered(new RecordChangedException()),
+    409,
+    { error: 'The record changed since it was opened.', code: 'STALE_REVISION' },
+  ],
+  [
+    'MutationIdReusedException',
+    () => answered(new MutationIdReusedException()),
+    409,
+    { error: 'This mutation identity has already committed.', code: 'MUTATION_ID_REUSED' },
+  ],
+  [
+    'NoChangeException',
+    () => answered(new NoChangeException('No change.')),
+    400,
+    { error: 'No change.', code: 'NO_CHANGE' },
+  ],
+  [
+    'PlanningConflictException',
+    () => answered(new PlanningConflictException('In use.')),
+    409,
+    { error: 'In use.' },
+  ],
+  [
+    'EmptyHistoryException',
+    () => answered(new EmptyHistoryException('Nothing to undo.')),
+    409,
+    { error: 'Nothing to undo.' },
+  ],
+  [
+    'EntityWriteException',
+    () => answered(new EntityWriteException('Name is required.')),
+    400,
+    { error: 'Name is required.' },
+  ],
+  [
+    'EntityNotFoundException',
+    () => answered(new EntityNotFoundException('Not found.')),
+    404,
+    { error: 'Not found.' },
+  ],
+  [
+    'FrozenCompanyFieldException',
+    () => answered(new FrozenCompanyFieldException()),
+    409,
+    {
+      error:
+        'Language, week start and time zone are set when the company is created and cannot be changed.',
+    },
+  ],
+  [
+    'ImportIdCollisionException',
+    () => answered(new ImportIdCollisionException()),
+    409,
+    {
+      error: 'The import contains scheduling IDs used by another company on this server.',
+      code: 'IMPORT_ID_COLLISION',
+    },
+  ],
+  [
+    'ImportSnapshotStaleException',
+    () => answered(new ImportSnapshotStaleException(7)),
+    409,
+    {
+      error: 'The company changed. Preview the current data again.',
+      code: 'IMPORT_SNAPSHOT_STALE',
+      revision: 7,
+    },
+  ],
+  [
+    'ExampleDataCompanyNotEmptyException',
+    () => answered(new ExampleDataCompanyNotEmptyException()),
+    409,
+    {
+      error:
+        'Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.',
+      code: 'EXAMPLE_DATA_COMPANY_NOT_EMPTY',
+    },
+  ],
+  [
+    'ResourceAvatarUrlForbiddenException',
+    () => answered(new ResourceAvatarUrlForbiddenException()),
+    400,
+    { error: 'Only a person can have an avatar URL.', code: 'resource_avatar_url_forbidden' },
+  ],
+  [
+    'ResourceAvatarUrlInvalidException',
+    () => answered(new ResourceAvatarUrlInvalidException('Bad URL.')),
+    400,
+    { error: 'Bad URL.', code: 'resource_avatar_url_invalid' },
+  ],
+  [
+    'ResourceKindImmutableException',
+    () => answered(new ResourceKindImmutableException('Kind is fixed.')),
+    400,
+    { error: 'Kind is fixed.', code: 'resource_kind_immutable' },
+  ],
+  [
+    'ActivityPhaseProjectMismatchException',
+    () => answered(new ActivityPhaseProjectMismatchException()),
+    400,
+    {
+      error: 'A phase with activities cannot move to a different project.',
+      code: 'activity_phase_project_mismatch',
+    },
+  ],
+  [
+    'EntityDomainRuleException',
+    () =>
+      answered(
+        new EntityDomainRuleException(new DomainError('record_wrong_company', 'Wrong company.'))
+      ),
+    400,
+    { error: 'Wrong company.', code: 'record_wrong_company' },
+  ],
+  [
+    'NotFoundException',
+    () => answered(new NotFoundException('Member not found.')),
+    404,
+    { error: 'Member not found.', code: 'NOT_FOUND' },
+  ],
+  [
+    'ConflictException',
+    () => answered(new ConflictException('Already used.')),
+    409,
+    { error: 'Already used.', code: 'CONFLICT' },
+  ],
+  [
+    'ForbiddenException',
+    () => answered(new ForbiddenException()),
+    403,
+    { error: 'Forbidden.', code: 'FORBIDDEN' },
+  ],
+  [
+    'MultipleCompaniesException',
+    () => answered(new MultipleCompaniesException()),
+    409,
+    {
+      error:
+        'This installation has more than one company. Accounts need a single-company database.',
+      code: 'MULTIPLE_COMPANIES',
+    },
+  ],
+  [
+    'CompanySetupRequiredException',
+    () => answered(new CompanySetupRequiredException()),
+    409,
+    { error: 'The company has not been set up yet.', code: 'COMPANY_SETUP_REQUIRED' },
+  ],
+  [
+    'OwnerTransferRequiredException',
+    () => answered(new OwnerTransferRequiredException()),
+    400,
+    { error: 'Transfer ownership to assign the Owner role.', code: 'OWNER_TRANSFER_REQUIRED' },
+  ],
+  [
+    'IdempotencyConflictException',
+    () => answered(new IdempotencyConflictException()),
+    409,
+    { error: 'Operation id already used.', code: 'IDEMPOTENCY_CONFLICT' },
+  ],
+  [
+    'IdentityAuthorizationException',
+    () => answered(new IdentityAuthorizationException()),
+    403,
+    { error: 'Forbidden.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
   ],
   [
     'refuseInvalidAdmission',
