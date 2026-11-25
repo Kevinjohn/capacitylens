@@ -2,9 +2,10 @@ import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import db from '@adonisjs/lucid/services/db';
-import { setProofHeaders } from '#services/request_helpers';
 import { invalidLinkAnswer } from '#exceptions/credential_answers';
 import { InstallationCompanyService } from '#services/installation_company_service';
+import { showInvitationLinkValidator } from '#validators/invitations';
+import { requestData } from '#validators/request_rules';
 
 /** What an invitation link offers. */
 @inject()
@@ -16,8 +17,10 @@ export default class InvitationLinksController {
   }
 
   /** What the link offers, without spending it. */
-  async show({ params, response, serialize }: HttpContext) {
-    setProofHeaders(response);
+  async show({ request, response, serialize }: HttpContext) {
+    const { params } = await request.validateUsing(showInvitationLinkValidator, {
+      data: requestData(request),
+    });
     const invitation = await accountKit.invitations.inspect({ token: params.token });
     if (!invitation) return response.notFound(invalidLinkAnswer);
     const { companyId, companyName } = await this.#installationCompany.getInstallationCompany(db);

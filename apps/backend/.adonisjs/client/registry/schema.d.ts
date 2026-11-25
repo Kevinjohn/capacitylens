@@ -41,7 +41,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/planning/read').planningArchiveValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
@@ -158,7 +158,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/export_query').showCompanyExportValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/company_exports_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/company_exports_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/company_exports_controller').default['show']>>>
@@ -194,10 +194,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/example-data'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/example_data').createExampleDataValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/example_data').createExampleDataValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
@@ -210,7 +210,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/getting_started').showGettingStartedValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
@@ -405,7 +405,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/members').listMembersValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
@@ -470,7 +470,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/invitations').listInvitationsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
@@ -480,10 +480,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/invitations/:id/resend'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/invitations').resendInvitationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; id: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/invitations').resendInvitationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
@@ -493,10 +493,10 @@ export interface Registry {
     methods: ["DELETE"]
     pattern: '/api/companies/:companyId/invitations/:id'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/invitations').revokeInvitationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; id: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/invitations').revokeInvitationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
@@ -509,7 +509,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { token: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/invitations').showInvitationLinkValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitation_links_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitation_links_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_links_controller').default['show']>>>
@@ -584,10 +584,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/admission/:userId/approve'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       paramsTuple: [ParamValue]
       params: { userId: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_approvals_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_approvals_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_approvals_controller').default['store']>>>
@@ -597,10 +597,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/admission/:userId/reject'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       paramsTuple: [ParamValue]
       params: { userId: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_rejections_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_rejections_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_rejections_controller').default['store']>>>
@@ -610,10 +610,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/admission/:userId/revoke'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       paramsTuple: [ParamValue]
       params: { userId: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>

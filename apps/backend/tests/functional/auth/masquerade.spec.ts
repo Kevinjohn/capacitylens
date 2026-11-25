@@ -444,6 +444,14 @@ test.group('native read-only masquerade', (group) => {
     projected.assertStatus(200);
     const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
     status.assertStatus(200);
+    for (const query of ['?companyId=', '?companyId=a-studio&companyId=a-loft']) {
+      const malformed = await asSession(client.get(`/api/masquerade${query}`), cookie).send();
+      malformed.assertStatus(422);
+      assert.equal(
+        (malformed.body() as unknown as { errors: Array<{ field: string }> }).errors[0]?.field,
+        'companyId'
+      );
+    }
     const active = status.body()!.data as {
       active: boolean;
       actor: { id: string; email: string };

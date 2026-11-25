@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { companyIdParam } from '#validators/request_rules';
 
 /** Validates the export query without coercing values or silently dropping fields. */
 export const exportQueryValidator = vine.create(
@@ -15,4 +16,9 @@ export const exportQueryValidator = vine.create(
         }
       })()
     )
+);
+
+/** The company export names its company in the route. */
+export const showCompanyExportValidator = vine.create(
+  vine.object({ params: vine.object({ companyId: companyIdParam() }) })
 );

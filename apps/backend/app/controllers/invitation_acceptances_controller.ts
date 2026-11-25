@@ -6,10 +6,10 @@ import {
   E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
-import { setProofHeaders } from '#services/request_helpers';
 import { emailInUseAnswer, invalidLinkAnswer } from '#exceptions/credential_answers';
 import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { acceptInvitationSignUpValidator } from '#validators/invitations';
+import { requestData } from '#validators/request_rules';
 
 /** Accepting an invitation by creating the invited identity. */
 @inject()
@@ -25,16 +25,15 @@ export default class InvitationAcceptancesController {
    * already has an account; a repeated request after a lost response gets the invalid-link answer
    * and the person signs in instead.
    */
-  async store({ auth, params, request, response, logger, serialize }: HttpContext) {
-    setProofHeaders(response);
+  async store({ auth, request, response, logger, serialize }: HttpContext) {
     const body = await request.validateUsing(acceptInvitationSignUpValidator, {
-      data: request.body(),
+      data: requestData(request, request.body()),
     });
     const { name } = body;
     let email: string;
     try {
       const user = await accountKit.invitations.accept({
-        token: params.token,
+        token: body.params.token,
         password: body.password,
         registrationData: { name },
       });
@@ -61,7 +60,7 @@ export default class InvitationAcceptancesController {
             email,
             password: body.password,
             clientAddress: request.ip(),
-            userAgent: request.header('user-agent'),
+            userAgent: body.headers['user-agent'],
           }),
         })
       );

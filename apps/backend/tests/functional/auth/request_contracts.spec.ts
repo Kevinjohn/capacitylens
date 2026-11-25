@@ -26,7 +26,11 @@ test.group('ordinary authentication request contracts', (group) => {
   test('typed mutations retain imported colon identifiers while new rows remain UUID-only', async ({
     assert,
   }) => {
-    const meta = { mutationId: crypto.randomUUID(), baseRevision: 0 };
+    const meta = {
+      mutationId: crypto.randomUUID(),
+      baseRevision: 0,
+      params: { companyId: 'a-studio' },
+    };
     const existing = await planningMutationValidator.validate({
       ...meta,
       intent: { operation: 'allocation.delete', id: 'legacy:allocation' },
@@ -61,6 +65,7 @@ test.group('ordinary authentication request contracts', (group) => {
       email: 'clark@wayne.example',
       password: 'krypton-password-2026',
       name: '𐐀'.repeat(100),
+      headers: {},
     };
     const validated = await signUpValidator.validate(input);
     assert.equal(validated.name, input.name);

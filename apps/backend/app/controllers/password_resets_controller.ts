@@ -4,15 +4,13 @@ import {
   E_ACCOUNT_KIT_INVALID_TOKEN,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
-import { setProofHeaders } from '#services/request_helpers';
 import { credentialUpdateCommitted, invalidLinkAnswer } from '#exceptions/credential_answers';
 import { inspectResetValidator, resetPasswordValidator } from '#validators/credentials';
 
 /** A password reset link: whether it is still usable, and spending it to set a new password. */
 export default class PasswordResetsController {
   /** Reports whether a reset link is still usable without spending it. */
-  async show({ request, response, serialize }: HttpContext) {
-    setProofHeaders(response);
+  async show({ request, serialize }: HttpContext) {
     const body = await request.validateUsing(inspectResetValidator, {
       data: request.body(),
     });
@@ -23,7 +21,6 @@ export default class PasswordResetsController {
 
   /** Every sign-in, including any on this device, ends with the old password. */
   async update({ request, response, serialize }: HttpContext) {
-    setProofHeaders(response);
     const body = await request.validateUsing(resetPasswordValidator, {
       data: request.body(),
     });

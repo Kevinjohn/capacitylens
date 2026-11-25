@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { AuthorizationService } from '#services/auth/authorization_service';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import { refuseInvalidAdmission, refuseMissingAdmission } from '#exceptions/admission_errors';
+import { refuseMissingAdmission } from '#exceptions/admission_errors';
 import { InstallationCompanyService } from '#services/installation_company_service';
 
 /** The checks and shapes the invitation controllers share. */
@@ -21,12 +21,6 @@ export class InvitationAnswerService {
     this.#authorization = authorization;
     this.#currentActor = currentActor;
     this.#installationCompany = installationCompany;
-  }
-
-  /** Reads an invitation route's id, or `null` when it is not a positive safe integer. */
-  parseInvitationId(value: unknown) {
-    const id = Number(value);
-    return Number.isSafeInteger(id) && id > 0 ? id : null;
   }
 
   /** The invitation fields a manager sees. */
@@ -49,8 +43,7 @@ export class InvitationAnswerService {
   }
 
   /** Confirms the caller manages invitations for this installation's company. */
-  async requireInvitationManager(auth: HttpContext['auth'], companyId: unknown) {
-    if (typeof companyId !== 'string' || !companyId) refuseInvalidAdmission();
+  async requireInvitationManager(auth: HttpContext['auth'], companyId: string) {
     return this.#currentActor.withActor(auth, async (_actor, trx) => {
       const { actorId } = await this.#authorization.assertCompanyPermission(
         companyId,

@@ -2,6 +2,7 @@ import vine from '@vinejs/vine';
 import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { calendarDate, uuid } from '#validators/planning/fields';
+import { companyIdParam } from '#validators/request_rules';
 
 /** The longest capacity range one planning read computes. */
 const MAX_PLANNING_READ_DAYS = 366;
@@ -31,6 +32,12 @@ export const planningReadValidator = vine.create(
       to: calendarDate().optional(),
       historyId: uuid().optional(),
       ifRevision: vine.number().min(0).withoutDecimals().optional(),
+      params: vine.object({ companyId: companyIdParam() }),
     })
     .use(readRange())
+);
+
+/** The planning archive recovery read names only its company, in the route. */
+export const planningArchiveValidator = vine.create(
+  vine.object({ params: vine.object({ companyId: companyIdParam() }) })
 );

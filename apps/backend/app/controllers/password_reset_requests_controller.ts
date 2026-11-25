@@ -15,12 +15,12 @@ export default class PasswordResetRequestsController {
   }
 
   async store({ request, response, logger, serialize }: HttpContext) {
-    if (!this.#mailDelivery.isMailConfigured()) {
-      return response.notFound({ error: 'Password recovery is unavailable.' });
-    }
     const { email } = await request.validateUsing(requestResetValidator, {
       data: request.body(),
     });
+    if (!this.#mailDelivery.isMailConfigured()) {
+      return response.notFound({ error: 'Password recovery is unavailable.' });
+    }
     try {
       await accountKit.passwordReset.request({ email, clientKey: request.ip() });
     } catch (error) {

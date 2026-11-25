@@ -10,6 +10,7 @@ import capacitylens from '#config/capacitylens';
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
 import { PasswordSignInService } from '#services/auth/password_sign_in_service';
 import { signUpValidator } from '#validators/auth_requests';
+import { requestData } from '#validators/request_rules';
 import { emailInUseAnswer } from '#exceptions/credential_answers';
 import { InstallationCompanyService } from '#services/installation_company_service';
 
@@ -32,7 +33,9 @@ export default class NewAccountController {
    * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
    */
   async store({ auth, request, response, logger, serialize }: HttpContext) {
-    const body = await request.validateUsing(signUpValidator, { data: request.body() });
+    const body = await request.validateUsing(signUpValidator, {
+      data: requestData(request, request.body()),
+    });
     const { email, name } = body;
     if (!capacitylens.allowOpenSignUp || (await this.#installationCompany.hasNoCompany(db))) {
       return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
@@ -63,7 +66,7 @@ export default class NewAccountController {
             email,
             password: body.password,
             clientAddress: request.ip(),
-            userAgent: request.header('user-agent'),
+            userAgent: body.headers['user-agent'],
           }),
         })
       );

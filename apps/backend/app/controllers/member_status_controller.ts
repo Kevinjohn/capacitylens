@@ -4,6 +4,7 @@ import { MemberMutationRequestService } from '#services/membership/member_mutati
 import type { HttpContext } from '@adonisjs/core/http';
 import { changeStatusValidator } from '#validators/members';
 import { AccountOperationService } from '#services/account_operation_service';
+import { requestData } from '#validators/request_rules';
 
 /** A member's status, changed under live management permission. */
 @inject()
@@ -22,14 +23,14 @@ export default class MemberStatusController {
     this.#accountOperations = accountOperations;
   }
 
-  async update({ auth, params, request, serialize }: HttpContext) {
-    const { status } = await request.validateUsing(changeStatusValidator, {
-      data: request.body(),
+  async update({ auth, request, serialize }: HttpContext) {
+    const { status, params, headers } = await request.validateUsing(changeStatusValidator, {
+      data: requestData(request, request.body()),
     });
     const { companyId, userId } = params;
-    const command = this.#accountOperations.parseAccountOperation(
-      request.header('x-account-operation-id'),
-      request.header('idempotency-key')
+    const command = this.#accountOperations.resolveAccountOperation(
+      headers['x-account-operation-id'],
+      headers['idempotency-key']
     );
     const result = await this.#memberMutationRequests.run(auth, {
       companyId,

@@ -13,6 +13,11 @@ import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();
 
+/** Validates a mutation body beside the route's company, as the action does. */
+function validateMutation(body: object) {
+  return planningMutationValidator.validate({ ...body, params: { companyId: 'a-studio' } });
+}
+
 const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
 const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';
 
@@ -25,7 +30,7 @@ test.group('planning operation contracts', () => {
   test('validates allocation creation and strips server-owned and unknown fields', async ({
     assert,
   }) => {
-    const input = await planningMutationValidator.validate({
+    const input = await validateMutation({
       mutationId: uuid,
       baseRevision: 0,
       intent: {
@@ -93,18 +98,12 @@ test.group('planning operation contracts', () => {
         },
       },
     } as const;
-    await assert.rejects(() => planningMutationValidator.validate(base));
+    await assert.rejects(() => validateMutation(base));
+    await assert.rejects(() => validateMutation({ ...validInput, baseRevision: -1 }));
+    await assert.rejects(() => validateMutation({ ...validInput, baseRevision: '0' }));
+    await assert.rejects(() => validateMutation({ ...validInput, mutationId: 'not-a-uuid' }));
     await assert.rejects(() =>
-      planningMutationValidator.validate({ ...validInput, baseRevision: -1 })
-    );
-    await assert.rejects(() =>
-      planningMutationValidator.validate({ ...validInput, baseRevision: '0' })
-    );
-    await assert.rejects(() =>
-      planningMutationValidator.validate({ ...validInput, mutationId: 'not-a-uuid' })
-    );
-    await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         ...validInput,
         intent: {
           ...validInput.intent,
@@ -113,7 +112,7 @@ test.group('planning operation contracts', () => {
       })
     );
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         ...validInput,
         intent: {
           ...validInput.intent,
@@ -122,7 +121,7 @@ test.group('planning operation contracts', () => {
       })
     );
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         ...base,
         intent: {
           operation: 'allocation.create',
@@ -149,7 +148,7 @@ test.group('planning operation contracts', () => {
         entity: { entity: 'clients', id: otherUuid, changes: { name: 'Wayne Enterprises' } },
       },
     } as const;
-    const accepted = await planningMutationValidator.validate({
+    const accepted = await validateMutation({
       ...edit,
       expectedUpdatedAt: '2026-03-02T09:00:00.000Z',
     });
@@ -159,9 +158,7 @@ test.group('planning operation contracts', () => {
       '2026-03-02T09:00:00Z',
       '2026-03-02T10:00:00.000+01:00',
     ]) {
-      await assert.rejects(() =>
-        planningMutationValidator.validate({ ...edit, expectedUpdatedAt })
-      );
+      await assert.rejects(() => validateMutation({ ...edit, expectedUpdatedAt }));
     }
   });
 
@@ -169,14 +166,14 @@ test.group('planning operation contracts', () => {
     assert,
   }) => {
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         mutationId: uuid,
         baseRevision: 3,
         intent: { operation: 'allocation.update', id: uuid, changes: { unknown: true } },
       })
     );
 
-    const omitted = await planningMutationValidator.validate({
+    const omitted = await validateMutation({
       mutationId: uuid,
       baseRevision: 3,
       intent: {
@@ -185,7 +182,7 @@ test.group('planning operation contracts', () => {
         changes: { status: 'tentative' },
       },
     });
-    const cleared = await planningMutationValidator.validate({
+    const cleared = await validateMutation({
       mutationId: otherUuid,
       baseRevision: 3,
       intent: {
@@ -210,7 +207,7 @@ test.group('planning operation contracts', () => {
   test('requires a duplicate id distinct from its source and refuses the removed repeat', async ({
     assert,
   }) => {
-    const duplicate = await planningMutationValidator.validate({
+    const duplicate = await validateMutation({
       mutationId: otherUuid,
       baseRevision: 5,
       intent: {
@@ -226,7 +223,7 @@ test.group('planning operation contracts', () => {
     assert.equal(duplicate.intent.operation, 'allocation.duplicate');
 
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         mutationId: otherUuid,
         baseRevision: 5,
         intent: {
@@ -239,7 +236,7 @@ test.group('planning operation contracts', () => {
 
     // A repeat is created as one allocation group; the source-copying repeat operation is gone.
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         mutationId: uuid,
         baseRevision: 5,
         intent: {
@@ -256,7 +253,7 @@ test.group('planning operation contracts', () => {
   }) => {
     assert.equal(
       await operationOf(
-        planningMutationValidator.validate({
+        validateMutation({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'catalogue.delete', entity: { entity: 'phases', id: uuid } },
@@ -266,7 +263,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        planningMutationValidator.validate({
+        validateMutation({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'resource.update', id: uuid, changes: { jobTitle: 'Designer' } },
@@ -276,7 +273,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        planningMutationValidator.validate({
+        validateMutation({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'timeOff.delete', id: uuid },
@@ -286,7 +283,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        planningMutationValidator.validate({
+        validateMutation({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'closure.delete', id: uuid },
@@ -296,7 +293,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        planningMutationValidator.validate({
+        validateMutation({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'settings.update', changes: { weekStartsOn: 0 } },
@@ -306,7 +303,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        planningMutationValidator.validate({
+        validateMutation({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'allocation.delete', id: uuid },
@@ -315,7 +312,7 @@ test.group('planning operation contracts', () => {
       'allocation.delete'
     );
 
-    const catalogue = await planningMutationValidator.validate({
+    const catalogue = await validateMutation({
       mutationId: uuid,
       baseRevision: 8,
       intent: {
@@ -333,12 +330,12 @@ test.group('planning operation contracts', () => {
         },
       },
     });
-    const catalogueDelete = await planningMutationValidator.validate({
+    const catalogueDelete = await validateMutation({
       mutationId: 'f6498a84-8ed9-4a25-901a-f7e5ca435c39',
       baseRevision: 8,
       intent: { operation: 'catalogue.delete', entity: { entity: 'phases', id: uuid } },
     });
-    const resource = await planningMutationValidator.validate({
+    const resource = await validateMutation({
       mutationId: otherUuid,
       baseRevision: 8,
       intent: {
@@ -347,7 +344,7 @@ test.group('planning operation contracts', () => {
         changes: { workingDays: [1, 2, 3, 4, 5], kind: 'external', archivedAt: '2026-10-20' },
       },
     });
-    const timeOff = await planningMutationValidator.validate({
+    const timeOff = await validateMutation({
       mutationId: 'f0b7fcba-0566-4170-b018-c300c10e3ea1',
       baseRevision: 8,
       intent: {
@@ -363,7 +360,7 @@ test.group('planning operation contracts', () => {
         occurrenceIds: ['afc8a820-43fd-4a84-b98c-d42a8a46eb41'],
       },
     });
-    const closure = await planningMutationValidator.validate({
+    const closure = await validateMutation({
       mutationId: '0066854a-9ec8-4854-8fe4-4d29c7210a32',
       baseRevision: 8,
       intent: {
@@ -372,7 +369,7 @@ test.group('planning operation contracts', () => {
         fields: { name: 'Studio closed', startDate: '2026-12-25', endDate: '2026-12-25' },
       },
     });
-    const settings = await planningMutationValidator.validate({
+    const settings = await validateMutation({
       mutationId: '3790048c-8926-47b1-ac3f-88722ee43bb6',
       baseRevision: 8,
       intent: {
@@ -397,7 +394,7 @@ test.group('planning operation contracts', () => {
     }
     assert.equal(closure.intent.operation, 'closure.create');
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         mutationId: otherUuid,
         baseRevision: 8,
         intent: {
@@ -419,7 +416,7 @@ test.group('planning operation contracts', () => {
   test('uses a fresh mutation ID and captured revision for each Undo and Redo execution', async ({
     assert,
   }) => {
-    const create = await planningMutationValidator.validate({
+    const create = await validateMutation({
       mutationId: uuid,
       baseRevision: 10,
       intent: {
@@ -435,17 +432,17 @@ test.group('planning operation contracts', () => {
         },
       },
     });
-    const undo = await planningMutationValidator.validate({
+    const undo = await validateMutation({
       mutationId: 'f0b7fcba-0566-4170-b018-c300c10e3ea1',
       baseRevision: 11,
       intent: { operation: 'allocation.delete', id: otherUuid },
     });
-    const redo = await planningMutationValidator.validate({
+    const redo = await validateMutation({
       mutationId: '97710863-4328-4a8f-b2b1-dae930003cdb',
       baseRevision: 12,
       intent: { operation: 'planning.restoreGroup', restorationGroupId: uuid },
     });
-    const undoAgain = await planningMutationValidator.validate({
+    const undoAgain = await validateMutation({
       mutationId: 'afc8a820-43fd-4a84-b98c-d42a8a46eb41',
       baseRevision: 13,
       intent: { operation: 'allocation.delete', id: otherUuid },
@@ -496,7 +493,7 @@ test.group('planning operation contracts', () => {
     ]) {
       let error: unknown;
       try {
-        await planningMutationValidator.validate({
+        await validateMutation({
           mutationId: otherUuid,
           baseRevision: 0,
           intent,
@@ -522,7 +519,7 @@ test.group('planning operation contracts', () => {
       firstAvailableDate: null,
       lastAvailableDate: null,
     };
-    const valid = await planningMutationValidator.validate({
+    const valid = await validateMutation({
       mutationId: uuid,
       baseRevision: 1,
       intent: { operation: 'resource.create', id: otherUuid, fields: external },
@@ -537,7 +534,7 @@ test.group('planning operation contracts', () => {
       { ...external, name: 'x'.repeat(300) },
     ]) {
       await assert.rejects(() =>
-        planningMutationValidator.validate({
+        validateMutation({
           mutationId: uuid,
           baseRevision: 1,
           intent: { operation: 'resource.create', id: otherUuid, fields },
@@ -565,7 +562,7 @@ test.group('planning operation contracts', () => {
       firstAvailableDate: null,
       lastAvailableDate: null,
     };
-    const validPlaceholder = await planningMutationValidator.validate({
+    const validPlaceholder = await validateMutation({
       mutationId: uuid,
       baseRevision: 1,
       intent: { operation: 'resource.create', id: otherUuid, fields: placeholder },
@@ -583,7 +580,7 @@ test.group('planning operation contracts', () => {
       projectId: null,
     };
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         mutationId: uuid,
         baseRevision: 1,
         intent: {
@@ -594,7 +591,7 @@ test.group('planning operation contracts', () => {
       })
     );
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         mutationId: uuid,
         baseRevision: 1,
         intent: {
@@ -605,7 +602,7 @@ test.group('planning operation contracts', () => {
       })
     );
     await assert.rejects(() =>
-      planningMutationValidator.validate({
+      validateMutation({
         mutationId: uuid,
         baseRevision: 1,
         intent: { operation: 'resource.update', id: otherUuid, changes: { workingDays: [] } },

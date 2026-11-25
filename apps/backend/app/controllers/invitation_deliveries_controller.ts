@@ -2,9 +2,10 @@ import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
-import { refuseInvalidAdmission } from '#exceptions/admission_errors';
 import { InvitationAnswerService } from '#services/admission/invitation_answer_service';
 import { MailDeliveryService } from '#services/mail_delivery_service';
+import { resendInvitationValidator } from '#validators/invitations';
+import { requestData } from '#validators/request_rules';
 
 /** Sends an open invitation again with a new link. */
 @inject()
@@ -17,9 +18,11 @@ export default class InvitationDeliveriesController {
     this.#mailDelivery = mailDelivery;
   }
 
-  async store({ auth, params, response, serialize }: HttpContext) {
-    const id = this.#invitations.parseInvitationId(params.id);
-    if (!id) refuseInvalidAdmission();
+  async store({ auth, request, response, serialize }: HttpContext) {
+    const { params } = await request.validateUsing(resendInvitationValidator, {
+      data: requestData(request),
+    });
+    const { id } = params;
     const actorId = await this.#invitations.requireInvitationManager(auth, params.companyId);
     // Resending replaces the link, so without mail it would only invalidate a printed one.
     if (!this.#mailDelivery.isMailConfigured()) {

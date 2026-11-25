@@ -4,6 +4,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { transferOwnershipValidator } from '#validators/ownership';
 import { AccountOperationService } from '#services/account_operation_service';
+import { requestData } from '#validators/request_rules';
 
 /** Transfers company ownership to another member. */
 @inject()
@@ -22,15 +23,15 @@ export default class OwnershipTransfersController {
     this.#accountOperations = accountOperations;
   }
 
-  async store({ auth, params, request, serialize }: HttpContext) {
+  async store({ auth, request, serialize }: HttpContext) {
     const body = await request.validateUsing(transferOwnershipValidator, {
-      data: request.body(),
+      data: requestData(request, request.body()),
     });
-    const command = this.#accountOperations.parseAccountOperation(
-      request.header('x-account-operation-id'),
-      request.header('idempotency-key')
+    const command = this.#accountOperations.resolveAccountOperation(
+      body.headers['x-account-operation-id'],
+      body.headers['idempotency-key']
     );
-    const companyId = params.companyId;
+    const { companyId } = body.params;
     const { toUserId } = body;
     const confirmationId = body.confirmationId ?? '';
     const receipt = await this.#currentActor.withActor(auth, (actor, trx) =>

@@ -48,34 +48,34 @@ Use the framework's word for a framework concept, in code, comments, commit mess
 documentation. Write "AdonisJS", never "Adonis". Package names keep their own spelling: Lucid,
 VineJS, Japa, Tuyau, Ace, Edge.
 
-| Term | Meaning |
-| --- | --- |
-| starter kit | The scaffold an application begins from. CapacityLens has the shape of the API monorepo kit. |
-| preload file | A file in `start/` listed under `preloads` in `adonisrc.ts` and imported while the application boots. |
-| service provider | A class in `providers/` with `register`, `boot`, `start`, `ready` and `shutdown` hooks. |
-| container service | A ready-made singleton imported from a package, such as `@adonisjs/core/services/router`. |
-| IoC container | The object that constructs classes and supplies their dependencies. |
-| barrel file | A generated index under `.adonisjs/server`, imported through `#generated/*`. |
-| codegen | The step that writes `.adonisjs/`; run with `node ace codegen`. |
-| assembler hook | A build-time callback registered under `hooks` in `adonisrc.ts`. |
-| HTTP context | The per-request object, `ctx`, of type `HttpContext`. |
-| route handler | The controller method or function a route runs. |
-| action | A controller method that handles a route. |
-| server, router and named middleware | The three middleware stacks registered in `start/kernel.ts`. |
-| validator | A compiled VineJS schema exported from `app/validators`. |
-| payload | The validated data `request.validateUsing` returns. |
-| transformer | A class in `app/transformers` that turns backend data into the JSON sent to the client. |
-| exception | A thrown error the exception handler turns into a response. |
-| exception handler | The class in `app/exceptions/handler.ts`. |
-| guard | An authentication method configured in `config/auth.ts`, such as `web`. |
-| ability, policy | Bouncer's function and class for an authorization check. |
-| model, schema class | A class in `app/models`, and the generated class it extends from `database/schema.ts`. |
-| migration, seeder, factory | A schema change, a script that inserts data, and a generator of model rows for tests. |
-| model query builder, database query builder | `Model.query()`, and `db.from()` or `trx.from()`. |
-| transaction client | The object `db.transaction` gives; named `trx`. |
-| Ace command | A class in `commands/` run with `node ace`. |
-| suite, group | A set of test files with its own timeout, and a `test.group` inside one file. |
-| registry | The generated route map the typed API client reads. |
+| Term                                        | Meaning                                                                                               |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| starter kit                                 | The scaffold an application begins from. CapacityLens has the shape of the API monorepo kit.          |
+| preload file                                | A file in `start/` listed under `preloads` in `adonisrc.ts` and imported while the application boots. |
+| service provider                            | A class in `providers/` with `register`, `boot`, `start`, `ready` and `shutdown` hooks.               |
+| container service                           | A ready-made singleton imported from a package, such as `@adonisjs/core/services/router`.             |
+| IoC container                               | The object that constructs classes and supplies their dependencies.                                   |
+| barrel file                                 | A generated index under `.adonisjs/server`, imported through `#generated/*`.                          |
+| codegen                                     | The step that writes `.adonisjs/`; run with `node ace codegen`.                                       |
+| assembler hook                              | A build-time callback registered under `hooks` in `adonisrc.ts`.                                      |
+| HTTP context                                | The per-request object, `ctx`, of type `HttpContext`.                                                 |
+| route handler                               | The controller method or function a route runs.                                                       |
+| action                                      | A controller method that handles a route.                                                             |
+| server, router and named middleware         | The three middleware stacks registered in `start/kernel.ts`.                                          |
+| validator                                   | A compiled VineJS schema exported from `app/validators`.                                              |
+| payload                                     | The validated data `request.validateUsing` returns.                                                   |
+| transformer                                 | A class in `app/transformers` that turns backend data into the JSON sent to the client.               |
+| exception                                   | A thrown error the exception handler turns into a response.                                           |
+| exception handler                           | The class in `app/exceptions/handler.ts`.                                                             |
+| guard                                       | An authentication method configured in `config/auth.ts`, such as `web`.                               |
+| ability, policy                             | Bouncer's function and class for an authorization check.                                              |
+| model, schema class                         | A class in `app/models`, and the generated class it extends from `database/schema.ts`.                |
+| migration, seeder, factory                  | A schema change, a script that inserts data, and a generator of model rows for tests.                 |
+| model query builder, database query builder | `Model.query()`, and `db.from()` or `trx.from()`.                                                     |
+| transaction client                          | The object `db.transaction` gives; named `trx`.                                                       |
+| Ace command                                 | A class in `commands/` run with `node ace`.                                                           |
+| suite, group                                | A set of test files with its own timeout, and a `test.group` inside one file.                         |
+| registry                                    | The generated route map the typed API client reads.                                                   |
 
 Some of these words are taken. Do not use them for anything else in new code:
 
@@ -143,23 +143,23 @@ apps/backend/
 Backend files are `snake_case`; `@unicorn/filename-case` enforces it. Each file default-exports
 one class unless the table says otherwise.
 
-| Kind | File | Export | Example |
-| --- | --- | --- | --- |
-| Controller | `app/controllers/<plural>_controller.ts` | `<Plural>Controller` | `members_controller.ts`, `MembersController` |
-| Single action controller | `app/controllers/<operation>_controller.ts` | class with one `handle` method | `register_newsletter_subscription_controller.ts` |
-| Model | `app/models/<singular>.ts` | `<Singular>` | `project.ts`, `Project`, table `projects` |
-| Middleware | `app/middleware/<name>_middleware.ts` | `<Name>Middleware` | `company_scope_middleware.ts` |
-| Validator | `app/validators/<singular resource>.ts` | named `<verb><Resource>Validator` | `createMemberValidator` |
-| Transformer | `app/transformers/<singular>_transformer.ts` | `<Singular>Transformer` | `user_transformer.ts` |
-| Exception | `app/exceptions/<name>_exception.ts` | `<Name>Exception` | `stale_revision_exception.ts` |
-| Service | `app/services/<name>_service.ts` | `<Name>Service`, a named export | `planning_service.ts` |
-| Provider | `providers/<name>_provider.ts` | `<Name>Provider` | `backup_provider.ts` |
-| Preload file | `start/<name>.ts` | none; imported for its effect | `start/validator.ts` |
-| Ace command | `commands/<namespace>_<action>.ts` | `<NamespaceAction>` | `app_reset.ts`, `app:reset` |
-| Migration | `database/migrations/<timestamp>_<name>.ts` | anonymous class | `..._create_posts_table.ts` |
-| Seeder | `database/seeders/<name>_seeder.ts` | anonymous class | `main_seeder.ts` |
-| Factory | `database/factories/<model>_factory.ts` | named `const <Model>Factory = Factory.define(...)` | |
-| Test | `tests/<suite>/<path>/<subject>.spec.ts` | none | `tests/functional/auth/recovery.spec.ts` |
+| Kind                     | File                                         | Export                                             | Example                                          |
+| ------------------------ | -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------ |
+| Controller               | `app/controllers/<plural>_controller.ts`     | `<Plural>Controller`                               | `members_controller.ts`, `MembersController`     |
+| Single action controller | `app/controllers/<operation>_controller.ts`  | class with one `handle` method                     | `register_newsletter_subscription_controller.ts` |
+| Model                    | `app/models/<singular>.ts`                   | `<Singular>`                                       | `project.ts`, `Project`, table `projects`        |
+| Middleware               | `app/middleware/<name>_middleware.ts`        | `<Name>Middleware`                                 | `company_scope_middleware.ts`                    |
+| Validator                | `app/validators/<singular resource>.ts`      | named `<verb><Resource>Validator`                  | `createMemberValidator`                          |
+| Transformer              | `app/transformers/<singular>_transformer.ts` | `<Singular>Transformer`                            | `user_transformer.ts`                            |
+| Exception                | `app/exceptions/<name>_exception.ts`         | `<Name>Exception`                                  | `stale_revision_exception.ts`                    |
+| Service                  | `app/services/<name>_service.ts`             | `<Name>Service`, a named export                    | `planning_service.ts`                            |
+| Provider                 | `providers/<name>_provider.ts`               | `<Name>Provider`                                   | `backup_provider.ts`                             |
+| Preload file             | `start/<name>.ts`                            | none; imported for its effect                      | `start/validator.ts`                             |
+| Ace command              | `commands/<namespace>_<action>.ts`           | `<NamespaceAction>`                                | `app_reset.ts`, `app:reset`                      |
+| Migration                | `database/migrations/<timestamp>_<name>.ts`  | anonymous class                                    | `..._create_posts_table.ts`                      |
+| Seeder                   | `database/seeders/<name>_seeder.ts`          | anonymous class                                    | `main_seeder.ts`                                 |
+| Factory                  | `database/factories/<model>_factory.ts`      | named `const <Model>Factory = Factory.define(...)` |                                                  |
+| Test                     | `tests/<suite>/<path>/<subject>.spec.ts`     | none                                               | `tests/functional/auth/recovery.spec.ts`         |
 
 - `make:controller` pluralizes the name. Pass `--singular` for a single action controller or a
   resource there is one of.
@@ -183,7 +183,7 @@ one class unless the table says otherwise.
   that serves a request takes its transaction as an argument and does not import
   `@adonisjs/lucid/services/db`.
 - Routes import controllers through the barrel file, `import { controllers } from
-  '#generated/controllers'`. A static controller import in a routes file breaks hot reload and is
+'#generated/controllers'`. A static controller import in a routes file breaks hot reload and is
   a lint error (`@adonisjs/prefer-lazy-controller-import`).
 
 ## Configuration and environment
@@ -272,7 +272,9 @@ Source: [Validation](https://docs.adonisjs.com/guides/basics/validation).
   write and `{ data: request.qs() }` for a read, so the merged `request.all()` is never validated
   (departure 22).
 - Validate route parameters, headers and cookies in the same validator, under its `params`,
-  `headers` and `cookies` keys.
+  `headers` and `cookies` keys. `requestData(request, source)` in `app/validators/request_rules.ts`
+  places the route parameters and headers beside the one request source; an action without a
+  body passes `requestData(request)`.
 - Do not wrap `validateUsing` in `try`/`catch`. Use `request.tryValidateUsing` when the action
   must handle the failure itself.
 - After validation the payload is trusted. Services do not validate shape again; they enforce
@@ -298,7 +300,7 @@ Source: [Middleware](https://docs.adonisjs.com/guides/basics/middleware).
   the way in; code after it runs on the way out.
 - A middleware refuses by throwing an exception or by sending a response and not calling `next`.
 - Add a property to `HttpContext` only from server or router middleware, with the `declare module
-  '@adonisjs/core/http'` block in the same file.
+'@adonisjs/core/http'` block in the same file.
 - The request logging middleware is first in the server stack.
 
 ## Exceptions
@@ -562,16 +564,16 @@ Source: [API client](https://docs.adonisjs.com/guides/frontend/api-client) and
 AdonisJS Plus publishes lint rules that state its author's view of application code more firmly
 than the documentation does. CapacityLens does not install them. This is where it stands on each.
 
-| Rule | What it asks | CapacityLens |
-| --- | --- | --- |
-| `no-private-controller-methods` | No `private` or `protected` method on a controller. | Adopted; see Controllers. |
-| `test-files-contain-tests` | A test file defines tests only; shared code is in `tests/helpers/`. | Adopted; see Tests. |
-| `no-shared-mutable-test-state` | No `let` or `var` outside a test callback. | Adopted; see Tests. |
-| `test-helpers-contain-runtime-code` | Types for test helpers live in `tests/helpers/types.ts`. | Adopted, with the types in the existing `tests/types/` folder. |
-| `playwright-locators-are-exact` | A text locator states `exact`. | Applies to `e2e/` specs. |
-| `no-top-level-functions` | Behaviour is a class method, not a top-level function. | Adopted for services; pure helper modules keep their functions. |
-| `exported-functions-are-factories` | An exported function only builds and returns a class instance. | Adopted for services; pure helper modules keep their functions. |
-| `types-live-in-types-directory` | Types and interfaces live in a `types/` folder. | Not followed (departure 20). |
+| Rule                                | What it asks                                                        | CapacityLens                                                    |
+| ----------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `no-private-controller-methods`     | No `private` or `protected` method on a controller.                 | Adopted; see Controllers.                                       |
+| `test-files-contain-tests`          | A test file defines tests only; shared code is in `tests/helpers/`. | Adopted; see Tests.                                             |
+| `no-shared-mutable-test-state`      | No `let` or `var` outside a test callback.                          | Adopted; see Tests.                                             |
+| `test-helpers-contain-runtime-code` | Types for test helpers live in `tests/helpers/types.ts`.            | Adopted, with the types in the existing `tests/types/` folder.  |
+| `playwright-locators-are-exact`     | A text locator states `exact`.                                      | Applies to `e2e/` specs.                                        |
+| `no-top-level-functions`            | Behaviour is a class method, not a top-level function.              | Adopted for services; pure helper modules keep their functions. |
+| `exported-functions-are-factories`  | An exported function only builds and returns a class instance.      | Adopted for services; pure helper modules keep their functions. |
+| `types-live-in-types-directory`     | Types and interfaces live in a `types/` folder.                     | Not followed (departure 20).                                    |
 
 Its code style guide adds one rule this page adopts: return early. Check each condition that ends
 the work at the top of the function, and do not wrap the main logic in an `if`.

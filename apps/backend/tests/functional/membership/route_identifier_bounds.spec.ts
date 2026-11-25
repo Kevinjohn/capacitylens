@@ -42,4 +42,59 @@ test.group('company route identifier bounds', (group) => {
     ).send();
     listed.assertStatus(200);
   });
+
+  test('a malformed route identifier answers the framework validation failure', async ({
+    client,
+    assert,
+  }) => {
+    const user = await User.findOrFail(
+      await createIdentity(owner.email, { name: owner.name, password: owner.password })
+    );
+    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
+    const refused = [
+      [client.patch('/api/companies/a-studio/members/bad.id').json({ role: 'editor' }), 'userId'],
+      [
+        client.patch('/api/companies/a-studio/members/bad.id/status').json({ status: 'suspended' }),
+        'userId',
+      ],
+      [
+        client
+          .put('/api/companies/a-studio/members/bad.id/resource-link')
+          .json({ resourceId: 'r-1', expectedRevision: null }),
+        'userId',
+      ],
+      [
+        client
+          .delete('/api/companies/a-studio/members/bad.id/resource-link')
+          .json({ expectedRevision: '1' }),
+        'userId',
+      ],
+      [client.post('/api/companies/a-studio/resources/-bad/anonymise').json({}), 'id'],
+    ] as const;
+    for (const [request, param] of refused) {
+      const response = await asLoggedInDataOwner(request, user).send();
+      response.assertStatus(422);
+      assert.equal(response.body().errors[0].field, `params.${param}`);
+    }
+  });
+
+  test('a body that names params itself is refused, not overwritten', async ({
+    client,
+    assert,
+  }) => {
+    const user = await User.findOrFail(
+      await createIdentity(owner.email, { name: owner.name, password: owner.password })
+    );
+    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
+    const response = await asLoggedInDataOwner(
+      client
+        .put('/api/companies/a-studio/getting-started')
+        .json({ dismissed: true, params: { companyId: 'a-studio' } }),
+      user
+    ).send();
+    response.assertStatus(422);
+    assert.deepEqual(response.body().errors, [
+      { message: 'Unsupported field.', rule: 'unknownField', field: 'params' },
+    ]);
+  });
 });
