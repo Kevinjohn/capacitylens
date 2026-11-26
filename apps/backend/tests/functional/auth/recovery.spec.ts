@@ -1,55 +1,20 @@
 import { test } from '@japa/runner';
-import type { ApiClient, ApiRequest } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { captureMail, clearIdentities, signIn, expectStatus } from '#tests/helpers/identities';
 import {
-  asDataOwner,
-  asLoggedInDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import {
-  captureMail,
-  clearIdentities,
-  createIdentity,
-  signIn,
-  expectStatus,
-} from '#tests/helpers/identities';
-
-const companyId = 'a-studio';
-const owner = 'bruce.wayne@wayne.example';
-const editor = 'clark.kent@wayne.example';
-const newPassword = 'recovered-password-2026';
-
-const post = (request: ApiRequest, body: object) =>
-  request.header('sec-fetch-site', 'same-origin').json(body).send();
-
-const requestReset = (client: ApiClient, email: string) =>
-  post(client.visit('api.password_reset_requests.store'), { email });
-
-const inspect = async (client: ApiClient, token: string) => {
-  const response = await post(client.visit('api.password_resets.show'), { token });
-  response.assertStatus(200);
-  return ((response.body() as { data: unknown }).data as { valid: boolean }).valid;
-};
-
-async function company() {
-  const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
-  const editorId = await createIdentity(editor, { name: 'Clark Kent' });
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: companyId,
-    user_id: editorId,
-    role: 'editor',
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  return { ownerId, editorId };
-}
+  companyId,
+  editor,
+  newPassword,
+  post,
+  requestReset,
+  inspect,
+  company,
+} from '#tests/helpers/auth/recovery';
 
 test.group('password recovery', (group) => {
   group.setup(() => freshDatabase());

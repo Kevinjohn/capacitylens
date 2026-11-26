@@ -1,5 +1,4 @@
 import { test } from '@japa/runner';
-import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client';
 import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
@@ -9,49 +8,22 @@ import { E_ACCOUNT_KIT_POST_COMMIT } from '@kevinjohn/adonisjs-account-kit/error
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
-  asDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import {
   captureMail,
   clearIdentities,
   createIdentity,
   signIn,
   expectStatus,
 } from '#tests/helpers/identities';
-
-const companyId = 'a-studio';
-const owner = 'bruce.wayne@wayne.example';
-const person = 'clark.kent@wayne.example';
-const password = 'admission-password-2026';
-const decisionRoutes = {
-  approve: 'api.admission_approvals.store',
-  reject: 'api.admission_rejections.store',
-  revoke: 'api.admission_revocations.store',
-} as const;
-
-const as = (cookie: string) => ({
-  get: (request: ApiRequest): Promise<ApiResponse> => asDataOwner(request, cookie).send(),
-  post: (request: ApiRequest, body: object = {}): Promise<ApiResponse> =>
-    asDataOwner(request, cookie).json(body).send(),
-});
-
-const planning = (client: ApiClient, cookie: string) =>
-  as(cookie).get(client.visit('api.planning.show', { companyId }));
-
-async function company(api: ApiClient) {
-  const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
-  return signIn(api, owner);
-}
-
-/** A confirmed identity with operator invitation evidence for `role`, waiting for approval. */
-async function invitedIdentity(role: string) {
-  const userId = await createIdentity(person, { password, admitted: false });
-  const admission = await app.container.make(AccountAdmission);
-  await admission.operator.grantInvitation({ email: person, role });
-  return userId;
-}
+import {
+  companyId,
+  person,
+  password,
+  decisionRoutes,
+  as,
+  planning,
+  company,
+  invitedIdentity,
+} from '#tests/helpers/auth/admission';
 
 test.group('admission and membership completion', (group) => {
   group.setup(() => freshDatabase());

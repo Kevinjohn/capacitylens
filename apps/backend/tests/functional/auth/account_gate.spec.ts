@@ -11,10 +11,7 @@ import {
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
-
-const companyId = 'a-studio';
-const owner = 'bruce.wayne@wayne.example';
-const waiting = 'selina.kyle@wayne.example';
+import { companyId, owner, waiting } from '#tests/helpers/auth/account_gate';
 
 test.group('account gate', (group) => {
   group.setup(() => freshDatabase());

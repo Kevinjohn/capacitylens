@@ -1,54 +1,15 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import app from '@adonisjs/core/services/app';
-import { defineConfig } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
-import env from '#start/env';
-
-type MutableKey = 'CAPACITYLENS_RATE_LIMIT';
-
-type Cleanup = (callback: () => void) => void;
-
-function captureEnvironment(cleanup: Cleanup, keys: MutableKey[]) {
-  const previous = new Map(keys.map((key) => [key, env.get(key)]));
-  cleanup(() => {
-    for (const [key, value] of previous) env.set(key, value ?? '');
-  });
-}
-
-function setEnvironment(key: MutableKey, value: string) {
-  env.set(key, value);
-}
-
-/** Proxy trust is read once at boot, so tests switch the booted server's setting directly. */
-const httpConfig = () => app.config.get<ReturnType<typeof defineConfig>>('app.http');
-
-function trustProxyHeaders(trusted: boolean) {
-  httpConfig().trustProxy = trusted ? defineConfig({}).trustProxy : () => false;
-}
-
-/** A public, rate-limited read: signed out, it answers 401 until the client's budget runs out. */
-async function requestSignedOutSession(client: ApiClient, forwardedIp?: string) {
-  const request = client.visit('api.session.show');
-  if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
-  return request.send();
-}
-
-async function responseStatus(response: Promise<{ status(): number }>) {
-  const resolvedResponse = await response;
-  return resolvedResponse.status();
-}
-
-async function signIn(
-  client: ApiClient,
-  forwardedIp?: string,
-  email = 'private-limit@example.test'
-) {
-  const request = client.visit('api.session.store').header('sec-fetch-site', 'same-origin');
-  if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
-  return request.json({ email, password: 'never-store-this-password-012345' }).send();
-}
+import {
+  captureEnvironment,
+  setEnvironment,
+  httpConfig,
+  trustProxyHeaders,
+  requestSignedOutSession,
+  responseStatus,
+  signIn,
+} from '#tests/helpers/auth/native_auth_limits';
 
 test.group('native auth and API rate limits', (group) => {
   group.setup(() => freshDatabase());

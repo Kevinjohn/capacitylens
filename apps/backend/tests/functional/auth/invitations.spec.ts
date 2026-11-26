@@ -1,5 +1,4 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
@@ -11,68 +10,21 @@ import {
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import {
-  asDataOwner,
-  asLoggedInDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import { bootstrapInvitation, rememberSessionCookie } from '#tests/helpers/identities';
-import {
-  captureMail,
-  clearIdentities,
-  createIdentity,
-  signIn,
-  expectStatus,
-} from '#tests/helpers/identities';
+import { captureMail, clearIdentities, signIn, expectStatus } from '#tests/helpers/identities';
 import { requestBarrier } from '#tests/helpers/request_barrier';
-
-const companyId = 'a-studio';
-const owner = 'bruce.wayne@wayne.example';
-const invitee = 'clark.kent@wayne.example';
-const password = 'invitation-password-2026';
-
-async function company() {
-  const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
-  return ownerId;
-}
-
-async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
-  const userId = await createIdentity(email);
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: companyId,
-    user_id: userId,
-    role,
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  return userId;
-}
-
-const invite = (client: ApiClient, cookie: string, email: string, role = 'editor') =>
-  asDataOwner(client.visit('api.invitations.store'), cookie)
-    .timeout({ response: 10000, deadline: 15000 })
-    // The role is deliberately untyped so a test can send `owner` and reach the refusal.
-    .json({ companyId, email, role } as never)
-    .send();
-
-const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>
-  client
-    .visit('api.invitation_acceptances.store', { token })
-    .header('sec-fetch-site', 'same-origin')
-    .json({ name, password })
-    .send();
-
-/** The field each error of a framework validation failure names. */
-const failedFields = (body: unknown) =>
-  (body as { errors: Array<{ field: string }> }).errors.map(({ field }) => field);
-
-async function revision() {
-  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
-  return Number(row?.revision);
-}
+import {
+  companyId,
+  owner,
+  invitee,
+  company,
+  member,
+  invite,
+  accept,
+  failedFields,
+  revision,
+} from '#tests/helpers/auth/invitations';
 
 test.group('company invitations', (group) => {
   group.setup(() => freshDatabase());

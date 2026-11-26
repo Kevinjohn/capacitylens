@@ -11,8 +11,7 @@ import { signUpAndIn } from '#tests/helpers/identities';
 import { CompanyFactory } from '#database/factories/company_factory';
 import { UserFactory } from '#database/factories/user_factory';
 import { DateTime } from 'luxon';
-
-const password = 'batman-secret-2026';
+import { password } from '#tests/helpers/auth/admission_resource_links';
 
 test.group('direct member resource association', (group) => {
   group.setup(() => freshDatabase());

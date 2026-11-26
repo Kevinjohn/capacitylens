@@ -10,11 +10,12 @@ import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_d
 import User from '#models/user';
 import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
 import { execCommand } from '#tests/helpers/auth/commands';
-
-const bootstrapEmail = 'admin@admin.admin';
-const bootstrapPassword = 'batman-local-bootstrap-2026';
-const originalCreateAdmin = env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN');
-const originalBootstrapPassword = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
+import {
+  bootstrapEmail,
+  bootstrapPassword,
+  originalCreateAdmin,
+  originalBootstrapPassword,
+} from '#tests/helpers/auth/configuration_provider';
 
 test.group('development bootstrap provider recovery', (group) => {
   group.setup(() => freshDatabase());

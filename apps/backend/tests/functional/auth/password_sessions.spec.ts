@@ -1,39 +1,23 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import {
-  asDataOwner,
-  asLoggedInDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import { clearIdentities, createIdentity, signIn, expectStatus } from '#tests/helpers/identities';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, signIn, expectStatus } from '#tests/helpers/identities';
 import { requestBarrier } from '#tests/helpers/request_barrier';
 import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
-
-const email = 'bruce.wayne@wayne.example';
-const password = 'batman-secret-2026';
-const companyId = 'a-studio';
-
-const companies = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.visit('api.companies.index'), cookie).send();
-const planning = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.visit('api.planning.show', { companyId }), cookie).send();
-const dismiss = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.visit('api.getting_started.update', { companyId }), cookie)
-    .timeout({ response: 10000, deadline: 15000 })
-    .json({ dismissed: true })
-    .send();
-const dismissals = () => db.from('company_getting_started_dismissals');
-
-async function owner(options: { verified?: boolean; admitted?: boolean } = {}) {
-  const userId = await createIdentity(email, { name: 'Bruce Wayne', password, ...options });
-  await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', companyId);
-  return userId;
-}
+import {
+  email,
+  password,
+  companyId,
+  companies,
+  planning,
+  dismiss,
+  dismissals,
+  owner,
+} from '#tests/helpers/auth/password_sessions';
 
 test.group('password sign-in and sessions', (group) => {
   group.setup(() => freshDatabase());

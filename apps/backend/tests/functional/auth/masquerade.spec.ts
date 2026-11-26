@@ -2,155 +2,31 @@ import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
-import type { ApiRequest } from '@japa/api-client';
-import User from '#models/user';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
-import { clearIdentities, signIn, signUpAndIn } from '#tests/helpers/identities';
+import { clearIdentities, signIn } from '#tests/helpers/identities';
 import { requestBarrier } from '#tests/helpers/request_barrier';
 import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
 import app from '@adonisjs/core/services/app';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
-import { StorageMaintenanceService } from '#services/storage_maintenance_service';
 import { ClientFactory } from '#database/factories/client_factory';
 import { CompanyFactory } from '#database/factories/company_factory';
-import { UserFactory } from '#database/factories/user_factory';
-import { DateTime } from 'luxon';
-
-const storageMaintenance = new StorageMaintenanceService();
-
-const password = 'batman-secret-2026';
-
-/**
- * Signs `request` in as `user` with `loginAs`, or with a sign-in's session `cookie` where a test
- * depends on that one sign-in, and sends the masquerade context when given.
- */
-function asSession<T extends ApiRequest>(
-  request: T,
-  credential: string | User,
-  context?: string
-): T {
-  const signedIn =
-    typeof credential === 'string'
-      ? request.setup((prepared) => {
-          prepared.withCookie('adonis-session', credential);
-        })
-      : request.loginAs(credential);
-  return context ? signedIn.header('X-Masquerade-Context', context) : signedIn;
-}
-
-/** A verified identity with no password, made by the model factory once a company exists. */
-function verifiedIdentity(email: string, displayName: string) {
-  return db.transaction((trx) =>
-    UserFactory.client(trx).merge({ email, displayName, emailVerifiedAt: DateTime.now() }).create()
-  );
-}
-
-async function masqueradeToken(client: any, cookie: string) {
-  const response = await asSession(client.visit('api.masquerade.show'), cookie).send();
-  response.assertStatus(200);
-  const token = response.body().data?.masqueradeToken;
-  if (typeof token !== 'string') throw new Error('Masquerade context token was not returned.');
-  return token;
-}
-
-async function startView(client: any, cookie: string, targetUserId: string) {
-  const token = await masqueradeToken(client, cookie);
-  return asSession(
-    client
-      .visit('api.masquerade.store', { companyId: 'a-studio' })
-      .header('sec-fetch-site', 'same-origin'),
-    cookie,
-    token
-  )
-    .json({ targetUserId })
-    .send();
-}
-
-async function fixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 'viewer') {
-  const owner = await signUpAndIn(client, {
-    email: 'bruce.wayne@wayne.example',
-    password,
-    name: 'Bruce Wayne',
-  });
-  owner.assertStatus(200);
-  const cookie = owner.cookie('adonis-session')!.value;
-  const ownerId = String((owner.body().data as { user: { id: string } }).user.id);
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
-  const { id: targetId } = await verifiedIdentity('clark.kent@wayne.example', 'Clark Kent');
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: 'a-studio',
-    user_id: targetId,
-    role: targetRole,
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  return { cookie, ownerId, targetId, owner: await User.findOrFail(ownerId) };
-}
-
-/** `fixture` with the signed-in viewer as an Admin under a separate company Owner, Diana Prince. */
-async function adminFixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 'editor') {
-  const { cookie, ownerId: adminId, targetId, owner } = await fixture(client, targetRole);
-  const { id: companyOwnerId } = await verifiedIdentity(
-    'diana.prince@themyscira.example',
-    'Diana Prince'
-  );
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: 'a-studio',
-    user_id: companyOwnerId,
-    role: 'owner',
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  await db
-    .from('memberships')
-    .where({ scope_id: 'a-studio', user_id: adminId })
-    .update({ role: 'admin' });
-  return { cookie, adminId, companyOwnerId, targetId, owner };
-}
-
-/** Makes the target the Owner of a-studio and the former Owner an Admin, as a transfer would. */
-async function promoteToOwner(targetId: string, formerOwnerId: string) {
-  await db
-    .from('memberships')
-    .where({ scope_id: 'a-studio', user_id: formerOwnerId })
-    .update({ role: 'admin' });
-  await db
-    .from('memberships')
-    .where({ scope_id: 'a-studio', user_id: targetId })
-    .update({ role: 'owner' });
-}
-
-const privateClientName = 'Wayne Confidential Client';
-
-/** A private a-studio client whose real name only an effective Owner receives. */
-async function insertPrivateClient() {
-  await ClientFactory.merge({
-    companyId: 'a-studio',
-    name: privateClientName,
-    codeName: 'Nightwing',
-    color: '#123456',
-    isPrivate: true,
-  }).create();
-}
-
-async function endView(client: any, cookie: string) {
-  const token = await masqueradeToken(client, cookie);
-  const ended = await asSession(
-    client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
-    cookie,
-    token
-  )
-    .json({ token, reason: 'explicit' })
-    .send();
-  ended.assertStatus(200);
-}
+import {
+  storageMaintenance,
+  password,
+  asSession,
+  verifiedIdentity,
+  masqueradeToken,
+  startView,
+  fixture,
+  adminFixture,
+  promoteToOwner,
+  privateClientName,
+  insertPrivateClient,
+  endView,
+} from '#tests/helpers/auth/masquerade';
 
 test.group('native read-only masquerade', (group) => {
   group.setup(() => freshDatabase());
