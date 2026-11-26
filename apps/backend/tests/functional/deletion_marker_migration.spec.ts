@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import Migration from '#database/migrations/202611240001_store_deletion_markers_in_lucid_format';
+import Migration from '#database/migrations/1795478400000_store_deletion_markers_in_lucid_format_table';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { CompanyFactory } from '#database/factories/company_factory';
 
@@ -8,6 +8,13 @@ const now = '2026-11-24T09:00:00.000Z';
 
 test.group('deletion marker migration', (group) => {
   group.setup(() => freshDatabase());
+
+  test('refuses rollback of the irreversible marker conversion', async ({ assert }) => {
+    await db.transaction(async (trx) => {
+      const migration = new Migration(trx, 'deletion_marker_migration', false);
+      await assert.rejects(() => migration.execDown(), 'This migration cannot be reversed');
+    });
+  });
 
   test('rewrites ISO markers in Lucid format and leaves other rows alone', async ({ assert }) => {
     const trx = await db.transaction();
