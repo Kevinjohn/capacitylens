@@ -380,9 +380,9 @@ removed entry retires its number.
     handler. The answers on the wire do not change when they move.
 34. Retired (#2554). The health check controllers are single action controllers.
 35. Sessions use the database store in every environment, tests included; `.env.test` does not
-    set `SESSION_DRIVER=memory`, because Account Kit refuses a store that keeps a destroyed
-    session (`config/session.ts`). The `loginAsSession` test plugin signs API tests in with
-    `.loginAs(user)` on that store (#2572).
+    set `SESSION_DRIVER=memory`, because the Account Kit session protection in
+    `config/session.ts` accepts only the database store. The `loginAsSession` test plugin signs
+    API tests in with `.loginAs(user)` on that store (#2572).
 36. Backend tests and `bin/` import the repository's `tooling/*.mjs` scripts by relative path. The
     scripts sit outside the backend package, and a `#` alias in its `imports` cannot point outside
     the package root (#2572).
