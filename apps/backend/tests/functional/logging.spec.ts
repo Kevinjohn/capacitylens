@@ -14,9 +14,9 @@ import env from '#start/env';
 import loggerConfig from '#config/logger';
 import { randomUUID } from 'node:crypto';
 import {
+  companyId,
   configureAuth,
   newAllocation,
-  planningUrl,
   resetPlanningFixture,
   session as withPlanningSession,
   loginAsMember,
@@ -244,7 +244,7 @@ test.group('general HTTP logging privacy', (group) => {
     const data = await resetPlanningFixture();
     const { cookie } = await loginAsMember();
     const { output, result } = await captureLogs(() =>
-      withPlanningSession(client.post(`${planningUrl}/mutations`), cookie)
+      withPlanningSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json({
           mutationId: randomUUID(),
           baseRevision: 0,

@@ -92,12 +92,14 @@ test.group('company member access and tracking', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const directoryPath = '/api/v1/companies/a-studio/members';
-    const initial = await signed(client.get(directoryPath), ownerCookie).send();
+    const initial = await signed(
+      client.visit('api.members.index', { companyId: 'a-studio' }),
+      ownerCookie
+    ).send();
     initial.assertStatus(200);
     assert.isFalse(initial.body().data.signInTrackingEnabled);
     assert.isNull(
-      initial.body().data.members.find((member: { userId: string }) => member.userId === editorId)
+      initial.body().data.members.find((member: { userId: string }) => member.userId === editorId)!
         .signInConfirmed
     );
     const enabled = await signed(
@@ -113,30 +115,47 @@ test.group('company member access and tracking', (group) => {
       .json({ email: 'clark.kent@wayne.example', password })
       .send();
     signedIn.assertStatus(200);
-    const observed = await signed(client.get(directoryPath), ownerCookie).send();
+    const observed = await signed(
+      client.visit('api.members.index', { companyId: 'a-studio' }),
+      ownerCookie
+    ).send();
     observed.assertStatus(200);
     assert.isTrue(
-      observed.body().data.members.find((member: { userId: string }) => member.userId === editorId)
+      observed.body().data.members.find((member: { userId: string }) => member.userId === editorId)!
         .signInConfirmed
     );
-    const statusPath = `/api/v1/companies/a-studio/members/${editorId}/status`;
-    const planningPath = '/api/v1/companies/a-studio/planning';
-    const suspended = await signed(client.patch(statusPath), ownerCookie)
+    const editorMember = { companyId: 'a-studio', userId: editorId };
+    const suspended = await signed(
+      client.visit('api.member_status.update', editorMember),
+      ownerCookie
+    )
       .json({ status: 'suspended' })
       .send();
     suspended.assertStatus(200);
-    const blocked = await signed(client.get(planningPath), editorCookie).send();
+    const blocked = await signed(
+      client.visit('api.planning.show', { companyId: 'a-studio' }),
+      editorCookie
+    ).send();
     blocked.assertStatus(403);
-    const restored = await signed(client.patch(statusPath), ownerCookie)
+    const restored = await signed(
+      client.visit('api.member_status.update', editorMember),
+      ownerCookie
+    )
       .json({ status: 'active' })
       .send();
     restored.assertStatus(200);
-    const allowed = await signed(client.get(planningPath), editorCookie).send();
+    const allowed = await signed(
+      client.visit('api.planning.show', { companyId: 'a-studio' }),
+      editorCookie
+    ).send();
     allowed.assertStatus(200);
-    const after = await signed(client.get(directoryPath), ownerCookie).send();
+    const after = await signed(
+      client.visit('api.members.index', { companyId: 'a-studio' }),
+      ownerCookie
+    ).send();
     after.assertStatus(200);
     assert.isFalse(
-      after.body().data.members.find((member: { userId: string }) => member.userId === editorId)
+      after.body().data.members.find((member: { userId: string }) => member.userId === editorId)!
         .signInConfirmed
     );
   });

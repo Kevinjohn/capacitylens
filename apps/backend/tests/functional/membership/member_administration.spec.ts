@@ -73,13 +73,16 @@ test.group('company member administration', (group) => {
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     });
-    const path = `/api/v1/companies/a-studio/members/${editorId}`;
+    const target = { companyId: 'a-studio', userId: editorId };
     const identity = {
       'x-account-operation-id': 'member-role-command-0001',
       'idempotency-key': 'member-role-idempotency-0001',
     };
-    const requestRole = (role: string) =>
-      signed(client.patch(path), ownerCookie).headers(identity).json({ role }).send();
+    const requestRole = (role: 'admin' | 'viewer') =>
+      signed(client.visit('api.members.update', target), ownerCookie)
+        .headers(identity)
+        .json({ role })
+        .send();
     const changed = await requestRole('admin');
     changed.assertStatus(200);
     assert.deepEqual((changed.body() as { data: unknown }).data, {
@@ -111,7 +114,7 @@ test.group('company member administration', (group) => {
       .from('audit_entries')
       .where({ company_id: 'a-studio', action: 'member.role_changed', entity_id: editorId });
     assert.lengthOf(audits, 1);
-    const unchanged = await signed(client.patch(path), ownerCookie)
+    const unchanged = await signed(client.visit('api.members.update', target), ownerCookie)
       .headers({
         'x-account-operation-id': 'member-role-command-noop-0001',
         'idempotency-key': 'member-role-idempotency-noop-0001',
@@ -163,15 +166,18 @@ test.group('company member administration', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const path = `/api/v1/companies/a-studio/members/${editorId}`;
+    const target = { companyId: 'a-studio', userId: editorId };
     const identity = {
       'x-account-operation-id': 'member-shared-command-0001',
       'idempotency-key': 'member-shared-key-0001',
     };
     const role = () =>
-      signed(client.patch(path), ownerCookie).headers(identity).json({ role: 'admin' }).send();
+      signed(client.visit('api.members.update', target), ownerCookie)
+        .headers(identity)
+        .json({ role: 'admin' })
+        .send();
     const status = () =>
-      signed(client.patch(`${path}/status`), ownerCookie)
+      signed(client.visit('api.member_status.update', target), ownerCookie)
         .headers(identity)
         .json({ status: 'suspended' })
         .send();
@@ -263,21 +269,28 @@ test.group('company member administration', (group) => {
       updated_at: now,
     });
 
-    const memberPath = `/api/v1/companies/a-studio/members/${editorId}`;
+    const target = { companyId: 'a-studio', userId: editorId };
     const requests = [
       {
         name: 'invalid role',
-        send: () => signed(client.patch(memberPath), ownerCookie).json({ role: 'operator' }).send(),
+        send: () =>
+          signed(client.visit('api.members.update', target), ownerCookie)
+            // Deliberately outside the generated body type, to reach the server's refusal.
+            .json({ role: 'operator' } as never)
+            .send(),
       },
       {
         name: 'unknown role field',
         send: () =>
-          signed(client.patch(memberPath), ownerCookie).json({ role: 'admin', extra: true }).send(),
+          signed(client.visit('api.members.update', target), ownerCookie)
+            // Deliberately outside the generated body type, to reach the server's refusal.
+            .json({ role: 'admin', extra: true } as never)
+            .send(),
       },
       {
         name: 'invalid status',
         send: () =>
-          signed(client.patch(`${memberPath}/status`), ownerCookie)
+          signed(client.visit('api.member_status.update', target), ownerCookie)
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ status: 'removed' } as never)
             .send(),
@@ -285,7 +298,7 @@ test.group('company member administration', (group) => {
       {
         name: 'unknown status field',
         send: () =>
-          signed(client.patch(`${memberPath}/status`), ownerCookie)
+          signed(client.visit('api.member_status.update', target), ownerCookie)
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ status: 'suspended', extra: true } as never)
             .send(),

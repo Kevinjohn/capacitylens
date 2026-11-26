@@ -98,8 +98,6 @@ async function send<T extends ApiRequest>(request: T, cookie: string, intent: ob
     .send();
 }
 
-const buildCompanyRoute = (path: string) => `/api/v1/companies/${companyId}/${path}`;
-
 /** A preset colour used by a seeded client that differs from the row's own, so the update is a real
  * change. */
 async function pickOtherColor(table: 'clients' | 'projects', id: string) {
@@ -116,7 +114,7 @@ async function pickOtherColor(table: 'clients' | 'projects', id: string) {
 
 async function archiveAsOwner(fixture: Fixture, intent: object) {
   const archived = await send(
-    fixture.client.post(buildCompanyRoute('planning/mutations')),
+    fixture.client.visit('api.planning_mutations.store', { companyId }),
     fixture.ownerCookie,
     intent
   );
@@ -125,7 +123,10 @@ async function archiveAsOwner(fixture: Fixture, intent: object) {
 
 /** Recolours the marked client under a history, a change every writer may make and undo. */
 async function recolourClient(fixture: Fixture, historyId: string) {
-  return session(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie)
+  return session(
+    fixture.client.visit('api.planning_mutations.store', { companyId }),
+    fixture.cookie
+  )
     .json({
       mutationId: randomUUID(),
       baseRevision: await readRevision(),
@@ -143,7 +144,12 @@ async function recolourClient(fixture: Fixture, historyId: string) {
 }
 
 async function stepHistory(fixture: Fixture, step: 'undo' | 'redo', historyId: string) {
-  return session(fixture.client.post(buildCompanyRoute(`planning/${step}`)), fixture.cookie)
+  return session(
+    fixture.client.visit(step === 'undo' ? 'api.planning_undo.store' : 'api.planning_redo.store', {
+      companyId,
+    }),
+    fixture.cookie
+  )
     .json({ mutationId: randomUUID(), baseRevision: await readRevision(), historyId })
     .send();
 }
@@ -162,13 +168,16 @@ const replies: Record<string, Exposure> = {
     write: false,
     carries: [MARKER_CLIENT, MARKER_PROJECT, MARKER_NOTE],
     call: (fixture) =>
-      session(fixture.client.get(buildCompanyRoute('planning')), fixture.cookie).send(),
+      session(fixture.client.visit('api.planning.show', { companyId }), fixture.cookie).send(),
   },
   'api.planning_archive.show': {
     write: false,
     carries: [MARKER_ARCHIVED_CLIENT],
     call: (fixture) =>
-      session(fixture.client.get(buildCompanyRoute('planning/archive')), fixture.cookie).send(),
+      session(
+        fixture.client.visit('api.planning_archive.show', { companyId }),
+        fixture.cookie
+      ).send(),
   },
   'api.company_exports.show': {
     write: false,
@@ -179,7 +188,10 @@ const replies: Record<string, Exposure> = {
       ...(canReadInactive(testUser.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
     ],
     call: (fixture) =>
-      session(fixture.client.get(buildCompanyRoute('export')), fixture.cookie).send(),
+      session(
+        fixture.client.visit('api.company_exports.show', { companyId }),
+        fixture.cookie
+      ).send(),
   },
   'api.company_state.show': {
     write: false,
@@ -203,7 +215,7 @@ const replies: Record<string, Exposure> = {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) =>
-      send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+      send(fixture.client.visit('api.planning_mutations.store', { companyId }), fixture.cookie, {
         operation: 'catalogue.update',
         entity: {
           entity: 'clients',
@@ -221,17 +233,21 @@ const replies: Record<string, Exposure> = {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.restore',
-        entity,
-      });
+      return send(
+        fixture.client.visit('api.planning_mutations.store', { companyId }),
+        fixture.cookie,
+        {
+          operation: 'catalogue.restore',
+          entity,
+        }
+      );
     },
   },
   'api.planning_mutations.store#catalogue.update projects': {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) =>
-      send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+      send(fixture.client.visit('api.planning_mutations.store', { companyId }), fixture.cookie, {
         operation: 'catalogue.update',
         entity: {
           entity: 'projects',
@@ -249,10 +265,14 @@ const replies: Record<string, Exposure> = {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.restore',
-        entity,
-      });
+      return send(
+        fixture.client.visit('api.planning_mutations.store', { companyId }),
+        fixture.cookie,
+        {
+          operation: 'catalogue.restore',
+          entity,
+        }
+      );
     },
   },
   'api.planning_mutations.store#timeOff.update': {
@@ -261,11 +281,15 @@ const replies: Record<string, Exposure> = {
     call: async (fixture) => {
       const row = await db.from('time_off').where('id', fixture.timeOffId).first();
       const type = row?.type === 'holiday' ? 'sick' : 'holiday';
-      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'timeOff.update',
-        id: fixture.timeOffId,
-        changes: { type },
-      });
+      return send(
+        fixture.client.visit('api.planning_mutations.store', { companyId }),
+        fixture.cookie,
+        {
+          operation: 'timeOff.update',
+          id: fixture.timeOffId,
+          changes: { type },
+        }
+      );
     },
   },
   'api.planning_mutations.store#resource.restore': {
@@ -276,10 +300,14 @@ const replies: Record<string, Exposure> = {
         operation: 'resource.archive',
         id: fixture.resourceId,
       });
-      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'resource.restore',
-        id: fixture.resourceId,
-      });
+      return send(
+        fixture.client.visit('api.planning_mutations.store', { companyId }),
+        fixture.cookie,
+        {
+          operation: 'resource.restore',
+          id: fixture.resourceId,
+        }
+      );
     },
   },
   'api.planning_mutations.store#planning.restoreGroup': {
@@ -287,7 +315,7 @@ const replies: Record<string, Exposure> = {
     carries: [MARKER_NOTE],
     call: async (fixture) => {
       const deleted = await send(
-        fixture.client.post(buildCompanyRoute('planning/mutations')),
+        fixture.client.visit('api.planning_mutations.store', { companyId }),
         fixture.cookie,
         {
           operation: 'timeOff.delete',
@@ -300,10 +328,14 @@ const replies: Record<string, Exposure> = {
             (deleted.body() as { data: { restoration: { replacementGroupId: string } } }).data
               .restoration.replacementGroupId
           : randomUUID();
-      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'planning.restoreGroup',
-        restorationGroupId: groupId,
-      });
+      return send(
+        fixture.client.visit('api.planning_mutations.store', { companyId }),
+        fixture.cookie,
+        {
+          operation: 'planning.restoreGroup',
+          restorationGroupId: groupId,
+        }
+      );
     },
   },
   'api.planning_undo.store': {
@@ -396,24 +428,32 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   });
   await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE });
   const archivedId = randomUUID();
-  const created = await send(client.post(buildCompanyRoute('planning/mutations')), ownerCookie, {
-    operation: 'catalogue.create',
-    entity: {
-      entity: 'clients',
-      id: archivedId,
-      fields: {
-        name: MARKER_ARCHIVED_CLIENT,
-        color: clientRow.color,
-        isPrivate: true,
-        codeName: codeNamesByMarker[MARKER_ARCHIVED_CLIENT],
+  const created = await send(
+    client.visit('api.planning_mutations.store', { companyId }),
+    ownerCookie,
+    {
+      operation: 'catalogue.create',
+      entity: {
+        entity: 'clients',
+        id: archivedId,
+        fields: {
+          name: MARKER_ARCHIVED_CLIENT,
+          color: clientRow.color,
+          isPrivate: true,
+          codeName: codeNamesByMarker[MARKER_ARCHIVED_CLIENT],
+        },
       },
-    },
-  });
+    }
+  );
   created.assertStatus(200);
-  const archived = await send(client.post(buildCompanyRoute('planning/mutations')), ownerCookie, {
-    operation: 'catalogue.archive',
-    entity: { entity: 'clients', id: archivedId },
-  });
+  const archived = await send(
+    client.visit('api.planning_mutations.store', { companyId }),
+    ownerCookie,
+    {
+      operation: 'catalogue.archive',
+      entity: { entity: 'clients', id: archivedId },
+    }
+  );
   archived.assertStatus(200);
   return {
     clientId: clientRow.id,
@@ -433,7 +473,7 @@ async function readContextToken(client: ApiClient, cookie: string) {
 async function startMasqueradeAs(client: ApiClient, viewerCookie: string, targetUserId: string) {
   return session(
     client
-      .post(buildCompanyRoute('masquerade'))
+      .visit('api.masquerade.store', { companyId })
       .header('X-Masquerade-Context', await readContextToken(client, viewerCookie)),
     viewerCookie
   )

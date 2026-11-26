@@ -117,9 +117,9 @@ test.group('member sign-in tracking lifecycle', (group) => {
     assert.isNull(await observation('a-studio', memberId));
     assert.isNull(await observation('a-loft', memberId));
 
-    const trackingPath = (companyId: string) =>
-      `/api/v1/companies/${companyId}/member-sign-in-tracking`;
-    const enableStudio = await signed(client.put(trackingPath('a-studio')), ownerCookie)
+    const tracking = (companyId: string) =>
+      client.visit('api.member_sign_in_tracking.update', { companyId });
+    const enableStudio = await signed(tracking('a-studio'), ownerCookie)
       .json({ enabled: true })
       .send();
     enableStudio.assertStatus(200);
@@ -134,7 +134,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     observedStudio.assertStatus(200);
     assert.isNotNull(await observation('a-studio', memberId));
     assert.isNull(await observation('a-loft', memberId));
-    const repeatedEnable = await signed(client.put(trackingPath('a-studio')), ownerCookie)
+    const repeatedEnable = await signed(tracking('a-studio'), ownerCookie)
       .json({ enabled: true })
       .send();
     repeatedEnable.assertStatus(200);
@@ -145,16 +145,14 @@ test.group('member sign-in tracking lifecycle', (group) => {
     assert.equal(repeatedWindow.created_at, firstWindow.created_at);
     assert.isNotNull(await observation('a-studio', memberId));
 
-    const enableLoft = await signed(client.put(trackingPath('a-loft')), ownerCookie)
-      .json({ enabled: true })
-      .send();
+    const enableLoft = await signed(tracking('a-loft'), ownerCookie).json({ enabled: true }).send();
     enableLoft.assertStatus(200);
     const observedBoth = await signIn();
     observedBoth.assertStatus(200);
     assert.isNotNull(await observation('a-studio', memberId));
     assert.isNotNull(await observation('a-loft', memberId));
 
-    const disableStudio = await signed(client.put(trackingPath('a-studio')), ownerCookie)
+    const disableStudio = await signed(tracking('a-studio'), ownerCookie)
       .json({ enabled: false })
       .send();
     disableStudio.assertStatus(200);
@@ -171,7 +169,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     assert.isNull(await observation('a-studio', memberId));
     assert.isNotNull(await observation('a-loft', memberId));
 
-    const reenabledStudio = await signed(client.put(trackingPath('a-studio')), ownerCookie)
+    const reenabledStudio = await signed(tracking('a-studio'), ownerCookie)
       .json({ enabled: true })
       .send();
     reenabledStudio.assertStatus(200);

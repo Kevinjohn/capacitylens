@@ -206,18 +206,23 @@ test.group('data routes', (group) => {
   }) => {
     const dataOwner = await reset(client, true);
     client = dataOwner.client;
-    const route = '/api/v1/companies/a-studio/getting-started';
-    const before = await client.get(route).send();
+    const params = { companyId: 'a-studio' };
+    const before = await client.visit('api.getting_started.show', params).send();
     before.assertBodyContains({ data: { dismissed: false } });
-    const written = await trusted(client.put(route)).json({ dismissed: true }).send();
+    const written = await trusted(client.visit('api.getting_started.update', params))
+      .json({ dismissed: true })
+      .send();
     assert.equal(written.status(), 200, JSON.stringify(written.body().data));
-    const shared = await client.get(route).send();
+    const shared = await client.visit('api.getting_started.show', params).send();
     const other = await client.visit('api.getting_started.show', { companyId: 'a-loft' }).send();
     assert.equal(shared.body().data.dismissed, true);
     assert.equal(other.body().data.dismissed, false);
-    const reverse = await trusted(client.put(route)).json({ dismissed: false }).send();
+    const reverse = await trusted(client.visit('api.getting_started.update', params))
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({ dismissed: false } as never)
+      .send();
     reverse.assertStatus(422);
-    const stillDismissed = await client.get(route).send();
+    const stillDismissed = await client.visit('api.getting_started.show', params).send();
     assert.equal(stillDismissed.body().data.dismissed, true);
   });
 
@@ -275,16 +280,20 @@ test.group('data routes', (group) => {
   }) => {
     const dataOwner = await reset(client, true);
     client = dataOwner.client;
-    const route = '/api/v1/companies/a-studio/getting-started';
-    const extraFields = await trusted(client.put(route))
-      .json({ dismissed: true, extra: 'value' })
+    const params = { companyId: 'a-studio' };
+    const extraFields = await trusted(client.visit('api.getting_started.update', params))
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({ dismissed: true, extra: 'value' } as never)
       .send();
     extraFields.assertStatus(200);
-    const saved = await client.get(route).send();
+    const saved = await client.visit('api.getting_started.show', params).send();
     assert.equal(saved.body().data.dismissed, true);
-    const invalid = await trusted(client.put(route)).json({ dismissed: null }).send();
+    const invalid = await trusted(client.visit('api.getting_started.update', params))
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({ dismissed: null } as never)
+      .send();
     invalid.assertStatus(422);
-    const stillDismissed = await client.get(route).send();
+    const stillDismissed = await client.visit('api.getting_started.show', params).send();
     assert.equal(stillDismissed.body().data.dismissed, true);
     const missing = await client.visit('api.getting_started.show', { companyId: 'unknown' }).send();
     missing.assertStatus(403);
@@ -306,12 +315,12 @@ test.group('data routes', (group) => {
       { ...person, id: 'r-example-other', companyId: otherCompanyId, disciplineId: null },
     ]);
     const otherBefore = await readState(otherCompanyId, true);
-    const route = '/api/v1/companies/a-example/example-data';
-    const first = await trusted(client.post(route)).json({}).send();
+    const params = { companyId: 'a-example' };
+    const first = await trusted(client.visit('api.example_data.store', params)).json({}).send();
     assert.equal(first.status(), 201, JSON.stringify(first.body().data));
     assert.isAbove((first.body().data as { added: number }).added, 0);
     assert.deepEqual(await readState(otherCompanyId, true), otherBefore);
-    const second = await trusted(client.post(route)).json({}).send();
+    const second = await trusted(client.visit('api.example_data.store', params)).json({}).send();
     second.assertStatus(409);
     const audit = await db
       .from('audit_entries')

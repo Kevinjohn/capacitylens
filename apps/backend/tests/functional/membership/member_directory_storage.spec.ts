@@ -106,14 +106,13 @@ async function createFixture(client: Parameters<typeof signUpAndIn>[0]) {
 
 interface OwnerGetInput {
   client: Parameters<typeof signUpAndIn>[0];
-  path: string;
   ownerCookie: string;
   masqueradeToken: string;
 }
 
-function ownerGet({ client, path, ownerCookie, masqueradeToken }: OwnerGetInput) {
+function ownerGet({ client, ownerCookie, masqueradeToken }: OwnerGetInput) {
   return client
-    .get(path)
+    .visit('api.members.index', { companyId })
     .setup((prepared) => {
       prepared.withCookie('adonis-session', ownerCookie);
     })
@@ -159,8 +158,7 @@ test.group('member directory malformed storage', (group) => {
     assert,
   }) => {
     const { ownerCookie, ownerId, memberId, masqueradeToken } = await createFixture(client);
-    const path = `/api/v1/companies/${companyId}/members`;
-    const baseline = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
+    const baseline = await ownerGet({ client, ownerCookie, masqueradeToken }).send();
     baseline.assertStatus(200);
     assert.deepInclude(
       readDirectoryMemberEntry((baseline.body() as { data: unknown }).data, memberId),
@@ -185,7 +183,7 @@ test.group('member directory malformed storage', (group) => {
         new RegExp('^' + corruption.checkMessage.replace('.', '\\.') + '$'),
         `${corruption.label} must reach its own service check`
       );
-      const failed = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
+      const failed = await ownerGet({ client, ownerCookie, masqueradeToken }).send();
       failed.assertStatus(500);
       assert.deepEqual(failed.body(), { error: 'Internal server error.' });
       assert.notInclude(JSON.stringify(failed.body()), corruption.invalidValue);
@@ -202,7 +200,7 @@ test.group('member directory malformed storage', (group) => {
           .where({ scope_id: companyId, user_id: memberId })
           .update({ [corruption.column]: corruption.validValue });
       });
-      const restored = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
+      const restored = await ownerGet({ client, ownerCookie, masqueradeToken }).send();
       restored.assertStatus(200);
       assert.deepInclude(
         readDirectoryMemberEntry((restored.body() as { data: unknown }).data, memberId),
@@ -234,8 +232,7 @@ test.group('member directory malformed storage', (group) => {
       });
     });
 
-    const path = `/api/v1/companies/${companyId}/members`;
-    const isolated = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
+    const isolated = await ownerGet({ client, ownerCookie, masqueradeToken }).send();
     isolated.assertStatus(200);
     assert.notInclude(JSON.stringify((isolated.body() as { data: unknown }).data), foreignMemberId);
     assert.notInclude(
