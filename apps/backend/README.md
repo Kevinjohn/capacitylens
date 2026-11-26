@@ -3,7 +3,7 @@
 ## What it is
 
 The CapacityLens server: an AdonisJS application with Lucid over SQLite. It serves the JSON API
-under `/api`, serves the single-page app built from `apps/frontend/`, and runs the operator
+under `/api/v1`, serves the single-page app built from `apps/frontend/`, and runs the operator
 commands.
 
 ## Running it

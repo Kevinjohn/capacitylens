@@ -5,7 +5,7 @@ import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
 import { companyId, newAllocation, session } from '#tests/functional/planning/helpers';
 
-export const mutationsUrl = `/api/companies/${companyId}/planning/mutations`;
+export const mutationsUrl = `/api/v1/companies/${companyId}/planning/mutations`;
 export const note = 'Gotham night shift briefing';
 
 export interface Reply {
@@ -79,7 +79,7 @@ export const restore = (
   send(
     client,
     cookie,
-    `/api/companies/${company}/planning/mutations`,
+    `/api/v1/companies/${company}/planning/mutations`,
     baseRevision,
     { operation: 'planning.restoreGroup', restorationGroupId },
     mutationId

@@ -46,11 +46,11 @@ describe('AuthProvider — server mode', () => {
     expect(call).toBeDefined();
     if (!call) throw new Error('Expected the auth status request');
     const [request, init] = call;
-    expect(request).toBe('/api/auth/me');
+    expect(request).toBe('/api/v1/auth/me');
     expect(init?.credentials).toBe('include');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
-  it('rejects a body without a user from a credentialed /api/auth/me check', async () => {
+  it('rejects a body without a user from a credentialed /api/v1/auth/me check', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
@@ -71,7 +71,7 @@ describe('AuthProvider — server mode', () => {
     expect(call).toBeDefined();
     if (!call) throw new Error('Expected the auth status request');
     const [request, init] = call;
-    expect(request).toBe('/api/auth/me');
+    expect(request).toBe('/api/v1/auth/me');
     expect(init?.credentials).toBe('include');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });

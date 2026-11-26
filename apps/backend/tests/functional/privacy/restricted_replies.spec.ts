@@ -98,7 +98,7 @@ async function send<T extends ApiRequest>(request: T, cookie: string, intent: ob
     .send();
 }
 
-const buildCompanyRoute = (path: string) => `/api/companies/${companyId}/${path}`;
+const buildCompanyRoute = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 
 /** A preset colour used by a seeded client that differs from the row's own, so the update is a real
  * change. */

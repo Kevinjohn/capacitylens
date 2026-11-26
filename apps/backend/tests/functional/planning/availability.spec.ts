@@ -12,7 +12,7 @@ import {
   validationSentence,
 } from '#tests/functional/planning/helpers';
 
-const route = (path: string) => `/api/companies/${companyId}/${path}`;
+const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,

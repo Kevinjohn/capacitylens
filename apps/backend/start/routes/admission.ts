@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router';
+import { apiPrefix } from '#start/api';
 import { throttle } from '#start/limiter';
 import {
   asCompanyMember,
@@ -66,6 +67,6 @@ router
       .prefix('/companies/:companyId/members/:userId/resource-link')
       .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
   })
-  .prefix('/api')
+  .prefix(apiPrefix)
   .as('api')
   .use(throttle);

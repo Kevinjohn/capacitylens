@@ -119,7 +119,7 @@ function context(error: unknown, routeName?: string) {
           throw error;
         },
       },
-      route: { pattern: '/api/companies/:companyId/resources', name: routeName },
+      route: { pattern: '/api/v1/companies/:companyId/resources', name: routeName },
     } as unknown as HttpContext,
   };
 }
@@ -804,7 +804,7 @@ test.group('product error adapters', () => {
     assert.deepEqual(fields, {
       event: 'http.request.error',
       method: 'POST',
-      path: '/api/companies/:companyId/resources',
+      path: '/api/v1/companies/:companyId/resources',
     });
     assert.include(serializeErr(err), { errorType: 'database_constraint', status: 500 });
     const serialized = JSON.stringify([diagnostics[0]!.message, fields, serializeErr(err)]);

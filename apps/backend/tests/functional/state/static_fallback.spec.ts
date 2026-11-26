@@ -46,7 +46,7 @@ test.group('static fallback', (group) => {
       assert.notInclude(response.text(), '<!doctype html>');
     }
     client = await resetAuthenticatedClient(client, true);
-    const api = await client.get('/api/does-not-exist');
+    const api = await client.get('/api/v1/does-not-exist');
     assert.equal(api.status(), 404);
     assert.deepEqual(api.body(), { error: 'Not found' });
   });

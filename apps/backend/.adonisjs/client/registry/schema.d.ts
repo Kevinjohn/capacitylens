@@ -10,7 +10,7 @@ export type ParamValue = string | number | bigint | boolean
 export interface Registry {
   'api.liveness': {
     methods: ["GET","HEAD"]
-    pattern: '/api/health'
+    pattern: '/api/v1/health'
     types: {
       body: {}
       paramsTuple: []
@@ -49,7 +49,7 @@ export interface Registry {
   }
   'api.planning.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/planning'
+    pattern: '/api/v1/companies/:companyId/planning'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -62,7 +62,7 @@ export interface Registry {
   }
   'api.planning_archive.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/planning/archive'
+    pattern: '/api/v1/companies/:companyId/planning/archive'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -75,7 +75,7 @@ export interface Registry {
   }
   'api.planning_mutations.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/planning/mutations'
+    pattern: '/api/v1/companies/:companyId/planning/mutations'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/planning').planningMutationValidator)>>
       paramsTuple: [ParamValue]
@@ -88,7 +88,7 @@ export interface Registry {
   }
   'api.planning_undo.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/planning/undo'
+    pattern: '/api/v1/companies/:companyId/planning/undo'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/planning').planningHistoryStepValidator)>>
       paramsTuple: [ParamValue]
@@ -101,7 +101,7 @@ export interface Registry {
   }
   'api.planning_redo.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/planning/redo'
+    pattern: '/api/v1/companies/:companyId/planning/redo'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/planning').planningHistoryStepValidator)>>
       paramsTuple: [ParamValue]
@@ -114,7 +114,7 @@ export interface Registry {
   }
   'api.first_company_setup.store': {
     methods: ["POST"]
-    pattern: '/api/installation/company'
+    pattern: '/api/v1/installation/company'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/first_company_setup').createFirstCompanyValidator)>>
       paramsTuple: []
@@ -127,7 +127,7 @@ export interface Registry {
   }
   'api.companies.index': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies'
+    pattern: '/api/v1/companies'
     types: {
       body: {}
       paramsTuple: []
@@ -140,7 +140,7 @@ export interface Registry {
   }
   'api.import_previews.store': {
     methods: ["POST"]
-    pattern: '/api/import/preview'
+    pattern: '/api/v1/import/preview'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/import').previewImportValidator)>>
       paramsTuple: []
@@ -153,7 +153,7 @@ export interface Registry {
   }
   'api.imports.store': {
     methods: ["POST"]
-    pattern: '/api/import/apply'
+    pattern: '/api/v1/import/apply'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/import').applyImportValidator)>>
       paramsTuple: []
@@ -166,7 +166,7 @@ export interface Registry {
   }
   'api.company_state.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/state'
+    pattern: '/api/v1/state'
     types: {
       body: {}
       paramsTuple: []
@@ -179,7 +179,7 @@ export interface Registry {
   }
   'api.company_exports.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/export'
+    pattern: '/api/v1/companies/:companyId/export'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -192,7 +192,7 @@ export interface Registry {
   }
   'api.company_anonymisations.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/anonymise'
+    pattern: '/api/v1/companies/:companyId/anonymise'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/anonymise').anonymiseCompanyValidator)>>
       paramsTuple: [ParamValue]
@@ -205,7 +205,7 @@ export interface Registry {
   }
   'api.resource_anonymisations.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/resources/:id/anonymise'
+    pattern: '/api/v1/companies/:companyId/resources/:id/anonymise'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/anonymise').anonymiseResourceValidator)>>
       paramsTuple: [ParamValue, ParamValue]
@@ -218,7 +218,7 @@ export interface Registry {
   }
   'api.example_data.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/example-data'
+    pattern: '/api/v1/companies/:companyId/example-data'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/example_data').createExampleDataValidator)>>
       paramsTuple: [ParamValue]
@@ -231,7 +231,7 @@ export interface Registry {
   }
   'api.getting_started.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/getting-started'
+    pattern: '/api/v1/companies/:companyId/getting-started'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -244,7 +244,7 @@ export interface Registry {
   }
   'api.getting_started.update': {
     methods: ["PUT"]
-    pattern: '/api/companies/:companyId/getting-started'
+    pattern: '/api/v1/companies/:companyId/getting-started'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/getting_started').updateGettingStartedValidator)>>
       paramsTuple: [ParamValue]
@@ -257,7 +257,7 @@ export interface Registry {
   }
   'api.session.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/auth/me'
+    pattern: '/api/v1/auth/me'
     types: {
       body: {}
       paramsTuple: []
@@ -270,7 +270,7 @@ export interface Registry {
   }
   'api.new_account.store': {
     methods: ["POST"]
-    pattern: '/api/auth/sign-up'
+    pattern: '/api/v1/auth/sign-up'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/auth_requests').signUpValidator)>>
       paramsTuple: []
@@ -283,7 +283,7 @@ export interface Registry {
   }
   'api.session.store': {
     methods: ["POST"]
-    pattern: '/api/auth/sign-in'
+    pattern: '/api/v1/auth/sign-in'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/auth_requests').signInValidator)>>
       paramsTuple: []
@@ -296,7 +296,7 @@ export interface Registry {
   }
   'api.password_confirmations.store': {
     methods: ["POST"]
-    pattern: '/api/auth/password-confirmation'
+    pattern: '/api/v1/auth/password-confirmation'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/password_confirmations').confirmPasswordValidator)>>
       paramsTuple: []
@@ -309,7 +309,7 @@ export interface Registry {
   }
   'api.password_reset_requests.store': {
     methods: ["POST"]
-    pattern: '/api/auth/request-reset'
+    pattern: '/api/v1/auth/request-reset'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/credentials').requestResetValidator)>>
       paramsTuple: []
@@ -322,7 +322,7 @@ export interface Registry {
   }
   'api.password_resets.show': {
     methods: ["POST"]
-    pattern: '/api/auth/inspect-reset'
+    pattern: '/api/v1/auth/inspect-reset'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/credentials').inspectResetValidator)>>
       paramsTuple: []
@@ -335,7 +335,7 @@ export interface Registry {
   }
   'api.password_resets.update': {
     methods: ["POST"]
-    pattern: '/api/auth/reset-password'
+    pattern: '/api/v1/auth/reset-password'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/credentials').resetPasswordValidator)>>
       paramsTuple: []
@@ -348,7 +348,7 @@ export interface Registry {
   }
   'api.password.update': {
     methods: ["POST"]
-    pattern: '/api/auth/change-password'
+    pattern: '/api/v1/auth/change-password'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/credentials').changePasswordValidator)>>
       paramsTuple: []
@@ -361,7 +361,7 @@ export interface Registry {
   }
   'api.account.destroy': {
     methods: ["POST"]
-    pattern: '/api/auth/delete-account'
+    pattern: '/api/v1/auth/delete-account'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/credentials').deleteAccountValidator)>>
       paramsTuple: []
@@ -374,7 +374,7 @@ export interface Registry {
   }
   'api.email_verification_requests.store': {
     methods: ["POST"]
-    pattern: '/api/auth/verification/send'
+    pattern: '/api/v1/auth/verification/send'
     types: {
       body: {}
       paramsTuple: []
@@ -387,7 +387,7 @@ export interface Registry {
   }
   'api.email_verifications.show': {
     methods: ["POST"]
-    pattern: '/api/auth/verification/inspect'
+    pattern: '/api/v1/auth/verification/inspect'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/verification').inspectVerificationValidator)>>
       paramsTuple: []
@@ -400,7 +400,7 @@ export interface Registry {
   }
   'api.email_verifications.update': {
     methods: ["POST"]
-    pattern: '/api/auth/verification/complete'
+    pattern: '/api/v1/auth/verification/complete'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/verification').completeVerificationValidator)>>
       paramsTuple: []
@@ -413,7 +413,7 @@ export interface Registry {
   }
   'api.session.destroy': {
     methods: ["POST"]
-    pattern: '/api/auth/sign-out'
+    pattern: '/api/v1/auth/sign-out'
     types: {
       body: {}
       paramsTuple: []
@@ -426,7 +426,7 @@ export interface Registry {
   }
   'api.members.index': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/members'
+    pattern: '/api/v1/companies/:companyId/members'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -439,7 +439,7 @@ export interface Registry {
   }
   'api.member_sign_in_tracking.update': {
     methods: ["PUT"]
-    pattern: '/api/companies/:companyId/member-sign-in-tracking'
+    pattern: '/api/v1/companies/:companyId/member-sign-in-tracking'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/members').updateMemberTrackingValidator)>>
       paramsTuple: [ParamValue]
@@ -452,7 +452,7 @@ export interface Registry {
   }
   'api.members.update': {
     methods: ["PATCH"]
-    pattern: '/api/companies/:companyId/members/:userId'
+    pattern: '/api/v1/companies/:companyId/members/:userId'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/members').changeRoleValidator)>>
       paramsTuple: [ParamValue, ParamValue]
@@ -465,7 +465,7 @@ export interface Registry {
   }
   'api.member_status.update': {
     methods: ["PATCH"]
-    pattern: '/api/companies/:companyId/members/:userId/status'
+    pattern: '/api/v1/companies/:companyId/members/:userId/status'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/members').changeStatusValidator)>>
       paramsTuple: [ParamValue, ParamValue]
@@ -478,7 +478,7 @@ export interface Registry {
   }
   'api.invitations.store': {
     methods: ["POST"]
-    pattern: '/api/invitations'
+    pattern: '/api/v1/invitations'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').createInvitationValidator)>>
       paramsTuple: []
@@ -491,7 +491,7 @@ export interface Registry {
   }
   'api.invitations.index': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/invitations'
+    pattern: '/api/v1/companies/:companyId/invitations'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -504,7 +504,7 @@ export interface Registry {
   }
   'api.invitation_deliveries.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/invitations/:id/resend'
+    pattern: '/api/v1/companies/:companyId/invitations/:id/resend'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').resendInvitationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
@@ -517,7 +517,7 @@ export interface Registry {
   }
   'api.invitations.destroy': {
     methods: ["DELETE"]
-    pattern: '/api/companies/:companyId/invitations/:id'
+    pattern: '/api/v1/companies/:companyId/invitations/:id'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').revokeInvitationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
@@ -530,7 +530,7 @@ export interface Registry {
   }
   'api.invitation_links.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/invitations/:token/preview'
+    pattern: '/api/v1/invitations/:token/preview'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -543,7 +543,7 @@ export interface Registry {
   }
   'api.invitation_acceptances.store': {
     methods: ["POST"]
-    pattern: '/api/invitations/:token/sign-up'
+    pattern: '/api/v1/invitations/:token/sign-up'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').acceptInvitationSignUpValidator)>>
       paramsTuple: [ParamValue]
@@ -556,7 +556,7 @@ export interface Registry {
   }
   'api.admission.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/admission'
+    pattern: '/api/v1/admission'
     types: {
       body: {}
       paramsTuple: []
@@ -569,7 +569,7 @@ export interface Registry {
   }
   'api.admission_requests.store': {
     methods: ["POST"]
-    pattern: '/api/admission/request'
+    pattern: '/api/v1/admission/request'
     types: {
       body: {}
       paramsTuple: []
@@ -582,7 +582,7 @@ export interface Registry {
   }
   'api.admission_requests.index': {
     methods: ["GET","HEAD"]
-    pattern: '/api/admission/requests'
+    pattern: '/api/v1/admission/requests'
     types: {
       body: {}
       paramsTuple: []
@@ -595,7 +595,7 @@ export interface Registry {
   }
   'api.admission_approvals.store': {
     methods: ["POST"]
-    pattern: '/api/admission/:userId/approve'
+    pattern: '/api/v1/admission/:userId/approve'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       paramsTuple: [ParamValue]
@@ -608,7 +608,7 @@ export interface Registry {
   }
   'api.admission_rejections.store': {
     methods: ["POST"]
-    pattern: '/api/admission/:userId/reject'
+    pattern: '/api/v1/admission/:userId/reject'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       paramsTuple: [ParamValue]
@@ -621,7 +621,7 @@ export interface Registry {
   }
   'api.admission_revocations.store': {
     methods: ["POST"]
-    pattern: '/api/admission/:userId/revoke'
+    pattern: '/api/v1/admission/:userId/revoke'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/admission_query').decideAdmissionValidator)>>
       paramsTuple: [ParamValue]
@@ -634,7 +634,7 @@ export interface Registry {
   }
   'api.memberships.store': {
     methods: ["POST"]
-    pattern: '/api/admission/complete'
+    pattern: '/api/v1/admission/complete'
     types: {
       body: {}
       paramsTuple: []
@@ -647,7 +647,7 @@ export interface Registry {
   }
   'api.member_resource_links.update': {
     methods: ["PUT"]
-    pattern: '/api/companies/:companyId/members/:userId/resource-link'
+    pattern: '/api/v1/companies/:companyId/members/:userId/resource-link'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/member_resources').setLinkValidator)>>
       paramsTuple: [ParamValue, ParamValue]
@@ -660,7 +660,7 @@ export interface Registry {
   }
   'api.member_resource_links.destroy': {
     methods: ["DELETE"]
-    pattern: '/api/companies/:companyId/members/:userId/resource-link'
+    pattern: '/api/v1/companies/:companyId/members/:userId/resource-link'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/member_resources').clearLinkValidator)>>
       paramsTuple: [ParamValue, ParamValue]
@@ -673,7 +673,7 @@ export interface Registry {
   }
   'api.masquerade.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/masquerade'
+    pattern: '/api/v1/companies/:companyId/masquerade'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/masquerade').startMasqueradeValidator)>>
       paramsTuple: [ParamValue]
@@ -686,7 +686,7 @@ export interface Registry {
   }
   'api.masquerade.destroy': {
     methods: ["DELETE"]
-    pattern: '/api/masquerade'
+    pattern: '/api/v1/masquerade'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/masquerade').endMasqueradeValidator)>>
       paramsTuple: []
@@ -699,7 +699,7 @@ export interface Registry {
   }
   'api.masquerade.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/masquerade'
+    pattern: '/api/v1/masquerade'
     types: {
       body: {}
       paramsTuple: []
@@ -712,7 +712,7 @@ export interface Registry {
   }
   'api.ownership_transfers.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/ownership-transfer'
+    pattern: '/api/v1/companies/:companyId/ownership-transfer'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/ownership').transferOwnershipValidator)>>
       paramsTuple: [ParamValue]
@@ -725,7 +725,7 @@ export interface Registry {
   }
   'api.diagnostics.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/diagnostics'
+    pattern: '/api/v1/diagnostics'
     types: {
       body: {}
       paramsTuple: []
@@ -738,7 +738,7 @@ export interface Registry {
   }
   'api.not_found': {
     methods: ["GET","HEAD"]
-    pattern: '/api/*'
+    pattern: '/api/v1/*'
     types: {
       body: {}
       paramsTuple: [ParamValue]

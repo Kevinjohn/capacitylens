@@ -84,17 +84,17 @@ test('both E2E server flavours require sign-in and expose no installation reset 
     child.stderr?.on('data', capture);
     try {
       await waitForReadiness(child, `http://127.0.0.1:${port}/health/ready`, flavour, () => output);
-      const resetUrl = `http://127.0.0.1:${port}/api/test/reset`;
+      const resetUrl = `http://127.0.0.1:${port}/api/v1/test/reset`;
       {
         const anonymousReset = await fetch(resetUrl, {
           method: 'POST',
           headers: { 'sec-fetch-site': 'same-origin' },
         });
         assert.equal(anonymousReset.status, 404, 'no reset route answers unauthenticated callers');
-        const anonymousState = await fetch(`http://127.0.0.1:${port}/api/state`);
+        const anonymousState = await fetch(`http://127.0.0.1:${port}/api/v1/state`);
         assert.equal(anonymousState.status, 401, 'persistent state requires sign-in');
 
-        const signedIn = await fetch(`http://127.0.0.1:${port}/api/auth/sign-in`, {
+        const signedIn = await fetch(`http://127.0.0.1:${port}/api/v1/auth/sign-in`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({
@@ -113,7 +113,7 @@ test('both E2E server flavours require sign-in and expose no installation reset 
           .join('; ');
         assert.isNotEmpty(cookie, 'password sign-in creates a native session cookie');
 
-        const contextResponse = await fetch(`http://127.0.0.1:${port}/api/masquerade`, {
+        const contextResponse = await fetch(`http://127.0.0.1:${port}/api/v1/masquerade`, {
           headers: { cookie, 'sec-fetch-site': 'same-origin' },
         });
         assert.equal(contextResponse.status, 200, 'signed-in requests resolve their context');
@@ -122,7 +122,7 @@ test('both E2E server flavours require sign-in and expose no installation reset 
         };
         assert.isString(context.masqueradeToken, 'signed-in requests receive a masquerade token');
 
-        const session = await fetch(`http://127.0.0.1:${port}/api/auth/me`, {
+        const session = await fetch(`http://127.0.0.1:${port}/api/v1/auth/me`, {
           headers: { cookie },
         });
         assert.equal(

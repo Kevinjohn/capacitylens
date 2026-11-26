@@ -28,7 +28,7 @@ test.group('typed company calendar settings', (group) => {
       ['weekStartsOn', 0, 1],
       ['timezone', 'Europe/London', 'UTC'],
     ] as const) {
-      const path = `/api/companies/${companyId}/planning/mutations`;
+      const path = `/api/v1/companies/${companyId}/planning/mutations`;
       const first = await session(client.post(path), cookie)
         .json({
           mutationId: randomUUID(),

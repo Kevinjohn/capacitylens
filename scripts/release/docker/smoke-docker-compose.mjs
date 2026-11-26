@@ -23,7 +23,7 @@ function cookiesOf(response) {
 }
 
 async function signIn() {
-  const response = await fetch(`${baseUrl}/api/auth/sign-in`, {
+  const response = await fetch(`${baseUrl}/api/v1/auth/sign-in`, {
     method: 'POST',
     headers: json,
     body: JSON.stringify(credentials),
@@ -48,7 +48,7 @@ const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
 assert.ok(setupLink, 'The bootstrap command printed no setup link.');
 const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
 
-const signUp = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
+const signUp = await fetch(`${baseUrl}/api/v1/invitations/${setupToken}/sign-up`, {
   method: 'POST',
   headers: json,
   body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
@@ -56,12 +56,12 @@ const signUp = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
 assert.equal(signUp.status, 201, 'First-identity setup failed');
 
 let cookie = await signIn();
-const mode = await fetch(`${baseUrl}/api/masquerade`, { headers: { cookie } });
+const mode = await fetch(`${baseUrl}/api/v1/masquerade`, { headers: { cookie } });
 assert.equal(mode.status, 200, 'Session context lookup failed');
 const { masqueradeToken } = (await mode.json()).data;
 assert.equal(typeof masqueradeToken, 'string', 'Session masquerade token is missing');
 assert.ok(masqueradeToken, 'Session masquerade token is empty');
-const company = await fetch(`${baseUrl}/api/installation/company`, {
+const company = await fetch(`${baseUrl}/api/v1/installation/company`, {
   method: 'POST',
   headers: { ...json, cookie, 'X-Masquerade-Context': masqueradeToken },
   body: JSON.stringify({ name: 'Wayne Enterprises' }),
@@ -81,7 +81,7 @@ const recreated = compose(
 assert.equal(recreated.status, 0, recreated.output);
 
 cookie = await signIn();
-const companiesResponse = await fetch(`${baseUrl}/api/companies`, { headers: { cookie } });
+const companiesResponse = await fetch(`${baseUrl}/api/v1/companies`, { headers: { cookie } });
 assert.equal(companiesResponse.status, 200);
 const companies = (await companiesResponse.json()).data;
 assert.ok(
@@ -90,7 +90,7 @@ assert.ok(
 );
 // Each forwarded client keeps its own sign-in budget behind the packaged nginx.
 const failedSignIn = (client, email) =>
-  fetch(`${baseUrl}/api/auth/sign-in`, {
+  fetch(`${baseUrl}/api/v1/auth/sign-in`, {
     method: 'POST',
     headers: { ...json, 'x-forwarded-for': client },
     body: JSON.stringify({ email, password: 'wrong-docker-smoke-password' }),

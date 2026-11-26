@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router';
+import { apiPrefix } from '#start/api';
 import { throttle } from '#start/limiter';
 import { asOwnAccount } from '#start/route_middleware';
 import { controllers } from '#generated/controllers';
@@ -31,6 +32,6 @@ router
       })
       .prefix('/auth');
   })
-  .prefix('/api')
+  .prefix(apiPrefix)
   .as('api')
   .use(throttle);

@@ -63,7 +63,7 @@ async function signIn(page: Page, email: string): Promise<void> {
 }
 
 async function planningSnapshot(request: APIRequestContext, cookie: string, companyId: string) {
-  const response = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
+  const response = await request.get(`${AUTH_API}/api/v1/companies/${companyId}/planning`, {
     headers: { cookie },
   });
   expect(response.status(), 'the authenticated planning read should succeed').toBe(200);
@@ -201,7 +201,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
   // until acknowledgement; then the dropped response ends in a canonical read.
   const committedAtServer = deferred<{ status: number; body: unknown }>();
   const releaseResponse = deferred<void>();
-  const updatePath = `**/api/companies/${companyId}/planning/mutations`;
+  const updatePath = `**/api/v1/companies/${companyId}/planning/mutations`;
   await page.route(updatePath, async (route) => {
     if (!isPlanningMutation(route.request(), 'allocation.update')) return route.fallback();
     const response = await route.fetch();
@@ -445,7 +445,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
 
   // A request lost before dispatch committed nothing. The browser shows the server's state, asks the
   // person to check, and never resends; a deliberate retry is a new change with a new identity.
-  const unknownRoute = `**/api/companies/${companyId}/planning/mutations`;
+  const unknownRoute = `**/api/v1/companies/${companyId}/planning/mutations`;
   await page.route(unknownRoute, async (route) =>
     isPlanningMutation(route.request(), 'allocation.update')
       ? route.abort('failed')

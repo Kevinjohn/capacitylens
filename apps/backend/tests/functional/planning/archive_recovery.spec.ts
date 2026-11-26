@@ -19,7 +19,7 @@ import {
 } from '#tests/functional/planning/helpers';
 
 const route = (path: string, targetCompanyId = companyId) =>
-  `/api/companies/${targetCompanyId}/${path}`;
+  `/api/v1/companies/${targetCompanyId}/${path}`;
 const archiveUrl = route('planning/archive');
 const stamp = '2026-10-01T00:00:00.000Z';
 const privateClientName = 'Wayne Archive Client';

@@ -43,7 +43,7 @@ export function checkOrdinaryRequestContracts() {
     query: { companyId: 'a-studio', status: 'pending' },
   });
   // @ts-expect-error Sign-in is a generated POST route, never GET.
-  client.get('/api/auth/sign-in', {});
+  client.get('/api/v1/auth/sign-in', {});
   return {
     signIn,
     signUp,

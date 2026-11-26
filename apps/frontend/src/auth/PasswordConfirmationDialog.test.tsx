@@ -8,7 +8,7 @@ import type { PasswordConfirmationRequest } from './PasswordConfirmationDialog';
 const request = vi.hoisted(() => vi.fn());
 
 vi.mock('@/api/queryClient', () => ({
-  buildApiRouteUrl: () => '/api/auth/password-confirmation',
+  buildApiRouteUrl: () => '/api/v1/auth/password-confirmation',
   buildJsonBody: (_name: string, body: unknown) => JSON.stringify(body),
 }));
 vi.mock('@/data/requestTimeout', () => ({ fetchApi: (...args: unknown[]) => request(...args) }));

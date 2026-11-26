@@ -125,7 +125,7 @@ async function dragByOneDay(page: Page, target: Locator, xOffset: number) {
 }
 
 async function persistedAllocations(request: APIRequestContext, cookie: string, companyId: string) {
-  const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
+  const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
     headers: { cookie },
     maxRetries: 1,
   });
@@ -158,17 +158,17 @@ function recorded(request: Request): RecordedRequest {
 }
 
 function isPlanningRead(companyId: string, method: string, url: string) {
-  return method === 'GET' && new URL(url).pathname === `/api/companies/${companyId}/planning`;
+  return method === 'GET' && new URL(url).pathname === `/api/v1/companies/${companyId}/planning`;
 }
 
 // Typed allocation writes and the server's undo and redo steps; the canonical GET is excluded.
 function isTypedAllocationWrite(companyId: string, { method, path, operation }: RecordedRequest) {
   return (
     method !== 'GET' &&
-    ((path === `/api/companies/${companyId}/planning/mutations` &&
+    ((path === `/api/v1/companies/${companyId}/planning/mutations` &&
       operation?.startsWith('allocation.') === true) ||
-      path === `/api/companies/${companyId}/planning/undo` ||
-      path === `/api/companies/${companyId}/planning/redo`)
+      path === `/api/v1/companies/${companyId}/planning/undo` ||
+      path === `/api/v1/companies/${companyId}/planning/redo`)
   );
 }
 
@@ -207,7 +207,7 @@ async function expectOneTypedWrite(
   await persisted();
   const sent = requests.slice(start);
   expect(sent.filter((request) => isTypedAllocationWrite(companyId, request))).toHaveLength(1);
-  expect(sent.filter(({ path }) => path === '/api/batch')).toEqual([]);
+  expect(sent.filter(({ path }) => path === '/api/v1/batch')).toEqual([]);
 }
 
 /** Applies one gesture, then Undo and Redo, each as one typed write with the expected stored projection. */
@@ -456,22 +456,25 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // The owner cookie belongs to a separate HTTP session from the browser's sign-in session.
-  const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
+  const planning = await request.get(`${AUTH_API}/api/v1/companies/${companyId}/planning`, {
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
   const { revision } = ((await planning.json()) as { data: { revision: number } }).data;
-  const deletion = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
-    headers: {
-      ...(await masqueradeTokenHeaders(request, owner.cookie)),
-      'content-type': 'application/json',
+  const deletion = await request.post(
+    `${AUTH_API}/api/v1/companies/${companyId}/planning/mutations`,
+    {
+      headers: {
+        ...(await masqueradeTokenHeaders(request, owner.cookie)),
+        'content-type': 'application/json',
+      },
+      data: {
+        mutationId: crypto.randomUUID(),
+        baseRevision: revision,
+        intent: { operation: 'allocation.delete', id: allocationId },
+      },
     },
-    data: {
-      mutationId: crypto.randomUUID(),
-      baseRevision: revision,
-      intent: { operation: 'allocation.delete', id: allocationId },
-    },
-  });
+  );
   expect(deletion.status()).toBe(200);
   expect(await allocationFrom(request, owner.cookie, companyId, allocationId)).toBeUndefined();
 
@@ -517,7 +520,7 @@ test('a refused scheduler write keeps the schedule and history visible and does 
   const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
 
-  await page.route(`**/api/companies/${companyId}/planning/mutations`, (route) =>
+  await page.route(`**/api/v1/companies/${companyId}/planning/mutations`, (route) =>
     isTypedAllocationWrite(companyId, recorded(route.request()))
       ? route.fulfill({
           status: 403,
@@ -537,7 +540,7 @@ test('a refused scheduler write keeps the schedule and history visible and does 
   await expect(page.getByRole('alert').filter({ hasText: /save|persist|refus/i })).toBeVisible();
   await expect(bar).toHaveAttribute('aria-label', /1 Jun to 1 Jun/);
   await expect(undo).toBeEnabled();
-  expect(requests.filter(({ path }) => path === '/api/batch')).toEqual([]);
+  expect(requests.filter(({ path }) => path === '/api/v1/batch')).toEqual([]);
   expect(await allocationFrom(request, owner.cookie, companyId, allocationId!)).toMatchObject({
     startDate: '2026-06-01',
     endDate: '2026-06-01',
@@ -647,7 +650,7 @@ test('each scheduler gesture is one typed write with Undo and Redo, and reload c
     true,
     false,
   );
-  expect(requests.filter(({ path }) => path === '/api/batch')).toEqual([]);
+  expect(requests.filter(({ path }) => path === '/api/v1/batch')).toEqual([]);
 
   await reloadScheduler(page);
   await expect(bar).toHaveCount(0);
@@ -758,26 +761,29 @@ test('a stale-revision scheduler write shows server state without a toast or his
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // Another writer advances the server revision without this page refetching.
-  const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
+  const planning = await request.get(`${AUTH_API}/api/v1/companies/${companyId}/planning`, {
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
   const { revision } = ((await planning.json()) as { data: { revision: number } }).data;
-  const external = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
-    headers: {
-      ...(await masqueradeTokenHeaders(request, owner.cookie)),
-      'content-type': 'application/json',
-    },
-    data: {
-      mutationId: crypto.randomUUID(),
-      baseRevision: revision,
-      intent: {
-        operation: 'allocation.update',
-        id: allocationId,
-        changes: { startDate: '2026-06-04', endDate: '2026-06-04' },
+  const external = await request.post(
+    `${AUTH_API}/api/v1/companies/${companyId}/planning/mutations`,
+    {
+      headers: {
+        ...(await masqueradeTokenHeaders(request, owner.cookie)),
+        'content-type': 'application/json',
+      },
+      data: {
+        mutationId: crypto.randomUUID(),
+        baseRevision: revision,
+        intent: {
+          operation: 'allocation.update',
+          id: allocationId,
+          changes: { startDate: '2026-06-04', endDate: '2026-06-04' },
+        },
       },
     },
-  });
+  );
   expect(external.status()).toBe(200);
 
   const conflict = page.waitForResponse((response) =>
@@ -812,13 +818,13 @@ test('an ended session (401) clears the scheduler cache and history', async ({ p
 
   revokeTestSessions(ownerEmail);
   await page.context().clearCookies();
-  expect((await page.request.get(`${AUTH_API}/api/companies/${companyId}/planning`)).status()).toBe(
-    401,
-  );
+  expect(
+    (await page.request.get(`${AUTH_API}/api/v1/companies/${companyId}/planning`)).status(),
+  ).toBe(401);
   await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   // A late response may reissue a cookie, but the server-side session is revoked.
   const read = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === '/api/auth/me',
+    (response) => new URL(response.url()).pathname === '/api/v1/auth/me',
   );
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   expect((await read).status()).toBe(401);

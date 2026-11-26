@@ -16,7 +16,7 @@ import {
   signInAgain,
 } from '#tests/functional/planning/helpers';
 
-const mutationsUrl = `/api/companies/${companyId}/planning/mutations`;
+const mutationsUrl = `/api/v1/companies/${companyId}/planning/mutations`;
 
 interface SendPlanningOptions {
   client: ApiClient;

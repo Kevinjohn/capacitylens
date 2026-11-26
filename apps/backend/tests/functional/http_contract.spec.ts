@@ -135,7 +135,7 @@ async function withServer(
 
 const limitedRead = (server: Booted, forwardedFor: string) =>
   server
-    .send('GET', '/api/auth/me', { 'x-forwarded-for': forwardedFor })
+    .send('GET', '/api/v1/auth/me', { 'x-forwarded-for': forwardedFor })
     .then(({ status }) => status);
 
 test.group('HTTP proxy, transport and cookie contract', (group) => {
@@ -237,7 +237,7 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
       { CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test' },
       {},
       async (server) => {
-        const reply = await server.send('GET', '/api/health');
+        const reply = await server.send('GET', '/api/v1/health');
         assert.equal(reply.status, 200);
         assert.strictEqual(reply.headers['strict-transport-security'], 'max-age=31536000');
       }
@@ -246,7 +246,7 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
 
   test('an http public URL sends no HSTS', async ({ assert }) => {
     await withServer({ CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1' }, {}, async (server) => {
-      const reply = await server.send('GET', '/api/health');
+      const reply = await server.send('GET', '/api/v1/health');
       assert.equal(reply.status, 200);
       assert.notProperty(reply.headers, 'strict-transport-security');
     });

@@ -25,10 +25,10 @@ const post = (client: ApiClient, path: string, body: object) =>
   client.post(path).header('sec-fetch-site', 'same-origin').json(body).send();
 
 const requestReset = (client: ApiClient, email: string) =>
-  post(client, '/api/auth/request-reset', { email });
+  post(client, '/api/v1/auth/request-reset', { email });
 
 const inspect = async (client: ApiClient, token: string) => {
-  const response = await post(client, '/api/auth/inspect-reset', { token });
+  const response = await post(client, '/api/v1/auth/inspect-reset', { token });
   response.assertStatus(200);
   return ((response.body() as { data: unknown }).data as { valid: boolean }).valid;
 };
@@ -82,12 +82,12 @@ test.group('password recovery', (group) => {
   }) => {
     const token = 'x'.repeat(513);
     const refusals = [
-      await client.get(`/api/invitations/${token}/preview`).send(),
-      await post(client, `/api/invitations/${token}/sign-up`, {}),
-      await post(client, '/api/auth/inspect-reset', {}),
-      await post(client, '/api/auth/reset-password', {}),
-      await post(client, '/api/auth/verification/inspect', {}),
-      await post(client, '/api/auth/verification/complete', {}),
+      await client.get(`/api/v1/invitations/${token}/preview`).send(),
+      await post(client, `/api/v1/invitations/${token}/sign-up`, {}),
+      await post(client, '/api/v1/auth/inspect-reset', {}),
+      await post(client, '/api/v1/auth/reset-password', {}),
+      await post(client, '/api/v1/auth/verification/inspect', {}),
+      await post(client, '/api/v1/auth/verification/complete', {}),
     ];
     for (const response of refusals) {
       response.assertStatus(422);
@@ -109,17 +109,17 @@ test.group('password recovery', (group) => {
     assert.isTrue(await inspect(client, token));
     assert.isTrue(await inspect(client, token), 'inspection does not spend the link');
     await expectStatus(
-      post(client, '/api/auth/reset-password', { token, newPassword: 'short' }),
+      post(client, '/api/v1/auth/reset-password', { token, newPassword: 'short' }),
       422
     );
-    const reset = await post(client, '/api/auth/reset-password', { token, newPassword });
+    const reset = await post(client, '/api/v1/auth/reset-password', { token, newPassword });
     reset.assertStatus(200);
     assert.equal(reset.header('cache-control'), 'no-store');
     await expectStatus(asDataOwner(client.visit('api.session.show'), cookie).send(), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', editorId), 0);
     await signIn(client, editor, newPassword);
     assert.isFalse(await inspect(client, token));
-    const reused = await post(client, '/api/auth/reset-password', { token, newPassword });
+    const reused = await post(client, '/api/v1/auth/reset-password', { token, newPassword });
     reused.assertStatus(400);
     assert.equal((reused.body() as { code?: string }).code, 'INVALID_TOKEN');
     assert.isNotNull(
@@ -147,7 +147,7 @@ test.group('password recovery', (group) => {
       .json({ role: 'viewer' })
       .send();
     changed.assertStatus(200);
-    await expectStatus(post(client, '/api/auth/reset-password', { token, newPassword }), 200);
+    await expectStatus(post(client, '/api/v1/auth/reset-password', { token, newPassword }), 200);
     await signIn(client, editor, newPassword);
   });
 });

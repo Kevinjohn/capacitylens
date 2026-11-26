@@ -15,7 +15,7 @@ test('clearing the native company fixtures restores the baseline and keeps unrel
   const user = await signUpUser(`cleanup-cycle-${suffix}@capacitylens.dev`, 'Diana Prince');
   const temporaryCompanyId = await bootstrapOrg(request, user.cookie, `Cleanup Company ${suffix}`);
   const temporaryState = await request.get(
-    `${AUTH_API}/api/state?companyId=${temporaryCompanyId}`,
+    `${AUTH_API}/api/v1/state?companyId=${temporaryCompanyId}`,
     {
       headers: { cookie: user.cookie },
     },
@@ -50,16 +50,16 @@ test('clearing the native company fixtures restores the baseline and keeps unrel
   expect(restored.administrator).toMatchObject({ email: 'admin@admin.admin', memberships: 0 });
   expect(restored.initializationHistory).toBe(1);
 
-  const me = await request.get(`${AUTH_API}/api/auth/me`, { headers: { cookie: user.cookie } });
+  const me = await request.get(`${AUTH_API}/api/v1/auth/me`, { headers: { cookie: user.cookie } });
   expect(me.status()).toBe(200);
   const hiddenBaseline = await request.get(
-    `${AUTH_API}/api/state?companyId=${restored.company.id}`,
+    `${AUTH_API}/api/v1/state?companyId=${restored.company.id}`,
     {
       headers: { cookie: user.cookie },
     },
   );
   expect(hiddenBaseline.status()).toBe(403);
-  const companies = await request.get(`${AUTH_API}/api/companies`, {
+  const companies = await request.get(`${AUTH_API}/api/v1/companies`, {
     headers: { cookie: user.cookie },
   });
   expect(await companies.json()).toEqual({ data: [] });

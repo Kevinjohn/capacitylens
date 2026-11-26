@@ -206,7 +206,7 @@ test.group('data routes', (group) => {
   }) => {
     const dataOwner = await reset(client, true);
     client = dataOwner.client;
-    const route = '/api/companies/a-studio/getting-started';
+    const route = '/api/v1/companies/a-studio/getting-started';
     const before = await client.get(route).send();
     before.assertBodyContains({ data: { dismissed: false } });
     const written = await trusted(client.put(route)).json({ dismissed: true }).send();
@@ -275,7 +275,7 @@ test.group('data routes', (group) => {
   }) => {
     const dataOwner = await reset(client, true);
     client = dataOwner.client;
-    const route = '/api/companies/a-studio/getting-started';
+    const route = '/api/v1/companies/a-studio/getting-started';
     const extraFields = await trusted(client.put(route))
       .json({ dismissed: true, extra: 'value' })
       .send();
@@ -306,7 +306,7 @@ test.group('data routes', (group) => {
       { ...person, id: 'r-example-other', companyId: otherCompanyId, disciplineId: null },
     ]);
     const otherBefore = await readState(otherCompanyId, true);
-    const route = '/api/companies/a-example/example-data';
+    const route = '/api/v1/companies/a-example/example-data';
     const first = await trusted(client.post(route)).json({}).send();
     assert.equal(first.status(), 201, JSON.stringify(first.body().data));
     assert.isAbove((first.body().data as { added: number }).added, 0);

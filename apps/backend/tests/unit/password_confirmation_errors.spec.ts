@@ -56,7 +56,7 @@ test.group('password confirmation errors', () => {
       const reports: Array<Record<string, unknown>> = [];
       const ctx = {
         request: { method: () => 'POST', id: () => undefined },
-        route: { pattern: '/api/auth/password-confirmation' },
+        route: { pattern: '/api/v1/auth/password-confirmation' },
         logger: { log: (_level: string, fields: Record<string, unknown>) => reports.push(fields) },
         response: {
           header(name: string, value: string) {
@@ -92,7 +92,7 @@ test.group('password confirmation errors', () => {
         assert.deepEqual(fields, {
           event: 'http.request.error',
           method: 'POST',
-          path: '/api/auth/password-confirmation',
+          path: '/api/v1/auth/password-confirmation',
         });
         assert.deepEqual(loggerConfig.loggers.app.serializers!.err!(err), {
           errorType: 'unexpected',

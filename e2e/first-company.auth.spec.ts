@@ -93,7 +93,7 @@ test('operator setup creates the first Owner, one company and its default client
       email: 'clark@wayne.example',
       password: 'first-company-teammate-password-2026',
     };
-    const prematureSignUp = await request.post(`${origin}/api/auth/sign-up`, {
+    const prematureSignUp = await request.post(`${origin}/api/v1/auth/sign-up`, {
       data: additionalIdentity,
       headers: { 'sec-fetch-site': 'same-origin' },
     });
@@ -124,24 +124,24 @@ test('operator setup creates the first Owner, one company and its default client
     await page.getByRole('button', { name: 'Create company', exact: true }).click();
     await expect(page.getByTestId('company-setup')).toHaveCount(0);
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
-    const companiesResponse = await page.request.get(`${origin}/api/companies`);
+    const companiesResponse = await page.request.get(`${origin}/api/v1/companies`);
     const companies = ((await companiesResponse.json()) as { data: { id: string; role: string }[] })
       .data;
     expect(companies).toHaveLength(1);
     expect(companies[0]!.role).toBe('owner');
-    const state = await page.request.get(`${origin}/api/state?companyId=${companies[0]!.id}`);
+    const state = await page.request.get(`${origin}/api/v1/state?companyId=${companies[0]!.id}`);
     const data = (await state.json()).data;
     expect(data.companies[0].name).toBe('Wayne Enterprises');
     expect(data.companies[0].weekStartsOn).toBe(0);
     expect(data.companies[0].timezone).toBe('America/New_York');
     expect(data.clients).toHaveLength(1);
     expect(data.clients[0].builtin).toBe(true);
-    const duplicate = await page.request.post(`${origin}/api/installation/company`, {
+    const duplicate = await page.request.post(`${origin}/api/v1/installation/company`, {
       data: { name: 'Stark Industries', weekStartsOn: 1, timeZone: 'Etc/GMT' },
       headers: await masqueradeTokenHeaders(page.request, undefined, origin),
     });
     expect(duplicate.status()).toBe(409);
-    const permittedSignUp = await request.post(`${origin}/api/auth/sign-up`, {
+    const permittedSignUp = await request.post(`${origin}/api/v1/auth/sign-up`, {
       data: additionalIdentity,
       headers: { 'sec-fetch-site': 'same-origin' },
     });

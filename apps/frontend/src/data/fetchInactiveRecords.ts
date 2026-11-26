@@ -20,7 +20,7 @@ export class InactiveRecordsHttpError extends Error {
   readonly serverMessage: string | undefined;
   constructor(status: number, serverMessage: string | undefined) {
     // The raw message is a developer-grade fallback; callers surface their own i18n sentence.
-    super(serverMessage ?? `GET /api/state?includeInactive=1 failed (${status})`);
+    super(serverMessage ?? `GET /api/v1/state?includeInactive=1 failed (${status})`);
     this.name = 'InactiveRecordsHttpError';
     this.status = status;
     this.serverMessage = serverMessage;

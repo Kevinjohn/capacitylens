@@ -15,7 +15,7 @@ test.describe('database-backed resilience', () => {
   }) => {
     const stateFailure = await failRequestsUntilReleased(
       page,
-      /\/api\/companies\/[^/]+\/planning(\?|$)/,
+      /\/api\/v1\/companies\/[^/]+\/planning(\?|$)/,
       {
         status: 503,
         body: { error: 'Temporary test outage' },
@@ -62,7 +62,7 @@ test.describe('database-backed resilience', () => {
     });
     const clientFailure = await failRequestsUntilReleased(
       page,
-      '**/api/companies/*/planning/mutations',
+      '**/api/v1/companies/*/planning/mutations',
       { status: 503, body: { error: 'Temporary test outage' } },
       (request) => isPlanningMutation(request, 'catalogue.create', 'clients'),
     );
@@ -113,7 +113,7 @@ test.describe('database-backed resilience', () => {
   }) => {
     await openApp(page, '/clients');
     const secondContext = await newObservedContext({ baseURL: new URL(page.url()).origin });
-    const secondSignIn = await secondContext.request.post(`${API}/api/auth/sign-in`, {
+    const secondSignIn = await secondContext.request.post(`${API}/api/v1/auth/sign-in`, {
       data: { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' },
       headers: { 'sec-fetch-site': 'same-origin' },
     });

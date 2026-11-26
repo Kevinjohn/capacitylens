@@ -19,7 +19,7 @@ test(
   { tag: '@engine' },
   async ({ page }) => {
     await openApp(page);
-    await fetchOnPageHide(page, '/api/companies/a-studio/planning');
+    await fetchOnPageHide(page, '/api/v1/companies/a-studio/planning');
     await openApp(page);
   },
 );

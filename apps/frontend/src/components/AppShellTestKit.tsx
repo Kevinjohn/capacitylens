@@ -56,7 +56,7 @@ export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
           input instanceof Request ? input.url : String(input),
           'http://localhost',
         );
-        if (url.pathname.replace(/\/$/, '') === '/api/companies') {
+        if (url.pathname.replace(/\/$/, '') === '/api/v1/companies') {
           if (companyDirectory.pending) return new Promise<Response>(() => {});
           // The server refuses the directory when the installation holds more than one company.
           if (companyDirectory.refused) {

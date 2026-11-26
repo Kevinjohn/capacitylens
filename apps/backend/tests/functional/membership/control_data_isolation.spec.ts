@@ -92,7 +92,7 @@ test.group('membership control-data isolation', (group) => {
       assert.notInclude(serialized, secret);
 
     const attempted = await client
-      .post('/api/batch')
+      .post('/api/v1/batch')
       .header('sec-fetch-site', 'same-origin')
       .json({
         ops: [

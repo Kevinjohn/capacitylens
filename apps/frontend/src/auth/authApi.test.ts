@@ -29,7 +29,7 @@ describe('product auth api', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     if (!sent) throw new Error('Expected captured request');
     const request = sent;
-    expect(request.url).toBe(`${window.location.origin}/api/auth/sign-in`);
+    expect(request.url).toBe(`${window.location.origin}/api/v1/auth/sign-in`);
     expect(request.method).toBe('POST');
     expect(request.credentials).toBe('include');
     expect(timeout).toHaveBeenCalledWith(15_000);
@@ -205,10 +205,10 @@ describe('product auth api', () => {
     await authApi.signOut();
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      '/api/auth/request-reset',
-      '/api/auth/reset-password',
-      '/api/auth/change-password',
-      '/api/auth/sign-out',
+      '/api/v1/auth/request-reset',
+      '/api/v1/auth/reset-password',
+      '/api/v1/auth/change-password',
+      '/api/v1/auth/sign-out',
     ]);
     expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
       { email: 'bruce@example.test' },

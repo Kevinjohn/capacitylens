@@ -23,7 +23,7 @@ const body = (response: { body(): unknown; status(): number }) =>
     revision: number;
     message?: string;
   };
-const route = (path: string) => `/api/companies/${companyId}/${path}`;
+const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,

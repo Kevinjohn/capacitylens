@@ -49,7 +49,7 @@ beforeEach(async () => {
           ],
         },
       }),
-    'POST /api/invitations': () => {
+    'POST /api/v1/invitations': () => {
       writes += 1;
       return heldMutation ?? jsonResponse({ data: { emailed: true } }, 201);
     },
@@ -57,7 +57,7 @@ beforeEach(async () => {
       writes += 1;
       return heldMutation ?? jsonResponse({ data: { emailed: true } });
     },
-    'GET /api/auth/me': () =>
+    'GET /api/v1/auth/me': () =>
       jsonResponse({
         data: {
           user: { id: currentUserId, email: `${currentUserId}@wayne.test` },
@@ -73,7 +73,7 @@ beforeEach(async () => {
       if (String(url).endsWith('/invitations') && (init?.method ?? 'GET') === 'GET') {
         invitationReads += 1;
       }
-      if (String(url).includes('/api/masquerade')) {
+      if (String(url).includes('/api/v1/masquerade')) {
         return Promise.resolve(jsonResponse({ data: { active: false, masqueradeToken: 'idle' } }));
       }
       return base(url, init);

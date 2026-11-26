@@ -80,7 +80,7 @@ describe('AuthProvider — server mode', () => {
       const { makeCompany, makeAppData } = await import('@/test/fixtures');
       const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
         const url = input instanceof Request ? input.url : String(input);
-        if (!url.includes('/api/companies/a-studio/planning')) {
+        if (!url.includes('/api/v1/companies/a-studio/planning')) {
           throw new Error(`Unexpected read: ${url}`);
         }
         return makeMeResponse(200, {

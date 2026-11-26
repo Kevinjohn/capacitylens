@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router';
+import { apiPrefix } from '#start/api';
 import { throttle } from '#start/limiter';
 import { asCompanySignedInPerson, asSignedInPerson } from '#start/route_middleware';
 import { middleware } from '#start/kernel';
@@ -18,6 +19,6 @@ router
       .use(middleware.accountGate({ access: 'limited' }));
     router.get('/masquerade', [controllers.Masquerade, 'show']);
   })
-  .prefix('/api')
+  .prefix(apiPrefix)
   .as('api')
   .use(throttle);

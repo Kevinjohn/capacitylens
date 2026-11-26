@@ -13,7 +13,7 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // This spec exercises the password-mode sign-in wall; the core demo project uses cosmetic sign-in.
 
-// Shared auth helpers come from authTestKit. A fresh user has no membership, so GET /api/companies
+// Shared auth helpers come from authTestKit. A fresh user has no membership, so GET /api/v1/companies
 // returns no companies. The first-company route provisions a company for the signed-in owner.
 const EMAIL = 'tester@capacitylens.dev';
 const ORG_NAME = `Sign-in Studio ${Date.now()}`;
@@ -23,7 +23,7 @@ const ORG_NAME = `Sign-in Studio ${Date.now()}`;
 async function createUser(email = EMAIL) {
   const anonymousRequest = await playwrightRequest.newContext();
   try {
-    const res = await anonymousRequest.post(`${API}/api/auth/sign-up`, {
+    const res = await anonymousRequest.post(`${API}/api/v1/auth/sign-up`, {
       data: { email, password: PASSWORD, name: 'Tester' },
       headers: { 'sec-fetch-site': 'same-origin' },
     });
@@ -42,7 +42,7 @@ test.describe('sign-in screen (password sign-in)', () => {
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Schedule' })).toHaveCount(0);
-    expect((await request.get(`${API}/api/state`)).status()).toBe(401);
+    expect((await request.get(`${API}/api/v1/state`)).status()).toBe(401);
 
     await createUser();
     await page.getByLabel('Email').fill(EMAIL);
@@ -77,7 +77,7 @@ test.describe('sign-in screen (password sign-in)', () => {
       const unscopedStateReads: string[] = [];
       page.on('request', (request) => {
         const url = new URL(request.url());
-        if (url.pathname === '/api/state' && !url.searchParams.has('companyId'))
+        if (url.pathname === '/api/v1/state' && !url.searchParams.has('companyId'))
           unscopedStateReads.push(url.href);
       });
 
@@ -86,7 +86,7 @@ test.describe('sign-in screen (password sign-in)', () => {
       await page.getByLabel('Password').fill(PASSWORD);
       const planningResponse = page.waitForResponse(
         (response) =>
-          /^\/api\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
+          /^\/api\/v1\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
           response.status() === 200,
       );
       await page.getByRole('button', { name: 'Sign in' }).click();
@@ -160,7 +160,7 @@ test.describe('sign-in screen (password sign-in)', () => {
 
     const planningResponse = page.waitForResponse(
       (response) =>
-        /^\/api\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
+        /^\/api\/v1\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
         response.status() === 200,
     );
     await page.reload();

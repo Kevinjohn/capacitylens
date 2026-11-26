@@ -212,7 +212,7 @@ export async function showPlaceholders(page: Page): Promise<void> {
 export function isPlanningMutation(request: Request, operation?: string, entity?: string): boolean {
   if (
     request.method() !== 'POST' ||
-    !/^\/api\/companies\/[^/]+\/planning\/mutations$/.test(new URL(request.url()).pathname)
+    !/^\/api\/v1\/companies\/[^/]+\/planning\/mutations$/.test(new URL(request.url()).pathname)
   )
     return false;
   const intent = (request.postDataJSON() as { intent?: { operation?: string; entity?: unknown } })
@@ -241,7 +241,7 @@ export async function commitPlanningChange(
   const canonical = page.waitForResponse(async (response) => {
     if (
       response.request().method() !== 'GET' ||
-      !/\/api\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) ||
+      !/\/api\/v1\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) ||
       !response.ok()
     )
       return false;

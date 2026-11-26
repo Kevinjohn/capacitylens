@@ -173,7 +173,7 @@ describe('MembersSection — invite mint', () => {
           ? jsonResponse({ data: { invites: [existingInvite] } })
           : jsonResponse({ error: 'Invite reload failed.' }, 503);
       },
-      'POST /api/invitations': () => jsonResponse({ data: { id: 3, emailed: true } }, 201),
+      'POST /api/v1/invitations': () => jsonResponse({ data: { id: 3, emailed: true } }, 201),
     });
     vi.stubGlobal('fetch', fetchMock);
     await renderInviteSection();
@@ -211,7 +211,7 @@ describe('MembersSection — invite mint', () => {
       if (target.endsWith('/invitations') && isRead) {
         return jsonResponse({ data: { invites: [] } });
       }
-      if (target.endsWith('/api/invitations') && init?.method === 'POST') {
+      if (target.endsWith('/api/v1/invitations') && init?.method === 'POST') {
         return await new Promise<Response>((resolve) => {
           resolveCreate = resolve;
         });
@@ -245,7 +245,7 @@ describe('MembersSection — invite mint', () => {
     ],
   ])('emails a new invitation and reports a %s delivery', async (status, emailed, notice) => {
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-      'POST /api/invitations': () =>
+      'POST /api/v1/invitations': () =>
         jsonResponse({ data: emailed ? { id: 1, emailed } : { committed: true, emailed } }, status),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -282,7 +282,7 @@ describe('MembersSection — invite mint', () => {
   it('shows a terminal invite refusal after closing a pending request', async () => {
     let resolveCreate: ((response: Response) => void) | undefined;
     const fetchMock = mockApi(ownerAndEditor, {
-      'POST /api/invitations': () =>
+      'POST /api/v1/invitations': () =>
         new Promise<Response>((resolve) => {
           resolveCreate = resolve;
         }),
@@ -345,7 +345,7 @@ describe('MembersSection — invite mint', () => {
       vi.stubGlobal(
         'fetch',
         mockApi(ownerAndEditor, {
-          'POST /api/invitations': () => jsonResponse(body, status),
+          'POST /api/v1/invitations': () => jsonResponse(body, status),
         }),
       );
       await renderInviteSection();
@@ -369,7 +369,7 @@ describe('MembersSection — invite mint', () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-        'POST /api/invitations': () => Promise.reject(new Error('invite transport lost')),
+        'POST /api/v1/invitations': () => Promise.reject(new Error('invite transport lost')),
       }),
     );
     await renderInviteSection();

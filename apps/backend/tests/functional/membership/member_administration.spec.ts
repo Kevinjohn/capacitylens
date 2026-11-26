@@ -73,7 +73,7 @@ test.group('company member administration', (group) => {
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     });
-    const path = `/api/companies/a-studio/members/${editorId}`;
+    const path = `/api/v1/companies/a-studio/members/${editorId}`;
     const identity = {
       'x-account-operation-id': 'member-role-command-0001',
       'idempotency-key': 'member-role-idempotency-0001',
@@ -163,7 +163,7 @@ test.group('company member administration', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const path = `/api/companies/a-studio/members/${editorId}`;
+    const path = `/api/v1/companies/a-studio/members/${editorId}`;
     const identity = {
       'x-account-operation-id': 'member-shared-command-0001',
       'idempotency-key': 'member-shared-key-0001',
@@ -263,7 +263,7 @@ test.group('company member administration', (group) => {
       updated_at: now,
     });
 
-    const memberPath = `/api/companies/a-studio/members/${editorId}`;
+    const memberPath = `/api/v1/companies/a-studio/members/${editorId}`;
     const requests = [
       {
         name: 'invalid role',

@@ -30,7 +30,7 @@ function recordPlanningWrites(page: Page) {
   page.on('request', (request) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return;
     const path = new URL(request.url()).pathname;
-    if (path === '/api/batch' || path.startsWith('/api/companies/')) {
+    if (path === '/api/v1/batch' || path.startsWith('/api/v1/companies/')) {
       const intent = path.endsWith('/planning/mutations')
         ? (request.postDataJSON() as { intent: { operation: string; entity?: { entity: string } } })
             .intent
@@ -48,7 +48,7 @@ function recordPlanningWrites(page: Page) {
 
 const mutationWrite = (companyId: string, operation: string, entity?: string): PlanningWrite => ({
   method: 'POST',
-  path: `/api/companies/${companyId}/planning/mutations`,
+  path: `/api/v1/companies/${companyId}/planning/mutations`,
   operation,
   entity,
 });
@@ -79,7 +79,7 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   ).toBeVisible();
 
   const state = async () => {
-    const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
+    const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
@@ -120,7 +120,7 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   expect((await state()).clients.some((row) => row.name === 'Wayne Foundation')).toBe(true);
   expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.create', 'clients'));
   expect(writes).toContainEqual(mutationWrite(companyId, 'settings.update'));
-  expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
+  expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false);
 });
 
 test('authenticated discipline and time-off deletion restore the same rows', async ({
@@ -153,7 +153,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   const writes = recordPlanningWrites(page);
 
   const state = async () => {
-    const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
+    const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
@@ -248,7 +248,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.update', 'disciplines'));
   expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.create'));
   expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.update'));
-  expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
+  expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false);
 });
 
 for (const repeat of [false, true]) {
@@ -301,7 +301,7 @@ for (const repeat of [false, true]) {
       .filter({ hasText: 'Barbara Gordon' })
       .getByTestId('timeoff-row');
     await expect(row).toHaveCount(repeat ? 2 : 1);
-    const stored = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
+    const stored = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
     });
     expect(stored.status()).toBe(200);
@@ -321,6 +321,6 @@ for (const repeat of [false, true]) {
     expect(writes).toContainEqual(
       mutationWrite(companyId, repeat ? 'timeOff.repeat' : 'timeOff.create'),
     );
-    expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
+    expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false);
   });
 }

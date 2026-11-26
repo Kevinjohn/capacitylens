@@ -163,7 +163,7 @@ describe('fetchApi', () => {
     );
     const ended = vi.fn();
     setMasqueradeEndedHandler(ended);
-    const response = await fetchApi('/api/state');
+    const response = await fetchApi('/api/v1/state');
     expect(response.status).toBe(status);
     expect(ended).toHaveBeenCalledOnce();
   });

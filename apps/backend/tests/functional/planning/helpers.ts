@@ -18,7 +18,7 @@ export const companyId = 'a-studio';
 /** The sentence of a validation refusal: the first message of its 422 `{ errors }` body. */
 export const validationSentence = (response: { body(): unknown }) =>
   (response.body() as { errors?: Array<{ message?: unknown }> }).errors?.[0]?.message;
-export const planningUrl = `/api/companies/${companyId}/planning`;
+export const planningUrl = `/api/v1/companies/${companyId}/planning`;
 const password = 'batman-secret-2026';
 
 export const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>

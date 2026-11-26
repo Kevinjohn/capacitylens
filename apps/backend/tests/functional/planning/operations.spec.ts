@@ -26,7 +26,7 @@ const body = (response: { body(): unknown; status(): number }) =>
     code: string;
     revision: number;
   };
-const route = (path: string) => `/api/companies/${companyId}/${path}`;
+const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -866,7 +866,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     refused.assertStatus(422);
     assert.isString(validationSentence(refused));
-    const retained = await session(client.post('/api/batch'), cookie)
+    const retained = await session(client.post('/api/v1/batch'), cookie)
       .json({
         ops: [
           { method: 'PUT', table: 'phases', id: phase.id, row: { ...phase, projectId: target.id } },

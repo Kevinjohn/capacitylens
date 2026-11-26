@@ -14,7 +14,7 @@ function postRawJson(
       {
         hostname: '127.0.0.1',
         port,
-        path: '/api/companies/a-studio/planning/mutations',
+        path: '/api/v1/companies/a-studio/planning/mutations',
         method: 'POST',
         headers: {
           'content-type': 'application/json',

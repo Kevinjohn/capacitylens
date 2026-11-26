@@ -3,7 +3,7 @@
   "responses": [
     {
       "method": "GET",
-      "path": "/api/companies",
+      "path": "/api/v1/companies",
       "status": 409,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -24,7 +24,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/state",
+      "path": "/api/v1/state",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -501,7 +501,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/state?companyId=a-studio",
+      "path": "/api/v1/state?companyId=a-studio",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -898,7 +898,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/state?companyId=a-loft",
+      "path": "/api/v1/state?companyId=a-loft",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -1014,7 +1014,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/diagnostics",
+      "path": "/api/v1/diagnostics",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -1045,7 +1045,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/health",
+      "path": "/api/v1/health",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -1065,7 +1065,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/auth/me",
+      "path": "/api/v1/auth/me",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",

@@ -42,21 +42,24 @@ async function assertViewerWriteRejected(
   cookie: string,
 ) {
   const newClientId = crypto.randomUUID();
-  const directWrite = await request.post(`${API}/api/companies/${companyId}/planning/mutations`, {
-    headers: await masqueradeTokenHeaders(request, cookie),
-    data: {
-      mutationId: crypto.randomUUID(),
-      baseRevision: 2,
-      intent: {
-        operation: 'catalogue.create',
-        entity: {
-          entity: 'clients',
-          id: newClientId,
-          fields: { name: 'Should be rejected', color: '#76a5e7' },
+  const directWrite = await request.post(
+    `${API}/api/v1/companies/${companyId}/planning/mutations`,
+    {
+      headers: await masqueradeTokenHeaders(request, cookie),
+      data: {
+        mutationId: crypto.randomUUID(),
+        baseRevision: 2,
+        intent: {
+          operation: 'catalogue.create',
+          entity: {
+            entity: 'clients',
+            id: newClientId,
+            fields: { name: 'Should be rejected', color: '#76a5e7' },
+          },
         },
       },
     },
-  });
+  );
   expect(directWrite.status()).toBe(403);
 }
 

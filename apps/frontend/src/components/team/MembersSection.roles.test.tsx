@@ -151,7 +151,7 @@ describe('MembersSection — admin affordances', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Suspend' }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/companies/${DEFAULT_COMPANY_ID}/members/theeditor/status`,
+        `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor/status`,
         expect.objectContaining({ method: 'PATCH' }),
       ),
     );
@@ -185,7 +185,7 @@ describe('MembersSection — admin affordances', () => {
 
     await user.click(within(dialog).getByTestId('member-role-save'));
     expect(fetchMock).toHaveBeenCalledWith(
-      `/api/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
+      `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
       expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify({ role: 'viewer' }),

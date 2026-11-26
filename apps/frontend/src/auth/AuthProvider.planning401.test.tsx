@@ -26,7 +26,7 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
     vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
       requests.push(url);
-      if (url.endsWith('/api/auth/me')) {
+      if (url.endsWith('/api/v1/auth/me')) {
         authReads += 1;
         return Response.json(
           authReads === 1
@@ -63,7 +63,7 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
 
   // The read names the page's history; the path alone identifies the planning GET.
   expect(requests.map((url) => url.split('?')[0])).toContain(
-    `${window.location.origin}/api/companies/a-studio/planning`,
+    `${window.location.origin}/api/v1/companies/a-studio/planning`,
   );
   expect(useStore.getState().planningAuthLossVersion).toBeGreaterThan(0);
   expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();

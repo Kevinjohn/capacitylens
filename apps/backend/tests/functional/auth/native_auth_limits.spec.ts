@@ -92,7 +92,7 @@ test.group('native auth and API rate limits', (group) => {
       assert.equal(await responseStatus(client.visit('api.liveness').send()), 200);
   });
 
-  test('GET /api/health is not limited', async ({ client, assert, cleanup }) => {
+  test('GET /api/v1/health is not limited', async ({ client, assert, cleanup }) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '1');
 

@@ -10,7 +10,7 @@ test('sign-in preserves long Unicode credentials and normalizes a maximum-length
   const email = `${localPart}@${domain}`;
   const password = '𠀀'.repeat(128);
   expect(new TextEncoder().encode(email)).toHaveLength(254);
-  const signUp = await request.post(`${AUTH_API}/api/auth/sign-up`, {
+  const signUp = await request.post(`${AUTH_API}/api/v1/auth/sign-up`, {
     data: { email, password, name: 'Bruce Wayne' },
     headers: { 'sec-fetch-site': 'same-origin' },
   });
@@ -25,7 +25,7 @@ test('sign-in preserves long Unicode credentials and normalizes a maximum-length
 
   const signInRequests: string[] = [];
   page.on('request', (event) => {
-    if (new URL(event.url()).pathname === '/api/auth/sign-in') signInRequests.push(event.url());
+    if (new URL(event.url()).pathname === '/api/v1/auth/sign-in') signInRequests.push(event.url());
   });
   await passwordInput.pressSequentially('x'.repeat(257));
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -37,7 +37,7 @@ test('sign-in preserves long Unicode credentials and normalizes a maximum-length
   await passwordInput.pressSequentially(password);
   await expect(passwordInput).toHaveValue(password);
   const response = page.waitForResponse(
-    (event) => new URL(event.url()).pathname === '/api/auth/sign-in',
+    (event) => new URL(event.url()).pathname === '/api/v1/auth/sign-in',
   );
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   expect((await response).ok()).toBeTruthy();
