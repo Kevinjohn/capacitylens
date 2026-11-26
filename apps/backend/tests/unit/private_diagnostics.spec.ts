@@ -14,7 +14,7 @@ test.group('private diagnostics', () => {
   test('error reporting survives a failed diagnostic logger', async ({ assert }) => {
     const ctx = {
       request: { method: () => 'GET', id: () => undefined },
-      route: { pattern: '/api/state' },
+      route: { pattern: '/api/v1/state' },
       logger: {
         log() {
           throw new Error('PRIVATE_LOGGER_FAILURE');
@@ -34,7 +34,7 @@ test.group('private diagnostics', () => {
     };
     const context = {
       request: { method: () => 'POST', id: () => undefined },
-      route: { pattern: '/api/auth/sign-in' },
+      route: { pattern: '/api/v1/auth/sign-in' },
       logger: {
         log: (...args: unknown[]) => {
           records.push(args);

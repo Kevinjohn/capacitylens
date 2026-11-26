@@ -7,7 +7,7 @@ test.describe('database-backed persistence', () => {
   // A record surviving a planning-read reload proves the full UI-to-database round trip.
   test('hydrates the seeded dataset from the server on load', async ({ page }) => {
     await openApp(page);
-    // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
+    // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/v1/state → UI.
     await expect(page.getByText('Bruce Wayne')).toBeVisible();
   });
   test('create + reload: a new client round-trips through the DB', async ({ page, request }) => {
@@ -44,7 +44,7 @@ test.describe('database-backed persistence', () => {
       let batchRequests = 0;
       page.on('request', (outgoing) => {
         if (outgoing.method() !== 'POST') return;
-        if (outgoing.url().endsWith('/api/batch')) batchRequests++;
+        if (outgoing.url().endsWith('/api/v1/batch')) batchRequests++;
         if (isPlanningMutation(outgoing, 'allocation.createGroup')) groupRequests++;
       });
       await openApp(page);
@@ -147,7 +147,7 @@ test.describe('database-backed persistence', () => {
       const url = new URL(response.url());
       return (
         response.request().method() === 'GET' &&
-        url.pathname === '/api/companies/a-studio/planning' &&
+        url.pathname === '/api/v1/companies/a-studio/planning' &&
         response.ok()
       );
     });

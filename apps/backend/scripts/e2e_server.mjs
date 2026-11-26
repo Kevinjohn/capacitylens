@@ -127,7 +127,7 @@ child.on('exit', (code, signal) => {
 
 async function establishAuthFixtureBaseline(signal) {
   const origin = env.CAPACITYLENS_PUBLIC_URL;
-  const setup = await fetch(`${origin}/api/invitations/${baselineToken}/sign-up`, {
+  const setup = await fetch(`${origin}/api/v1/invitations/${baselineToken}/sign-up`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
     signal,
@@ -141,7 +141,7 @@ async function establishAuthFixtureBaseline(signal) {
     .join('; ');
   if (!cookie) throw new Error('Auth E2E baseline owner setup did not create a session.');
 
-  const modeResponse = await fetch(`${origin}/api/masquerade`, {
+  const modeResponse = await fetch(`${origin}/api/v1/masquerade`, {
     headers: { cookie, 'sec-fetch-site': 'same-origin' },
     signal,
   });
@@ -149,7 +149,7 @@ async function establishAuthFixtureBaseline(signal) {
   if (modeResponse.status !== 200 || typeof mode.masqueradeToken !== 'string')
     throw new Error(`Auth E2E baseline masquerade context unavailable (${modeResponse.status}).`);
 
-  const company = await fetch(`${origin}/api/installation/company`, {
+  const company = await fetch(`${origin}/api/v1/installation/company`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -163,7 +163,7 @@ async function establishAuthFixtureBaseline(signal) {
   if (company.status !== 201)
     throw new Error(`Auth E2E baseline company setup failed (${company.status}).`);
 
-  const administrator = await fetch(`${origin}/api/auth/sign-up`, {
+  const administrator = await fetch(`${origin}/api/v1/auth/sign-up`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
     signal,

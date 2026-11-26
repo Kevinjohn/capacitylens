@@ -13,8 +13,7 @@ health endpoints for process supervision:
 | `GET /health/live` | The process can answer HTTP. It does not prove the database or backups are ready. |
 | `GET /health/ready` | Checks the database and its schema integrity; returns a failing status when those checks fail. |
 
-Do not use `/api/health` as a readiness probe; it is a lightweight API response. Keep health checks
-free of credentials and do not expose diagnostic internals publicly.
+Keep health checks free of credentials and do not expose diagnostic internals publicly.
 
 ## Database and backups
 

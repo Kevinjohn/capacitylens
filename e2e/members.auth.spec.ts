@@ -37,13 +37,16 @@ async function setupMembersApi(request: APIRequestContext) {
   ] as const) {
     createTestMember(companyId, who.email, role);
   }
-  const grant = await request.patch(`${API}/api/companies/${companyId}/members/${editor.userId}`, {
-    headers: await masqueradeTokenHeaders(request, admin.cookie),
-    data: { role: 'owner' },
-  });
+  const grant = await request.patch(
+    `${API}/api/v1/companies/${companyId}/members/${editor.userId}`,
+    {
+      headers: await masqueradeTokenHeaders(request, admin.cookie),
+      data: { role: 'owner' },
+    },
+  );
   expect(grant.status()).toBe(400);
   const touchOwner = await request.patch(
-    `${API}/api/companies/${companyId}/members/${owner.userId}`,
+    `${API}/api/v1/companies/${companyId}/members/${owner.userId}`,
     {
       headers: await masqueradeTokenHeaders(request, admin.cookie),
       data: { role: 'editor' },
@@ -51,13 +54,16 @@ async function setupMembersApi(request: APIRequestContext) {
   );
   expect(touchOwner.status()).toBe(403);
   // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
-  const adminTransfer = await request.post(`${API}/api/companies/${companyId}/ownership-transfer`, {
-    headers: await masqueradeTokenHeaders(request, admin.cookie),
-    data: { toUserId: editor.userId },
-  });
+  const adminTransfer = await request.post(
+    `${API}/api/v1/companies/${companyId}/ownership-transfer`,
+    {
+      headers: await masqueradeTokenHeaders(request, admin.cookie),
+      data: { toUserId: editor.userId },
+    },
+  );
   expect(adminTransfer.status()).toBe(403);
   const selfSuspend = await request.patch(
-    `${API}/api/companies/${companyId}/members/${owner.userId}/status`,
+    `${API}/api/v1/companies/${companyId}/members/${owner.userId}/status`,
     {
       headers: await masqueradeTokenHeaders(request, owner.cookie),
       data: { status: 'suspended' },
@@ -65,7 +71,7 @@ async function setupMembersApi(request: APIRequestContext) {
   );
   expect(selfSuspend.status()).toBe(403);
   const selfRole = await request.patch(
-    `${API}/api/companies/${companyId}/members/${owner.userId}`,
+    `${API}/api/v1/companies/${companyId}/members/${owner.userId}`,
     {
       headers: await masqueradeTokenHeaders(request, owner.cookie),
       data: { role: 'editor' },
@@ -73,7 +79,7 @@ async function setupMembersApi(request: APIRequestContext) {
   );
   expect(selfRole.status()).toBe(403);
   const crossCompany = await request.get(
-    `${API}/api/companies/some-other-company-${STAMP}/members`,
+    `${API}/api/v1/companies/some-other-company-${STAMP}/members`,
     {
       headers: { cookie: admin.cookie },
     },
@@ -134,7 +140,7 @@ async function manageAdminMembers(
   await page.getByRole('dialog').getByTestId('member-role-save').click();
   await expect
     .poll(async () => {
-      const res = await request.get(`${API}/api/companies/${companyId}/members`, {
+      const res = await request.get(`${API}/api/v1/companies/${companyId}/members`, {
         headers: { cookie: admin.cookie },
       });
       const members = (await res.json()).data.members as Array<{ userId: string; role: string }>;
@@ -160,7 +166,7 @@ async function assertOwnershipIsNotAMemberRowAction(
   companyId: string,
 ) {
   await expect(ownerPage.getByTestId('member-make-owner')).toHaveCount(0);
-  const retired = await request.post(`${API}/api/companies/${companyId}/transfer-ownership`, {
+  const retired = await request.post(`${API}/api/v1/companies/${companyId}/transfer-ownership`, {
     headers: await masqueradeTokenHeaders(request, owner.cookie),
     data: { toUserId: editor.userId },
   });
@@ -202,14 +208,14 @@ async function manageOwnerMembers(
   await expect(inactiveTarget).toContainText('Suspended');
   await expect
     .poll(async () => {
-      const res = await request.get(`${API}/api/companies/${companyId}/members`, {
+      const res = await request.get(`${API}/api/v1/companies/${companyId}/members`, {
         headers: { cookie: owner.cookie },
       });
       const members = (await res.json()).data.members as Array<{ userId: string; status: string }>;
       return members.find((member) => member.userId === editor.userId)?.status;
     })
     .toBe('suspended');
-  const suspendedRead = await request.get(`${API}/api/state?companyId=${companyId}`, {
+  const suspendedRead = await request.get(`${API}/api/v1/state?companyId=${companyId}`, {
     headers: { cookie: editor.cookie },
   });
   expect(suspendedRead.status()).toBe(403);

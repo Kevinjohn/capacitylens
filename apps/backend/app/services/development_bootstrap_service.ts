@@ -24,7 +24,7 @@ export class DevelopmentBootstrapService {
   buildBootstrapRecoveryMessage() {
     return [
       'The development bootstrap identity exists but is not admitted.',
-      'Set CAPACITYLENS_CREATE_ADMIN_ADMIN=false, start the server, sign in, and inspect GET /api/admission.',
+      'Set CAPACITYLENS_CREATE_ADMIN_ADMIN=false, start the server, sign in, and inspect GET /api/v1/admission.',
       'Verify this is the identity created by the interrupted local bootstrap, then stop the server.',
       'Run only the command for each unmet requirement before restarting normally:',
       'node ace.js account-kit:admission:grant-invitation admin@admin.admin --role admin',

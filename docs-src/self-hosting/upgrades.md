@@ -41,7 +41,7 @@ sudo systemctl restart capacitylens
 If nginx serves the site from a copy of `packaging/release/capacitylens.nginx.conf`, compare that
 copy with the new tag's file and copy over any changed `location` blocks before starting the
 service. Upgrades never replace it, and its `location` blocks keep secret-bearing invitation and
-password-reset paths out of the access log. Invitation paths are `/api/invitations/<token>/...` and
+password-reset paths out of the access log. Invitation paths are `/api/v1/invitations/<token>/...` and
 `/invitation/<token>`; an older copy logs the tokens in them.
 
 For an existing database, `app:upgrade` writes and verifies an online pre-upgrade backup before

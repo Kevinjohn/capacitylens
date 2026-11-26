@@ -27,9 +27,9 @@ test.group('HTTP contract', (group) => {
     assert.equal(missing.status(), 422);
     const refusal = missing.body() as unknown as { errors: Array<{ field: string }> };
     assert.equal(refusal.errors[0]?.field, 'companyId');
-    const repeated = await client.get('/api/state?companyId=a-studio&companyId=a-loft');
+    const repeated = await client.get('/api/v1/state?companyId=a-studio&companyId=a-loft');
     assert.equal(repeated.status(), 422);
-    const whitespace = await client.get('/api/state?companyId=%20%20');
+    const whitespace = await client.get('/api/v1/state?companyId=%20%20');
     assert.equal(whitespace.status(), 422);
     assert.isNotEmpty(whitespace.body().errors);
     const invalidInactive = await client
@@ -42,7 +42,7 @@ test.group('HTTP contract', (group) => {
       'companyId=a-studio&includeInactive=1&includeInactive=1',
       'companyId[unexpected]=1',
     ]) {
-      const invalid = await client.get(`/api/state?${query}`);
+      const invalid = await client.get(`/api/v1/state?${query}`);
       invalid.assertStatus(422);
       assert.isNotEmpty(invalid.body().errors);
     }
@@ -76,16 +76,16 @@ test.group('HTTP contract', (group) => {
     assert,
   }) => {
     const anonymous = await client
-      .post('/api/test/reset')
+      .post('/api/v1/test/reset')
       .header('sec-fetch-site', 'same-origin')
       .json({ seed: false });
     assert.equal(anonymous.status(), 404);
     await resetState(false);
     client = await resetAuthenticatedClient(client, true);
-    const signedIn = await client.post('/api/test/reset').json({ seed: false });
+    const signedIn = await client.post('/api/v1/test/reset').json({ seed: false });
     assert.equal(signedIn.status(), 404);
     // The retired metadata route is gone, not merely unadvertised.
-    const retiredMeta = await client.get('/api/meta');
+    const retiredMeta = await client.get('/api/v1/meta');
     assert.equal(retiredMeta.status(), 404);
   });
 
@@ -94,7 +94,7 @@ test.group('HTTP contract', (group) => {
     assert,
   }) => {
     for (const response of [
-      await client.visit('api.liveness'),
+      await client.visit('health_checks.live'),
       await client
         .visit('api.session.store')
         .header('content-type', 'application/json')
@@ -116,19 +116,19 @@ test.group('HTTP contract', (group) => {
   }) => {
     client = await resetAuthenticatedClient(client, true);
     const allowed = 'http://localhost:5173';
-    const accepted = await client.visit('api.liveness').header('origin', allowed);
+    const accepted = await client.visit('health_checks.live').header('origin', allowed);
     assert.equal(accepted.header('access-control-allow-origin'), allowed);
     assert.equal(accepted.header('access-control-allow-credentials'), 'true');
 
     const disallowed = await client
-      .visit('api.liveness')
+      .visit('health_checks.live')
       .header('origin', 'https://attacker.example');
     assert.isUndefined(disallowed.header('access-control-allow-origin'));
     assert.isUndefined(disallowed.header('access-control-allow-credentials'));
     assert.equal(disallowed.status(), 200);
 
     const preflight = await client
-      .options('/api/companies/a-studio/planning/mutations')
+      .options('/api/v1/companies/a-studio/planning/mutations')
       .header('origin', allowed)
       .header('access-control-request-method', 'POST')
       .header('access-control-request-headers', 'content-type');
@@ -138,7 +138,7 @@ test.group('HTTP contract', (group) => {
 
     const planning = await client.visit('api.planning.show', { companyId: 'a-studio' });
     assert.equal(planning.status(), 200);
-    const writePath = '/api/companies/a-studio/planning/mutations';
+    const writePath = '/api/v1/companies/a-studio/planning/mutations';
     const write = {
       mutationId: randomUUID(),
       baseRevision: (planning.body().data as { revision: number }).revision,

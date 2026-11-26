@@ -57,7 +57,7 @@ test.group('HTTP parser regressions', (group) => {
 
   test('removes the CSP report endpoint', async ({ client, assert }) => {
     const response = await client
-      .post('/api/security/csp-report')
+      .post('/api/v1/security/csp-report')
       .header('sec-fetch-site', 'same-origin')
       .json({ report: 'ignored' })
       .send();
@@ -78,7 +78,7 @@ test.group('HTTP parser regressions', (group) => {
       .masqueradeToken;
     assert.isString(masqueradeToken);
     const oversized = await postRaw(
-      '/api/companies/a-studio/example-data',
+      '/api/v1/companies/a-studio/example-data',
       Buffer.from(`value=${'x'.repeat(1_100_000)}`),
       'application/x-www-form-urlencoded',
       { 'x-masquerade-context': masqueradeToken as string },
@@ -91,7 +91,7 @@ test.group('HTTP parser regressions', (group) => {
     });
 
     const unsupported = await postRaw(
-      '/api/companies/a-studio/example-data',
+      '/api/v1/companies/a-studio/example-data',
       Buffer.from('value=x'),
       'application/x-www-form-urlencoded',
       { 'content-encoding': 'compress', 'x-masquerade-context': masqueradeToken as string },

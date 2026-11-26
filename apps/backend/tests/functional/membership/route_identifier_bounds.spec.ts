@@ -28,12 +28,12 @@ test.group('company route identifier bounds', (group) => {
     await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
     const tooLong = 'a'.repeat(255);
     const refused = [
-      client.get(`/api/companies/${tooLong}/members`),
-      client.patch(`/api/companies/a-studio/members/${tooLong}`).json({ role: 'editor' }),
-      client.put(`/api/companies/a-studio/members/${tooLong}/resource-link`).json({}),
-      client.post(`/api/companies/a-studio/resources/${'a'.repeat(129)}/anonymise`).json({}),
-      client.post(`/api/companies/a-studio/invitations/${'1'.repeat(129)}/resend`).json({}),
-      client.delete(`/api/companies/a-studio/invitations/${'1'.repeat(129)}`),
+      client.get(`/api/v1/companies/${tooLong}/members`),
+      client.patch(`/api/v1/companies/a-studio/members/${tooLong}`).json({ role: 'editor' }),
+      client.put(`/api/v1/companies/a-studio/members/${tooLong}/resource-link`).json({}),
+      client.post(`/api/v1/companies/a-studio/resources/${'a'.repeat(129)}/anonymise`).json({}),
+      client.post(`/api/v1/companies/a-studio/invitations/${'1'.repeat(129)}/resend`).json({}),
+      client.delete(`/api/v1/companies/a-studio/invitations/${'1'.repeat(129)}`),
     ];
     for (const request of refused) {
       const response = await asLoggedInDataOwner(request, user).send();
@@ -55,24 +55,29 @@ test.group('company route identifier bounds', (group) => {
     );
     await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
     const refused = [
-      [client.patch('/api/companies/a-studio/members/bad.id').json({ role: 'editor' }), 'userId'],
       [
-        client.patch('/api/companies/a-studio/members/bad.id/status').json({ status: 'suspended' }),
+        client.patch('/api/v1/companies/a-studio/members/bad.id').json({ role: 'editor' }),
         'userId',
       ],
       [
         client
-          .put('/api/companies/a-studio/members/bad.id/resource-link')
+          .patch('/api/v1/companies/a-studio/members/bad.id/status')
+          .json({ status: 'suspended' }),
+        'userId',
+      ],
+      [
+        client
+          .put('/api/v1/companies/a-studio/members/bad.id/resource-link')
           .json({ resourceId: 'r-1', expectedRevision: null }),
         'userId',
       ],
       [
         client
-          .delete('/api/companies/a-studio/members/bad.id/resource-link')
+          .delete('/api/v1/companies/a-studio/members/bad.id/resource-link')
           .json({ expectedRevision: '1' }),
         'userId',
       ],
-      [client.post('/api/companies/a-studio/resources/-bad/anonymise').json({}), 'id'],
+      [client.post('/api/v1/companies/a-studio/resources/-bad/anonymise').json({}), 'id'],
     ] as const;
     for (const [request, param] of refused) {
       const response = await asLoggedInDataOwner(request, user).send();
@@ -91,7 +96,7 @@ test.group('company route identifier bounds', (group) => {
     await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
     const response = await asLoggedInDataOwner(
       client
-        .put('/api/companies/a-studio/getting-started')
+        .put('/api/v1/companies/a-studio/getting-started')
         .json({ dismissed: true, params: { companyId: 'a-studio' } }),
       user
     ).send();

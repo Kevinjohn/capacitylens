@@ -50,7 +50,7 @@ test('a reset link sets a new password once and retires the old one', async ({ p
   await expect(accessScreen).toContainText(email);
 
   const headers = { 'sec-fetch-site': 'same-origin' };
-  const oldSignIn = await request.post(`${API}/api/auth/sign-in`, {
+  const oldSignIn = await request.post(`${API}/api/v1/auth/sign-in`, {
     headers,
     data: { email, password: PASSWORD },
   });

@@ -238,7 +238,7 @@ export function planningHarnessExecutions(key: string) {
 
 export async function planningHarnessSignOut(key: string) {
   const harness = requireHarness(key);
-  const response = await fetch('/api/auth/sign-out', {
+  const response = await fetch('/api/v1/auth/sign-out', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },

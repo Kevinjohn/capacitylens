@@ -33,7 +33,7 @@ export async function masqueradeTokenHeaders(
   origin = AUTH_API,
 ): Promise<Record<string, string>> {
   const headers = { 'sec-fetch-site': 'same-origin', ...(cookie ? { cookie } : {}) };
-  const response = await request.get(`${origin}/api/masquerade`, { headers });
+  const response = await request.get(`${origin}/api/v1/masquerade`, { headers });
   expect(response.status(), 'read masquerade context for fixture request').toBe(200);
   const masqueradeToken = ((await response.json()) as { data?: { masqueradeToken?: unknown } }).data
     ?.masqueradeToken;
@@ -115,7 +115,7 @@ async function postSignUp(
   email: string,
   name = email.split('@')[0],
 ): Promise<string> {
-  const res = await ctx.post(`${AUTH_API}/api/auth/sign-up`, {
+  const res = await ctx.post(`${AUTH_API}/api/v1/auth/sign-up`, {
     data: { email, password: AUTH_PASSWORD, name },
     headers: { 'sec-fetch-site': 'same-origin' },
   });
@@ -428,7 +428,7 @@ export async function waitForAuthE2EBaseline(): Promise<void> {
  * Sign up one user in an isolated request context and return its email and auto-signed-in session
  * cookie in one HTTP request. Use this when the test needs the cookie for API calls or browser
  * sign-in. When the test needs the user ID (for a PATCH/DELETE .../members/<userId> or a
- * toUserId transfer), use signUpUserWithId; it makes a second request to GET /api/auth/me.
+ * toUserId transfer), use signUpUserWithId; it makes a second request to GET /api/v1/auth/me.
  *
  * Each user gets a separate context because an APIRequestContext keeps a cookie jar. Product
  * sign-up creates a session in the same request, and its Set-Cookie header belongs only to this
@@ -455,7 +455,7 @@ export async function bootstrapOrg(
   cookie: string,
   name: string,
 ): Promise<string> {
-  const identity = await request.get(`${AUTH_API}/api/auth/me`, {
+  const identity = await request.get(`${AUTH_API}/api/v1/auth/me`, {
     headers: { cookie, 'sec-fetch-site': 'same-origin' },
   });
   expect(identity.status(), 'fixture owner must have a real native session').toBe(200);
@@ -533,14 +533,14 @@ export async function sendPlanningIntent(
   intent: Record<string, unknown>,
 ): Promise<unknown> {
   const headers = { cookie, 'sec-fetch-site': 'same-origin' };
-  const snapshot = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
+  const snapshot = await request.get(`${AUTH_API}/api/v1/companies/${companyId}/planning`, {
     headers,
   });
   expect(snapshot.status(), `read planning revision for ${String(intent.operation)}`).toBe(200);
   const revision = ((await snapshot.json()) as { data?: { revision?: unknown } }).data?.revision;
   if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
     throw new Error('The fixture planning read did not return a revision.');
-  const url = `${AUTH_API}/api/companies/${companyId}/planning/mutations`;
+  const url = `${AUTH_API}/api/v1/companies/${companyId}/planning/mutations`;
   const options = {
     headers: await masqueradeTokenHeaders(request, cookie),
     data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
@@ -584,7 +584,7 @@ export async function createTestPerson(
 }
 
 /**
- * Sign up one user and also resolve its user ID (a second request, `GET /api/auth/me`, on top of
+ * Sign up one user and also resolve its user ID (a second request, `GET /api/v1/auth/me`, on top of
  * the sign-up). Use this only when a test needs the ID. Other tests should use the cheaper
  * `signUpUser` helper above. See its TSDoc for the isolated-context rationale.
  */
@@ -595,7 +595,7 @@ export async function signUpUserWithId(
   const ctx = await playwrightRequest.newContext();
   try {
     const cookie = await postSignUp(ctx, email, name);
-    const me = await ctx.get(`${AUTH_API}/api/auth/me`, { headers: { cookie } });
+    const me = await ctx.get(`${AUTH_API}/api/v1/auth/me`, { headers: { cookie } });
     const userId = (await me.json()).data.user.id as string;
     return { email, cookie, userId };
   } finally {

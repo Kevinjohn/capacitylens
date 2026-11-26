@@ -28,7 +28,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
   };
   assert.ok(resource.id);
   const createdResource = await fetchOk(
-    `${baseUrl}/api/companies/${companyId}/planning/mutations`,
+    `${baseUrl}/api/v1/companies/${companyId}/planning/mutations`,
     {
       method: 'POST',
       headers: {
@@ -74,7 +74,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
     phaseId: null,
   };
   const createdActivity = await fetchOk(
-    `${baseUrl}/api/companies/${companyId}/planning/mutations`,
+    `${baseUrl}/api/v1/companies/${companyId}/planning/mutations`,
     {
       method: 'POST',
       headers: {
@@ -110,7 +110,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
     status: 'confirmed',
   };
   const createdAllocation = await fetchOk(
-    `${baseUrl}/api/companies/${companyId}/planning/mutations`,
+    `${baseUrl}/api/v1/companies/${companyId}/planning/mutations`,
     {
       method: 'POST',
       headers: {

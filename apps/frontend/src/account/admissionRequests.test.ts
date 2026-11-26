@@ -22,7 +22,7 @@ describe('admission list query', () => {
     const call = mocks.fetchApi.mock.calls.at(-1);
     if (!call) throw new Error('Expected admission read');
     const url = new URL(call[0], window.location.origin);
-    expect(url.pathname).toBe('/api/admission/requests');
+    expect(url.pathname).toBe('/api/v1/admission/requests');
     expect(url.searchParams.get('status')).toBe('pending');
     expect(url.searchParams.get('cursor')).toBe('next+/=&?');
     expect(call[1]).toMatchObject({ credentials: 'include', signal: controller.signal });

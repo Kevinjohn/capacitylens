@@ -59,7 +59,7 @@ describe('browser account api', () => {
 
     const [linkUrl, linkInit] = mocks.fetchApi.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
-      '/api/companies/company%20%2F%20one/members/person%20%2F%20one/resource-link',
+      '/api/v1/companies/company%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
     expectPlainRequest(linkInit, 'PUT');
     expect(JSON.parse(String(linkInit.body))).toEqual({
@@ -96,18 +96,18 @@ describe('browser account api', () => {
       .map((call) => String(call[0]))
       .filter((url) => url.endsWith('/members') || url.endsWith('/invitations'));
     expect(directoryUrls).toEqual([
-      '/api/companies/company%20%2F%20one/members',
-      '/api/companies/company%20%2F%20one/invitations',
+      '/api/v1/companies/company%20%2F%20one/members',
+      '/api/v1/companies/company%20%2F%20one/invitations',
     ]);
     const urls = mocks.fetchApi.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
-      '/api/companies/company%20%2F%20one/members',
-      '/api/companies/company%20%2F%20one/invitations',
-      '/api/companies/company%20%2F%20one/masquerade',
-      '/api/masquerade',
-      '/api/masquerade',
-      '/api/invitations/token%20%2F%20one/preview',
-      '/api/invitations/token%20%2F%20one/sign-up',
+      '/api/v1/companies/company%20%2F%20one/members',
+      '/api/v1/companies/company%20%2F%20one/invitations',
+      '/api/v1/companies/company%20%2F%20one/masquerade',
+      '/api/v1/masquerade',
+      '/api/v1/masquerade',
+      '/api/v1/invitations/token%20%2F%20one/preview',
+      '/api/v1/invitations/token%20%2F%20one/sign-up',
     ]);
     expect(requestInitAt(mocks.fetchApi.mock.calls, 2)).toMatchObject({
       method: 'POST',
@@ -133,7 +133,7 @@ describe('browser account api', () => {
     });
 
     const [url, init] = mocks.fetchApi.mock.calls[0] ?? [];
-    expect(url).toBe('/api/companies/company%20%2F%20one/ownership-transfer');
+    expect(url).toBe('/api/v1/companies/company%20%2F%20one/ownership-transfer');
     expectPlainRequest(init as RequestInit, 'POST');
     expect(new Headers(init?.headers).get('content-type')).toBe('application/json');
     expect(JSON.parse(String(init?.body))).toEqual({
@@ -160,10 +160,10 @@ describe('browser account api', () => {
     await invitationRequests.revokeInvitation('company / one', 'invite / one');
 
     expect(mocks.fetchApi.mock.calls.map((call) => String(call[0]))).toEqual([
-      '/api/companies/company%20%2F%20one/members/person%20%2F%20one',
-      '/api/companies/company%20%2F%20one/members/person%20%2F%20one/status',
-      '/api/invitations',
-      '/api/companies/company%20%2F%20one/invitations/invite%20%2F%20one',
+      '/api/v1/companies/company%20%2F%20one/members/person%20%2F%20one',
+      '/api/v1/companies/company%20%2F%20one/members/person%20%2F%20one/status',
+      '/api/v1/invitations',
+      '/api/v1/companies/company%20%2F%20one/invitations/invite%20%2F%20one',
     ]);
     const methods = ['PATCH', 'PATCH', 'POST', 'DELETE'];
     methods.forEach((method, index) =>

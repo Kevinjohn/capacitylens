@@ -231,7 +231,7 @@ not claims that input validation alone completes another control.
 
 | Control IDs and current status | Remaining outcome and evidence owner |
 | --- | --- |
-| V1.1.1, V1.5.3 — Partial | Maintainers must audit every parser and downstream encoding context, including Account Kit password and recovery request bodies, against the maintained parser contracts; the application scan does not cover `/api/auth/`. |
+| V1.1.1, V1.5.3 — Partial | Maintainers must audit every parser and downstream encoding context, including Account Kit password and recovery request bodies, against the maintained parser contracts; the application scan does not cover `/api/v1/auth/`. |
 | V1.3.11 — Partial | Account addresses are validated and handed to structured `nodemailer` fields. The review has not proved every user-controlled SMTP field and transport library behaviour against header injection. |
 | V4.1.2 — Partial | Historical 2026-10-10 proxy evidence; current product routes call Account Kit directly and have no authentication proxy. Reassess deployed HTTP redirect behaviour separately. |
 | V4.1.3, V4.2.1–V4.2.4 — Partial | Historical 2026-10-10 proxy evidence. Current product routes call Account Kit directly and have no authentication proxy; deployed proxy/Node framing and trusted-forwarding still require deployment evidence. |

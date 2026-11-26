@@ -22,12 +22,12 @@ describe('getting-started account api', () => {
     await gettingStartedApi.dismiss('company / one');
     expect(fetchApi).toHaveBeenNthCalledWith(
       1,
-      '/api/companies/company%20%2F%20one/getting-started',
+      '/api/v1/companies/company%20%2F%20one/getting-started',
       { credentials: 'include', signal: controller.signal },
     );
     expect(fetchApi).toHaveBeenNthCalledWith(
       2,
-      '/api/companies/company%20%2F%20one/getting-started',
+      '/api/v1/companies/company%20%2F%20one/getting-started',
       {
         method: 'PUT',
         credentials: 'include',

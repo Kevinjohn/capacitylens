@@ -17,7 +17,7 @@ import { AuthLoading } from './authScreens';
 import { AccessScreen } from './AccessScreens';
 import { useAuthContextValue } from './useAuthContextValue';
 
-// Auth gate checks GET /api/auth/me once at boot; a 401 replaces everything with the SignInScreen. The screen is a
+// Auth gate checks GET /api/v1/auth/me once at boot; a 401 replaces everything with the SignInScreen. The screen is a
 // lazy chunk so interactive auth forms never load unless a sign-in is actually shown.
 
 const SignInScreen = lazy(() =>
@@ -50,7 +50,7 @@ function useAuthStatus() {
     if (next === null || (next.kind === 'error' && onNull === 'keep-previous')) {
       if (next?.kind === 'error' && onNull === 'keep-previous') {
         console.warn(
-          'AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot',
+          'AuthProvider: /api/v1/auth/me refresh failed; keeping the previous auth snapshot',
         );
       }
       return next;

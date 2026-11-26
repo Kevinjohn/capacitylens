@@ -61,7 +61,7 @@ export const companyDataRequests = {
    *   answers off-spec.
    */
   async readImportPreview(companyId: string, document: unknown): Promise<ImportPreviewSummary> {
-    const response = await fetchApi('/api/import/preview', {
+    const response = await fetchApi('/api/v1/import/preview', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -102,7 +102,7 @@ export const companyDataRequests = {
     confirmationId,
   }: ApplyImportInput): Promise<Response> {
     return fetchApi(
-      '/api/import/apply',
+      '/api/v1/import/apply',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,7 +121,7 @@ export const companyDataRequests = {
   /** Sends the password-confirmed anonymisation of every person in one company. */
   anonymiseCompanyPeople(companyId: string, confirmationId: string): Promise<Response> {
     return fetchApi(
-      `/api/companies/${encodeURIComponent(companyId)}/anonymise`,
+      `/api/v1/companies/${encodeURIComponent(companyId)}/anonymise`,
       {
         method: 'POST',
         credentials: 'include',
@@ -135,7 +135,7 @@ export const companyDataRequests = {
   /** Sends the anonymisation of one person resource. */
   anonymiseResource(companyId: string, resourceId: string): Promise<Response> {
     return fetchApi(
-      `/api/companies/${encodeURIComponent(companyId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
+      `/api/v1/companies/${encodeURIComponent(companyId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
       {
         method: 'POST',
         credentials: 'include',

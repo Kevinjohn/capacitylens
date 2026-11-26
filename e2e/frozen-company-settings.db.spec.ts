@@ -42,7 +42,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
       // The fixture deliberately models legacy companies with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
       const initialized = await request.post(
-        `${API}/api/companies/${company.id}/planning/mutations`,
+        `${API}/api/v1/companies/${company.id}/planning/mutations`,
         {
           headers: await masqueradeTokenHeaders(request, undefined, API),
           data: {
@@ -55,7 +55,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
       expect(initialized.status(), `${field} must allow one-time initialization`).toBe(200);
       revision += 1;
 
-      const res = await request.post(`${API}/api/companies/${company.id}/planning/mutations`, {
+      const res = await request.post(`${API}/api/v1/companies/${company.id}/planning/mutations`, {
         headers: await masqueradeTokenHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
@@ -69,14 +69,17 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
     // The settings-update schema excludes language, so language-only updates are rejected
     // before frozen-field handling, even when the supplied language is English ('en'). The framework
     // answers a schema failure with 422.
-    const language = await request.post(`${API}/api/companies/${company.id}/planning/mutations`, {
-      headers: await masqueradeTokenHeaders(request, undefined, API),
-      data: {
-        mutationId: crypto.randomUUID(),
-        baseRevision: revision,
-        intent: { operation: 'settings.update', changes: { language: 'fr' } },
+    const language = await request.post(
+      `${API}/api/v1/companies/${company.id}/planning/mutations`,
+      {
+        headers: await masqueradeTokenHeaders(request, undefined, API),
+        data: {
+          mutationId: crypto.randomUUID(),
+          baseRevision: revision,
+          intent: { operation: 'settings.update', changes: { language: 'fr' } },
+        },
       },
-    });
+    );
     expect(language.status()).toBe(422);
 
     const after = await serverState(request);
@@ -107,7 +110,7 @@ test.describe('single-company production entry', () => {
   });
 
   test('ordinary additional company creation is rejected', async ({ request }) => {
-    const res = await request.post(`${API}/api/installation/company`, {
+    const res = await request.post(`${API}/api/v1/installation/company`, {
       headers: await masqueradeTokenHeaders(request, undefined, API),
       data: {
         name: 'Queen Industries',
@@ -117,7 +120,7 @@ test.describe('single-company production entry', () => {
     expect(await res.json()).toMatchObject({ code: 'COMPANY_SETUP_UNAVAILABLE' });
 
     // The company list refuses an installation with more than one company.
-    const companies = await request.get(`${API}/api/companies`);
+    const companies = await request.get(`${API}/api/v1/companies`);
     expect(companies.status()).toBe(200);
     expect((await companies.json()).data).toHaveLength(1);
   });

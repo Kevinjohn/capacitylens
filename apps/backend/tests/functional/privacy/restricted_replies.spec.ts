@@ -98,7 +98,7 @@ async function send<T extends ApiRequest>(request: T, cookie: string, intent: ob
     .send();
 }
 
-const buildCompanyRoute = (path: string) => `/api/companies/${companyId}/${path}`;
+const buildCompanyRoute = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 
 /** A preset colour used by a seeded client that differs from the row's own, so the update is a real
  * change. */
@@ -351,9 +351,8 @@ const replies: Record<string, Exposure> = {
   'api.example_data.store': { none: COUNTS },
   'api.getting_started.show': { none: IDENTITY },
   'api.getting_started.update': { none: IDENTITY },
-  'api.liveness': { none: IDENTITY },
-  'liveness': { none: IDENTITY },
-  'health_checks': { none: IDENTITY },
+  'health_checks.live': { none: IDENTITY },
+  'health_checks.ready': { none: IDENTITY },
   'spa_fallback': { none: IDENTITY },
   'api.first_company_setup.store': { none: IDENTITY },
   'api.invitations.store': { none: IDENTITY },

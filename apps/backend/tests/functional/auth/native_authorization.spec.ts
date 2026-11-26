@@ -18,7 +18,7 @@ const privateClientName = 'SENTINEL_PRIVATE_CLIENT_NAME';
 const privateProjectName = 'SENTINEL_PRIVATE_PROJECT_NAME';
 const privateTimeOffNote = 'SENTINEL_PRIVATE_TIME_OFF_NOTE';
 const roles = ['viewer', 'editor', 'admin', 'owner'] as const;
-const planningUrl = `/api/companies/${companyId}/planning`;
+const planningUrl = `/api/v1/companies/${companyId}/planning`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -156,7 +156,7 @@ test.group('native authorization and role projections', (group) => {
       client.visit('api.company_state.show').qs({ companyId })
     ).send();
     anonymous.assertStatus(401);
-    const openHealth = await client.visit('api.liveness').send();
+    const openHealth = await client.visit('health_checks.live').send();
     openHealth.assertStatus(200);
 
     await db.from('memberships').where({ user_id: userId }).delete();
@@ -179,7 +179,7 @@ test.group('native authorization and role projections', (group) => {
     const foreignClient = seed().clients.find((row) => row.companyId === otherCompanyId);
     assert.isDefined(foreignClient);
     const concealed = await asDataOwner(
-      trusted(client.post(`/api/clients/${foreignClient!.id}/archive`)),
+      trusted(client.post(`/api/v1/clients/${foreignClient!.id}/archive`)),
       cookie
     )
       .json({ companyId })

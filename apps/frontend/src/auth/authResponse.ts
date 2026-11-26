@@ -81,7 +81,7 @@ function resolveAccessGate(fields: AuthResponseFields, admitted: boolean): Acces
 /** Reject identity responses that cannot be trusted. */
 export function rejectInvalidResponse(): AuthStatusResult {
   console.warn(
-    'AuthProvider: /api/auth/me returned an unexpected body; nothing trustworthy learned',
+    'AuthProvider: /api/v1/auth/me returned an unexpected body; nothing trustworthy learned',
   );
   return { kind: 'error', message: m.auth_service_invalid_response() };
 }
@@ -93,7 +93,7 @@ function parsePassResult(body: unknown): AuthStatusResult {
   }
   const user = parseAuthUser(fields.user);
   if (!user) {
-    console.warn('AuthProvider: /api/auth/me returned without a valid user');
+    console.warn('AuthProvider: /api/v1/auth/me returned without a valid user');
     return { kind: 'error', message: m.auth_service_invalid_response() };
   }
   const admission = parseAdmission(fields.admission);

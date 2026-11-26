@@ -58,7 +58,7 @@ async function readRoles(
   companyId: string,
   userIds: readonly string[],
 ) {
-  const response = await request.get(`${API}/api/companies/${companyId}/members`, {
+  const response = await request.get(`${API}/api/v1/companies/${companyId}/members`, {
     headers: { cookie },
   });
   expect(response.status()).toBe(200);
@@ -79,7 +79,7 @@ test('the Owner confirms one immediate handover and both memberships refresh', a
     await expect(ownerPage.getByTestId('current-access')).toContainText('Owner');
     await expect(adminPage.getByTestId('current-access')).toContainText('Admin');
     await expect(adminPage.getByTestId('ownership-transfer-card')).toHaveCount(0);
-    const refused = await request.post(`${API}/api/companies/${companyId}/ownership-transfer`, {
+    const refused = await request.post(`${API}/api/v1/companies/${companyId}/ownership-transfer`, {
       headers: await masqueradeTokenHeaders(request, editor.cookie),
       data: { toUserId: admin.userId },
     });

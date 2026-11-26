@@ -22,7 +22,7 @@ function parseCompanySummary(entry: unknown): CompanySummary | null {
   const grant = parseAccessGrant(entry);
   if (!isRole(entry.role) || !grant) {
     console.warn(
-      'fetchCompanySummaries: /api/companies returned an unrecognized role or grant; marking it unavailable',
+      'fetchCompanySummaries: /api/v1/companies returned an unrecognized role or grant; marking it unavailable',
     );
     return { id: entry.id, name: entry.name, role: 'viewer', roleStatus: 'unavailable' };
   }
@@ -36,7 +36,7 @@ type CompanySummaryParseOutcome =
 function parseCompanySummaryList(body: unknown): CompanySummaryParseOutcome {
   if (!Array.isArray(body)) {
     console.warn(
-      'fetchCompanySummaries: /api/companies returned a non-array body; reporting null (callers keep their existing list)',
+      'fetchCompanySummaries: /api/v1/companies returned a non-array body; reporting null (callers keep their existing list)',
     );
     return { kind: 'rejected', droppedCount: 0 };
   }
@@ -45,12 +45,14 @@ function parseCompanySummaryList(body: unknown): CompanySummaryParseOutcome {
     .filter((state): state is CompanySummary => state !== null);
   const droppedCount = body.length - valid.length;
   if (droppedCount > 0) {
-    console.warn(`fetchCompanySummaries: dropped ${droppedCount} malformed /api/companies row(s)`);
+    console.warn(
+      `fetchCompanySummaries: dropped ${droppedCount} malformed /api/v1/companies row(s)`,
+    );
   }
   if (body.length > 0 && valid.length === 0) return { kind: 'rejected', droppedCount };
   if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
     console.warn(
-      'fetchCompanySummaries: /api/companies returned duplicate company ids; reporting null',
+      'fetchCompanySummaries: /api/v1/companies returned duplicate company ids; reporting null',
     );
     return { kind: 'rejected', droppedCount };
   }
@@ -83,7 +85,7 @@ function reportCompanySummaryParse(
 
 function reportCompanySummaryFailure(error: unknown): null {
   console.warn(
-    'fetchCompanySummaries: /api/companies read failed; reporting null (callers keep their existing list)',
+    'fetchCompanySummaries: /api/v1/companies read failed; reporting null (callers keep their existing list)',
     error,
   );
   return null;

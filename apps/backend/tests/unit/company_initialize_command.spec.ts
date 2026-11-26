@@ -247,7 +247,7 @@ test.group('company initialize command', () => {
       const { url } = JSON.parse(bootstrap.stdout.trim()) as { url: string };
       const token = new URL(url).pathname.split('/').at(-1)!;
       await withOperatorServer(f, async (origin) => {
-        const accepted = await fetch(`${origin}/api/invitations/${token}/sign-up`, {
+        const accepted = await fetch(`${origin}/api/v1/invitations/${token}/sign-up`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({ password: credentials.password, name: 'Bruce Wayne' }),
@@ -258,7 +258,7 @@ test.group('company initialize command', () => {
       assert.equal(initialized.status, 0, initialized.output);
       const { companyId } = JSON.parse(initialized.stdout.trim());
       await withOperatorServer(f, async (origin) => {
-        const signin = await fetch(`${origin}/api/auth/sign-in`, {
+        const signin = await fetch(`${origin}/api/v1/auth/sign-in`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify(credentials),
@@ -268,9 +268,9 @@ test.group('company initialize command', () => {
           .getSetCookie()
           .map((value) => value.split(';', 1)[0])
           .join('; ');
-        const me = await fetch(`${origin}/api/auth/me`, { headers: { cookie } });
+        const me = await fetch(`${origin}/api/v1/auth/me`, { headers: { cookie } });
         assert.equal(me.status, 200);
-        const companies = await fetch(`${origin}/api/companies`, { headers: { cookie } });
+        const companies = await fetch(`${origin}/api/v1/companies`, { headers: { cookie } });
         assert.deepEqual(((await companies.json()) as { data: unknown }).data, [
           {
             id: companyId,
@@ -294,7 +294,7 @@ test.group('company initialize command', () => {
           },
         ]);
         const state = await fetch(
-          `${origin}/api/state?companyId=${encodeURIComponent(companyId)}`,
+          `${origin}/api/v1/state?companyId=${encodeURIComponent(companyId)}`,
           {
             headers: { cookie },
           }
@@ -310,7 +310,7 @@ test.group('company initialize command', () => {
         assert.equal(data.companies[0]!.weekStartsOn, 1);
         assert.lengthOf(data.clients, 1);
         assert.equal(data.clients[0]!.builtin, true);
-        const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } });
+        const modeResponse = await fetch(`${origin}/api/v1/masquerade`, { headers: { cookie } });
         const modeBody = await modeResponse.text();
         assert.equal(modeResponse.status, 200, modeBody);
         const { data: mode } = JSON.parse(modeBody) as { data: { masqueradeToken?: unknown } };

@@ -36,63 +36,62 @@ test.group('account gate', (group) => {
     );
     assert.deepEqual(access, {
       'GET,HEAD /*': 'public',
-      'POST /api/auth/change-password': 'public',
-      'POST /api/auth/delete-account': 'public',
-      'POST /api/auth/inspect-reset': 'public',
-      'GET,HEAD /api/auth/me': 'public',
-      'POST /api/auth/password-confirmation': 'public',
-      'POST /api/auth/request-reset': 'public',
-      'POST /api/auth/reset-password': 'public',
-      'POST /api/auth/sign-in': 'public',
-      'POST /api/auth/sign-out': 'public',
-      'POST /api/auth/sign-up': 'public',
-      'POST /api/auth/verification/complete': 'public',
-      'POST /api/auth/verification/inspect': 'public',
-      'POST /api/auth/verification/send': 'public',
-      'GET,HEAD /api/health': 'public',
-      'GET,HEAD /api/invitations/:token/preview': 'public',
-      'POST /api/invitations/:token/sign-up': 'public',
-      'GET,HEAD /api/masquerade': 'public',
+      'POST /api/v1/auth/change-password': 'public',
+      'POST /api/v1/auth/delete-account': 'public',
+      'POST /api/v1/auth/inspect-reset': 'public',
+      'GET,HEAD /api/v1/auth/me': 'public',
+      'POST /api/v1/auth/password-confirmation': 'public',
+      'POST /api/v1/auth/request-reset': 'public',
+      'POST /api/v1/auth/reset-password': 'public',
+      'POST /api/v1/auth/sign-in': 'public',
+      'POST /api/v1/auth/sign-out': 'public',
+      'POST /api/v1/auth/sign-up': 'public',
+      'POST /api/v1/auth/verification/complete': 'public',
+      'POST /api/v1/auth/verification/inspect': 'public',
+      'POST /api/v1/auth/verification/send': 'public',
+      'GET,HEAD /api/v1/invitations/:token/preview': 'public',
+      'POST /api/v1/invitations/:token/sign-up': 'public',
+      'GET,HEAD /api/v1/masquerade': 'public',
       'GET,HEAD /health/live': 'public',
       'GET,HEAD /health/ready': 'public',
-      'GET,HEAD /api/*': 'limited',
-      'GET,HEAD /api/admission': 'limited',
-      'POST /api/admission/:userId/approve': 'limited',
-      'POST /api/admission/:userId/reject': 'limited',
-      'POST /api/admission/:userId/revoke': 'limited',
-      'POST /api/admission/request': 'limited',
-      'GET,HEAD /api/admission/requests': 'limited',
-      'POST /api/companies/:companyId/masquerade': 'limited',
-      'DELETE /api/masquerade': 'limited',
-      'POST /api/admission/complete': 'admitted',
-      'GET,HEAD /api/companies': 'admitted',
-      'POST /api/companies/:companyId/anonymise': 'admitted',
-      'POST /api/companies/:companyId/example-data': 'admitted',
-      'GET,HEAD /api/companies/:companyId/export': 'admitted',
-      'GET,HEAD /api/companies/:companyId/getting-started': 'admitted',
-      'PUT /api/companies/:companyId/getting-started': 'admitted',
-      'GET,HEAD /api/companies/:companyId/invitations': 'admitted',
-      'DELETE /api/companies/:companyId/invitations/:id': 'admitted',
-      'POST /api/companies/:companyId/invitations/:id/resend': 'admitted',
-      'PUT /api/companies/:companyId/member-sign-in-tracking': 'admitted',
-      'GET,HEAD /api/companies/:companyId/members': 'admitted',
-      'PATCH /api/companies/:companyId/members/:userId': 'admitted',
-      'DELETE /api/companies/:companyId/members/:userId/resource-link': 'admitted',
-      'PUT /api/companies/:companyId/members/:userId/resource-link': 'admitted',
-      'PATCH /api/companies/:companyId/members/:userId/status': 'admitted',
-      'POST /api/companies/:companyId/ownership-transfer': 'admitted',
-      'GET,HEAD /api/companies/:companyId/planning': 'admitted',
-      'GET,HEAD /api/companies/:companyId/planning/archive': 'admitted',
-      'POST /api/companies/:companyId/planning/mutations': 'admitted',
-      'POST /api/companies/:companyId/planning/redo': 'admitted',
-      'POST /api/companies/:companyId/planning/undo': 'admitted',
-      'POST /api/companies/:companyId/resources/:id/anonymise': 'admitted',
-      'GET,HEAD /api/diagnostics': 'admitted',
-      'POST /api/installation/company': 'admitted',
-      'POST /api/invitations': 'admitted',
-      'GET,HEAD /api/state': 'admitted',
-      'POST /api/import/apply': 'admitted',
-      'POST /api/import/preview': 'admitted',
+      'GET,HEAD /api/v1/*': 'limited',
+      'GET,HEAD /api/v1/admission': 'limited',
+      'POST /api/v1/admission/:userId/approve': 'limited',
+      'POST /api/v1/admission/:userId/reject': 'limited',
+      'POST /api/v1/admission/:userId/revoke': 'limited',
+      'POST /api/v1/admission/request': 'limited',
+      'GET,HEAD /api/v1/admission/requests': 'limited',
+      'POST /api/v1/companies/:companyId/masquerade': 'limited',
+      'DELETE /api/v1/masquerade': 'limited',
+      'POST /api/v1/admission/complete': 'admitted',
+      'GET,HEAD /api/v1/companies': 'admitted',
+      'POST /api/v1/companies/:companyId/anonymise': 'admitted',
+      'POST /api/v1/companies/:companyId/example-data': 'admitted',
+      'GET,HEAD /api/v1/companies/:companyId/export': 'admitted',
+      'GET,HEAD /api/v1/companies/:companyId/getting-started': 'admitted',
+      'PUT /api/v1/companies/:companyId/getting-started': 'admitted',
+      'GET,HEAD /api/v1/companies/:companyId/invitations': 'admitted',
+      'DELETE /api/v1/companies/:companyId/invitations/:id': 'admitted',
+      'POST /api/v1/companies/:companyId/invitations/:id/resend': 'admitted',
+      'PUT /api/v1/companies/:companyId/member-sign-in-tracking': 'admitted',
+      'GET,HEAD /api/v1/companies/:companyId/members': 'admitted',
+      'PATCH /api/v1/companies/:companyId/members/:userId': 'admitted',
+      'DELETE /api/v1/companies/:companyId/members/:userId/resource-link': 'admitted',
+      'PUT /api/v1/companies/:companyId/members/:userId/resource-link': 'admitted',
+      'PATCH /api/v1/companies/:companyId/members/:userId/status': 'admitted',
+      'POST /api/v1/companies/:companyId/ownership-transfer': 'admitted',
+      'GET,HEAD /api/v1/companies/:companyId/planning': 'admitted',
+      'GET,HEAD /api/v1/companies/:companyId/planning/archive': 'admitted',
+      'POST /api/v1/companies/:companyId/planning/mutations': 'admitted',
+      'POST /api/v1/companies/:companyId/planning/redo': 'admitted',
+      'POST /api/v1/companies/:companyId/planning/undo': 'admitted',
+      'POST /api/v1/companies/:companyId/resources/:id/anonymise': 'admitted',
+      'GET,HEAD /api/v1/diagnostics': 'admitted',
+      'POST /api/v1/installation/company': 'admitted',
+      'POST /api/v1/invitations': 'admitted',
+      'GET,HEAD /api/v1/state': 'admitted',
+      'POST /api/v1/import/apply': 'admitted',
+      'POST /api/v1/import/preview': 'admitted',
     });
   });
 
@@ -101,15 +100,15 @@ test.group('account gate', (group) => {
     assert,
   }) => {
     for (const path of [
-      `/api/companies/${companyId}/planning`,
-      '/api/companies',
-      '/api/admission',
+      `/api/v1/companies/${companyId}/planning`,
+      '/api/v1/companies',
+      '/api/v1/admission',
     ]) {
       const refused = await client.get(path).send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     }
-    const unmatched = await client.get('/api/no-such-route').send();
+    const unmatched = await client.get('/api/v1/no-such-route').send();
     unmatched.assertStatus(401);
     assert.deepEqual(unmatched.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
   });
@@ -123,7 +122,11 @@ test.group('account gate', (group) => {
     const get = (path: string) => client.get(path).header('cookie', cookieHeader).send();
 
     const refusal = 'Your access to this company is waiting on admission.';
-    for (const path of [`/api/companies/${companyId}/planning`, '/api/companies', '/api/state']) {
+    for (const path of [
+      `/api/v1/companies/${companyId}/planning`,
+      '/api/v1/companies',
+      '/api/v1/state',
+    ]) {
       const refused = await get(path);
       refused.assertStatus(403);
       const body = refused.body() as { code?: string; error?: string; decision?: unknown };
@@ -143,9 +146,9 @@ test.group('account gate', (group) => {
     assert.equal((write.body() as { error?: string }).error, refusal);
 
     for (const [path, status] of [
-      ['/api/admission', 200],
-      ['/api/auth/me', 200],
-      ['/api/no-such-route', 404],
+      ['/api/v1/admission', 200],
+      ['/api/v1/auth/me', 200],
+      ['/api/v1/no-such-route', 404],
     ] as const) {
       const reached = await get(path);
       reached.assertStatus(status);
@@ -159,7 +162,7 @@ test.group('account gate', (group) => {
     // access, in their own words.
     const ownerRow = await db.from('users').where('email', owner).firstOrFail();
     const ownerId = String(ownerRow.id);
-    const listed = await get('/api/admission/requests');
+    const listed = await get('/api/v1/admission/requests');
     listed.assertStatus(403);
     const limited = [listed];
     for (const name of [
@@ -192,7 +195,7 @@ test.group('account gate', (group) => {
       .from('adonis_sessions')
       .where('id', session.id)
       .update({ data: data.replace('accountKitSession', 'retiredSessionHandle') });
-    for (const path of ['/api/companies', '/api/admission']) {
+    for (const path of ['/api/v1/companies', '/api/v1/admission']) {
       const refused = await client.get(path).header('cookie', cookieHeader).send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });

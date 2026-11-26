@@ -21,7 +21,7 @@ async function resolveIdentityWhileMasqueradeStatusIsUnknown(
     return buildAuthServiceError(statusError);
   } catch (error) {
     console.warn(
-      'AuthProvider: /api/auth/me also failed while masquerade status was unknown',
+      'AuthProvider: /api/v1/auth/me also failed while masquerade status was unknown',
       error,
     );
     return buildAuthServiceError(error);
@@ -86,7 +86,7 @@ export async function fetchAuthStatus(isCurrent: () => boolean): Promise<AuthSta
   try {
     return await readAuthResponse(await sessionRequests.me());
   } catch (error) {
-    console.warn('AuthProvider: /api/auth/me check failed', error);
+    console.warn('AuthProvider: /api/v1/auth/me check failed', error);
     return buildAuthServiceError(error);
   }
 }

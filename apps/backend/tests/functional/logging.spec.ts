@@ -79,7 +79,7 @@ test.group('general HTTP logging privacy', (group) => {
       {
         event: 'test.logger.redaction',
         method: 'POST',
-        path: '/api/safe-pattern',
+        path: '/api/v1/safe-pattern',
         req: {
           headers: {
             authorization: 'Bearer SENTINEL_REQ_AUTHORIZATION',
@@ -122,7 +122,7 @@ test.group('general HTTP logging privacy', (group) => {
       assert.notInclude(output, secret);
     }
     assert.include(output, '"event":"test.logger.redaction"');
-    assert.include(output, '"path":"/api/safe-pattern"');
+    assert.include(output, '"path":"/api/v1/safe-pattern"');
     assert.include(output, '"err":{"category":"unexpected","errorName":"Error"}');
   });
 
@@ -133,7 +133,9 @@ test.group('general HTTP logging privacy', (group) => {
     for (const setting of ['', '0']) {
       env.set('CAPACITYLENS_LOG', setting);
       try {
-        const { output, result } = await captureLogs(() => client.visit('api.liveness').send());
+        const { output, result } = await captureLogs(() =>
+          client.visit('health_checks.live').send()
+        );
         assert.equal(result.status(), 200);
         assert.equal(output, '');
       } finally {
@@ -161,7 +163,7 @@ test.group('general HTTP logging privacy', (group) => {
       assert.include(output, '"event":"http.request.error"');
       assert.include(output, '"errorType":"unexpected"');
       assert.include(output, '"method":"GET"');
-      assert.include(output, '"path":"/api/state"');
+      assert.include(output, '"path":"/api/v1/state"');
       assert.include(output, '"status":500');
       assert.notInclude(output, 'http.request.completed');
       assert.notInclude(output, secret);
@@ -252,7 +254,7 @@ test.group('general HTTP logging privacy', (group) => {
     );
 
     assert.equal(result.status(), 200);
-    assert.include(output, '"path":"/api/companies/:companyId/planning/mutations"');
+    assert.include(output, '"path":"/api/v1/companies/:companyId/planning/mutations"');
     assert.include(output, '"planningOperation":"allocation.create"');
   });
 
@@ -266,7 +268,7 @@ test.group('general HTTP logging privacy', (group) => {
     const token = 'SENTINEL/ENCODED_INVITE_PATH_TOKEN';
     const { output, result } = await captureLogs(() =>
       client
-        .get(`/api/%2569nvites%252f${encodeURIComponent(token)}/preview?state=${query}`)
+        .get(`/api/v1/%2569nvites%252f${encodeURIComponent(token)}/preview?state=${query}`)
         .header('authorization', `Bearer ${auth}`)
         .header('cookie', `session=${cookie}`)
         .send()
@@ -274,7 +276,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 401);
     assert.include(output, 'GET');
-    assert.include(output, '"path":"/api/*"');
+    assert.include(output, '"path":"/api/v1/*"');
     assert.include(output, '401');
     assert.notInclude(output, auth);
     assert.notInclude(output, cookie);
@@ -290,7 +292,7 @@ test.group('general HTTP logging privacy', (group) => {
     const { output } = await captureLogs(() =>
       Promise.all(
         Array.from({ length: 3 }, () =>
-          client.visit('api.liveness').header('x-request-id', suppliedId).send()
+          client.visit('health_checks.live').header('x-request-id', suppliedId).send()
         )
       )
     );
@@ -320,7 +322,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 400);
     assert.include(output, 'POST');
-    assert.include(output, '"path":"/api/import/apply"');
+    assert.include(output, '"path":"/api/v1/import/apply"');
     assert.include(output, '400');
     assert.notInclude(output, secret);
   });
@@ -340,7 +342,7 @@ test.group('general HTTP logging privacy', (group) => {
     );
 
     assert.equal(result.status(), 400);
-    assert.include(output, '/api/import/apply');
+    assert.include(output, '/api/v1/import/apply');
     assert.notInclude(output, secret);
     assert.notInclude(output, 'stack');
   });
@@ -362,7 +364,7 @@ test.group('general HTTP logging privacy', (group) => {
       assert.equal(captured.result.status(), 500);
       assert.deepEqual(captured.result.body(), { error: 'Internal server error.' });
       assert.include(captured.output, 'GET');
-      assert.include(captured.output, '/api/state');
+      assert.include(captured.output, '/api/v1/state');
       assert.include(captured.output, '500');
     } finally {
       Company.query = originalQuery;

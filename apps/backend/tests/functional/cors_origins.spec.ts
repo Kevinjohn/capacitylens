@@ -38,11 +38,11 @@ test.group('unsafe-request origin guard', (group) => {
     assert,
   }) => {
     const admitted = await client
-      .post('/api/no-such-route')
+      .post('/api/v1/no-such-route')
       .headers({ origin: publicOrigin.origin });
     admitted.assertStatus(404);
     const refused = await client
-      .post('/api/no-such-route')
+      .post('/api/v1/no-such-route')
       .headers({ origin: 'http://evil.example' });
     refused.assertStatus(403);
     assert.deepEqual(refused.body(), { error: 'Cross-site request rejected.' });

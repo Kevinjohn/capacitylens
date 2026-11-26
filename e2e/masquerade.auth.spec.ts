@@ -90,7 +90,7 @@ test.describe('member masquerade', () => {
     await signIn(page, owner.email);
     await expect(page.getByTestId('getting-started')).toBeVisible();
 
-    const gettingStartedPath = `/api/companies/${companyId}/getting-started`;
+    const gettingStartedPath = `/api/v1/companies/${companyId}/getting-started`;
     const ownerRouteRead = page.waitForResponse(
       (response) =>
         response.status() === 200 &&
@@ -124,7 +124,7 @@ test.describe('member masquerade', () => {
     const cookie = projectionCookies.map(({ name, value }) => `${name}=${value}`).join('; ');
     expect(cookie).not.toBe('');
     const status = await request.get(
-      `${AUTH_API}/api/masquerade?companyId=${encodeURIComponent(companyId)}`,
+      `${AUTH_API}/api/v1/masquerade?companyId=${encodeURIComponent(companyId)}`,
       {
         headers: { cookie, 'sec-fetch-site': 'same-origin' },
       },
@@ -138,13 +138,13 @@ test.describe('member masquerade', () => {
       'sec-fetch-site': 'same-origin',
       'X-Masquerade-Context': masqueradeToken,
     };
-    const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
+    const planning = await request.get(`${AUTH_API}/api/v1/companies/${companyId}/planning`, {
       headers,
     });
     expect(planning.status()).toBe(200);
     const revision = ((await planning.json()) as { data: { revision: number } }).data.revision;
     const refusedWrite = await request.post(
-      `${AUTH_API}/api/companies/${companyId}/planning/mutations`,
+      `${AUTH_API}/api/v1/companies/${companyId}/planning/mutations`,
       {
         headers,
         data: {

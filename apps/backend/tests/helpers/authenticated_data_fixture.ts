@@ -35,7 +35,7 @@ export function asDataOwner<T extends ApiRequest>(request: T, cookie: string): T
   return request
     .setup(async (prepared) => {
       prepared.withCookie('adonis-session', cookie);
-      const status = await fetch(new URL('/api/masquerade', prepared.config.baseUrl), {
+      const status = await fetch(new URL('/api/v1/masquerade', prepared.config.baseUrl), {
         headers: {
           'cookie': sessionCookieHeader(cookie),
           'sec-fetch-site': 'same-origin',
@@ -56,7 +56,7 @@ export function asLoggedInDataOwner<T extends ApiRequest>(request: T, user: User
     .setup(async (prepared) => {
       // The context token is the identity's, so a separate sign-in may read it.
       const status = await new ApiClient(prepared.config.baseUrl)
-        .get('/api/masquerade')
+        .get('/api/v1/masquerade')
         .loginAs(user)
         .header('sec-fetch-site', 'same-origin');
       if (status.status() !== 200)

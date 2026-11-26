@@ -220,7 +220,7 @@ test.group('owner reset command', () => {
       const token = new URL(JSON.parse(issued.stdout.trim()).link).pathname.split('/').at(-1)!;
       await withOperatorServer(f, async (origin) => {
         const reset = () =>
-          fetch(`${origin}/api/auth/reset-password`, {
+          fetch(`${origin}/api/v1/auth/reset-password`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
             body: JSON.stringify({ token, newPassword: 'owner-recovered-password-2026' }),
@@ -229,7 +229,7 @@ test.group('owner reset command', () => {
         assert.equal(redeemed.status, 200);
         const replayed = await reset();
         assert.notEqual(replayed.status, 200);
-        const signin = await fetch(`${origin}/api/auth/sign-in`, {
+        const signin = await fetch(`${origin}/api/v1/auth/sign-in`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({

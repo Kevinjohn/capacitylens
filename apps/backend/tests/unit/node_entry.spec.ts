@@ -107,10 +107,10 @@ registerHooks({
             // the control request is an ordinary unknown address and no request is refused as stale.
             const control = await fetch(`${origin}/__e2e/epoch?next=probe-tag`, { method: 'POST' });
             assert.equal(control.status === 200, loaded, `control reset=${allowReset}`);
-            const stale = await fetch(`${origin}/api/health`, {
+            const stale = await fetch(`${origin}/api/v1/auth/me`, {
               headers: { 'x-e2e-epoch': 'another-tag' },
             });
-            assert.equal(stale.status, loaded ? 409 : 200, `stale tag reset=${allowReset}`);
+            assert.equal(stale.status, loaded ? 409 : 401, `stale tag reset=${allowReset}`);
           },
           {
             nodeArgs: [`--import=${preload}`],

@@ -89,15 +89,15 @@ test.group('native auth and API rate limits', (group) => {
     }
 
     for (let attempt = 0; attempt < 5; attempt++)
-      assert.equal(await responseStatus(client.visit('api.liveness').send()), 200);
+      assert.equal(await responseStatus(client.visit('health_checks.live').send()), 200);
   });
 
-  test('GET /api/health is not limited', async ({ client, assert, cleanup }) => {
+  test('GET /health/live is not limited', async ({ client, assert, cleanup }) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '1');
 
     for (let attempt = 0; attempt < 3; attempt++)
-      assert.equal(await responseStatus(client.visit('api.liveness').send()), 200);
+      assert.equal(await responseStatus(client.visit('health_checks.live').send()), 200);
   });
 
   test('API rate limiting is disabled when unset, zero, or malformed', async ({

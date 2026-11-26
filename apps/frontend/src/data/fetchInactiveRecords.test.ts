@@ -30,7 +30,7 @@ describe('fetchInactiveRecords', () => {
     const data = await fetchInactiveRecords('a-studio', controller.signal);
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain('/api/state?companyId=a-studio&includeInactive=1');
+    expect(url).toContain('/api/v1/state?companyId=a-studio&includeInactive=1');
     expect(init.credentials).toBe('include');
     expect(init.signal).toBeInstanceOf(AbortSignal);
     expect(timeout).toHaveBeenCalledWith(120_000);

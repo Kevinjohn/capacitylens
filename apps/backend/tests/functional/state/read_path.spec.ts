@@ -23,15 +23,15 @@ test.group('read path', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
   for (const expected of fixture.responses.filter(
-    (entry) => !['/api/state', '/api/auth/me'].includes(entry.path)
+    (entry) => !['/api/v1/state', '/api/v1/auth/me'].includes(entry.path)
   )) {
     test(`${expected.method} ${expected.path} matches the main response`, async ({
       client,
       assert,
     }) => {
       if (
-        expected.path.startsWith('/api/state?') ||
-        ['/api/companies', '/api/diagnostics'].includes(expected.path)
+        expected.path.startsWith('/api/v1/state?') ||
+        ['/api/v1/companies', '/api/v1/diagnostics'].includes(expected.path)
       )
         client = await resetAuthenticatedClient(client, true);
       const response =
@@ -40,12 +40,12 @@ test.group('read path', (group) => {
           : await client.get(expected.path);
       assert.equal(response.status(), expected.status);
       const lastMigration =
-        expected.path === '/api/diagnostics'
+        expected.path === '/api/v1/diagnostics'
           ? await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
           : null;
-      if (expected.path === '/api/diagnostics') assert.isString(lastMigration?.name);
+      if (expected.path === '/api/v1/diagnostics') assert.isString(lastMigration?.name);
       const expectedBody =
-        expected.path === '/api/diagnostics'
+        expected.path === '/api/v1/diagnostics'
           ? {
               server: {
                 connectivity: 'ok',
@@ -54,7 +54,7 @@ test.group('read path', (group) => {
                 backup: { newestBackupAt: null },
               },
             }
-          : expected.path.startsWith('/api/state')
+          : expected.path.startsWith('/api/v1/state')
             ? (() => {
                 const body = structuredClone(expected.body) as AppData;
                 for (const key of APP_DATA_KEYS)
@@ -65,7 +65,7 @@ test.group('read path', (group) => {
               })()
             : expected.body;
       // Main recorded unwrapped bodies; a success now answers inside `data`, health excepted.
-      const wrapped = expected.status < 300 && expected.path !== '/api/health';
+      const wrapped = expected.status < 300 && expected.path !== '/health/live';
       assert.deepEqual(response.body(), wrapped ? { data: expectedBody } : expectedBody);
       for (const header of [
         'content-security-policy',

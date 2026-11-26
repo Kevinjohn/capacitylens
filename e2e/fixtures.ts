@@ -43,7 +43,7 @@ function isWebKitUnloadFetchRefusal(error: Error, page: Page, browserName: strin
  * `postDataJSON()` available to every request listener and predicate.
  */
 async function exposePlanningMutationBodies(context: BrowserContext) {
-  await context.route('**/api/companies/*/planning/mutations', (route) => route.fallback());
+  await context.route('**/api/v1/companies/*/planning/mutations', (route) => route.fallback());
 }
 
 /** Every browser spec fails if application code raises on any page registered with the fixture. */

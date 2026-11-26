@@ -123,7 +123,7 @@ describe('archived resource actions', () => {
       expect(useStore.getState().data.resources[0]?.name).toBe('Anonymised person'),
     );
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/companies/acct-test/resources/resource-archive/anonymise'),
+      expect.stringContaining('/api/v1/companies/acct-test/resources/resource-archive/anonymise'),
       expect.objectContaining({ method: 'POST' }),
     );
     expect(useStore.getState().data.resources[0]?.avatarUrl).toBeNull();

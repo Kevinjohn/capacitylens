@@ -191,7 +191,9 @@ describe('generated planning transport', () => {
       const { transport, requests } = harness(receipt);
       expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
       expect(requests).toHaveLength(1);
-      expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning/mutations');
+      expect(requests[0]?.url).toBe(
+        'http://planning.test/api/v1/companies/wayne/planning/mutations',
+      );
       expect(requests[0]?.method).toBe('POST');
       expect(requests[0]?.credentials).toBe('include');
       expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
@@ -264,7 +266,7 @@ describe('generated planning transport', () => {
     });
     const result = await transport.read(context, signal);
     expect(result).toEqual({ revision: 5, content: 'full', data: createEmptyAppData(), access });
-    expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning');
+    expect(requests[0]?.url).toBe('http://planning.test/api/v1/companies/wayne/planning');
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
   });
@@ -375,7 +377,7 @@ describe('generated planning transport', () => {
       expect(await transport[kind](context, step, signal)).toEqual(receipt);
 
       expect(requests).toHaveLength(1);
-      expect(requests[0]?.url).toBe(`http://planning.test/api/companies/wayne/planning/${kind}`);
+      expect(requests[0]?.url).toBe(`http://planning.test/api/v1/companies/wayne/planning/${kind}`);
       expect(requests[0]?.method).toBe('POST');
       expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
       expect(await requests[0]?.json()).toEqual(step);

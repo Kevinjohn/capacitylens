@@ -35,16 +35,16 @@ describe('browser account api', () => {
     await sessionRequests.me(controller.signal);
     await sessionRequests.listCompanies(controller.signal);
 
-    expect(mocks.fetchApi).toHaveBeenNthCalledWith(1, '/api/auth/me', {
+    expect(mocks.fetchApi).toHaveBeenNthCalledWith(1, '/api/v1/auth/me', {
       credentials: 'include',
       signal: controller.signal,
     });
-    expect(mocks.fetchApi).toHaveBeenNthCalledWith(2, '/api/companies', {
+    expect(mocks.fetchApi).toHaveBeenNthCalledWith(2, '/api/v1/companies', {
       credentials: 'include',
       signal: controller.signal,
     });
   });
-  it('surfaces an audit-degradation warning when fetchApi reports one for /api/auth/me', async () => {
+  it('surfaces an audit-degradation warning when fetchApi reports one for /api/v1/auth/me', async () => {
     // Account reads use fetchApi so audit-degradation headers reach the shared warning surface. The mock preserves that header check.
     const warning = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);

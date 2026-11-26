@@ -121,9 +121,9 @@ test.group('company anonymisation', (group) => {
   test('retired generic lifecycle routes are absent', async ({ client }) => {
     const { cookie } = await resetAuthenticatedData(client, true);
     for (const path of [
-      '/api/resources/r-tyler/delete',
-      '/api/resources/r-tyler/purge',
-      '/api/resources/r-tyler/archive',
+      '/api/v1/resources/r-tyler/delete',
+      '/api/v1/resources/r-tyler/purge',
+      '/api/v1/resources/r-tyler/archive',
     ]) {
       const response = await asDataOwner(client.post(path), cookie).json({ companyId }).send();
       response.assertStatus(404);

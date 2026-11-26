@@ -254,7 +254,7 @@ export async function serverState(
   >
 > {
   const response = await request.get(
-    `${target.api}/api/state?companyId=a-studio&includeInactive=1`,
+    `${target.api}/api/v1/state?companyId=a-studio&includeInactive=1`,
     {
       maxRetries: 1,
     },

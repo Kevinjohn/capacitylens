@@ -83,7 +83,7 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
   await waitForAppLanding(page, page.locator('#main'));
 
   const stateResponse = await request.get(
-    `${AUTH_API}/api/state?companyId=${companyId}&includeInactive=1`,
+    `${AUTH_API}/api/v1/state?companyId=${companyId}&includeInactive=1`,
     {
       headers: { cookie: owner.cookie },
     },

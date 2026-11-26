@@ -75,7 +75,7 @@ export function mockApi(
             },
           }),
     'GET /invitations': () => jsonResponse({ data: { invites: [] } }),
-    'GET /api/companies': () => {
+    'GET /api/v1/companies': () => {
       const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined;
       return jsonResponse({
         data: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: self?.role ?? 'owner' }],

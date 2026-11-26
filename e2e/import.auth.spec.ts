@@ -20,7 +20,7 @@ async function companyState(
   companyId: string,
 ): Promise<AppData> {
   const response = await request.get(
-    `${AUTH_API}/api/state?companyId=${encodeURIComponent(companyId)}&includeInactive=1`,
+    `${AUTH_API}/api/v1/state?companyId=${encodeURIComponent(companyId)}&includeInactive=1`,
     {
       headers: { cookie },
     },

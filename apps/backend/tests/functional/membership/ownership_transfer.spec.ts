@@ -109,18 +109,21 @@ test.group('atomic ownership transfer', (group) => {
   }) => {
     const { adminId, ownerCookie } = await fixture(client);
     const retired = await signed(
-      client.post('/api/companies/a-studio/transfer-ownership'),
+      client.post('/api/v1/companies/a-studio/transfer-ownership'),
       ownerCookie
     )
       .json({ toUserId: adminId })
       .send();
     retired.assertStatus(404);
-    const unknown = await signed(client.post('/api/companies/a-studio/unknown-action'), ownerCookie)
+    const unknown = await signed(
+      client.post('/api/v1/companies/a-studio/unknown-action'),
+      ownerCookie
+    )
       .json({})
       .send();
     unknown.assertStatus(404);
     const retiredCompanyArchive = await signed(
-      client.post('/api/companies/a-studio/archive'),
+      client.post('/api/v1/companies/a-studio/archive'),
       ownerCookie
     )
       .json({})

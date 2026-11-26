@@ -99,7 +99,7 @@ async function createClosure(
   let closureId = '';
   await expect
     .poll(async () => {
-      const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
+      const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
       const state = (
@@ -197,7 +197,7 @@ async function assertEditedAndDeletedClosure(
   await expect(page.getByTestId('company-closure-row')).toHaveCount(0);
   await expect
     .poll(async () => {
-      const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
+      const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
       const state = ((await response.json()) as { data: { closures: Array<{ id: string }> } }).data;
@@ -214,7 +214,7 @@ async function assertEditedAndDeletedClosure(
   await expect(page.getByTestId('scheduler-closure-band')).toHaveCount(1);
   await expect
     .poll(async () => {
-      const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
+      const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
       const state = (

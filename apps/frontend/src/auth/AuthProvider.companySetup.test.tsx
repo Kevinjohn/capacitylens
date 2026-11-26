@@ -63,7 +63,7 @@ it('adopts a same-user company created in another browser only after confirming 
         error: 'First company setup is unavailable for this installation.',
       });
     }
-    if (String(url).endsWith('/api/companies')) {
+    if (String(url).endsWith('/api/v1/companies')) {
       return makeMeResponse(200, [{ id: 'wayne', role: 'owner' }]);
     }
     return makeMeResponse(200, {
@@ -96,7 +96,7 @@ it('keeps a conflicting setup refusal visible when the user has no company acces
         error: 'First company setup is unavailable for this installation.',
       });
     }
-    if (String(url).endsWith('/api/companies')) return makeMeResponse(200, []);
+    if (String(url).endsWith('/api/v1/companies')) return makeMeResponse(200, []);
     return makeMeResponse(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: true,

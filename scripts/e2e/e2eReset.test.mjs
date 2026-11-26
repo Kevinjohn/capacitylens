@@ -46,7 +46,7 @@ function waitForChildMessage(child, type, timeoutMs = 10_000) {
 }
 
 function requestPendingConfirmation(target, cookie, masqueradeToken) {
-  const url = new URL('/api/auth/password-confirmation', target.api);
+  const url = new URL('/api/v1/auth/password-confirmation', target.api);
   const request = http.request(url, {
     method: 'POST',
     headers: {
@@ -211,7 +211,7 @@ test(
         )
         .run('dismissed', 'a-studio', now, now);
 
-      const signedIn = await fetch(`${target.api}/api/auth/sign-in`, {
+      const signedIn = await fetch(`${target.api}/api/v1/auth/sign-in`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -230,7 +230,7 @@ test(
         .map((value) => value.split(';', 1)[0])
         .join('; ');
       assert.notEqual(cookie, '', 'the administrator receives a session cookie');
-      const contextResponse = await fetch(`${target.api}/api/masquerade?companyId=a-studio`, {
+      const contextResponse = await fetch(`${target.api}/api/v1/masquerade?companyId=a-studio`, {
         headers: { cookie, ...requireTestTagHeaders() },
       });
       assert.equal(contextResponse.status, 200);
@@ -242,7 +242,7 @@ test(
 
       const enteredNativeHandler = waitForChildMessage(server, 'entered-native-handler');
       server.send({ type: 'arm-before-handler' });
-      const pendingNative = http.request(`${target.api}/api/masquerade?companyId=a-studio`, {
+      const pendingNative = http.request(`${target.api}/api/v1/masquerade?companyId=a-studio`, {
         method: 'GET',
         headers: { cookie, ...requireTestTagHeaders() },
       });
@@ -256,7 +256,7 @@ test(
       await nativeSocketClosed;
       await assert.rejects(
         resetServer({ target }),
-        /did not settle \(HTTP 503\).*1 handlers still running.*GET.*\/api\/masquerade/,
+        /did not settle \(HTTP 503\).*1 handlers still running.*GET.*\/api\/v1\/masquerade/,
         'reset refuses before SQLite while the native handler has not entered AdonisJS',
       );
       assert.equal(
@@ -280,7 +280,7 @@ test(
       await pending.socketClosed;
       await assert.rejects(
         resetServer({ target }),
-        /did not settle \(HTTP 503\).*1 handlers still running.*POST.*\/api\/auth\/password-confirmation/,
+        /did not settle \(HTTP 503\).*1 handlers still running.*POST.*\/api\/v1\/auth\/password-confirmation/,
         'reset refuses before opening SQLite while the handler is pending after its client left',
       );
       assert.equal(
@@ -303,7 +303,7 @@ test(
         preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
       const previousTest = requireTestTagHeaders();
       await resetServer({ target, newTest: true });
-      const late = await fetch(`${target.api}/api/masquerade?companyId=a-studio`, {
+      const late = await fetch(`${target.api}/api/v1/masquerade?companyId=a-studio`, {
         headers: { cookie, ...previousTest },
       });
       assert.equal(late.status, 409, 'a request from the previous test is refused after the reset');

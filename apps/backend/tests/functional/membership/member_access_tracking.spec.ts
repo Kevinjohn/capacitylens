@@ -92,7 +92,7 @@ test.group('company member access and tracking', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const directoryPath = '/api/companies/a-studio/members';
+    const directoryPath = '/api/v1/companies/a-studio/members';
     const initial = await signed(client.get(directoryPath), ownerCookie).send();
     initial.assertStatus(200);
     assert.isFalse(initial.body().data.signInTrackingEnabled);
@@ -119,8 +119,8 @@ test.group('company member access and tracking', (group) => {
       observed.body().data.members.find((member: { userId: string }) => member.userId === editorId)
         .signInConfirmed
     );
-    const statusPath = `/api/companies/a-studio/members/${editorId}/status`;
-    const planningPath = '/api/companies/a-studio/planning';
+    const statusPath = `/api/v1/companies/a-studio/members/${editorId}/status`;
+    const planningPath = '/api/v1/companies/a-studio/planning';
     const suspended = await signed(client.patch(statusPath), ownerCookie)
       .json({ status: 'suspended' })
       .send();

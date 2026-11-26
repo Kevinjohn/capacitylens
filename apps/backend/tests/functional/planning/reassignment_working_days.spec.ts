@@ -14,7 +14,7 @@ import {
   validationSentence,
 } from '#tests/functional/planning/helpers';
 
-const route = (path: string) => `/api/companies/${companyId}/${path}`;
+const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
 const body = (response: { body(): unknown; status(): number }) =>
   (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {

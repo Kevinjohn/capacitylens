@@ -89,7 +89,7 @@ test.group('ordinary authentication request contracts', (group) => {
       { email: 'clark@wayne.example', password: 123 },
     ] as const) {
       const response = await client
-        .post<string>('/api/auth/sign-in')
+        .post<string>('/api/v1/auth/sign-in')
         .header('sec-fetch-site', 'same-origin')
         .json(body)
         .send();
@@ -156,7 +156,7 @@ test.group('ordinary authentication request contracts', (group) => {
       `cursor=${'x'.repeat(513)}`,
     ]) {
       const response = await asDataOwner(
-        client.get(`/api/admission/requests?${query}`),
+        client.get(`/api/v1/admission/requests?${query}`),
         cookie
       ).send();
       response.assertStatus(422);
@@ -232,7 +232,7 @@ test.group('ordinary authentication request contracts', (group) => {
       { email: 'clark@wayne.example', password: 'a'.repeat(15), name: '  ' },
     ] as const) {
       const response = await client
-        .post<string>('/api/auth/sign-up')
+        .post<string>('/api/v1/auth/sign-up')
         .header('sec-fetch-site', 'same-origin')
         .json(body)
         .send();

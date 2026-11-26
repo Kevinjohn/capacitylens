@@ -51,7 +51,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const settings = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/planning/mutations`,
+      `/api/v1/companies/${companyId}/planning/mutations`,
       2,
       {
         operation: 'settings.update',
@@ -64,7 +64,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const ordinary = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/planning/mutations`,
+      `/api/v1/companies/${companyId}/planning/mutations`,
       3,
       {
         operation: 'catalogue.update',
@@ -81,7 +81,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const changed = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/planning/mutations`,
+      `/api/v1/companies/${companyId}/planning/mutations`,
       4,
       {
         operation: 'catalogue.update',
@@ -137,7 +137,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const renamed = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/planning/mutations`,
+      `/api/v1/companies/${companyId}/planning/mutations`,
       2,
       {
         operation: 'catalogue.update',
@@ -154,7 +154,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const changed = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/planning/mutations`,
+      `/api/v1/companies/${companyId}/planning/mutations`,
       3,
       {
         operation: 'catalogue.update',
@@ -337,7 +337,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       const refused = await send(
         client,
         cookie,
-        `/api/companies/${companyId}/planning/mutations`,
+        `/api/v1/companies/${companyId}/planning/mutations`,
         2,
         {
           operation: 'catalogue.update',

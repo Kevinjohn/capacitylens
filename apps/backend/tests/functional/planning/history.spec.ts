@@ -326,7 +326,7 @@ test.group('server-held undo and redo', (suite) => {
     const target = state.clients.find(
       (row) => row.companyId === companyId && !row.builtin && !row.isPrivate && !row.archivedAt
     )!;
-    const hidden = await page.write(`/api/companies/${companyId}/planning/mutations`, {
+    const hidden = await page.write(`/api/v1/companies/${companyId}/planning/mutations`, {
       operation: 'catalogue.update',
       entity: {
         entity: 'clients',

@@ -63,7 +63,7 @@ development convenience is refused in production.
 The development bootstrap uses the reserved local identity `admin@admin.admin`. If startup reports
 that this identity exists but is not admitted, do not reset its password or adopt an account by email
 alone. First set `CAPACITYLENS_CREATE_ADMIN_ADMIN=false` temporarily and start the local server.
-Sign in as the reserved identity and inspect `GET /api/admission`. Confirm the identity came from an
+Sign in as the reserved identity and inspect `GET /api/v1/admission`. Confirm the identity came from an
 interrupted bootstrap in this local database. Stop the development server before running only the
 command for an unmet requirement from `apps/backend/`:
 

@@ -41,15 +41,18 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     async ({ dbReset, dbServer, request, context }, use) => {
       void dbReset;
       ensureDbTestAdmin(dbServer.target);
-      const apiSignIn = await request.post(`${dbServer.target.api}/api/auth/sign-in`, {
+      const apiSignIn = await request.post(`${dbServer.target.api}/api/v1/auth/sign-in`, {
         data: admin,
         headers: { 'sec-fetch-site': 'same-origin' },
       });
       expect(apiSignIn.status()).toBe(200);
-      const browserSignIn = await context.request.post(`${dbServer.target.api}/api/auth/sign-in`, {
-        data: admin,
-        headers: { 'sec-fetch-site': 'same-origin' },
-      });
+      const browserSignIn = await context.request.post(
+        `${dbServer.target.api}/api/v1/auth/sign-in`,
+        {
+          data: admin,
+          headers: { 'sec-fetch-site': 'same-origin' },
+        },
+      );
       expect(browserSignIn.status()).toBe(200);
       await use();
     },

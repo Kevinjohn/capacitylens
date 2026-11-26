@@ -20,8 +20,8 @@ describe('same-origin API requests', () => {
     try {
       await client.request('api.session.show', {});
       if (requestedUrl === undefined) throw new Error('API request did not reach fetch.');
-      expect(new URL(requestedUrl).pathname).toBe('/api/auth/me');
-      expect(buildApiRouteUrl('api.session.show', {})).toBe('/api/auth/me');
+      expect(new URL(requestedUrl).pathname).toBe('/api/v1/auth/me');
+      expect(buildApiRouteUrl('api.session.show', {})).toBe('/api/v1/auth/me');
     } finally {
       vi.unstubAllGlobals();
       window.history.replaceState(null, '', '/');
@@ -32,7 +32,7 @@ describe('same-origin API requests', () => {
     vi.resetModules();
     try {
       const fresh = await import('./queryClient');
-      expect(fresh.buildApiRouteUrl('api.session.show', {})).toBe('/api/auth/me');
+      expect(fresh.buildApiRouteUrl('api.session.show', {})).toBe('/api/v1/auth/me');
       expect(fresh.buildApiReadRouteUrl('api.admission_requests.index', {})).toMatch(/^\/api\//);
     } finally {
       vi.unstubAllEnvs();

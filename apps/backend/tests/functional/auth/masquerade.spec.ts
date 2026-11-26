@@ -445,7 +445,7 @@ test.group('native read-only masquerade', (group) => {
     const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
     status.assertStatus(200);
     for (const query of ['?companyId=', '?companyId=a-studio&companyId=a-loft']) {
-      const malformed = await asSession(client.get(`/api/masquerade${query}`), cookie).send();
+      const malformed = await asSession(client.get(`/api/v1/masquerade${query}`), cookie).send();
       malformed.assertStatus(422);
       assert.equal(
         (malformed.body() as unknown as { errors: Array<{ field: string }> }).errors[0]?.field,
@@ -572,12 +572,12 @@ test.group('native read-only masquerade', (group) => {
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({} as never),
       asSession(
-        client.post('/api/no-such-route').header('sec-fetch-site', 'same-origin'),
+        client.post('/api/v1/no-such-route').header('sec-fetch-site', 'same-origin'),
         cookie,
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
-        client.post('/api/masquerade').header('sec-fetch-site', 'same-origin'),
+        client.post('/api/v1/masquerade').header('sec-fetch-site', 'same-origin'),
         cookie,
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
@@ -587,12 +587,12 @@ test.group('native read-only masquerade', (group) => {
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
-        client.post<string>('/api/auth/sign-in').header('sec-fetch-site', 'same-origin'),
+        client.post<string>('/api/v1/auth/sign-in').header('sec-fetch-site', 'same-origin'),
         cookie,
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
-        client.post('/api/auth/register').header('sec-fetch-site', 'same-origin'),
+        client.post('/api/v1/auth/register').header('sec-fetch-site', 'same-origin'),
         cookie,
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
@@ -942,9 +942,9 @@ test.group('native read-only masquerade', (group) => {
     await insertPrivateClient();
     // The first refused read ends the mode, so each read gets its own view.
     for (const [index, path] of [
-      '/api/companies/a-studio/planning',
-      '/api/state?companyId=a-studio',
-      '/api/companies/a-studio/export',
+      '/api/v1/companies/a-studio/planning',
+      '/api/v1/state?companyId=a-studio',
+      '/api/v1/companies/a-studio/export',
     ].entries()) {
       await db
         .from('memberships')
@@ -1072,7 +1072,7 @@ test.group('native read-only masquerade', (group) => {
     started.assertStatus(200);
     await promoteToOwner(targetId, companyOwnerId);
     // a-studio sorts first, so the status search reaches it before a-tower.
-    for (const path of ['/api/masquerade?companyId=a-studio', '/api/masquerade']) {
+    for (const path of ['/api/v1/masquerade?companyId=a-studio', '/api/v1/masquerade']) {
       const status = await asSession(client.get(path), cookie).send();
       status.assertStatus(200);
       assert.deepInclude(
