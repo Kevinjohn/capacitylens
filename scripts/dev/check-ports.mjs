@@ -7,7 +7,8 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { portsForPortLane } from '../../tooling/ports.mjs';
 
-// Each guarded file must import its ports from tooling/ports.mjs and must not spell one out.
+// Each guarded file must import its ports from tooling/ports.mjs (by path or as
+// `@capacitylens/tooling/ports`) and must not spell one out.
 /** Authored launch/configuration files that must derive their endpoints from the port registry. */
 export const GUARDED_FILES = Object.freeze([
   'apps/frontend/vite.config.ts',
@@ -43,7 +44,8 @@ export function evaluatePortUsage(files) {
   const errors = [];
   for (const { path, content } of files) {
     const code = stripComments(content);
-    if (!/from\s+["'][^"']*ports\.mjs["']/.test(code)) {
+    // A relative path to tooling/ports.mjs, or the workspace package subpath the backend uses.
+    if (!/from\s+["']([^"']*ports\.mjs|@capacitylens\/tooling\/ports)["']/.test(code)) {
       errors.push(`${path}: must import its ports from tooling/ports.mjs.`);
     }
     const workerPortLiterals = code.match(/\b10\d{3}\b/g) ?? [];
