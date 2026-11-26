@@ -4,6 +4,7 @@ import db from '@adonisjs/lucid/services/db';
 import { resetState } from '#tests/helpers/state_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { CompanyFactory } from '#database/factories/company_factory';
 
 const password = 'batman-secret-2026';
 
@@ -45,22 +46,10 @@ test.group('member sign-in tracking lifecycle', (group) => {
     owner.assertStatus(200);
     const ownerCookie = owner.cookie('adonis-session')!.value;
     const now = new Date().toISOString();
-    await db.table('companies').insert([
-      {
-        id: 'a-studio',
-        name: 'Wayne Enterprises',
-        color: '#6366f1',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'a-loft',
-        name: 'Stark Industries',
-        color: '#6366f1',
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    await CompanyFactory.merge([
+      { id: 'a-studio', name: 'Wayne Enterprises', color: '#6366f1' },
+      { id: 'a-loft', name: 'Stark Industries', color: '#6366f1' },
+    ]).createMany(2);
     await db.table('memberships').insert([
       {
         scope_id: 'a-studio',

@@ -2,6 +2,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import Migration from '#database/migrations/202611240001_store_deletion_markers_in_lucid_format';
 import { freshDatabase } from '#tests/helpers/fresh_database';
+import { CompanyFactory } from '#database/factories/company_factory';
 
 const now = '2026-11-24T09:00:00.000Z';
 
@@ -11,13 +12,9 @@ test.group('deletion marker migration', (group) => {
   test('rewrites ISO markers in Lucid format and leaves other rows alone', async ({ assert }) => {
     const trx = await db.transaction();
     try {
-      await trx.table('companies').insert({
-        id: 'a-daily-planet',
-        name: 'Daily Planet',
-        color: '#123456',
-        created_at: now,
-        updated_at: now,
-      });
+      await CompanyFactory.client(trx)
+        .merge({ id: 'a-daily-planet', name: 'Daily Planet' })
+        .create();
       const closure = (id: string, deletedAt: string | null) => ({
         id,
         company_id: 'a-daily-planet',

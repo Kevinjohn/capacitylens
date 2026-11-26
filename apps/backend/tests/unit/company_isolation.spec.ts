@@ -2,39 +2,20 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { transactionalDatabase } from '#tests/helpers/transactional_database';
 import Client from '#models/client';
+import { ClientFactory } from '#database/factories/client_factory';
+import { CompanyFactory } from '#database/factories/company_factory';
 
 test.group('company isolation', (group) => {
   transactionalDatabase(group);
   group.each.setup(async () => {
-    const now = new Date().toISOString();
-    await db.table('companies').multiInsert([
-      {
-        id: 'a-studio',
-        name: 'Wayne Enterprises',
-        color: '#111',
-        created_at: now,
-        updated_at: now,
-      },
-      { id: 'a-loft', name: 'Stark Industries', color: '#222', created_at: now, updated_at: now },
-    ]);
-    await db.table('clients').multiInsert([
-      {
-        id: 'c-wayne',
-        company_id: 'a-studio',
-        name: 'Wayne',
-        color: '#111',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'c-stark',
-        company_id: 'a-loft',
-        name: 'Stark',
-        color: '#222',
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    await CompanyFactory.merge([
+      { id: 'a-studio', name: 'Wayne Enterprises' },
+      { id: 'a-loft', name: 'Stark Industries' },
+    ]).createMany(2);
+    await ClientFactory.merge([
+      { id: 'c-wayne', companyId: 'a-studio', name: 'Wayne' },
+      { id: 'c-stark', companyId: 'a-loft', name: 'Stark' },
+    ]).createMany(2);
   });
 
   test('fails closed for unscoped model reads', async ({ assert }) => {

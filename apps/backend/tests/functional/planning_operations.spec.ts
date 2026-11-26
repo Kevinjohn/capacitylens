@@ -11,6 +11,9 @@ import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import PlanningOperationException from '#exceptions/planning_operation_exception';
 import ValidationRefusalException from '#exceptions/validation_refusal_exception';
 import { StateRepositoryService } from '#services/state_repository_service';
+import { AllocationFactory } from '#database/factories/allocation_factory';
+import type Allocation from '#models/allocation';
+import { DateTime } from 'luxon';
 
 const stateRepository = new StateRepositoryService();
 const planningExecution = await app.container.make(PlanningExecutionService);
@@ -266,20 +269,21 @@ test.group('typed planning writers', (group) => {
     );
     const template = await db.from('allocations').where('company_id', 'a-studio').firstOrFail();
     const project = await db.from('projects').where('company_id', 'a-studio').firstOrFail();
-    const copy = (overrides: Record<string, unknown>) => ({
-      ...template,
-      id: randomUUID(),
-      activity_id: activityId,
-      project_id: project.id,
-      ...overrides,
-    });
+    const stamp = DateTime.fromISO(template.updated_at);
+    const copy = (overrides: Partial<Pick<Allocation, 'projectId' | 'deletedAt'>>) =>
+      AllocationFactory.merge({
+        companyId: 'a-studio',
+        resourceId: template.resource_id,
+        activityId,
+        projectId: project.id,
+        createdAt: stamp,
+        updatedAt: stamp,
+        ...overrides,
+      }).create();
     // Two attributed rows, one already unattributed and one soft-deleted attributed row.
-    const live = [copy({}), copy({})];
-    const others = [
-      copy({ project_id: null }),
-      copy({ deleted_at: '2026-01-02T03:04:05.006Z', deletion_group_id: null }),
-    ];
-    await db.table('allocations').multiInsert([...live, ...others]);
+    const live = [await copy({}), await copy({})];
+    await copy({ projectId: null });
+    await copy({ deletedAt: DateTime.fromISO('2026-01-02T03:04:05.006Z') });
     const before = await db.from('allocations').orderBy('id');
 
     const execution = await db.transaction((trx) =>

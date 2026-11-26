@@ -11,6 +11,8 @@ import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
+import { UserFactory } from '#database/factories/user_factory';
+import { DateTime } from 'luxon';
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin');
@@ -153,13 +155,16 @@ test.group('data routes', (group) => {
     const dataOwner = await reset(client, true);
     client = dataOwner.client;
     const stamp = '2026-10-13T00:00:00.000Z';
-    await db.table('users').insert({
-      id: 'u-export',
-      email: 'secret.person@wayne.com',
-      email_verified_at: stamp,
-      created_at: stamp,
-      updated_at: stamp,
-    });
+    await db.transaction((trx) =>
+      UserFactory.client(trx)
+        .merge({
+          id: 'u-export',
+          email: 'secret.person@wayne.com',
+          displayName: null,
+          emailVerifiedAt: DateTime.fromISO(stamp),
+        })
+        .create()
+    );
     await db.table('memberships').insert({
       scope_id: 'a-studio',
       user_id: 'u-export',

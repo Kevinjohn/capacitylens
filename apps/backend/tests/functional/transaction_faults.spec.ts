@@ -2,20 +2,9 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed } from '#tests/helpers/state_fixture';
+import { ClientFactory } from '#database/factories/client_factory';
 
 const companyId = 'a-studio';
-const timestamp = '2026-10-12T00:00:00.000Z';
-
-function clientRow(id: string) {
-  return {
-    id,
-    company_id: companyId,
-    name: 'Bruce Wayne',
-    color: '#111111',
-    created_at: timestamp,
-    updated_at: timestamp,
-  };
-}
 
 test.group('SQLite transaction faults', (group) => {
   group.setup(() => freshDatabase());
@@ -40,7 +29,7 @@ test.group('SQLite transaction faults', (group) => {
 
   test('keeps outside queries queued until the owning transaction commits', async ({ assert }) => {
     const trx = await db.transaction();
-    await trx.table('clients').insert(clientRow('m2a-outside-commit'));
+    await ClientFactory.client(trx).merge({ id: 'm2a-outside-commit', companyId }).create();
     let queryFinished = false;
     const outsideRead = db
       .from('clients')
@@ -60,11 +49,13 @@ test.group('SQLite transaction faults', (group) => {
     assert,
   }) => {
     await db.transaction(async (outer) => {
-      await outer.table('clients').insert(clientRow('m2a-savepoint-outer'));
+      await ClientFactory.client(outer).merge({ id: 'm2a-savepoint-outer', companyId }).create();
       await assert.rejects(
         () =>
           outer.transaction(async (nested) => {
-            await nested.table('clients').insert(clientRow('m2a-savepoint-inner'));
+            await ClientFactory.client(nested)
+              .merge({ id: 'm2a-savepoint-inner', companyId })
+              .create();
             throw new Error('rollback nested savepoint');
           }),
         /rollback nested savepoint/
@@ -116,7 +107,7 @@ test.group('SQLite transaction faults', (group) => {
               return originalPrepare(sql);
             };
 
-            await trx.table('clients').insert(clientRow('m2a-rollback-fault'));
+            await ClientFactory.client(trx).merge({ id: 'm2a-rollback-fault', companyId }).create();
             queuedRead = db.from('clients').where('id', 'm2a-rollback-fault').first();
             await new Promise((resolve) => setTimeout(resolve, 30));
             throw new Error('force helper rollback');
@@ -145,7 +136,7 @@ test.group('SQLite transaction faults', (group) => {
 
   test('does not report rollback when an after-commit callback fails', async ({ assert }) => {
     await db.transaction(async (trx) => {
-      await trx.table('clients').insert(clientRow('m2a-after-commit'));
+      await ClientFactory.client(trx).merge({ id: 'm2a-after-commit', companyId }).create();
       trx.after('commit', () => {
         throw new Error('post-commit callback failure');
       });
