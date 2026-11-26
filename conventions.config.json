@@ -1,0 +1,38 @@
+{
+  "departures": {
+    "file": "DECISIONS.md",
+    "heading": "AdonisJS framework departures",
+    "entries": [
+      {
+        "entry": 25,
+        "item": "CTL-4",
+        "path": "apps/backend/app/controllers/masquerade_controller.ts"
+      },
+      {
+        "entry": 26,
+        "item": "EXC-7",
+        "path": "apps/backend/app/exceptions/"
+      },
+      {
+        "entry": 28,
+        "item": "TOOL-2",
+        "path": "package.json"
+      },
+      {
+        "entry": 32,
+        "item": "TOOL-6",
+        "path": "LICENSE.md"
+      },
+      {
+        "entry": 21,
+        "item": "DB-6",
+        "path": "apps/backend/database/migrations/202610120001_create_capacitylens_baseline.ts"
+      },
+      {
+        "entry": 35,
+        "item": "TST-15",
+        "path": "apps/backend/.env.test"
+      }
+    ]
+  }
+}
