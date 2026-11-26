@@ -175,7 +175,7 @@ one class unless the table says otherwise.
 - Import across folders through the `#` subpath aliases in `apps/backend/package.json`:
   `#controllers/*`, `#models/*`, `#services/*`, `#middleware/*`, `#validators/*`,
   `#transformers/*`, `#exceptions/*`, `#generated/*`, `#database/*`, `#config/*`, `#start/*`,
-  `#providers/*`, `#tests/*`. Do not write relative imports in application code.
+  `#providers/*`, `#commands/*`, `#tests/*`. Do not write relative imports in application code.
 - Import a type with `import type`.
 - Use `node:` for Node built-ins and ES modules only.
 - Import a container service from its `services` path (`@adonisjs/core/services/app`,
