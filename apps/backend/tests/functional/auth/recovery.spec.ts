@@ -1,53 +1,20 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { captureMail, clearIdentities, signIn, expectStatus } from '#tests/helpers/identities';
 import {
-  asDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import {
-  captureMail,
-  clearIdentities,
-  createIdentity,
-  signIn,
-  expectStatus,
-} from '#tests/helpers/identities';
-
-const companyId = 'a-studio';
-const owner = 'bruce.wayne@wayne.example';
-const editor = 'clark.kent@wayne.example';
-const newPassword = 'recovered-password-2026';
-
-const post = (client: ApiClient, path: string, body: object) =>
-  client.post(path).header('sec-fetch-site', 'same-origin').json(body).send();
-
-const requestReset = (client: ApiClient, email: string) =>
-  post(client, '/api/v1/auth/request-reset', { email });
-
-const inspect = async (client: ApiClient, token: string) => {
-  const response = await post(client, '/api/v1/auth/inspect-reset', { token });
-  response.assertStatus(200);
-  return ((response.body() as { data: unknown }).data as { valid: boolean }).valid;
-};
-
-async function company() {
-  const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
-  const editorId = await createIdentity(editor, { name: 'Clark Kent' });
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: companyId,
-    user_id: editorId,
-    role: 'editor',
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  return editorId;
-}
+  companyId,
+  editor,
+  newPassword,
+  post,
+  requestReset,
+  inspect,
+  company,
+} from '#tests/helpers/auth/recovery';
 
 test.group('password recovery', (group) => {
   group.setup(() => freshDatabase());
@@ -82,12 +49,12 @@ test.group('password recovery', (group) => {
   }) => {
     const token = 'x'.repeat(513);
     const refusals = [
-      await client.get(`/api/v1/invitations/${token}/preview`).send(),
-      await post(client, `/api/v1/invitations/${token}/sign-up`, {}),
-      await post(client, '/api/v1/auth/inspect-reset', {}),
-      await post(client, '/api/v1/auth/reset-password', {}),
-      await post(client, '/api/v1/auth/verification/inspect', {}),
-      await post(client, '/api/v1/auth/verification/complete', {}),
+      await client.visit('api.invitation_links.show', { token }).send(),
+      await post(client.visit('api.invitation_acceptances.store', { token }), {}),
+      await post(client.visit('api.password_resets.show'), {}),
+      await post(client.visit('api.password_resets.update'), {}),
+      await post(client.visit('api.email_verifications.show'), {}),
+      await post(client.visit('api.email_verifications.update'), {}),
     ];
     for (const response of refusals) {
       response.assertStatus(422);
@@ -102,24 +69,24 @@ test.group('password recovery', (group) => {
     cleanup,
   }) => {
     const mail = captureMail(cleanup);
-    const editorId = await company();
+    const { editorId } = await company();
     const { cookie } = await signIn(client, editor);
     await requestReset(client, editor);
     const token = mail.tokenFor(editor);
     assert.isTrue(await inspect(client, token));
     assert.isTrue(await inspect(client, token), 'inspection does not spend the link');
     await expectStatus(
-      post(client, '/api/v1/auth/reset-password', { token, newPassword: 'short' }),
+      post(client.visit('api.password_resets.update'), { token, newPassword: 'short' }),
       422
     );
-    const reset = await post(client, '/api/v1/auth/reset-password', { token, newPassword });
+    const reset = await post(client.visit('api.password_resets.update'), { token, newPassword });
     reset.assertStatus(200);
     assert.equal(reset.header('cache-control'), 'no-store');
     await expectStatus(asDataOwner(client.visit('api.session.show'), cookie).send(), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', editorId), 0);
     await signIn(client, editor, newPassword);
     assert.isFalse(await inspect(client, token));
-    const reused = await post(client, '/api/v1/auth/reset-password', { token, newPassword });
+    const reused = await post(client.visit('api.password_resets.update'), { token, newPassword });
     reused.assertStatus(400);
     assert.equal((reused.body() as { code?: string }).code, 'INVALID_TOKEN');
     assert.isNotNull(
@@ -132,13 +99,13 @@ test.group('password recovery', (group) => {
 
   test('a role change leaves a pending reset link usable', async ({ client, cleanup }) => {
     const mail = captureMail(cleanup);
-    const editorId = await company();
+    const { ownerId, editorId } = await company();
     await requestReset(client, editor);
     const token = mail.tokenFor(editor);
-    const { cookie } = await signIn(client, owner);
-    const changed = await asDataOwner(
+    const ownerUser = await User.findOrFail(ownerId);
+    const changed = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId, userId: editorId }),
-      cookie
+      ownerUser
     )
       .headers({
         'x-account-operation-id': 'recovery-role-command-0001',
@@ -147,7 +114,10 @@ test.group('password recovery', (group) => {
       .json({ role: 'viewer' })
       .send();
     changed.assertStatus(200);
-    await expectStatus(post(client, '/api/v1/auth/reset-password', { token, newPassword }), 200);
+    await expectStatus(
+      post(client.visit('api.password_resets.update'), { token, newPassword }),
+      200
+    );
     await signIn(client, editor, newPassword);
   });
 });

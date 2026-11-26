@@ -1,8 +1,7 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
-import mailService from '@adonisjs/mail/services/main';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   E_ACCOUNT_KIT_DELIVERY,
@@ -11,67 +10,21 @@ import {
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import {
-  asDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import { bootstrapInvitation, rememberSessionCookie } from '#tests/helpers/identities';
-import {
-  captureMail,
-  clearIdentities,
-  createIdentity,
-  signIn,
-  expectStatus,
-} from '#tests/helpers/identities';
+import { captureMail, clearIdentities, signIn, expectStatus } from '#tests/helpers/identities';
 import { requestBarrier } from '#tests/helpers/request_barrier';
-
-const companyId = 'a-studio';
-const owner = 'bruce.wayne@wayne.example';
-const invitee = 'clark.kent@wayne.example';
-const password = 'invitation-password-2026';
-
-async function company() {
-  const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
-  return ownerId;
-}
-
-async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
-  const userId = await createIdentity(email);
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: companyId,
-    user_id: userId,
-    role,
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  return userId;
-}
-
-const invite = (client: ApiClient, cookie: string, email: string, role = 'editor') =>
-  asDataOwner(client.visit('api.invitations.store'), cookie)
-    .timeout({ response: 10000, deadline: 15000 })
-    // The role is deliberately untyped so a test can send `owner` and reach the refusal.
-    .json({ companyId, email, role } as never)
-    .send();
-
-const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>
-  client
-    .visit('api.invitation_acceptances.store', { token })
-    .header('sec-fetch-site', 'same-origin')
-    .json({ name, password })
-    .send();
-
-/** The field each error of a framework validation failure names. */
-const failedFields = (body: unknown) =>
-  (body as { errors: Array<{ field: string }> }).errors.map(({ field }) => field);
-
-async function revision() {
-  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
-  return Number(row?.revision);
-}
+import {
+  companyId,
+  owner,
+  invitee,
+  company,
+  member,
+  invite,
+  accept,
+  failedFields,
+  revision,
+} from '#tests/helpers/auth/invitations';
 
 test.group('company invitations', (group) => {
   group.setup(() => freshDatabase());
@@ -87,14 +40,14 @@ test.group('company invitations', (group) => {
     cleanup,
   }) => {
     const mail = captureMail(cleanup);
-    await company();
+    const ownerUser = await User.findOrFail(await company());
     const { cookie } = await signIn(client, owner);
     const sent = await invite(client, cookie, 'Clark.Kent@Wayne.example');
     sent.assertStatus(201);
     assert.include(sent.body().data, { role: 'editor', preauthEmail: invitee, emailed: true });
-    const listed = await asDataOwner(
+    const listed = await asLoggedInDataOwner(
       client.visit('api.invitations.index', { companyId }),
-      cookie
+      ownerUser
     ).send();
     assert.deepEqual(
       listed.body().data.invites.map((row: { preauthEmail: string }) => row.preauthEmail),
@@ -136,9 +89,9 @@ test.group('company invitations', (group) => {
     const planning = () =>
       asDataOwner(client.visit('api.planning.show', { companyId }), inviteeCookie).send();
     await expectStatus(planning(), 403);
-    const approved = await asDataOwner(
+    const approved = await asLoggedInDataOwner(
       client.visit('api.admission_approvals.store', { userId }),
-      cookie
+      ownerUser
     ).send();
     approved.assertStatus(200);
     await expectStatus(planning(), 200);
@@ -243,28 +196,24 @@ test.group('company invitations', (group) => {
     assert,
     cleanup,
   }) => {
-    captureMail(cleanup);
-    await company();
+    const { mailer } = captureMail(cleanup);
+    const ownerUser = await User.findOrFail(await company());
     const { cookie } = await signIn(client, owner);
-    const sendLater = mailService.sendLater;
-    mailService.sendLater = async () => {
+    mailer.sendLater = async () => {
       throw new Error('The mail transport refused the message.');
     };
-    cleanup(() => {
-      mailService.sendLater = sendLater;
-    });
     const sent = await invite(client, cookie, invitee);
     sent.assertStatus(202);
     assert.deepEqual(sent.body().data, { committed: true, emailed: false });
     assert.lengthOf(await db.from('account_invitations'), 1);
-    const listed = await asDataOwner(
+    const listed = await asLoggedInDataOwner(
       client.visit('api.invitations.index', { companyId }),
-      cookie
+      ownerUser
     ).send();
     const { id } = (listed.body() as { data: { invites: { id: number }[] } }).data.invites[0];
-    const resent = await asDataOwner(
+    const resent = await asLoggedInDataOwner(
       client.visit('api.invitation_deliveries.store', { companyId, id }),
-      cookie
+      ownerUser
     ).send();
     resent.assertStatus(202);
     assert.deepEqual(resent.body().data, { committed: true, emailed: false });
@@ -315,11 +264,13 @@ test.group('company invitations', (group) => {
     client,
     assert,
   }) => {
-    await company();
-    const { cookie } = await signIn(client, owner);
+    const ownerUser = await User.findOrFail(await company());
     for (const id of ['abc', '0', '1.5', '9007199254740992']) {
       for (const route of ['api.invitation_deliveries.store', 'api.invitations.destroy'] as const) {
-        const response = await asDataOwner(client.visit(route, { companyId, id }), cookie).send();
+        const response = await asLoggedInDataOwner(
+          client.visit(route, { companyId, id }),
+          ownerUser
+        ).send();
         response.assertStatus(422);
         assert.deepEqual(failedFields(response.body()), ['params.id'], `${route} ${id}`);
       }
@@ -340,31 +291,31 @@ test.group('company invitations', (group) => {
     cleanup,
   }) => {
     const mail = captureMail(cleanup);
-    await company();
+    const ownerUser = await User.findOrFail(await company());
     const { cookie } = await signIn(client, owner);
     const sent = await invite(client, cookie, invitee);
     const first = mail.tokenFor(invitee);
     const { id } = sent.body().data as { id: number };
-    const resent = await asDataOwner(
+    const resent = await asLoggedInDataOwner(
       client.visit('api.invitation_deliveries.store', { companyId, id }),
-      cookie
+      ownerUser
     ).send();
     resent.assertStatus(200);
     const second = mail.tokenFor(invitee);
     assert.notEqual(second, first);
     await expectStatus(client.visit('api.invitation_links.show', { token: first }).send(), 404);
     env.set('CAPACITYLENS_MAIL_HOST', '');
-    const unavailable = await asDataOwner(
+    const unavailable = await asLoggedInDataOwner(
       client.visit('api.invitation_deliveries.store', { companyId, id }),
-      cookie
+      ownerUser
     ).send();
     unavailable.assertStatus(503);
     assert.equal((unavailable.body() as { code?: string }).code, 'MAIL_UNAVAILABLE');
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example');
     await expectStatus(client.visit('api.invitation_links.show', { token: second }).send(), 200);
-    const revoked = await asDataOwner(
+    const revoked = await asLoggedInDataOwner(
       client.visit('api.invitations.destroy', { companyId, id }),
-      cookie
+      ownerUser
     ).send();
     revoked.assertStatus(204);
     await expectStatus(accept(client, second), 400);
@@ -392,13 +343,7 @@ test.group('company invitations', (group) => {
     assert,
     cleanup,
   }) => {
-    captureMail(cleanup);
-    const send = mailService.send;
-    let sent = 0;
-    mailService.send = async (...args: Parameters<typeof mailService.send>) => {
-      sent += 1;
-      return send.apply(mailService, args);
-    };
+    const mail = captureMail(cleanup);
     await company();
     const adminId = await member('diana.prince@wayne.example', 'admin');
     const { cookie } = await signIn(client, 'diana.prince@wayne.example');
@@ -418,13 +363,12 @@ test.group('company invitations', (group) => {
       const refused = await pending;
       refused.assertStatus(403);
       assert.lengthOf(await db.from('account_invitations'), 0);
-      assert.equal(sent, 0);
+      assert.equal(mail.count(invitee), 0);
       assert.equal(await revision(), before);
       assert.deepEqual(await db.from('audit_entries'), audits);
     } finally {
       barrier.release();
       accountKit.invitations.send = original;
-      mailService.send = send;
       await pending;
     }
   });

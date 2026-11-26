@@ -1,14 +1,17 @@
 import { test } from '@japa/runner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { resetState } from '#tests/helpers/state_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
-
-const password = 'batman-secret-2026';
+import { CompanyFactory } from '#database/factories/company_factory';
+import { UserFactory } from '#database/factories/user_factory';
+import { DateTime } from 'luxon';
+import { password } from '#tests/helpers/auth/admission_resource_links';
 
 test.group('direct member resource association', (group) => {
   group.setup(() => freshDatabase());
@@ -30,8 +33,8 @@ test.group('direct member resource association', (group) => {
       name: 'Bruce Wayne',
       password,
     });
-    const ownerCookie = owner.cookie('adonis-session')!.value;
     const ownerId = (owner.body().data as { user: { id: string } }).user.id;
+    const ownerUser = await User.findOrFail(ownerId);
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const clark = await signUpAndIn(client, {
       email: 'clark.kent@wayne.example',
@@ -79,13 +82,11 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
     ]);
-    await db.table('companies').insert({
+    await CompanyFactory.merge({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
-      created_at: now,
-      updated_at: now,
-    });
+    }).create();
     const person = (id: string, companyId: string, archivedAt: string | null = null) => ({
       id,
       company_id: companyId,
@@ -139,9 +140,9 @@ test.group('direct member resource association', (group) => {
       updated_at: now,
     });
 
-    const response = await asDataOwner(
+    const response = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     ).send();
     response.assertStatus(200);
     const body = response.body().data as {
@@ -177,17 +178,15 @@ test.group('direct member resource association', (group) => {
       password,
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
     const ownerId = (owner.body().data as { user: { id: string } }).user.id;
+    const ownerUser = await User.findOrFail(ownerId);
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const now = new Date().toISOString();
-    await db.table('companies').insert({
+    await CompanyFactory.merge({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
-      created_at: now,
-      updated_at: now,
-    });
+    }).create();
     const person = (id: string, companyId: string, kind = 'person') => ({
       id,
       company_id: companyId,
@@ -212,11 +211,11 @@ test.group('direct member resource association', (group) => {
         person('r-stark', 'a-loft'),
       ]);
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .json({ resourceId, expectedRevision })
         .send();
@@ -235,11 +234,11 @@ test.group('direct member resource association', (group) => {
       .count('* as total');
     assert.equal(Number(auditCountBeforeLink[0].total), 0);
     const createLinkOperation = () =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .headers({
           'x-account-operation-id': 'member-link-command-0001',
@@ -265,11 +264,11 @@ test.group('direct member resource association', (group) => {
       .count('* as total');
     assert.equal(Number(auditCountAfterLink[0].total), 1);
     const repeatLink = () =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .headers({
           'x-account-operation-id': 'member-link-noop-command-0001',
@@ -299,11 +298,11 @@ test.group('direct member resource association', (group) => {
     const archivedCurrent = await put(ownerId, 'r-barry', revision);
     archivedCurrent.assertStatus(409);
     const unlink = () =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .headers({
           'x-account-operation-id': 'member-unlink-command-0001',
@@ -330,15 +329,15 @@ test.group('direct member resource association', (group) => {
     );
     const second = await put(ownerId, 'r-barry', null);
     second.assertStatus(200);
-    const otherId = crypto.randomUUID();
-    await db.table('users').insert({
-      id: otherId,
-      email: 'barry.allen@wayne.example',
-      email_verified_at: new Date().toISOString(),
-      display_name: 'Barry Allen',
-      created_at: now,
-      updated_at: now,
-    });
+    const { id: otherId } = await db.transaction((trx) =>
+      UserFactory.client(trx)
+        .merge({
+          email: 'barry.allen@wayne.example',
+          displayName: 'Barry Allen',
+          emailVerifiedAt: DateTime.now(),
+        })
+        .create()
+    );
     await db.table('memberships').insert({
       scope_id: 'a-studio',
       user_id: otherId,
@@ -350,11 +349,11 @@ test.group('direct member resource association', (group) => {
     const occupied = await put(otherId, 'r-barry', null);
     occupied.assertStatus(409);
     const clear = (userId: string, expectedRevision: string) =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .json({ expectedRevision })
         .send();

@@ -1,51 +1,9 @@
 import { test } from '@japa/runner';
+import { expected } from '#tests/helpers/auth/access_grant';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { clearIdentities } from '#tests/helpers/identities';
-import { configureAuth, session, signIn } from '#tests/functional/planning/helpers';
-
-const expected = {
-  owner: {
-    permissions: [
-      'planning:read',
-      'planning:write',
-      'members:list',
-      'members:manage',
-      'members:signInTracking',
-      'invitations:manage',
-      'masquerade:use',
-      'resources:anonymise',
-      'ownership:transfer',
-      'company:import',
-      'company:anonymise',
-    ],
-    canSeePrivateNames: true,
-    canSeeTimeOffNote: true,
-  },
-  admin: {
-    permissions: [
-      'planning:read',
-      'planning:write',
-      'members:list',
-      'members:manage',
-      'invitations:manage',
-      'masquerade:use',
-      'resources:anonymise',
-    ],
-    canSeePrivateNames: false,
-    canSeeTimeOffNote: true,
-  },
-  editor: {
-    permissions: ['planning:read', 'planning:write'],
-    canSeePrivateNames: false,
-    canSeeTimeOffNote: false,
-  },
-  viewer: {
-    permissions: ['planning:read'],
-    canSeePrivateNames: false,
-    canSeeTimeOffNote: false,
-  },
-} as const;
+import { configureAuth, loginAsMember, session } from '#tests/functional/planning/helpers';
 
 test.group('company directory access grant', (group) => {
   group.setup(() => freshDatabase());
@@ -57,8 +15,8 @@ test.group('company directory access grant', (group) => {
   for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
     test(`sends the ${role} grant with the company row`, async ({ client, assert, cleanup }) => {
       configureAuth(cleanup);
-      const { cookie } = await signIn(client, role);
-      const response = await session(client.visit('api.companies.index'), cookie).send();
+      const { cookie: user } = await loginAsMember(role);
+      const response = await session(client.visit('api.companies.index'), user).send();
       response.assertStatus(200);
       const [row] = response.body().data as Record<string, unknown>[];
       assert.deepEqual(

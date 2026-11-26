@@ -1,18 +1,17 @@
 import { test } from '@japa/runner';
 import router from '@adonisjs/core/services/router';
+import type { ApiRequest } from '@japa/api-client';
 import type { ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
-
-const companyId = 'a-studio';
-const owner = 'bruce.wayne@wayne.example';
-const waiting = 'selina.kyle@wayne.example';
+import { companyId, owner, waiting } from '#tests/helpers/auth/account_gate';
 
 test.group('account gate', (group) => {
   group.setup(() => freshDatabase());
@@ -99,12 +98,12 @@ test.group('account gate', (group) => {
     client,
     assert,
   }) => {
-    for (const path of [
-      `/api/v1/companies/${companyId}/planning`,
-      '/api/v1/companies',
-      '/api/v1/admission',
+    for (const request of [
+      client.visit('api.planning.show', { companyId }),
+      client.visit('api.companies.index'),
+      client.visit('api.admission.show'),
     ]) {
-      const refused = await client.get(path).send();
+      const refused = await request.send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     }
@@ -117,17 +116,18 @@ test.group('account gate', (group) => {
     client,
     assert,
   }) => {
-    await createIdentity(waiting, { name: 'Selina Kyle', admitted: false });
-    const { cookie, cookieHeader } = await signIn(client, waiting);
-    const get = (path: string) => client.get(path).header('cookie', cookieHeader).send();
+    const user = await User.findOrFail(
+      await createIdentity(waiting, { name: 'Selina Kyle', admitted: false })
+    );
+    const get = (request: ApiRequest) => request.loginAs(user).send();
 
     const refusal = 'Your access to this company is waiting on admission.';
-    for (const path of [
-      `/api/v1/companies/${companyId}/planning`,
-      '/api/v1/companies',
-      '/api/v1/state',
+    for (const request of [
+      client.visit('api.planning.show', { companyId }),
+      client.visit('api.companies.index'),
+      client.visit('api.company_state.show'),
     ]) {
-      const refused = await get(path);
+      const refused = await get(request);
       refused.assertStatus(403);
       const body = refused.body() as { code?: string; error?: string; decision?: unknown };
       assert.equal(body.code, 'ADMISSION_REQUIRED');
@@ -135,9 +135,9 @@ test.group('account gate', (group) => {
       assert.isObject(body.decision);
     }
     // The body is invalid; the gate answers before the handler reads it.
-    const write = await asDataOwner(
+    const write = await asLoggedInDataOwner(
       client.visit('api.planning_mutations.store', { companyId }),
-      cookie
+      user
     )
       .json({ unknown: true } as never)
       .send();
@@ -145,24 +145,25 @@ test.group('account gate', (group) => {
     assert.equal((write.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
     assert.equal((write.body() as { error?: string }).error, refusal);
 
-    for (const [path, status] of [
-      ['/api/v1/admission', 200],
-      ['/api/v1/auth/me', 200],
-      ['/api/v1/no-such-route', 404],
+    for (const [request, status] of [
+      [client.visit('api.admission.show'), 200],
+      [client.visit('api.session.show'), 200],
+      // No route has this path, so it has no name to visit.
+      [client.get('/api/v1/no-such-route'), 404],
     ] as const) {
-      const reached = await get(path);
+      const reached = await get(request);
       reached.assertStatus(status);
     }
-    const requested = await asDataOwner(
+    const requested = await asLoggedInDataOwner(
       client.visit('api.admission_requests.store'),
-      cookie
+      user
     ).send();
     requested.assertStatus(200);
     // The remaining limited routes pass the gate; their handlers then refuse a person with no
     // access, in their own words.
     const ownerRow = await db.from('users').where('email', owner).firstOrFail();
     const ownerId = String(ownerRow.id);
-    const listed = await get('/api/v1/admission/requests');
+    const listed = await get(client.visit('api.admission_requests.index'));
     listed.assertStatus(403);
     const limited = [listed];
     for (const name of [
@@ -170,13 +171,13 @@ test.group('account gate', (group) => {
       'api.admission_rejections.store',
       'api.admission_revocations.store',
     ] as const) {
-      limited.push(await asDataOwner(client.visit(name, { userId: ownerId }), cookie).send());
+      limited.push(await asLoggedInDataOwner(client.visit(name, { userId: ownerId }), user).send());
     }
     limited.push(
-      await asDataOwner(client.visit('api.masquerade.store', { companyId }), cookie)
+      await asLoggedInDataOwner(client.visit('api.masquerade.store', { companyId }), user)
         .json({ userId: ownerId } as never)
         .send(),
-      await asDataOwner(client.visit('api.masquerade.destroy'), cookie).send()
+      await asLoggedInDataOwner(client.visit('api.masquerade.destroy'), user).send()
     );
     for (const response of limited) {
       assert.notEqual(response.status(), 401);
@@ -195,8 +196,11 @@ test.group('account gate', (group) => {
       .from('adonis_sessions')
       .where('id', session.id)
       .update({ data: data.replace('accountKitSession', 'retiredSessionHandle') });
-    for (const path of ['/api/v1/companies', '/api/v1/admission']) {
-      const refused = await client.get(path).header('cookie', cookieHeader).send();
+    for (const request of [
+      client.visit('api.companies.index'),
+      client.visit('api.admission.show'),
+    ]) {
+      const refused = await request.header('cookie', cookieHeader).send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     }

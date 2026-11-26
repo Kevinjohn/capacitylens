@@ -1,78 +1,21 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, signIn, expectStatus } from '#tests/helpers/identities';
 import {
-  asDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import { clearIdentities, createIdentity, signIn, expectStatus } from '#tests/helpers/identities';
-
-const companyId = 'a-studio';
-const owner = { email: 'bruce.wayne@wayne.example', password: 'batman-secret-2026' };
-const editor = { email: 'dick.grayson@wayne.example', password: 'nightwing-secret-2026' };
-
-const deleteAccount = (client: ApiClient, cookie: string, currentPassword: string) =>
-  asDataOwner(client.visit('api.account.destroy'), cookie).json({ currentPassword }).send();
-const companies = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.visit('api.companies.index'), cookie).send();
-
-async function company() {
-  const ownerId = await createIdentity(owner.email, {
-    name: 'Bruce Wayne',
-    password: owner.password,
-  });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
-  return ownerId;
-}
-
-async function editorMember() {
-  const userId = await createIdentity(editor.email, {
-    name: 'Dick Grayson',
-    password: editor.password,
-  });
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: companyId,
-    user_id: userId,
-    role: 'editor',
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  await db.table('account_invitations').insert({
-    email: 'barbara.gordon@wayne.example',
-    scope: '',
-    role: 'viewer',
-    inviter_id: userId,
-    token_hash: 'a'.repeat(64),
-    expires_at: '2999-01-01T00:00:00.000Z',
-    created_at: now,
-    updated_at: now,
-  });
-  await db.table('account_member_resources').insert({
-    id: 'link-dick-person',
-    company_id: companyId,
-    user_id: userId,
-    resource_id: 'person-dick',
-    revision: 'test',
-    created_at: now,
-    updated_at: now,
-  });
-  return userId;
-}
-
-async function rowsFor(userId: string) {
-  return {
-    users: await db.from('users').where('id', userId),
-    memberships: await db.from('memberships').where('user_id', userId),
-    links: await db.from('account_member_resources').where('user_id', userId),
-    admissions: await db.from('account_admissions').where('user_id', userId),
-    sessions: await db.from('account_sessions').where('user_id', userId),
-  };
-}
+  companyId,
+  owner,
+  editor,
+  deleteAccount,
+  companies,
+  company,
+  editorMember,
+  rowsFor,
+} from '#tests/helpers/auth/account_deletion';
 
 test.group('account deletion', (group) => {
   group.setup(() => freshDatabase());
@@ -147,7 +90,10 @@ test.group('account deletion', (group) => {
     const wrong = await deleteAccount(client, cookie, 'not-the-password-2026');
     wrong.assertStatus(403);
     wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
-    const malformed = await asDataOwner(client.visit('api.account.destroy'), cookie)
+    const malformed = await asLoggedInDataOwner(
+      client.visit('api.account.destroy'),
+      await User.findOrFail(userId)
+    )
       // Deliberately outside the generated body type, to reach the server's refusal.
       .json({ currentPassword: editor.password, extra: true } as never)
       .send();

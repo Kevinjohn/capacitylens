@@ -9,13 +9,8 @@ import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { createIdentity, signIn } from '#tests/helpers/identities';
 import { assertSafeFailure, operatorFixture } from '#tests/helpers/operator_command_helpers';
-import { DisposableDemoService } from '#services/disposable_demo_service';
 import { InstallationCompanyService } from '#services/installation_company_service';
-
-const disposableDemo = await app.container.make(DisposableDemoService);
-
-const email = 'admin@admin.admin';
-const password = 'capacitylens-demo-2026';
+import { disposableDemo, email, password } from '#tests/helpers/auth/disposable_demo';
 
 test.group('disposable development demo', (group) => {
   group.each.setup(() => freshDatabase());

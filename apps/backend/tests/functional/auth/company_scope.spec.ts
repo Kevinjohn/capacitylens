@@ -3,55 +3,7 @@ import router from '@adonisjs/core/services/router';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
-import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
-import { signUpAndIn } from '#tests/helpers/identities';
-
-const password = 'batman-secret-2026';
-
-/** Signs in an Owner of `a-studio` and a second admitted person, returning the second's session. */
-async function outsider(client: any) {
-  const owner = await signUpAndIn(client, {
-    email: 'bruce.wayne@wayne.example',
-    password,
-    name: 'Bruce Wayne',
-  });
-  owner.assertStatus(200);
-  const ownerId = String((owner.body().data as { user: { id: string } }).user.id);
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
-  const other = await signUpAndIn(client, {
-    email: 'selina.kyle@gotham.example',
-    password,
-    name: 'Selina Kyle',
-  });
-  other.assertStatus(200);
-  return {
-    cookie: other.cookie('adonis-session')!.value,
-    userId: String((other.body().data as { user: { id: string } }).user.id),
-  };
-}
-
-async function refusals(client: any, cookie: string) {
-  const status = await client
-    .visit('api.masquerade.show')
-    .withCookie('adonis-session', cookie)
-    .send();
-  status.assertStatus(200);
-  const company = await client
-    .visit('api.getting_started.update', { companyId: 'a-studio' })
-    .header('sec-fetch-site', 'same-origin')
-    .header(
-      'X-Masquerade-Context',
-      (status.body().data as { masqueradeToken: string }).masqueradeToken
-    )
-    .withCookie('adonis-session', cookie)
-    .json({ dismissed: true })
-    .send();
-  const planning = await client
-    .visit('api.planning.show', { companyId: 'a-studio' })
-    .withCookie('adonis-session', cookie)
-    .send();
-  return { company, planning };
-}
+import { outsider, refusals } from '#tests/helpers/auth/company_scope';
 
 test.group('company scope middleware', (group) => {
   group.setup(() => freshDatabase());
@@ -67,9 +19,9 @@ test.group('company scope middleware', (group) => {
     client,
     assert,
   }) => {
-    const { cookie, userId } = await outsider(client);
+    const { user, userId } = await outsider(client);
     const expectRefused = async () => {
-      const { company, planning } = await refusals(client, cookie);
+      const { company, planning } = await refusals(client, user);
       company.assertStatus(403);
       assert.deepEqual(company.body(), {
         error: 'Forbidden.',

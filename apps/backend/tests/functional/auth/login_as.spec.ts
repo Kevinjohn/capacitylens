@@ -17,14 +17,14 @@ test.group('loginAs through the Account Kit session guard', (group) => {
     client,
   }) => {
     const user = await User.findOrFail(await createIdentity('diana@themyscira.example'));
-    const response = await client.get('/api/v1/companies').loginAs(user).send();
+    const response = await client.visit('api.companies.index').loginAs(user).send();
     assert.exists(await db.from('account_sessions').where('user_id', user.id).first());
     response.assertStatus(200);
   });
 
   test('loginAs reaches the own-account route as that user', async ({ client }) => {
     const user = await User.findOrFail(await createIdentity('diana@themyscira.example'));
-    const response = await client.get('/api/v1/auth/me').loginAs(user).send();
+    const response = await client.visit('api.session.show').loginAs(user).send();
     response.assertStatus(200);
     response.assertBodyContains({ data: { user: { email: 'diana@themyscira.example' } } });
   });
