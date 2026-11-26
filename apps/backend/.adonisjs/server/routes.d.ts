@@ -4,9 +4,8 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
-    'api.liveness': { paramsTuple?: []; params?: {} }
-    'liveness': { paramsTuple?: []; params?: {} }
-    'health_checks': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
+    'health_checks.ready': { paramsTuple?: []; params?: {} }
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_mutations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -64,9 +63,8 @@ export type ScannedRoutes = {
     'spa_fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
-    'api.liveness': { paramsTuple?: []; params?: {} }
-    'liveness': { paramsTuple?: []; params?: {} }
-    'health_checks': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
+    'health_checks.ready': { paramsTuple?: []; params?: {} }
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
@@ -85,9 +83,8 @@ export type ScannedRoutes = {
     'spa_fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
-    'api.liveness': { paramsTuple?: []; params?: {} }
-    'liveness': { paramsTuple?: []; params?: {} }
-    'health_checks': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
+    'health_checks.ready': { paramsTuple?: []; params?: {} }
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }

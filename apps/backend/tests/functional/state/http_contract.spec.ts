@@ -94,7 +94,7 @@ test.group('HTTP contract', (group) => {
     assert,
   }) => {
     for (const response of [
-      await client.visit('api.liveness'),
+      await client.visit('health_checks.live'),
       await client
         .visit('api.session.store')
         .header('content-type', 'application/json')
@@ -116,12 +116,12 @@ test.group('HTTP contract', (group) => {
   }) => {
     client = await resetAuthenticatedClient(client, true);
     const allowed = 'http://localhost:5173';
-    const accepted = await client.visit('api.liveness').header('origin', allowed);
+    const accepted = await client.visit('health_checks.live').header('origin', allowed);
     assert.equal(accepted.header('access-control-allow-origin'), allowed);
     assert.equal(accepted.header('access-control-allow-credentials'), 'true');
 
     const disallowed = await client
-      .visit('api.liveness')
+      .visit('health_checks.live')
       .header('origin', 'https://attacker.example');
     assert.isUndefined(disallowed.header('access-control-allow-origin'));
     assert.isUndefined(disallowed.header('access-control-allow-credentials'));

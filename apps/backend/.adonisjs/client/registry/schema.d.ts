@@ -8,20 +8,7 @@ import type { routes } from './index.ts'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
-  'api.liveness': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/v1/health'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-    }
-  }
-  'liveness': {
+  'health_checks.live': {
     methods: ["GET","HEAD"]
     pattern: '/health/live'
     types: {
@@ -29,12 +16,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
     }
   }
-  'health_checks': {
+  'health_checks.ready': {
     methods: ["GET","HEAD"]
     pattern: '/health/ready'
     types: {
@@ -42,9 +29,9 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
     }
   }
   'api.planning.show': {

@@ -65,7 +65,7 @@ test.group('read path', (group) => {
               })()
             : expected.body;
       // Main recorded unwrapped bodies; a success now answers inside `data`, health excepted.
-      const wrapped = expected.status < 300 && expected.path !== '/api/v1/health';
+      const wrapped = expected.status < 300 && expected.path !== '/health/live';
       assert.deepEqual(response.body(), wrapped ? { data: expectedBody } : expectedBody);
       for (const header of [
         'content-security-policy',

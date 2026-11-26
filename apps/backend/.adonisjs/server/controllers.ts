@@ -27,7 +27,6 @@ export const controllers = {
   InvitationDeliveries: () => import('#controllers/invitation_deliveries_controller'),
   InvitationLinks: () => import('#controllers/invitation_links_controller'),
   Invitations: () => import('#controllers/invitations_controller'),
-  Liveness: () => import('#controllers/liveness_controller'),
   Masquerade: () => import('#controllers/masquerade_controller'),
   MemberResourceLinks: () => import('#controllers/member_resource_links_controller'),
   MemberSignInTracking: () => import('#controllers/member_sign_in_tracking_controller'),

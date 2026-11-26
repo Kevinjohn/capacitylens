@@ -156,7 +156,7 @@ test.group('native authorization and role projections', (group) => {
       client.visit('api.company_state.show').qs({ companyId })
     ).send();
     anonymous.assertStatus(401);
-    const openHealth = await client.visit('api.liveness').send();
+    const openHealth = await client.visit('health_checks.live').send();
     openHealth.assertStatus(200);
 
     await db.from('memberships').where({ user_id: userId }).delete();
