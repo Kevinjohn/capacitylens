@@ -2,13 +2,12 @@ import { test } from '@japa/runner';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import {
-  buildMarkdownAnchorIds,
-  buildMarkdownSlug,
+  listDocumentationLinkFailures,
+  listReadmeLinkFailures,
   listStoryFiles,
   listStoryPaths,
   readRepositoryFile,
   repositoryRoot,
-  resolveDocumentationPage,
 } from '#tests/helpers/documentation';
 
 test.group('documentation and repository rule contracts', () => {
@@ -24,23 +23,78 @@ test.group('documentation and repository rule contracts', () => {
   });
 
   test('keeps local Markdown links from the public README resolvable', ({ assert }) => {
-    const links = [...readRepositoryFile('README.md').matchAll(/\]\(([^)]+)\)/g)]
-      .map((match) => match[1])
-      .filter(
-        (target): target is string =>
-          Boolean(target) && !target!.includes('://') && !target!.startsWith('#')
-      );
-    assert.isAbove(links.length, 0);
+    assert.deepEqual(listReadmeLinkFailures(readRepositoryFile('README.md')), []);
+  });
 
-    for (const target of links) {
-      const [path, fragment] = target.split('#', 2);
-      const absolute = resolve(repositoryRoot, path);
-      assert.isTrue(existsSync(absolute), `Missing README target ${target}`);
-      if (!fragment || !/\.md$/i.test(path)) continue;
-      const headings = buildMarkdownAnchorIds(readFileSync(absolute, 'utf8'));
-      const slugs = new Set([...headings].map(buildMarkdownSlug));
-      assert.isTrue(slugs.has(decodeURIComponent(fragment)), `Missing README fragment ${target}`);
-    }
+  test('checks same-page README links against its own headings', ({ assert }) => {
+    const readme = [
+      '[Try it](#try-it-in-two-minutes) · [Missing](#missing-section)',
+      '[Contributing](CONTRIBUTING.md)',
+      '',
+      '## Try it in two minutes',
+    ].join('\n');
+
+    assert.deepEqual(listReadmeLinkFailures(readme), ['Missing README fragment #missing-section']);
+  });
+
+  test('checks README links against literal HTML ids', ({ assert }) => {
+    const readme = [
+      '[Exact](#Review_Mixed-Case) · [Altered](#reviewmixed-case)',
+      '',
+      '<span id="Review_Mixed-Case"></span>',
+    ].join('\n');
+
+    assert.deepEqual(listReadmeLinkFailures(readme), ['Missing README fragment #reviewmixed-case']);
+  });
+
+  test('rejects README fragments found only in data attributes or fenced examples', ({
+    assert,
+  }) => {
+    const readme = [
+      '[Heading](#real-heading) · [HTML](#real-id) · [Data](#data-only) · [Example](#example-heading) · [Example HTML](#example-id)',
+      '',
+      '## Real heading',
+      '',
+      '<span data-id="data-only" id="real-id"></span>',
+      '',
+      '```md',
+      '## Example heading',
+      '<span id="example-id"></span>',
+      '```',
+    ].join('\n');
+
+    assert.deepEqual(listReadmeLinkFailures(readme), [
+      'Missing README fragment #data-only',
+      'Missing README fragment #example-heading',
+      'Missing README fragment #example-id',
+    ]);
+  });
+
+  test('checks every link on a story documentation metadata line', ({ assert }) => {
+    const story = resolve(
+      repositoryRoot,
+      'user-stories/installation/US-INS-01-install-one-agency.md'
+    );
+    const install = '../../docs-src/self-hosting/install.md';
+    const guide = '../../docs-src/self-hosting/install-without-docker.md';
+    const upgrades = '../../docs-src/self-hosting/upgrades.md';
+    const metadata = `**Documentation:** [Install](${install}); [Guide](${guide}#missing-section); [Upgrades](${upgrades})`;
+
+    assert.deepEqual(listDocumentationLinkFailures(story, metadata), [
+      `Missing documentation fragment ${guide}#missing-section`,
+    ]);
+    assert.deepEqual(
+      listDocumentationLinkFailures(story, metadata.replace('#missing-section', '')),
+      []
+    );
+  });
+
+  test('keeps both membership guide fragments resolvable', ({ assert }) => {
+    const story = resolve(repositoryRoot, 'user-stories/team/US-TEAM-06-change-membership.md');
+    const guide = '../../docs-src/admin/invite-teammates.md';
+    const metadata = `**Documentation:** [Story](${guide}#change-a-members-role-or-schedule-row); [Guide](${guide}#change-a-member-s-role-or-schedule-row)`;
+
+    assert.deepEqual(listDocumentationLinkFailures(story, metadata), []);
   });
 
   test('documents the native AdonisJS commands and health routes', ({ assert }) => {
@@ -95,7 +149,6 @@ test.group('documentation and repository rule contracts', () => {
   test('keeps user-story source and documentation references resolvable', ({ assert }) => {
     const sourceReferences =
       /`((?:apps\/backend|apps\/frontend|packages\/shared|e2e)\/[^`]+\.[cm]?[jt]sx?)`/g;
-    const documentationTarget = /^\*\*Documentation:\*\*\s+\[[^\]]+\]\(([^)]+)\)/gm;
     const files = listStoryFiles();
     const catalogue = readRepositoryFile('user-stories/README.md');
     const indexed = [...catalogue.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
@@ -148,21 +201,7 @@ test.group('documentation and repository rule contracts', () => {
         if (path)
           assert.isTrue(existsSync(resolve(repositoryRoot, path)), `Missing source ${path}`);
       }
-      for (const [, target] of content.matchAll(documentationTarget)) {
-        if (!target) continue;
-        const page = resolveDocumentationPage(file, target);
-        assert.isDefined(page, `Documentation target must resolve inside docs-src: ${target}`);
-        assert.isTrue(existsSync(page!), `Missing documentation page ${target}`);
-        const fragment = target.split('#')[1];
-        if (fragment) {
-          const decoded = decodeURIComponent(fragment);
-          assert.include(
-            buildMarkdownAnchorIds(readFileSync(page!, 'utf8')),
-            decoded,
-            `Missing #${decoded}`
-          );
-        }
-      }
+      assert.deepEqual(listDocumentationLinkFailures(file, metadata), [], file);
     }
   });
 
