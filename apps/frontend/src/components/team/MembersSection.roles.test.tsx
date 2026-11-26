@@ -144,14 +144,14 @@ describe('MembersSection — admin affordances', () => {
     expect(
       within(dialog).getByText(/theeditor@x\.io cannot open this company/),
     ).toBeInTheDocument();
-    expect(fetchMock.requests.map((request) => request.url)).not.toContainEqual(
+    expect(fetchMock.requests.map((request) => request.path)).not.toContainEqual(
       expect.stringContaining('/members/theeditor/status'),
     );
     await user.click(within(dialog).getByRole('button', { name: 'Suspend' }));
     await waitFor(() =>
       expect(fetchMock.requests).toContainEqual(
         expect.objectContaining({
-          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor/status`,
+          path: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor/status`,
           method: 'PATCH',
         }),
       ),
@@ -179,7 +179,7 @@ describe('MembersSection — admin affordances', () => {
     expect(within(dialog).getByTestId('member-role-summary')).toHaveTextContent(
       /Read-only schedule access/,
     );
-    expect(fetchMock.requests.map((request) => request.url)).not.toContainEqual(
+    expect(fetchMock.requests.map((request) => request.path)).not.toContainEqual(
       expect.stringContaining('/members/theeditor'),
     );
 
@@ -188,7 +188,7 @@ describe('MembersSection — admin affordances', () => {
     await waitFor(() =>
       expect(fetchMock.requests).toContainEqual(
         expect.objectContaining({
-          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
+          path: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
           method: 'PATCH',
           body: JSON.stringify({ role: 'viewer' }),
         }),

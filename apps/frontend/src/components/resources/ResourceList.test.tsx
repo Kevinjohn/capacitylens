@@ -23,7 +23,7 @@ import { OwnerPermissions } from '@/test/ownerPermissions';
 import { AuthContext } from '@/auth/authContext';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { permissionValue } from '@/test/permissionGrants';
-import { readDataSettingsCalls } from '@/test/dataSettingsRequests';
+import { readFetchCalls } from '@/test/fetchRequests';
 
 function TestProviders({ children }: { children: ReactNode }) {
   const [cache] = useState(() => new QueryClient());
@@ -594,7 +594,7 @@ describe('ResourceList archived grouping', () => {
     render(<ResourceList />);
 
     const archived = await screen.findByTestId('archived-resources-section');
-    const requests = await readDataSettingsCalls(vi.mocked(fetch));
+    const requests = await readFetchCalls(vi.mocked(fetch));
     const inactiveReads = requests.filter((request) => request.path.includes('includeInactive=1'));
     expect(inactiveReads).not.toHaveLength(0);
     expect(inactiveReads.map((request) => request.credentials)).toContain('include');

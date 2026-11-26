@@ -73,7 +73,7 @@ describe('MembersSection — member lifecycle', () => {
     const dialog = screen.getByRole('alertdialog');
     expect(within(dialog).getByText(/cannot open this company until/i)).toBeInTheDocument();
 
-    expect(fetchMock.requests.map((request) => request.url)).not.toContainEqual(
+    expect(fetchMock.requests.map((request) => request.path)).not.toContainEqual(
       expect.stringContaining('/status'),
     );
 
@@ -81,7 +81,7 @@ describe('MembersSection — member lifecycle', () => {
     await waitFor(() =>
       expect(fetchMock.requests).toContainEqual(
         expect.objectContaining({
-          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
+          path: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
           method: 'PATCH',
           body: JSON.stringify({ status: 'suspended' }),
         }),
@@ -117,7 +117,7 @@ describe('MembersSection — member lifecycle', () => {
     await waitFor(() =>
       expect(fetchMock.requests).toContainEqual(
         expect.objectContaining({
-          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
+          path: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
           method: 'PATCH',
           body: JSON.stringify({ status: 'active' }),
         }),
@@ -342,7 +342,7 @@ describe('MembersSection — member lifecycle', () => {
 
     const mutations = fetchMock.requests.filter((request) => request.method !== 'GET');
     expect(mutations).toHaveLength(1);
-    expect(mutations[0]?.url).toContain('/status');
+    expect(mutations[0]?.path).toContain('/status');
     requireCallback(release, 'the pending member mutation release callback')();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });
@@ -371,7 +371,7 @@ describe('MembersSection — member lifecycle', () => {
       await within(dialog).findByText(m.settings_member_resource_unknown()),
     ).toBeInTheDocument();
     expect(
-      fetchMock.requests.filter((request) => request.url.includes('/members')).length,
+      fetchMock.requests.filter((request) => request.path.includes('/members')).length,
     ).toBeGreaterThan(1);
   });
 
@@ -482,7 +482,7 @@ describe('MembersSection — member lifecycle', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: /remove Resource link/i }));
     await waitFor(() =>
       expect(
-        fetchMock.requests.find((request) => request.url.includes('/members/ed/resource-link')),
+        fetchMock.requests.find((request) => request.path.includes('/members/ed/resource-link')),
       ).toEqual(
         expect.objectContaining({
           method: 'DELETE',
@@ -490,7 +490,7 @@ describe('MembersSection — member lifecycle', () => {
         }),
       ),
     );
-    expect(fetchMock.requests.filter((request) => request.url.endsWith('/members'))).toHaveLength(
+    expect(fetchMock.requests.filter((request) => request.path.endsWith('/members'))).toHaveLength(
       2,
     );
   });

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { fetchApi, requests } = await vi.hoisted(async () => {
-  const { createRequestLog } = await import('@/test/readAccountFetchCall');
+  const { createRequestLog } = await import('@/test/fetchRequests');
   return {
     fetchApi: vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(),
     requests: createRequestLog(),

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = await vi.hoisted(async () => {
-  const { createRequestLog } = await import('@/test/readAccountFetchCall');
+  const { createRequestLog } = await import('@/test/fetchRequests');
   return {
     requests: createRequestLog(),
     fetchApi: vi

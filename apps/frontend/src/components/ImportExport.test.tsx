@@ -9,7 +9,7 @@ import { companyExport } from '@/test/companyExport';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
 import { permissionValue } from '@/test/permissionGrants';
-import { readDataSettingsRequest } from '@/test/dataSettingsRequests';
+import { readFetchRequest } from '@/test/fetchRequests';
 
 const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }));
 const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
@@ -280,9 +280,12 @@ describe('beta import and export', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const request = await readDataSettingsRequest(input, init);
+        const request = await readFetchRequest(input, init);
         const path = request.path;
-        const body = (request.body ?? {}) as Record<string, unknown>;
+        const body = (request.body === null ? {} : JSON.parse(request.body)) as Record<
+          string,
+          unknown
+        >;
         requests.push({ url: path, body });
         if (path.endsWith('/api/v1/import/preview')) {
           return previewReply(7);
@@ -353,9 +356,12 @@ describe('beta import and export', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const request = await readDataSettingsRequest(input, init);
+        const request = await readFetchRequest(input, init);
         const path = request.path;
-        const body = (request.body ?? {}) as Record<string, unknown>;
+        const body = (request.body === null ? {} : JSON.parse(request.body)) as Record<
+          string,
+          unknown
+        >;
         requests.push({ url: path, body });
         if (path.endsWith('/api/v1/import/preview')) {
           return new Promise<Response>((resolve) => previews.push(resolve));

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ForgotPassword } from './ForgotPassword';
 import { m } from '@/i18n';
-import { createRequestLog } from '@/test/readAccountFetchCall';
+import { createRequestLog } from '@/test/fetchRequests';
 
 describe('ForgotPassword', () => {
   afterEach(() => vi.unstubAllGlobals());

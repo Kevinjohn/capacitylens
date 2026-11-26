@@ -9,7 +9,7 @@ import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
-import { createRequestLog, readRequestTarget } from '@/test/readAccountFetchCall';
+import { createRequestLog, readRequestTarget } from '@/test/fetchRequests';
 
 const NO_STEPS = {
   person: false,

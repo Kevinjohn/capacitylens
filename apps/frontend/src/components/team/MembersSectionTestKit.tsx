@@ -9,6 +9,8 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { permissionValue } from '@/test/permissionGrants';
 import type { AuthContextValue } from '@/auth/authContext';
 import { DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
+import { readFetchRequest } from '@/test/fetchRequests';
+import type { FetchRequest } from '@/test/fetchRequests';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { MembersSection } from './MembersSection';
@@ -49,54 +51,23 @@ export function makeRawMember(
   };
 }
 
-/** A fetch call normalised from the client's `(Request, init)` pair: route path with query, method and body text. */
-export interface ApiRequest {
-  url: string;
-  method: string;
-  body: string | null;
-  signal: AbortSignal | null;
-}
-
-/** Reads a fetch call into an {@link ApiRequest}. Accepts a Request (client transport) or a URL string. */
-export async function readApiRequest(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<ApiRequest> {
-  if (input instanceof Request) {
-    const parsed = new URL(input.url);
-    const text = input.body === null ? '' : await input.clone().text();
-    return {
-      url: `${parsed.pathname}${parsed.search}`,
-      method: input.method,
-      body: text === '' ? null : text,
-      signal: init?.signal ?? input.signal,
-    };
-  }
-  return {
-    url: String(input),
-    method: init?.method ?? 'GET',
-    body: init?.body === undefined || init.body === null ? null : String(init.body),
-    signal: init?.signal ?? null,
-  };
-}
-
-/** Answers one normalised request with a fresh Response. */
-export type ApiHandler = (url: string, request: ApiRequest) => Response | Promise<Response>;
+/** Answers one normalised request, given its encoded path and query, with a fresh Response. */
+export type ApiHandler = (path: string, request: FetchRequest) => Response | Promise<Response>;
 
 /** A fetch fake whose `requests` lists every call in normalised form, in call order. */
 export type ApiFetchMock = Mock<
   (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 > & {
-  requests: ApiRequest[];
+  requests: FetchRequest[];
 };
 
 /** Builds a fetch fake that normalises each call before handing it to `handler`. */
 export function fakeApiFetch(handler: ApiHandler): ApiFetchMock {
-  const requests: ApiRequest[] = [];
+  const requests: FetchRequest[] = [];
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = await readApiRequest(input, init);
+    const request = await readFetchRequest(input, init);
     requests.push(request);
-    return handler(request.url, request);
+    return handler(request.path, request);
   });
   return Object.assign(mock, { requests });
 }

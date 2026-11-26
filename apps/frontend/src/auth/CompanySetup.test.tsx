@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CompanySetup } from './CompanySetup';
-import { createRequestLog } from '@/test/readAccountFetchCall';
+import { createRequestLog } from '@/test/fetchRequests';
 
 afterEach(() => vi.unstubAllGlobals());
 

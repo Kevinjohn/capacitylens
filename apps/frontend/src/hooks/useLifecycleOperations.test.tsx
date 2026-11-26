@@ -11,7 +11,7 @@ import {
 } from '@/test/fixtures';
 import { useLifecycleOperations } from './useLifecycleOperations';
 import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
-import { readDataSettingsCalls } from '@/test/dataSettingsRequests';
+import { readFetchCalls } from '@/test/fetchRequests';
 
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
 const queryCache = new QueryClient();
@@ -101,11 +101,11 @@ describe('named lifecycle actions', () => {
     const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => result.current.anonymise('r-1'));
     expect(fetch).toHaveBeenCalledOnce();
-    const [request] = await readDataSettingsCalls(fetch);
+    const [request] = await readFetchCalls(fetch);
     if (!request) throw new Error('Anonymisation request was not sent.');
     expect(request.path).toBe(`/api/v1/companies/${DEFAULT_COMPANY_ID}/resources/r-1/anonymise`);
     // The action sends no body since the API client migration; it used to send `{}`.
-    expect(request).toMatchObject({ method: 'POST', body: undefined });
+    expect(request).toMatchObject({ method: 'POST', body: null });
     expect(request.headers.has('content-type')).toBe(false);
   });
 

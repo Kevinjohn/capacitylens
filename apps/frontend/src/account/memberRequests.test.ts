@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = await vi.hoisted(async () => {
-  const { createRequestLog } = await import('@/test/readAccountFetchCall');
+  const { createRequestLog } = await import('@/test/fetchRequests');
   return {
     requests: createRequestLog(),
     fetchApi: vi
@@ -24,10 +24,10 @@ import { invitationRequests } from './invitationRequests';
 import { invitationSignUpRequests } from './invitationSignUpRequests';
 import { masqueradeRequests } from '@/auth/masqueradeRequests';
 import { memberRequests } from './memberRequests';
-import type { SentRequest } from '@/test/readAccountFetchCall';
+import type { FetchRequest } from '@/test/fetchRequests';
 
 // The server mints the operation identity for a request that carries none, so the browser sends none.
-function expectPlainRequest(sent: SentRequest | undefined, method: string): void {
+function expectPlainRequest(sent: FetchRequest | undefined, method: string): void {
   expect(sent?.method).toBe(method);
   expect(sent?.credentials).toBe('include');
   expect(sent?.headers.has('idempotency-key')).toBe(false);

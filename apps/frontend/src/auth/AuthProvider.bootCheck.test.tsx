@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
-import { createRequestLog } from '@/test/readAccountFetchCall';
+import { createRequestLog } from '@/test/fetchRequests';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({

@@ -19,8 +19,8 @@ import {
 } from '@/test/fixtures';
 import { SettingsDataSection } from './SettingsDataSection';
 import { permissionValue } from '@/test/permissionGrants';
-import { readDataSettingsRequest } from '@/test/dataSettingsRequests';
-import type { DataSettingsRequest } from '@/test/dataSettingsRequests';
+import { readFetchRequest } from '@/test/fetchRequests';
+import type { FetchRequest } from '@/test/fetchRequests';
 
 vi.mock('@/data/requestTimeout', () => ({ fetchApi: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock('@/data/fetchInactiveRecords', async (importOriginal) => ({
@@ -231,9 +231,9 @@ describe('Company-wide people anonymisation', () => {
   });
 
   it('sends a bound proof to the named server endpoint from a settled planning view', async () => {
-    const sent: Array<Promise<DataSettingsRequest>> = [];
+    const sent: Array<Promise<FetchRequest>> = [];
     vi.mocked(fetchApi).mockImplementation(async (input, init) => {
-      sent.push(readDataSettingsRequest(input, init));
+      sent.push(readFetchRequest(input, init));
       return new Response(null, { status: 204 });
     });
     renderSection({ role: 'owner' });
@@ -250,7 +250,7 @@ describe('Company-wide people anonymisation', () => {
     if (!request) throw new Error('Anonymisation request was not sent.');
     expect(request.path).toBe(`/api/v1/companies/${DEFAULT_COMPANY_ID}/anonymise`);
     expect(request.method).toBe('POST');
-    expect(request.body).toEqual({ confirmationId: 'proof-one' });
+    expect(JSON.parse(request.body ?? 'null')).toEqual({ confirmationId: 'proof-one' });
     expect(timeoutMs).toEqual(expect.any(Number));
     expect(reloadPage).toHaveBeenCalledOnce();
   });

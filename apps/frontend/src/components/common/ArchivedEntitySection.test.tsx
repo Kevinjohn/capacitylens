@@ -19,7 +19,7 @@ import { useStore } from '@/store/useStore';
 import { ArchivedEntitySection } from './ArchivedEntitySection';
 import { permissionValue } from '@/test/permissionGrants';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
-import { readDataSettingsCalls } from '@/test/dataSettingsRequests';
+import { readFetchCalls } from '@/test/fetchRequests';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -113,7 +113,7 @@ describe('archived resource actions', () => {
     const user = userEvent.setup();
     render(authenticated(<ArchivedEntitySection entity="resources" />, 'owner'));
     await user.click(await screen.findByRole('button', { name: 'Anonymise Diana Prince' }));
-    const [inactiveRead] = await readDataSettingsCalls(vi.mocked(fetch));
+    const [inactiveRead] = await readFetchCalls(vi.mocked(fetch));
     expect(inactiveRead?.path).toContain('includeInactive=1');
     expect(inactiveRead?.credentials).toBe('include');
     const dialog = screen.getByRole('alertdialog');
@@ -122,7 +122,7 @@ describe('archived resource actions', () => {
     await waitFor(() =>
       expect(useStore.getState().data.resources[0]?.name).toBe('Anonymised person'),
     );
-    expect(await readDataSettingsCalls(vi.mocked(fetch))).toContainEqual(
+    expect(await readFetchCalls(vi.mocked(fetch))).toContainEqual(
       expect.objectContaining({
         path: '/api/v1/companies/acct-test/resources/resource-archive/anonymise',
         method: 'POST',

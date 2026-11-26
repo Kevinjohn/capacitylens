@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { authApi } from './authApi';
-import { createRequestLog } from '@/test/readAccountFetchCall';
+import { createRequestLog } from '@/test/fetchRequests';
 
 afterEach(() => {
   vi.unstubAllGlobals();

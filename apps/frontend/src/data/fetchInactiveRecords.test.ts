@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { companySeed } from '@/test/companyExport';
-import { readDataSettingsRequest } from '@/test/dataSettingsRequests';
-import type { DataSettingsRequest } from '@/test/dataSettingsRequests';
+import { readFetchRequest } from '@/test/fetchRequests';
+import type { FetchRequest } from '@/test/fetchRequests';
 import {
   fetchInactiveRecords,
   InactiveRecordsHttpError,
@@ -23,9 +23,9 @@ const ok = (body: unknown): Response => Response.json({ data: body });
 describe('fetchInactiveRecords', () => {
   it('requests a complete inactive set for the company with credentials', async () => {
     const body = companySeed('a-studio');
-    const sent: Array<Promise<DataSettingsRequest>> = [];
+    const sent: Array<Promise<FetchRequest>> = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      sent.push(readDataSettingsRequest(input, init));
+      sent.push(readFetchRequest(input, init));
       return ok(body);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -40,10 +40,10 @@ describe('fetchInactiveRecords', () => {
     expect(request.path).toBe('/api/v1/state?companyId=a-studio&includeInactive=1');
     expect(request.method).toBe('GET');
     expect(request.credentials).toBe('include');
-    expect(request.signal).toBeInstanceOf(AbortSignal);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
     expect(timeout).toHaveBeenCalledWith(120_000);
     controller.abort();
-    expect(request.signal?.aborted).toBe(true);
+    expect(request.signal.aborted).toBe(true);
 
     expect(data).toEqual(body);
   });
