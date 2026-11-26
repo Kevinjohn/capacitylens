@@ -118,7 +118,8 @@ describe('diagnostics projection', () => {
 
     first.server.connectivity = 'ok';
     first.server.database.status = 'ok';
-    first.server.schema.migration = 'database/migrations/202610120001_create_capacitylens_baseline';
+    first.server.schema.migration =
+      'database/migrations/1791763200000_create_capacitylens_baseline_table';
     first.server.backup.newestBackupAt = '2026-09-10T12:00:00.000Z';
 
     expect(second.server).toEqual({
@@ -140,7 +141,7 @@ describe('diagnostics projection privacy', () => {
           connectivity: 'ok',
           database: { status: 'ok', secret: 'password' },
           schema: {
-            migration: 'database/migrations/202610120001_create_capacitylens_baseline',
+            migration: 'database/migrations/1791763200000_create_capacitylens_baseline_table',
             path: '/private/db',
           },
           backup: { newestBackupAt: '2026-09-10T12:00:00.000Z', sessionId: 'secret' },
@@ -156,12 +157,12 @@ describe('diagnostics projection privacy', () => {
     expect(report.server).toEqual({
       connectivity: 'ok',
       database: { status: 'ok' },
-      schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
+      schema: { migration: 'database/migrations/1791763200000_create_capacitylens_baseline_table' },
       backup: { newestBackupAt: '2026-09-10T12:00:00.000Z' },
     });
     const text = formatDiagnostics(report);
     expect(text).toContain(
-      'Schema migration: database/migrations/202610120001_create_capacitylens_baseline',
+      'Schema migration: database/migrations/1791763200000_create_capacitylens_baseline_table',
     );
     expect(text).toContain('Newest backup: 2026-09-10T12:00:00.000Z');
     expect(text).not.toMatch(/password|sessionId|inviteToken|secret|Persistence:/i);
@@ -198,7 +199,9 @@ describe('diagnostics projection privacy', () => {
         server: {
           connectivity: 'ok',
           database: { status: 'unavailable' },
-          schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
+          schema: {
+            migration: 'database/migrations/1791763200000_create_capacitylens_baseline_table',
+          },
           backup: { newestBackupAt: '2026-02-31T12:00:00.000Z' },
         },
       },
@@ -238,7 +241,9 @@ describe('diagnostics client facts', () => {
           server: {
             connectivity: 'ok',
             database: { status: 'ok', path: '/srv/capacitylens/app.db' },
-            schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
+            schema: {
+              migration: 'database/migrations/1791763200000_create_capacitylens_baseline_table',
+            },
             backup: {
               newestBackupAt: '2026-09-10T12:00:00.000Z',
               target: 'https://backups.example',

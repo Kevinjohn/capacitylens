@@ -4,11 +4,12 @@ import { BaseSchema } from '@adonisjs/lucid/schema';
 const retained = ['allocations', 'time_off', 'closures', 'phases', 'disciplines'] as const;
 
 /**
- * Older releases stored some `deleted_at` markers as UTC ISO strings. The models now read the
- * marker in Lucid's own SQLite date-time format only (#2442), so rewrite those markers in place.
- * Rows already in Lucid's format and live rows are untouched.
+ * Converts ISO soft-delete markers to Lucid's SQLite date-time format. Existing Lucid markers
+ * and live rows are untouched; the conversion discards fractional seconds and cannot be undone.
  */
 export default class extends BaseSchema {
+  protected tableName = 'deleted_rows';
+
   async up() {
     this.defer(async (db) => {
       for (const table of retained) {
@@ -18,5 +19,9 @@ export default class extends BaseSchema {
           .update({ deleted_at: db.raw(`strftime('%Y-%m-%d %H:%M:%S', deleted_at)`) });
       }
     });
+  }
+  /** Refuses rollback because conversion discards the original marker precision. */
+  async down() {
+    throw new Error('This migration cannot be reversed');
   }
 }

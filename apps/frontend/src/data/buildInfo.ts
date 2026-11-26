@@ -120,7 +120,7 @@ function readSchemaProjection(
   return {
     migration:
       typeof migration === 'string' &&
-      /^database\/migrations\/\d{12}_[a-z0-9_]{1,100}$/.test(migration)
+      /^database\/migrations\/\d{13}_[a-z0-9_]{1,100}$/.test(migration)
         ? migration
         : null,
   };

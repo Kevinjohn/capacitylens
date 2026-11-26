@@ -26,7 +26,7 @@
       {
         "entry": 21,
         "item": "DB-6",
-        "path": "apps/backend/database/migrations/202610120001_create_capacitylens_baseline.ts"
+        "path": "apps/backend/database/migrations/1791763200000_create_capacitylens_baseline_table.ts"
       },
       {
         "entry": 35,

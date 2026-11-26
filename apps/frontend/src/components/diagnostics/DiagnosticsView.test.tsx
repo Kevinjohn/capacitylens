@@ -6,7 +6,7 @@ import { AuthContext } from '@/auth/authContext';
 import { DiagnosticsView } from './DiagnosticsView';
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
-const migration = 'database/migrations/202610220002_add_planning_restoration_origin';
+const migration = 'database/migrations/1795478400000_store_deletion_markers_in_lucid_format_table';
 const backupAt = '2026-09-10T12:00:00.000Z';
 
 beforeEach(() => {
