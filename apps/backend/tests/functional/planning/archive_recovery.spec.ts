@@ -275,14 +275,14 @@ test.group('identity-only archive recovery', (suite) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const viewer = await signIn(client, 'viewer');
+    const viewer = await loginAsMember('viewer');
     const viewerRead = await session(
       client.visit('api.planning_archive.show', { companyId }),
       viewer.cookie
     ).send();
     viewerRead.assertStatus(403);
 
-    const editor = await signIn(client, 'editor');
+    const editor = await loginAsMember('editor');
     const foreignRead = await session(
       client.visit('api.planning_archive.show', { companyId: 'a-loft' }),
       editor.cookie

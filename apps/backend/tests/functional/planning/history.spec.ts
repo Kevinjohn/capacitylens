@@ -8,6 +8,8 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
+  type Credential,
+  loginAsMember,
   newAllocation,
   resetPlanningFixture,
   session,
@@ -31,7 +33,7 @@ class Page {
   revision = 0;
   constructor(
     private client: ApiClient,
-    private cookie: string,
+    private cookie: Credential,
     readonly historyId: string | null = randomUUID()
   ) {}
 
@@ -262,7 +264,7 @@ test.group('server-held undo and redo', (suite) => {
     configureAuth(cleanup);
     const owner = new Page(client, await cookieFor(client));
     await createAllocation(owner);
-    const viewerSignIn = await signIn(client, 'viewer');
+    const viewerSignIn = await loginAsMember('viewer');
     const viewer = new Page(client, viewerSignIn.cookie);
     await viewer.read();
 
