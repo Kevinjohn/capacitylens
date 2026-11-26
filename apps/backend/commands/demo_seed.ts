@@ -1,7 +1,7 @@
 import type { CommandOptions } from '@adonisjs/core/types/ace';
 import { inject } from '@adonisjs/core';
+import OperatorCommand from '#commands/_operator_command';
 import { DisposableDemoService } from '#services/disposable_demo_service';
-import { OperatorCommand } from './_operator_command.js';
 
 export default class DemoSeed extends OperatorCommand {
   static commandName = 'demo:seed';

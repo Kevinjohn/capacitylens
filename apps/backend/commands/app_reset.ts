@@ -1,8 +1,8 @@
 import { inject } from '@adonisjs/core';
 import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
+import OperatorCommand from '#commands/_operator_command';
 import { InstallationResetService } from '#services/operator/installation_reset_service';
-import { OperatorCommand } from './_operator_command.js';
 
 /** Preserve the stopped installation before creating an empty replacement. */
 export default class AppReset extends OperatorCommand {

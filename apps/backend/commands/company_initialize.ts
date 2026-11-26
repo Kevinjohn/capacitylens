@@ -1,8 +1,8 @@
 import { inject } from '@adonisjs/core';
 import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
+import OperatorCommand from '#commands/_operator_command';
 import { CompanyInitializationService } from '#services/operator/company_initialization_service';
-import { OperatorCommand } from './_operator_command.js';
 
 /** Initialise company access for an existing identity on an empty stopped installation. */
 export default class CompanyInitialize extends OperatorCommand {

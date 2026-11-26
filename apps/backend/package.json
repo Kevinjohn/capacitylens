@@ -34,6 +34,7 @@
     "#transformers/*": "./app/transformers/*.js",
     "#validators/*": "./app/validators/*.js",
     "#providers/*": "./providers/*.js",
+    "#commands/*": "./commands/*.js",
     "#database/*": "./database/*.js",
     "#tests/*": "./tests/*.js",
     "#start/*": "./start/*.js",

@@ -6,7 +6,7 @@ import { BaseCommand } from '@adonisjs/core/ace';
  * and returns true so Ace does not print the raw error. The `_` prefix keeps the Ace loader from
  * reading this file as a command.
  */
-export abstract class OperatorCommand extends BaseCommand {
+export default abstract class OperatorCommand extends BaseCommand {
   /** The one line an operator sees for a failed run. It must carry no credential material. */
   protected abstract buildFailureMessage(error: unknown): string;
 
