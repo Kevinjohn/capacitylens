@@ -6,7 +6,6 @@ import { AuthorizationService } from '#services/auth/authorization_service';
 import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import { CurrentActorService } from '#services/auth/current_actor_service';
-import access from '#config/access_control';
 import { StateRepositoryService } from '#services/state_repository_service';
 
 /** The company's state as the effective member may read it. */
@@ -43,7 +42,7 @@ export default class CompanyStateController {
           trx
         );
         if (!role) throw new IdentityAuthorizationException();
-        if (includeInactive === '1' && !access.can(role, 'members:manage')) {
+        if (includeInactive === '1' && !this.#stateRepository.mayReadInactive(role)) {
           throw new IdentityAuthorizationException();
         }
         const state = await this.#stateRepository.readStateWithClient(

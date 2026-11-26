@@ -112,9 +112,6 @@ export interface ApiDefinition {
       store: typeof routes['api.admission_requests.store']
       index: typeof routes['api.admission_requests.index']
     }
-    memberships: {
-      store: typeof routes['api.memberships.store']
-    }
     admissionApprovals: {
       store: typeof routes['api.admission_approvals.store']
     }
@@ -124,14 +121,17 @@ export interface ApiDefinition {
     admissionRevocations: {
       store: typeof routes['api.admission_revocations.store']
     }
+    memberships: {
+      store: typeof routes['api.memberships.store']
+    }
     memberResourceLinks: {
       update: typeof routes['api.member_resource_links.update']
       destroy: typeof routes['api.member_resource_links.destroy']
     }
     masquerade: {
       store: typeof routes['api.masquerade.store']
-      show: typeof routes['api.masquerade.show']
       destroy: typeof routes['api.masquerade.destroy']
+      show: typeof routes['api.masquerade.show']
     }
     ownershipTransfers: {
       store: typeof routes['api.ownership_transfers.store']
@@ -143,4 +143,5 @@ export interface ApiDefinition {
   }
   liveness: typeof routes['liveness']
   healthChecks: typeof routes['health_checks']
+  spaFallback: typeof routes['spa_fallback']
 }

@@ -21,6 +21,32 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
     }
   }
+  'liveness': {
+    methods: ["GET","HEAD"]
+    pattern: '/health/live'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
+    }
+  }
+  'health_checks': {
+    methods: ["GET","HEAD"]
+    pattern: '/health/ready'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+    }
+  }
   'api.planning.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/planning'
@@ -268,19 +294,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
     }
   }
-  'api.session.destroy': {
-    methods: ["POST"]
-    pattern: '/api/auth/sign-out'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
-    }
-  }
   'api.password_confirmations.store': {
     methods: ["POST"]
     pattern: '/api/auth/password-confirmation'
@@ -396,6 +409,19 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['update']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['update']>>>
+    }
+  }
+  'api.session.destroy': {
+    methods: ["POST"]
+    pattern: '/api/auth/sign-out'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
     }
   }
   'api.members.index': {
@@ -554,19 +580,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['store']>>>
     }
   }
-  'api.memberships.store': {
-    methods: ["POST"]
-    pattern: '/api/admission/complete'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
-    }
-  }
   'api.admission_requests.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admission/requests'
@@ -619,6 +632,19 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>
     }
   }
+  'api.memberships.store': {
+    methods: ["POST"]
+    pattern: '/api/admission/complete'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
+    }
+  }
   'api.member_resource_links.update': {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/members/:userId/resource-link'
@@ -658,19 +684,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['store']>>>
     }
   }
-  'api.masquerade.show': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/masquerade'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/masquerade').showMasqueradeValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
-    }
-  }
   'api.masquerade.destroy': {
     methods: ["DELETE"]
     pattern: '/api/masquerade'
@@ -682,6 +695,19 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['destroy']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['destroy']>>>
+    }
+  }
+  'api.masquerade.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/masquerade'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/masquerade').showMasqueradeValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
     }
   }
   'api.ownership_transfers.store': {
@@ -718,35 +744,22 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { '*': ParamValue[] }
       query: {}
-      response: unknown
-      errorResponse: unknown
-      rawResponse: ExtractRawResponse<unknown>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/not_found_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/not_found_controller').default['handle']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/not_found_controller').default['handle']>>>
     }
   }
-  'liveness': {
+  'spa_fallback': {
     methods: ["GET","HEAD"]
-    pattern: '/health/live'
+    pattern: '/*'
     types: {
       body: {}
-      paramsTuple: []
-      params: {}
+      paramsTuple: [ParamValue]
+      params: { '*': ParamValue[] }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/liveness_controller').default['handle']>>>
-    }
-  }
-  'health_checks': {
-    methods: ["GET","HEAD"]
-    pattern: '/health/ready'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['handle']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/spa_fallback_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/spa_fallback_controller').default['handle']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/spa_fallback_controller').default['handle']>>>
     }
   }
 }

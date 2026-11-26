@@ -1,4 +1,6 @@
 import type { AppData } from '@capacitylens/shared/types/entities';
+import type { Role } from '@capacitylens/shared/account/types';
+import access from '#config/access_control';
 import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import Company from '#models/company';
 import Activity from '#models/activity';
@@ -20,6 +22,11 @@ function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, u
 
 /** Reads one company's rows on a given client. */
 export class StateRepositoryService {
+  /** Whether a role may read the inactive rows: only one that may manage members. */
+  mayReadInactive(role: Role): boolean {
+    return access.can(role, 'members:manage');
+  }
+
   /**
    * Reads one explicit company slice, refusing a blank company scope.
    * Inactive lifecycle rows are included only when requested.

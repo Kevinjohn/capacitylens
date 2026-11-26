@@ -35,6 +35,7 @@ export const controllers = {
   Members: () => import('#controllers/members_controller'),
   Memberships: () => import('#controllers/memberships_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
+  NotFound: () => import('#controllers/not_found_controller'),
   OwnershipTransfers: () => import('#controllers/ownership_transfers_controller'),
   PasswordConfirmations: () => import('#controllers/password_confirmations_controller'),
   Password: () => import('#controllers/password_controller'),
@@ -47,4 +48,5 @@ export const controllers = {
   PlanningUndo: () => import('#controllers/planning_undo_controller'),
   ResourceAnonymisations: () => import('#controllers/resource_anonymisations_controller'),
   Session: () => import('#controllers/session_controller'),
+  SpaFallback: () => import('#controllers/spa_fallback_controller'),
 }

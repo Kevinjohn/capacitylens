@@ -94,7 +94,7 @@ Three middleware gates run, in this order, before the controller and can refuse:
 
 Then, in order:
 
-1. `apps/backend/start/planning_routes.ts` maps the one mutation route
+1. `apps/backend/start/routes/planning.ts` maps the one mutation route
    (`api.planning_mutations.store`) to `PlanningMutationsController.store`; the body's intent, not
    the URL, names the operation.
 2. `apps/backend/app/controllers/planning_mutations_controller.ts` validates the body with
