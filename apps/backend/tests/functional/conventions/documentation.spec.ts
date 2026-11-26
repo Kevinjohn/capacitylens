@@ -1,85 +1,30 @@
 import { test } from '@japa/runner';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
-
-const ROOT = resolve(process.cwd(), '../..');
-const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8');
-const storyPattern = /^US-[A-Z]+-\d+.*\.md$/;
-const sourceReferences =
-  /`((?:apps\/backend|apps\/frontend|packages\/shared|e2e)\/[^`]+\.[cm]?[jt]sx?)`/g;
-const documentationTarget = /^\*\*Documentation:\*\*\s+\[[^\]]+\]\(([^)]+)\)/gm;
-
-function storyFiles(directory = resolve(ROOT, 'user-stories')): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = resolve(directory, entry.name);
-    if (entry.isDirectory()) return storyFiles(path);
-    return storyPattern.test(entry.name) ? [path] : [];
-  });
-}
-
-function storyPaths(): string[] {
-  return storyFiles()
-    .map((file) => relative(resolve(ROOT, 'user-stories'), file))
-    .sort();
-}
-
-function slug(heading: string): string {
-  return heading
-    .replace(/\s+\{#[^}]+\}\s*$/, '')
-    .trim()
-    .toLowerCase()
-    .replace(/[`*_~]/g, '')
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
-
-function markdownHeadings(source: string): Set<string> {
-  const ids = new Set<string>();
-  for (const [, heading] of source.matchAll(/^#{1,6}\s+(.+)$/gm)) {
-    if (!heading) continue;
-    const explicit = heading.match(/\{#([^}]+)\}\s*$/)?.[1];
-    ids.add(explicit ?? slug(heading));
-  }
-  for (const [, id] of source.matchAll(/<[^>]+\bid=["']([^"']+)["'][^>]*>/g)) {
-    if (id) ids.add(id);
-  }
-  return ids;
-}
-
-function sourcePage(story: string, target: string): string | undefined {
-  const path = target.split('#', 1)[0];
-  if (!path) return;
-  const absolute = resolve(dirname(story), path);
-  const relativeToDocs = relative(resolve(ROOT, 'docs-src'), absolute);
-  if (relativeToDocs.startsWith('..') || relativeToDocs === '') return;
-  return absolute;
-}
-
-function markdownSlug(heading: string): string {
-  return heading
-    .trim()
-    .toLowerCase()
-    .replace(/[`*_~]/g, '')
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import {
+  markdownHeadings,
+  markdownSlug,
+  readRepositoryFile,
+  repositoryRoot,
+  sourcePage,
+  storyFiles,
+  storyPaths,
+} from '#tests/helpers/documentation';
 
 test.group('documentation and repository rule contracts', () => {
   test('keeps the README install commands and success check in step with the guide', ({
     assert,
   }) => {
     const installBlock = (text: string) => /```bash\n(sudo git clone[\s\S]*?)```/.exec(text)?.[1];
-    const guide = read('docs-src/self-hosting/install-without-docker.md');
-    const readme = read('README.md');
+    const guide = readRepositoryFile('docs-src/self-hosting/install-without-docker.md');
+    const readme = readRepositoryFile('README.md');
     assert.isString(installBlock(readme));
     assert.equal(installBlock(readme), installBlock(guide));
     for (const text of [readme, guide]) assert.include(text, '`"isHealthy":true`');
   });
 
   test('keeps local Markdown links from the public README resolvable', ({ assert }) => {
-    const links = [...read('README.md').matchAll(/\]\(([^)]+)\)/g)]
+    const links = [...readRepositoryFile('README.md').matchAll(/\]\(([^)]+)\)/g)]
       .map((match) => match[1])
       .filter(
         (target): target is string =>
@@ -89,7 +34,7 @@ test.group('documentation and repository rule contracts', () => {
 
     for (const target of links) {
       const [path, fragment] = target.split('#', 2);
-      const absolute = resolve(ROOT, path);
+      const absolute = resolve(repositoryRoot, path);
       assert.isTrue(existsSync(absolute), `Missing README target ${target}`);
       if (!fragment || !/\.md$/i.test(path)) continue;
       const headings = markdownHeadings(readFileSync(absolute, 'utf8'));
@@ -99,10 +44,10 @@ test.group('documentation and repository rule contracts', () => {
   });
 
   test('documents the native AdonisJS commands and health routes', ({ assert }) => {
-    const install = read('docs-src/self-hosting/install-without-docker.md');
-    const operations = read('docs-src/self-hosting/upgrades.md');
-    const backups = read('docs-src/self-hosting/backups-and-restore.md');
-    const monitoring = read('docs-src/self-hosting/monitoring.md');
+    const install = readRepositoryFile('docs-src/self-hosting/install-without-docker.md');
+    const operations = readRepositoryFile('docs-src/self-hosting/upgrades.md');
+    const backups = readRepositoryFile('docs-src/self-hosting/backups-and-restore.md');
+    const monitoring = readRepositoryFile('docs-src/self-hosting/monitoring.md');
     const operatorDocs = [install, operations, backups, monitoring].join('\n');
 
     for (const command of [
@@ -119,8 +64,8 @@ test.group('documentation and repository rule contracts', () => {
   test('keeps current operator configuration tied to the packaged environment sample', ({
     assert,
   }) => {
-    const configuration = read('docs-src/self-hosting/configuration.md');
-    const example = read('packaging/release/capacitylens.env.example');
+    const configuration = readRepositoryFile('docs-src/self-hosting/configuration.md');
+    const example = readRepositoryFile('packaging/release/capacitylens.env.example');
     for (const key of [
       'APP_KEY',
       'APP_URL',
@@ -141,15 +86,18 @@ test.group('documentation and repository rule contracts', () => {
       'docs-src/self-hosting/incidents.md',
       'docs-src/self-hosting/faq.md',
     ]) {
-      const document = read(path).replace(/\s+/g, ' ');
+      const document = readRepositoryFile(path).replace(/\s+/g, ' ');
       assert.include(document, 'owner:reset-password');
       assert.include(document, '--confirm-server-stopped');
     }
   });
 
   test('keeps user-story source and documentation references resolvable', ({ assert }) => {
+    const sourceReferences =
+      /`((?:apps\/backend|apps\/frontend|packages\/shared|e2e)\/[^`]+\.[cm]?[jt]sx?)`/g;
+    const documentationTarget = /^\*\*Documentation:\*\*\s+\[[^\]]+\]\(([^)]+)\)/gm;
     const files = storyFiles();
-    const catalogue = read('user-stories/README.md');
+    const catalogue = readRepositoryFile('user-stories/README.md');
     const indexed = [...catalogue.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
       (match) => match[1]
     );
@@ -158,7 +106,7 @@ test.group('documentation and repository rule contracts', () => {
     assert.equal(new Set(indexed).size, files.length);
     assert.deepEqual(indexed.toSorted(), storyPaths());
 
-    const matrix = read('user-stories/COVERAGE.md');
+    const matrix = readRepositoryFile('user-stories/COVERAGE.md');
     const matrixPaths = [...matrix.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
       (match) => match[1]
     );
@@ -177,7 +125,7 @@ test.group('documentation and repository rule contracts', () => {
       identifiers.add(identifier!);
       assert.match(content.replace(/\s+/g, ' '), /As an? .+, I want .+ so that .+/);
       assert.match(content, /^\*\*Status:\*\* (?:Current|Hidden|Removed|Demo|Operator|Planned)\b/m);
-      const pathInCatalogue = relative(resolve(ROOT, 'user-stories'), file);
+      const pathInCatalogue = relative(resolve(repositoryRoot, 'user-stories'), file);
       const matrixRow = matrix.split('\n').find((line) => line.includes(`](${pathInCatalogue})`));
       const matrixStatus = matrixRow?.match(
         /\|\s*(Current|Hidden|Removed|Demo|Operator|Planned)\s*\|\s*(?:New|Existing)\s*\|$/
@@ -197,7 +145,8 @@ test.group('documentation and repository rule contracts', () => {
         assert.isTrue(existsSync(resolve(dirname(file), path!)), `Missing story link ${target}`);
       }
       for (const [, path] of metadata.matchAll(sourceReferences)) {
-        if (path) assert.isTrue(existsSync(resolve(ROOT, path)), `Missing source ${path}`);
+        if (path)
+          assert.isTrue(existsSync(resolve(repositoryRoot, path)), `Missing source ${path}`);
       }
       for (const [, target] of content.matchAll(documentationTarget)) {
         if (!target) continue;
