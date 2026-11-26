@@ -1,46 +1,17 @@
 import { test } from '@japa/runner';
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
 import { readState, resetState } from '#tests/helpers/state_fixture';
-import app from '@adonisjs/core/services/app';
-import { PlanningExecutionService } from '#services/planning/planning_execution_service';
 import type { PlanningIntent } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import PlanningOperationException from '#exceptions/planning_operation_exception';
 import ValidationRefusalException from '#exceptions/validation_refusal_exception';
-import { StateRepositoryService } from '#services/state_repository_service';
 import { AllocationFactory } from '#database/factories/allocation_factory';
 import type Allocation from '#models/allocation';
 import { DateTime } from 'luxon';
 
-const stateRepository = new StateRepositoryService();
-const planningExecution = await app.container.make(PlanningExecutionService);
-
-const owner: PlanningAccessGrant = {
-  role: 'owner',
-  canWrite: true,
-  canSeePrivateNames: true,
-  canSeeTimeOffNote: true,
-};
-
-async function executePlanningIntent(
-  trx: TransactionClientContract,
-  companyId: string,
-  intent: PlanningIntent,
-  accessGrant: PlanningAccessGrant
-) {
-  const data = await stateRepository.readStateWithClient(trx, companyId, true);
-  return planningExecution.executePlanningIntent({
-    trx,
-    companyId,
-    intent,
-    accessGrant,
-    data,
-    identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
-  });
-}
+import { executePlanningIntent, owner } from '#tests/helpers/data/planning_execution';
 
 test.group('typed planning writers', (group) => {
   group.setup(() => freshDatabase());

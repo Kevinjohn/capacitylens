@@ -1,27 +1,11 @@
 import { test } from '@japa/runner';
+import { password, signInObservation, userIdByEmail } from '#tests/helpers/membership/members';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { resetState } from '#tests/helpers/state_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import { CompanyFactory } from '#database/factories/company_factory';
-
-const password = 'batman-secret-2026';
-
-const signed = asDataOwner;
-
-async function userId(email: string) {
-  const user = await db.from('users').where('email', email).first();
-  if (!user) throw new Error(`Missing test user: ${email}`);
-  return String(user.id);
-}
-
-async function observation(companyId: string, targetUserId: string) {
-  return db
-    .from('company_settings')
-    .where({ company_id: companyId, key: `member-sign-in:${targetUserId}` })
-    .first();
-}
 
 test.group('member sign-in tracking lifecycle', (group) => {
   group.setup(() => freshDatabase());
@@ -53,7 +37,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     await db.table('memberships').insert([
       {
         scope_id: 'a-studio',
-        user_id: await userId('bruce.wayne@wayne.example'),
+        user_id: await userIdByEmail('bruce.wayne@wayne.example'),
         role: 'owner',
         status: 'active',
         created_at: now,
@@ -61,7 +45,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
       },
       {
         scope_id: 'a-loft',
-        user_id: await userId('bruce.wayne@wayne.example'),
+        user_id: await userIdByEmail('bruce.wayne@wayne.example'),
         role: 'owner',
         status: 'active',
         created_at: now,
@@ -75,7 +59,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
       name: 'Clark Kent',
     });
     member.assertStatus(200);
-    const memberId = await userId('clark.kent@wayne.example');
+    const memberId = await userIdByEmail('clark.kent@wayne.example');
     await db.table('memberships').insert([
       {
         scope_id: 'a-studio',
@@ -103,12 +87,12 @@ test.group('member sign-in tracking lifecycle', (group) => {
         .send();
     const offSignIn = await signIn();
     offSignIn.assertStatus(200);
-    assert.isNull(await observation('a-studio', memberId));
-    assert.isNull(await observation('a-loft', memberId));
+    assert.isNull(await signInObservation('a-studio', memberId));
+    assert.isNull(await signInObservation('a-loft', memberId));
 
     const tracking = (companyId: string) =>
       client.visit('api.member_sign_in_tracking.update', { companyId });
-    const enableStudio = await signed(tracking('a-studio'), ownerCookie)
+    const enableStudio = await asDataOwner(tracking('a-studio'), ownerCookie)
       .json({ enabled: true })
       .send();
     enableStudio.assertStatus(200);
@@ -116,14 +100,16 @@ test.group('member sign-in tracking lifecycle', (group) => {
       .from('company_settings')
       .where({ company_id: 'a-studio', key: 'member-sign-in-tracking' })
       .first();
-    assert.isNotNull(await observation('a-studio', await userId('bruce.wayne@wayne.example')));
-    assert.isNull(await observation('a-loft', memberId));
+    assert.isNotNull(
+      await signInObservation('a-studio', await userIdByEmail('bruce.wayne@wayne.example'))
+    );
+    assert.isNull(await signInObservation('a-loft', memberId));
 
     const observedStudio = await signIn();
     observedStudio.assertStatus(200);
-    assert.isNotNull(await observation('a-studio', memberId));
-    assert.isNull(await observation('a-loft', memberId));
-    const repeatedEnable = await signed(tracking('a-studio'), ownerCookie)
+    assert.isNotNull(await signInObservation('a-studio', memberId));
+    assert.isNull(await signInObservation('a-loft', memberId));
+    const repeatedEnable = await asDataOwner(tracking('a-studio'), ownerCookie)
       .json({ enabled: true })
       .send();
     repeatedEnable.assertStatus(200);
@@ -132,42 +118,46 @@ test.group('member sign-in tracking lifecycle', (group) => {
       .where({ company_id: 'a-studio', key: 'member-sign-in-tracking' })
       .first();
     assert.equal(repeatedWindow.created_at, firstWindow.created_at);
-    assert.isNotNull(await observation('a-studio', memberId));
+    assert.isNotNull(await signInObservation('a-studio', memberId));
 
-    const enableLoft = await signed(tracking('a-loft'), ownerCookie).json({ enabled: true }).send();
+    const enableLoft = await asDataOwner(tracking('a-loft'), ownerCookie)
+      .json({ enabled: true })
+      .send();
     enableLoft.assertStatus(200);
     const observedBoth = await signIn();
     observedBoth.assertStatus(200);
-    assert.isNotNull(await observation('a-studio', memberId));
-    assert.isNotNull(await observation('a-loft', memberId));
+    assert.isNotNull(await signInObservation('a-studio', memberId));
+    assert.isNotNull(await signInObservation('a-loft', memberId));
 
-    const disableStudio = await signed(tracking('a-studio'), ownerCookie)
+    const disableStudio = await asDataOwner(tracking('a-studio'), ownerCookie)
       .json({ enabled: false })
       .send();
     disableStudio.assertStatus(200);
-    assert.isNull(await observation('a-studio', memberId));
+    assert.isNull(await signInObservation('a-studio', memberId));
     assert.isNull(
       await db
         .from('company_settings')
         .where({ company_id: 'a-studio', key: 'member-sign-in-tracking' })
         .first()
     );
-    assert.isNotNull(await observation('a-loft', memberId));
+    assert.isNotNull(await signInObservation('a-loft', memberId));
     const disabledSignIn = await signIn();
     disabledSignIn.assertStatus(200);
-    assert.isNull(await observation('a-studio', memberId));
-    assert.isNotNull(await observation('a-loft', memberId));
+    assert.isNull(await signInObservation('a-studio', memberId));
+    assert.isNotNull(await signInObservation('a-loft', memberId));
 
-    const reenabledStudio = await signed(tracking('a-studio'), ownerCookie)
+    const reenabledStudio = await asDataOwner(tracking('a-studio'), ownerCookie)
       .json({ enabled: true })
       .send();
     reenabledStudio.assertStatus(200);
-    assert.isNull(await observation('a-studio', memberId));
-    assert.isNotNull(await observation('a-studio', await userId('bruce.wayne@wayne.example')));
-    assert.isNotNull(await observation('a-loft', memberId));
+    assert.isNull(await signInObservation('a-studio', memberId));
+    assert.isNotNull(
+      await signInObservation('a-studio', await userIdByEmail('bruce.wayne@wayne.example'))
+    );
+    assert.isNotNull(await signInObservation('a-loft', memberId));
     const beforeRevoke = await signIn();
     beforeRevoke.assertStatus(200);
-    assert.isNotNull(await observation('a-studio', memberId));
-    assert.isNotNull(await observation('a-loft', memberId));
+    assert.isNotNull(await signInObservation('a-studio', memberId));
+    assert.isNotNull(await signInObservation('a-loft', memberId));
   });
 });

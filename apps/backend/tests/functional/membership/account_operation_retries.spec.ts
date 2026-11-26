@@ -1,66 +1,22 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { captureMail, clearIdentities } from '#tests/helpers/identities';
 import {
-  asDataOwner,
-  asLoggedInDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import { captureMail, clearIdentities, signUpAndIn } from '#tests/helpers/identities';
-import User from '#models/user';
+  codeOf,
+  companyId,
+  operation,
+  retryCompany,
+  transferConfirmation,
+} from '#tests/helpers/membership/account_operations';
 
 /**
  * What the server does when the browser repeats an account operation after an unknown outcome,
  * with the same operation headers or a fresh pair (issue #2454).
  */
-const companyId = 'a-studio';
-const password = 'batman-secret-2026';
-
-const operation = (n: number) => ({
-  'x-account-operation-id': `retry-command-${String(n).padStart(4, '0')}`,
-  'idempotency-key': `retry-idempotency-${String(n).padStart(4, '0')}`,
-});
-
-/** The refusal code of a typed response. */
-const codeOf = (response: { body(): unknown }) => (response.body() as { code?: string }).code;
-
-async function person(client: ApiClient, email: string, name: string) {
-  const response = await signUpAndIn(client, { email, password, name });
-  response.assertStatus(200);
-  const row = await db.from('users').where('email', email).firstOrFail();
-  return {
-    id: String(row.id),
-    cookie: response.cookie('adonis-session')!.value,
-    user: await User.findOrFail(row.id),
-  };
-}
-
-async function company(client: ApiClient) {
-  const owner = await person(client, 'bruce.wayne@wayne.example', 'Bruce Wayne');
-  await createFixtureCompanyForOwner(owner.id, 'Wayne Enterprises', companyId);
-  const admin = await person(client, 'clark.kent@wayne.example', 'Clark Kent');
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    scope_id: companyId,
-    user_id: admin.id,
-    role: 'admin',
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
-  return { owner, admin };
-}
-
-async function transferConfirmation(client: ApiClient, cookie: string, toUserId: string) {
-  return asDataOwner(client.visit('api.password_confirmations.store'), cookie)
-    .header('sec-fetch-site', 'same-origin')
-    .json({ action: 'transfer-ownership', companyId, intent: { toUserId }, password })
-    .send();
-}
-
 test.group('account operation retries', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
@@ -75,7 +31,7 @@ test.group('account operation retries', (group) => {
     cleanup,
   }) => {
     const mail = captureMail(cleanup);
-    const { owner } = await company(client);
+    const { owner } = await retryCompany(client);
     const invitee = 'diana.prince@wayne.example';
     const invite = (headers: Record<string, string>) =>
       asLoggedInDataOwner(client.visit('api.invitations.store'), owner.user)
@@ -106,7 +62,7 @@ test.group('account operation retries', (group) => {
     cleanup,
   }) => {
     captureMail(cleanup);
-    const { owner } = await company(client);
+    const { owner } = await retryCompany(client);
     const sent = await asLoggedInDataOwner(client.visit('api.invitations.store'), owner.user)
       .json({ companyId, email: 'diana.prince@wayne.example', role: 'editor' })
       .send();
@@ -133,7 +89,7 @@ test.group('account operation retries', (group) => {
     client,
     assert,
   }) => {
-    const { owner, admin } = await company(client);
+    const { owner, admin } = await retryCompany(client);
     const suspend = (n: number) =>
       asLoggedInDataOwner(
         client.visit('api.member_status.update', { companyId, userId: admin.id }),
@@ -160,7 +116,7 @@ test.group('account operation retries', (group) => {
     client,
     assert,
   }) => {
-    const { owner, admin } = await company(client);
+    const { owner, admin } = await retryCompany(client);
     const transfer = (confirmationId: string) =>
       asDataOwner(client.visit('api.ownership_transfers.store', { companyId }), owner.cookie)
         .headers(operation(1))

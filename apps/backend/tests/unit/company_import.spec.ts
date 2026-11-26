@@ -8,32 +8,9 @@ import {
 } from '@capacitylens/shared/data/companyExport';
 import { RowValidationService } from '#services/planning/row_validation_service';
 import { transformState } from '#transformers/state_transformer';
+import { confidentialSource, dropDisplayNames } from '#tests/helpers/unit/company_data';
 
 const rowValidation = new RowValidationService();
-
-function confidentialSource() {
-  const source = seed();
-  const client = source.clients.find((row) => row.companyId === 'a-studio' && !row.builtin)!;
-  client.name = 'Wayne Foundation confidential research';
-  client.isPrivate = true;
-  client.codeName = 'Project Nightwing';
-  const project = source.projects.find((row) => row.companyId === 'a-studio')!;
-  project.name = 'Gotham confidential research';
-  project.isPrivate = true;
-  project.codeName = 'Project Oracle';
-  source.timeOff.find((row) => row.companyId === 'a-studio')!.note = 'Confidential appointment';
-  return { source, client, project };
-}
-
-// The read adds `displayName` to each client and project; the export leaves it out by design.
-function dropDisplayNames<T extends { clients: object[]; projects: object[] }>(state: T): T {
-  const strip = <R extends object>(row: R): R => {
-    const copy = { ...row } as R & { displayName?: string };
-    delete copy.displayName;
-    return copy;
-  };
-  return { ...state, clients: state.clients.map(strip), projects: state.projects.map(strip) };
-}
 
 test.group('company import confidentiality boundary', () => {
   test('owner projection preserves supported confidential content and stable IDs', ({ assert }) => {

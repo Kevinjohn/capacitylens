@@ -1,5 +1,4 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import type { HttpContext } from '@adonisjs/core/http';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import app from '@adonisjs/core/services/app';
@@ -12,28 +11,19 @@ import PasswordConfirmationsController from '#controllers/password_confirmations
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  asDataOwner,
   asLoggedInDataOwner,
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
 import User from '#models/user';
-import {
-  clearIdentities,
-  createIdentity,
-  fixturePassword,
-  signIn,
-} from '#tests/helpers/identities';
+import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import { PlanningRevisionService } from '#services/planning_revision_service';
-
-const planningRevisions = new PlanningRevisionService();
-
-const companyId = 'a-studio';
-const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
-const body = { action: 'anonymise' as const, companyId, intent: {}, password: fixturePassword };
-function issue(client: ApiClient, cookie: string, input = body) {
-  return asDataOwner(client.visit('api.password_confirmations.store'), cookie).json(input).send();
-}
+import { readPlanningRevision } from '#tests/helpers/data/planning_revision';
+import {
+  anonymiseProofRequest,
+  companyId,
+  confirmationRequired,
+  issueProof,
+} from '#tests/helpers/privacy/password_confirmation';
 
 test.group('package proof adoption boundaries', (group) => {
   group.setup(() => freshDatabase());
@@ -47,7 +37,7 @@ test.group('package proof adoption boundaries', (group) => {
     )
       .header('origin', 'https://lex.example')
       .header('sec-fetch-site', 'cross-site')
-      .json(body)
+      .json(anonymiseProofRequest)
       .send();
     response.assertStatus(403);
     assert.deepEqual(response.body(), { error: 'Cross-site request rejected.' });
@@ -97,7 +87,7 @@ test.group('package proof adoption boundaries', (group) => {
         proofs.confirmPassword = prove;
         PasswordConfirmationsController.prototype.store = controller;
       });
-      const response = await issue(client, cookie);
+      const response = await issueProof(client, cookie);
       response.assertStatus(403);
       assert.deepEqual(response.body(), expected);
       assert.equal(reached, 1, 'the request must reach controller preflight');
@@ -124,8 +114,8 @@ test.group('package proof adoption boundaries', (group) => {
     });
     const browser = await signIn(client, 'clark.kent@wayne.example');
     for (let i = 0; i < 5; i++) {
-      const response = await issue(client, i % 2 ? second.cookie : cookie, {
-        ...body,
+      const response = await issueProof(client, i % 2 ? second.cookie : cookie, {
+        ...anonymiseProofRequest,
         password: 'wrong',
       });
       response.assertStatus(403);
@@ -134,9 +124,12 @@ test.group('package proof adoption boundaries', (group) => {
         code: 'PASSWORD_CONFIRMATION_DENIED',
       });
     }
-    const success = await issue(client, browser.cookie, { ...body, companyId: 'a-loft' });
+    const success = await issueProof(client, browser.cookie, {
+      ...anonymiseProofRequest,
+      companyId: 'a-loft',
+    });
     success.assertStatus(200);
-    const blocked = await issue(client, second.cookie);
+    const blocked = await issueProof(client, second.cookie);
     blocked.assertStatus(429);
     assert.deepEqual(blocked.body(), { error: 'Too many attempts. Try again in 20 minutes.' });
     const retryAfter = Number(blocked.header('retry-after'));
@@ -161,7 +154,7 @@ test.group('package proof adoption boundaries', (group) => {
     cleanup(() => {
       proofs.prune = original;
     });
-    const response = await issue(client, cookie);
+    const response = await issueProof(client, cookie);
     response.assertStatus(200);
     assert.deepEqual(Object.keys(response.body().data), ['confirmationId']);
     assert.equal(called, 1);
@@ -191,7 +184,7 @@ test.group('package proof adoption boundaries', (group) => {
       pending.resolve();
       hash.verify = original;
     });
-    const request = issue(client, cookie);
+    const request = issueProof(client, cookie);
     await checking.promise;
     const admission = await app.container.make(AccountAdmission);
     await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
@@ -221,18 +214,16 @@ test.group('package proof adoption boundaries', (group) => {
       companyId,
       completeness: 'full',
     });
-    const baseRevision = await db.transaction((trx) =>
-      planningRevisions.getPlanningRevision(trx, companyId)
-    );
+    const baseRevision = await readPlanningRevision(companyId);
     const responses = [
-      await issue(client, cookie, { ...body, companyId: scope }),
+      await issueProof(client, cookie, { ...anonymiseProofRequest, companyId: scope }),
       await asLoggedInDataOwner(client.visit('api.imports.store'), user)
         .json({ companyId: scope, document, baseRevision, confirmationId: 'missing' })
         .send(),
     ];
     for (const response of responses) {
       response.assertStatus(403);
-      assert.deepEqual(response.body(), required);
+      assert.deepEqual(response.body(), confirmationRequired);
     }
     const anonymise = await asLoggedInDataOwner(
       client.visit('api.company_anonymisations.store', { companyId: scope }),
@@ -277,7 +268,7 @@ test.group('package proof adoption boundaries', (group) => {
     cleanup(() => {
       PasswordConfirmationsController.prototype.store = original;
     });
-    const response = await issue(client, cookie);
+    const response = await issueProof(client, cookie);
     response.assertStatus(200);
     assert.equal(checked, 2);
   });

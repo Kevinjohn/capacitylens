@@ -1,4 +1,5 @@
 import { test } from '@japa/runner';
+import { password, userIdByEmail } from '#tests/helpers/membership/members';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { resetState } from '#tests/helpers/state_fixture';
@@ -9,14 +10,6 @@ import {
 } from '#tests/helpers/authenticated_data_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
 import User from '#models/user';
-
-const password = 'batman-secret-2026';
-
-async function userId(email: string) {
-  const user = await db.from('users').where('email', email).first();
-  if (!user) throw new Error(`Missing test user: ${email}`);
-  return String(user.id);
-}
 
 test.group('company member administration', (group) => {
   group.setup(() => freshDatabase());
@@ -39,9 +32,9 @@ test.group('company member administration', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
+    const ownerUser = await User.findOrFail(await userIdByEmail('bruce.wayne@wayne.example'));
     await createFixtureCompanyForOwner(
-      await userId('bruce.wayne@wayne.example'),
+      await userIdByEmail('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     );
@@ -56,7 +49,7 @@ test.group('company member administration', (group) => {
       name: 'Clark Kent',
     });
     editor.assertStatus(200);
-    const editorId = await userId('clark.kent@wayne.example');
+    const editorId = await userIdByEmail('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: 'a-studio',
@@ -130,7 +123,7 @@ test.group('company member administration', (group) => {
       .where('company_id', 'a-studio')
       .first();
     assert.equal(Number(unchangedRevision?.revision), 2);
-    const ownerId = await userId('bruce.wayne@wayne.example');
+    const ownerId = await userIdByEmail('bruce.wayne@wayne.example');
     const refused = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: ownerId }),
       ownerUser
@@ -150,8 +143,8 @@ test.group('company member administration', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
-    const ownerId = await userId('bruce.wayne@wayne.example');
+    const ownerUser = await User.findOrFail(await userIdByEmail('bruce.wayne@wayne.example'));
+    const ownerId = await userIdByEmail('bruce.wayne@wayne.example');
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const editor = await signUpAndIn(client, {
       email: 'clark.kent@wayne.example',
@@ -159,7 +152,7 @@ test.group('company member administration', (group) => {
       name: 'Clark Kent',
     });
     editor.assertStatus(200);
-    const editorId = await userId('clark.kent@wayne.example');
+    const editorId = await userIdByEmail('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: 'a-studio',
@@ -249,9 +242,9 @@ test.group('company member administration', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
+    const ownerUser = await User.findOrFail(await userIdByEmail('bruce.wayne@wayne.example'));
     await createFixtureCompanyForOwner(
-      await userId('bruce.wayne@wayne.example'),
+      await userIdByEmail('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     );
@@ -261,7 +254,7 @@ test.group('company member administration', (group) => {
       name: 'Clark Kent',
     });
     editor.assertStatus(200);
-    const editorId = await userId('clark.kent@wayne.example');
+    const editorId = await userIdByEmail('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: 'a-studio',
@@ -369,7 +362,7 @@ test.group('company member administration', (group) => {
     });
     owner.assertStatus(200);
     await createFixtureCompanyForOwner(
-      await userId('bruce.wayne@wayne.example'),
+      await userIdByEmail('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     );
@@ -385,9 +378,9 @@ test.group('company member administration', (group) => {
       name: 'Clark Kent',
     });
     editor.assertStatus(200);
-    const ownerId = await userId('bruce.wayne@wayne.example');
-    const adminId = await userId('diana.prince@wayne.example');
-    const editorId = await userId('clark.kent@wayne.example');
+    const ownerId = await userIdByEmail('bruce.wayne@wayne.example');
+    const adminId = await userIdByEmail('diana.prince@wayne.example');
+    const editorId = await userIdByEmail('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert([
       {
@@ -407,7 +400,7 @@ test.group('company member administration', (group) => {
         updated_at: now,
       },
     ]);
-    const adminUser = await User.findOrFail(await userId('diana.prince@wayne.example'));
+    const adminUser = await User.findOrFail(await userIdByEmail('diana.prince@wayne.example'));
     const invalidPromotion = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: editorId }),
       adminUser
@@ -465,7 +458,7 @@ test.group('company member administration', (group) => {
     });
     owner.assertStatus(200);
     await createFixtureCompanyForOwner(
-      await userId('bruce.wayne@wayne.example'),
+      await userIdByEmail('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     );
@@ -475,7 +468,7 @@ test.group('company member administration', (group) => {
       name: 'Diana Prince',
     });
     admin.assertStatus(200);
-    const adminId = await userId('diana.prince@wayne.example');
+    const adminId = await userIdByEmail('diana.prince@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: 'a-studio',

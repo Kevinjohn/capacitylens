@@ -1,67 +1,13 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import db from '@adonisjs/lucid/services/db';
 import { readState, resetState } from '#tests/helpers/state_fixture';
-import app from '@adonisjs/core/services/app';
-import { PlanningExecutionService } from '#services/planning/planning_execution_service';
-import type { PlanningIntent } from '#validators/planning/contracts';
-import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import PlanningOperationException from '#exceptions/planning_operation_exception';
 import ValidationRefusalException from '#exceptions/validation_refusal_exception';
-import { StateRepositoryService } from '#services/state_repository_service';
-
-const stateRepository = new StateRepositoryService();
-const planningExecution = await app.container.make(PlanningExecutionService);
-
-const owner: PlanningAccessGrant = {
-  role: 'owner',
-  canWrite: true,
-  canSeePrivateNames: true,
-  canSeeTimeOffNote: true,
-};
-
-async function execute(intent: PlanningIntent) {
-  await db.transaction(async (trx) => {
-    const data = await stateRepository.readStateWithClient(trx, 'a-studio', true);
-    await planningExecution.executePlanningIntent({
-      trx,
-      companyId: 'a-studio',
-      intent,
-      accessGrant: owner,
-      data,
-      identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
-    });
-  });
-}
-
-async function refused(intent: PlanningIntent) {
-  try {
-    await execute(intent);
-  } catch (error) {
-    if (error instanceof PlanningOperationException) return error;
-    throw error;
-  }
-  throw new Error('Expected the planning intent to be refused.');
-}
-
-const makeAllocation = (
-  source: Awaited<ReturnType<typeof readState>>['allocations'][number],
-  id: string,
-  startDate: string
-) => ({
-  id,
-  resourceId: source.resourceId,
-  activityId: source.activityId,
-  projectId: source.projectId,
-  startDate,
-  endDate: startDate,
-  hoursPerDay: source.hoursPerDay,
-  status: source.status,
-  note: source.note,
-  task: source.task,
-  ignoreWorkingDays: source.ignoreWorkingDays,
-});
+import {
+  executeInStudio,
+  makeAllocation,
+  refusedInStudio,
+} from '#tests/helpers/unit/planning_operations';
 
 test.group('typed allocation group and lifecycle operations', (group) => {
   group.setup(() => freshDatabase());
@@ -82,7 +28,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     const firstId = randomUUID();
 
     // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
-    await execute({
+    await executeInStudio({
       operation: 'allocation.createGroup',
       allocation: makeAllocation(source, firstId, '2026-10-01'),
       repeat: { pattern: { kind: 'monthly-date' }, until: '2026-11-01' },
@@ -102,7 +48,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     const refusedFirstId = randomUUID();
     await assert.rejects(
       () =>
-        execute({
+        executeInStudio({
           operation: 'allocation.createGroup',
           allocation: makeAllocation(source, refusedFirstId, '2026-10-25'),
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-01' },
@@ -123,7 +69,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     const resource = before.resources.find((row) => row.kind === 'person')!;
     const oldClientRevision = client.updatedAt;
 
-    await execute({
+    await executeInStudio({
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: client.id },
     });
@@ -132,12 +78,12 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     assert.isString(archivedClient.archivedAt);
     assert.notEqual(archivedClient.updatedAt, oldClientRevision);
 
-    await execute({ operation: 'resource.archive', id: resource.id });
-    await execute({
+    await executeInStudio({ operation: 'resource.archive', id: resource.id });
+    await executeInStudio({
       operation: 'catalogue.restore',
       entity: { entity: 'clients', id: client.id },
     });
-    await execute({ operation: 'resource.restore', id: resource.id });
+    await executeInStudio({ operation: 'resource.restore', id: resource.id });
     after = await readState('a-studio', true);
     assert.isNull(after.clients.find((row) => row.id === client.id)?.archivedAt);
     assert.isNull(after.resources.find((row) => row.id === resource.id)?.archivedAt);
@@ -149,24 +95,27 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     const client = before.clients.find((row) => row.builtin !== true)!;
     const internal = before.clients.find((row) => row.builtin === true)!;
 
-    const activeRestore = await refused({
+    const activeRestore = await refusedInStudio({
       operation: 'catalogue.restore',
       entity: { entity: 'clients', id: client.id },
     });
     assert.equal(activeRestore.status, 400);
     assert.equal(activeRestore.code, 'NO_CHANGE');
 
-    const protectedArchive = await refused({
+    const protectedArchive = await refusedInStudio({
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: internal.id },
     });
     assert.equal(protectedArchive.status, 409);
     assert.isUndefined(protectedArchive.code);
 
-    await execute({ operation: 'catalogue.archive', entity: { entity: 'clients', id: client.id } });
+    await executeInStudio({
+      operation: 'catalogue.archive',
+      entity: { entity: 'clients', id: client.id },
+    });
     const archivedState = await readState('a-studio', true);
     const archived = archivedState.clients.find((row) => row.id === client.id)!;
-    const repeatedArchive = await refused({
+    const repeatedArchive = await refusedInStudio({
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: client.id },
     });

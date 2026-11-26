@@ -1,14 +1,12 @@
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
-import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
+import { errors as httpServerErrors } from '@adonisjs/core/http';
 import {
   E_ACCOUNT_KIT_THROTTLED,
   E_ACCOUNT_KIT_POST_COMMIT,
   accountErrorResponse,
 } from '@kevinjohn/adonisjs-account-kit';
 import { E_ACCOUNT_KIT_ADMISSION_REQUIRED } from '@kevinjohn/adonisjs-account-kit/admission';
-import app from '@adonisjs/core/services/app';
-import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
 import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
@@ -37,7 +35,6 @@ import {
   createInvitationValidator,
 } from '#validators/invitations';
 import { inspectResetValidator } from '#validators/credentials';
-import loggerConfig from '#config/logger';
 import MembershipLostException from '#exceptions/membership_lost_exception';
 import MutationIdReusedException from '#exceptions/mutation_id_reused_exception';
 import NoChangeException from '#exceptions/no_change_exception';
@@ -66,102 +63,14 @@ import IdempotencyConflictException from '#exceptions/idempotency_conflict_excep
 import { DOMAIN_ERROR_CODES, DomainError } from '@capacitylens/shared/domain/errors';
 import RestorationConfirmationRequiredException from '#exceptions/restoration_confirmation_required_exception';
 import RestorationConfirmationStaleException from '#exceptions/restoration_confirmation_stale_exception';
-
-/** The `err` field as the logger writes it. */
-const serializeErr = (error: unknown) => loggerConfig.loggers.app.serializers!.err!(error);
-
-function context(error: unknown, routeName?: string) {
-  const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
-  const diagnostics: Array<{ level: string; fields: Record<string, unknown>; message: string }> =
-    [];
-  const response = {
-    header(name: string, value: string) {
-      result.headers[name] = value;
-      return this;
-    },
-    status(status: number) {
-      result.status = status;
-      return this;
-    },
-    internalServerError(body: unknown) {
-      result.status = 500;
-      result.body = body;
-    },
-    forbidden(body: unknown) {
-      result.status = 403;
-      result.body = body;
-    },
-    badRequest(body: unknown) {
-      result.status = 400;
-      result.body = body;
-    },
-    send(body: unknown) {
-      result.body = body;
-    },
-  };
-  return {
-    result,
-    diagnostics,
-    ctx: {
-      response,
-      logger: {
-        log(level: string, fields: Record<string, unknown>, message: string) {
-          diagnostics.push({ level, fields, message });
-        },
-      },
-      request: {
-        method: () => 'POST',
-        id: () => undefined,
-        accepts: () => 'json',
-        qs: () => ({}),
-        // The planning read's first step reads the route parameters; that is where `error` is thrown.
-        params() {
-          throw error;
-        },
-      },
-      route: { pattern: '/api/v1/companies/:companyId/resources', name: routeName },
-    } as unknown as HttpContext,
-  };
-}
-
-/** Runs the planning read on a planning route; what it throws is answered by the handler. */
-async function answerOnPlanning(error: unknown) {
-  const planning = context(error, 'api.planning.show');
-  try {
-    const controller = await app.container.make(PlanningController);
-    await controller.show(planning.ctx);
-  } catch (thrown) {
-    await new HttpExceptionHandler().handle(thrown, planning.ctx);
-  }
-  return planning.result;
-}
-
-/** What the exception handler answers for `error`. */
-async function answered(error: unknown) {
-  const { ctx, result } = context(error);
-  await new HttpExceptionHandler().handle(error, ctx);
-  return { status: result.status, body: result.body };
-}
-
-/** What the handler answers for the error a call throws. */
-async function answeredThrown(call: () => unknown) {
-  try {
-    await call();
-  } catch (error) {
-    return answered(error);
-  }
-  throw new Error('Expected a refusal.');
-}
-
-/**
- * The framework's answer to a route validator's failure, kept to the status and the first error's
- * message: the sentence the validator fixes.
- */
-async function routeValidationAnswer(call: () => unknown) {
-  const { status, body } = await answeredThrown(call);
-  const [first] = (body as { errors: Array<{ message: string }> }).errors;
-  return { status, body: { errors: [{ message: first?.message }] } };
-}
+import {
+  answered,
+  answeredThrown,
+  answerOnPlanning,
+  context,
+  routeValidationAnswer,
+  serializeErr,
+} from '#tests/helpers/unit/error_answers';
 
 const signUp = {
   email: 'diana.prince@themyscira.example',

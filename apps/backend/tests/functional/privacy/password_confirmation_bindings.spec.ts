@@ -5,15 +5,8 @@ import { readState } from '#tests/helpers/state_fixture';
 import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { createIdentity, fixturePassword, signIn } from '#tests/helpers/identities';
-import { PlanningRevisionService } from '#services/planning_revision_service';
-
-const planningRevisions = new PlanningRevisionService();
-
-const companyId = 'a-studio';
-
-async function revision() {
-  return db.transaction((trx) => planningRevisions.getPlanningRevision(trx, companyId));
-}
+import { readPlanningRevision } from '#tests/helpers/data/planning_revision';
+import { companyId } from '#tests/helpers/privacy/password_confirmation';
 
 test.group('password confirmation bindings', (group) => {
   group.setup(() => freshDatabase());
@@ -24,7 +17,7 @@ test.group('password confirmation bindings', (group) => {
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
-    const baseRevision = await revision();
+    const baseRevision = await readPlanningRevision();
     const document = buildCompanyExport(before, { companyId, completeness: 'full' });
     document.data.companies[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
@@ -77,7 +70,7 @@ test.group('password confirmation bindings', (group) => {
     });
 
     assert.deepEqual(await readState(companyId, true), before);
-    assert.equal(await revision(), baseRevision);
+    assert.equal(await readPlanningRevision(), baseRevision);
     assert.lengthOf(
       await db.from('audit_entries').where('company_id', companyId),
       auditBefore.length
@@ -97,7 +90,7 @@ test.group('password confirmation bindings', (group) => {
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
-    const baseRevision = await revision();
+    const baseRevision = await readPlanningRevision();
     const document = buildCompanyExport(before, { companyId, completeness: 'full' });
     const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
       .json({
@@ -121,7 +114,7 @@ test.group('password confirmation bindings', (group) => {
       code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
     assert.deepEqual(await readState(companyId, true), before);
-    assert.equal(await revision(), baseRevision);
+    assert.equal(await readPlanningRevision(), baseRevision);
     const unspent = await db.from('password_confirmations').where('id', importProof).first();
     assert.isNull(unspent?.consumed_at);
   });

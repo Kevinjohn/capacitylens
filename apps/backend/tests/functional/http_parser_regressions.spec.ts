@@ -1,56 +1,7 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
-import {
-  authenticatedDataClient,
-  resetAuthenticatedData,
-} from '#tests/helpers/authenticated_data_fixture';
+import { resetCookieDataOwner } from '#tests/helpers/data/data_owner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import { request as httpRequest } from 'node:http';
-
-interface RawResponse {
-  statusCode: number | undefined;
-  body: string;
-}
-
-function postRaw(
-  path: string,
-  body: Buffer,
-  contentType: string,
-  headers: Record<string, string> = {},
-  cookie?: string
-): Promise<RawResponse> {
-  return new Promise((resolve, reject) => {
-    const request = httpRequest(
-      {
-        hostname: '127.0.0.1',
-        port: Number(process.env.CAPACITYLENS_TEST_HTTP_PORT),
-        path,
-        method: 'POST',
-        headers: {
-          'content-type': contentType,
-          'content-length': String(body.length),
-          'sec-fetch-site': 'same-origin',
-          ...(cookie ? { cookie: `adonis-session=${cookie}` } : {}),
-          ...headers,
-        },
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on('data', (chunk: Buffer) => chunks.push(chunk));
-        response.on('end', () =>
-          resolve({ statusCode: response.statusCode, body: Buffer.concat(chunks).toString('utf8') })
-        );
-      }
-    );
-    request.on('error', reject);
-    request.end(body);
-  });
-}
-
-async function reset(client: ApiClient, seeded = true) {
-  const session = await resetAuthenticatedData(client, seeded);
-  return { client: authenticatedDataClient(client, session.cookie), cookie: session.cookie };
-}
+import { postRaw } from '#tests/helpers/data/raw_http';
 
 test.group('HTTP parser regressions', (group) => {
   group.setup(() => freshDatabase());
@@ -69,7 +20,7 @@ test.group('HTTP parser regressions', (group) => {
     client,
     assert,
   }) => {
-    const fixture = await reset(client, true);
+    const fixture = await resetCookieDataOwner(client, true);
     client = fixture.client;
     const cookie = fixture.cookie;
     const context = await client.visit('api.masquerade.show').send();
