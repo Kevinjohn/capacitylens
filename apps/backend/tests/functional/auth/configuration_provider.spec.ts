@@ -8,6 +8,7 @@ import ConfigurationProvider from '#providers/configuration_provider';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
+import { execCommand } from '#tests/helpers/auth/commands';
 
 const bootstrapEmail = 'admin@admin.admin';
 const bootstrapPassword = 'batman-local-bootstrap-2026';
@@ -112,9 +113,8 @@ test.group('development bootstrap provider recovery', (group) => {
     assert.isTrue(decision.requirements.invitation.met);
     assert.isFalse(decision.requirements.approval.met);
 
-    const ace = await app.container.make('ace');
-    const approvalCommand = await ace.exec('account-kit:admission:approve', [bootstrapEmail]);
-    assert.equal(approvalCommand.exitCode, 0);
+    const approvalCommand = await execCommand('account-kit:admission:approve', [bootstrapEmail]);
+    approvalCommand.assertSucceeded();
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
     await provider.start();
     assert.isTrue(await admission.isAdmitted(identityId));
@@ -152,14 +152,13 @@ test.group('development bootstrap provider recovery', (group) => {
     assert.isFalse(decision.requirements.invitation.met);
     assert.isFalse(decision.requirements.approval.met);
 
-    const ace = await app.container.make('ace');
-    const invitationCommand = await ace.exec('account-kit:admission:grant-invitation', [
+    const invitationCommand = await execCommand('account-kit:admission:grant-invitation', [
       bootstrapEmail,
       '--role=admin',
     ]);
-    assert.equal(invitationCommand.exitCode, 0);
-    const approvalCommand = await ace.exec('account-kit:admission:approve', [bootstrapEmail]);
-    assert.equal(approvalCommand.exitCode, 0);
+    invitationCommand.assertSucceeded();
+    const approvalCommand = await execCommand('account-kit:admission:approve', [bootstrapEmail]);
+    approvalCommand.assertSucceeded();
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', true);
     await provider.start();
     const admission = await app.container.make(AccountAdmission);

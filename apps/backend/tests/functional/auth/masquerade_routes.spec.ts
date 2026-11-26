@@ -1,12 +1,13 @@
 import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
 import router from '@adonisjs/core/services/router';
+import { execCommand } from '#tests/helpers/auth/commands';
 
 /** Each route line of `node ace masquerade:routes`, without column padding. */
 async function routeReport() {
   const ace = await app.container.make('ace');
   ace.ui.switchMode('raw');
-  const command = await ace.exec('masquerade:routes', []);
+  const command = await execCommand('masquerade:routes', []);
   command.assertSucceeded();
   return ace.ui.logger
     .getLogs()
