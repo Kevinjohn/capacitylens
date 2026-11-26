@@ -68,7 +68,6 @@ export async function requestApiResponse<Name extends keyof ProductRoutes>(
   const [, error] = await client
     .request(name, {
       ...args,
-      throwHttpErrors: false,
       hooks: {
         afterResponse: [
           (_request, _options, response) => {

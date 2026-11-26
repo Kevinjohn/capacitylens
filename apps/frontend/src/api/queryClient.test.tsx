@@ -91,11 +91,11 @@ describe('requestApiResponse', () => {
   });
 
   it('sends the named route with its parameters, query and JSON body', async () => {
-    const requests: Request[] = [];
+    const requests: { request: Request; body: string }[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
-        if (input instanceof Request) requests.push(input);
+        if (input instanceof Request) requests.push({ request: input, body: await input.text() });
         return new Response(null, { status: 204 });
       }),
     );
@@ -108,11 +108,13 @@ describe('requestApiResponse', () => {
         query: { companyId: 'wayne', includeInactive: '1' },
       });
       const [update, state] = requests;
-      expect(update?.method).toBe('PATCH');
-      expect(new URL(update?.url ?? '').pathname).toBe('/api/v1/companies/wayne/members/bruce');
-      expect(update?.headers.get('content-type')).toBe('application/json');
-      expect(await update?.json()).toEqual({ role: 'admin' });
-      expect(new URL(state?.url ?? '').search).toBe('?companyId=wayne&includeInactive=1');
+      expect(update?.request.method).toBe('PATCH');
+      expect(new URL(update?.request.url ?? '').pathname).toBe(
+        '/api/v1/companies/wayne/members/bruce',
+      );
+      expect(update?.request.headers.get('content-type')).toBe('application/json');
+      expect(JSON.parse(update?.body ?? '')).toEqual({ role: 'admin' });
+      expect(new URL(state?.request.url ?? '').search).toBe('?companyId=wayne&includeInactive=1');
     } finally {
       vi.unstubAllGlobals();
     }
