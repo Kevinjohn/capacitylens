@@ -1,5 +1,6 @@
 import factory from '@adonisjs/lucid/factories';
 import User from '#models/user';
+import { DateTime } from 'luxon';
 
 /**
  * A verified identity. `User` admits identities only inside a transaction, so create it with
@@ -11,5 +12,6 @@ export const UserFactory = factory
     displayName: faker.person.fullName(),
     password: null,
     unverifiedEmail: null,
+    emailVerifiedAt: DateTime.now(),
   }))
   .build();
