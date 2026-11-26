@@ -2,8 +2,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ports, resolvePortLane, workerPorts } from '../../../tooling/ports.mjs';
-import { portInUse } from '../../../tooling/devProcesses.mjs';
+import { ports, resolvePortLane, workerPorts } from '@capacitylens/tooling/ports';
+import { portInUse } from '@capacitylens/tooling/devProcesses';
 import { admitIdentity } from './e2e_identity.mjs';
 
 const flavour = process.argv[2];

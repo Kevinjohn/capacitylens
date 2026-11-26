@@ -1,5 +1,5 @@
 import type { spawn } from 'node:child_process';
-import { portInUse, terminateProcessTree } from '../../../../../tooling/devProcesses.mjs';
+import { portInUse, terminateProcessTree } from '@capacitylens/tooling/devProcesses';
 
 export const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));

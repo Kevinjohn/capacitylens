@@ -383,9 +383,7 @@ removed entry retires its number.
     set `SESSION_DRIVER=memory`, because the Account Kit session protection in
     `config/session.ts` accepts only the database store. The `loginAsSession` test plugin signs
     API tests in with `.loginAs(user)` on that store (#2572).
-36. **Aligning (#2578).** The backend imports the repository's `tooling/` scripts by relative
-    path, in `tests/`, `bin/test.ts`, `bin/server.ts` and `scripts/e2e_server.mjs`. `tooling/`
-    becomes a workspace package that the backend imports by its package name.
+36. Retired (#2578). The backend imports `tooling/` by its package name, `@capacitylens/tooling`.
 37. Tests insert rows into tables that have no Lucid model with the query builder, because a model
     factory needs a model. This covers `db.table(...).insert` and `multiInsert` under
     `apps/backend/tests` into any table without a model in `app/models`: today `memberships`,

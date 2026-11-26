@@ -4,7 +4,7 @@ import {
   operatorFixture,
   withOperatorServer,
 } from '#tests/helpers/operator_command_helpers';
-import { writeSmokeSchedule } from '../../../../tooling/smokeSchedule.mjs';
+import { writeSmokeSchedule } from '@capacitylens/tooling/smokeSchedule';
 import { initializeArgs, insertAdmittedUser } from '#tests/helpers/unit/operator_databases';
 
 test.group('company initialize command', () => {

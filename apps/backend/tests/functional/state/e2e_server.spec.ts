@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { test } from '@japa/runner';
-import { ports, resolvePortLane, workerPorts } from '../../../../../tooling/ports.mjs';
-import { E2E_SCRIPT_TEST_SLOTS } from '../../../../../tooling/e2eTestSlots.mjs';
+import { ports, resolvePortLane, workerPorts } from '@capacitylens/tooling/ports';
+import { E2E_SCRIPT_TEST_SLOTS } from '@capacitylens/tooling/e2eTestSlots';
 import { waitForReadiness, waitForPortRelease, stop } from '#tests/helpers/state/e2e_server';
 
 test('both E2E server flavours require sign-in and expose no installation reset route', async ({

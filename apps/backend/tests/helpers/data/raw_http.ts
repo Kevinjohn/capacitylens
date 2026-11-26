@@ -4,7 +4,7 @@ import { request as httpRequest } from 'node:http';
 import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { terminateProcessTree } from '../../../../../tooling/devProcesses.mjs';
+import { terminateProcessTree } from '@capacitylens/tooling/devProcesses';
 
 const backendRoot = new URL('../../../', import.meta.url);
 
