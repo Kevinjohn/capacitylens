@@ -54,7 +54,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/planning/read').planningReadValidator)>>
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/planning').planningReadValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
@@ -67,7 +67,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/planning/read').planningArchiveValidator)>>
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/planning').planningArchiveValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
@@ -77,10 +77,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/mutations'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').planningMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning').planningMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning').planningMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_mutations_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_mutations_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_mutations_controller').default['store']>>>
@@ -90,10 +90,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/undo'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning').planningHistoryStepValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning').planningHistoryStepValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_undo_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_undo_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_undo_controller').default['store']>>>
@@ -103,10 +103,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/redo'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning').planningHistoryStepValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning').planningHistoryStepValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_redo_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_redo_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_redo_controller').default['store']>>>

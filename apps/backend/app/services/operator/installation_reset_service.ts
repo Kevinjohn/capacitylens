@@ -10,17 +10,8 @@ import {
   syncPath,
   withOperatorDatabase,
 } from '@kevinjohn/adonisjs-sqlite-backup';
+import capacitylens from '#config/capacitylens';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
-
-function hasDestinationEntry(path: string) {
-  try {
-    lstatSync(path);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
-    throw error;
-  }
-}
 
 /** Replaces a stopped disposable installation with a new database, keeping the old one. */
 @inject()
@@ -29,6 +20,16 @@ export class InstallationResetService {
 
   constructor(schemaIntegrity: SchemaIntegrityService) {
     this.#schemaIntegrity = schemaIntegrity;
+  }
+
+  #hasDestinationEntry(path: string) {
+    try {
+      lstatSync(path);
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+      throw error;
+    }
   }
 
   /** Back up and archive a stopped installation, then create its replacement at a new path. */
@@ -44,7 +45,7 @@ export class InstallationResetService {
     if (
       sourcePath === databasePath ||
       [databasePath, `${databasePath}-wal`, `${databasePath}-shm`, `${databasePath}-journal`].some(
-        hasDestinationEntry
+        (path) => this.#hasDestinationEntry(path)
       )
     ) {
       throw new Error(
@@ -115,7 +116,7 @@ export class InstallationResetService {
         encoding: 'utf8',
         timeout: 60000,
         env: {
-          ...process.env,
+          ...capacitylens.processEnvironment,
           CAPACITYLENS_DB: databasePath,
           CAPACITYLENS_BACKUP_DIR: '',
           CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',

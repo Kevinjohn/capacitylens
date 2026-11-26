@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core';
 import type { HttpContext } from '@adonisjs/core/http';
-import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
@@ -37,7 +36,7 @@ export default class NewAccountController {
       data: requestData(request, request.body()),
     });
     const { email, name } = body;
-    if (!capacitylens.allowOpenSignUp || (await this.#installationCompany.hasNoCompany(db))) {
+    if (!capacitylens.allowOpenSignUp || (await this.#installationCompany.hasNoCompany())) {
       return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
     }
     try {

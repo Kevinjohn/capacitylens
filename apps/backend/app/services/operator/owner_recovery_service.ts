@@ -6,26 +6,9 @@ import access from '#config/access_control';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
+import User from '#models/user';
 
 const ineligible = 'Recovery requires a sole active Owner with a local password';
-
-async function requireSoleOwnerCompanyIds(userId: string, trx: Pick<Trx, 'from'>) {
-  const memberships = await trx
-    .from(access.config.membershipsTable)
-    .where({ user_id: userId, role: 'owner', status: 'active' })
-    .select('scope_id');
-  const companyIds: string[] = [];
-  for (const membership of memberships) {
-    const owners = await trx
-      .from(access.config.membershipsTable)
-      .where({ scope_id: membership.scope_id, role: 'owner', status: 'active' })
-      .count('* as n')
-      .first();
-    if (Number(owners?.n) === 1) companyIds.push(String(membership.scope_id));
-  }
-  if (!companyIds.length) throw new Error(ineligible);
-  return companyIds.sort();
-}
 
 /** Stopped-server recovery for a sole Owner who cannot sign in. */
 @inject()
@@ -34,6 +17,24 @@ export class OwnerRecoveryService {
 
   constructor(schemaIntegrity: SchemaIntegrityService) {
     this.#schemaIntegrity = schemaIntegrity;
+  }
+
+  async #requireSoleOwnerCompanyIds(userId: string, trx: Pick<Trx, 'from'>) {
+    const memberships = await trx
+      .from(access.config.membershipsTable)
+      .where({ user_id: userId, role: 'owner', status: 'active' })
+      .select('scope_id');
+    const companyIds: string[] = [];
+    for (const membership of memberships) {
+      const owners = await trx
+        .from(access.config.membershipsTable)
+        .where({ scope_id: membership.scope_id, role: 'owner', status: 'active' })
+        .count('* as n')
+        .first();
+      if (Number(owners?.n) === 1) companyIds.push(String(membership.scope_id));
+    }
+    if (!companyIds.length) throw new Error(ineligible);
+    return companyIds.sort();
   }
 
   /**
@@ -46,10 +47,13 @@ export class OwnerRecoveryService {
     if (!isAccountEmail(email)) throw new Error('The target is not a valid account address');
     return withOperatorDatabase(db, async () => {
       await this.#schemaIntegrity.assertSchemaIntegrity();
-      const user = await db.from('users').where('email', email).select('id', 'password').first();
+      const user = await User.query({ client: db.connection() })
+        .where('email', email)
+        .select('id', 'password')
+        .first();
       if (!user?.password) throw new Error(ineligible);
       const userId = String(user.id);
-      const companyIds = await requireSoleOwnerCompanyIds(userId, db);
+      const companyIds = await this.#requireSoleOwnerCompanyIds(userId, db);
       const issued = await accountKit.operator.resetLink({ email, deliver: 'print' });
       if (!issued.url || String(issued.user.id) !== userId) {
         throw new Error('Owner recovery failed; no recovery link was delivered');

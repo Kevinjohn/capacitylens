@@ -16,10 +16,7 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import type {
-  planningHistoryStepValidator,
-  planningMutationValidator,
-} from '#validators/planning_operations';
+import type { planningHistoryStepValidator, planningMutationValidator } from '#validators/planning';
 
 // Planning wire contracts: inferred input types, receipts, refusal codes and the failure body.
 

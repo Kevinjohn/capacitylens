@@ -23,6 +23,7 @@ import IdentityAuthorizationException from '#exceptions/identity_authorization_e
 import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { AccessGrantService } from '#services/auth/access_grant_service';
+import User from '#models/user';
 
 export type { ModeView };
 
@@ -69,8 +70,7 @@ export class MasqueradeModeService {
     const view = await service.status(ctx);
     if (!view.isMasquerading) return { active: false as const, masqueradeToken: view.contextToken };
     const actor = await nativeAdapter.authenticateActor(ctx);
-    const target = await client
-      .from('users')
+    const target = await User.query({ client })
       .where('id', view.targetId)
       .select('display_name', 'email')
       .first();
@@ -118,8 +118,8 @@ export class MasqueradeModeService {
       if (!companyId) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
     }
     // An empty display name falls through to the email, so these are string-or-empty, not nullable.
-    const displayName = String(target.display_name ?? '');
-    const email = String(target.email ?? '');
+    const displayName = target.displayName ?? '';
+    const email = target.email;
     if (!effectiveRole) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED();
     return {
       active: true as const,

@@ -53,7 +53,7 @@ export class DevelopmentBootstrapService {
       );
     }
     const email = 'admin@admin.admin';
-    const existing = await db.from('users').select('id').first();
+    const existing = await User.query({ client: db.connection() }).select('id').first();
     if (existing) {
       const user = await User.findBy('email', email);
       if (!user) return;
@@ -62,7 +62,7 @@ export class DevelopmentBootstrapService {
     }
     const passwordHash = await hash.make(password);
     await db.transaction(async (trx) => {
-      if (await trx.from('users').select('id').first()) return;
+      if (await User.query({ client: trx }).select('id').first()) return;
       // The model's hooks set the id and both timestamps; the verification instant is stored the
       // way Account Kit stores it for every other identity.
       await User.create(

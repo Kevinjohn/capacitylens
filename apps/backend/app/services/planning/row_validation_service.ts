@@ -1,6 +1,6 @@
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import type { RowRuleContext } from '@capacitylens/shared/types/entityFieldRules';
-import { buildRowValidator } from '#validators/planning/row';
+import { buildRowValidator } from '#validators/planning';
 
 /** Validates complete stored rows against their table's field specs. */
 export class RowValidationService {

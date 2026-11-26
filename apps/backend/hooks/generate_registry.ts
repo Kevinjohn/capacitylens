@@ -10,6 +10,8 @@ const registry = generateRegistry({ validationErrorType: false });
  * `.adonisjs/client/registry`, and only the e2e global setup's code generation writes it.
  */
 export default async function generateRegistryHook(...args: HookParams<'init'>) {
+  // The assembler runs this hook before the application boots, so `#start/env` is not loaded here;
+  // start/env.ts still declares the variable for the server process.
   if (process.env.CAPACITYLENS_E2E_WORKER_API === '1') return;
   if (!('run' in registry)) throw new Error('generateRegistry returned a lazy hook');
   await registry.run(...args);
