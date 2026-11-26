@@ -28,12 +28,20 @@ test.group('company route identifier bounds', (group) => {
     await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
     const tooLong = 'a'.repeat(255);
     const refused = [
-      client.get(`/api/v1/companies/${tooLong}/members`),
-      client.patch(`/api/v1/companies/a-studio/members/${tooLong}`).json({ role: 'editor' }),
-      client.put(`/api/v1/companies/a-studio/members/${tooLong}/resource-link`).json({}),
-      client.post(`/api/v1/companies/a-studio/resources/${'a'.repeat(129)}/anonymise`).json({}),
-      client.post(`/api/v1/companies/a-studio/invitations/${'1'.repeat(129)}/resend`).json({}),
-      client.delete(`/api/v1/companies/a-studio/invitations/${'1'.repeat(129)}`),
+      client.visit('api.members.index', { companyId: tooLong }),
+      client
+        .visit('api.members.update', { companyId: 'a-studio', userId: tooLong })
+        .json({ role: 'editor' }),
+      client
+        .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: tooLong })
+        .json({} as never),
+      client
+        .visit('api.resource_anonymisations.store', { companyId: 'a-studio', id: 'a'.repeat(129) })
+        .json({}),
+      client
+        .visit('api.invitation_deliveries.store', { companyId: 'a-studio', id: '1'.repeat(129) })
+        .json({}),
+      client.visit('api.invitations.destroy', { companyId: 'a-studio', id: '1'.repeat(129) }),
     ];
     for (const request of refused) {
       const response = await asLoggedInDataOwner(request, user).send();
@@ -56,33 +64,41 @@ test.group('company route identifier bounds', (group) => {
     await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
     const refused = [
       [
-        client.patch('/api/v1/companies/a-studio/members/bad.id').json({ role: 'editor' }),
+        client
+          .visit('api.members.update', { companyId: 'a-studio', userId: 'bad.id' })
+          .json({ role: 'editor' }),
         'userId',
       ],
       [
         client
-          .patch('/api/v1/companies/a-studio/members/bad.id/status')
+          .visit('api.member_status.update', { companyId: 'a-studio', userId: 'bad.id' })
           .json({ status: 'suspended' }),
         'userId',
       ],
       [
         client
-          .put('/api/v1/companies/a-studio/members/bad.id/resource-link')
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: 'bad.id' })
           .json({ resourceId: 'r-1', expectedRevision: null }),
         'userId',
       ],
       [
         client
-          .delete('/api/v1/companies/a-studio/members/bad.id/resource-link')
+          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: 'bad.id' })
           .json({ expectedRevision: '1' }),
         'userId',
       ],
-      [client.post('/api/v1/companies/a-studio/resources/-bad/anonymise').json({}), 'id'],
+      [
+        client
+          .visit('api.resource_anonymisations.store', { companyId: 'a-studio', id: '-bad' })
+          .json({}),
+        'id',
+      ],
     ] as const;
     for (const [request, param] of refused) {
       const response = await asLoggedInDataOwner(request, user).send();
       response.assertStatus(422);
-      assert.equal(response.body().errors[0].field, `params.${param}`);
+      const { errors } = response.body() as { errors: Array<{ field: string }> };
+      assert.equal(errors[0].field, `params.${param}`);
     }
   });
 
@@ -96,12 +112,13 @@ test.group('company route identifier bounds', (group) => {
     await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
     const response = await asLoggedInDataOwner(
       client
-        .put('/api/v1/companies/a-studio/getting-started')
-        .json({ dismissed: true, params: { companyId: 'a-studio' } }),
+        .visit('api.getting_started.update', { companyId: 'a-studio' })
+        // Deliberately outside the generated body type, to reach the server's refusal.
+        .json({ dismissed: true, params: { companyId: 'a-studio' } } as never),
       user
     ).send();
     response.assertStatus(422);
-    assert.deepEqual(response.body().errors, [
+    assert.deepEqual((response.body() as unknown as { errors: unknown }).errors, [
       { message: 'Unsupported field.', rule: 'unknownField', field: 'params' },
     ]);
   });

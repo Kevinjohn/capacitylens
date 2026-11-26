@@ -8,83 +8,23 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import type { ApiClient } from '@japa/api-client';
 import { signIn } from '#tests/helpers/identities';
-import { PlanningRevisionService } from '#services/planning_revision_service';
-
-const planningRevisions = new PlanningRevisionService();
+import User from '#models/user';
+import {
+  apply,
+  deleteForRestoration,
+  document,
+  proof,
+  revision,
+} from '#tests/helpers/data/import_apply';
 
 const companyId = 'a-studio';
 const password = 'fixture-password-2026';
-
-async function document() {
-  return buildCompanyExport(await readState(companyId, true), { companyId, completeness: 'full' });
-}
-
-async function revision() {
-  return db.transaction((trx) => planningRevisions.getPlanningRevision(trx, companyId));
-}
-
-async function deleteForRestoration(
-  client: ApiClient,
-  cookie: string,
-  targetCompanyId = companyId
-) {
-  const state = await readState(targetCompanyId, true);
-  const allocation = state.allocations[0];
-  if (!allocation) throw new Error('The restoration fixture has no allocation.');
-  const baseRevision = await db.transaction((trx) =>
-    planningRevisions.getPlanningRevision(trx, targetCompanyId)
-  );
-  const mutationId = randomUUID();
-  const response = await asDataOwner(
-    client.visit('api.planning_mutations.store', { companyId: targetCompanyId }),
-    cookie
-  )
-    .json({
-      mutationId,
-      baseRevision,
-      // Naming a history makes the delete undoable, so the company holds a history to clear.
-      historyId: randomUUID(),
-      intent: { operation: 'allocation.delete', id: allocation.id },
-    })
-    .send();
-  response.assertStatus(200);
-  const body = response.body().data as {
-    restoration: { replacementGroupId: string };
-  };
-  return { groupId: body.restoration.replacementGroupId, mutationId, allocationId: allocation.id };
-}
-
-async function proof(client: ApiClient, cookie: string, intent: unknown, action = 'import') {
-  const result = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
-    // The helper takes any action and intent; each test supplies a valid pair.
-    .json({ action, companyId, intent, password } as never)
-    .send();
-  result.assertStatus(200);
-  return (result.body().data as { confirmationId: string }).confirmationId;
-}
-
-async function apply(
-  client: ApiClient,
-  cookie: string,
-  documentValue: CompanyExport,
-  baseRevision: number,
-  confirmationId?: string
-) {
-  return asDataOwner(client.visit('api.imports.store'), cookie)
-    .json({
-      companyId,
-      document: documentValue,
-      baseRevision,
-      ...(confirmationId ? { confirmationId } : {}),
-    })
-    .send();
-}
 
 test.group('beta import apply', (group) => {
   group.setup(() => freshDatabase());
@@ -148,7 +88,8 @@ test.group('beta import apply', (group) => {
   });
 
   test('preview replies with the reason a document is refused', async ({ client, assert }) => {
-    const { cookie } = await resetAuthenticatedData(client);
+    const { userId } = await resetAuthenticatedData(client);
+    const user = await User.findOrFail(userId);
     const full = await document();
     const redacted = buildCompanyExport(await readState(companyId, true), {
       companyId,
@@ -160,7 +101,7 @@ test.group('beta import apply', (group) => {
       [redacted, 'completeness: only full exports can be imported'],
     ];
     for (const [value, error] of refusals) {
-      const response = await asDataOwner(client.visit('api.import_previews.store'), cookie)
+      const response = await asLoggedInDataOwner(client.visit('api.import_previews.store'), user)
         .json({ companyId, document: value })
         .send();
       response.assertStatus(400);
@@ -172,7 +113,7 @@ test.group('beta import apply', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
+    const { cookie, userId } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
     const baseRevision = await revision();
     const changed = await document();
@@ -181,7 +122,10 @@ test.group('beta import apply', (group) => {
     // The same instant the models store as `2026-11-24T10:11:12.000Z`, spelt without milliseconds.
     row.updatedAt = '2026-11-24T10:11:12Z';
 
-    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
+    const preview = await asLoggedInDataOwner(
+      client.visit('api.import_previews.store'),
+      await User.findOrFail(userId)
+    )
       .json({ companyId, document: changed })
       .send();
     preview.assertStatus(400);
@@ -485,7 +429,7 @@ test.group('beta import apply', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
+    const { userId } = await resetAuthenticatedData(client);
     const full = await document();
     const before = await readState(companyId, true);
     const revisionBefore = await revision();
@@ -503,7 +447,10 @@ test.group('beta import apply', (group) => {
     const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as CompanyExport;
     documentWithPrototypeKey.data.clients[0] = clientWithPrototypeKey;
 
-    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
+    const preview = await asLoggedInDataOwner(
+      client.visit('api.import_previews.store'),
+      await User.findOrFail(userId)
+    )
       .json({ companyId, document: documentWithPrototypeKey })
       .send();
 

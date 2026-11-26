@@ -5,32 +5,7 @@ import {
   withOperatorServer,
 } from '#tests/helpers/operator_command_helpers';
 import { writeSmokeSchedule } from '../../../../tooling/smokeSchedule.mjs';
-
-const args = [
-  'company:initialize',
-  '  Bruce@Wayne.EXAMPLE ',
-  '  Wayne   Enterprises  ',
-  '--confirm-server-stopped',
-];
-type Inspection = ReturnType<ReturnType<typeof operatorFixture>['inspect']>;
-
-/** A confirmed identity with a password and the invitation and approval admission requires. */
-function insertUser(database: Inspection, options: { admitted?: boolean } = {}) {
-  const now = new Date().toISOString();
-  database
-    .prepare(
-      'INSERT INTO users (id,email,email_verified_at,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
-    )
-    .run('bruce', 'bruce@wayne.example', now, 'Bruce Wayne', 'existing-credential', now, now);
-  if (options.admitted === false) return;
-  database
-    .prepare(
-      `INSERT INTO account_admissions (user_id,invited_email,invited_role,invitation_source,
-        invitation_recorded_at,approval_status,approval_decided_at,created_at,updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?)`
-    )
-    .run('bruce', 'bruce@wayne.example', 'viewer', 'operator', now, 'approved', now, now, now);
-}
+import { initializeArgs, insertAdmittedUser } from '#tests/helpers/unit/operator_databases';
 
 test.group('company initialize command', () => {
   test('company initialization creates canonical defaults and refuses a second setup without changes', ({
@@ -42,9 +17,9 @@ test.group('company initialize command', () => {
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
       const database = f.inspect();
-      insertUser(database);
+      insertAdmittedUser(database);
       database.close();
-      const result = f.command(args);
+      const result = f.command(initializeArgs);
       assert.equal(result.status, 0, result.output);
       const { companyId } = JSON.parse(result.stdout.trim());
       const inspect = f.inspect();
@@ -66,7 +41,7 @@ test.group('company initialize command', () => {
       );
       const before = inspect.prepare('SELECT * FROM companies').all();
       inspect.close();
-      assert.notEqual(f.command(args).status, 0);
+      assert.notEqual(f.command(initializeArgs).status, 0);
       const after = f.inspect();
       assert.deepEqual(after.prepare('SELECT * FROM companies').all(), before);
       assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
@@ -88,12 +63,12 @@ test.group('company initialize command', () => {
     const f = operatorFixture();
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
-      assert.notEqual(f.command(args.slice(0, -1)).status, 0);
-      assert.notEqual(f.command(args).status, 0);
+      assert.notEqual(f.command(initializeArgs.slice(0, -1)).status, 0);
+      assert.notEqual(f.command(initializeArgs).status, 0);
       const database = f.inspect();
-      insertUser(database);
+      insertAdmittedUser(database);
       database.exec('BEGIN IMMEDIATE');
-      const locked = f.command(args);
+      const locked = f.command(initializeArgs);
       assertSafeFailure(assert, locked, /Another process holds/);
       database.exec('ROLLBACK');
       assert.equal(database.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0);
@@ -112,19 +87,19 @@ test.group('company initialize command', () => {
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
       const database = f.inspect();
-      insertUser(database);
+      insertAdmittedUser(database);
       // Only the Kit runner touches the singleton lock row, so its absence is the one difference
       // between the refused run and the successful one. The command redacts the runner's message.
       database.prepare('DELETE FROM account_transaction_lock').run();
       database.close();
-      const refused = f.command(args);
+      const refused = f.command(initializeArgs);
       assert.notEqual(refused.status, 0, refused.output);
       const after = f.inspect();
       for (const table of ['companies', 'memberships', 'audit_entries'])
         assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
       after.prepare('INSERT INTO account_transaction_lock (id, version) VALUES (1, 0)').run();
       after.close();
-      const initialized = f.command(args);
+      const initialized = f.command(initializeArgs);
       assert.equal(initialized.status, 0, initialized.output);
       const created = f.inspect();
       assert.equal(created.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
@@ -143,12 +118,12 @@ test.group('company initialize command', () => {
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
       const database = f.inspect();
-      insertUser(database);
+      insertAdmittedUser(database);
       database.exec(
         "CREATE TRIGGER fail_company_audit BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'private database detail'); END"
       );
       database.close();
-      const result = f.command(args);
+      const result = f.command(initializeArgs);
       assert.notEqual(result.status, 0);
       assert.notInclude(result.output, 'private database detail');
       const inspect = f.inspect();
@@ -175,7 +150,7 @@ test.group('company initialize command', () => {
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
       const database = f.inspect();
-      insertUser(database);
+      insertAdmittedUser(database);
       database.close();
       assert.notEqual(
         f.command([
@@ -203,7 +178,7 @@ test.group('company initialize command', () => {
       const inspect = f.inspect();
       inspect.prepare('UPDATE users SET password = NULL').run();
       inspect.close();
-      const noFactor = f.command(args);
+      const noFactor = f.command(initializeArgs);
       assert.notEqual(noFactor.status, 0);
       assert.match(noFactor.output, /no enabled sign-in method/);
       const unconfirmed = f.inspect();
@@ -211,14 +186,14 @@ test.group('company initialize command', () => {
         .prepare("UPDATE users SET password = 'credential', unverified_email = email")
         .run();
       unconfirmed.close();
-      const pending = f.command(args);
+      const pending = f.command(initializeArgs);
       assert.notEqual(pending.status, 0);
       assert.match(pending.output, /has not confirmed its email/);
       const unadmitted = f.inspect();
       unadmitted.prepare('UPDATE users SET unverified_email = NULL').run();
       unadmitted.prepare('DELETE FROM account_admissions').run();
       unadmitted.close();
-      const refused = f.command(args);
+      const refused = f.command(initializeArgs);
       assert.notEqual(refused.status, 0);
       assert.match(refused.output, /is not admitted/);
       const after = f.inspect();
@@ -254,7 +229,7 @@ test.group('company initialize command', () => {
         });
         assert.equal(accepted.status, 201, await accepted.text());
       });
-      const initialized = f.command(args);
+      const initialized = f.command(initializeArgs);
       assert.equal(initialized.status, 0, initialized.output);
       const { companyId } = JSON.parse(initialized.stdout.trim());
       await withOperatorServer(f, async (origin) => {
@@ -332,7 +307,7 @@ test.group('company initialize command', () => {
         );
         persisted.close();
       });
-      assert.notEqual(f.command(args).status, 0);
+      assert.notEqual(f.command(initializeArgs).status, 0);
       const after = f.inspect();
       assert.equal(after.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 1);
       assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
@@ -351,11 +326,11 @@ test.group('company initialize command', () => {
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
       const database = f.inspect();
-      insertUser(database);
+      insertAdmittedUser(database);
       const users = database.prepare('SELECT * FROM users').all();
       database.exec('DELETE FROM adonis_schema');
       database.close();
-      const refused = f.command(args);
+      const refused = f.command(initializeArgs);
       assertSafeFailure(assert, refused, /Database schema is not current/);
       const after = f.inspect();
       assert.deepEqual(after.prepare('SELECT * FROM users').all(), users);

@@ -3,7 +3,6 @@ import type { TestContext } from '@japa/runner/core';
 import { mock } from 'node:test';
 import app from '@adonisjs/core/services/app';
 import logger from '@adonisjs/core/services/logger';
-import type { ApplicationService } from '@adonisjs/core/types';
 import { chmodSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,40 +18,12 @@ import {
 } from '@kevinjohn/adonisjs-sqlite-backup';
 import BackupProvider from '#providers/backup_provider';
 import { operatorFixture } from '#tests/helpers/operator_command_helpers';
-
-function makeApplication(
-  backup: BackupService,
-  environment = 'web',
-  directory = backup.config.directory
-) {
-  return {
-    getEnvironment: () => environment,
-    config: {
-      get: (key: string) => (key === 'backup' ? { ...backup.config, directory } : undefined),
-    },
-    container: {
-      make: async (key: string) => {
-        if (key !== 'sqlite.backup') throw new Error(`Unexpected binding ${key}`);
-        return backup;
-      },
-    },
-  } as unknown as ApplicationService;
-}
-
-type BackupService = Pick<
-  SqliteBackup,
-  'config' | 'livePath' | 'checkSource' | 'prepareDirectory' | 'create' | 'prune'
->;
-const DAY_MS = 24 * 60 * 60_000;
-
-class LoggedProvider extends BackupProvider {
-  messages: string[] = [];
-  levels = new Map<string, string>();
-  protected log(message: string, level = 'info') {
-    this.messages.push(message);
-    this.levels.set(message, level);
-  }
-}
+import {
+  type BackupService,
+  DAY_MS,
+  LoggedProvider,
+  makeApplication,
+} from '#tests/helpers/unit/providers';
 
 test.group('backup provider', () => {
   test('provider messages reach the logger at their own level', ({ assert, cleanup }) => {

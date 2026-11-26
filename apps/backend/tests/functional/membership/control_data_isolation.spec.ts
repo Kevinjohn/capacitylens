@@ -3,6 +3,8 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
+import { UserFactory } from '#database/factories/user_factory';
+import { DateTime } from 'luxon';
 
 test.group('membership control-data isolation', (group) => {
   group.setup(() => freshDatabase());
@@ -18,13 +20,16 @@ test.group('membership control-data isolation', (group) => {
     await db.from('memberships').where('user_id', 'u-control-isolation').delete();
     await db.from('users').where('id', 'u-control-isolation').delete();
     const resource = seed().resources.find((row) => row.id === 'r-tyler')!;
-    await db.table('users').insert({
-      id: 'u-control-isolation',
-      email: 'clark.kent@wayne.example',
-      email_verified_at: stamp,
-      created_at: stamp,
-      updated_at: stamp,
-    });
+    await db.transaction((trx) =>
+      UserFactory.client(trx)
+        .merge({
+          id: 'u-control-isolation',
+          email: 'clark.kent@wayne.example',
+          displayName: null,
+          emailVerifiedAt: DateTime.fromISO(stamp),
+        })
+        .create()
+    );
     await db.table('memberships').insert({
       scope_id: 'a-studio',
       user_id: 'u-control-isolation',

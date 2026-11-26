@@ -10,10 +10,7 @@ import {
   scratchBackendFilter,
   insertOwner,
 } from '#tests/helpers/operator_command_helpers';
-
-function tableCount(database: DatabaseSync, table: string) {
-  return database.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n;
-}
+import { tableCount } from '#tests/helpers/unit/operator_databases';
 
 test.group('app reset command', () => {
   test('app reset archives all account and credential state and initializes a separate empty database', ({

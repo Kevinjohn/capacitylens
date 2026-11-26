@@ -1,22 +1,23 @@
 import { test } from '@japa/runner';
+import { captureLogs } from '#tests/helpers/data/log_capture';
 import {
-  authenticatedDataClient,
   createFixtureCompanyForOwner,
   resetAuthenticatedClient,
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
+import { loggedInDataClient } from '#tests/helpers/data/logged_in_client';
+import User from '#models/user';
 import { LoggerFactory } from '@adonisjs/logger/factories';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Company from '#models/company';
-import logger from '@adonisjs/core/services/logger';
 import env from '#start/env';
 import loggerConfig from '#config/logger';
 import { randomUUID } from 'node:crypto';
 import {
+  companyId,
   configureAuth,
   newAllocation,
-  planningUrl,
   resetPlanningFixture,
   session as withPlanningSession,
   loginAsMember,
@@ -24,33 +25,6 @@ import {
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
-async function captureLogs<T>(
-  work: () => Promise<T>,
-  interceptChild?: (child: ReturnType<typeof logger.child>) => void
-): Promise<{ output: string; result: T }> {
-  const lines: string[] = [];
-  const capture = new LoggerFactory()
-    .merge({ ...loggerConfig.loggers.app, level: 'trace' })
-    .pushLogsTo(lines)
-    .create();
-  const instrument = (child: ReturnType<typeof capture.child>) => {
-    interceptChild?.(child);
-    const originalChild = child.child;
-    child.child = ((...args: Parameters<typeof child.child>) =>
-      instrument(originalChild.apply(child, args))) as typeof child.child;
-    return child;
-  };
-  const originalChild = logger.child;
-  logger.child = ((...args: Parameters<typeof logger.child>) =>
-    instrument(capture.child(...args))) as typeof logger.child;
-  try {
-    const result = await work();
-    return { output: lines.join('\n'), result };
-  } finally {
-    logger.child = originalChild;
-  }
-}
 
 const originalLoggingSetting = env.get('CAPACITYLENS_LOG');
 
@@ -206,7 +180,7 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     const session = await resetAuthenticatedData(client, false);
     await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises', 'a-studio');
-    client = authenticatedDataClient(client, session.cookie);
+    client = loggedInDataClient(client, await User.findOrFail(session.userId));
     const secret = 'SENTINEL_COMPLETION_LOG_FAILURE';
     const { output, result } = await captureLogs(
       () =>
@@ -244,7 +218,7 @@ test.group('general HTTP logging privacy', (group) => {
     const data = await resetPlanningFixture();
     const { cookie } = await loginAsMember();
     const { output, result } = await captureLogs(() =>
-      withPlanningSession(client.post(`${planningUrl}/mutations`), cookie)
+      withPlanningSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json({
           mutationId: randomUUID(),
           baseRevision: 0,

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import { buildCapacityWindow } from '@capacitylens/shared/lib/capacity';
@@ -6,16 +5,7 @@ import type { CapacityDays } from '@capacitylens/shared/lib/capacity';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
-import type {
-  Company,
-  Allocation,
-  AppData,
-  Closure,
-  Resource,
-  TimeOff,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
 import { buildCapacitySection } from '#services/planning/capacity_section';
 import { readState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
@@ -23,94 +13,15 @@ import { resetPlanningFixture } from '#tests/functional/planning/helpers';
 
 // Each Scheduling-invariants rule (DECISIONS.md) is one case against the read's capacity section.
 // 2026-06-01 is a Monday.
-
-const COMPANY = 'a-themyscira';
-const stamp = { companyId: COMPANY, createdAt: 't', updatedAt: 't' };
-
-function companyRow(changes: Partial<Company> = {}): Company {
-  return {
-    ...NULLABLE_FIELDS.companies,
-    id: COMPANY,
-    createdAt: 't',
-    updatedAt: 't',
-    name: 'Themyscira',
-    color: '#111111',
-    ...changes,
-  };
-}
-
-function resource(id: string, changes: Partial<Resource> = {}): Resource {
-  return {
-    ...NULLABLE_FIELDS.resources,
-    ...stamp,
-    id,
-    kind: 'person',
-    name: 'Diana Prince',
-    jobTitle: 'Designer',
-    employmentType: 'permanent',
-    engagement: 'studio',
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: '#111111',
-    ...changes,
-  };
-}
-
-function allocation(changes: Partial<Allocation> & Pick<Allocation, 'startDate'>): Allocation {
-  return {
-    ...NULLABLE_FIELDS.allocations,
-    ...stamp,
-    id: `al-${randomUUID()}`,
-    resourceId: 'r-diana',
-    activityId: 'act-1',
-    endDate: changes.startDate,
-    hoursPerDay: 4,
-    status: 'confirmed',
-    ...changes,
-  };
-}
-
-function timeOff(startDate: string, endDate: string): TimeOff {
-  return {
-    ...NULLABLE_FIELDS.timeOff,
-    ...stamp,
-    id: `to-${startDate}`,
-    resourceId: 'r-diana',
-    startDate,
-    endDate,
-    type: 'holiday',
-  };
-}
-
-function closure(startDate: string, endDate: string): Closure {
-  return { ...stamp, id: `cl-${startDate}`, name: 'Founding day', startDate, endDate };
-}
-
-function data(rows: Partial<AppData>): AppData {
-  return {
-    companies: [],
-    clients: [],
-    disciplines: [],
-    projects: [],
-    phases: [],
-    resources: [resource('r-diana')],
-    activities: [],
-    allocations: [],
-    timeOff: [],
-    closures: [],
-    ...rows,
-  };
-}
-
-function section(rows: Partial<AppData>, options: { company?: Company; today?: string } = {}) {
-  return buildCapacitySection({
-    data: data(rows),
-    company: options.company ?? companyRow(),
-    today: options.today ?? '2026-06-03',
-    window: { from: '2026-06-01', to: '2026-06-14' },
-  });
-}
+import {
+  allocation,
+  closure,
+  companyRow,
+  data,
+  resource,
+  section,
+  timeOff,
+} from '#tests/helpers/unit/capacity_section';
 
 test.group('capacity section', () => {
   test('a day is over only when allocated hours are strictly greater than available', ({

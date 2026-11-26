@@ -2,11 +2,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
-
-async function count(table: string) {
-  const row = await db.from(table).count('* as n').first();
-  return Number(row?.n ?? 0);
-}
+import { countRows } from '#tests/helpers/unit/operator_databases';
 
 test.group('state reset through the Account Kit transaction runner', (group) => {
   group.setup(() => freshDatabase());
@@ -15,7 +11,10 @@ test.group('state reset through the Account Kit transaction runner', (group) => 
     assert,
   }) => {
     await resetState('single');
-    const before = { companies: await count('companies'), memberships: await count('memberships') };
+    const before = {
+      companies: await countRows('companies'),
+      memberships: await countRows('memberships'),
+    };
     assert.isAbove(before.companies, 0);
     // Only the Kit runner touches the singleton lock row, so its absence proves the runner is in use.
     await db.from('account_transaction_lock').delete();
@@ -24,9 +23,9 @@ test.group('state reset through the Account Kit transaction runner', (group) => 
     } finally {
       await db.table('account_transaction_lock').insert({ id: 1, version: 0 });
     }
-    assert.equal(await count('companies'), before.companies);
-    assert.equal(await count('memberships'), before.memberships);
+    assert.equal(await countRows('companies'), before.companies);
+    assert.equal(await countRows('memberships'), before.memberships);
     await resetState(false);
-    assert.equal(await count('companies'), 0);
+    assert.equal(await countRows('companies'), 0);
   });
 });

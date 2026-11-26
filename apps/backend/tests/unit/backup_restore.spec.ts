@@ -1,24 +1,12 @@
 import { test } from '@japa/runner';
 import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
 import {
   insertOwner,
   operatorFixture,
   withOperatorServer,
 } from '#tests/helpers/operator_command_helpers';
-
-function companyNames(databasePath: string) {
-  const database = new DatabaseSync(databasePath, { readOnly: true });
-  try {
-    return database
-      .prepare('SELECT name FROM companies ORDER BY name')
-      .all()
-      .map((row) => row.name);
-  } finally {
-    database.close();
-  }
-}
+import { companyNames } from '#tests/helpers/unit/operator_databases';
 
 test.group('backup restore', () => {
   // The documented procedure in docs-src/self-hosting/backups-and-restore.md: stage a bundle into a

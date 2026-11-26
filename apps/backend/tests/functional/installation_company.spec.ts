@@ -4,10 +4,11 @@ import { InstallationCompanyService } from '#services/installation_company_servi
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
-  authenticatedDataClient,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
+import { loggedInDataClient } from '#tests/helpers/data/logged_in_client';
+import User from '#models/user';
 
 const installationCompany = new InstallationCompanyService();
 
@@ -52,7 +53,7 @@ test.group('installation company', (group) => {
     const session = await resetAuthenticatedData(client, false);
     await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises');
     await createFixtureCompanyForOwner(session.userId, 'Stark Industries');
-    const owner = authenticatedDataClient(client, session.cookie);
+    const owner = loggedInDataClient(client, await User.findOrFail(session.userId));
     const directory = await owner.visit('api.companies.index').send();
     directory.assertStatus(409);
   });

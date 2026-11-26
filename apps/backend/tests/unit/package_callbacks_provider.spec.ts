@@ -1,33 +1,8 @@
 import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
-import type { ApplicationService } from '@adonisjs/core/types';
-import PackageCallbacksProvider from '#providers/package_callbacks_provider';
 import { AdmissionRuleService } from '#services/account_kit/admission_rule_service';
 import { nativeAdapter } from '#services/auth/masquerade_authority_service';
-
-type Factory = () => unknown;
-
-/** Boots the provider against a recording container and returns the factories it registered. */
-async function registerCallbacks(rules: unknown) {
-  const factories: Record<string, Factory> = {};
-  const made: unknown[] = [];
-  const services = {
-    recordInvitationAccepted: async () => {},
-    withDeletionRecords: (callback: unknown) => callback,
-    requireRegistrationDisplayName: () => 'Diana Prince',
-  };
-  const container = {
-    make: async (key: unknown) => {
-      made.push(key);
-      if (typeof key === 'string') {
-        return { register: (factory: Factory) => (factories[key] = factory) };
-      }
-      return key === AdmissionRuleService ? rules : services;
-    },
-  };
-  await new PackageCallbacksProvider({ container } as unknown as ApplicationService).boot();
-  return { factories, made };
-}
+import { registerCallbacks } from '#tests/helpers/unit/providers';
 
 test.group('package callbacks provider', () => {
   test('the packages resolve with the callbacks the provider registers', async ({ assert }) => {

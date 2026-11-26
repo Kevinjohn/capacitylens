@@ -1,4 +1,4 @@
-import { createIdentity, fixtureSession } from '#tests/helpers/identities';
+import { createIdentity } from '#tests/helpers/identities';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import User from '#models/user';
@@ -9,123 +9,37 @@ import {
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import type { ApiClient } from '@japa/api-client';
 import { randomUUID } from 'node:crypto';
 import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
 import { PlanningRevisionService } from '#services/planning_revision_service';
+import {
+  deleteAllocation,
+  insertOtherCompanyRestoration,
+  proof,
+  restoreAllocation,
+} from '#tests/helpers/data/anonymise';
 
 const planningRevisions = new PlanningRevisionService();
 
 const companyId = 'a-studio';
 const password = 'fixture-password-2026';
 
-async function proof(client: ApiClient, cookie: string) {
-  const issued = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
-    .json({ action: 'anonymise', companyId, intent: {}, password: 'fixture-password-2026' })
-    .send();
-  issued.assertStatus(200);
-  return (issued.body().data as { confirmationId: string }).confirmationId;
-}
-
-async function deleteAllocation(client: ApiClient, cookie: string, resourceId: string) {
-  const allocation = await db
-    .from('allocations')
-    .where({ company_id: companyId, resource_id: resourceId })
-    .first();
-  if (!allocation) throw new Error(`Missing allocation for resource ${resourceId}`);
-  const baseRevision = await db.transaction((trx) =>
-    planningRevisions.getPlanningRevision(trx, companyId)
-  );
-  const mutationId = randomUUID();
-  const removed = await asDataOwner(
-    client.visit('api.planning_mutations.store', { companyId }),
-    cookie
-  )
-    .json({
-      mutationId,
-      baseRevision,
-      // Naming a history makes the delete undoable, so the company holds a history to clear.
-      historyId: randomUUID(),
-      intent: { operation: 'allocation.delete', id: allocation.id },
-    })
-    .send();
-  removed.assertStatus(200);
-  const groupId = (removed.body().data as { restoration: { replacementGroupId: string } })
-    .restoration.replacementGroupId;
-  return { allocation, groupId, mutationId };
-}
-
-async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
-  const baseRevision = await db.transaction((trx) =>
-    planningRevisions.getPlanningRevision(trx, companyId)
-  );
-  return asDataOwner(client.visit('api.planning_mutations.store', { companyId }), cookie)
-    .json({
-      mutationId: randomUUID(),
-      baseRevision,
-      intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
-    })
-    .send();
-}
-
-async function insertOtherCompanyRestoration(actorId: string) {
-  const groupId = randomUUID();
-  const mutationId = randomUUID();
-  const sessionId = await fixtureSession(actorId);
-  const createdAt = new Date().toISOString();
-  const revision =
-    (await db.transaction((trx) => planningRevisions.getPlanningRevision(trx, 'a-loft'))) + 1;
-  await db.table('deleted_groups').insert({
-    group_id: groupId,
-    company_id: 'a-loft',
-    actor_id: actorId,
-    session_id: sessionId,
-    mutation_id: mutationId,
-    created_at: createdAt,
-    consumed_at: null,
-  });
-  await db.table('deleted_rows').insert({
-    group_id: groupId,
-    entity: 'allocations',
-    row_id: 'fixture-other-company-allocation',
-    payload_json: JSON.stringify({ kind: 'row' }),
-  });
-  await db.table('planning_mutations').insert({
-    company_id: 'a-loft',
-    mutation_id: mutationId,
-    actor_id: actorId,
-    revision,
-    restoration_group_id: groupId,
-    origin_session_id: sessionId,
-  });
-  await db.from('company_planning_revisions').where('company_id', 'a-loft').update({ revision });
-  await db.table('audit_entries').insert({
-    id: randomUUID(),
-    company_id: 'a-loft',
-    actor_id: actorId,
-    action: 'allocation.delete',
-    entity: 'planning',
-    entity_id: mutationId,
-    details: JSON.stringify({ changedFields: ['allocations'] }),
-    created_at: createdAt,
-    updated_at: createdAt,
-  });
-  return { groupId, mutationId, revision };
-}
-
 test.group('company anonymisation', (group) => {
   group.setup(() => freshDatabase());
 
   test('retired generic lifecycle routes are absent', async ({ client }) => {
-    const { cookie } = await resetAuthenticatedData(client, true);
+    const { userId } = await resetAuthenticatedData(client, true);
+    const user = await User.findOrFail(userId);
     for (const path of [
       '/api/v1/resources/r-tyler/delete',
       '/api/v1/resources/r-tyler/purge',
       '/api/v1/resources/r-tyler/archive',
     ]) {
-      const response = await asDataOwner(client.post(path), cookie).json({ companyId }).send();
+      const response = await asLoggedInDataOwner(client.post(path), user)
+        .json({ companyId })
+        .send();
       response.assertStatus(404);
     }
   });
@@ -170,9 +84,9 @@ test.group('company anonymisation', (group) => {
     const before = await db.transaction((trx) =>
       planningRevisions.getPlanningRevision(trx, companyId)
     );
-    const changed = await asDataOwner(
+    const changed = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
-      cookie
+      await User.findOrFail(userId)
     )
       .json({})
       .send();
@@ -219,7 +133,7 @@ test.group('company anonymisation', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client, true);
+    const { userId } = await resetAuthenticatedData(client, true);
     // A soft-delete marker as the package stores it, in Lucid's date-time format.
     const deletedAt = '2026-11-24 10:11:12';
     const noted = { note: 'Arkham visit', deleted_at: deletedAt };
@@ -231,12 +145,12 @@ test.group('company anonymisation', (group) => {
       .first();
     assert.isDefined(timeOff);
     await db.from('time_off').where('id', timeOff.id).update(noted);
-    const changed = await asDataOwner(
+    const changed = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', {
         companyId,
         id: allocation.resource_id,
       }),
-      cookie
+      await User.findOrFail(userId)
     )
       .json({})
       .send();
@@ -252,15 +166,15 @@ test.group('company anonymisation', (group) => {
   });
 
   test('an Editor cannot anonymise an individual resource', async ({ client, assert }) => {
-    const { cookie, userId } = await resetAuthenticatedData(client, true);
+    const { userId } = await resetAuthenticatedData(client, true);
     const target = await db.from('resources').where('company_id', companyId).first();
     await db
       .from('memberships')
       .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'editor' });
-    const refused = await asDataOwner(
+    const refused = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
-      cookie
+      await User.findOrFail(userId)
     )
       .json({})
       .send();

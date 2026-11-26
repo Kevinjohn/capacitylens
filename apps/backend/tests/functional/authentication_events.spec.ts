@@ -1,7 +1,5 @@
 import { test } from '@japa/runner';
-import { LoggerFactory } from '@adonisjs/logger/factories';
-import logger from '@adonisjs/core/services/logger';
-import loggerConfig from '#config/logger';
+import { captureAuthenticationLogs } from '#tests/helpers/data/log_capture';
 import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
@@ -16,37 +14,6 @@ import { resetState } from '#tests/helpers/state_fixture';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
-
-async function captureLogs<T>(work: () => Promise<T>, { failOutcomeLine = false } = {}) {
-  const lines: string[] = [];
-  const capture = new LoggerFactory()
-    .merge({ ...loggerConfig.loggers.app, level: 'trace' })
-    .pushLogsTo(lines)
-    .create();
-  const originalChild = logger.child;
-  const instrument = (
-    child: ReturnType<typeof capture.child>
-  ): ReturnType<typeof capture.child> => {
-    const nestedChild = child.child;
-    child.child = ((...args: Parameters<typeof child.child>) =>
-      instrument(nestedChild.apply(child, args))) as typeof child.child;
-    if (failOutcomeLine) {
-      const warn = child.warn;
-      child.warn = ((...args: unknown[]) => {
-        if (args[1] === 'Authentication outcome') throw new Error('logger failure');
-        return (warn as (...rest: unknown[]) => void).apply(child, args);
-      }) as typeof child.warn;
-    }
-    return child;
-  };
-  logger.child = ((...args: Parameters<typeof logger.child>) =>
-    instrument(capture.child(...args))) as typeof logger.child;
-  try {
-    return { lines, result: await work() };
-  } finally {
-    logger.child = originalChild;
-  }
-}
 
 test.group('authentication outcome events', (group) => {
   const originalLogging = env.get('CAPACITYLENS_LOG');
@@ -74,7 +41,7 @@ test.group('authentication outcome events', (group) => {
       userAgent: 'private-agent-sentinel/1',
       ip: '198.51.100.77',
     };
-    const { lines } = await captureLogs(async () => {
+    const { lines } = await captureAuthenticationLogs(async () => {
       const success = await client
         .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
@@ -128,7 +95,7 @@ test.group('authentication outcome events', (group) => {
         .header('sec-fetch-site', 'same-origin')
         .json({ email: 'private-throttle@example.test', password: 'never-store-this-password' })
         .send();
-    const { lines, result } = await captureLogs(async () => {
+    const { lines, result } = await captureAuthenticationLogs(async () => {
       for (let attempt = 0; attempt < 5; attempt++) await request();
       return request();
     });
@@ -185,7 +152,7 @@ test.group('authentication outcome events', (group) => {
       accountKit.registration.register = originalRegister;
     });
 
-    const { lines, result } = await captureLogs(async () =>
+    const { lines, result } = await captureAuthenticationLogs(async () =>
       client
         .visit('api.new_account.store')
         .header('sec-fetch-site', 'same-origin')
@@ -216,7 +183,7 @@ test.group('authentication outcome events', (group) => {
     assert,
   }) => {
     await createIdentity(email, { name: 'Bruce Wayne', password });
-    const { lines, result } = await captureLogs(
+    const { lines, result } = await captureAuthenticationLogs(
       () =>
         client
           .visit('api.session.store')
@@ -260,7 +227,7 @@ test.group('authentication outcome events', (group) => {
     `);
     cleanup(() => db.rawQuery('DROP TRIGGER IF EXISTS fail_sign_in_tracking'));
 
-    const { lines, result } = await captureLogs(() =>
+    const { lines, result } = await captureAuthenticationLogs(() =>
       client
         .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')

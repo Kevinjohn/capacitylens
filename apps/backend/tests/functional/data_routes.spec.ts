@@ -1,24 +1,16 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import {
-  authenticatedDataClient,
   createFixtureCompanyForOwner,
   grantDataOwner,
-  resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
+import { resetCookieDataOwner, trusted } from '#tests/helpers/data/data_owner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
-
-const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
-  request.header('sec-fetch-site', 'same-origin');
-
-async function reset(client: ApiClient, seeded = true) {
-  const session = await resetAuthenticatedData(client, seeded);
-  return { client: authenticatedDataClient(client, session.cookie), userId: session.userId };
-}
+import { UserFactory } from '#database/factories/user_factory';
+import { DateTime } from 'luxon';
 
 test.group('data routes', (group) => {
   group.setup(() => freshDatabase());
@@ -32,7 +24,7 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    const dataOwner = await reset(client, true);
+    const dataOwner = await resetCookieDataOwner(client, true);
     client = dataOwner.client;
     const candidate = await db.from('resources').where('company_id', 'a-studio').first();
     await db
@@ -60,7 +52,7 @@ test.group('data routes', (group) => {
   });
 
   test('example data requires Admin access', async ({ client }) => {
-    const dataOwner = await reset(client, false);
+    const dataOwner = await resetCookieDataOwner(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
     await insertProductRows('companies', [company]);
@@ -83,7 +75,7 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    const dataOwner = await reset(client, true);
+    const dataOwner = await resetCookieDataOwner(client, true);
     client = dataOwner.client;
     const candidates = await db
       .from('resources')
@@ -116,7 +108,7 @@ test.group('data routes', (group) => {
   });
 
   test('default export excludes inactive rows', async ({ client, assert }) => {
-    const dataOwner = await reset(client, true);
+    const dataOwner = await resetCookieDataOwner(client, true);
     client = dataOwner.client;
     const candidate = await db
       .from('resources')
@@ -150,16 +142,19 @@ test.group('data routes', (group) => {
   });
 
   test('export excludes membership, invitation and session secrets', async ({ client, assert }) => {
-    const dataOwner = await reset(client, true);
+    const dataOwner = await resetCookieDataOwner(client, true);
     client = dataOwner.client;
     const stamp = '2026-10-13T00:00:00.000Z';
-    await db.table('users').insert({
-      id: 'u-export',
-      email: 'secret.person@wayne.com',
-      email_verified_at: stamp,
-      created_at: stamp,
-      updated_at: stamp,
-    });
+    await db.transaction((trx) =>
+      UserFactory.client(trx)
+        .merge({
+          id: 'u-export',
+          email: 'secret.person@wayne.com',
+          displayName: null,
+          emailVerifiedAt: DateTime.fromISO(stamp),
+        })
+        .create()
+    );
     await db.table('memberships').insert({
       scope_id: 'a-studio',
       user_id: 'u-export',
@@ -204,20 +199,25 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    const dataOwner = await reset(client, true);
+    const dataOwner = await resetCookieDataOwner(client, true);
     client = dataOwner.client;
-    const route = '/api/v1/companies/a-studio/getting-started';
-    const before = await client.get(route).send();
+    const params = { companyId: 'a-studio' };
+    const before = await client.visit('api.getting_started.show', params).send();
     before.assertBodyContains({ data: { dismissed: false } });
-    const written = await trusted(client.put(route)).json({ dismissed: true }).send();
+    const written = await trusted(client.visit('api.getting_started.update', params))
+      .json({ dismissed: true })
+      .send();
     assert.equal(written.status(), 200, JSON.stringify(written.body().data));
-    const shared = await client.get(route).send();
+    const shared = await client.visit('api.getting_started.show', params).send();
     const other = await client.visit('api.getting_started.show', { companyId: 'a-loft' }).send();
     assert.equal(shared.body().data.dismissed, true);
     assert.equal(other.body().data.dismissed, false);
-    const reverse = await trusted(client.put(route)).json({ dismissed: false }).send();
+    const reverse = await trusted(client.visit('api.getting_started.update', params))
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({ dismissed: false } as never)
+      .send();
     reverse.assertStatus(422);
-    const stillDismissed = await client.get(route).send();
+    const stillDismissed = await client.visit('api.getting_started.show', params).send();
     assert.equal(stillDismissed.body().data.dismissed, true);
   });
 
@@ -225,7 +225,7 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    const dataOwner = await reset(client, true);
+    const dataOwner = await resetCookieDataOwner(client, true);
     client = dataOwner.client;
     const now = new Date().toISOString();
     const studio = (table: string) => db.from(table).where('company_id', 'a-studio');
@@ -273,25 +273,29 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    const dataOwner = await reset(client, true);
+    const dataOwner = await resetCookieDataOwner(client, true);
     client = dataOwner.client;
-    const route = '/api/v1/companies/a-studio/getting-started';
-    const extraFields = await trusted(client.put(route))
-      .json({ dismissed: true, extra: 'value' })
+    const params = { companyId: 'a-studio' };
+    const extraFields = await trusted(client.visit('api.getting_started.update', params))
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({ dismissed: true, extra: 'value' } as never)
       .send();
     extraFields.assertStatus(200);
-    const saved = await client.get(route).send();
+    const saved = await client.visit('api.getting_started.show', params).send();
     assert.equal(saved.body().data.dismissed, true);
-    const invalid = await trusted(client.put(route)).json({ dismissed: null }).send();
+    const invalid = await trusted(client.visit('api.getting_started.update', params))
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({ dismissed: null } as never)
+      .send();
     invalid.assertStatus(422);
-    const stillDismissed = await client.get(route).send();
+    const stillDismissed = await client.visit('api.getting_started.show', params).send();
     assert.equal(stillDismissed.body().data.dismissed, true);
     const missing = await client.visit('api.getting_started.show', { companyId: 'unknown' }).send();
     missing.assertStatus(403);
   });
 
   test('example data inserts once and refuses a second request', async ({ client, assert }) => {
-    const dataOwner = await reset(client, false);
+    const dataOwner = await resetCookieDataOwner(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
     await insertProductRows('companies', [company]);
@@ -306,12 +310,12 @@ test.group('data routes', (group) => {
       { ...person, id: 'r-example-other', companyId: otherCompanyId, disciplineId: null },
     ]);
     const otherBefore = await readState(otherCompanyId, true);
-    const route = '/api/v1/companies/a-example/example-data';
-    const first = await trusted(client.post(route)).json({}).send();
+    const params = { companyId: 'a-example' };
+    const first = await trusted(client.visit('api.example_data.store', params)).json({}).send();
     assert.equal(first.status(), 201, JSON.stringify(first.body().data));
     assert.isAbove((first.body().data as { added: number }).added, 0);
     assert.deepEqual(await readState(otherCompanyId, true), otherBefore);
-    const second = await trusted(client.post(route)).json({}).send();
+    const second = await trusted(client.visit('api.example_data.store', params)).json({}).send();
     second.assertStatus(409);
     const audit = await db
       .from('audit_entries')
@@ -323,7 +327,7 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    const dataOwner = await reset(client, false);
+    const dataOwner = await resetCookieDataOwner(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
     await insertProductRows('companies', [company]);
@@ -346,7 +350,7 @@ test.group('data routes', (group) => {
   });
 
   test('example data rejects archived-only work and unknown company', async ({ client }) => {
-    const dataOwner = await reset(client, false);
+    const dataOwner = await resetCookieDataOwner(client, false);
     client = dataOwner.client;
     const company = { ...seed().companies[0]!, id: 'a-example' };
     await insertProductRows('companies', [company]);
@@ -373,7 +377,7 @@ test.group('data routes', (group) => {
 
   test('example data refuses existing client and project work', async ({ client }) => {
     for (const kind of ['client', 'project'] as const) {
-      const dataOwner = await reset(client, false);
+      const dataOwner = await resetCookieDataOwner(client, false);
       client = dataOwner.client;
       const company = { ...seed().companies[0]!, id: 'a-example' };
       await insertProductRows('companies', [company]);

@@ -3,9 +3,7 @@ import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient';
 import { NEUTRAL_COLOR, PRESET_COLORS } from '@capacitylens/shared/lib/color';
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings';
-import { RowValidationService } from '#services/planning/row_validation_service';
-
-const rowValidation = new RowValidationService();
+import { rowOutcome } from '#tests/helpers/unit/planning_operations';
 
 const swatch = PRESET_COLORS[0]!;
 
@@ -228,20 +226,10 @@ const cases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
   ['unknown field', 'allocations', { colour: 'red' }, 'accepted'],
 ];
 
-async function outcome(table: AppDataKey, row: Record<string, unknown>) {
-  try {
-    await rowValidation.validateRow(table, row);
-    return 'accepted';
-  } catch (error) {
-    const first = (error as { messages: Array<{ message: string; rule: string }> }).messages[0]!;
-    return `${first.rule}: ${first.message}`;
-  }
-}
-
 test.group('merged-row field rules', () => {
   for (const [name, table, row, expected] of cases) {
     test(name, async ({ assert }) => {
-      assert.equal(await outcome(table, row), expected);
+      assert.equal(await rowOutcome(table, row), expected);
     });
   }
 });
@@ -292,7 +280,7 @@ const sharedRuleCases: Array<[string, AppDataKey, Record<string, unknown>, strin
 test.group('row rules shared with the company import', () => {
   for (const [name, table, row, expected] of sharedRuleCases) {
     test(name, async ({ assert }) => {
-      assert.equal(await outcome(table, row), expected);
+      assert.equal(await rowOutcome(table, row), expected);
     });
   }
 });

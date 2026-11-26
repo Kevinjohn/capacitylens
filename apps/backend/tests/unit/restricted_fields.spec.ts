@@ -3,22 +3,8 @@ import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities
 import { transformState } from '#transformers/state_transformer';
 import { assertMayWriteRestrictedFields } from '#services/planning/entity_rules';
 import { RESTRICTED_FIELDS } from '#services/planning/restricted_fields';
-import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import PlanningOperationException from '#exceptions/planning_operation_exception';
-
-// An Editor sees neither private names nor time-off notes.
-const editor = {
-  role: 'editor',
-  canSeePrivateNames: false,
-  canSeeTimeOffNote: false,
-} as unknown as PlanningAccessGrant;
-
-const secretRow = (fields: readonly string[]) => ({
-  id: 'row-1',
-  companyId: 'a-gotham',
-  isPrivate: true,
-  ...Object.fromEntries(fields.map((field) => [field, `SECRET ${field}`])),
-});
+import { editorGrant, secretRow } from '#tests/helpers/unit/company_data';
 
 test.group('restricted fields', () => {
   for (const [table, rule] of Object.entries(RESTRICTED_FIELDS)) {
@@ -46,7 +32,7 @@ test.group('restricted fields', () => {
         for (const mode of ['create', 'update'] as const) {
           let refused: unknown;
           try {
-            assertMayWriteRestrictedFields(key, { [field]: `SECRET ${field}` }, editor, mode);
+            assertMayWriteRestrictedFields(key, { [field]: `SECRET ${field}` }, editorGrant, mode);
           } catch (error) {
             refused = error;
           }

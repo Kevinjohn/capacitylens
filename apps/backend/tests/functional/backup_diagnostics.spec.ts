@@ -34,7 +34,7 @@ test.group('backup diagnostics', (group) => {
   });
 
   test('readiness reports database health without a backup latch', async ({ client, assert }) => {
-    const response = await client.get('/health/ready');
+    const response = await client.visit('health_checks.ready');
     assert.equal(response.status(), 200);
     assert.isTrue(
       response
@@ -55,7 +55,7 @@ test.group('backup diagnostics', (group) => {
     knex.on('query', record);
     try {
       for (const probe of [1, 2]) {
-        const response = await client.get('/health/ready');
+        const response = await client.visit('health_checks.ready');
         assert.equal(response.status(), 200, `probe ${probe}`);
       }
     } finally {
@@ -83,7 +83,7 @@ test.group('backup diagnostics', (group) => {
       errors.push(args);
     }) as typeof logger.error;
     try {
-      const response = await client.get('/health/ready');
+      const response = await client.visit('health_checks.ready');
       assert.lengthOf(errors, 1);
       const [fields, message] = errors[0] as [{ err: unknown; reason: string }, string];
       assert.equal(message, 'Database readiness check failed');
@@ -106,7 +106,7 @@ test.group('backup diagnostics', (group) => {
       await db.table('adonis_schema').insert(record!);
       await schemaIntegrity.rememberSchemaIntegrity();
     }
-    const healthy = await client.get('/health/ready');
+    const healthy = await client.visit('health_checks.ready');
     assert.equal(healthy.status(), 200);
   });
 

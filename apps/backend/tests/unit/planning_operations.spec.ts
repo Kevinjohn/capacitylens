@@ -3,28 +3,18 @@ import {
   buildExternalCapacityDefaults,
   buildPlaceholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
-import { planningMutationValidator } from '#validators/planning';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
+import { operationOf, validateMutation } from '#tests/helpers/unit/planning_operations';
 import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();
 
-/** Validates a mutation body beside the route's company, as the action does. */
-function validateMutation(body: object) {
-  return planningMutationValidator.validate({ ...body, params: { companyId: 'a-studio' } });
-}
-
 const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
 const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';
-
-async function operationOf<T extends { intent: { operation: string } }>(validation: Promise<T>) {
-  const result = await validation;
-  return result.intent.operation;
-}
 
 test.group('planning operation contracts', () => {
   test('validates allocation creation and strips server-owned and unknown fields', async ({

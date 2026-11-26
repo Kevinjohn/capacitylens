@@ -1,44 +1,16 @@
 import { test } from '@japa/runner';
-import { FIXTURE_COMPANY, FIXTURE_RESOURCE_PERSON } from '@capacitylens/shared/data/fixtures';
-import {
-  createEmptyAppData,
-  type AppData,
-  type SchedulingMode,
-} from '@capacitylens/shared/types/entities';
-import {
-  buildAllocationOccurrences,
-  buildTimeOffOccurrences,
-  type RepeatRange,
-} from '#services/planning/repeat_occurrences';
+import { buildTimeOffOccurrences, type RepeatRange } from '#services/planning/repeat_occurrences';
 import ValidationRefusalException from '#exceptions/validation_refusal_exception';
-
-const companyId = FIXTURE_COMPANY.id;
-const first = {
-  resourceId: FIXTURE_RESOURCE_PERSON.id,
-  startDate: '2026-06-01',
-  endDate: '2026-06-03',
-};
-
-function companyData(schedulingMode: SchedulingMode): AppData {
-  return {
-    ...createEmptyAppData(),
-    companies: [
-      { ...FIXTURE_COMPANY, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
-    ],
-    resources: [{ ...FIXTURE_RESOURCE_PERSON, workingDays: [1, 2, 3] }],
-  };
-}
-
-const occurrences = (schedulingMode: SchedulingMode, repeat: RepeatRange, from = first) =>
-  buildAllocationOccurrences(companyData(schedulingMode), companyId, from, repeat).map(
-    ({ startDate, endDate }) => [startDate, endDate]
-  );
+import { allocationOccurrences, firstSpan } from '#tests/helpers/unit/planning_fixtures';
 
 // The same literals pin the shared projection in packages/shared repeatingOccurrences.test.ts.
 test.group('allocation repeat occurrences', () => {
   test('a weekly repeat keeps the working span of a Monday to Wednesday person', ({ assert }) => {
     assert.deepEqual(
-      occurrences('days', { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-22' }),
+      allocationOccurrences('days', {
+        pattern: { kind: 'weeks', interval: 1 },
+        until: '2026-06-22',
+      }),
       [
         ['2026-06-01', '2026-06-03'],
         ['2026-06-08', '2026-06-10'],
@@ -50,9 +22,9 @@ test.group('allocation repeat occurrences', () => {
 
   test('a span across non-working days keeps its count of working days', ({ assert }) => {
     // Wednesday to the next Monday is two working days for a Monday to Wednesday person.
-    const wednesday = { ...first, startDate: '2026-06-03', endDate: '2026-06-08' };
+    const wednesday = { ...firstSpan, startDate: '2026-06-03', endDate: '2026-06-08' };
     assert.deepEqual(
-      occurrences(
+      allocationOccurrences(
         'days',
         { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-17' },
         wednesday
@@ -67,7 +39,7 @@ test.group('allocation repeat occurrences', () => {
 
   test('a monthly repeat counts working days past non-working starts', ({ assert }) => {
     assert.deepEqual(
-      occurrences('days', { pattern: { kind: 'monthly-date' }, until: '2026-08-31' }),
+      allocationOccurrences('days', { pattern: { kind: 'monthly-date' }, until: '2026-08-31' }),
       [
         ['2026-06-01', '2026-06-03'],
         ['2026-07-01', '2026-07-07'],
@@ -78,7 +50,7 @@ test.group('allocation repeat occurrences', () => {
 
   test('an hourly company keeps the calendar span', ({ assert }) => {
     assert.deepEqual(
-      occurrences('hourly', { pattern: { kind: 'monthly-date' }, until: '2026-08-31' }),
+      allocationOccurrences('hourly', { pattern: { kind: 'monthly-date' }, until: '2026-08-31' }),
       [
         ['2026-06-01', '2026-06-03'],
         ['2026-07-01', '2026-07-03'],
@@ -90,7 +62,7 @@ test.group('allocation repeat occurrences', () => {
   test('a repeat the shared rules refuse is a validation error', ({ assert }) => {
     for (const until of ['2026-06-07', '2026-12-02']) {
       assert.throws(
-        () => occurrences('days', { pattern: { kind: 'weeks', interval: 1 }, until }),
+        () => allocationOccurrences('days', { pattern: { kind: 'weeks', interval: 1 }, until }),
         ValidationRefusalException
       );
     }
