@@ -349,7 +349,8 @@ removed entry retires its number.
 21. Before the first release there is one baseline migration without `down()`, and it is edited
     in place: no installed database exists, and the alpha tags that carried it do not make it
     released (#2345 decision D4). Released migrations are append-only. Production refuses rollbacks
-    (`disableRollbacksInProduction`).
+    (`disableRollbacksInProduction`). The baseline has no single `tableName` because it creates
+    every table (departure 44).
 22. A validator reads one request source: the body for a write and the query string for a read,
     passed as `validateUsing(validator, { data })`. It never validates the merged `request.all()`,
     so a credential is never accepted from a URL.
@@ -406,6 +407,31 @@ removed entry retires its number.
     `transports.smtp` with `mock.method` and restores it in `finally`. The test checks the options
     `config/mail.ts` passes when the file is imported, a call that neither the container `swap`
     nor `mail.fake()` can observe (#2572).
+
+41. `config/masquerade.ts` resolves `lucid.db`, and `providers/backup_provider.ts` resolves
+    `sqlite.backup`, from the container instead of importing their `services` modules (IMP-6). The
+    masquerade package opens its store while providers boot, before the `db` service import
+    resolves, and the backup provider's tests bind a fake backup in the container.
+42. Tests replace methods of the Account Kit, confirm-action and masquerade services by assignment
+    and restore them in `finally` (SVC-4, TST-9), because those packages resolve their services once
+    at boot and controllers import them directly, so a container `swap` does not reach them. This
+    covers `tests/functional/auth/masquerade.spec.ts`, `authentication_events.spec.ts`,
+    `auth/request_contracts.spec.ts`, `auth/admission.spec.ts`, `auth/invitations.spec.ts` and
+    `privacy/password_confirmation_adoption.spec.ts`.
+43. The database readiness check logs with the logger service, not `ctx.logger` (OPS-1): the
+    framework's health check runner gives a check no request, and a check's result is serialised
+    into the public probe body, which must not name migrations.
+44. The baseline migration creates every table, so it sets no `protected tableName` (DB-6).
+45. **Aligning (Kevinjohn/oss-adonisjs-confirm-action-with-password#117).**
+    `password_confirmations.sign_in_id` keeps the name the confirm-action package reads and writes,
+    instead of `account_session_id` (MOD-5).
+46. **Aligning (Kevinjohn/oss-adonisjs-masquerade#501).** Routes are marked for view-as mode with
+    the masquerade package's `sensitive()` marker inside `.use(...)`, not a named middleware
+    (RTE-5).
+47. `config/logger.ts` imports the `err` serializer's dependencies from the application
+    (`#exceptions/unexpected_exception`, `#services/logging_safety`) (CFG-4): Pino serializers are
+    part of the logger configuration, and the error classification they use is shared with the
+    services that report failures.
 
 ## Installation
 
