@@ -1,5 +1,5 @@
 import type { RequestArgs } from '@tuyau/core/types';
-import { client, buildApiReadRouteUrl } from './queryClient';
+import { client, requestApiResponse } from './queryClient';
 import type { registry, Route } from '@capacitylens/backend/registry';
 
 type Routes = typeof registry.routes;
@@ -34,11 +34,11 @@ export function checkOrdinaryRequestContracts() {
     // @ts-expect-error State's inactive flag is the literal wire value.
     query: { companyId: 'a-studio', includeInactive: true },
   };
-  buildApiReadRouteUrl('api.company_state.show', {
+  void requestApiResponse('api.company_state.show', {
     // @ts-expect-error The generated read query refuses boolean inactive flags at the browser seam.
     query: { companyId: 'a-studio', includeInactive: true },
   });
-  buildApiReadRouteUrl('api.company_state.show', {
+  void requestApiResponse('api.company_state.show', {
     // @ts-expect-error Admission status cannot be supplied as a state query.
     query: { companyId: 'a-studio', status: 'pending' },
   });

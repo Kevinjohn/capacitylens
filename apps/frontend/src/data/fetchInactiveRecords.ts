@@ -3,8 +3,8 @@ import { readApiData } from '@/api/readApiData';
 import type { AppData, ID } from '@capacitylens/shared/types/entities';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { readApiError } from '@/lib/readApiError';
-import { buildApiReadRouteUrl } from '@/api/queryClient';
-import { fetchApi, API_BULK_TIMEOUT_MS } from './requestTimeout';
+import { requestApiResponse } from '@/api/queryClient';
+import { API_BULK_TIMEOUT_MS } from './requestTimeout';
 
 // The shared inactive-set reader checks the company projection is structurally complete so the archived-records section cannot accept a partial response. The rows are the server's own; it does not re-validate them.
 
@@ -46,9 +46,9 @@ export class InactiveRecordsShapeError extends Error {
  * @throws InactiveRecordsHttpError for non-success HTTP status; InactiveRecordsShapeError for a missing or non-array table or the wrong company. Transport and decoding errors propagate.
  */
 export async function fetchInactiveRecords(companyId: ID, signal?: AbortSignal): Promise<AppData> {
-  const res = await fetchApi(
-    buildApiReadRouteUrl('api.company_state.show', { query: { companyId, includeInactive: '1' } }),
-    { credentials: 'include', ...(signal ? { signal } : {}) },
+  const res = await requestApiResponse(
+    'api.company_state.show',
+    { query: { companyId, includeInactive: '1' }, ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) set is the heaviest read the app makes, the bulk
     // tier, not the interactive 15s, so a large company's archived records aren't aborted mid-flight.
     API_BULK_TIMEOUT_MS,

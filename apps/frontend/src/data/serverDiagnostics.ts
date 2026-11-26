@@ -1,6 +1,5 @@
-import { buildApiRouteUrl } from '@/api/queryClient';
+import { requestApiResponse } from '@/api/queryClient';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
-import { fetchApi } from '@/data/requestTimeout';
 
 /** One server diagnostics read: the decoded body, or null when it was unreadable, and when it ran. */
 export interface ServerDiagnosticsObservation {
@@ -17,10 +16,7 @@ export interface ServerDiagnosticsObservation {
 export async function readServerDiagnostics(
   signal?: AbortSignal,
 ): Promise<ServerDiagnosticsObservation> {
-  const response = await fetchApi(buildApiRouteUrl('api.diagnostics.show', {}), {
-    credentials: 'include',
-    ...(signal ? { signal } : {}),
-  });
+  const response = await requestApiResponse('api.diagnostics.show', signal ? { signal } : {});
   // An unreadable body is represented as an unavailable server in the fixed projection.
   const body: unknown = await response.json().catch(() => null);
   // A 200 answer is wrapped in `data`; the 503 answer is flat.

@@ -2,9 +2,8 @@ import { readHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { RequestArgs, ResponseOf } from '@tuyau/core/types';
 import type { registry, Route } from '@capacitylens/backend/registry';
-import { client, buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { client, requestApiResponse } from '@/api/queryClient';
 import type { ProductRoutes } from '@/api/queryClient';
-import { fetchApi } from '@/data/requestTimeout';
 
 export interface AuthApiError extends Omit<HttpErrorBody, 'error'> {
   message: string;
@@ -50,16 +49,10 @@ type AuthRoute = Extract<
 >;
 
 async function request<Name extends AuthRoute>(
-  method: 'GET' | 'POST',
   name: Name,
-  body: string | null,
+  args: RequestArgs<ProductRoutes[Name]>,
 ): Promise<AuthApiResult<ResponseOf<ProductRoutes[Name]>['data']>> {
-  const response = await fetchApi(buildApiRouteUrl<AuthRoute>(name, {}), {
-    method,
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    ...(body === null ? {} : { body }),
-  });
+  const response = await requestApiResponse(name, args);
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) };
   // A success without a readable envelope carries no data, as an unreadable body did before.
@@ -67,7 +60,8 @@ async function request<Name extends AuthRoute>(
 }
 
 const post = <Name extends AuthRoute>(name: Name, body: Route.Body<Name>) =>
-  request('POST', name, buildJsonBody(name, body));
+  // Every auth route takes no path parameters, so the body is its whole request.
+  request(name, { body } as unknown as RequestArgs<ProductRoutes[Name]>);
 
 /** Typed browser client for the product's session, credential, confirmation and admission endpoints. */
 export const authApi = {
@@ -120,7 +114,7 @@ export const authApi = {
   /** Confirms the address and sets the password the person chose. */
   completeEmailVerification: (input: { token: string; password: string }) =>
     post('api.email_verifications.update', input),
-  admissionStatus: () => request('GET', 'api.admission.show', null),
+  admissionStatus: () => request('api.admission.show', {}),
   requestAdmission: () => post('api.admission_requests.store', {}),
   /** Creates the admitted identity's company membership; never restores suspended access. */
   completeMembership: () => post('api.memberships.store', {}),
