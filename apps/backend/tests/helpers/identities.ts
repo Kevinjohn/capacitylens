@@ -153,6 +153,8 @@ export function captureMail(cleanup: (callback: () => void) => void) {
       message.hasTo(address)
     );
   return {
+    /** The fake mailer itself; `mail.restore()` discards it, with anything a test set on it. */
+    mailer: fake,
     count: (address: string) => to(address).length,
     tokenFor(address: string) {
       const message = to(address).at(-1);

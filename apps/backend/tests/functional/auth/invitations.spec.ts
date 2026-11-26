@@ -2,7 +2,6 @@ import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
-import mailService from '@adonisjs/mail/services/main';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   E_ACCOUNT_KIT_DELIVERY,
@@ -243,16 +242,12 @@ test.group('company invitations', (group) => {
     assert,
     cleanup,
   }) => {
-    captureMail(cleanup);
+    const { mailer } = captureMail(cleanup);
     await company();
     const { cookie } = await signIn(client, owner);
-    const sendLater = mailService.sendLater;
-    mailService.sendLater = async () => {
+    mailer.sendLater = async () => {
       throw new Error('The mail transport refused the message.');
     };
-    cleanup(() => {
-      mailService.sendLater = sendLater;
-    });
     const sent = await invite(client, cookie, invitee);
     sent.assertStatus(202);
     assert.deepEqual(sent.body().data, { committed: true, emailed: false });
@@ -392,13 +387,7 @@ test.group('company invitations', (group) => {
     assert,
     cleanup,
   }) => {
-    captureMail(cleanup);
-    const send = mailService.send;
-    let sent = 0;
-    mailService.send = async (...args: Parameters<typeof mailService.send>) => {
-      sent += 1;
-      return send.apply(mailService, args);
-    };
+    const mail = captureMail(cleanup);
     await company();
     const adminId = await member('diana.prince@wayne.example', 'admin');
     const { cookie } = await signIn(client, 'diana.prince@wayne.example');
@@ -418,13 +407,12 @@ test.group('company invitations', (group) => {
       const refused = await pending;
       refused.assertStatus(403);
       assert.lengthOf(await db.from('account_invitations'), 0);
-      assert.equal(sent, 0);
+      assert.equal(mail.count(invitee), 0);
       assert.equal(await revision(), before);
       assert.deepEqual(await db.from('audit_entries'), audits);
     } finally {
       barrier.release();
       accountKit.invitations.send = original;
-      mailService.send = send;
       await pending;
     }
   });
