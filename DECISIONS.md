@@ -398,9 +398,7 @@ removed entry retires its number.
       `tests/unit/owner_reset_command.spec.ts`;
     - the stored format a migration converts: `tests/functional/deletion_marker_migration.spec.ts`;
     - 32,767 allocation rows written in bulk, where one model insert per row would dominate the
-      suite: `tests/functional/planning/restoration_allocations.spec.ts`;
-    - identities created before any company exists, which the `User` model's `beforeCreate`
-      refuses: `tests/helpers/identities.ts`.
+      suite: `tests/functional/planning/restoration_allocations.spec.ts`.
 39. `tests/functional/state/read_path.spec.ts` sends each recorded request from
     `tests/fixtures_main_responses.json` by its recorded method and path, not by route name: the
     path is the fixture's data (#2572).
