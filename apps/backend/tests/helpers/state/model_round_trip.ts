@@ -15,7 +15,7 @@ export const KEYS = Object.keys(tables) as AppDataKey[];
 
 // Captured from the query-builder write path before #2459, on this fixture; stored bytes must not move.
 export const expected = JSON.parse(
-  await readFile(new URL('../../fixtures-stored-rows.json', import.meta.url), 'utf8')
+  await readFile(new URL('../../fixtures_stored_rows.json', import.meta.url), 'utf8')
 ) as Partial<Record<AppDataKey, Row[]>>;
 
 export const modelOf = (key: AppDataKey): LucidModel => productModels[key];

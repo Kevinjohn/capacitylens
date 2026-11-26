@@ -16,7 +16,7 @@ export const strictPolicy =
 
 /** The responses main recorded for each read path, replayed by the read-path tests. */
 export const recordedResponses = JSON.parse(
-  await readFile(new URL('../../fixtures-main-responses.json', import.meta.url), 'utf8')
+  await readFile(new URL('../../fixtures_main_responses.json', import.meta.url), 'utf8')
 ) as {
   responses: Array<{
     method: 'GET' | 'POST';
