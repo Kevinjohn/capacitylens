@@ -5,28 +5,40 @@ import { dirname, relative, resolve } from 'node:path';
 export const repositoryRoot = resolve(process.cwd(), '../..');
 const storyPattern = /^US-[A-Z]+-\d+.*\.md$/;
 
-/** Reads a UTF-8 repository file by its path relative to the repository root. */
+/**
+ * Reads a UTF-8 repository file by its path relative to the repository root.
+ *
+ * @throws If the file cannot be read.
+ */
 export function readRepositoryFile(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), 'utf8');
 }
 
-/** Lists the absolute paths of user-story Markdown files under the given directory. */
-export function storyFiles(directory = resolve(repositoryRoot, 'user-stories')): string[] {
+/**
+ * Lists the absolute paths of user-story Markdown files under the given directory.
+ *
+ * @throws If the starting directory or a descendant directory cannot be read.
+ */
+export function listStoryFiles(directory = resolve(repositoryRoot, 'user-stories')): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
-    if (entry.isDirectory()) return storyFiles(path);
+    if (entry.isDirectory()) return listStoryFiles(path);
     return storyPattern.test(entry.name) ? [path] : [];
   });
 }
 
-/** Lists sorted story paths relative to the user-story directory. */
-export function storyPaths(): string[] {
-  return storyFiles()
+/**
+ * Lists sorted story paths relative to the user-story directory.
+ *
+ * @throws If the user-story directory or a descendant directory cannot be read.
+ */
+export function listStoryPaths(): string[] {
+  return listStoryFiles()
     .map((file) => relative(resolve(repositoryRoot, 'user-stories'), file))
     .sort();
 }
 
-function slug(heading: string): string {
+function buildHeadingSlug(heading: string): string {
   return heading
     .replace(/\s+\{#[^}]+\}\s*$/, '')
     .trim()
@@ -38,12 +50,12 @@ function slug(heading: string): string {
 }
 
 /** Collects Markdown heading anchors and explicit HTML element IDs. */
-export function markdownHeadings(source: string): Set<string> {
+export function buildMarkdownAnchorIds(source: string): Set<string> {
   const ids = new Set<string>();
   for (const [, heading] of source.matchAll(/^#{1,6}\s+(.+)$/gm)) {
     if (!heading) continue;
     const explicit = heading.match(/\{#([^}]+)\}\s*$/)?.[1];
-    ids.add(explicit ?? slug(heading));
+    ids.add(explicit ?? buildHeadingSlug(heading));
   }
   for (const [, id] of source.matchAll(/<[^>]+\bid=["']([^"']+)["'][^>]*>/g)) {
     if (id) ids.add(id);
@@ -51,8 +63,13 @@ export function markdownHeadings(source: string): Set<string> {
   return ids;
 }
 
-/** Resolves a story link to an absolute path inside the documentation source directory. */
-export function sourcePage(story: string, target: string): string | undefined {
+/**
+ * Resolves a story link to an absolute path inside the documentation source directory.
+ *
+ * @returns The absolute path, or undefined if the link has no path or resolves to docs-src itself
+ * or outside it.
+ */
+export function resolveDocumentationPage(story: string, target: string): string | undefined {
   const path = target.split('#', 1)[0];
   if (!path) return;
   const absolute = resolve(dirname(story), path);
@@ -62,7 +79,7 @@ export function sourcePage(story: string, target: string): string | undefined {
 }
 
 /** Normalises a Markdown heading to a fragment identifier. */
-export function markdownSlug(heading: string): string {
+export function buildMarkdownSlug(heading: string): string {
   return heading
     .trim()
     .toLowerCase()

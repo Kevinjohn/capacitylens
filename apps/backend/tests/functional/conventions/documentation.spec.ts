@@ -2,13 +2,13 @@ import { test } from '@japa/runner';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import {
-  markdownHeadings,
-  markdownSlug,
+  buildMarkdownAnchorIds,
+  buildMarkdownSlug,
+  listStoryFiles,
+  listStoryPaths,
   readRepositoryFile,
   repositoryRoot,
-  sourcePage,
-  storyFiles,
-  storyPaths,
+  resolveDocumentationPage,
 } from '#tests/helpers/documentation';
 
 test.group('documentation and repository rule contracts', () => {
@@ -37,8 +37,8 @@ test.group('documentation and repository rule contracts', () => {
       const absolute = resolve(repositoryRoot, path);
       assert.isTrue(existsSync(absolute), `Missing README target ${target}`);
       if (!fragment || !/\.md$/i.test(path)) continue;
-      const headings = markdownHeadings(readFileSync(absolute, 'utf8'));
-      const slugs = new Set([...headings].map(markdownSlug));
+      const headings = buildMarkdownAnchorIds(readFileSync(absolute, 'utf8'));
+      const slugs = new Set([...headings].map(buildMarkdownSlug));
       assert.isTrue(slugs.has(decodeURIComponent(fragment)), `Missing README fragment ${target}`);
     }
   });
@@ -96,7 +96,7 @@ test.group('documentation and repository rule contracts', () => {
     const sourceReferences =
       /`((?:apps\/backend|apps\/frontend|packages\/shared|e2e)\/[^`]+\.[cm]?[jt]sx?)`/g;
     const documentationTarget = /^\*\*Documentation:\*\*\s+\[[^\]]+\]\(([^)]+)\)/gm;
-    const files = storyFiles();
+    const files = listStoryFiles();
     const catalogue = readRepositoryFile('user-stories/README.md');
     const indexed = [...catalogue.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
       (match) => match[1]
@@ -104,7 +104,7 @@ test.group('documentation and repository rule contracts', () => {
     assert.equal(Number(catalogue.match(/\n(\d+) stories across/)?.[1]), files.length);
     assert.equal(indexed.length, files.length);
     assert.equal(new Set(indexed).size, files.length);
-    assert.deepEqual(indexed.toSorted(), storyPaths());
+    assert.deepEqual(indexed.toSorted(), listStoryPaths());
 
     const matrix = readRepositoryFile('user-stories/COVERAGE.md');
     const matrixPaths = [...matrix.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
@@ -112,7 +112,7 @@ test.group('documentation and repository rule contracts', () => {
     );
     assert.deepEqual(
       matrixPaths.toSorted(),
-      storyPaths(),
+      listStoryPaths(),
       'Every story appears once in the matrix'
     );
     const identifiers = new Set<string>();
@@ -150,14 +150,14 @@ test.group('documentation and repository rule contracts', () => {
       }
       for (const [, target] of content.matchAll(documentationTarget)) {
         if (!target) continue;
-        const page = sourcePage(file, target);
+        const page = resolveDocumentationPage(file, target);
         assert.isDefined(page, `Documentation target must resolve inside docs-src: ${target}`);
         assert.isTrue(existsSync(page!), `Missing documentation page ${target}`);
         const fragment = target.split('#')[1];
         if (fragment) {
           const decoded = decodeURIComponent(fragment);
           assert.include(
-            markdownHeadings(readFileSync(page!, 'utf8')),
+            buildMarkdownAnchorIds(readFileSync(page!, 'utf8')),
             decoded,
             `Missing #${decoded}`
           );
@@ -167,7 +167,7 @@ test.group('documentation and repository rule contracts', () => {
   });
 
   test('keeps a user flow and a source-linked code flow on every story', ({ assert }) => {
-    for (const file of storyFiles()) {
+    for (const file of listStoryFiles()) {
       const content = readFileSync(file, 'utf8');
       assert.lengthOf([...content.matchAll(/^## User flow$/gm)], 1, file);
       assert.lengthOf([...content.matchAll(/^## Code flow$/gm)], 1, file);
