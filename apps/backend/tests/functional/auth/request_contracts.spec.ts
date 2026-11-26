@@ -156,7 +156,8 @@ test.group('ordinary authentication request contracts', (group) => {
       `cursor=${'x'.repeat(513)}`,
     ]) {
       const response = await asDataOwner(
-        client.get(`/api/v1/admission/requests?${query}`),
+        // A raw query string, so the malformed shapes reach the server as written.
+        client.visit('api.admission_requests.index').unsafeQs(query),
         cookie
       ).send();
       response.assertStatus(422);

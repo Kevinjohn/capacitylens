@@ -444,8 +444,12 @@ test.group('native read-only masquerade', (group) => {
     projected.assertStatus(200);
     const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
     status.assertStatus(200);
-    for (const query of ['?companyId=', '?companyId=a-studio&companyId=a-loft']) {
-      const malformed = await asSession(client.get(`/api/v1/masquerade${query}`), cookie).send();
+    // Raw query strings, so the empty and repeated values reach the server as written.
+    for (const query of ['companyId=', 'companyId=a-studio&companyId=a-loft']) {
+      const malformed = await asSession(
+        client.visit('api.masquerade.show').unsafeQs(query),
+        cookie
+      ).send();
       malformed.assertStatus(422);
       assert.equal(
         (malformed.body() as unknown as { errors: Array<{ field: string }> }).errors[0]?.field,
@@ -941,11 +945,13 @@ test.group('native read-only masquerade', (group) => {
     const { cookie, adminId, companyOwnerId, targetId } = await adminFixture(client);
     await insertPrivateClient();
     // The first refused read ends the mode, so each read gets its own view.
-    for (const [index, path] of [
-      '/api/v1/companies/a-studio/planning',
-      '/api/v1/state?companyId=a-studio',
-      '/api/v1/companies/a-studio/export',
-    ].entries()) {
+    for (const [index, [path, request]] of (
+      [
+        ['planning', () => client.visit('api.planning.show', { companyId: 'a-studio' })],
+        ['state', () => client.visit('api.company_state.show').qs({ companyId: 'a-studio' })],
+        ['export', () => client.visit('api.company_exports.show', { companyId: 'a-studio' })],
+      ] as const
+    ).entries()) {
       await db
         .from('memberships')
         .where({ scope_id: 'a-studio', user_id: companyOwnerId })
@@ -957,7 +963,7 @@ test.group('native read-only masquerade', (group) => {
       const started = await startView(client, cookie, targetId);
       started.assertStatus(200);
       await promoteToOwner(targetId, companyOwnerId);
-      const read = await asSession(client.get(path), cookie).send();
+      const read = await asSession(request(), cookie).send();
       const ended = await db
         .from('masquerade_events')
         .where({ actor_id: adminId, kind: 'invalidated', outcome_code: 'policy_denied' });
@@ -1072,8 +1078,11 @@ test.group('native read-only masquerade', (group) => {
     started.assertStatus(200);
     await promoteToOwner(targetId, companyOwnerId);
     // a-studio sorts first, so the status search reaches it before a-tower.
-    for (const path of ['/api/v1/masquerade?companyId=a-studio', '/api/v1/masquerade']) {
-      const status = await asSession(client.get(path), cookie).send();
+    for (const [path, request] of [
+      ['with a company', () => client.visit('api.masquerade.show').qs({ companyId: 'a-studio' })],
+      ['without a company', () => client.visit('api.masquerade.show')],
+    ] as const) {
+      const status = await asSession(request(), cookie).send();
       status.assertStatus(200);
       assert.deepInclude(
         (status.body() as { data: unknown }).data,

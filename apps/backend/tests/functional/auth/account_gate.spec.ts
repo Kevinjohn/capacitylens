@@ -1,5 +1,6 @@
 import { test } from '@japa/runner';
 import router from '@adonisjs/core/services/router';
+import type { ApiRequest } from '@japa/api-client';
 import type { ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import db from '@adonisjs/lucid/services/db';
 import { resetState } from '#tests/helpers/state_fixture';
@@ -99,12 +100,12 @@ test.group('account gate', (group) => {
     client,
     assert,
   }) => {
-    for (const path of [
-      `/api/v1/companies/${companyId}/planning`,
-      '/api/v1/companies',
-      '/api/v1/admission',
+    for (const request of [
+      client.visit('api.planning.show', { companyId }),
+      client.visit('api.companies.index'),
+      client.visit('api.admission.show'),
     ]) {
-      const refused = await client.get(path).send();
+      const refused = await request.send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     }
@@ -119,15 +120,15 @@ test.group('account gate', (group) => {
   }) => {
     await createIdentity(waiting, { name: 'Selina Kyle', admitted: false });
     const { cookie, cookieHeader } = await signIn(client, waiting);
-    const get = (path: string) => client.get(path).header('cookie', cookieHeader).send();
+    const get = (request: ApiRequest) => request.header('cookie', cookieHeader).send();
 
     const refusal = 'Your access to this company is waiting on admission.';
-    for (const path of [
-      `/api/v1/companies/${companyId}/planning`,
-      '/api/v1/companies',
-      '/api/v1/state',
+    for (const request of [
+      client.visit('api.planning.show', { companyId }),
+      client.visit('api.companies.index'),
+      client.visit('api.company_state.show'),
     ]) {
-      const refused = await get(path);
+      const refused = await get(request);
       refused.assertStatus(403);
       const body = refused.body() as { code?: string; error?: string; decision?: unknown };
       assert.equal(body.code, 'ADMISSION_REQUIRED');
@@ -145,12 +146,13 @@ test.group('account gate', (group) => {
     assert.equal((write.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
     assert.equal((write.body() as { error?: string }).error, refusal);
 
-    for (const [path, status] of [
-      ['/api/v1/admission', 200],
-      ['/api/v1/auth/me', 200],
-      ['/api/v1/no-such-route', 404],
+    for (const [request, status] of [
+      [client.visit('api.admission.show'), 200],
+      [client.visit('api.session.show'), 200],
+      // No route has this path, so it has no name to visit.
+      [client.get('/api/v1/no-such-route'), 404],
     ] as const) {
-      const reached = await get(path);
+      const reached = await get(request);
       reached.assertStatus(status);
     }
     const requested = await asDataOwner(
@@ -162,7 +164,7 @@ test.group('account gate', (group) => {
     // access, in their own words.
     const ownerRow = await db.from('users').where('email', owner).firstOrFail();
     const ownerId = String(ownerRow.id);
-    const listed = await get('/api/v1/admission/requests');
+    const listed = await get(client.visit('api.admission_requests.index'));
     listed.assertStatus(403);
     const limited = [listed];
     for (const name of [
@@ -195,8 +197,11 @@ test.group('account gate', (group) => {
       .from('adonis_sessions')
       .where('id', session.id)
       .update({ data: data.replace('accountKitSession', 'retiredSessionHandle') });
-    for (const path of ['/api/v1/companies', '/api/v1/admission']) {
-      const refused = await client.get(path).header('cookie', cookieHeader).send();
+    for (const request of [
+      client.visit('api.companies.index'),
+      client.visit('api.admission.show'),
+    ]) {
+      const refused = await request.header('cookie', cookieHeader).send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     }

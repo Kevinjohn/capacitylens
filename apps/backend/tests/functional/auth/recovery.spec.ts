@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
+import type { ApiClient, ApiRequest } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
@@ -21,14 +21,14 @@ const owner = 'bruce.wayne@wayne.example';
 const editor = 'clark.kent@wayne.example';
 const newPassword = 'recovered-password-2026';
 
-const post = (client: ApiClient, path: string, body: object) =>
-  client.post(path).header('sec-fetch-site', 'same-origin').json(body).send();
+const post = (request: ApiRequest, body: object) =>
+  request.header('sec-fetch-site', 'same-origin').json(body).send();
 
 const requestReset = (client: ApiClient, email: string) =>
-  post(client, '/api/v1/auth/request-reset', { email });
+  post(client.visit('api.password_reset_requests.store'), { email });
 
 const inspect = async (client: ApiClient, token: string) => {
-  const response = await post(client, '/api/v1/auth/inspect-reset', { token });
+  const response = await post(client.visit('api.password_resets.show'), { token });
   response.assertStatus(200);
   return ((response.body() as { data: unknown }).data as { valid: boolean }).valid;
 };
@@ -82,12 +82,12 @@ test.group('password recovery', (group) => {
   }) => {
     const token = 'x'.repeat(513);
     const refusals = [
-      await client.get(`/api/v1/invitations/${token}/preview`).send(),
-      await post(client, `/api/v1/invitations/${token}/sign-up`, {}),
-      await post(client, '/api/v1/auth/inspect-reset', {}),
-      await post(client, '/api/v1/auth/reset-password', {}),
-      await post(client, '/api/v1/auth/verification/inspect', {}),
-      await post(client, '/api/v1/auth/verification/complete', {}),
+      await client.visit('api.invitation_links.show', { token }).send(),
+      await post(client.visit('api.invitation_acceptances.store', { token }), {}),
+      await post(client.visit('api.password_resets.show'), {}),
+      await post(client.visit('api.password_resets.update'), {}),
+      await post(client.visit('api.email_verifications.show'), {}),
+      await post(client.visit('api.email_verifications.update'), {}),
     ];
     for (const response of refusals) {
       response.assertStatus(422);
@@ -109,17 +109,17 @@ test.group('password recovery', (group) => {
     assert.isTrue(await inspect(client, token));
     assert.isTrue(await inspect(client, token), 'inspection does not spend the link');
     await expectStatus(
-      post(client, '/api/v1/auth/reset-password', { token, newPassword: 'short' }),
+      post(client.visit('api.password_resets.update'), { token, newPassword: 'short' }),
       422
     );
-    const reset = await post(client, '/api/v1/auth/reset-password', { token, newPassword });
+    const reset = await post(client.visit('api.password_resets.update'), { token, newPassword });
     reset.assertStatus(200);
     assert.equal(reset.header('cache-control'), 'no-store');
     await expectStatus(asDataOwner(client.visit('api.session.show'), cookie).send(), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', editorId), 0);
     await signIn(client, editor, newPassword);
     assert.isFalse(await inspect(client, token));
-    const reused = await post(client, '/api/v1/auth/reset-password', { token, newPassword });
+    const reused = await post(client.visit('api.password_resets.update'), { token, newPassword });
     reused.assertStatus(400);
     assert.equal((reused.body() as { code?: string }).code, 'INVALID_TOKEN');
     assert.isNotNull(
@@ -147,7 +147,10 @@ test.group('password recovery', (group) => {
       .json({ role: 'viewer' })
       .send();
     changed.assertStatus(200);
-    await expectStatus(post(client, '/api/v1/auth/reset-password', { token, newPassword }), 200);
+    await expectStatus(
+      post(client.visit('api.password_resets.update'), { token, newPassword }),
+      200
+    );
     await signIn(client, editor, newPassword);
   });
 });

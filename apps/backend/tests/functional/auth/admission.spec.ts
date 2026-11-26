@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import type { ApiClient, ApiResponse } from '@japa/api-client';
+import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client';
 import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
@@ -24,16 +24,20 @@ const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
 const person = 'clark.kent@wayne.example';
 const password = 'admission-password-2026';
+const decisionRoutes = {
+  approve: 'api.admission_approvals.store',
+  reject: 'api.admission_rejections.store',
+  revoke: 'api.admission_revocations.store',
+} as const;
 
 const as = (cookie: string) => ({
-  get: (client: ApiClient, path: string): Promise<ApiResponse> =>
-    asDataOwner(client.get(path), cookie).send(),
-  post: (client: ApiClient, path: string, body: object = {}): Promise<ApiResponse> =>
-    asDataOwner(client.post(path), cookie).json(body).send(),
+  get: (request: ApiRequest): Promise<ApiResponse> => asDataOwner(request, cookie).send(),
+  post: (request: ApiRequest, body: object = {}): Promise<ApiResponse> =>
+    asDataOwner(request, cookie).json(body).send(),
 });
 
 const planning = (client: ApiClient, cookie: string) =>
-  as(cookie).get(client, `/api/v1/companies/${companyId}/planning`);
+  as(cookie).get(client.visit('api.planning.show', { companyId }));
 
 async function company(api: ApiClient) {
   const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
@@ -81,24 +85,25 @@ test.group('admission and membership completion', (group) => {
     const ownerSession = await company(api);
     const userId = await invitedIdentity('editor');
     const { cookie } = await signIn(api, person, password);
-    const status = await as(cookie).get(api, '/api/v1/admission');
+    const status = await as(cookie).get(api.visit('api.admission.show'));
     status.assertStatus(200);
     assert.isFalse(status.body().data.decision.admitted);
     await expectStatus(planning(api, cookie), 403);
-    await expectStatus(as(cookie).post(api, '/api/v1/admission/complete'), 403);
-    const requested = await as(cookie).post(api, '/api/v1/admission/request');
+    await expectStatus(as(cookie).post(api.visit('api.memberships.store')), 403);
+    const requested = await as(cookie).post(api.visit('api.admission_requests.store'));
     requested.assertStatus(200);
     assert.isString(requested.body().data.requestedAt);
     const pending = await as(ownerSession.cookie).get(
-      api,
-      '/api/v1/admission/requests?status=pending'
+      api.visit('api.admission_requests.index').qs({ status: 'pending' })
     );
     pending.assertStatus(200);
     assert.deepEqual(
       pending.body().data.items.map((item: { userId: string }) => String(item.userId)),
       [userId]
     );
-    const approved = await as(ownerSession.cookie).post(api, `/api/v1/admission/${userId}/approve`);
+    const approved = await as(ownerSession.cookie).post(
+      api.visit('api.admission_approvals.store', { userId })
+    );
     approved.assertStatus(200);
     assert.equal(approved.body().data.approval.status, 'approved');
     const revision = async () => {
@@ -109,16 +114,16 @@ test.group('admission and membership completion', (group) => {
       return Number(row?.revision);
     };
     const membershipRequired = async () => {
-      const me = await as(cookie).get(api, '/api/v1/auth/me');
+      const me = await as(cookie).get(api.visit('api.session.show'));
       return me.body().data.membershipRequired;
     };
     assert.isTrue(await membershipRequired());
     const before = await revision();
-    const completed = await as(cookie).post(api, '/api/v1/admission/complete');
+    const completed = await as(cookie).post(api.visit('api.memberships.store'));
     completed.assertStatus(200);
     assert.deepEqual(completed.body().data, { companyId, role: 'editor', created: true });
     assert.equal(await revision(), before + 1);
-    const again = await as(cookie).post(api, '/api/v1/admission/complete');
+    const again = await as(cookie).post(api.visit('api.memberships.store'));
     assert.deepEqual(again.body().data, { companyId, role: 'editor', created: false });
     assert.isFalse(await membershipRequired());
     await expectStatus(planning(api, cookie), 200);
@@ -131,21 +136,21 @@ test.group('admission and membership completion', (group) => {
     const recoveryEmail = 'admin@admin.admin';
     await createIdentity(recoveryEmail, { name: 'Bruce Wayne', password, admitted: false });
     const firstSignIn = await signIn(api, recoveryEmail, password);
-    const pending = await as(firstSignIn.cookie).get(api, '/api/v1/admission');
+    const pending = await as(firstSignIn.cookie).get(api.visit('api.admission.show'));
     pending.assertStatus(200);
     assert.isFalse(pending.body().data.decision.admitted);
     assert.isFalse(pending.body().data.decision.requirements.invitation.met);
 
     const admission = await app.container.make(AccountAdmission);
     await admission.operator.grantInvitation({ email: recoveryEmail, role: 'admin' });
-    const invited = await as(firstSignIn.cookie).get(api, '/api/v1/admission');
+    const invited = await as(firstSignIn.cookie).get(api.visit('api.admission.show'));
     invited.assertStatus(200);
     assert.isFalse(invited.body().data.decision.admitted);
     assert.isTrue(invited.body().data.decision.requirements.invitation.met);
     await admission.operator.approve({ email: recoveryEmail });
 
     const secondSignIn = await signIn(api, recoveryEmail, password);
-    const admitted = await as(secondSignIn.cookie).get(api, '/api/v1/admission');
+    const admitted = await as(secondSignIn.cookie).get(api.visit('api.admission.show'));
     admitted.assertStatus(200);
     assert.isTrue(admitted.body().data.decision.admitted);
     const recoveryUsers = await db.from('users').where('email', recoveryEmail).select('id');
@@ -158,9 +163,9 @@ test.group('admission and membership completion', (group) => {
   }) => {
     const ownerSession = await company(api);
     const userId = await invitedIdentity('owner');
-    await as(ownerSession.cookie).post(api, `/api/v1/admission/${userId}/approve`);
+    await as(ownerSession.cookie).post(api.visit('api.admission_approvals.store', { userId }));
     const { cookie } = await signIn(api, person, password);
-    const completed = await as(cookie).post(api, '/api/v1/admission/complete');
+    const completed = await as(cookie).post(api.visit('api.memberships.store'));
     assert.deepEqual(completed.body().data, { companyId, role: 'viewer', created: true });
   });
 
@@ -169,13 +174,13 @@ test.group('admission and membership completion', (group) => {
   }) => {
     const ownerSession = await company(api);
     const userId = await invitedIdentity('viewer');
-    const decide = (decision: string) =>
-      as(ownerSession.cookie).post(api, `/api/v1/admission/${userId}/${decision}`);
+    const decide = (decision: keyof typeof decisionRoutes) =>
+      as(ownerSession.cookie).post(api.visit(decisionRoutes[decision], { userId }));
     await expectStatus(decide('reject'), 200);
     const { cookie } = await signIn(api, person, password);
     await expectStatus(planning(api, cookie), 403);
     await expectStatus(decide('approve'), 200);
-    await expectStatus(as(cookie).post(api, '/api/v1/admission/complete'), 200);
+    await expectStatus(as(cookie).post(api.visit('api.memberships.store')), 200);
     await expectStatus(planning(api, cookie), 200);
     await expectStatus(decide('revoke'), 200);
     await expectStatus(planning(api, cookie), 403);
@@ -194,7 +199,7 @@ test.group('admission and membership completion', (group) => {
       updated_at: now,
     });
     const { cookie } = await signIn(api, person, password);
-    const refused = await as(cookie).post(api, '/api/v1/admission/complete');
+    const refused = await as(cookie).post(api.visit('api.memberships.store'));
     refused.assertStatus(409);
     assert.equal(refused.body().code, 'MEMBERSHIP_SUSPENDED');
     const membership = await db.from('memberships').where('user_id', userId).first();
@@ -217,13 +222,18 @@ test.group('admission and membership completion', (group) => {
       updated_at: now,
     });
     const { cookie } = await signIn(api, 'diana.prince@wayne.example', password);
-    await expectStatus(as(cookie).get(api, '/api/v1/admission/requests'), 200);
+    await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 200);
     await expectStatus(
-      as(ownerSession.cookie).post(api, `/api/v1/admission/${adminId}/revoke`),
+      as(ownerSession.cookie).post(
+        api.visit('api.admission_revocations.store', { userId: adminId })
+      ),
       200
     );
-    await expectStatus(as(cookie).get(api, '/api/v1/admission/requests'), 403);
-    await expectStatus(as(cookie).post(api, `/api/v1/admission/${userId}/approve`), 403);
+    await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 403);
+    await expectStatus(
+      as(cookie).post(api.visit('api.admission_approvals.store', { userId })),
+      403
+    );
   });
 
   test('a decision on a malformed account id answers the framework validation failure', async ({
@@ -231,11 +241,8 @@ test.group('admission and membership completion', (group) => {
     assert,
   }) => {
     const ownerSession = await company(api);
-    for (const decision of ['approve', 'reject', 'revoke']) {
-      const response = await as(ownerSession.cookie).post(
-        api,
-        `/api/v1/admission/bad.id/${decision}`
-      );
+    for (const route of Object.values(decisionRoutes)) {
+      const response = await as(ownerSession.cookie).post(api.visit(route, { userId: 'bad.id' }));
       response.assertStatus(422);
       const { errors } = response.body() as { errors: Array<{ field: string; rule: string }> };
       assert.deepEqual(
@@ -259,8 +266,11 @@ test.group('admission and membership completion', (group) => {
       updated_at: now,
     });
     const { cookie } = await signIn(api, 'barry.allen@wayne.example', password);
-    await expectStatus(as(cookie).get(api, '/api/v1/admission/requests'), 403);
-    await expectStatus(as(cookie).post(api, `/api/v1/admission/${userId}/approve`), 403);
+    await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 403);
+    await expectStatus(
+      as(cookie).post(api.visit('api.admission_approvals.store', { userId })),
+      403
+    );
   });
 });
 
@@ -280,13 +290,13 @@ test.group('address confirmation', (group) => {
     await company(api);
     await createIdentity(person, { password, verified: false });
     const { cookie } = await signIn(api, person, password);
-    const unavailable = await as(cookie).post(api, '/api/v1/auth/verification/send');
+    const unavailable = await as(cookie).post(api.visit('api.email_verification_requests.store'));
     unavailable.assertStatus(503);
     const mail = captureMail(cleanup);
-    await expectStatus(as(cookie).post(api, '/api/v1/auth/verification/send'), 200);
+    await expectStatus(as(cookie).post(api.visit('api.email_verification_requests.store')), 200);
     const token = mail.tokenFor(person);
     const inspect = async () => {
-      const response = await as(cookie).post(api, '/api/v1/auth/verification/inspect', { token });
+      const response = await as(cookie).post(api.visit('api.email_verifications.show'), { token });
       return (response.body() as { data: { valid: boolean } }).data.valid;
     };
     assert.isTrue(await inspect());
@@ -295,17 +305,17 @@ test.group('address confirmation', (group) => {
     // Eight emoji are sixteen UTF-16 units but eight characters, under the fifteen-character minimum.
     for (const refused of ['😀'.repeat(8), 'a'.repeat(129)])
       await expectStatus(
-        as(cookie).post(api, '/api/v1/auth/verification/complete', { token, password: refused }),
+        as(cookie).post(api.visit('api.email_verifications.update'), { token, password: refused }),
         422
       );
-    const confirmed = await as(cookie).post(api, '/api/v1/auth/verification/complete', {
+    const confirmed = await as(cookie).post(api.visit('api.email_verifications.update'), {
       token,
       password: chosen,
     });
     confirmed.assertStatus(200);
     assert.isFalse(await inspect());
     const signedIn = await signIn(api, person, chosen);
-    const me = await as(signedIn.cookie).get(api, '/api/v1/auth/me');
+    const me = await as(signedIn.cookie).get(api.visit('api.session.show'));
     assert.isTrue(me.body().data.emailVerified);
     const old = await api
       .visit('api.session.store')
@@ -327,7 +337,7 @@ test.group('address confirmation', (group) => {
     cleanup(() => {
       accountKit.emailVerification.complete = original;
     });
-    const confirmed = await as('').post(api, '/api/v1/auth/verification/complete', {
+    const confirmed = await as('').post(api.visit('api.email_verifications.update'), {
       token: 'committed-token',
       password: 'confirmed-password-2026',
     });
@@ -342,10 +352,10 @@ test.group('address confirmation', (group) => {
     await resetState(true);
     await createIdentity(person, { password });
     const { cookie } = await signIn(api, person, password);
-    const completed = await as(cookie).post(api, '/api/v1/admission/complete');
+    const completed = await as(cookie).post(api.visit('api.memberships.store'));
     completed.assertStatus(409);
     assert.equal(completed.body().code, 'MULTIPLE_COMPANIES');
-    const companies = await as(cookie).get(api, '/api/v1/companies');
+    const companies = await as(cookie).get(api.visit('api.companies.index'));
     companies.assertStatus(409);
     assert.deepEqual(companies.body(), {
       error:

@@ -18,7 +18,6 @@ const privateClientName = 'SENTINEL_PRIVATE_CLIENT_NAME';
 const privateProjectName = 'SENTINEL_PRIVATE_PROJECT_NAME';
 const privateTimeOffNote = 'SENTINEL_PRIVATE_TIME_OFF_NOTE';
 const roles = ['viewer', 'editor', 'admin', 'owner'] as const;
-const planningUrl = `/api/v1/companies/${companyId}/planning`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -217,7 +216,10 @@ test.group('native authorization and role projections', (group) => {
       const me = await currentUser(client, cookie);
       me.assertStatus(200);
 
-      const currentPlanning = await asDataOwner(trusted(client.get(planningUrl)), cookie).send();
+      const currentPlanning = await asDataOwner(
+        trusted(client.visit('api.planning.show', { companyId })),
+        cookie
+      ).send();
       currentPlanning.assertStatus(200);
       const planning = currentPlanning.body().data as { revision: number };
       const settingsRequest = trusted(client.visit('api.planning_mutations.store', { companyId }));
