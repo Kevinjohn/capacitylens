@@ -8,12 +8,14 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import type { ApiClient } from '@japa/api-client';
 import { signIn } from '#tests/helpers/identities';
+import User from '#models/user';
 import { PlanningRevisionService } from '#services/planning_revision_service';
 
 const planningRevisions = new PlanningRevisionService();
@@ -148,7 +150,8 @@ test.group('beta import apply', (group) => {
   });
 
   test('preview replies with the reason a document is refused', async ({ client, assert }) => {
-    const { cookie } = await resetAuthenticatedData(client);
+    const { userId } = await resetAuthenticatedData(client);
+    const user = await User.findOrFail(userId);
     const full = await document();
     const redacted = buildCompanyExport(await readState(companyId, true), {
       companyId,
@@ -160,7 +163,7 @@ test.group('beta import apply', (group) => {
       [redacted, 'completeness: only full exports can be imported'],
     ];
     for (const [value, error] of refusals) {
-      const response = await asDataOwner(client.visit('api.import_previews.store'), cookie)
+      const response = await asLoggedInDataOwner(client.visit('api.import_previews.store'), user)
         .json({ companyId, document: value })
         .send();
       response.assertStatus(400);
@@ -172,7 +175,7 @@ test.group('beta import apply', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
+    const { cookie, userId } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
     const baseRevision = await revision();
     const changed = await document();
@@ -181,7 +184,10 @@ test.group('beta import apply', (group) => {
     // The same instant the models store as `2026-11-24T10:11:12.000Z`, spelt without milliseconds.
     row.updatedAt = '2026-11-24T10:11:12Z';
 
-    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
+    const preview = await asLoggedInDataOwner(
+      client.visit('api.import_previews.store'),
+      await User.findOrFail(userId)
+    )
       .json({ companyId, document: changed })
       .send();
     preview.assertStatus(400);
@@ -485,7 +491,7 @@ test.group('beta import apply', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
+    const { userId } = await resetAuthenticatedData(client);
     const full = await document();
     const before = await readState(companyId, true);
     const revisionBefore = await revision();
@@ -503,7 +509,10 @@ test.group('beta import apply', (group) => {
     const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as CompanyExport;
     documentWithPrototypeKey.data.clients[0] = clientWithPrototypeKey;
 
-    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
+    const preview = await asLoggedInDataOwner(
+      client.visit('api.import_previews.store'),
+      await User.findOrFail(userId)
+    )
       .json({ companyId, document: documentWithPrototypeKey })
       .send();
 

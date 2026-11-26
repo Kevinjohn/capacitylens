@@ -11,7 +11,12 @@ import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import { CurrentActorService } from '#services/auth/current_actor_service';
 import { readState } from '#tests/helpers/state_fixture';
-import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
+import {
+  asDataOwner,
+  asLoggedInDataOwner,
+  resetAuthenticatedData,
+} from '#tests/helpers/authenticated_data_fixture';
+import User from '#models/user';
 import {
   clearIdentities,
   createIdentity,
@@ -35,8 +40,11 @@ test.group('package proof adoption boundaries', (group) => {
   group.each.setup(() => clearIdentities());
 
   test('a foreign Origin is refused on password proof issuance', async ({ client, assert }) => {
-    const { cookie } = await resetAuthenticatedData(client);
-    const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
+    const { userId } = await resetAuthenticatedData(client);
+    const response = await asLoggedInDataOwner(
+      client.visit('api.password_confirmations.store'),
+      await User.findOrFail(userId)
+    )
       .header('origin', 'https://lex.example')
       .header('sec-fetch-site', 'cross-site')
       .json(body)
@@ -206,7 +214,8 @@ test.group('package proof adoption boundaries', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
+    const { cookie, userId } = await resetAuthenticatedData(client);
+    const user = await User.findOrFail(userId);
     const scope = 'x'.repeat(256);
     const document = buildCompanyExport(await readState(companyId, true), {
       companyId,
@@ -217,7 +226,7 @@ test.group('package proof adoption boundaries', (group) => {
     );
     const responses = [
       await issue(client, cookie, { ...body, companyId: scope }),
-      await asDataOwner(client.visit('api.imports.store'), cookie)
+      await asLoggedInDataOwner(client.visit('api.imports.store'), user)
         .json({ companyId: scope, document, baseRevision, confirmationId: 'missing' })
         .send(),
     ];
@@ -225,9 +234,9 @@ test.group('package proof adoption boundaries', (group) => {
       response.assertStatus(403);
       assert.deepEqual(response.body(), required);
     }
-    const anonymise = await asDataOwner(
+    const anonymise = await asLoggedInDataOwner(
       client.visit('api.company_anonymisations.store', { companyId: scope }),
-      cookie
+      user
     )
       .json({ confirmationId: 'missing' })
       .send();

@@ -6,14 +6,13 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { insertProductRows } from '#tests/helpers/product_rows';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
+import User from '#models/user';
 
 const password = 'batman-secret-2026';
-
-const signed = asDataOwner;
 
 async function userId(email: string) {
   const user = await db.from('users').where('email', email).first();
@@ -48,9 +47,9 @@ test.group('company member access and tracking', (group) => {
       'a-studio'
     );
     await db.from('memberships').delete();
-    const response = await signed(
+    const response = await asLoggedInDataOwner(
       client.visit('api.first_company_setup.store'),
-      owner.cookie('adonis-session')!.value
+      await User.findOrFail(await userId('bruce.wayne@wayne.example'))
     )
       .json({ name: 'Stark Industries' })
       .send();
@@ -69,7 +68,7 @@ test.group('company member access and tracking', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
+    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
@@ -81,7 +80,7 @@ test.group('company member access and tracking', (group) => {
       name: 'Clark Kent',
     });
     editor.assertStatus(200);
-    const editorCookie = editor.cookie('adonis-session')!.value;
+    const editorUser = await User.findOrFail(await userId('clark.kent@wayne.example'));
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
@@ -92,9 +91,9 @@ test.group('company member access and tracking', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const initial = await signed(
+    const initial = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     ).send();
     initial.assertStatus(200);
     assert.isFalse(initial.body().data.signInTrackingEnabled);
@@ -102,9 +101,9 @@ test.group('company member access and tracking', (group) => {
       initial.body().data.members.find((member: { userId: string }) => member.userId === editorId)!
         .signInConfirmed
     );
-    const enabled = await signed(
+    const enabled = await asLoggedInDataOwner(
       client.visit('api.member_sign_in_tracking.update', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     )
       .json({ enabled: true })
       .send();
@@ -115,9 +114,9 @@ test.group('company member access and tracking', (group) => {
       .json({ email: 'clark.kent@wayne.example', password })
       .send();
     signedIn.assertStatus(200);
-    const observed = await signed(
+    const observed = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     ).send();
     observed.assertStatus(200);
     assert.isTrue(
@@ -125,33 +124,33 @@ test.group('company member access and tracking', (group) => {
         .signInConfirmed
     );
     const editorMember = { companyId: 'a-studio', userId: editorId };
-    const suspended = await signed(
+    const suspended = await asLoggedInDataOwner(
       client.visit('api.member_status.update', editorMember),
-      ownerCookie
+      ownerUser
     )
       .json({ status: 'suspended' })
       .send();
     suspended.assertStatus(200);
-    const blocked = await signed(
+    const blocked = await asLoggedInDataOwner(
       client.visit('api.planning.show', { companyId: 'a-studio' }),
-      editorCookie
+      editorUser
     ).send();
     blocked.assertStatus(403);
-    const restored = await signed(
+    const restored = await asLoggedInDataOwner(
       client.visit('api.member_status.update', editorMember),
-      ownerCookie
+      ownerUser
     )
       .json({ status: 'active' })
       .send();
     restored.assertStatus(200);
-    const allowed = await signed(
+    const allowed = await asLoggedInDataOwner(
       client.visit('api.planning.show', { companyId: 'a-studio' }),
-      editorCookie
+      editorUser
     ).send();
     allowed.assertStatus(200);
-    const after = await signed(
+    const after = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     ).send();
     after.assertStatus(200);
     assert.isFalse(
@@ -170,7 +169,7 @@ test.group('company member access and tracking', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
+    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
@@ -208,17 +207,17 @@ test.group('company member access and tracking', (group) => {
       }))
     );
     for (const companyId of ['a-studio', 'a-loft']) {
-      const enabled = await signed(
+      const enabled = await asLoggedInDataOwner(
         client.visit('api.member_sign_in_tracking.update', { companyId }),
-        ownerCookie
+        ownerUser
       )
         .json({ enabled: true })
         .send();
       enabled.assertStatus(200);
     }
-    const suspended = await signed(
+    const suspended = await asLoggedInDataOwner(
       client.visit('api.member_status.update', { companyId: 'a-studio', userId: editorId }),
-      ownerCookie
+      ownerUser
     )
       .json({ status: 'suspended' })
       .send();
@@ -249,7 +248,7 @@ test.group('company member access and tracking', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
+    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
@@ -261,7 +260,7 @@ test.group('company member access and tracking', (group) => {
       name: 'Diana Prince',
     });
     admin.assertStatus(200);
-    const adminCookie = admin.cookie('adonis-session')!.value;
+    const adminUser = await User.findOrFail(await userId('diana.prince@wayne.example'));
     const adminId = await userId('diana.prince@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
@@ -272,27 +271,33 @@ test.group('company member access and tracking', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const available = await signed(client.visit('api.session.show'), adminCookie).send();
+    const available = await asLoggedInDataOwner(client.visit('api.session.show'), adminUser).send();
     available.assertStatus(200);
-    const refusedWhileActive = await signed(
+    const refusedWhileActive = await asLoggedInDataOwner(
       client.visit('api.first_company_setup.store'),
-      adminCookie
+      adminUser
     )
       .json({ name: 'Stark Industries' })
       .send();
     refusedWhileActive.assertStatus(409);
     refusedWhileActive.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
     assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }]);
-    const suspended = await signed(
+    const suspended = await asLoggedInDataOwner(
       client.visit('api.member_status.update', { companyId: 'a-studio', userId: adminId }),
-      ownerCookie
+      ownerUser
     )
       .json({ status: 'suspended' })
       .send();
     suspended.assertStatus(200);
-    const unavailable = await signed(client.visit('api.session.show'), adminCookie).send();
+    const unavailable = await asLoggedInDataOwner(
+      client.visit('api.session.show'),
+      adminUser
+    ).send();
     unavailable.assertStatus(200);
-    const refused = await signed(client.visit('api.first_company_setup.store'), ownerCookie)
+    const refused = await asLoggedInDataOwner(
+      client.visit('api.first_company_setup.store'),
+      ownerUser
+    )
       .json({ name: 'Stark Industries' })
       .send();
     refused.assertStatus(409);

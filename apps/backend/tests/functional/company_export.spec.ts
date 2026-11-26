@@ -1,9 +1,8 @@
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
-import {
-  authenticatedDataClient,
-  resetAuthenticatedData,
-} from '#tests/helpers/authenticated_data_fixture';
+import { resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
+import { loggedInDataClient } from '#tests/helpers/data/logged_in_client';
+import User from '#models/user';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import {
@@ -17,7 +16,8 @@ import { readState } from '#tests/helpers/state_fixture';
 const roles: Role[] = ['owner', 'admin', 'editor', 'viewer'];
 async function reset(client: ApiClient) {
   const session = await resetAuthenticatedData(client, true);
-  return { client: authenticatedDataClient(client, session.cookie), userId: session.userId };
+  const user = await User.findOrFail(session.userId);
+  return { client: loggedInDataClient(client, user), userId: session.userId };
 }
 
 /** Archives one a-studio resource so that only an Owner or Admin export carries it. */

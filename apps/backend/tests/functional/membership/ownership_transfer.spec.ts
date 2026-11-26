@@ -8,9 +8,11 @@ import { insertProductRows } from '#tests/helpers/product_rows';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { createIdentity, signUpAndIn } from '#tests/helpers/identities';
+import User from '#models/user';
 
 const password = 'batman-secret-2026';
 
@@ -107,24 +109,25 @@ test.group('atomic ownership transfer', (group) => {
   test('retired and unknown lifecycle actions return 404 before body validation', async ({
     client,
   }) => {
-    const { adminId, ownerCookie } = await fixture(client);
-    const retired = await signed(
+    const { ownerId, adminId } = await fixture(client);
+    const ownerUser = await User.findOrFail(ownerId);
+    const retired = await asLoggedInDataOwner(
       client.post('/api/v1/companies/a-studio/transfer-ownership'),
-      ownerCookie
+      ownerUser
     )
       .json({ toUserId: adminId })
       .send();
     retired.assertStatus(404);
-    const unknown = await signed(
+    const unknown = await asLoggedInDataOwner(
       client.post('/api/v1/companies/a-studio/unknown-action'),
-      ownerCookie
+      ownerUser
     )
       .json({})
       .send();
     unknown.assertStatus(404);
-    const retiredCompanyArchive = await signed(
+    const retiredCompanyArchive = await asLoggedInDataOwner(
       client.post('/api/v1/companies/a-studio/archive'),
-      ownerCookie
+      ownerUser
     )
       .json({})
       .send();
@@ -219,6 +222,7 @@ test.group('atomic ownership transfer', (group) => {
     assert,
   }) => {
     const { ownerId, adminId, ownerCookie, adminCookie } = await fixture(client);
+    const ownerUser = await User.findOrFail(ownerId);
     const unsigned = await client
       .visit('api.ownership_transfers.store', { companyId: 'a-studio' })
       .header('sec-fetch-site', 'same-origin')
@@ -245,25 +249,25 @@ test.group('atomic ownership transfer', (group) => {
     const wrongCompany = await post(ownerCookie, 'a-missing', adminId);
     wrongCompany.assertStatus(403);
     assert.deepEqual(wrongCompany.body(), nonOwner.body());
-    const legacyBody = await signed(
+    const legacyBody = await asLoggedInDataOwner(
       client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     )
       .json({ toUserId: adminId, expectedRevision: 'old-ceremony' } as never)
       .send();
     legacyBody.assertStatus(422);
-    const unpaired = await signed(
+    const unpaired = await asLoggedInDataOwner(
       client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     )
       .header('x-account-operation-id', 'ownership-unpaired-command-0001')
       .json({ toUserId: adminId })
       .send();
     unpaired.assertStatus(422);
     assert.deepEqual(failedFields(unpaired.body()), ['headers.idempotency-key']);
-    const malformedKey = await signed(
+    const malformedKey = await asLoggedInDataOwner(
       client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     )
       .header('x-account-operation-id', 'ownership-malformed-command-0001')
       .header('idempotency-key', 'short')

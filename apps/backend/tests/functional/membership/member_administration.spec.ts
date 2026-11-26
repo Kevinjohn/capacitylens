@@ -4,13 +4,13 @@ import db from '@adonisjs/lucid/services/db';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
+import User from '#models/user';
 
 const password = 'batman-secret-2026';
-
-const signed = asDataOwner;
 
 async function userId(email: string) {
   const user = await db.from('users').where('email', email).first();
@@ -39,7 +39,7 @@ test.group('company member administration', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
+    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
@@ -79,7 +79,7 @@ test.group('company member administration', (group) => {
       'idempotency-key': 'member-role-idempotency-0001',
     };
     const requestRole = (role: 'admin' | 'viewer') =>
-      signed(client.visit('api.members.update', target), ownerCookie)
+      asLoggedInDataOwner(client.visit('api.members.update', target), ownerUser)
         .headers(identity)
         .json({ role })
         .send();
@@ -114,7 +114,10 @@ test.group('company member administration', (group) => {
       .from('audit_entries')
       .where({ company_id: 'a-studio', action: 'member.role_changed', entity_id: editorId });
     assert.lengthOf(audits, 1);
-    const unchanged = await signed(client.visit('api.members.update', target), ownerCookie)
+    const unchanged = await asLoggedInDataOwner(
+      client.visit('api.members.update', target),
+      ownerUser
+    )
       .headers({
         'x-account-operation-id': 'member-role-command-noop-0001',
         'idempotency-key': 'member-role-idempotency-noop-0001',
@@ -128,9 +131,9 @@ test.group('company member administration', (group) => {
       .first();
     assert.equal(Number(unchangedRevision?.revision), 2);
     const ownerId = await userId('bruce.wayne@wayne.example');
-    const refused = await signed(
+    const refused = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: ownerId }),
-      ownerCookie
+      ownerUser
     )
       .json({ role: 'viewer' })
       .send();
@@ -147,7 +150,7 @@ test.group('company member administration', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
+    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
     const ownerId = await userId('bruce.wayne@wayne.example');
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const editor = await signUpAndIn(client, {
@@ -172,12 +175,12 @@ test.group('company member administration', (group) => {
       'idempotency-key': 'member-shared-key-0001',
     };
     const role = () =>
-      signed(client.visit('api.members.update', target), ownerCookie)
+      asLoggedInDataOwner(client.visit('api.members.update', target), ownerUser)
         .headers(identity)
         .json({ role: 'admin' })
         .send();
     const status = () =>
-      signed(client.visit('api.member_status.update', target), ownerCookie)
+      asLoggedInDataOwner(client.visit('api.member_status.update', target), ownerUser)
         .headers(identity)
         .json({ status: 'suspended' })
         .send();
@@ -246,7 +249,7 @@ test.group('company member administration', (group) => {
       name: 'Bruce Wayne',
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
+    const ownerUser = await User.findOrFail(await userId('bruce.wayne@wayne.example'));
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
@@ -274,7 +277,7 @@ test.group('company member administration', (group) => {
       {
         name: 'invalid role',
         send: () =>
-          signed(client.visit('api.members.update', target), ownerCookie)
+          asLoggedInDataOwner(client.visit('api.members.update', target), ownerUser)
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ role: 'operator' } as never)
             .send(),
@@ -282,7 +285,7 @@ test.group('company member administration', (group) => {
       {
         name: 'unknown role field',
         send: () =>
-          signed(client.visit('api.members.update', target), ownerCookie)
+          asLoggedInDataOwner(client.visit('api.members.update', target), ownerUser)
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ role: 'admin', extra: true } as never)
             .send(),
@@ -290,7 +293,7 @@ test.group('company member administration', (group) => {
       {
         name: 'invalid status',
         send: () =>
-          signed(client.visit('api.member_status.update', target), ownerCookie)
+          asLoggedInDataOwner(client.visit('api.member_status.update', target), ownerUser)
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ status: 'removed' } as never)
             .send(),
@@ -298,7 +301,7 @@ test.group('company member administration', (group) => {
       {
         name: 'unknown status field',
         send: () =>
-          signed(client.visit('api.member_status.update', target), ownerCookie)
+          asLoggedInDataOwner(client.visit('api.member_status.update', target), ownerUser)
             // Deliberately outside the generated body type, to reach the server's refusal.
             .json({ status: 'suspended', extra: true } as never)
             .send(),
@@ -306,9 +309,9 @@ test.group('company member administration', (group) => {
       {
         name: 'invalid tracking value',
         send: () =>
-          signed(
+          asLoggedInDataOwner(
             client.visit('api.member_sign_in_tracking.update', { companyId: 'a-studio' }),
-            ownerCookie
+            ownerUser
           )
             .json({ enabled: 'true' })
             .send(),
@@ -316,9 +319,9 @@ test.group('company member administration', (group) => {
       {
         name: 'unknown tracking field',
         send: () =>
-          signed(
+          asLoggedInDataOwner(
             client.visit('api.member_sign_in_tracking.update', { companyId: 'a-studio' }),
-            ownerCookie
+            ownerUser
           )
             .json({ enabled: true, extra: true } as never)
             .send(),
@@ -404,10 +407,10 @@ test.group('company member administration', (group) => {
         updated_at: now,
       },
     ]);
-    const adminCookie = admin.cookie('adonis-session')!.value;
-    const invalidPromotion = await signed(
+    const adminUser = await User.findOrFail(await userId('diana.prince@wayne.example'));
+    const invalidPromotion = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: editorId }),
-      adminCookie
+      adminUser
     )
       .json({ role: 'owner' })
       .send();
@@ -416,17 +419,17 @@ test.group('company member administration', (group) => {
       (invalidPromotion.body() as unknown as { code: string }).code,
       'OWNER_TRANSFER_REQUIRED'
     );
-    const ownerDemotion = await signed(
+    const ownerDemotion = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: ownerId }),
-      adminCookie
+      adminUser
     )
       .json({ role: 'editor' })
       .send();
     ownerDemotion.assertStatus(403);
     // The package refuses self-management, so an Admin cannot change their own role.
-    const selfDemotion = await signed(
+    const selfDemotion = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: adminId }),
-      adminCookie
+      adminUser
     )
       .json({ role: 'editor' })
       .send();
@@ -436,9 +439,9 @@ test.group('company member administration', (group) => {
       .where({ scope_id: 'a-studio', user_id: adminId })
       .first();
     assert.equal(unchangedAdmin.role, 'admin');
-    const unauthorized = await signed(
+    const unauthorized = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: editorId }),
-      editor.cookie('adonis-session')!.value
+      await User.findOrFail(editorId)
     )
       .json({ role: 'owner' })
       .send();
@@ -486,9 +489,9 @@ test.group('company member administration', (group) => {
     try {
       Date.now = () => realNow() + 16 * 60 * 1000;
       const cookie = admin.cookie('adonis-session')!.value;
-      const current = await signed(client.visit('api.session.show'), cookie).send();
+      const current = await asDataOwner(client.visit('api.session.show'), cookie).send();
       current.assertStatus(200);
-      const second = await signed(client.visit('api.first_company_setup.store'), cookie)
+      const second = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
         .json({ name: 'Stark Industries' })
         .send();
       second.assertStatus(409);

@@ -6,9 +6,11 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { captureMail, clearIdentities, signUpAndIn } from '#tests/helpers/identities';
+import User from '#models/user';
 
 /**
  * What the server does when the browser repeats an account operation after an unknown outcome,
@@ -29,7 +31,11 @@ async function person(client: ApiClient, email: string, name: string) {
   const response = await signUpAndIn(client, { email, password, name });
   response.assertStatus(200);
   const row = await db.from('users').where('email', email).firstOrFail();
-  return { id: String(row.id), cookie: response.cookie('adonis-session')!.value };
+  return {
+    id: String(row.id),
+    cookie: response.cookie('adonis-session')!.value,
+    user: await User.findOrFail(row.id),
+  };
 }
 
 async function company(client: ApiClient) {
@@ -72,7 +78,7 @@ test.group('account operation retries', (group) => {
     const { owner } = await company(client);
     const invitee = 'diana.prince@wayne.example';
     const invite = (headers: Record<string, string>) =>
-      asDataOwner(client.visit('api.invitations.store'), owner.cookie)
+      asLoggedInDataOwner(client.visit('api.invitations.store'), owner.user)
         .headers(headers)
         .json({ companyId, email: invitee, role: 'editor' })
         .send();
@@ -101,13 +107,13 @@ test.group('account operation retries', (group) => {
   }) => {
     captureMail(cleanup);
     const { owner } = await company(client);
-    const sent = await asDataOwner(client.visit('api.invitations.store'), owner.cookie)
+    const sent = await asLoggedInDataOwner(client.visit('api.invitations.store'), owner.user)
       .json({ companyId, email: 'diana.prince@wayne.example', role: 'editor' })
       .send();
     sent.assertStatus(201);
     const { id } = await db.from('account_invitations').firstOrFail();
     const revoke = (n: number) =>
-      asDataOwner(client.visit('api.invitations.destroy', { companyId, id }), owner.cookie)
+      asLoggedInDataOwner(client.visit('api.invitations.destroy', { companyId, id }), owner.user)
         .headers(operation(n))
         .send();
 
@@ -129,9 +135,9 @@ test.group('account operation retries', (group) => {
   }) => {
     const { owner, admin } = await company(client);
     const suspend = (n: number) =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client.visit('api.member_status.update', { companyId, userId: admin.id }),
-        owner.cookie
+        owner.user
       )
         .headers(operation(n))
         .json({ status: 'suspended' })

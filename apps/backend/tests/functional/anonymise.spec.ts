@@ -119,13 +119,16 @@ test.group('company anonymisation', (group) => {
   group.setup(() => freshDatabase());
 
   test('retired generic lifecycle routes are absent', async ({ client }) => {
-    const { cookie } = await resetAuthenticatedData(client, true);
+    const { userId } = await resetAuthenticatedData(client, true);
+    const user = await User.findOrFail(userId);
     for (const path of [
       '/api/v1/resources/r-tyler/delete',
       '/api/v1/resources/r-tyler/purge',
       '/api/v1/resources/r-tyler/archive',
     ]) {
-      const response = await asDataOwner(client.post(path), cookie).json({ companyId }).send();
+      const response = await asLoggedInDataOwner(client.post(path), user)
+        .json({ companyId })
+        .send();
       response.assertStatus(404);
     }
   });
@@ -170,9 +173,9 @@ test.group('company anonymisation', (group) => {
     const before = await db.transaction((trx) =>
       planningRevisions.getPlanningRevision(trx, companyId)
     );
-    const changed = await asDataOwner(
+    const changed = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
-      cookie
+      await User.findOrFail(userId)
     )
       .json({})
       .send();
@@ -219,7 +222,7 @@ test.group('company anonymisation', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client, true);
+    const { userId } = await resetAuthenticatedData(client, true);
     // A soft-delete marker as the package stores it, in Lucid's date-time format.
     const deletedAt = '2026-11-24 10:11:12';
     const noted = { note: 'Arkham visit', deleted_at: deletedAt };
@@ -231,12 +234,12 @@ test.group('company anonymisation', (group) => {
       .first();
     assert.isDefined(timeOff);
     await db.from('time_off').where('id', timeOff.id).update(noted);
-    const changed = await asDataOwner(
+    const changed = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', {
         companyId,
         id: allocation.resource_id,
       }),
-      cookie
+      await User.findOrFail(userId)
     )
       .json({})
       .send();
@@ -252,15 +255,15 @@ test.group('company anonymisation', (group) => {
   });
 
   test('an Editor cannot anonymise an individual resource', async ({ client, assert }) => {
-    const { cookie, userId } = await resetAuthenticatedData(client, true);
+    const { userId } = await resetAuthenticatedData(client, true);
     const target = await db.from('resources').where('company_id', companyId).first();
     await db
       .from('memberships')
       .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'editor' });
-    const refused = await asDataOwner(
+    const refused = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
-      cookie
+      await User.findOrFail(userId)
     )
       .json({})
       .send();

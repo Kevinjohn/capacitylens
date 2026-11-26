@@ -1,10 +1,11 @@
 import { test } from '@japa/runner';
 import {
-  authenticatedDataClient,
   createFixtureCompanyForOwner,
   resetAuthenticatedClient,
   resetAuthenticatedData,
 } from '#tests/helpers/authenticated_data_fixture';
+import { loggedInDataClient } from '#tests/helpers/data/logged_in_client';
+import User from '#models/user';
 import { LoggerFactory } from '@adonisjs/logger/factories';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
@@ -206,7 +207,7 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     const session = await resetAuthenticatedData(client, false);
     await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises', 'a-studio');
-    client = authenticatedDataClient(client, session.cookie);
+    client = loggedInDataClient(client, await User.findOrFail(session.userId));
     const secret = 'SENTINEL_COMPLETION_LOG_FAILURE';
     const { output, result } = await captureLogs(
       () =>
