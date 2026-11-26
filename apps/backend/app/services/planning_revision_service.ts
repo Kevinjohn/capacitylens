@@ -9,20 +9,20 @@ const revisionsByTransaction = new WeakMap<
   Map<string, Promise<number>>
 >();
 
-function ensureTransactionRevisions(trx: TransactionClientContract) {
-  let revisions = revisionsByTransaction.get(trx);
-  if (!revisions) {
-    revisions = new Map();
-    revisionsByTransaction.set(trx, revisions);
-  }
-  return revisions;
-}
-
 /**
  * The company planning revision. The per-transaction advances stay module state, so every instance
  * advances a company once per transaction.
  */
 export class PlanningRevisionService {
+  #ensureTransactionRevisions(trx: TransactionClientContract) {
+    let revisions = revisionsByTransaction.get(trx);
+    if (!revisions) {
+      revisions = new Map();
+      revisionsByTransaction.set(trx, revisions);
+    }
+    return revisions;
+  }
+
   /** Reads the current company planning revision; a company without a revision row reads as zero. */
   async getPlanningRevision(trx: TransactionClientContract, companyId: string): Promise<number> {
     const row = await trx
@@ -39,7 +39,7 @@ export class PlanningRevisionService {
 
   /** Advances a company's planning revision once per supplied transaction. */
   advancePlanningRevision(trx: TransactionClientContract, companyId: string): Promise<number> {
-    const revisions = ensureTransactionRevisions(trx);
+    const revisions = this.#ensureTransactionRevisions(trx);
     const existing = revisions.get(companyId);
     if (existing) return existing;
 

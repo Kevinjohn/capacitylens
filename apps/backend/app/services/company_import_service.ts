@@ -31,35 +31,6 @@ import ImportSnapshotStaleException from '#exceptions/import_snapshot_stale_exce
 const INSERT_CHUNK_SIZE = 32;
 const ID_LOOKUP_CHUNK_SIZE = 200;
 
-/**
- * Inserts rows on the model's table in multi-row statements, each value stored by the model's
- * column `prepare`, as `save()` stores it. Lucid has no bulk insert and `createMany` sends one
- * statement per row through a model instance, several times slower on the largest import. No
- * instance exists, so no model hook runs: every imported row carries the importing company.
- */
-async function insertThroughModel(
-  trx: TransactionClientContract,
-  model: LucidModel,
-  rows: readonly object[]
-) {
-  // The product columns' prepare functions read only the value; a blank row stands in for the row.
-  const blank = new model();
-  for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {
-    const values = rows.slice(offset, offset + INSERT_CHUNK_SIZE).map((row) => {
-      const attributes: ModelObject = rowAttributes(model, row);
-      const stored: ModelObject = {};
-      for (const [property, column] of model.$columnsDefinitions) {
-        const value: unknown = attributes[property];
-        stored[column.columnName] = column.prepare ? column.prepare(value, property, blank) : value;
-      }
-      return stored;
-    });
-    const query = model.query({ client: trx });
-    query.knexQuery.insert(values);
-    await query;
-  }
-}
-
 function buildFingerprint(data: AppData) {
   const rows = APP_DATA_KEYS.map((key) => [
     key,
@@ -70,45 +41,6 @@ function buildFingerprint(data: AppData) {
 
 function buildPortableFingerprint(data: AppData, companyId: string) {
   return buildFingerprint(buildCompanyExport(data, { companyId, completeness: 'full' }).data);
-}
-
-// Scheduling IDs are primary keys across every company, so a document exported from another
-// company on this server cannot be inserted while that company still holds the same rows. Refusing
-// here keeps preview and apply in agreement instead of surfacing a constraint failure after the
-// Owner has confirmed with a password.
-async function assertNoForeignIdCollision(
-  trx: TransactionClientContract,
-  companyId: string,
-  data: AppData
-) {
-  for (const key of SCOPED_WRITE_ORDER) {
-    const ids = data[key].map((row) => row.id);
-    for (let offset = 0; offset < ids.length; offset += ID_LOOKUP_CHUNK_SIZE) {
-      const foreign = await trx
-        .from(tables[key])
-        .whereIn('id', ids.slice(offset, offset + ID_LOOKUP_CHUNK_SIZE))
-        .whereNot('company_id', companyId)
-        .select('id')
-        .first();
-      if (foreign) {
-        throw new ImportIdCollisionException();
-      }
-    }
-  }
-}
-
-async function readImportContext(trx: TransactionClientContract, companyId: string) {
-  const links = await trx
-    .from('account_member_resources')
-    .where('company_id', companyId)
-    .select('user_id', 'resource_id');
-  return {
-    companyId,
-    memberResourceLinks: links.map((link) => ({
-      memberId: String(link.user_id),
-      resourceId: String(link.resource_id),
-    })),
-  };
 }
 
 /** Company export documents read from requests, and their preview and import. */
@@ -132,6 +64,76 @@ export class CompanyImportService {
     this.#planningRevisions = planningRevisions;
     this.#restoration = restoration;
     this.#history = history;
+  }
+
+  /**
+   * Inserts rows on the model's table in multi-row statements, each value stored by the model's
+   * column `prepare`, as `save()` stores it. Lucid has no bulk insert and `createMany` sends one
+   * statement per row through a model instance, several times slower on the largest import. No
+   * instance exists, so no model hook runs: every imported row carries the importing company.
+   */
+  async #insertThroughModel(
+    trx: TransactionClientContract,
+    model: LucidModel,
+    rows: readonly object[]
+  ) {
+    // The product columns' prepare functions read only the value; a blank row stands in for the row.
+    const blank = new model();
+    for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {
+      const values = rows.slice(offset, offset + INSERT_CHUNK_SIZE).map((row) => {
+        const attributes: ModelObject = rowAttributes(model, row);
+        const stored: ModelObject = {};
+        for (const [property, column] of model.$columnsDefinitions) {
+          const value: unknown = attributes[property];
+          stored[column.columnName] = column.prepare
+            ? column.prepare(value, property, blank)
+            : value;
+        }
+        return stored;
+      });
+      const query = model.query({ client: trx });
+      query.knexQuery.insert(values);
+      await query;
+    }
+  }
+
+  // Scheduling IDs are primary keys across every company, so a document exported from another
+  // company on this server cannot be inserted while that company still holds the same rows. Refusing
+  // here keeps preview and apply in agreement instead of surfacing a constraint failure after the
+  // Owner has confirmed with a password.
+  async #assertNoForeignIdCollision(
+    trx: TransactionClientContract,
+    companyId: string,
+    data: AppData
+  ) {
+    for (const key of SCOPED_WRITE_ORDER) {
+      const ids = data[key].map((row) => row.id);
+      for (let offset = 0; offset < ids.length; offset += ID_LOOKUP_CHUNK_SIZE) {
+        const foreign = await trx
+          .from(tables[key])
+          .whereIn('id', ids.slice(offset, offset + ID_LOOKUP_CHUNK_SIZE))
+          .whereNot('company_id', companyId)
+          .select('id')
+          .first();
+        if (foreign) {
+          throw new ImportIdCollisionException();
+        }
+      }
+    }
+  }
+
+  async #readImportContext(trx: TransactionClientContract, companyId: string) {
+    const links = await trx
+      .from('account_member_resources')
+      .where('company_id', companyId)
+      .select('user_id', 'resource_id');
+    return {
+      companyId,
+      memberResourceLinks: links.map((link) => ({
+        memberId: String(link.user_id),
+        resourceId: String(link.resource_id),
+      })),
+    };
   }
 
   /**
@@ -171,8 +173,8 @@ export class CompanyImportService {
   ) {
     const current = await this.#stateRepository.readStateWithClient(trx, companyId, true);
     if (current.companies.length !== 1) throw new EntityNotFoundException('Company not found.');
-    const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
-    await assertNoForeignIdCollision(trx, companyId, prepared.data);
+    const prepared = prepareCompanyImport(document, await this.#readImportContext(trx, companyId));
+    await this.#assertNoForeignIdCollision(trx, companyId, prepared.data);
     const changed =
       buildPortableFingerprint(current, companyId) !== buildFingerprint(prepared.data);
     const baseRevision = await this.#planningRevisions.getPlanningRevision(trx, companyId);
@@ -201,8 +203,8 @@ export class CompanyImportService {
     if (revision !== baseRevision) {
       throw new ImportSnapshotStaleException(revision);
     }
-    const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
-    await assertNoForeignIdCollision(trx, companyId, prepared.data);
+    const prepared = prepareCompanyImport(document, await this.#readImportContext(trx, companyId));
+    await this.#assertNoForeignIdCollision(trx, companyId, prepared.data);
     if (buildPortableFingerprint(current, companyId) === buildFingerprint(prepared.data)) {
       return { imported: prepared.imported, changed: false, revision };
     }
@@ -218,7 +220,7 @@ export class CompanyImportService {
     const stored = await Company.findOrFail(companyId, { client: trx });
     await stored.merge(rowAttributes(Company, company)).save();
     for (const key of SCOPED_WRITE_ORDER) {
-      await insertThroughModel(trx, productModels[key], prepared.data[key]);
+      await this.#insertThroughModel(trx, productModels[key], prepared.data[key]);
     }
     await this.#audit.writeAudit(trx, {
       companyId,
