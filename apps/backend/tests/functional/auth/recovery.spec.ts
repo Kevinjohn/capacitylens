@@ -1,11 +1,13 @@
 import { test } from '@japa/runner';
 import type { ApiClient, ApiRequest } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import {
@@ -46,7 +48,7 @@ async function company() {
     created_at: now,
     updated_at: now,
   });
-  return editorId;
+  return { ownerId, editorId };
 }
 
 test.group('password recovery', (group) => {
@@ -102,7 +104,7 @@ test.group('password recovery', (group) => {
     cleanup,
   }) => {
     const mail = captureMail(cleanup);
-    const editorId = await company();
+    const { editorId } = await company();
     const { cookie } = await signIn(client, editor);
     await requestReset(client, editor);
     const token = mail.tokenFor(editor);
@@ -132,13 +134,13 @@ test.group('password recovery', (group) => {
 
   test('a role change leaves a pending reset link usable', async ({ client, cleanup }) => {
     const mail = captureMail(cleanup);
-    const editorId = await company();
+    const { ownerId, editorId } = await company();
     await requestReset(client, editor);
     const token = mail.tokenFor(editor);
-    const { cookie } = await signIn(client, owner);
-    const changed = await asDataOwner(
+    const ownerUser = await User.findOrFail(ownerId);
+    const changed = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId, userId: editorId }),
-      cookie
+      ownerUser
     )
       .headers({
         'x-account-operation-id': 'recovery-role-command-0001',

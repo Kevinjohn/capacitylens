@@ -1,11 +1,13 @@
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { clearIdentities, createIdentity, signIn, expectStatus } from '#tests/helpers/identities';
@@ -147,7 +149,10 @@ test.group('account deletion', (group) => {
     const wrong = await deleteAccount(client, cookie, 'not-the-password-2026');
     wrong.assertStatus(403);
     wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
-    const malformed = await asDataOwner(client.visit('api.account.destroy'), cookie)
+    const malformed = await asLoggedInDataOwner(
+      client.visit('api.account.destroy'),
+      await User.findOrFail(userId)
+    )
       // Deliberately outside the generated body type, to reach the server's refusal.
       .json({ currentPassword: editor.password, extra: true } as never)
       .send();

@@ -10,10 +10,11 @@ import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
 import { createIdentity, clearIdentities, signIn } from '#tests/helpers/identities';
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
+import User from '#models/user';
 
 test.group('ordinary authentication request contracts', (group) => {
   group.setup(() => freshDatabase());
@@ -127,7 +128,7 @@ test.group('ordinary authentication request contracts', (group) => {
   }) => {
     const userId = await createIdentity('bruce.wayne@wayne.example', { name: 'Bruce Wayne' });
     await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio');
-    const { cookie } = await signIn(client, 'bruce.wayne@wayne.example');
+    const owner = await User.findOrFail(userId);
     for (const query of [
       {},
       { status: 'pending' },
@@ -136,15 +137,15 @@ test.group('ordinary authentication request contracts', (group) => {
       { status: 'revoked' },
       { extra: 'ignored' },
     ]) {
-      const response = await asDataOwner(
+      const response = await asLoggedInDataOwner(
         client.visit('api.admission_requests.index').qs(query as never),
-        cookie
+        owner
       ).send();
       assert.equal(response.status(), 200, JSON.stringify(query));
     }
-    const emptyCursor = await asDataOwner(
+    const emptyCursor = await asLoggedInDataOwner(
       client.visit('api.admission_requests.index').qs({ cursor: '' }),
-      cookie
+      owner
     ).send();
     // The HTTP scalar shape is valid; the Kit refuses an empty opaque cursor.
     emptyCursor.assertStatus(422);
@@ -155,10 +156,10 @@ test.group('ordinary authentication request contracts', (group) => {
       'cursor[]=x',
       `cursor=${'x'.repeat(513)}`,
     ]) {
-      const response = await asDataOwner(
+      const response = await asLoggedInDataOwner(
         // A raw query string, so the malformed shapes reach the server as written.
         client.visit('api.admission_requests.index').unsafeQs(query),
-        cookie
+        owner
       ).send();
       response.assertStatus(422);
       assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors);

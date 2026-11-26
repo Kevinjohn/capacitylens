@@ -1,8 +1,9 @@
 import { test } from '@japa/runner';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { resetState } from '#tests/helpers/state_fixture';
@@ -33,8 +34,8 @@ test.group('direct member resource association', (group) => {
       name: 'Bruce Wayne',
       password,
     });
-    const ownerCookie = owner.cookie('adonis-session')!.value;
     const ownerId = (owner.body().data as { user: { id: string } }).user.id;
+    const ownerUser = await User.findOrFail(ownerId);
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const clark = await signUpAndIn(client, {
       email: 'clark.kent@wayne.example',
@@ -140,9 +141,9 @@ test.group('direct member resource association', (group) => {
       updated_at: now,
     });
 
-    const response = await asDataOwner(
+    const response = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
-      ownerCookie
+      ownerUser
     ).send();
     response.assertStatus(200);
     const body = response.body().data as {
@@ -178,8 +179,8 @@ test.group('direct member resource association', (group) => {
       password,
     });
     owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
     const ownerId = (owner.body().data as { user: { id: string } }).user.id;
+    const ownerUser = await User.findOrFail(ownerId);
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const now = new Date().toISOString();
     await CompanyFactory.merge({
@@ -211,11 +212,11 @@ test.group('direct member resource association', (group) => {
         person('r-stark', 'a-loft'),
       ]);
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .json({ resourceId, expectedRevision })
         .send();
@@ -234,11 +235,11 @@ test.group('direct member resource association', (group) => {
       .count('* as total');
     assert.equal(Number(auditCountBeforeLink[0].total), 0);
     const createLinkOperation = () =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .headers({
           'x-account-operation-id': 'member-link-command-0001',
@@ -264,11 +265,11 @@ test.group('direct member resource association', (group) => {
       .count('* as total');
     assert.equal(Number(auditCountAfterLink[0].total), 1);
     const repeatLink = () =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .headers({
           'x-account-operation-id': 'member-link-noop-command-0001',
@@ -298,11 +299,11 @@ test.group('direct member resource association', (group) => {
     const archivedCurrent = await put(ownerId, 'r-barry', revision);
     archivedCurrent.assertStatus(409);
     const unlink = () =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .headers({
           'x-account-operation-id': 'member-unlink-command-0001',
@@ -349,11 +350,11 @@ test.group('direct member resource association', (group) => {
     const occupied = await put(otherId, 'r-barry', null);
     occupied.assertStatus(409);
     const clear = (userId: string, expectedRevision: string) =>
-      asDataOwner(
+      asLoggedInDataOwner(
         client
           .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
-        ownerCookie
+        ownerUser
       )
         .json({ expectedRevision })
         .send();

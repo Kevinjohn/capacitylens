@@ -6,7 +6,8 @@ import { setSecretSetting } from '#tests/helpers/secret_settings';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import ConfigurationProvider from '#providers/configuration_provider';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import User from '#models/user';
 import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
 import { execCommand } from '#tests/helpers/auth/commands';
 
@@ -49,8 +50,11 @@ test.group('development bootstrap provider recovery', (group) => {
       (await db.from('users').where('email', bootstrapEmail).first())!.password,
       passwordHash
     );
-    const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
+    await signIn(client, bootstrapEmail, bootstrapPassword);
+    const status = await asLoggedInDataOwner(
+      client.visit('api.admission.show'),
+      await User.findOrFail(rows[0]!.id)
+    ).send();
     status.assertStatus(200);
     assert.isTrue(status.body().data.decision.admitted);
   });
@@ -141,8 +145,11 @@ test.group('development bootstrap provider recovery', (group) => {
 
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', false);
     await provider.start();
-    const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
+    await signIn(client, bootstrapEmail, bootstrapPassword);
+    const status = await asLoggedInDataOwner(
+      client.visit('api.admission.show'),
+      await User.findOrFail(identityId)
+    ).send();
     status.assertStatus(200);
     const decision = (
       status.body().data as {

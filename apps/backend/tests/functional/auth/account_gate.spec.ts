@@ -3,10 +3,11 @@ import router from '@adonisjs/core/services/router';
 import type { ApiRequest } from '@japa/api-client';
 import type { ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture';
 import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
@@ -118,9 +119,10 @@ test.group('account gate', (group) => {
     client,
     assert,
   }) => {
-    await createIdentity(waiting, { name: 'Selina Kyle', admitted: false });
-    const { cookie, cookieHeader } = await signIn(client, waiting);
-    const get = (request: ApiRequest) => request.header('cookie', cookieHeader).send();
+    const user = await User.findOrFail(
+      await createIdentity(waiting, { name: 'Selina Kyle', admitted: false })
+    );
+    const get = (request: ApiRequest) => request.loginAs(user).send();
 
     const refusal = 'Your access to this company is waiting on admission.';
     for (const request of [
@@ -136,9 +138,9 @@ test.group('account gate', (group) => {
       assert.isObject(body.decision);
     }
     // The body is invalid; the gate answers before the handler reads it.
-    const write = await asDataOwner(
+    const write = await asLoggedInDataOwner(
       client.visit('api.planning_mutations.store', { companyId }),
-      cookie
+      user
     )
       .json({ unknown: true } as never)
       .send();
@@ -155,9 +157,9 @@ test.group('account gate', (group) => {
       const reached = await get(request);
       reached.assertStatus(status);
     }
-    const requested = await asDataOwner(
+    const requested = await asLoggedInDataOwner(
       client.visit('api.admission_requests.store'),
-      cookie
+      user
     ).send();
     requested.assertStatus(200);
     // The remaining limited routes pass the gate; their handlers then refuse a person with no
@@ -172,13 +174,13 @@ test.group('account gate', (group) => {
       'api.admission_rejections.store',
       'api.admission_revocations.store',
     ] as const) {
-      limited.push(await asDataOwner(client.visit(name, { userId: ownerId }), cookie).send());
+      limited.push(await asLoggedInDataOwner(client.visit(name, { userId: ownerId }), user).send());
     }
     limited.push(
-      await asDataOwner(client.visit('api.masquerade.store', { companyId }), cookie)
+      await asLoggedInDataOwner(client.visit('api.masquerade.store', { companyId }), user)
         .json({ userId: ownerId } as never)
         .send(),
-      await asDataOwner(client.visit('api.masquerade.destroy'), cookie).send()
+      await asLoggedInDataOwner(client.visit('api.masquerade.destroy'), user).send()
     );
     for (const response of limited) {
       assert.notEqual(response.status(), 401);

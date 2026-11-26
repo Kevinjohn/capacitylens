@@ -9,7 +9,8 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '#tests/helpers/identities';
-import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import User from '#models/user';
 
 const companyId = 'a-studio';
 const otherCompanyId = 'a-loft';
@@ -177,9 +178,9 @@ test.group('native authorization and role projections', (group) => {
 
     const foreignClient = seed().clients.find((row) => row.companyId === otherCompanyId);
     assert.isDefined(foreignClient);
-    const concealed = await asDataOwner(
+    const concealed = await asLoggedInDataOwner(
       trusted(client.post(`/api/v1/clients/${foreignClient!.id}/archive`)),
-      cookie
+      await User.findOrFail(userId)
     )
       .json({ companyId })
       .send();
@@ -196,6 +197,7 @@ test.group('native authorization and role projections', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie, userId } = await createMember(client, 'viewer');
+    const user = await User.findOrFail(userId);
     const anonymiseCandidates = seed().resources.filter((row) => row.companyId === companyId);
     assert.isAtLeast(anonymiseCandidates.length, 2);
 
@@ -216,14 +218,14 @@ test.group('native authorization and role projections', (group) => {
       const me = await currentUser(client, cookie);
       me.assertStatus(200);
 
-      const currentPlanning = await asDataOwner(
+      const currentPlanning = await asLoggedInDataOwner(
         trusted(client.visit('api.planning.show', { companyId })),
-        cookie
+        user
       ).send();
       currentPlanning.assertStatus(200);
       const planning = currentPlanning.body().data as { revision: number };
       const settingsRequest = trusted(client.visit('api.planning_mutations.store', { companyId }));
-      const setting = await asDataOwner(settingsRequest, cookie)
+      const setting = await asLoggedInDataOwner(settingsRequest, user)
         .json(
           input(planning.revision, {
             operation: 'settings.update',

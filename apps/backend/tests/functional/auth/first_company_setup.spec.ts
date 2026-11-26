@@ -6,7 +6,7 @@ import env from '#start/env';
 import User from '#models/user';
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import {
   bootstrapInvitation,
   createIdentity,
@@ -42,7 +42,8 @@ async function acceptBootstrap(client: ApiClient) {
     .send();
   accepted.assertStatus(201);
   rememberSessionCookie(accepted);
-  return { token, cookie: accepted.cookie('adonis-session')!.value, accepted };
+  const user = await User.findOrFail((accepted.body().data as { user: { id: string } }).user.id);
+  return { token, cookie: accepted.cookie('adonis-session')!.value, accepted, user };
 }
 
 async function setUp(client: ApiClient, cookie: string, name = 'Wayne Enterprises') {
@@ -64,9 +65,9 @@ test.group('authenticated first company setup', (group) => {
     const anonymous = await client.visit('api.session.show').send();
     anonymous.assertStatus(401);
     assert.isTrue((anonymous.body() as { needsSetup?: boolean }).needsSetup);
-    const { token, cookie, accepted } = await acceptBootstrap(client);
+    const { token, cookie, accepted, user } = await acceptBootstrap(client);
     const userId = (accepted.body().data as { user: { id: string } }).user.id;
-    const before = await asDataOwner(client.visit('api.session.show'), cookie).send();
+    const before = await asLoggedInDataOwner(client.visit('api.session.show'), user).send();
     assert.isTrue(before.body().data.emailVerified);
     assert.isTrue(before.body().data.admission.admitted);
     assert.isTrue(before.body().data.companySetupRequired);
@@ -99,13 +100,13 @@ test.group('authenticated first company setup', (group) => {
       actor_id: userId,
       action: 'company.initialized',
     });
-    const state = await asDataOwner(
+    const state = await asLoggedInDataOwner(
       client.visit('api.company_state.show').qs({ companyId }),
-      cookie
+      user
     ).send();
     state.assertStatus(200);
     assert.deepEqual(state.body().data.companies[0].workingDays, [1, 2, 3, 4, 5]);
-    const after = await asDataOwner(client.visit('api.session.show'), cookie).send();
+    const after = await asLoggedInDataOwner(client.visit('api.session.show'), user).send();
     assert.isFalse(after.body().data.companySetupRequired);
     const duplicate = await setUp(client, cookie, 'Stark Industries');
     duplicate.assertStatus(409);
@@ -116,14 +117,14 @@ test.group('authenticated first company setup', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await acceptBootstrap(client);
-    const setup = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
+    const { user } = await acceptBootstrap(client);
+    const setup = await asLoggedInDataOwner(client.visit('api.first_company_setup.store'), user)
       .json({ name: 'Wayne Enterprises', weekStartsOn: 0 })
       .send();
     setup.assertStatus(201);
-    const state = await asDataOwner(
+    const state = await asLoggedInDataOwner(
       client.visit('api.company_state.show').qs({ companyId: setup.body().data.companyId }),
-      cookie
+      user
     ).send();
     state.assertStatus(200);
     assert.deepEqual(state.body().data.companies[0].workingDays, [0, 1, 2, 3, 4]);
@@ -148,8 +149,8 @@ test.group('authenticated first company setup', (group) => {
       client,
       assert,
     }) => {
-      const { cookie } = await acceptBootstrap(client);
-      const result = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
+      const { user } = await acceptBootstrap(client);
+      const result = await asLoggedInDataOwner(client.visit('api.first_company_setup.store'), user)
         .json({ name: 'Wayne Enterprises', ...choice.fields } as never)
         .send();
       result.assertStatus(201);
@@ -164,7 +165,7 @@ test.group('authenticated first company setup', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await acceptBootstrap(client);
+    const { user } = await acceptBootstrap(client);
     // Request validation refuses a malformed shape, and the setup rules a time zone they cannot
     // use, both with 422.
     for (const [extra, status] of [
@@ -176,14 +177,14 @@ test.group('authenticated first company setup', (group) => {
       [{ weekStartsOn: 1, timeZone: '' }, 422],
       [{ weekStartsOn: '1', timeZone: 'Etc/GMT' }, 422],
     ] as const) {
-      const refused = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
+      const refused = await asLoggedInDataOwner(client.visit('api.first_company_setup.store'), user)
         // Deliberately outside the generated body type, to reach the server's refusal.
         .json({ name: 'Wayne Enterprises', ...extra } as never)
         .send();
       refused.assertStatus(status);
       for (const table of companyTables) assert.lengthOf(await db.from(table), 0);
     }
-    const response = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
+    const response = await asLoggedInDataOwner(client.visit('api.first_company_setup.store'), user)
       .json({ name: 'Wayne Enterprises', weekStartsOn: 0, timeZone: 'America/New_York' })
       .send();
     response.assertStatus(201);
@@ -242,7 +243,7 @@ test.group('authenticated first company setup', (group) => {
       .json({ name: 'Wayne Enterprises' })
       .send();
     anonymous.assertStatus(401);
-    const { cookie } = await acceptBootstrap(client);
+    const { user } = await acceptBootstrap(client);
     // Request validation refuses a malformed shape, and the name rule a name it cannot use, with 422.
     for (const [body, status] of [
       [{}, 422],
@@ -251,7 +252,7 @@ test.group('authenticated first company setup', (group) => {
       [{ name: 'Wayne Enterprises', ownerId: 'someone-else' }, 422],
       [['Wayne Enterprises'], 422],
     ] as const) {
-      const result = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
+      const result = await asLoggedInDataOwner(client.visit('api.first_company_setup.store'), user)
         // Deliberately outside the generated body type, to reach the server's refusal.
         .json(body as never)
         .send();
@@ -289,9 +290,9 @@ test.group('authenticated first company setup', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await acceptBootstrap(client);
+    const { cookie, user } = await acceptBootstrap(client);
     await createIdentity('clark.kent@wayne.example', { name: 'Clark Kent' });
-    const me = await asDataOwner(client.visit('api.session.show'), cookie).send();
+    const me = await asLoggedInDataOwner(client.visit('api.session.show'), user).send();
     assert.isFalse(me.body().data.companySetupRequired);
     const refused = await setUp(client, cookie);
     refused.assertStatus(409);

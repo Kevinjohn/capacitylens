@@ -1,6 +1,7 @@
 import { test } from '@japa/runner';
 import router from '@adonisjs/core/services/router';
 import db from '@adonisjs/lucid/services/db';
+import User from '#models/user';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
@@ -24,17 +25,12 @@ async function outsider(client: any) {
     name: 'Selina Kyle',
   });
   other.assertStatus(200);
-  return {
-    cookie: other.cookie('adonis-session')!.value,
-    userId: String((other.body().data as { user: { id: string } }).user.id),
-  };
+  const userId = String((other.body().data as { user: { id: string } }).user.id);
+  return { user: await User.findOrFail(userId), userId };
 }
 
-async function refusals(client: any, cookie: string) {
-  const status = await client
-    .visit('api.masquerade.show')
-    .withCookie('adonis-session', cookie)
-    .send();
+async function refusals(client: any, user: User) {
+  const status = await client.visit('api.masquerade.show').loginAs(user).send();
   status.assertStatus(200);
   const company = await client
     .visit('api.getting_started.update', { companyId: 'a-studio' })
@@ -43,12 +39,12 @@ async function refusals(client: any, cookie: string) {
       'X-Masquerade-Context',
       (status.body().data as { masqueradeToken: string }).masqueradeToken
     )
-    .withCookie('adonis-session', cookie)
+    .loginAs(user)
     .json({ dismissed: true })
     .send();
   const planning = await client
     .visit('api.planning.show', { companyId: 'a-studio' })
-    .withCookie('adonis-session', cookie)
+    .loginAs(user)
     .send();
   return { company, planning };
 }
@@ -67,9 +63,9 @@ test.group('company scope middleware', (group) => {
     client,
     assert,
   }) => {
-    const { cookie, userId } = await outsider(client);
+    const { user, userId } = await outsider(client);
     const expectRefused = async () => {
-      const { company, planning } = await refusals(client, cookie);
+      const { company, planning } = await refusals(client, user);
       company.assertStatus(403);
       assert.deepEqual(company.body(), {
         error: 'Forbidden.',
