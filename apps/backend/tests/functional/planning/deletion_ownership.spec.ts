@@ -6,6 +6,7 @@ import Closure from '#models/closure';
 import Discipline from '#models/discipline';
 import Phase from '#models/phase';
 import TimeOff from '#models/time_off';
+import { ClosureFactory } from '#database/factories/closure_factory';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { fixtureSession } from '#tests/helpers/identities';
 import { resetPlanningFixture } from '#tests/functional/planning/helpers';
@@ -41,16 +42,12 @@ test.group('planning deletion ownership', (suite) => {
     assert,
   }) => {
     const sessionId = await fixtureSession('u-bruce');
-    const now = new Date().toISOString();
-    await db.table('closures').insert({
-      id: randomUUID(),
-      company_id: 'a-studio',
+    await ClosureFactory.merge({
+      companyId: 'a-studio',
       name: 'Gotham Founders Day',
-      start_date: '2026-11-02',
-      end_date: '2026-11-02',
-      created_at: now,
-      updated_at: now,
-    });
+      startDate: '2026-11-02',
+      endDate: '2026-11-02',
+    }).create();
     for (const [table, modelClass] of Object.entries(models)) {
       const row = await (modelClass as typeof Allocation)
         .query()

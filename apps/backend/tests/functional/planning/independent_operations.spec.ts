@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
+import { ClientFactory } from '#database/factories/client_factory';
 import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
@@ -610,12 +611,12 @@ test.group('independent typed planning operations', (group) => {
     const data = await readState(companyId, true);
     const template = data.clients.find((row) => row.companyId === companyId && !row.builtin)!;
     const id = `client:${randomUUID()}`;
-    const templateRow = await db.from('clients').where({ id: template.id }).first();
-    await db.table('clients').insert({
-      ...templateRow,
+    await ClientFactory.merge({
       id,
+      companyId,
       name: 'Daily Planet',
-    });
+      color: template.color,
+    }).create();
     const { cookie } = await loginAsMember();
     const response = await session(
       client.visit('api.planning_mutations.store', { companyId }),

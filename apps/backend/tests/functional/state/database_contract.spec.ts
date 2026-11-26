@@ -7,6 +7,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import { seed } from '@capacitylens/shared/data/seed';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
 import Company from '#models/company';
+import { ClientFactory } from '#database/factories/client_factory';
 import { insertTwoCompanyFixture } from '#tests/functional/state/database_contract_fixtures';
 import {
   ACTIVITY_KINDS,
@@ -327,16 +328,14 @@ test.group('database contract', (group) => {
     assert,
   }) => {
     const names = ['true', 'false', '[]', '{"hero":"Batman"}'];
-    await db.table('clients').insert(
+    await ClientFactory.merge(
       names.map((name, index) => ({
         id: `m1-string-client-${index}`,
-        company_id: companyIds.dc,
+        companyId: companyIds.dc,
         name,
         color: '#111111',
-        created_at: stamp,
-        updated_at: stamp,
       }))
-    );
+    ).createMany(names.length);
     const jsonLookingNote = '{"case":"preserve as text"}';
     await db.from('allocations').where('id', 'm1-dc-allocation').update({ note: jsonLookingNote });
 
