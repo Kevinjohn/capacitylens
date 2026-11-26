@@ -9,7 +9,6 @@ import {
   companyId,
   configureAuth,
   newAllocation,
-  planningUrl,
   resetPlanningFixture,
   session,
   signIn,
@@ -17,7 +16,6 @@ import {
 } from '#tests/functional/planning/helpers';
 import {
   listCreatedAllocationIds,
-  mutationsUrl,
   planningAudit,
   stored,
 } from '#tests/functional/planning/restoration_helpers';
@@ -37,8 +35,11 @@ class Page {
     readonly historyId: string | null = randomUUID()
   ) {}
 
-  private async post(url: string, body: Record<string, unknown>) {
-    const response = await session(this.client.post(url), this.cookie)
+  private async post(
+    route: 'api.planning_mutations.store' | 'api.planning_undo.store' | 'api.planning_redo.store',
+    body: Record<string, unknown>
+  ) {
+    const response = await session(this.client.visit(route, { companyId }), this.cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: this.revision,
@@ -52,21 +53,24 @@ class Page {
     return { ...reply, status: response.status() };
   }
 
-  write(url: string, intent: Record<string, unknown>) {
-    return this.post(url, { intent });
+  write(intent: Record<string, unknown>) {
+    return this.post('api.planning_mutations.store', { intent });
   }
 
   undo() {
-    return this.post(`${planningUrl}/undo`, {});
+    return this.post('api.planning_undo.store', {});
   }
 
   redo() {
-    return this.post(`${planningUrl}/redo`, {});
+    return this.post('api.planning_redo.store', {});
   }
 
   async read() {
-    const query = this.historyId === null ? '' : `?historyId=${this.historyId}`;
-    const response = await session(this.client.get(`${planningUrl}${query}`), this.cookie).send();
+    const query = this.historyId === null ? {} : { historyId: this.historyId };
+    const response = await session(
+      this.client.visit('api.planning.show', { companyId }).qs(query),
+      this.cookie
+    ).send();
     response.assertStatus(200);
     const reply = response.body().data as Reply & {
       data: { allocations: Array<{ id: string; updatedAt: string }> };
@@ -97,12 +101,12 @@ const noteOf = async (id: string) => {
 
 async function createAllocation(page: Page) {
   const allocation = { ...newAllocation(await readState(companyId, true)), note: 'Batcave audit' };
-  const reply = await page.write(mutationsUrl, { operation: 'allocation.create', allocation });
+  const reply = await page.write({ operation: 'allocation.create', allocation });
   return { id: allocation.id, reply };
 }
 
 const setNote = (page: Page, id: string, note: string) =>
-  page.write(mutationsUrl, { operation: 'allocation.update', id, changes: { note } });
+  page.write({ operation: 'allocation.update', id, changes: { note } });
 
 test.group('server-held undo and redo', (suite) => {
   suite.setup(() => freshDatabase());
@@ -171,7 +175,7 @@ test.group('server-held undo and redo', (suite) => {
     configureAuth(cleanup);
     const page = new Page(client, await cookieFor(client));
     const { id } = await createAllocation(page);
-    const deleted = await page.write(mutationsUrl, {
+    const deleted = await page.write({
       operation: 'allocation.delete',
       id,
     });
@@ -326,7 +330,7 @@ test.group('server-held undo and redo', (suite) => {
     const target = state.clients.find(
       (row) => row.companyId === companyId && !row.builtin && !row.isPrivate && !row.archivedAt
     )!;
-    const hidden = await page.write(`/api/v1/companies/${companyId}/planning/mutations`, {
+    const hidden = await page.write({
       operation: 'catalogue.update',
       entity: {
         entity: 'clients',
@@ -400,7 +404,7 @@ test.group('server-held undo and redo', (suite) => {
     configureAuth(cleanup);
     const page = new Page(client, await cookieFor(client));
     const allocation = newAllocation(await readState(companyId, true));
-    const reply = await page.write(mutationsUrl, {
+    const reply = await page.write({
       operation: 'allocation.createGroup',
       allocation,
       repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
@@ -436,7 +440,7 @@ test.group('server-held undo and redo', (suite) => {
     assert.isAbove(original?.hoursPerDay ?? 0, 0);
 
     // An external carries no load: the server sets zero hours, which the intent cannot name.
-    const moved = await page.write(mutationsUrl, {
+    const moved = await page.write({
       operation: 'allocation.reassign',
       id,
       resourceId: external.id,
@@ -453,7 +457,7 @@ test.group('server-held undo and redo', (suite) => {
 
     // Back on a person in hourly mode, a zero-hour booking takes the person's working day.
     const person = data.resources.find((row) => row.id === original?.resourceId)!;
-    const back = await page.write(mutationsUrl, {
+    const back = await page.write({
       operation: 'allocation.reassign',
       id,
       resourceId: person.id,

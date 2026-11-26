@@ -27,11 +27,13 @@ test.group('HTTP contract', (group) => {
     assert.equal(missing.status(), 422);
     const refusal = missing.body() as unknown as { errors: Array<{ field: string }> };
     assert.equal(refusal.errors[0]?.field, 'companyId');
-    const repeated = await client.get('/api/v1/state?companyId=a-studio&companyId=a-loft');
+    const repeated = await client
+      .visit('api.company_state.show')
+      .unsafeQs('companyId=a-studio&companyId=a-loft');
     assert.equal(repeated.status(), 422);
-    const whitespace = await client.get('/api/v1/state?companyId=%20%20');
+    const whitespace = await client.visit('api.company_state.show').unsafeQs('companyId=%20%20');
     assert.equal(whitespace.status(), 422);
-    assert.isNotEmpty(whitespace.body().errors);
+    assert.isNotEmpty((whitespace.body() as unknown as { errors: unknown[] }).errors);
     const invalidInactive = await client
       .visit('api.company_state.show')
       .qs({ companyId: 'a-studio', includeInactive: 'true' } as never);
@@ -42,9 +44,9 @@ test.group('HTTP contract', (group) => {
       'companyId=a-studio&includeInactive=1&includeInactive=1',
       'companyId[unexpected]=1',
     ]) {
-      const invalid = await client.get(`/api/v1/state?${query}`);
+      const invalid = await client.visit('api.company_state.show').unsafeQs(query);
       invalid.assertStatus(422);
-      assert.isNotEmpty(invalid.body().errors);
+      assert.isNotEmpty((invalid.body() as unknown as { errors: unknown[] }).errors);
     }
     const scoped = await client.visit('api.company_state.show').qs({ companyId: 'a-studio' });
     assert.equal(scoped.status(), 200);
@@ -138,28 +140,27 @@ test.group('HTTP contract', (group) => {
 
     const planning = await client.visit('api.planning.show', { companyId: 'a-studio' });
     assert.equal(planning.status(), 200);
-    const writePath = '/api/v1/companies/a-studio/planning/mutations';
     const write = {
       mutationId: randomUUID(),
       baseRevision: (planning.body().data as { revision: number }).revision,
       intent: {
-        operation: 'catalogue.create',
+        operation: 'catalogue.create' as const,
         entity: {
-          entity: 'disciplines',
+          entity: 'disciplines' as const,
           id: randomUUID(),
           fields: { name: 'Planning', color: '#2d75da' },
         },
       },
     };
     const allowedWrite = await client
-      .post(writePath)
+      .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('origin', allowed)
       .header('sec-fetch-site', 'cross-site')
       .json(write);
     assert.equal(allowedWrite.status(), 200);
 
     const disallowedWrite = await client
-      .post(writePath)
+      .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('origin', 'https://attacker.example')
       .header('sec-fetch-site', 'cross-site')
       .json(write);
@@ -169,13 +170,13 @@ test.group('HTTP contract', (group) => {
     assert.equal(disallowedWrite.header('x-frame-options'), 'DENY');
 
     const originlessCrossSite = await client
-      .post(writePath)
+      .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('sec-fetch-site', 'cross-site')
       .json(write);
     assert.equal(originlessCrossSite.status(), 403);
 
     const tlsTerminatedOtherHost = await client
-      .post(writePath)
+      .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('host', 'capacity.example.com')
       .header('origin', 'https://other.example.com')
       .json(write);

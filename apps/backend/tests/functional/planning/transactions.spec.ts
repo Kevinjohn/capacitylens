@@ -75,7 +75,10 @@ db.exec('COMMIT')`,
     };
     knex.on('query-response', interleave);
     try {
-      const snapshot = await session(client.get(planningUrl), cookie).send();
+      const snapshot = await session(
+        client.visit('api.planning.show', { companyId }),
+        cookie
+      ).send();
       snapshot.assertStatus(200);
       assert.equal(attempted, 3, 'the external writer waits for the snapshot');
       assert.equal(snapshot.body().data.revision, 0);
@@ -85,7 +88,7 @@ db.exec('COMMIT')`,
       knex.off('query-response', interleave);
     }
     assert.equal(externalCommit(), 0);
-    const current = await session(client.get(planningUrl), cookie).send();
+    const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     current.assertStatus(200);
     assert.equal(current.body().data.revision, 1);
     assert.equal(current.body().data.access.role, 'viewer');
@@ -202,7 +205,7 @@ db.exec('COMMIT')`,
       ),
       1
     );
-    const current = await session(client.get(planningUrl), cookie).send();
+    const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     assert.equal(current.body().data.revision, 1);
   });
 
@@ -251,7 +254,10 @@ db.exec('COMMIT')`,
       .json({ targetUserId: target.userId })
       .send();
     start.assertStatus(200);
-    const snapshot = await session(client.get(planningUrl), owner.cookie).send();
+    const snapshot = await session(
+      client.visit('api.planning.show', { companyId }),
+      owner.cookie
+    ).send();
     snapshot.assertStatus(200);
     assert.equal(snapshot.body().data.access.effectiveActorId, target.userId);
     assert.isFalse(snapshot.body().data.access.canWrite);

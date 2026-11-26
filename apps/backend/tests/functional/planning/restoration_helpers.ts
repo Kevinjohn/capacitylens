@@ -5,7 +5,6 @@ import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
 import { companyId, newAllocation, session } from '#tests/functional/planning/helpers';
 
-export const mutationsUrl = `/api/v1/companies/${companyId}/planning/mutations`;
 export const note = 'Gotham night shift briefing';
 
 export interface Reply {
@@ -23,13 +22,16 @@ interface ReplyBody {
 export async function send(
   client: ApiClient,
   cookie: string,
-  url: string,
+  company: string,
   baseRevision: number,
   intent: Record<string, unknown>,
   mutationId: string = randomUUID(),
   confirmedRestorationCount?: number
 ) {
-  const response = await session(client.post(url), cookie)
+  const response = await session(
+    client.visit('api.planning_mutations.store', { companyId: company }),
+    cookie
+  )
     .json({
       mutationId,
       baseRevision,
@@ -48,14 +50,7 @@ export const deleteOne = (
   baseRevision: number,
   mutationId?: string
 ) =>
-  send(
-    client,
-    cookie,
-    mutationsUrl,
-    baseRevision,
-    { operation: 'allocation.delete', id },
-    mutationId
-  );
+  send(client, cookie, companyId, baseRevision, { operation: 'allocation.delete', id }, mutationId);
 
 export const deleteGroup = (
   client: ApiClient,
@@ -63,7 +58,7 @@ export const deleteGroup = (
   ids: string[],
   baseRevision: number
 ) =>
-  send(client, cookie, mutationsUrl, baseRevision, {
+  send(client, cookie, companyId, baseRevision, {
     operation: 'allocation.deleteGroup',
     ids,
   });
@@ -79,7 +74,7 @@ export const restore = (
   send(
     client,
     cookie,
-    `/api/v1/companies/${company}/planning/mutations`,
+    company,
     baseRevision,
     { operation: 'planning.restoreGroup', restorationGroupId },
     mutationId
@@ -91,11 +86,11 @@ export async function createAllocations(client: ApiClient, cookie: string, count
   const allocation = { ...newAllocation(data), note, task: 'Watchtower rota' };
   const created =
     count === 1
-      ? await send(client, cookie, mutationsUrl, 0, {
+      ? await send(client, cookie, companyId, 0, {
           operation: 'allocation.create',
           allocation,
         })
-      : await send(client, cookie, mutationsUrl, 0, {
+      : await send(client, cookie, companyId, 0, {
           operation: 'allocation.createGroup',
           allocation,
           repeat: {

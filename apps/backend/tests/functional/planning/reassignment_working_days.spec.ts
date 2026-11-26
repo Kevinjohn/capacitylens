@@ -7,14 +7,12 @@ import {
   companyId,
   configureAuth,
   newAllocation,
-  planningUrl,
   resetPlanningFixture,
   session,
   loginAsMember,
   validationSentence,
 } from '#tests/functional/planning/helpers';
 
-const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
 const body = (response: { body(): unknown; status(): number }) =>
   (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
@@ -47,7 +45,7 @@ test.group('reassignment working-day override', (group) => {
       .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: false });
     const { cookie } = await loginAsMember();
     const patch = (revision: number, changes: Record<string, unknown>) =>
-      session(client.post(route('planning/mutations')), cookie)
+      session(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(input(revision, { operation: 'allocation.update', id: allocation.id, changes }))
         .send();
     const refused = await patch(0, { resourceId: 'r-alex' });
@@ -74,7 +72,10 @@ test.group('reassignment working-day override', (group) => {
       endDate: '2026-06-05',
       ignoreWorkingDays: true,
     };
-    const newBooking = await session(client.post(route('planning/mutations')), cookie)
+    const newBooking = await session(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(input(2, { operation: 'allocation.create', allocation: newRow }))
       .send();
     newBooking.assertStatus(422);
@@ -85,7 +86,10 @@ test.group('reassignment working-day override', (group) => {
     unavailable.assertStatus(422);
     assert.isString(validationSentence(unavailable));
     assert.deepEqual(await readState(companyId, true), before);
-    const canonical = await session(client.get(planningUrl), cookie).send();
+    const canonical = await session(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     canonical.assertStatus(200);
     assert.equal(body(canonical).revision, 2);
   });

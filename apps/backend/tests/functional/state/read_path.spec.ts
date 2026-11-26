@@ -93,8 +93,8 @@ test.group('read path', (group) => {
   });
 
   test('exposes liveness and readiness', async ({ client, assert }) => {
-    const live = await client.get('/health/live');
-    const ready = await client.get('/health/ready');
+    const live = await client.visit('health_checks.live');
+    const ready = await client.visit('health_checks.ready');
     assert.deepEqual(live.body(), { ok: true });
     assert.isTrue(ready.body().isHealthy);
     assert.equal(ready.body().status, 'ok');

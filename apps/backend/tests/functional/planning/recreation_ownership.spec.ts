@@ -7,7 +7,6 @@ import { readState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
-  planningUrl,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
@@ -16,18 +15,18 @@ import {
   signInAgain,
 } from '#tests/functional/planning/helpers';
 
-const mutationsUrl = `/api/v1/companies/${companyId}/planning/mutations`;
-
 interface SendPlanningOptions {
   client: ApiClient;
   cookie: string;
-  path: string;
   baseRevision: number;
   intent: PlanningIntent;
 }
 
-async function sendPlanning({ client, cookie, path, baseRevision, intent }: SendPlanningOptions) {
-  const response = await session(client.post(path), cookie)
+async function sendPlanning({ client, cookie, baseRevision, intent }: SendPlanningOptions) {
+  const response = await session(
+    client.visit('api.planning_mutations.store', { companyId }),
+    cookie
+  )
     .json({ mutationId: randomUUID(), baseRevision, intent })
     .send();
   // Callers assert 200 before reading success fields; refusal bodies are compared as whole values.
@@ -63,7 +62,6 @@ test.group('retained id recreation ownership', (suite) => {
       const created = await sendPlanning({
         client,
         cookie: owner.cookie,
-        path: mutationsUrl,
         baseRevision: 0,
         intent: { operation: 'allocation.create', allocation },
       });
@@ -71,7 +69,6 @@ test.group('retained id recreation ownership', (suite) => {
       const deleted = await sendPlanning({
         client,
         cookie: owner.cookie,
-        path: mutationsUrl,
         baseRevision: 1,
         intent: { operation: 'allocation.delete', id: allocation.id },
       });
@@ -84,7 +81,10 @@ test.group('retained id recreation ownership', (suite) => {
       } else {
         cookie = await signInAgain(client, owner.email);
       }
-      const snapshot = await session(client.get(planningUrl), cookie).send();
+      const snapshot = await session(
+        client.visit('api.planning.show', { companyId }),
+        cookie
+      ).send();
       snapshot.assertStatus(200);
       assert.equal(snapshot.body().data.access.role, 'editor');
       assert.isTrue(snapshot.body().data.access.canWrite);
@@ -93,7 +93,6 @@ test.group('retained id recreation ownership', (suite) => {
       const refused = await sendPlanning({
         client,
         cookie,
-        path: mutationsUrl,
         baseRevision: 2,
         intent: { operation: 'allocation.create', allocation: { ...allocation, hoursPerDay: 6 } },
       });
@@ -103,7 +102,6 @@ test.group('retained id recreation ownership', (suite) => {
       const restored = await sendPlanning({
         client,
         cookie: owner.cookie,
-        path: mutationsUrl,
         baseRevision: 2,
         intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
       });
@@ -126,7 +124,6 @@ test.group('retained id recreation ownership', (suite) => {
     const created = await sendPlanning({
       client,
       cookie,
-      path: mutationsUrl,
       baseRevision: 0,
       intent: { operation: 'allocation.create', allocation },
     });
@@ -134,7 +131,6 @@ test.group('retained id recreation ownership', (suite) => {
     const deleted = await sendPlanning({
       client,
       cookie,
-      path: mutationsUrl,
       baseRevision: 1,
       intent: { operation: 'allocation.delete', id: allocation.id },
     });
@@ -143,7 +139,6 @@ test.group('retained id recreation ownership', (suite) => {
     const recreated = await sendPlanning({
       client,
       cookie,
-      path: mutationsUrl,
       baseRevision: 2,
       intent: { operation: 'allocation.create', allocation: { ...allocation, hoursPerDay: 6 } },
     });
@@ -156,7 +151,6 @@ test.group('retained id recreation ownership', (suite) => {
     const restored = await sendPlanning({
       client,
       cookie,
-      path: mutationsUrl,
       baseRevision: 3,
       intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
     });

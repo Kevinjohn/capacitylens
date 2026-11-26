@@ -14,7 +14,6 @@ import {
   validationSentence,
 } from '#tests/functional/planning/helpers';
 
-const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -22,7 +21,7 @@ const input = (baseRevision: number, intent: Record<string, unknown>) => ({
 });
 
 function mutate(client: ApiClient, cookie: Credential, revision: number, intent: object) {
-  return session(client.post(route('planning/mutations')), cookie)
+  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json(input(revision, intent as Record<string, unknown>))
     .send();
 }

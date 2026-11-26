@@ -9,7 +9,6 @@ import { RowValidationService } from '#services/planning/row_validation_service'
 import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
-  planningUrl,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
@@ -47,7 +46,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .from('clients')
       .where('id', hidden.id)
       .update({ name: 'Wayne secret', is_private: true, code_name: 'Nightwing' });
-    const response = await session(client.get(planningUrl), cookie).send();
+    const response = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     response.assertStatus(200);
     assert.equal(response.body().data.companyId, companyId);
     assert.equal(response.body().data.revision, 0);
@@ -67,7 +66,7 @@ test.group('authenticated typed planning transactions', (group) => {
     ).send();
     foreign.assertStatus(403);
     assert.equal((foreign.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
-    const anonymous = await trusted(client.get(planningUrl)).send();
+    const anonymous = await trusted(client.visit('api.planning.show', { companyId })).send();
     anonymous.assertStatus(401);
   });
 
@@ -84,7 +83,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const { cookie } = await loginAsMember('viewer');
     const data = await readState(companyId, false);
 
-    const read = await session(client.get(planningUrl), cookie).send();
+    const read = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     read.assertStatus(200);
     const { capacity } = read.body().data;
     assert.deepEqual(capacity.window, { from: '2026-05-04', to: '2026-09-28' });
@@ -101,7 +100,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.lengthOf(first!.horizon.over, 82);
 
     const requested = await session(
-      client.get(planningUrl).qs({ from: '2026-01-05', to: '2026-01-11' }),
+      client.visit('api.planning.show', { companyId }).qs({ from: '2026-01-05', to: '2026-01-11' }),
       cookie
     ).send();
     requested.assertStatus(200);
@@ -132,7 +131,10 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.exists(archivedActivity);
     type Days = { available: number[]; over: boolean[] };
     const readWindow = async () => {
-      const response = await session(client.get(planningUrl), cookie).send();
+      const response = await session(
+        client.visit('api.planning.show', { companyId }),
+        cookie
+      ).send();
       response.assertStatus(200);
       const { capacity } = response.body().data;
       return {
@@ -196,7 +198,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const { cookie, userId } = await loginAsMember('editor');
     await db.transaction((trx) => planningRevisions.advancePlanningRevision(trx, companyId));
     const read = (query: Record<string, string | number>) =>
-      session(client.get(planningUrl).qs(query), cookie).send();
+      session(client.visit('api.planning.show', { companyId }).qs(query), cookie).send();
 
     const unchanged = await read({ ifRevision: 1 });
     unchanged.assertStatus(200);
@@ -250,12 +252,15 @@ test.group('authenticated typed planning transactions', (group) => {
       [{ from: '2026-02-30', to: '2026-03-01' }, 'The from field must be a datetime value'],
     ];
     for (const [query, error] of refusals) {
-      const response = await session(client.get(planningUrl).qs(query), cookie).send();
+      const response = await session(
+        client.visit('api.planning.show', { companyId }).qs(query),
+        cookie
+      ).send();
       response.assertStatus(422);
       assert.equal(response.body().errors[0]?.message, error, JSON.stringify(query));
     }
     const longest = await session(
-      client.get(planningUrl).qs({ from: '2026-01-01', to: '2027-01-01' }),
+      client.visit('api.planning.show', { companyId }).qs({ from: '2026-01-01', to: '2027-01-01' }),
       cookie
     ).send();
     longest.assertStatus(200);
@@ -264,7 +269,7 @@ test.group('authenticated typed planning transactions', (group) => {
     }>;
     assert.lengthOf(resource!.window.over, 366);
     const leapYear = await session(
-      client.get(planningUrl).qs({ from: '2028-01-01', to: '2028-12-31' }),
+      client.visit('api.planning.show', { companyId }).qs({ from: '2028-01-01', to: '2028-12-31' }),
       cookie
     ).send();
     leapYear.assertStatus(200);
@@ -315,7 +320,7 @@ test.group('authenticated typed planning transactions', (group) => {
       [['allocations', allocation.id]]
     );
     assert.deepEqual(changes.removed, []);
-    const read = await session(client.get(planningUrl), cookie).send();
+    const read = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     read.assertStatus(200);
     assert.equal(read.body().data.revision, 1);
     assert.isTrue(
@@ -668,7 +673,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .where('id', foreign.id)
       .update({ avatar_url: imageFor(foreign.id) });
 
-    const response = await session(client.get(planningUrl), cookie).send();
+    const response = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     response.assertStatus(200);
     const resources = response.body().data.data.resources as {
       id: string;
@@ -773,7 +778,7 @@ test.group('authenticated typed planning transactions', (group) => {
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       0
     );
-    const current = await session(client.get(planningUrl), cookie).send();
+    const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     assert.equal(current.body().data.revision, 0);
   });
 });
