@@ -1,28 +1,16 @@
 import { test } from '@japa/runner';
-import { readFile } from 'node:fs/promises';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed } from '#tests/helpers/state_fixture';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import db from '@adonisjs/lucid/services/db';
-
-const fixture = JSON.parse(
-  await readFile(new URL('../../fixtures-main-responses.json', import.meta.url), 'utf8')
-) as {
-  responses: Array<{
-    method: 'GET' | 'POST';
-    path: string;
-    status: number;
-    body: unknown;
-    headers: Record<string, string>;
-  }>;
-};
+import { recordedResponses } from '#tests/helpers/state/http_responses';
 
 test.group('read path', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
-  for (const expected of fixture.responses.filter(
+  for (const expected of recordedResponses.responses.filter(
     (entry) => !['/api/v1/state', '/api/v1/auth/me'].includes(entry.path)
   )) {
     test(`${expected.method} ${expected.path} matches the main response`, async ({

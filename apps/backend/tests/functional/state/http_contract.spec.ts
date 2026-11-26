@@ -4,15 +4,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed, resetState } from '#tests/helpers/state_fixture';
 import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import db from '@adonisjs/lucid/services/db';
-
-const securityHeaders = [
-  'content-security-policy',
-  'cross-origin-opener-policy',
-  'cross-origin-resource-policy',
-  'referrer-policy',
-  'x-content-type-options',
-  'x-frame-options',
-];
+import { securityHeaders } from '#tests/helpers/state/http_responses';
 
 test.group('HTTP contract', (group) => {
   group.setup(() => freshDatabase());

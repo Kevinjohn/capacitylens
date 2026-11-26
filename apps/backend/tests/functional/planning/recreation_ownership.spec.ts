@@ -1,8 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import type { ApiClient, ApiResponse } from '@japa/api-client';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import { readState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
@@ -14,35 +11,7 @@ import {
   signIn,
   signInAgain,
 } from '#tests/functional/planning/helpers';
-
-interface SendPlanningOptions {
-  client: ApiClient;
-  cookie: string;
-  baseRevision: number;
-  intent: PlanningIntent;
-}
-
-async function sendPlanning({ client, cookie, baseRevision, intent }: SendPlanningOptions) {
-  const response = await session(
-    client.visit('api.planning_mutations.store', { companyId }),
-    cookie
-  )
-    .json({ mutationId: randomUUID(), baseRevision, intent })
-    .send();
-  // Callers assert 200 before reading success fields; refusal bodies are compared as whole values.
-  return response as ApiResponse<{ data: PlanningMutationSuccess }>;
-}
-
-async function readPlanningStorage() {
-  return {
-    allocations: await db.from('allocations').orderBy('id'),
-    groups: await db.from('deleted_groups').orderBy('group_id'),
-    rows: await db.from('deleted_rows').orderBy('group_id').orderBy('row_id'),
-    revisions: await db.from('company_planning_revisions').orderBy('company_id'),
-    receipts: await db.from('planning_mutations').orderBy('mutation_id'),
-    audit: await db.from('audit_entries').where('entity', 'planning').orderBy('id'),
-  };
-}
+import { sendPlanning, readPlanningStorage } from '#tests/helpers/planning/retained_rows';
 
 test.group('retained id recreation ownership', (suite) => {
   suite.setup(() => freshDatabase());

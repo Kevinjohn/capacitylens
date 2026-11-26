@@ -16,24 +16,7 @@ import {
   trusted,
   validationSentence,
 } from '#tests/functional/planning/helpers';
-
-const input = (baseRevision: number, intent: Record<string, unknown>) => ({
-  mutationId: randomUUID(),
-  baseRevision,
-  intent,
-});
-/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
-/** The framework's validation answer: one entry per refused field. */
-const validationErrors = (response: { body(): unknown }) =>
-  (response.body() as { errors?: Array<{ message: string }> }).errors;
-const body = (response: { body(): unknown; status(): number }) =>
-  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
-    code?: string;
-    error?: string;
-    status?: string;
-    mutationId?: string;
-    revision?: number;
-  };
+import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations';
 
 test.group('independent typed planning operations', (group) => {
   group.setup(() => freshDatabase());
@@ -56,7 +39,7 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'allocation.createGroup',
           allocation: first,
           repeat: { pattern: { kind: 'monthly-date' }, until: '2026-11-01' },
@@ -65,7 +48,7 @@ test.group('independent typed planning operations', (group) => {
       .send();
 
     committed.assertStatus(200);
-    assert.equal(body(committed).revision, 1);
+    assert.equal(replyBody(committed).revision, 1);
     const saved = await readState(companyId, true);
     const firstRow = saved.allocations.find((row) => row.id === first.id);
     // The server minted the later occurrence's id.
@@ -110,7 +93,7 @@ test.group('independent typed planning operations', (group) => {
         cookie
       )
         .json(
-          input(0, {
+          mutationInput(0, {
             operation: 'timeOff.repeat',
             timeOff,
             repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
@@ -139,7 +122,7 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'allocation.createGroup',
           allocation: first,
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: first.startDate },
@@ -215,7 +198,7 @@ test.group('independent typed planning operations', (group) => {
         })
         .send();
       response.assertStatus(200);
-      assert.equal(body(response).revision, index + 1);
+      assert.equal(replyBody(response).revision, index + 1);
       // Only a catalogue archive reports what it hid.
       if (transition.operation !== 'catalogue.archive')
         assert.notProperty((response.body() as { data: unknown }).data as object, 'archived');
@@ -263,11 +246,14 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, { operation: 'catalogue.restore', entity: { entity: 'clients', id: clientId } })
+        mutationInput(0, {
+          operation: 'catalogue.restore',
+          entity: { entity: 'clients', id: clientId },
+        })
       )
       .send();
     alreadyActive.assertStatus(400);
-    assert.equal(body(alreadyActive).code, 'NO_CHANGE');
+    assert.equal(replyBody(alreadyActive).code, 'NO_CHANGE');
     assert.deepEqual(Object.keys(alreadyActive.body() as object).sort(), ['code', 'error']);
 
     const missing = await session(
@@ -275,7 +261,10 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: missingId } })
+        mutationInput(0, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: missingId },
+        })
       )
       .send();
     missing.assertStatus(422);
@@ -287,7 +276,10 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: clientId } })
+        mutationInput(0, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: clientId },
+        })
       )
       .send();
     archived.assertStatus(200);
@@ -296,11 +288,14 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(1, { operation: 'catalogue.archive', entity: { entity: 'clients', id: clientId } })
+        mutationInput(1, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: clientId },
+        })
       )
       .send();
     repeated.assertStatus(400);
-    assert.equal(body(repeated).code, 'NO_CHANGE');
+    assert.equal(replyBody(repeated).code, 'NO_CHANGE');
     assert.deepEqual(Object.keys(repeated.body() as object).sort(), ['code', 'error']);
 
     const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
@@ -327,7 +322,10 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: target.id } })
+        mutationInput(0, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: target.id },
+        })
       )
       .send();
     archived.assertStatus(200);
@@ -368,7 +366,7 @@ test.group('independent typed planning operations', (group) => {
         cookie
       )
         .json(
-          input(0, {
+          mutationInput(0, {
             operation,
             entity: { entity: 'clients', id: internal.id },
           })
@@ -404,7 +402,7 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.update',
           entity: { entity: 'clients', id: internal.id, changes: { name: 'Renamed Internal' } },
         })
@@ -425,7 +423,7 @@ test.group('independent typed planning operations', (group) => {
     );
 
     const spoofedId = randomUUID();
-    const createInput = input(0, {
+    const createInput = mutationInput(0, {
       operation: 'catalogue.create',
       entity: {
         entity: 'clients',
@@ -440,9 +438,9 @@ test.group('independent typed planning operations', (group) => {
       .json(createInput)
       .send();
     spoofed.assertStatus(200);
-    assert.equal(body(spoofed).status, 'committed');
-    assert.equal(body(spoofed).mutationId, createInput.mutationId);
-    assert.equal(body(spoofed).revision, 1);
+    assert.equal(replyBody(spoofed).status, 'committed');
+    assert.equal(replyBody(spoofed).mutationId, createInput.mutationId);
+    assert.equal(replyBody(spoofed).revision, 1);
     const ordinary = await db.from('clients').where({ id: spoofedId }).first();
     assert.deepInclude(ordinary!, {
       id: spoofedId,
@@ -478,7 +476,7 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(createdAudit[0].entity_id, createInput.mutationId);
     assert.equal(createdAudit[0].action, 'catalogue.create');
 
-    const renameInput = input(1, {
+    const renameInput = mutationInput(1, {
       operation: 'catalogue.update',
       entity: {
         entity: 'clients',
@@ -493,14 +491,14 @@ test.group('independent typed planning operations', (group) => {
       .json(renameInput)
       .send();
     normalRename.assertStatus(200);
-    assert.equal(body(normalRename).status, 'committed');
-    assert.equal(body(normalRename).mutationId, renameInput.mutationId);
-    assert.equal(body(normalRename).revision, 2);
+    assert.equal(replyBody(normalRename).status, 'committed');
+    assert.equal(replyBody(normalRename).mutationId, renameInput.mutationId);
+    assert.equal(replyBody(normalRename).revision, 2);
     const ordinaryRenamed = await db.from('clients').where({ id: spoofedId }).first();
     assert.equal(ordinaryRenamed!.name, 'Ordinary renamed');
     assert.isNull(ordinaryRenamed!.builtin);
 
-    const flagOnlyInput = input(2, {
+    const flagOnlyInput = mutationInput(2, {
       operation: 'catalogue.update',
       entity: { entity: 'clients', id: spoofedId, changes: { builtin: true } },
     });
@@ -561,7 +559,7 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.archive',
           entity: { entity: 'projects', id: foreignProject.id },
         })
@@ -623,14 +621,14 @@ test.group('independent typed planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.update',
           entity: { entity: 'clients', id, changes: { name: 'Daily Planet Press' } },
         })
       )
       .send();
     response.assertStatus(200);
-    assert.equal(body(response).status, 'committed');
+    assert.equal(replyBody(response).status, 'committed');
     const stored = await db.from('clients').where({ id }).first();
     assert.equal(stored?.name, 'Daily Planet Press');
   });

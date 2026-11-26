@@ -1,36 +1,11 @@
-import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
-import Closure from '#models/closure';
-import Discipline from '#models/discipline';
-import Phase from '#models/phase';
-import TimeOff from '#models/time_off';
 import { ClosureFactory } from '#database/factories/closure_factory';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { fixtureSession } from '#tests/helpers/identities';
 import { resetPlanningFixture } from '#tests/functional/planning/helpers';
-
-const models = {
-  allocations: Allocation,
-  closures: Closure,
-  disciplines: Discipline,
-  phases: Phase,
-  time_off: TimeOff,
-} as const;
-
-async function group(companyId: string, sessionId: number) {
-  const groupId = randomUUID();
-  await db.table('deleted_groups').insert({
-    group_id: groupId,
-    company_id: companyId,
-    actor_id: 'u-bruce',
-    session_id: sessionId,
-    mutation_id: randomUUID(),
-    created_at: new Date().toISOString(),
-  });
-  return groupId;
-}
+import { retainedModels, createDeletionGroup } from '#tests/helpers/planning/retained_rows';
 
 test.group('planning deletion ownership', (suite) => {
   suite.setup(() => freshDatabase());
@@ -48,13 +23,13 @@ test.group('planning deletion ownership', (suite) => {
       startDate: '2026-11-02',
       endDate: '2026-11-02',
     }).create();
-    for (const [table, modelClass] of Object.entries(models)) {
+    for (const [table, modelClass] of Object.entries(retainedModels)) {
       const row = await (modelClass as typeof Allocation)
         .query()
         .withScopes((scopes) => scopes.forCompany('a-studio'))
         .firstOrFail();
       const id = row.id;
-      const groupId = await group('a-studio', sessionId);
+      const groupId = await createDeletionGroup('a-studio', sessionId);
       await row.delete();
       await db.from(table).where('id', id).update({ deletion_group_id: groupId });
       const deleted = await (modelClass as typeof Allocation)
@@ -77,8 +52,8 @@ test.group('planning deletion ownership', (suite) => {
     assert,
   }) => {
     const sessionId = await fixtureSession('u-bruce');
-    const foreignGroupId = await group('a-loft', sessionId);
-    const ownGroupId = await group('a-studio', sessionId);
+    const foreignGroupId = await createDeletionGroup('a-loft', sessionId);
+    const ownGroupId = await createDeletionGroup('a-studio', sessionId);
     const row = await Allocation.query()
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .firstOrFail();
@@ -109,8 +84,8 @@ test.group('planning deletion ownership', (suite) => {
     assert,
   }) => {
     const sessionId = await fixtureSession('u-bruce');
-    const oldGroup = await group('a-studio', sessionId);
-    const currentGroup = await group('a-studio', sessionId);
+    const oldGroup = await createDeletionGroup('a-studio', sessionId);
+    const currentGroup = await createDeletionGroup('a-studio', sessionId);
     const first = await Allocation.query()
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .firstOrFail();
@@ -135,8 +110,8 @@ test.group('planning deletion ownership', (suite) => {
     assert,
   }) => {
     const sessionId = await fixtureSession('u-bruce');
-    const cleanGroup = await group('a-studio', sessionId);
-    const blockedGroup = await group('a-studio', sessionId);
+    const cleanGroup = await createDeletionGroup('a-studio', sessionId);
+    const blockedGroup = await createDeletionGroup('a-studio', sessionId);
     const rows = await Allocation.query()
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .limit(2);

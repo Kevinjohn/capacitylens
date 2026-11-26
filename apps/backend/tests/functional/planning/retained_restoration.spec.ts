@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
@@ -15,41 +14,14 @@ import app from '@adonisjs/core/services/app';
 import { RestorationService } from '#services/planning/restoration_service';
 import { insertProductRows } from '#tests/helpers/product_rows';
 import { readState } from '#tests/helpers/state_fixture';
+import {
+  revision,
+  targetTables,
+  type Target,
+  deleteTarget,
+} from '#tests/helpers/planning/retained_rows';
 
 const restoration = await app.container.make(RestorationService);
-const tables = {
-  allocations: 'allocations',
-  timeOff: 'time_off',
-  closures: 'closures',
-  phases: 'phases',
-  disciplines: 'disciplines',
-} as const;
-
-type Target = keyof typeof tables;
-
-async function revision() {
-  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
-  return Number(row?.revision ?? 0);
-}
-
-async function deleteTarget(
-  client: ApiClient,
-  cookie: string,
-  target: Target,
-  id: string,
-  baseRevision: number
-) {
-  const intents: Record<Target, Record<string, unknown>> = {
-    allocations: { operation: 'allocation.delete', id },
-    timeOff: { operation: 'timeOff.delete', id },
-    closures: { operation: 'closure.delete', id },
-    phases: { operation: 'catalogue.delete', entity: { entity: target, id } },
-    disciplines: { operation: 'catalogue.delete', entity: { entity: target, id } },
-  };
-  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-    .json({ mutationId: randomUUID(), baseRevision, intent: intents[target] } as never)
-    .send();
-}
 
 test.group('retained restoration reads', (suite) => {
   suite.setup(() => freshDatabase());
@@ -119,7 +91,7 @@ test.group('retained restoration reads', (suite) => {
     for (const [index, target] of order.entries()) {
       const deleted = await deleteTarget(client, cookie, target, ids[target], index);
       deleted.assertStatus(200);
-      const row = await db.from(tables[target]).where('id', ids[target]).first();
+      const row = await db.from(targetTables[target]).where('id', ids[target]).first();
       assert.exists(row, `${target} must remain physically present for Undo`);
       assert.isNotNull(row.deleted_at);
       assert.isString(row.deletion_group_id);

@@ -11,12 +11,7 @@ import {
   loginAsMember,
   validationSentence,
 } from '#tests/functional/planning/helpers';
-
-const input = (baseRevision: number, intent: Record<string, unknown>) => ({
-  mutationId: randomUUID(),
-  baseRevision,
-  intent,
-});
+import { mutationInput } from '#tests/helpers/planning/mutations';
 
 test.group('typed resource availability', (group) => {
   group.setup(() => freshDatabase());
@@ -38,7 +33,7 @@ test.group('typed resource availability', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'resource.update',
           id: allocation.resourceId,
           changes: { firstAvailableDate: '2027-01-01' },
@@ -50,7 +45,7 @@ test.group('typed resource availability', (group) => {
 
     const edit = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
       .json(
-        input(1, {
+        mutationInput(1, {
           operation: 'allocation.update',
           id: allocation.id,
           changes: { note: 'Keep context' },
@@ -78,7 +73,9 @@ test.group('typed resource availability', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(0, { operation: 'settings.update', changes: { workingDays: [1, 2, 3, 4] } }))
+      .json(
+        mutationInput(0, { operation: 'settings.update', changes: { workingDays: [1, 2, 3, 4] } })
+      )
       .send();
     calendar.assertStatus(200);
     const bounded = await session(
@@ -86,7 +83,7 @@ test.group('typed resource availability', (group) => {
       cookie
     )
       .json(
-        input(1, {
+        mutationInput(1, {
           operation: 'resource.update',
           id: resourceId,
           changes: { lastAvailableDate: '2026-06-04' },
@@ -104,7 +101,7 @@ test.group('typed resource availability', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(2, { operation: 'allocation.create', allocation: candidate }))
+      .json(mutationInput(2, { operation: 'allocation.create', allocation: candidate }))
       .send();
     ordinary.assertStatus(200);
     const inclusive = await session(
@@ -112,7 +109,7 @@ test.group('typed resource availability', (group) => {
       cookie
     )
       .json(
-        input(3, {
+        mutationInput(3, {
           operation: 'allocation.create',
           allocation: { ...candidate, id: randomUUID(), ignoreWorkingDays: true },
         })
@@ -146,7 +143,7 @@ test.group('typed resource availability', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'resource.update',
           id: resourceId,
           changes: { lastAvailableDate: '2026-06-01' },
@@ -166,7 +163,7 @@ test.group('typed resource availability', (group) => {
       cookie
     )
       .json(
-        input(1, {
+        mutationInput(1, {
           operation: 'allocation.createGroup',
           allocation: inside,
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-08' },

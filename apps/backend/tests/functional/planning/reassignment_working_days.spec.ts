@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
@@ -12,18 +11,7 @@ import {
   loginAsMember,
   validationSentence,
 } from '#tests/functional/planning/helpers';
-
-/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
-const body = (response: { body(): unknown; status(): number }) =>
-  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
-    code: string;
-    revision: number;
-  };
-const input = (baseRevision: number, intent: Record<string, unknown>) => ({
-  mutationId: randomUUID(),
-  baseRevision,
-  intent,
-});
+import { mutationInput, replyBody } from '#tests/helpers/planning/mutations';
 
 test.group('reassignment working-day override', (group) => {
   group.setup(() => freshDatabase());
@@ -46,7 +34,9 @@ test.group('reassignment working-day override', (group) => {
     const { cookie } = await loginAsMember();
     const patch = (revision: number, changes: Record<string, unknown>) =>
       session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-        .json(input(revision, { operation: 'allocation.update', id: allocation.id, changes }))
+        .json(
+          mutationInput(revision, { operation: 'allocation.update', id: allocation.id, changes })
+        )
         .send();
     const refused = await patch(0, { resourceId: 'r-alex' });
     refused.assertStatus(422);
@@ -58,7 +48,7 @@ test.group('reassignment working-day override', (group) => {
     override.assertStatus(200);
     const reassigned = await patch(1, { resourceId: 'r-alex' });
     reassigned.assertStatus(200);
-    assert.equal(body(reassigned).revision, 2);
+    assert.equal(replyBody(reassigned).revision, 2);
     state = await readState(companyId, true);
     const saved = state.allocations.find((row) => row.id === allocation.id)!;
     assert.equal(saved.resourceId, 'r-alex');
@@ -76,7 +66,7 @@ test.group('reassignment working-day override', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(2, { operation: 'allocation.create', allocation: newRow }))
+      .json(mutationInput(2, { operation: 'allocation.create', allocation: newRow }))
       .send();
     newBooking.assertStatus(422);
     assert.isString(validationSentence(newBooking));
@@ -91,6 +81,6 @@ test.group('reassignment working-day override', (group) => {
       cookie
     ).send();
     canonical.assertStatus(200);
-    assert.equal(body(canonical).revision, 2);
+    assert.equal(replyBody(canonical).revision, 2);
   });
 });

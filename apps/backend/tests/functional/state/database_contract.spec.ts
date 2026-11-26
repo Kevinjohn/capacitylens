@@ -32,29 +32,10 @@ import {
 import app from '@adonisjs/core/services/app';
 import { DatabaseHealthService } from '#services/database_health_service';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
+import { companyIds, stamp, scopedTables, rowCount } from '#tests/helpers/state/database_contract';
 
 const databaseHealth = await app.container.make(DatabaseHealthService);
 const schemaIntegrity = new SchemaIntegrityService();
-
-const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
-const stamp = '2026-10-12T00:00:00.000Z';
-
-const scopedTables = [
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'time_off',
-  'closures',
-] as const;
-
-async function rowCount(table: string, where: Record<string, string>) {
-  const result = await db.from(table).where(where).count('* as count').first();
-  return Number(result?.count ?? 0);
-}
 
 test.group('database contract', (group) => {
   group.setup(() => freshDatabase());

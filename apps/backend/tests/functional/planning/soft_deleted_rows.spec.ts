@@ -1,26 +1,10 @@
 import { test } from '@japa/runner';
-import { beforeFetch, beforeFind } from '@adonisjs/lucid/orm';
-import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import { readState } from '#tests/helpers/state_fixture';
 import { RetainedRowService } from '#services/planning/retained_row_service';
-import Discipline from '#models/discipline';
-
-class DisciplineWithLaterOrHooks extends Discipline {
-  static table = 'disciplines';
-
-  @beforeFind()
-  static addFindOrCondition(query: ModelQueryBuilderContract<typeof DisciplineWithLaterOrHooks>) {
-    void query.orWhere('name', 'Wayne Foundation');
-  }
-
-  @beforeFetch()
-  static addFetchOrCondition(query: ModelQueryBuilderContract<typeof DisciplineWithLaterOrHooks>) {
-    void query.orWhere('name', 'Wayne Foundation');
-  }
-}
+import { DisciplineWithLaterOrHooks } from '#tests/helpers/planning/soft_deleted_rows';
 
 const retainedRows = new RetainedRowService();
 

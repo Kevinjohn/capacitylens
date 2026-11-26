@@ -15,21 +15,7 @@ import {
   validationSentence,
 } from '#tests/functional/planning/helpers';
 import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers';
-
-/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
-/** The framework's validation answer: one entry per refused field. */
-const validationErrors = (response: { body(): unknown }) =>
-  (response.body() as { errors?: Array<{ message: string }> }).errors;
-const body = (response: { body(): unknown; status(): number }) =>
-  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
-    code: string;
-    revision: number;
-  };
-const input = (baseRevision: number, intent: Record<string, unknown>) => ({
-  mutationId: randomUUID(),
-  baseRevision,
-  intent,
-});
+import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations';
 
 test.group('authenticated planning operations', (group) => {
   group.setup(() => freshDatabase());
@@ -46,10 +32,10 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       viewerCookie
     )
-      .json(input(0, { operation: 'allocation.create', allocation }))
+      .json(mutationInput(0, { operation: 'allocation.create', allocation }))
       .send();
     viewer.assertStatus(403);
-    assert.equal(body(viewer).code, 'AUTHORIZATION_DENIED');
+    assert.equal(replyBody(viewer).code, 'AUTHORIZATION_DENIED');
 
     const { cookie } = await loginAsMember();
 
@@ -60,7 +46,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'allocation.create',
           allocation: {
             ...allocation,
@@ -72,7 +58,7 @@ test.group('authenticated planning operations', (group) => {
     foreign.assertStatus(422);
     assert.isString(validationSentence(foreign));
     const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
-    assert.equal(body(current).revision, 0);
+    assert.equal(replyBody(current).revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 
@@ -119,7 +105,7 @@ test.group('authenticated planning operations', (group) => {
         cookie
       )
         .json(
-          input(index, {
+          mutationInput(index, {
             operation: 'catalogue.create',
             entity: {
               entity: operation.entity,
@@ -130,14 +116,14 @@ test.group('authenticated planning operations', (group) => {
         )
         .send();
       response.assertStatus(200);
-      assert.equal(body(response).revision, index + 1);
+      assert.equal(replyBody(response).revision, index + 1);
     }
     const updated = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(
-        input(5, {
+        mutationInput(5, {
           operation: 'catalogue.update',
           entity: {
             entity: 'phases',
@@ -148,7 +134,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     updated.assertStatus(200);
-    assert.equal(body(updated).revision, 6);
+    assert.equal(replyBody(updated).revision, 6);
     const state = await readState(companyId, true);
     assert.equal(state.clients.find((row) => row.id === clientId)?.isPrivate, null);
     assert.equal(state.projects.find((row) => row.id === projectId)?.clientId, clientId);
@@ -194,14 +180,20 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(0, { operation: 'resource.create', id, fields }))
+      .json(mutationInput(0, { operation: 'resource.create', id, fields }))
       .send();
     created.assertStatus(200);
     const updated = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(1, { operation: 'resource.update', id, changes: { jobTitle: 'Lead Designer' } }))
+      .json(
+        mutationInput(1, {
+          operation: 'resource.update',
+          id,
+          changes: { jobTitle: 'Lead Designer' },
+        })
+      )
       .send();
     updated.assertStatus(200);
     const state = await readState(companyId, true);
@@ -231,7 +223,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'resource.update',
           id: external!.id,
           changes: { workingDays: changedDays },
@@ -265,7 +257,11 @@ test.group('authenticated planning operations', (group) => {
         cookie
       )
         .json(
-          input(0, { operation: 'resource.update', id: external.id, changes: { [field]: value } })
+          mutationInput(0, {
+            operation: 'resource.update',
+            id: external.id,
+            changes: { [field]: value },
+          })
         )
         .send();
       refused.assertStatus(422);
@@ -292,7 +288,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'closure.create',
           id,
           fields: { name: 'Invalid range', startDate: '2026-12-31', endDate: '2026-01-01' },
@@ -328,7 +324,7 @@ test.group('authenticated planning operations', (group) => {
       ownerCookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.create',
           entity: {
             entity: 'clients',
@@ -348,7 +344,7 @@ test.group('authenticated planning operations', (group) => {
       ownerCookie
     )
       .json(
-        input(1, {
+        mutationInput(1, {
           operation: 'timeOff.create',
           timeOff: {
             id: timeOffId,
@@ -369,20 +365,20 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(2, {
+        mutationInput(2, {
           operation: 'catalogue.update',
           entity: { entity: 'clients', id: clientId, changes: { name: 'Redacted echo', color } },
         })
       )
       .send();
     nameEdit.assertStatus(400);
-    assert.equal(body(nameEdit).code, 'NO_CHANGE');
+    assert.equal(replyBody(nameEdit).code, 'NO_CHANGE');
     const colourEdit = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(
-        input(2, {
+        mutationInput(2, {
           operation: 'catalogue.update',
           entity: {
             entity: 'clients',
@@ -400,7 +396,9 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(3, { operation: 'timeOff.update', id: timeOffId, changes: { type: 'sick' } }))
+      .json(
+        mutationInput(3, { operation: 'timeOff.update', id: timeOffId, changes: { type: 'sick' } })
+      )
       .send();
     notePreserved.assertStatus(200);
     const privacyRefused = await session(
@@ -408,7 +406,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(4, {
+        mutationInput(4, {
           operation: 'catalogue.update',
           entity: { entity: 'clients', id: clientId, changes: { isPrivate: false } },
         })
@@ -419,7 +417,13 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(4, { operation: 'timeOff.update', id: timeOffId, changes: { note: 'Read it' } }))
+      .json(
+        mutationInput(4, {
+          operation: 'timeOff.update',
+          id: timeOffId,
+          changes: { note: 'Read it' },
+        })
+      )
       .send();
     noteRefused.assertStatus(403);
     const state = await readState(companyId, true);
@@ -475,7 +479,7 @@ test.group('authenticated planning operations', (group) => {
         'create',
         (revision) =>
           session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-            .json(input(revision, { operation: 'allocation.create', allocation }))
+            .json(mutationInput(revision, { operation: 'allocation.create', allocation }))
             .send(),
       ],
       [
@@ -483,7 +487,7 @@ test.group('authenticated planning operations', (group) => {
         (revision) =>
           session(client.visit('api.planning_mutations.store', { companyId }), cookie)
             .json(
-              input(revision, {
+              mutationInput(revision, {
                 operation: 'allocation.update',
                 id: allocation.id,
                 changes: { hoursPerDay: 3 },
@@ -495,7 +499,7 @@ test.group('authenticated planning operations', (group) => {
         'delete',
         (revision) =>
           session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-            .json(input(revision, { operation: 'allocation.delete', id: allocation.id }))
+            .json(mutationInput(revision, { operation: 'allocation.delete', id: allocation.id }))
             .send(),
       ],
       [
@@ -506,7 +510,7 @@ test.group('authenticated planning operations', (group) => {
             cookie
           )
             .json(
-              input(revision, {
+              mutationInput(revision, {
                 operation: 'allocation.createGroup',
                 allocation: { ...allocation, id: groupIds[0] },
                 repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-09' },
@@ -522,7 +526,7 @@ test.group('authenticated planning operations', (group) => {
         'group delete',
         (revision) =>
           session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-            .json(input(revision, { operation: 'allocation.deleteGroup', ids: groupIds }))
+            .json(mutationInput(revision, { operation: 'allocation.deleteGroup', ids: groupIds }))
             .send(),
       ],
     ];
@@ -553,7 +557,7 @@ test.group('authenticated planning operations', (group) => {
     const repeatGroup = (until: string) =>
       session(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(
-          input(0, {
+          mutationInput(0, {
             operation: 'allocation.createGroup',
             allocation,
             repeat: { pattern: { kind: 'weeks', interval: 1 }, until },
@@ -589,7 +593,7 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(1, { operation: 'allocation.deleteGroup', ids }))
+      .json(mutationInput(1, { operation: 'allocation.deleteGroup', ids }))
       .send();
     undone.assertStatus(200);
     assert.deepEqual(await rows(), [undefined, undefined, undefined, undefined]);
@@ -600,7 +604,7 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
+      .json(mutationInput(2, { operation: 'planning.restoreGroup', restorationGroupId }))
       .send();
     redone.assertStatus(200);
     assert.deepEqual(await rows(), saved);
@@ -617,7 +621,7 @@ test.group('authenticated planning operations', (group) => {
     const allocation = newAllocation(data);
     const mutate = (revision: number, intent: Record<string, unknown>) =>
       session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-        .json(input(revision, intent))
+        .json(mutationInput(revision, intent))
         .send();
     const created = await mutate(0, {
       operation: 'allocation.createGroup',
@@ -676,7 +680,7 @@ test.group('authenticated planning operations', (group) => {
     const repeatTimeOff = (until: string, occurrenceIds: string[]) =>
       session(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(
-          input(0, {
+          mutationInput(0, {
             operation: 'timeOff.repeat',
             timeOff,
             repeat: { pattern: { kind: 'weeks', interval: 2 }, until },
@@ -713,7 +717,7 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(1, { operation: 'timeOff.deleteGroup', ids }))
+      .json(mutationInput(1, { operation: 'timeOff.deleteGroup', ids }))
       .send();
     undone.assertStatus(200);
     assert.deepEqual(await rows(), [undefined, undefined, undefined]);
@@ -724,7 +728,7 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
+      .json(mutationInput(2, { operation: 'planning.restoreGroup', restorationGroupId }))
       .send();
     redone.assertStatus(200);
     assert.deepEqual(await rows(), saved);
@@ -748,7 +752,7 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(0, { operation: 'allocation.create', allocation }))
+      .json(mutationInput(0, { operation: 'allocation.create', allocation }))
       .send();
     created.assertStatus(200);
     assert.deepEqual(advisory(created), { overDays: 0, timeOffDays: 0 });
@@ -759,7 +763,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(1, {
+        mutationInput(1, {
           operation: 'allocation.duplicate',
           sourceAllocationId: allocation.id,
           occurrence: { id: randomUUID(), startDate: '2026-11-02', endDate: '2026-11-06' },
@@ -775,7 +779,11 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(2, { operation: 'allocation.update', id: allocation.id, changes: { hoursPerDay: 3 } })
+        mutationInput(2, {
+          operation: 'allocation.update',
+          id: allocation.id,
+          changes: { hoursPerDay: 3 },
+        })
       )
       .send();
     updated.assertStatus(200);
@@ -787,7 +795,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(3, {
+        mutationInput(3, {
           operation: 'timeOff.create',
           timeOff: {
             id: randomUUID(),
@@ -809,7 +817,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(4, {
+        mutationInput(4, {
           operation: 'allocation.createGroup',
           allocation: {
             ...allocation,
@@ -851,7 +859,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'timeOff.repeat',
           timeOff: {
             id: firstId,
@@ -876,7 +884,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'closure.create',
           id: closureId,
           fields: { name: 'Gotham Founders Day', startDate: '2026-11-03', endDate: '2026-11-03' },
@@ -884,20 +892,20 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     closure.assertStatus(200);
-    assert.equal(body(closure).revision, 1);
+    assert.equal(replyBody(closure).revision, 1);
     const setting = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(
-        input(1, {
+        mutationInput(1, {
           operation: 'settings.update',
           changes: { timezone: 'Europe/London', weekStartsOn: 0 },
         })
       )
       .send();
     setting.assertStatus(200);
-    assert.equal(body(setting).revision, 2);
+    assert.equal(replyBody(setting).revision, 2);
     const read = await session(client.visit('api.planning.show', { companyId }), cookie).send();
     read.assertStatus(200);
     const snapshot = read.body().data as {
@@ -925,17 +933,17 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(0, { operation: 'settings.update', changes: { dateStyle: 'month-day' } }))
+      .json(mutationInput(0, { operation: 'settings.update', changes: { dateStyle: 'month-day' } }))
       .send();
     styled.assertStatus(200);
     const cleared = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(1, { operation: 'settings.update', changes: { dateStyle: null } }))
+      .json(mutationInput(1, { operation: 'settings.update', changes: { dateStyle: null } }))
       .send();
     cleared.assertStatus(200);
-    assert.equal(body(cleared).revision, 2);
+    assert.equal(replyBody(cleared).revision, 2);
     const state = await readState(companyId, true);
     assert.isNull(state.companies[0]?.dateStyle);
   });
@@ -955,7 +963,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.update',
           entity: { entity: 'phases', id: phase.id, changes: { projectId: target.id } },
         })
@@ -975,7 +983,7 @@ test.group('authenticated planning operations', (group) => {
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(await db.from('audit_entries').where('company_id', companyId), 0);
     const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
-    assert.equal(body(current).revision, 0);
+    assert.equal(replyBody(current).revision, 0);
   });
 
   test('an edit carrying an out-of-date row timestamp is refused', async ({
@@ -994,7 +1002,7 @@ test.group('authenticated planning operations', (group) => {
     const edit = (expectedUpdatedAt: string) =>
       session(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json({
-          ...input(0, {
+          ...mutationInput(0, {
             operation: 'catalogue.update',
             entity: { entity: 'clients', id: row.id, changes: { name: 'Wayne Enterprises' } },
           }),
@@ -1004,13 +1012,13 @@ test.group('authenticated planning operations', (group) => {
 
     const stale = await edit('2000-01-01T00:00:00.000Z');
     stale.assertStatus(409);
-    assert.equal(body(stale).code, 'STALE_REVISION');
+    assert.equal(replyBody(stale).code, 'STALE_REVISION');
     assert.deepEqual(await readState(companyId, true), before);
     const unchanged = await session(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();
-    assert.equal(body(unchanged).revision, 0);
+    assert.equal(replyBody(unchanged).revision, 0);
 
     const current = await edit(row.updatedAt);
     current.assertStatus(200);
@@ -1031,7 +1039,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.create',
           entity: {
             entity: 'phases',
@@ -1044,7 +1052,7 @@ test.group('authenticated planning operations', (group) => {
     created.assertStatus(200);
     const moved = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
       .json(
-        input(1, {
+        mutationInput(1, {
           operation: 'catalogue.update',
           entity: {
             entity: 'phases',
@@ -1055,7 +1063,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     moved.assertStatus(200);
-    assert.equal(body(moved).revision, 2);
+    assert.equal(replyBody(moved).revision, 2);
     const afterMove = await readState(companyId, true);
     assert.equal(afterMove.phases.find((row) => row.id === id)?.projectId, 'p-brand');
   });
@@ -1069,7 +1077,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.create',
           entity: {
             entity: 'activities',
@@ -1090,7 +1098,7 @@ test.group('authenticated planning operations', (group) => {
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input(1, { operation: 'allocation.create', allocation }))
+      .json(mutationInput(1, { operation: 'allocation.create', allocation }))
       .send();
     allocated.assertStatus(200);
     const changed = await session(
@@ -1098,7 +1106,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(2, {
+        mutationInput(2, {
           operation: 'catalogue.update',
           entity: {
             entity: 'activities',
@@ -1109,7 +1117,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     changed.assertStatus(200);
-    assert.equal(body(changed).revision, 3);
+    assert.equal(replyBody(changed).revision, 3);
     const afterKindChange = await readState(companyId, true);
     assert.isNull(afterKindChange.allocations.find((row) => row.id === allocation.id)?.projectId);
 
@@ -1120,7 +1128,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(3, {
+        mutationInput(3, {
           operation: 'catalogue.update',
           entity: {
             entity: 'activities',
@@ -1131,7 +1139,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     sameKindOnly.assertStatus(400);
-    assert.equal(body(sameKindOnly).code, 'NO_CHANGE');
+    assert.equal(replyBody(sameKindOnly).code, 'NO_CHANGE');
     assert.deepEqual(await readState(companyId, true), afterKindChange);
     assert.deepEqual(
       await db.from('audit_entries').where('company_id', companyId),
@@ -1146,14 +1154,14 @@ test.group('authenticated planning operations', (group) => {
       cookie
     ).send();
     afterNoop.assertStatus(200);
-    assert.equal(body(afterNoop).revision, 3);
+    assert.equal(replyBody(afterNoop).revision, 3);
 
     const sameKind = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(
-        input(3, {
+        mutationInput(3, {
           operation: 'catalogue.update',
           entity: {
             entity: 'activities',
@@ -1169,7 +1177,7 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(
-        input(4, {
+        mutationInput(4, {
           operation: 'catalogue.update',
           entity: {
             entity: 'activities',
