@@ -3,7 +3,6 @@ import { createTuyauReactQueryClient } from '@tuyau/react-query';
 import { QueryClient } from '@tanstack/react-query';
 import type { RequestArgs } from '@tuyau/core/types';
 import { registry } from '@capacitylens/backend/registry';
-import type { Route } from '@capacitylens/backend/registry';
 import { fetchApi } from '@/data/requestTimeout';
 
 /** Identifies the user and read projection that owns a cached API result. */
@@ -19,6 +18,14 @@ export const queryClient = new QueryClient();
 /** Absolute base URL for Tuyau so slash-free routes stay rooted at the site origin. */
 const API_CLIENT_BASE = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
 
+/**
+ * A request's own fetchApi deadline. Ky hands an option it does not know to the fetch function,
+ * which is how this reaches the client's fetch hook.
+ */
+interface ApiTimeoutInit extends RequestInit {
+  apiTimeoutMs?: number | null;
+}
+
 /** The typed product API transport. Keep session, timeout, and masquerade handling at the existing fetch boundary. */
 export const client = createTuyau({
   baseUrl: API_CLIENT_BASE,
@@ -27,11 +34,17 @@ export const client = createTuyau({
   retry: 0,
   timeout: false,
   // Tuyau carries cancellation on a Request; fetchApi composes its timeout from init.signal.
-  fetch: (input, init) =>
-    fetchApi(input, {
-      ...init,
-      signal: init?.signal ?? (input instanceof Request ? input.signal : null),
-    }),
+  fetch: (input, init) => {
+    const { apiTimeoutMs, ...requestInit } = (init ?? {}) as ApiTimeoutInit;
+    return fetchApi(
+      input,
+      {
+        ...requestInit,
+        signal: requestInit.signal ?? (input instanceof Request ? input.signal : null),
+      },
+      apiTimeoutMs,
+    );
+  },
 });
 
 /** Typed route queries and mutation options generated from the backend registry. */
@@ -40,35 +53,37 @@ export const api = createTuyauReactQueryClient({ client });
 /** The generated backend route registry, keyed by route name. */
 export type ProductRoutes = typeof registry.routes;
 
-/** Build a product API URL from a route name and its generated path/query arguments. */
-export function buildApiRouteUrl<Name extends keyof ProductRoutes>(
-  name: Name,
-  args: Omit<RequestArgs<ProductRoutes[Name]>, 'body'>,
-): string {
-  // The URL never depends on the body, so callers send the body separately.
-  return client.getRoute(name, args as RequestArgs<ProductRoutes[Name]>).url;
-}
-
-/** Serialize a request body checked against the route's generated validator input. */
-export function buildJsonBody<Name extends keyof ProductRoutes>(
-  _name: Name,
-  body: Route.Body<Name>,
-): string {
-  return JSON.stringify(body);
-}
-
-type QueryReadRoute = 'api.company_state.show' | 'api.admission_requests.index';
-
-/** Build query-bearing read URLs with generated inputs; Tuyau getRoute omits query arguments. */
-export function buildApiReadRouteUrl<Name extends QueryReadRoute>(
+/**
+ * Make a named request through the client and return the raw response, so the caller keeps its
+ * own status and body handling. `timeoutMs` replaces the interactive deadline; null disables it.
+ *
+ * @throws The native fetch or abort failure when no response arrives.
+ */
+export async function requestApiResponse<Name extends keyof ProductRoutes>(
   name: Name,
   args: RequestArgs<ProductRoutes[Name]>,
-): string;
-export function buildApiReadRouteUrl(
-  name: QueryReadRoute,
-  args: { query?: ProductRoutes[QueryReadRoute]['types']['query'] },
-): string {
-  return client.urlFor.get(name, undefined, args.query === undefined ? {} : { qs: args.query }).url;
+  timeoutMs?: number | null,
+): Promise<Response> {
+  let received: Response | undefined;
+  const [, error] = await client
+    .request(name, {
+      ...args,
+      hooks: {
+        afterResponse: [
+          (_request, _options, response) => {
+            // Keep a copy for the caller, and hand ky an empty stand-in so neither ky nor Tuyau
+            // decodes the real body: the caller reads it once, from this copy.
+            received = response.clone();
+            return new Response(null);
+          },
+        ],
+      },
+      ...(timeoutMs === undefined ? {} : { apiTimeoutMs: timeoutMs }),
+    })
+    .safe();
+  if (received) return received;
+  if (error?.kind === 'network') throw error.cause;
+  throw error ?? new Error(`No response for ${String(name)}`);
 }
 
 /** Prefix a Tuyau route key with the identity scope that is allowed to observe its result. */

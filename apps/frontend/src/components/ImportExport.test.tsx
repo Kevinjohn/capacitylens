@@ -9,6 +9,7 @@ import { companyExport } from '@/test/companyExport';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
 import { permissionValue } from '@/test/permissionGrants';
+import { readFetchRequest } from '@/test/fetchRequests';
 
 const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }));
 const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
@@ -74,14 +75,15 @@ async function previewFile(file: unknown) {
 async function submitServerImport(applyResponse: Response): Promise<void> {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
-      if (String(url).endsWith('/api/v1/import/preview')) {
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.endsWith('/api/v1/import/preview')) {
         return previewReply(7);
       }
-      if (String(url).endsWith('/api/v1/auth/password-confirmation')) {
+      if (url.endsWith('/api/v1/auth/password-confirmation')) {
         return Response.json({ data: { confirmationId: 'proof-7' } });
       }
-      if (String(url).endsWith('/api/v1/import/apply')) return applyResponse;
+      if (url.endsWith('/api/v1/import/apply')) return applyResponse;
       throw new Error(`Unexpected request: ${url}`);
     }),
   );
@@ -197,14 +199,17 @@ describe('beta import and export', () => {
   it("saves the server's export document unchanged", async () => {
     let downloaded: Blob | undefined;
     const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    vi.stubGlobal('URL', {
-      ...URL,
-      createObjectURL: vi.fn((blob: Blob) => {
-        downloaded = blob;
-        return 'blob:transfer';
-      }),
-      revokeObjectURL: vi.fn(),
-    });
+    // A subclass keeps URL constructible for the API client while the download hooks are faked.
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static createObjectURL = vi.fn((blob: Blob) => {
+          downloaded = blob;
+          return 'blob:transfer';
+        });
+        static revokeObjectURL = vi.fn();
+      },
+    );
     const body = '{"exported":true}';
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
@@ -274,9 +279,13 @@ describe('beta import and export', () => {
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string, init?: RequestInit) => {
-        const path = String(url);
-        const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = await readFetchRequest(input, init);
+        const path = request.path;
+        const body = (request.body === null ? {} : JSON.parse(request.body)) as Record<
+          string,
+          unknown
+        >;
         requests.push({ url: path, body });
         if (path.endsWith('/api/v1/import/preview')) {
           return previewReply(7);
@@ -346,20 +355,22 @@ describe('beta import and export', () => {
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn((url: string, init?: RequestInit) => {
-        const path = String(url);
-        const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = await readFetchRequest(input, init);
+        const path = request.path;
+        const body = (request.body === null ? {} : JSON.parse(request.body)) as Record<
+          string,
+          unknown
+        >;
         requests.push({ url: path, body });
         if (path.endsWith('/api/v1/import/preview')) {
           return new Promise<Response>((resolve) => previews.push(resolve));
         }
         if (path.endsWith('/api/v1/auth/password-confirmation')) {
-          return Promise.resolve(Response.json({ data: { confirmationId: 'proof-b' } }));
+          return Response.json({ data: { confirmationId: 'proof-b' } });
         }
         if (path.endsWith('/api/v1/import/apply')) {
-          return Promise.resolve(
-            Response.json({ data: { imported: 5, changed: true, revision: 23 } }),
-          );
+          return Response.json({ data: { imported: 5, changed: true, revision: 23 } });
         }
         throw new Error(`Unexpected request: ${path}`);
       }),

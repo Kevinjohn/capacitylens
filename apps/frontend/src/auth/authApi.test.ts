@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { authApi } from './authApi';
+import { createRequestLog } from '@/test/fetchRequests';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -191,9 +192,11 @@ describe('product auth api', () => {
   });
 
   it('uses native recovery, password-change, and sign-out routes', async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(Response.json({ data: { ok: true } }));
+    const requests = createRequestLog();
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      requests.record(input, init);
+      return Response.json({ data: { ok: true } });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     await authApi.requestPasswordReset('bruce@example.test');
@@ -204,13 +207,15 @@ describe('product auth api', () => {
     });
     await authApi.signOut();
 
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    const sent = await requests.read();
+    expect(sent.map(({ path }) => path)).toEqual([
       '/api/v1/auth/request-reset',
       '/api/v1/auth/reset-password',
       '/api/v1/auth/change-password',
       '/api/v1/auth/sign-out',
     ]);
-    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
+    expect(sent.map(({ method }) => method)).toEqual(['POST', 'POST', 'POST', 'POST']);
+    expect(sent.map(({ body }) => JSON.parse(String(body)))).toEqual([
       { email: 'bruce@example.test' },
       { token: 'single-use-token', newPassword: 'new-password' },
       { currentPassword: 'current-password', newPassword: 'new-password' },

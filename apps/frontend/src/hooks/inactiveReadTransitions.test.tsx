@@ -95,26 +95,23 @@ beforeEach(() => {
   }));
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input);
       const companyId = new URL(url, 'http://localhost').searchParams.get('companyId') ?? '';
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          data: {
-            ...createEmptyAppData(),
-            companies: [makeCompany({ id: companyId })],
-            clients: [
-              makeClient({
-                id: `client-${companyId}`,
-                companyId,
-                name: label(companyId),
-                archivedAt: '2026-01-01T00:00:00.000Z',
-              }),
-            ],
-          },
-        }),
-      };
+      return Response.json({
+        data: {
+          ...createEmptyAppData(),
+          companies: [makeCompany({ id: companyId })],
+          clients: [
+            makeClient({
+              id: `client-${companyId}`,
+              companyId,
+              name: label(companyId),
+              archivedAt: '2026-01-01T00:00:00.000Z',
+            }),
+          ],
+        },
+      });
     }),
   );
   useStore.setState({ masquerade: { kind: 'inactive' }, refreshPlanning: async () => true });

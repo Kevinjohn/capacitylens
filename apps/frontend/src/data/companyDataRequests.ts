@@ -1,6 +1,6 @@
-import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { requestApiResponse } from '@/api/queryClient';
 import { readApiData } from '@/api/readApiData';
-import { fetchApi, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
+import { API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
@@ -61,11 +61,8 @@ export const companyDataRequests = {
    *   answers off-spec.
    */
   async readImportPreview(companyId: string, document: unknown): Promise<ImportPreviewSummary> {
-    const response = await fetchApi('/api/v1/import/preview', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.import_previews.store', { companyId, document }),
+    const response = await requestApiResponse('api.import_previews.store', {
+      body: { companyId, document },
     });
     if (!response.ok) {
       throw new Error(
@@ -101,56 +98,33 @@ export const companyDataRequests = {
     baseRevision,
     confirmationId,
   }: ApplyImportInput): Promise<Response> {
-    return fetchApi(
-      '/api/v1/import/apply',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: buildJsonBody('api.imports.store', {
-          companyId,
-          document,
-          baseRevision,
-          confirmationId,
-        }),
-      },
+    return requestApiResponse(
+      'api.imports.store',
+      { body: { companyId, document, baseRevision, confirmationId } },
       API_BULK_TIMEOUT_MS,
     );
   },
 
   /** Sends the password-confirmed anonymisation of every person in one company. */
   anonymiseCompanyPeople(companyId: string, confirmationId: string): Promise<Response> {
-    return fetchApi(
-      `/api/v1/companies/${encodeURIComponent(companyId)}/anonymise`,
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.company_anonymisations.store', { confirmationId }),
-      },
+    return requestApiResponse(
+      'api.company_anonymisations.store',
+      { params: { companyId }, body: { confirmationId } },
       API_BULK_TIMEOUT_MS,
     );
   },
 
   /** Sends the anonymisation of one person resource. */
   anonymiseResource(companyId: string, resourceId: string): Promise<Response> {
-    return fetchApi(
-      `/api/v1/companies/${encodeURIComponent(companyId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.resource_anonymisations.store', {}),
-      },
+    return requestApiResponse(
+      'api.resource_anonymisations.store',
+      { params: { companyId, id: resourceId } },
       API_BULK_TIMEOUT_MS,
     );
   },
 
   /** Adds the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(companyId: string): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.example_data.store', { params: { companyId } }), {
-      method: 'POST',
-      credentials: 'include',
-    });
+    return requestApiResponse('api.example_data.store', { params: { companyId } });
   },
 };

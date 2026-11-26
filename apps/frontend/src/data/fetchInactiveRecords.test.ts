@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { companySeed } from '@/test/companyExport';
+import { readFetchRequest } from '@/test/fetchRequests';
+import type { FetchRequest } from '@/test/fetchRequests';
 import {
   fetchInactiveRecords,
   InactiveRecordsHttpError,
@@ -16,26 +18,32 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const ok = (body: unknown): Response =>
-  ({ ok: true, status: 200, json: async () => ({ data: body }) }) as unknown as Response;
+const ok = (body: unknown): Response => Response.json({ data: body });
 
 describe('fetchInactiveRecords', () => {
   it('requests a complete inactive set for the company with credentials', async () => {
     const body = companySeed('a-studio');
-    const fetchMock = vi.fn(async () => ok(body));
+    const sent: Array<Promise<FetchRequest>> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(readFetchRequest(input, init));
+      return ok(body);
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const controller = new AbortController();
     const data = await fetchInactiveRecords('a-studio', controller.signal);
 
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain('/api/v1/state?companyId=a-studio&includeInactive=1');
-    expect(init.credentials).toBe('include');
-    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [request] = await Promise.all(sent);
+    if (!request) throw new Error('The inactive read was not sent.');
+    expect(request.path).toBe('/api/v1/state?companyId=a-studio&includeInactive=1');
+    expect(request.method).toBe('GET');
+    expect(request.credentials).toBe('include');
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
     expect(timeout).toHaveBeenCalledWith(120_000);
     controller.abort();
-    expect(init.signal?.aborted).toBe(true);
+    expect(request.signal.aborted).toBe(true);
 
     expect(data).toEqual(body);
   });
@@ -91,10 +99,12 @@ describe('fetchInactiveRecords', () => {
         throw fault;
       },
     };
+    // The body cannot travel as JSON text, so the decoded value is handed to the reader directly.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ok(body)),
+      vi.fn(async () => ok({})),
     );
+    vi.spyOn(Response.prototype, 'json').mockResolvedValue({ data: body });
 
     await expect(fetchInactiveRecords('a-studio')).rejects.toBe(fault);
   });

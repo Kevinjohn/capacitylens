@@ -12,9 +12,8 @@ const backupAt = '2026-09-10T12:00:00.000Z';
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock.fetch);
   fetchMock.fetch.mockReset();
-  fetchMock.fetch.mockResolvedValue({
-    ok: true,
-    json: async () => ({
+  fetchMock.fetch.mockImplementation(async () =>
+    Response.json({
       data: {
         server: {
           connectivity: 'ok',
@@ -24,7 +23,7 @@ beforeEach(() => {
         },
       },
     }),
-  });
+  );
 });
 
 afterEach(() => {
@@ -66,18 +65,20 @@ describe('DiagnosticsView — report', () => {
   });
 
   it('keeps a safe server projection from a non-OK response', async () => {
-    fetchMock.fetch.mockResolvedValue({
-      ok: false,
-      json: async () => ({
-        server: {
-          connectivity: 'ok',
-          database: { status: 'unavailable' },
-          schema: { migration },
-          backup: { newestBackupAt: backupAt },
-          secret: 'must not render',
+    fetchMock.fetch.mockImplementation(async () =>
+      Response.json(
+        {
+          server: {
+            connectivity: 'ok',
+            database: { status: 'unavailable' },
+            schema: { migration },
+            backup: { newestBackupAt: backupAt },
+            secret: 'must not render',
+          },
         },
-      }),
-    });
+        { status: 503 },
+      ),
+    );
     render(<DiagnosticsView />);
 
     await waitFor(() => expect(reportText()).toHaveTextContent(`Newest backup: ${backupAt}`));
@@ -121,11 +122,18 @@ describe('DiagnosticsView — observation', () => {
     try {
       render(<DiagnosticsView />);
       expect(reportText()).toHaveTextContent('Observed at: Unknown');
+      // The API client reaches fetch after a few asynchronous steps.
+      await act(async () => {
+        for (let step = 0; step < 20 && !resolveResponse; step += 1) {
+          await vi.advanceTimersByTimeAsync(0);
+        }
+      });
+      expect(resolveResponse).toBeDefined();
+      expect(reportText()).toHaveTextContent('Observed at: Unknown');
 
       await act(async () => {
-        resolveResponse?.({
-          ok: true,
-          json: async () => ({
+        resolveResponse?.(
+          Response.json({
             data: {
               server: {
                 connectivity: 'ok',
@@ -135,7 +143,7 @@ describe('DiagnosticsView — observation', () => {
               },
             },
           }),
-        });
+        );
         await Promise.resolve();
         await Promise.resolve();
         // TanStack Query hands results to React on a timer.

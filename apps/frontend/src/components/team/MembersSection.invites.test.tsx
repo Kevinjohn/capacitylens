@@ -7,6 +7,7 @@ import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import {
   expectNotice,
+  fakeApiFetch,
   mockApi,
   ownerAndEditor,
   makeRawMember,
@@ -188,9 +189,8 @@ describe('MembersSection — invite mint', () => {
   it('ignores a late unknown mutation outcome after the user has switched companies', async () => {
     const nextCompanyId = 'acc_second';
     let resolveCreate: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
-      const target = String(url);
-      const isRead = !init || init.method === undefined || init.method === 'GET';
+    const fetchMock = fakeApiFetch(async (target, request): Promise<Response> => {
+      const isRead = request.method === 'GET';
       if (target.endsWith('/members') && isRead) {
         const second = target.includes(`/${nextCompanyId}/`);
         return jsonResponse({
@@ -211,7 +211,7 @@ describe('MembersSection — invite mint', () => {
       if (target.endsWith('/invitations') && isRead) {
         return jsonResponse({ data: { invites: [] } });
       }
-      if (target.endsWith('/api/v1/invitations') && init?.method === 'POST') {
+      if (target.endsWith('/api/v1/invitations') && request.method === 'POST') {
         return await new Promise<Response>((resolve) => {
           resolveCreate = resolve;
         });
@@ -256,8 +256,8 @@ describe('MembersSection — invite mint', () => {
     fireEvent.click(screen.getByTestId('invite-submit'));
 
     await expectNotice(notice);
-    const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
-    expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+    const post = fetchMock.requests.find((request) => request.method === 'POST');
+    expect(JSON.parse(String(post?.body))).toEqual({
       companyId: DEFAULT_COMPANY_ID,
       role: 'editor',
       email: 'diana@example.test',
@@ -277,7 +277,7 @@ describe('MembersSection — invite mint', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(m.settings_invite_email_required());
     expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    expect(fetchMock.requests.some((request) => request.method === 'POST')).toBe(false);
   });
   it('shows a terminal invite refusal after closing a pending request', async () => {
     let resolveCreate: ((response: Response) => void) | undefined;

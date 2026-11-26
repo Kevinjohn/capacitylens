@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { buildApiRouteUrl } from '@/api/queryClient';
-import { fetchApi, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
+import { requestApiResponse } from '@/api/queryClient';
+import { API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { downloadTextFile } from '@/lib/download';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { readApiError } from '@/lib/readApiError';
@@ -20,9 +20,9 @@ export function useExportOperation() {
     setBusy(true);
     try {
       if (!activeCompanyId) throw new Error('An active company is required before exporting.');
-      const response = await fetchApi(
-        buildApiRouteUrl('api.company_exports.show', { params: { companyId: activeCompanyId } }),
-        { credentials: 'include' },
+      const response = await requestApiResponse(
+        'api.company_exports.show',
+        { params: { companyId: activeCompanyId } },
         API_BULK_TIMEOUT_MS,
       );
       if (!response.ok) {

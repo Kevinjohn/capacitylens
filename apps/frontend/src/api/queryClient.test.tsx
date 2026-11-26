@@ -1,11 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  buildApiRouteUrl,
   clearQueryCacheForScopeChange,
   client,
   buildScopeQueryKey,
+  requestApiResponse,
 } from './queryClient';
+import { API_BULK_TIMEOUT_MS, API_REQUEST_TIMEOUT_MS } from '@/data/requestTimeout';
 
 describe('same-origin API requests', () => {
   it('keeps API requests rooted when the browser is on a nested account route', async () => {
@@ -21,7 +22,6 @@ describe('same-origin API requests', () => {
       await client.request('api.session.show', {});
       if (requestedUrl === undefined) throw new Error('API request did not reach fetch.');
       expect(new URL(requestedUrl).pathname).toBe('/api/v1/auth/me');
-      expect(buildApiRouteUrl('api.session.show', {})).toBe('/api/v1/auth/me');
     } finally {
       vi.unstubAllGlobals();
       window.history.replaceState(null, '', '/');
@@ -30,11 +30,26 @@ describe('same-origin API requests', () => {
   it('sends every request to the page origin even when an old API origin variable is set', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.test');
     vi.resetModules();
+    const requested: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        requested.push(input instanceof Request ? input.url : input.toString());
+        return Response.json({ data: [] });
+      }),
+    );
     try {
       const fresh = await import('./queryClient');
-      expect(fresh.buildApiRouteUrl('api.session.show', {})).toBe('/api/v1/auth/me');
-      expect(fresh.buildApiReadRouteUrl('api.admission_requests.index', {})).toMatch(/^\/api\//);
+      await fresh.requestApiResponse('api.session.show', {});
+      await fresh.requestApiResponse('api.admission_requests.index', {
+        query: { status: 'pending' },
+      });
+      expect(requested.map((url) => new URL(url).origin)).toEqual([
+        window.location.origin,
+        window.location.origin,
+      ]);
     } finally {
+      vi.unstubAllGlobals();
       vi.unstubAllEnvs();
       vi.resetModules();
     }
@@ -55,6 +70,102 @@ describe('same-origin API requests', () => {
       expect(forwardedSignal).toBeInstanceOf(AbortSignal);
       expect(forwardedSignal?.aborted).toBe(true);
     } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('requestApiResponse', () => {
+  it('returns a refused response with its status and unread body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ error: 'Not allowed.' }, { status: 403 })),
+    );
+    try {
+      const response = await requestApiResponse('api.session.show', {});
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: 'Not allowed.' });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('sends the named route with its parameters, query and JSON body', async () => {
+    const requests: { request: Request; body: string }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (input instanceof Request) requests.push({ request: input, body: await input.text() });
+        return new Response(null, { status: 204 });
+      }),
+    );
+    try {
+      await requestApiResponse('api.members.update', {
+        params: { companyId: 'wayne', userId: 'bruce' },
+        body: { role: 'admin' },
+      });
+      await requestApiResponse('api.company_state.show', {
+        query: { companyId: 'wayne', includeInactive: '1' },
+      });
+      const [update, state] = requests;
+      expect(update?.request.method).toBe('PATCH');
+      expect(new URL(update?.request.url ?? '').pathname).toBe(
+        '/api/v1/companies/wayne/members/bruce',
+      );
+      expect(update?.request.headers.get('content-type')).toBe('application/json');
+      expect(JSON.parse(update?.body ?? '')).toEqual({ role: 'admin' });
+      expect(new URL(state?.request.url ?? '').search).toBe('?companyId=wayne&includeInactive=1');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('decodes the response body only once, when the caller reads it', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ data: { companyId: 'wayne' } })),
+    );
+    const decode = vi.spyOn(Response.prototype, 'json');
+    try {
+      const response = await requestApiResponse('api.session.show', {});
+      expect(decode).not.toHaveBeenCalled();
+      expect(await response.json()).toEqual({ data: { companyId: 'wayne' } });
+    } finally {
+      decode.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('throws the native fetch failure when no response arrives', async () => {
+    const failure = new TypeError('Failed to fetch');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw failure;
+      }),
+    );
+    try {
+      await expect(requestApiResponse('api.session.show', {})).rejects.toBe(failure);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('applies the requested deadline instead of the interactive one', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ data: {} })),
+    );
+    try {
+      await requestApiResponse('api.session.show', {});
+      await requestApiResponse('api.session.show', {}, API_BULK_TIMEOUT_MS);
+      expect(timeout.mock.calls.map(([ms]) => ms)).toEqual([
+        API_REQUEST_TIMEOUT_MS,
+        API_BULK_TIMEOUT_MS,
+      ]);
+    } finally {
+      timeout.mockRestore();
       vi.unstubAllGlobals();
     }
   });

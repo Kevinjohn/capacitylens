@@ -8,7 +8,13 @@ import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/
 import { useStore } from '@/store/useStore';
 import { MembersSection } from './MembersSection';
 import { useTeamDirectory } from './useTeamDirectory';
-import { makeAuthValue, mockApi, makeRawMember, renderSection } from './MembersSectionTestKit';
+import {
+  fakeApiFetch,
+  makeAuthValue,
+  mockApi,
+  makeRawMember,
+  renderSection,
+} from './MembersSectionTestKit';
 import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 const companyTransitionMocks = vi.hoisted(() => ({
@@ -34,9 +40,8 @@ describe('MembersSection — self-gate', () => {
   it('hides the previous company directory while the next company is authorizing', async () => {
     const nextCompanyId = 'acc_second';
     let resolveNextMembers: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
-      const target = String(url);
-      const isRead = !init || init.method === undefined || init.method === 'GET';
+    const fetchMock = fakeApiFetch(async (target, request): Promise<Response> => {
+      const isRead = request.method === 'GET';
       if (target.endsWith(`/${DEFAULT_COMPANY_ID}/members`) && isRead) {
         return jsonResponse({
           data: {
@@ -67,6 +72,8 @@ describe('MembersSection — self-gate', () => {
 
     act(() => useStore.setState({ activeCompanyId: nextCompanyId }));
     expect(screen.queryByText('first@example.test')).not.toBeInTheDocument();
+    // The client reaches fetch asynchronously, so wait for the held read to start.
+    await waitFor(() => expect(resolveNextMembers).toBeDefined());
 
     await act(async () => {
       resolveNextMembers?.(
@@ -194,8 +201,7 @@ describe('MembersSection — directory error retention', () => {
     let memberReads = 0;
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
-        const url = String(input);
+      fakeApiFetch(async (url) => {
         if (url.endsWith('/members')) {
           memberReads += 1;
           if (memberReads > 1) return new Promise<Response>(() => {});

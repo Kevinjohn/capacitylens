@@ -19,6 +19,7 @@ import { useStore } from '@/store/useStore';
 import { ArchivedEntitySection } from './ArchivedEntitySection';
 import { permissionValue } from '@/test/permissionGrants';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
+import { readFetchCalls } from '@/test/fetchRequests';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -77,8 +78,8 @@ beforeEach(async () => {
   setPlanningRole('owner');
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      if (init?.method === 'POST') {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((input instanceof Request ? input.method : init?.method) === 'POST') {
         serverData = {
           ...serverData,
           resources: serverData.resources.map((row) =>
@@ -112,19 +113,20 @@ describe('archived resource actions', () => {
     const user = userEvent.setup();
     render(authenticated(<ArchivedEntitySection entity="resources" />, 'owner'));
     await user.click(await screen.findByRole('button', { name: 'Anonymise Diana Prince' }));
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('includeInactive=1'),
-      expect.objectContaining({ credentials: 'include' }),
-    );
+    const [inactiveRead] = await readFetchCalls(vi.mocked(fetch));
+    expect(inactiveRead?.path).toContain('includeInactive=1');
+    expect(inactiveRead?.credentials).toBe('include');
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent('This cannot be undone.');
     await user.click(within(dialog).getByRole('button', { name: 'Anonymise' }));
     await waitFor(() =>
       expect(useStore.getState().data.resources[0]?.name).toBe('Anonymised person'),
     );
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/companies/acct-test/resources/resource-archive/anonymise'),
-      expect.objectContaining({ method: 'POST' }),
+    expect(await readFetchCalls(vi.mocked(fetch))).toContainEqual(
+      expect.objectContaining({
+        path: '/api/v1/companies/acct-test/resources/resource-archive/anonymise',
+        method: 'POST',
+      }),
     );
     expect(useStore.getState().data.resources[0]?.avatarUrl).toBeNull();
   });

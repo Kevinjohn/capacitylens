@@ -19,6 +19,8 @@ import {
 } from '@/test/fixtures';
 import { SettingsDataSection } from './SettingsDataSection';
 import { permissionValue } from '@/test/permissionGrants';
+import { readFetchRequest } from '@/test/fetchRequests';
+import type { FetchRequest } from '@/test/fetchRequests';
 
 vi.mock('@/data/requestTimeout', () => ({ fetchApi: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock('@/data/fetchInactiveRecords', async (importOriginal) => ({
@@ -229,7 +231,11 @@ describe('Company-wide people anonymisation', () => {
   });
 
   it('sends a bound proof to the named server endpoint from a settled planning view', async () => {
-    vi.mocked(fetchApi).mockResolvedValue(new Response(null, { status: 204 }));
+    const sent: Array<Promise<FetchRequest>> = [];
+    vi.mocked(fetchApi).mockImplementation(async (input, init) => {
+      sent.push(readFetchRequest(input, init));
+      return new Response(null, { status: 204 });
+    });
     renderSection({ role: 'owner' });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Anonymise all people' }));
@@ -239,14 +245,13 @@ describe('Company-wide people anonymisation', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm identity' }));
     await waitFor(() => expect(fetchApi).toHaveBeenCalledOnce());
     expect(planningProbe.suspends).toBe(1);
-    expect(fetchApi).toHaveBeenCalledWith(
-      expect.stringMatching(new RegExp(`/api/v1/companies/${DEFAULT_COMPANY_ID}/anonymise$`)),
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ confirmationId: 'proof-one' }),
-      }),
-      expect.any(Number),
-    );
+    const [request] = await Promise.all(sent);
+    const timeoutMs = vi.mocked(fetchApi).mock.calls[0]?.[2];
+    if (!request) throw new Error('Anonymisation request was not sent.');
+    expect(request.path).toBe(`/api/v1/companies/${DEFAULT_COMPANY_ID}/anonymise`);
+    expect(request.method).toBe('POST');
+    expect(JSON.parse(request.body ?? 'null')).toEqual({ confirmationId: 'proof-one' });
+    expect(timeoutMs).toEqual(expect.any(Number));
     expect(reloadPage).toHaveBeenCalledOnce();
   });
 

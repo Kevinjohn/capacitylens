@@ -3,8 +3,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import { fetchApi } from '@/data/requestTimeout';
+import { requestApiResponse } from '@/api/queryClient';
 import { readApiError } from '@/lib/readApiError';
 import {
   MAX_NAME_LENGTH,
@@ -51,15 +50,8 @@ export function CompanySetup({
     setBusy(true);
     setError(null);
     try {
-      const response = await fetchApi(buildApiRouteUrl('api.first_company_setup.store', {}), {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.first_company_setup.store', {
-          name: canonicalName,
-          weekStartsOn,
-          timeZone,
-        }),
+      const response = await requestApiResponse('api.first_company_setup.store', {
+        body: { name: canonicalName, weekStartsOn, timeZone },
       });
       if (response.status === 409 && (await onConflict())) return;
       if (!response.ok) throw new Error((await readApiError(response)) ?? m.company_setup_failed());

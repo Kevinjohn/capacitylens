@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { Route } from '@capacitylens/backend/registry';
-import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { requestApiResponse } from '@/api/queryClient';
 import { readApiData } from '@/api/readApiData';
-import { fetchApi } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { FormDialog } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
@@ -41,16 +40,8 @@ export function PasswordConfirmationDialog({
     setBusy(true);
     setError(null);
     try {
-      const url = buildApiRouteUrl('api.password_confirmations.store', {});
-      const response = await fetchApi(url, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.password_confirmations.store', {
-          ...request,
-          companyId,
-          password,
-        }),
+      const response = await requestApiResponse('api.password_confirmations.store', {
+        body: { ...request, companyId, password },
       });
       if (!response.ok) {
         setError((await readApiError(response)) ?? m.reauth_failed());

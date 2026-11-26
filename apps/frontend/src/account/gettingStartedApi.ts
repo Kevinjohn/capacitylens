@@ -1,6 +1,5 @@
-import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { requestApiResponse } from '@/api/queryClient';
 import { readApiData } from '@/api/readApiData';
-import { fetchApi } from '@/data/requestTimeout';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 
@@ -15,13 +14,10 @@ export const gettingStartedApi = {
     companyId: string,
     signal?: AbortSignal,
   ): Promise<{ dismissed: boolean; steps: GettingStartedSteps }> {
-    const response = await fetchApi(
-      buildApiRouteUrl('api.getting_started.show', { params: { companyId } }),
-      {
-        credentials: 'include',
-        ...(signal ? { signal } : {}),
-      },
-    );
+    const response = await requestApiResponse('api.getting_started.show', {
+      params: { companyId },
+      ...(signal ? { signal } : {}),
+    });
     if (!response.ok) throw new Error(`Getting started read failed (${response.status})`);
     const result: unknown = await readApiData(response);
     if (!isRecord(result) || typeof result.dismissed !== 'boolean') {
@@ -48,15 +44,10 @@ export const gettingStartedApi = {
    * @throws An `Error` when the server refuses the change.
    */
   async dismiss(companyId: string): Promise<void> {
-    const response = await fetchApi(
-      buildApiRouteUrl('api.getting_started.update', { params: { companyId } }),
-      {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.getting_started.update', { dismissed: true }),
-      },
-    );
+    const response = await requestApiResponse('api.getting_started.update', {
+      params: { companyId },
+      body: { dismissed: true },
+    });
     if (!response.ok) throw new Error(`Getting started dismissal failed (${response.status})`);
   },
 };

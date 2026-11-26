@@ -1,5 +1,4 @@
-import { fetchApi } from '@/data/requestTimeout';
-import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { requestApiResponse } from '@/api/queryClient';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import { clearMemberResourceLink, setMemberResourceLink } from './memberResourceApi';
 
@@ -23,24 +22,14 @@ interface ChangeMemberStatusInput {
 
 type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
 
-/** Builds a JSON request; `body` comes from `buildJsonBody`. */
-export function buildJsonRequestInit(method: 'POST' | 'PATCH' | 'PUT', body: string): RequestInit {
-  return {
-    method,
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  };
-}
-
 /**
  * Member and ownership requests. Their typed readers are `teamAccessApi` and
  * `ownershipTransferAccess`; screens use those, never these responses.
  */
 export const memberRequests = {
   listMembers(companyId: string, signal?: AbortSignal): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.members.index', { params: { companyId } }), {
-      credentials: 'include',
+    return requestApiResponse('api.members.index', {
+      params: { companyId },
       ...(signal ? { signal } : {}),
     });
   },
@@ -53,24 +42,24 @@ export const memberRequests = {
     companyId,
     enabled,
   }: SetMemberSignInTrackingOptions): Promise<Response> {
-    return fetchApi(
-      buildApiRouteUrl('api.member_sign_in_tracking.update', { params: { companyId } }),
-      buildJsonRequestInit('PUT', buildJsonBody('api.member_sign_in_tracking.update', { enabled })),
-    );
+    return requestApiResponse('api.member_sign_in_tracking.update', {
+      params: { companyId },
+      body: { enabled },
+    });
   },
 
   changeMemberRole({ companyId, userId, role }: ChangeMemberRoleInput): Promise<Response> {
-    return fetchApi(
-      buildApiRouteUrl('api.members.update', { params: { companyId, userId } }),
-      buildJsonRequestInit('PATCH', buildJsonBody('api.members.update', { role })),
-    );
+    return requestApiResponse('api.members.update', {
+      params: { companyId, userId },
+      body: { role },
+    });
   },
 
   changeMemberStatus({ companyId, userId, status }: ChangeMemberStatusInput): Promise<Response> {
-    return fetchApi(
-      buildApiRouteUrl('api.member_status.update', { params: { companyId, userId } }),
-      buildJsonRequestInit('PATCH', buildJsonBody('api.member_status.update', { status })),
-    );
+    return requestApiResponse('api.member_status.update', {
+      params: { companyId, userId },
+      body: { status },
+    });
   },
 
   transferOwnership({
@@ -78,12 +67,9 @@ export const memberRequests = {
     targetUserId,
     confirmationId,
   }: TransferOwnershipInput): Promise<Response> {
-    return fetchApi(
-      buildApiRouteUrl('api.ownership_transfers.store', { params: { companyId } }),
-      buildJsonRequestInit(
-        'POST',
-        buildJsonBody('api.ownership_transfers.store', { toUserId: targetUserId, confirmationId }),
-      ),
-    );
+    return requestApiResponse('api.ownership_transfers.store', {
+      params: { companyId },
+      body: { toUserId: targetUserId, confirmationId },
+    });
   },
 };
