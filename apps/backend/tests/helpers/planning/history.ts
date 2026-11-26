@@ -5,7 +5,7 @@ import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
   newAllocation,
-  session,
+  intentSession,
   signIn,
   type Credential,
 } from '#tests/functional/planning/helpers';
@@ -30,7 +30,7 @@ export class Page {
     route: 'api.planning_mutations.store' | 'api.planning_undo.store' | 'api.planning_redo.store',
     body: Record<string, unknown>
   ) {
-    const response = await session(this.client.visit(route, { companyId }), this.cookie)
+    const response = await intentSession(this.client.visit(route, { companyId }), this.cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: this.revision,
@@ -58,7 +58,7 @@ export class Page {
 
   async read() {
     const query = this.historyId === null ? {} : { historyId: this.historyId };
-    const response = await session(
+    const response = await intentSession(
       this.client.visit('api.planning.show', { companyId }).qs(query),
       this.cookie
     ).send();

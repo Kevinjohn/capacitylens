@@ -9,7 +9,7 @@ import {
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   signIn,
   validationSentence,
@@ -28,7 +28,7 @@ test.group('authenticated planning operations', (group) => {
     const data = await readState(companyId, true);
     const { cookie: viewerCookie } = await loginAsMember('viewer');
     const allocation = newAllocation(data);
-    const viewer = await session(
+    const viewer = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       viewerCookie
     )
@@ -41,7 +41,7 @@ test.group('authenticated planning operations', (group) => {
 
     const fullState = await readState();
     const foreignResource = fullState.resources.find((row) => row.companyId === 'a-loft')!;
-    const foreign = await session(
+    const foreign = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -57,7 +57,10 @@ test.group('authenticated planning operations', (group) => {
       .send();
     foreign.assertStatus(422);
     assert.isString(validationSentence(foreign));
-    const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const current = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(current).revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
@@ -100,7 +103,7 @@ test.group('authenticated planning operations', (group) => {
       },
     ];
     for (const [index, operation] of operations.entries()) {
-      const response = await session(
+      const response = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -118,7 +121,7 @@ test.group('authenticated planning operations', (group) => {
       response.assertStatus(200);
       assert.equal(replyBody(response).revision, index + 1);
     }
-    const updated = await session(
+    const updated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -176,14 +179,14 @@ test.group('authenticated planning operations', (group) => {
       firstAvailableDate: null,
       lastAvailableDate: null,
     };
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(0, { operation: 'resource.create', id, fields }))
       .send();
     created.assertStatus(200);
-    const updated = await session(
+    const updated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -218,7 +221,7 @@ test.group('authenticated planning operations', (group) => {
     const before = await readState(companyId, true);
     const changedDays = external!.workingDays.includes(0) ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4];
 
-    const refused = await session(
+    const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -234,7 +237,10 @@ test.group('authenticated planning operations', (group) => {
     refused.assertStatus(422);
     assert.isString(validationSentence(refused));
     assert.deepEqual(await readState(companyId, true), before);
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
@@ -252,7 +258,7 @@ test.group('authenticated planning operations', (group) => {
       ['disciplineId', data.disciplines[0]!.id],
       ['projectId', data.projects[0]!.id],
     ] as const) {
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -283,7 +289,7 @@ test.group('authenticated planning operations', (group) => {
     const auditBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
-    const refused = await session(
+    const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -305,7 +311,10 @@ test.group('authenticated planning operations', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
   });
 
@@ -319,7 +328,7 @@ test.group('authenticated planning operations', (group) => {
     const { cookie: ownerCookie } = await loginAsMember();
     const clientId = randomUUID();
     const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
-    const privateClient = await session(
+    const privateClient = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       ownerCookie
     )
@@ -339,7 +348,7 @@ test.group('authenticated planning operations', (group) => {
     const resourceId = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
     )!.id;
-    const timeOff = await session(
+    const timeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       ownerCookie
     )
@@ -360,7 +369,7 @@ test.group('authenticated planning operations', (group) => {
     timeOff.assertStatus(200);
 
     const { cookie } = await loginAsMember('editor');
-    const nameEdit = await session(
+    const nameEdit = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -373,7 +382,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     nameEdit.assertStatus(400);
     assert.equal(replyBody(nameEdit).code, 'NO_CHANGE');
-    const colourEdit = await session(
+    const colourEdit = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -392,7 +401,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     colourEdit.assertStatus(200);
-    const notePreserved = await session(
+    const notePreserved = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -401,7 +410,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     notePreserved.assertStatus(200);
-    const privacyRefused = await session(
+    const privacyRefused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -413,7 +422,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     privacyRefused.assertStatus(403);
-    const noteRefused = await session(
+    const noteRefused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -446,7 +455,7 @@ test.group('authenticated planning operations', (group) => {
       removed: Array<{ entity: AppDataKey; id: string }>;
     };
     const read = async () => {
-      const response = await session(
+      const response = await intentSession(
         client.visit('api.planning.show', { companyId }),
         cookie
       ).send();
@@ -478,14 +487,14 @@ test.group('authenticated planning operations', (group) => {
       [
         'create',
         (revision) =>
-          session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+          intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
             .json(mutationInput(revision, { operation: 'allocation.create', allocation }))
             .send(),
       ],
       [
         'update',
         (revision) =>
-          session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+          intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
             .json(
               mutationInput(revision, {
                 operation: 'allocation.update',
@@ -498,14 +507,14 @@ test.group('authenticated planning operations', (group) => {
       [
         'delete',
         (revision) =>
-          session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+          intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
             .json(mutationInput(revision, { operation: 'allocation.delete', id: allocation.id }))
             .send(),
       ],
       [
         'group create',
         async (revision) => {
-          const reply = await session(
+          const reply = await intentSession(
             client.visit('api.planning_mutations.store', { companyId }),
             cookie
           )
@@ -525,7 +534,7 @@ test.group('authenticated planning operations', (group) => {
       [
         'group delete',
         (revision) =>
-          session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+          intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
             .json(mutationInput(revision, { operation: 'allocation.deleteGroup', ids: groupIds }))
             .send(),
       ],
@@ -555,7 +564,7 @@ test.group('authenticated planning operations', (group) => {
     const { cookie } = await signIn(client);
     const allocation = newAllocation(data);
     const repeatGroup = (until: string) =>
-      session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+      intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(
           mutationInput(0, {
             operation: 'allocation.createGroup',
@@ -589,7 +598,7 @@ test.group('authenticated planning operations', (group) => {
     assert.isTrue(saved.every((row) => row?.seriesId === saved[0]!.seriesId));
 
     // Undo deletes the minted ids as one group; redo restores that group.
-    const undone = await session(
+    const undone = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -600,7 +609,7 @@ test.group('authenticated planning operations', (group) => {
     const restorationGroupId = (
       (undone.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
     ).restoration.replacementGroupId;
-    const redone = await session(
+    const redone = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -620,7 +629,7 @@ test.group('authenticated planning operations', (group) => {
     const { cookie } = await signIn(client);
     const allocation = newAllocation(data);
     const mutate = (revision: number, intent: Record<string, unknown>) =>
-      session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+      intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(mutationInput(revision, intent))
         .send();
     const created = await mutate(0, {
@@ -678,7 +687,7 @@ test.group('authenticated planning operations', (group) => {
       type: 'holiday',
     };
     const repeatTimeOff = (until: string, occurrenceIds: string[]) =>
-      session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+      intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(
           mutationInput(0, {
             operation: 'timeOff.repeat',
@@ -713,7 +722,7 @@ test.group('authenticated planning operations', (group) => {
     assert.isTrue(saved.every((row) => row?.resourceId === resourceId && row.type === 'holiday'));
 
     // Undo deletes the minted ids as one group; redo restores that group.
-    const undone = await session(
+    const undone = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -724,7 +733,7 @@ test.group('authenticated planning operations', (group) => {
     const restorationGroupId = (
       (undone.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
     ).restoration.replacementGroupId;
-    const redone = await session(
+    const redone = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -748,7 +757,7 @@ test.group('authenticated planning operations', (group) => {
       (response.body() as { data: { advisory?: unknown } }).data.advisory;
 
     // The saved row is not counted against itself.
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -758,7 +767,7 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(advisory(created), { overDays: 0, timeOffDays: 0 });
 
     // A copy on the same days adds five hours to five: ten is over eight on each of five days.
-    const duplicated = await session(
+    const duplicated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -774,7 +783,7 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(advisory(duplicated), { overDays: 5, timeOffDays: 0 });
 
     // Three plus five is exactly eight, which is not over capacity.
-    const updated = await session(
+    const updated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -790,7 +799,7 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(advisory(updated), { overDays: 0, timeOffDays: 0 });
     assert.notProperty((updated.body() as { data: unknown }).data, 'repeatAdvisory');
 
-    const timeOff = await session(
+    const timeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -812,7 +821,7 @@ test.group('authenticated planning operations', (group) => {
 
     // Monthly from Monday 2 November: 2 November meets eight booked hours, 2 December is time off,
     // 2 January is a Saturday and 2 February is clear.
-    const repeated = await session(
+    const repeated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -854,7 +863,7 @@ test.group('authenticated planning operations', (group) => {
     )!.id;
     const firstId = randomUUID();
     // Weekly from 2 November to 9 November makes two occurrences, so one later id, not two.
-    const repeat = await session(
+    const repeat = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -879,7 +888,7 @@ test.group('authenticated planning operations', (group) => {
     assert.isFalse(afterRepeat.timeOff.some((row) => row.id === firstId));
 
     const closureId = randomUUID();
-    const closure = await session(
+    const closure = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -893,7 +902,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     closure.assertStatus(200);
     assert.equal(replyBody(closure).revision, 1);
-    const setting = await session(
+    const setting = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -906,7 +915,10 @@ test.group('authenticated planning operations', (group) => {
       .send();
     setting.assertStatus(200);
     assert.equal(replyBody(setting).revision, 2);
-    const read = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const read = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     read.assertStatus(200);
     const snapshot = read.body().data as {
       revision: number;
@@ -929,14 +941,14 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await loginAsMember();
-    const styled = await session(
+    const styled = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(0, { operation: 'settings.update', changes: { dateStyle: 'month-day' } }))
       .send();
     styled.assertStatus(200);
-    const cleared = await session(
+    const cleared = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -958,7 +970,7 @@ test.group('authenticated planning operations', (group) => {
     const before = await readState(companyId, true);
     const phase = before.phases.find((row) => row.id === 'ph-disc')!;
     const target = before.projects.find((row) => row.id === 'p-brand')!;
-    const refused = await session(
+    const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -971,7 +983,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     refused.assertStatus(422);
     assert.isString(validationSentence(refused));
-    const retained = await session(client.post('/api/v1/batch'), cookie)
+    const retained = await intentSession(client.post('/api/v1/batch'), cookie)
       .json({
         ops: [
           { method: 'PUT', table: 'phases', id: phase.id, row: { ...phase, projectId: target.id } },
@@ -982,7 +994,10 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(await db.from('audit_entries').where('company_id', companyId), 0);
-    const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const current = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(current).revision, 0);
   });
 
@@ -995,12 +1010,15 @@ test.group('authenticated planning operations', (group) => {
     const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     // The browser sends the timestamp it read, so take the row from the planning read.
-    const read = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const read = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     const row = (read.body() as { data: { data: AppData } }).data.data.clients.find(
       (entry) => entry.companyId === companyId && !entry.builtin
     )!;
     const edit = (expectedUpdatedAt: string) =>
-      session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+      intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json({
           ...mutationInput(0, {
             operation: 'catalogue.update',
@@ -1014,7 +1032,7 @@ test.group('authenticated planning operations', (group) => {
     stale.assertStatus(409);
     assert.equal(replyBody(stale).code, 'STALE_REVISION');
     assert.deepEqual(await readState(companyId, true), before);
-    const unchanged = await session(
+    const unchanged = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();
@@ -1034,7 +1052,7 @@ test.group('authenticated planning operations', (group) => {
     configureAuth(cleanup);
     const { cookie } = await loginAsMember();
     const id = randomUUID();
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -1050,7 +1068,10 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     created.assertStatus(200);
-    const moved = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    const moved = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
         mutationInput(1, {
           operation: 'catalogue.update',
@@ -1072,7 +1093,7 @@ test.group('authenticated planning operations', (group) => {
     const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const activityId = randomUUID();
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -1094,14 +1115,14 @@ test.group('authenticated planning operations', (group) => {
       .send();
     created.assertStatus(200);
     const allocation = { ...newAllocation(data), activityId, projectId: 'p-acme' };
-    const allocated = await session(
+    const allocated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(1, { operation: 'allocation.create', allocation }))
       .send();
     allocated.assertStatus(200);
-    const changed = await session(
+    const changed = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -1123,7 +1144,7 @@ test.group('authenticated planning operations', (group) => {
 
     const auditBeforeNoop = await db.from('audit_entries').where('company_id', companyId);
     const markersBeforeNoop = await db.from('planning_mutations').where('company_id', companyId);
-    const sameKindOnly = await session(
+    const sameKindOnly = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -1149,14 +1170,14 @@ test.group('authenticated planning operations', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       markersBeforeNoop
     );
-    const afterNoop = await session(
+    const afterNoop = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();
     afterNoop.assertStatus(200);
     assert.equal(replyBody(afterNoop).revision, 3);
 
-    const sameKind = await session(
+    const sameKind = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -1172,7 +1193,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     sameKind.assertStatus(200);
-    const renamed = await session(
+    const renamed = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )

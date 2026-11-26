@@ -7,7 +7,7 @@ import {
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   validationSentence,
 } from '#tests/functional/planning/helpers';
@@ -28,7 +28,7 @@ test.group('typed resource availability', (group) => {
     const { cookie } = await loginAsMember();
     const before = await readState(companyId, true);
     const allocation = before.allocations[0]!;
-    const boundary = await session(
+    const boundary = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -43,7 +43,10 @@ test.group('typed resource availability', (group) => {
     boundary.assertStatus(200);
     assert.isTrue(allocation.endDate < '2027-01-01');
 
-    const edit = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    const edit = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
         mutationInput(1, {
           operation: 'allocation.update',
@@ -69,7 +72,7 @@ test.group('typed resource availability', (group) => {
     const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const resourceId = newAllocation(data).resourceId;
-    const calendar = await session(
+    const calendar = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -78,7 +81,7 @@ test.group('typed resource availability', (group) => {
       )
       .send();
     calendar.assertStatus(200);
-    const bounded = await session(
+    const bounded = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -97,14 +100,14 @@ test.group('typed resource availability', (group) => {
       startDate: '2026-06-04',
       endDate: '2026-06-05',
     };
-    const ordinary = await session(
+    const ordinary = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(2, { operation: 'allocation.create', allocation: candidate }))
       .send();
     ordinary.assertStatus(200);
-    const inclusive = await session(
+    const inclusive = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -138,7 +141,7 @@ test.group('typed resource availability', (group) => {
     const { cookie } = await loginAsMember();
     const data = await readState(companyId, true);
     const resourceId = newAllocation(data).resourceId;
-    const bounded = await session(
+    const bounded = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -158,7 +161,7 @@ test.group('typed resource availability', (group) => {
       startDate: '2026-06-01',
       endDate: '2026-06-01',
     };
-    const refused = await session(
+    const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )

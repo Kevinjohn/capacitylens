@@ -5,7 +5,7 @@ import {
   companyId,
   configureAuth,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   signIn,
   trusted,
@@ -43,7 +43,7 @@ test.group('identity-only archive recovery', (suite) => {
         .from('memberships')
         .where({ user_id: actor.userId, scope_id: companyId })
         .update({ role });
-      const response = await session(
+      const response = await intentSession(
         client.visit('api.planning_archive.show', { companyId }),
         actor.cookie
       ).send();
@@ -161,19 +161,19 @@ test.group('identity-only archive recovery', (suite) => {
   }) => {
     configureAuth(cleanup);
     const viewer = await loginAsMember('viewer');
-    const viewerRead = await session(
+    const viewerRead = await intentSession(
       client.visit('api.planning_archive.show', { companyId }),
       viewer.cookie
     ).send();
     viewerRead.assertStatus(403);
 
     const editor = await loginAsMember('editor');
-    const foreignRead = await session(
+    const foreignRead = await intentSession(
       client.visit('api.planning_archive.show', { companyId: 'a-loft' }),
       editor.cookie
     ).send();
     foreignRead.assertStatus(403);
-    const inactiveRead = await session(
+    const inactiveRead = await intentSession(
       client.visit('api.planning_archive.show', { companyId }),
       editor.cookie
     ).send();
@@ -181,7 +181,7 @@ test.group('identity-only archive recovery', (suite) => {
     await db.from('memberships').where({ user_id: editor.userId, scope_id: companyId }).update({
       status: 'suspended',
     });
-    const removedRead = await session(
+    const removedRead = await intentSession(
       client.visit('api.planning_archive.show', { companyId }),
       editor.cookie
     ).send();
@@ -189,7 +189,7 @@ test.group('identity-only archive recovery', (suite) => {
 
     const invalidSessionActor = await signIn(client, 'editor');
     await db.from('account_sessions').where({ user_id: invalidSessionActor.userId }).delete();
-    const invalidSession = await session(
+    const invalidSession = await intentSession(
       client.visit('api.planning_archive.show', { companyId }),
       invalidSessionActor.cookie
     ).send();
@@ -197,7 +197,10 @@ test.group('identity-only archive recovery', (suite) => {
 
     const owner = await signIn(client, 'owner');
     const target = await signIn(client, 'editor');
-    const contextResponse = await session(client.visit('api.masquerade.show'), owner.cookie).send();
+    const contextResponse = await intentSession(
+      client.visit('api.masquerade.show'),
+      owner.cookie
+    ).send();
     contextResponse.assertStatus(200);
     const masqueradeToken = (contextResponse.body()!.data as { masqueradeToken?: string })
       .masqueradeToken;
@@ -230,7 +233,7 @@ test.group('identity-only archive recovery', (suite) => {
     const { clientId, projectId } = await prepareArchiveFixture();
     const editor = await loginAsMember('editor');
 
-    const initial = await session(
+    const initial = await intentSession(
       client.visit('api.planning.show', { companyId }),
       editor.cookie
     ).send();
@@ -254,7 +257,7 @@ test.group('identity-only archive recovery', (suite) => {
     );
 
     // Capture the archive-to-active projection boundary on a normal typed operation.
-    const archiveProject = await session(
+    const archiveProject = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       editor.cookie
     )
@@ -267,7 +270,7 @@ test.group('identity-only archive recovery', (suite) => {
       .send();
     archiveProject.assertStatus(200);
     assert.notInclude(archiveProject.text(), privateProjectName);
-    const afterArchive = await session(
+    const afterArchive = await intentSession(
       client.visit('api.planning.show', { companyId }),
       editor.cookie
     ).send();
@@ -284,7 +287,7 @@ test.group('identity-only archive recovery', (suite) => {
     assert.notInclude(afterArchive.text(), privateProjectName);
 
     for (const [index, id] of ['t-brand', 't-cms'].entries()) {
-      const response = await session(
+      const response = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         editor.cookie
       )
@@ -310,7 +313,7 @@ test.group('identity-only archive recovery', (suite) => {
         );
     }
 
-    const archiveRead = await session(
+    const archiveRead = await intentSession(
       client.visit('api.planning_archive.show', { companyId }),
       editor.cookie
     ).send();
@@ -329,7 +332,7 @@ test.group('identity-only archive recovery', (suite) => {
 
     const childRestore = await restore(client, editor.cookie, 'activities', 't-brand', 3);
     childRestore.assertStatus(200);
-    const stillHidden = await session(
+    const stillHidden = await intentSession(
       client.visit('api.planning.show', { companyId }),
       editor.cookie
     ).send();
@@ -338,7 +341,10 @@ test.group('identity-only archive recovery', (suite) => {
       't-brand'
     );
     const afterChildRestore = recovery(
-      await session(client.visit('api.planning_archive.show', { companyId }), editor.cookie).send()
+      await intentSession(
+        client.visit('api.planning_archive.show', { companyId }),
+        editor.cookie
+      ).send()
     );
     const stillArchivedParent = requireRow(
       afterChildRestore.rows.find((row) => row.entity === 'projects' && row.id === projectId),
@@ -360,7 +366,7 @@ test.group('identity-only archive recovery', (suite) => {
     parentRestore.assertStatus(200);
     assert.notInclude(parentRestore.text(), 'Secret Designer Role');
 
-    const afterParent = await session(
+    const afterParent = await intentSession(
       client.visit('api.planning.show', { companyId }),
       editor.cookie
     ).send();
@@ -388,7 +394,7 @@ test.group('identity-only archive recovery', (suite) => {
     const clientRestore = await restore(client, editor.cookie, 'clients', clientId, 5);
     clientRestore.assertStatus(200);
     assert.notInclude(clientRestore.text(), privateClientName);
-    const afterClient = await session(
+    const afterClient = await intentSession(
       client.visit('api.planning.show', { companyId }),
       editor.cookie
     ).send();
@@ -409,7 +415,7 @@ test.group('identity-only archive recovery', (suite) => {
       response.assertStatus(200);
       revision += 1;
     }
-    const final = await session(
+    const final = await intentSession(
       client.visit('api.planning.show', { companyId }),
       editor.cookie
     ).send();
@@ -436,13 +442,13 @@ test.group('identity-only archive recovery', (suite) => {
     configureAuth(cleanup);
     const { clientId } = await prepareArchiveFixture();
     const editor = await loginAsMember('editor');
-    const archiveRead = await session(
+    const archiveRead = await intentSession(
       client.visit('api.planning_archive.show', { companyId }),
       editor.cookie
     ).send();
     archiveRead.assertStatus(200);
 
-    const advance = await session(
+    const advance = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       editor.cookie
     )
@@ -459,7 +465,7 @@ test.group('identity-only archive recovery', (suite) => {
     stale.assertStatus(409);
     assert.equal((stale.body() as { code: string }).code, 'STALE_REVISION');
 
-    const foreignTarget = await session(
+    const foreignTarget = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       editor.cookie
     )

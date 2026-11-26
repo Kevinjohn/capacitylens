@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ApiClient } from '@japa/api-client';
-import { companyId, session, type Credential } from '#tests/functional/planning/helpers';
+import { companyId, intentSession, type Credential } from '#tests/functional/planning/helpers';
 
 /** The company a planning test writes to when it means some company other than its own. */
 export const otherCompanyId = 'a-loft';
@@ -14,7 +14,7 @@ export const mutationInput = (baseRevision: number, intent: Record<string, unkno
 
 /** Sends one planning mutation to the test company as `cookie`. */
 export function mutate(client: ApiClient, cookie: Credential, revision: number, intent: object) {
-  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+  return intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json(mutationInput(revision, intent as Record<string, unknown>))
     .send();
 }

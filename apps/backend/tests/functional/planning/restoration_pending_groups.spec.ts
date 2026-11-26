@@ -60,7 +60,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     );
     settings.assertStatus(200);
-    assert.isDefined(await restorationGroup(groupId));
+    assert.isNotNull(await restorationGroup(groupId));
     const ordinary = await send(
       client,
       cookie,
@@ -77,7 +77,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     );
     ordinary.assertStatus(200);
-    assert.isDefined(await restorationGroup(groupId));
+    assert.isNotNull(await restorationGroup(groupId));
     const changed = await send(
       client,
       cookie,
@@ -96,7 +96,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     changed.assertStatus(409);
     assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED');
     assert.equal(changed.body().restorableItemCount, 1);
-    assert.isDefined(await restorationGroup(groupId));
+    assert.isNotNull(await restorationGroup(groupId));
     const confirmed = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -117,7 +117,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .send();
     confirmed.assertStatus(200);
     assert.isNull(await restorationGroup(groupId));
-    assert.isDefined(await restorationGroup(foreignGroup));
+    assert.isNotNull(await restorationGroup(foreignGroup));
     assert.isNull(await db.from('allocations').where('id', allocationId!).first());
   });
 
@@ -150,7 +150,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     );
     renamed.assertStatus(200);
-    assert.isDefined(await restorationGroup(groupId));
+    assert.isNotNull(await restorationGroup(groupId));
     const changed = await send(
       client,
       cookie,
@@ -165,7 +165,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     changed.assertStatus(409);
     assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED');
     assert.equal(changed.body().restorableItemCount, 1);
-    assert.isDefined(await restorationGroup(groupId));
+    assert.isNotNull(await restorationGroup(groupId));
     const confirmed = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -351,7 +351,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         1
       );
       refused.assertStatus(500);
-      assert.isDefined(await restorationGroup(groupId));
+      assert.isNotNull(await restorationGroup(groupId));
       const afterRefusal = await readState(companyId, true);
       assert.equal(
         afterRefusal.projects.find((row) => row.id === target.id)?.codeName,

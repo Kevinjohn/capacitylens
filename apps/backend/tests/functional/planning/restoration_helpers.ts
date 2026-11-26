@@ -3,7 +3,7 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, newAllocation, session } from '#tests/functional/planning/helpers';
+import { companyId, newAllocation, intentSession } from '#tests/functional/planning/helpers';
 
 export const note = 'Gotham night shift briefing';
 
@@ -28,7 +28,7 @@ export async function send(
   mutationId: string = randomUUID(),
   confirmedRestorationCount?: number
 ) {
-  const response = await session(
+  const response = await intentSession(
     client.visit('api.planning_mutations.store', { companyId: company }),
     cookie
   )
@@ -109,7 +109,10 @@ export async function stored(id: string) {
 
 /** Allocation ids in the planning read the browser replaces its slice from. */
 export async function readAllocationIds(client: ApiClient, cookie: string) {
-  const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+  const snapshot = await intentSession(
+    client.visit('api.planning.show', { companyId }),
+    cookie
+  ).send();
   snapshot.assertStatus(200);
   return (
     snapshot.body().data as { data: { allocations: Array<{ id: string }> } }
@@ -117,7 +120,7 @@ export async function readAllocationIds(client: ApiClient, cookie: string) {
 }
 
 export async function currentRevision(client: ApiClient, cookie: string, company = companyId) {
-  const snapshot = await session(
+  const snapshot = await intentSession(
     client.visit('api.planning.show', { companyId: company }),
     cookie
   ).send();
@@ -131,7 +134,7 @@ export const planningAudit = () =>
     .from('audit_entries')
     .where({ company_id: companyId, entity: 'planning' })
     .select('entity_id', 'action');
-/** The stored restoration group `groupId`, or undefined once it is gone. */
+/** The stored restoration group `groupId`, or null once it is gone. */
 export const restorationGroup = (groupId: string) =>
   db.from('deleted_groups').where('group_id', groupId).first();
 export async function consumedAt(groupId: string) {

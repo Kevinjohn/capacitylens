@@ -8,7 +8,7 @@ import {
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
 } from '#tests/functional/planning/helpers';
 import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations';
@@ -28,7 +28,7 @@ test.group('planning request rule boundaries', (group) => {
     const { cookie } = await loginAsMember();
     const initial = await readState(companyId, true);
     const clientId = randomUUID();
-    const validClient = await session(
+    const validClient = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -50,7 +50,7 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     validClient.assertStatus(200);
     assert.equal(replyBody(validClient).revision, 1);
-    const validProject = await session(
+    const validProject = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -73,7 +73,7 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     validProject.assertStatus(200);
     assert.equal(replyBody(validProject).revision, 2);
-    const paddedPreset = await session(
+    const paddedPreset = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -111,7 +111,7 @@ test.group('planning request rule boundaries', (group) => {
               isPrivate: true,
               codeName: '""',
             };
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -127,7 +127,7 @@ test.group('planning request rule boundaries', (group) => {
     }
 
     for (const color of ['#7cd9e4']) {
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -152,7 +152,10 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(snapshot).revision, 3);
   });
 
@@ -166,7 +169,10 @@ test.group('planning request rule boundaries', (group) => {
     const initial = await readState(companyId, true);
     const activity = initial.activities.find((row) => row.phaseId !== null)!;
     const otherProject = initial.projects.find((row) => row.id !== activity.projectId)!;
-    const valid = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    const valid = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
         mutationInput(0, {
           operation: 'catalogue.update',
@@ -180,7 +186,7 @@ test.group('planning request rule boundaries', (group) => {
     const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
-    const wrongProject = await session(
+    const wrongProject = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -198,7 +204,7 @@ test.group('planning request rule boundaries', (group) => {
     wrongProject.assertStatus(422);
     assert.isNotEmpty(validationErrors(wrongProject));
 
-    const unassignedProjectActivity = await session(
+    const unassignedProjectActivity = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -216,7 +222,7 @@ test.group('planning request rule boundaries', (group) => {
     unassignedProjectActivity.assertStatus(422);
     assert.isNotEmpty(validationErrors(unassignedProjectActivity));
 
-    const wrongKind = await session(
+    const wrongKind = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -244,7 +250,10 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(snapshot).revision, 1);
   });
 
@@ -263,7 +272,10 @@ test.group('planning request rule boundaries', (group) => {
       .from('resources')
       .where({ id: person.id, company_id: companyId })
       .update({ updated_at: priorUpdatedAt });
-    const valid = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    const valid = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
         mutationInput(0, {
           operation: 'resource.update',
@@ -290,7 +302,7 @@ test.group('planning request rule boundaries', (group) => {
       { id: placeholder.id, changes: { workingDays: [0, 6], halfDays: [6] } },
     ];
     for (const { id, changes } of invalidCases) {
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -300,7 +312,7 @@ test.group('planning request rule boundaries', (group) => {
       assert.isNotEmpty(validationErrors(refused));
     }
 
-    const changedKind = await session(
+    const changedKind = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -321,7 +333,10 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(snapshot).revision, 1);
   });
 
@@ -345,7 +360,7 @@ test.group('planning request rule boundaries', (group) => {
     const initialAudits = await db.from('audit_entries').where('company_id', companyId);
     const initialMutations = await db.from('planning_mutations').where('company_id', companyId);
 
-    const allocationRefusal = await session(
+    const allocationRefusal = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -365,14 +380,14 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       initialMutations
     );
-    const initialSnapshot = await session(
+    const initialSnapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();
     assert.equal(replyBody(initialSnapshot).revision, 0);
 
     const timeOffOnlyPersonId = randomUUID();
-    const timeOffOnlyPerson = await session(
+    const timeOffOnlyPerson = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -402,7 +417,7 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     timeOffOnlyPerson.assertStatus(200);
     assert.equal(replyBody(timeOffOnlyPerson).revision, 1);
-    const createdTimeOff = await session(
+    const createdTimeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -435,7 +450,7 @@ test.group('planning request rule boundaries', (group) => {
     const timeOffAudits = await db.from('audit_entries').where('company_id', companyId);
     const timeOffMutations = await db.from('planning_mutations').where('company_id', companyId);
 
-    const timeOffRefusal = await session(
+    const timeOffRefusal = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -455,7 +470,7 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       timeOffMutations
     );
-    const timeOffSnapshot = await session(
+    const timeOffSnapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();
@@ -477,7 +492,7 @@ test.group('planning request rule boundaries', (group) => {
       (row) => row.kind === 'project' && row.projectId !== placeholder.projectId
     );
     assert.isDefined(otherProjectActivity);
-    const validAllocation = await session(
+    const validAllocation = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -485,7 +500,7 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     validAllocation.assertStatus(200);
     assert.equal(replyBody(validAllocation).revision, 1);
-    const validTimeOff = await session(
+    const validTimeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -519,7 +534,7 @@ test.group('planning request rule boundaries', (group) => {
       { ...baseAllocation, resourceId: placeholder.id, activityId: otherProjectActivity!.id },
     ];
     for (const allocation of invalidAllocations) {
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -532,7 +547,7 @@ test.group('planning request rule boundaries', (group) => {
     const storedAllocation = canonicalBeforeRefusals.allocations.find(
       (row) => row.id === baseAllocation.id
     )!;
-    const excessiveUpdate = await session(
+    const excessiveUpdate = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -547,7 +562,7 @@ test.group('planning request rule boundaries', (group) => {
     excessiveUpdate.assertStatus(422);
     assert.isNotEmpty(validationErrors(excessiveUpdate));
 
-    const refusedUpdate = await session(
+    const refusedUpdate = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -587,7 +602,7 @@ test.group('planning request rule boundaries', (group) => {
     ];
     // The reversed range is refused by request validation, the others by planning rules; all 422.
     for (const timeOff of invalidTimeOff) {
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -603,7 +618,10 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(snapshot).revision, 2);
   });
 
@@ -620,7 +638,7 @@ test.group('planning request rule boundaries', (group) => {
 
     const invalidSettings = [{ workingDays: [] }, { workingDays: [1, 9] }, { color: '#7cd9e4' }];
     for (const changes of invalidSettings) {
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -636,7 +654,10 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(snapshot).revision, 0);
   });
 
@@ -647,7 +668,7 @@ test.group('planning request rule boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await loginAsMember();
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -665,7 +686,7 @@ test.group('planning request rule boundaries', (group) => {
     const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
-    const refusedUpdate = await session(
+    const refusedUpdate = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -685,7 +706,10 @@ test.group('planning request rule boundaries', (group) => {
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(replyBody(snapshot).revision, 1);
   });
 
@@ -695,7 +719,7 @@ test.group('planning request rule boundaries', (group) => {
     const initial = await readState(companyId, true);
     const color = initial.clients.find((row) => row.companyId === companyId)!.color;
     const id = randomUUID();
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -711,7 +735,10 @@ test.group('planning request rule boundaries', (group) => {
       )
       .send();
     created.assertStatus(200);
-    const read = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const read = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     read.assertStatus(200);
     const row = (
       read.body().data as { data: { clients: Array<{ id: string; displayName?: string }> } }

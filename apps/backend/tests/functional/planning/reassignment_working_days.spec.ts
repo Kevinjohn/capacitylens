@@ -7,7 +7,7 @@ import {
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   validationSentence,
 } from '#tests/functional/planning/helpers';
@@ -33,7 +33,7 @@ test.group('reassignment working-day override', (group) => {
       .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: false });
     const { cookie } = await loginAsMember();
     const patch = (revision: number, changes: Record<string, unknown>) =>
-      session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+      intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(
           mutationInput(revision, { operation: 'allocation.update', id: allocation.id, changes })
         )
@@ -62,7 +62,7 @@ test.group('reassignment working-day override', (group) => {
       endDate: '2026-06-05',
       ignoreWorkingDays: true,
     };
-    const newBooking = await session(
+    const newBooking = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -76,7 +76,7 @@ test.group('reassignment working-day override', (group) => {
     unavailable.assertStatus(422);
     assert.isString(validationSentence(unavailable));
     assert.deepEqual(await readState(companyId, true), before);
-    const canonical = await session(
+    const canonical = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();

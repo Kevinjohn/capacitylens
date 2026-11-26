@@ -11,7 +11,7 @@ import {
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   trusted,
   validationSentence,
@@ -34,7 +34,7 @@ test.group('independent typed planning operations', (group) => {
     const { cookie } = await loginAsMember();
     // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
     const first = { ...newAllocation(data), startDate: '2026-10-01', endDate: '2026-10-01' };
-    const committed = await session(
+    const committed = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -88,7 +88,7 @@ test.group('independent typed planning operations', (group) => {
       [[repeated, repeated], 'Entity IDs must be unique.'],
       [[timeOff.id, randomUUID()], 'Entity IDs must be unique.'],
     ] as const) {
-      const refused = await session(
+      const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -117,7 +117,7 @@ test.group('independent typed planning operations', (group) => {
     const { cookie } = await loginAsMember();
     const first = newAllocation(data);
     const before = await readState(companyId, true);
-    const refused = await session(
+    const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -136,7 +136,10 @@ test.group('independent typed planning operations', (group) => {
       'Repeat until must include at least one repeated occurrence.'
     );
     assert.deepEqual(await readState(companyId, true), before);
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
@@ -184,7 +187,7 @@ test.group('independent typed planning operations', (group) => {
 
     for (const [index, transition] of transitions.entries()) {
       const mutationId = randomUUID();
-      const response = await session(
+      const response = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -221,7 +224,10 @@ test.group('independent typed planning operations', (group) => {
     const final = await readState(companyId, true);
     assert.isNull(final.clients.find((row) => row.id === clientId)!.archivedAt);
     assert.isNull(final.resources.find((row) => row.id === resourceId)!.archivedAt);
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 4);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 4);
     assert.lengthOf(
@@ -241,7 +247,7 @@ test.group('independent typed planning operations', (group) => {
     const clientId = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.id;
     const missingId = randomUUID();
 
-    const alreadyActive = await session(
+    const alreadyActive = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -256,7 +262,7 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(replyBody(alreadyActive).code, 'NO_CHANGE');
     assert.deepEqual(Object.keys(alreadyActive.body() as object).sort(), ['code', 'error']);
 
-    const missing = await session(
+    const missing = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -271,7 +277,7 @@ test.group('independent typed planning operations', (group) => {
     assert.isString(validationSentence(missing));
     assert.deepEqual(Object.keys(missing.body() as object), ['errors']);
 
-    const archived = await session(
+    const archived = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -283,7 +289,7 @@ test.group('independent typed planning operations', (group) => {
       )
       .send();
     archived.assertStatus(200);
-    const repeated = await session(
+    const repeated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -298,7 +304,10 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(replyBody(repeated).code, 'NO_CHANGE');
     assert.deepEqual(Object.keys(repeated.body() as object).sort(), ['code', 'error']);
 
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 1);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
@@ -317,7 +326,7 @@ test.group('independent typed planning operations', (group) => {
         !row.builtin &&
         before.projects.some((project) => project.clientId === row.id)
     )!;
-    const archived = await session(
+    const archived = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -361,7 +370,7 @@ test.group('independent typed planning operations', (group) => {
     assert.isDefined(before);
 
     for (const operation of ['catalogue.archive', 'catalogue.restore'] as const) {
-      const response = await session(
+      const response = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -376,7 +385,10 @@ test.group('independent typed planning operations', (group) => {
       assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
     }
 
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
@@ -397,7 +409,7 @@ test.group('independent typed planning operations', (group) => {
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
 
-    const renamed = await session(
+    const renamed = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -411,7 +423,7 @@ test.group('independent typed planning operations', (group) => {
     renamed.assertStatus(422);
     assert.isString(validationSentence(renamed));
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
-    const refusedSnapshot = await session(
+    const refusedSnapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();
@@ -431,7 +443,7 @@ test.group('independent typed planning operations', (group) => {
         fields: { name: 'Second Internal', color: internal.color, builtin: true },
       },
     });
-    const spoofed = await session(
+    const spoofed = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -449,7 +461,7 @@ test.group('independent typed planning operations', (group) => {
       builtin: null,
     });
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
-    const createdSnapshot = await session(
+    const createdSnapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send();
@@ -484,7 +496,7 @@ test.group('independent typed planning operations', (group) => {
         changes: { name: 'Ordinary renamed', builtin: true },
       },
     });
-    const normalRename = await session(
+    const normalRename = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -502,7 +514,7 @@ test.group('independent typed planning operations', (group) => {
       operation: 'catalogue.update',
       entity: { entity: 'clients', id: spoofedId, changes: { builtin: true } },
     });
-    const flagOnly = await session(
+    const flagOnly = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -513,7 +525,10 @@ test.group('independent typed planning operations', (group) => {
     assert.deepEqual(await db.from('clients').where({ id: spoofedId }).first(), ordinaryRenamed);
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
 
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 2);
     const canonicalClients = snapshot.body().data.data.clients as typeof createdClients;
     assert.equal(canonicalClients.find((row) => row.id === spoofedId)?.name, 'Ordinary renamed');
@@ -554,7 +569,7 @@ test.group('independent typed planning operations', (group) => {
     const before = await db.from('projects').where({ id: foreignProject.id }).first();
     assert.isDefined(before);
 
-    const refused = await session(
+    const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -569,7 +584,10 @@ test.group('independent typed planning operations', (group) => {
     refused.assertStatus(422);
     assert.isString(validationSentence(refused));
     assert.deepEqual(await db.from('projects').where({ id: foreignProject.id }).first(), before);
-    const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
@@ -616,7 +634,7 @@ test.group('independent typed planning operations', (group) => {
       color: template.color,
     }).create();
     const { cookie } = await loginAsMember();
-    const response = await session(
+    const response = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )

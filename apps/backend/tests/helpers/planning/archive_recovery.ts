@@ -3,7 +3,7 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import type { ArchiveRecovery, ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, session, type Credential } from '#tests/functional/planning/helpers';
+import { companyId, intentSession, type Credential } from '#tests/functional/planning/helpers';
 import { mutationInput } from '#tests/helpers/planning/mutations';
 
 export const stamp = '2026-10-01T00:00:00.000Z';
@@ -30,7 +30,7 @@ export function requestWithContext<T extends ApiRequest>(
   cookie: string,
   context?: string
 ) {
-  const authenticated = session(request, cookie);
+  const authenticated = intentSession(request, cookie);
   return context ? authenticated.header('X-Masquerade-Context', context) : authenticated;
 }
 
@@ -52,7 +52,7 @@ export async function restore(
   baseRevision: number
 ) {
   const operation = restoreOperation(entity, id);
-  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+  return intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json(mutationInput(baseRevision, operation.intent))
     .send();
 }

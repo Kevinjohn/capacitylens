@@ -15,7 +15,7 @@ import {
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   signIn,
 } from '#tests/functional/planning/helpers';
@@ -75,7 +75,7 @@ db.exec('COMMIT')`,
     };
     knex.on('query-response', interleave);
     try {
-      const snapshot = await session(
+      const snapshot = await intentSession(
         client.visit('api.planning.show', { companyId }),
         cookie
       ).send();
@@ -88,7 +88,10 @@ db.exec('COMMIT')`,
       knex.off('query-response', interleave);
     }
     assert.equal(externalCommit(), 0);
-    const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const current = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     current.assertStatus(200);
     assert.equal(current.body().data.revision, 1);
     assert.equal(current.body().data.access.role, 'viewer');
@@ -118,7 +121,7 @@ db.exec('COMMIT')`,
     };
     knex.on('query', count);
     try {
-      const updated = await session(
+      const updated = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -153,7 +156,7 @@ db.exec('COMMIT')`,
       "CREATE TEMP TRIGGER planning_audit_failure BEFORE INSERT ON audit_entries WHEN NEW.entity = 'planning' BEGIN SELECT RAISE(ABORT, 'test audit failure'); END"
     );
     try {
-      const failed = await session(
+      const failed = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -183,7 +186,7 @@ db.exec('COMMIT')`,
     const allocations = [newAllocation(data), newAllocation(data)];
     const replies = await Promise.all(
       allocations.map((allocation) =>
-        session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+        intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
           .json({
             mutationId: randomUUID(),
             baseRevision: 0,
@@ -205,7 +208,10 @@ db.exec('COMMIT')`,
       ),
       1
     );
-    const current = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+    const current = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(current.body().data.revision, 1);
   });
 
@@ -225,7 +231,7 @@ db.exec('COMMIT')`,
     };
     const replies = await Promise.all(
       [1, 2].map(() =>
-        session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+        intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
           .json(input as never)
           .send()
       )
@@ -250,11 +256,14 @@ db.exec('COMMIT')`,
     configureAuth(cleanup);
     const owner = await signIn(client);
     const target = await signIn(client, 'editor');
-    const start = await session(client.visit('api.masquerade.store', { companyId }), owner.cookie)
+    const start = await intentSession(
+      client.visit('api.masquerade.store', { companyId }),
+      owner.cookie
+    )
       .json({ targetUserId: target.userId })
       .send();
     start.assertStatus(200);
-    const snapshot = await session(
+    const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       owner.cookie
     ).send();
@@ -262,7 +271,7 @@ db.exec('COMMIT')`,
     assert.equal(snapshot.body().data.access.effectiveActorId, target.userId);
     assert.isFalse(snapshot.body().data.access.canWrite);
     const allocation = newAllocation(await readState(companyId, true));
-    const refused = await session(
+    const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       owner.cookie
     )
@@ -288,7 +297,7 @@ db.exec('COMMIT')`,
       configureAuth(cleanup);
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
-      const started = await session(
+      const started = await intentSession(
         client.visit('api.masquerade.store', { companyId }),
         owner.cookie
       )
@@ -347,7 +356,7 @@ db.exec('COMMIT')`,
       configureAuth(cleanup);
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
-      const started = await session(
+      const started = await intentSession(
         client.visit('api.masquerade.store', { companyId }),
         owner.cookie
       )
