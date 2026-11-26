@@ -11,6 +11,7 @@ import {
 } from '@/test/fixtures';
 import { useLifecycleOperations } from './useLifecycleOperations';
 import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
+import { readDataSettingsCalls } from '@/test/dataSettingsRequests';
 
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
 const queryCache = new QueryClient();
@@ -91,20 +92,21 @@ describe('named lifecycle actions', () => {
   });
 
   it('only resource anonymisation calls the named destructive endpoint', async () => {
-    const fetch = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
-      void url;
-      void options;
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      void input;
+      void init;
       return new Response(null, { status: 204 });
     });
     vi.stubGlobal('fetch', fetch);
     const { result } = renderHook(() => useLifecycleOperations(), { wrapper });
     await act(async () => result.current.anonymise('r-1'));
     expect(fetch).toHaveBeenCalledOnce();
-    const call = fetch.mock.calls[0];
-    if (!call) throw new Error('Anonymisation request was not sent.');
-    const [url, options] = call;
-    expect(url).toBe(`/api/v1/companies/${DEFAULT_COMPANY_ID}/resources/r-1/anonymise`);
-    expect(options).toMatchObject({ method: 'POST', body: '{}' });
+    const [request] = await readDataSettingsCalls(fetch);
+    if (!request) throw new Error('Anonymisation request was not sent.');
+    expect(request.path).toBe(`/api/v1/companies/${DEFAULT_COMPANY_ID}/resources/r-1/anonymise`);
+    // The action sends no body since the API client migration; it used to send `{}`.
+    expect(request).toMatchObject({ method: 'POST', body: undefined });
+    expect(request.headers.has('content-type')).toBe(false);
   });
 
   it('refuses resource anonymisation while another replacement owns the planning context', async () => {

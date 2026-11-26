@@ -23,6 +23,7 @@ import { OwnerPermissions } from '@/test/ownerPermissions';
 import { AuthContext } from '@/auth/authContext';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { permissionValue } from '@/test/permissionGrants';
+import { readDataSettingsCalls } from '@/test/dataSettingsRequests';
 
 function TestProviders({ children }: { children: ReactNode }) {
   const [cache] = useState(() => new QueryClient());
@@ -593,10 +594,10 @@ describe('ResourceList archived grouping', () => {
     render(<ResourceList />);
 
     const archived = await screen.findByTestId('archived-resources-section');
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('includeInactive=1'),
-      expect.objectContaining({ credentials: 'include' }),
-    );
+    const requests = await readDataSettingsCalls(vi.mocked(fetch));
+    const inactiveReads = requests.filter((request) => request.path.includes('includeInactive=1'));
+    expect(inactiveReads).not.toHaveLength(0);
+    expect(inactiveReads.map((request) => request.credentials)).toContain('include');
     const headings = within(archived)
       .getAllByRole('heading')
       .map((heading) => heading.textContent);
