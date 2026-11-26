@@ -69,6 +69,8 @@ you declined by mistake.
 Invitations not yet accepted are listed under **Outstanding invites**, above your members. Select
 **Revoke** to cancel an invitation that has not expired, or **Resend** to email a fresh link.
 
+<span id="change-a-members-role-or-schedule-row"></span>
+
 ## Change a member's role or schedule row
 
 <span id="managing-someone-who-already-joined"></span>
