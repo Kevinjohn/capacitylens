@@ -7,6 +7,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import { seed } from '@capacitylens/shared/data/seed';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
 import Company from '#models/company';
+import { ClientFactory } from '#database/factories/client_factory';
 import { insertTwoCompanyFixture } from '#tests/functional/state/database_contract_fixtures';
 import {
   ACTIVITY_KINDS,
@@ -31,29 +32,10 @@ import {
 import app from '@adonisjs/core/services/app';
 import { DatabaseHealthService } from '#services/database_health_service';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
+import { companyIds, stamp, scopedTables, rowCount } from '#tests/helpers/state/database_contract';
 
 const databaseHealth = await app.container.make(DatabaseHealthService);
 const schemaIntegrity = new SchemaIntegrityService();
-
-const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
-const stamp = '2026-10-12T00:00:00.000Z';
-
-const scopedTables = [
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'time_off',
-  'closures',
-] as const;
-
-async function rowCount(table: string, where: Record<string, string>) {
-  const result = await db.from(table).where(where).count('* as count').first();
-  return Number(result?.count ?? 0);
-}
 
 test.group('database contract', (group) => {
   group.setup(() => freshDatabase());
@@ -327,16 +309,14 @@ test.group('database contract', (group) => {
     assert,
   }) => {
     const names = ['true', 'false', '[]', '{"hero":"Batman"}'];
-    await db.table('clients').insert(
+    await ClientFactory.merge(
       names.map((name, index) => ({
         id: `m1-string-client-${index}`,
-        company_id: companyIds.dc,
+        companyId: companyIds.dc,
         name,
         color: '#111111',
-        created_at: stamp,
-        updated_at: stamp,
       }))
-    );
+    ).createMany(names.length);
     const jsonLookingNote = '{"case":"preserve as text"}';
     await db.from('allocations').where('id', 'm1-dc-allocation').update({ note: jsonLookingNote });
 

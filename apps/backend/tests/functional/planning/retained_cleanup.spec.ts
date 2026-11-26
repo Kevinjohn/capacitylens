@@ -1,93 +1,22 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { captureMail } from '#tests/helpers/identities';
 import {
-  companyId,
   configureAuth,
-  newAllocation,
   resetPlanningFixture,
   session,
   signIn,
   signInAgain,
 } from '#tests/functional/planning/helpers';
-import { readState } from '#tests/helpers/state_fixture';
-
-async function revision() {
-  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
-  return Number(row?.revision ?? 0);
-}
-
-async function deleteAllocation(client: ApiClient, cookie: string) {
-  const data = await readState(companyId, true);
-  const allocation = newAllocation(data);
-  const baseRevision = await revision();
-  const created = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-    .json({
-      mutationId: randomUUID(),
-      baseRevision,
-      intent: { operation: 'allocation.create', allocation },
-    })
-    .send();
-  created.assertStatus(200);
-  const deleted = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-    .json({
-      mutationId: randomUUID(),
-      baseRevision: baseRevision + 1,
-      intent: { operation: 'allocation.delete', id: allocation.id },
-    })
-    .send();
-  deleted.assertStatus(200);
-  return {
-    allocationId: allocation.id,
-    groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId,
-  };
-}
-
-async function deleteExistingAllocation(client: ApiClient, cookie: string, allocationId: string) {
-  const deleted = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-    .json({
-      mutationId: randomUUID(),
-      baseRevision: await revision(),
-      intent: { operation: 'allocation.delete', id: allocationId },
-    })
-    .send();
-  deleted.assertStatus(200);
-  return {
-    allocationId,
-    groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId,
-  };
-}
-
-async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
-  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-    .json({
-      mutationId: randomUUID(),
-      baseRevision: await revision(),
-      intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
-    })
-    .send();
-}
-
-async function createActiveAllocation(client: ApiClient, cookie: string) {
-  const data = await readState(companyId, true);
-  const allocation = newAllocation(data);
-  const baseRevision = await revision();
-  const created = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
-    .json({
-      mutationId: randomUUID(),
-      baseRevision,
-      intent: { operation: 'allocation.create', allocation },
-    })
-    .send();
-  created.assertStatus(200);
-  return allocation.id;
-}
+import {
+  deleteAllocation,
+  deleteExistingAllocation,
+  restoreAllocation,
+  createActiveAllocation,
+} from '#tests/helpers/planning/retained_rows';
 
 test.group('retained planning cleanup', (suite) => {
   suite.setup(() => freshDatabase());

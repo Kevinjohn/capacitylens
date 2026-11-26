@@ -5,6 +5,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
 import { readState } from '#tests/helpers/state_fixture';
+import { insertProductRows } from '#tests/helpers/product_rows';
 import app from '@adonisjs/core/services/app';
 import { RestorationService } from '#services/planning/restoration_service';
 import {
@@ -256,12 +257,12 @@ test.group('session-bound allocation restoration', (suite) => {
     const { cookie } = await signIn(client);
     const [kept] = await createAllocations(client, cookie, 1);
     // Seed an existing large series so this exercises the delete and restore request limits.
-    const allocation = await db.from('allocations').where('id', kept!).firstOrFail();
+    const allocation = (await stored(kept!))!;
     const listed = Array.from({ length: 501 }, () => randomUUID());
-    for (let start = 0; start < listed.length; start += 500) {
-      const rows = listed.slice(start, start + 500).map((id) => ({ ...allocation, id }));
-      await db.table('allocations').multiInsert(rows);
-    }
+    await insertProductRows(
+      'allocations',
+      listed.map((id) => ({ ...allocation, id }))
+    );
     const before = await readState(companyId, true);
     const deleted = await deleteGroup(client, cookie, listed, 1);
     deleted.assertStatus(200);

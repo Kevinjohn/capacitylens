@@ -3,9 +3,7 @@ import app from '@adonisjs/core/services/app';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import { readdir } from 'node:fs/promises';
 import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
-
-const strictPolicy =
-  "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'";
+import { strictPolicy } from '#tests/helpers/state/http_responses';
 
 test.group('static fallback', (group) => {
   group.setup(() => freshDatabase());

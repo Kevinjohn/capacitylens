@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import type { ApiClient } from '@japa/api-client';
 import { readState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
@@ -8,24 +7,10 @@ import {
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
-  type Credential,
   loginAsMember,
   validationSentence,
 } from '#tests/functional/planning/helpers';
-
-const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
-const input = (baseRevision: number, intent: Record<string, unknown>) => ({
-  mutationId: randomUUID(),
-  baseRevision,
-  intent,
-});
-
-function mutate(client: ApiClient, cookie: Credential, revision: number, intent: object) {
-  return session(client.post(route('planning/mutations')), cookie)
-    .json(input(revision, intent as Record<string, unknown>))
-    .send();
-}
+import { mutate } from '#tests/helpers/planning/mutations';
 
 test.group('allocation start availability', (group) => {
   group.setup(() => freshDatabase());

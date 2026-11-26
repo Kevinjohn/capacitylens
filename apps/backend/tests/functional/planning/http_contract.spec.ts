@@ -9,11 +9,10 @@ import { RowValidationService } from '#services/planning/row_validation_service'
 import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
-  planningUrl,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   signIn,
   trusted,
@@ -47,7 +46,10 @@ test.group('authenticated typed planning transactions', (group) => {
       .from('clients')
       .where('id', hidden.id)
       .update({ name: 'Wayne secret', is_private: true, code_name: 'Nightwing' });
-    const response = await session(client.get(planningUrl), cookie).send();
+    const response = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     response.assertStatus(200);
     assert.equal(response.body().data.companyId, companyId);
     assert.equal(response.body().data.revision, 0);
@@ -61,13 +63,13 @@ test.group('authenticated typed planning transactions', (group) => {
         .body()
         .data.data.clients.every((row: { companyId: string }) => row.companyId === companyId)
     );
-    const foreign = await session(
+    const foreign = await intentSession(
       client.visit('api.planning.show', { companyId: 'a-loft' }),
       cookie
     ).send();
     foreign.assertStatus(403);
     assert.equal((foreign.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
-    const anonymous = await trusted(client.get(planningUrl)).send();
+    const anonymous = await trusted(client.visit('api.planning.show', { companyId })).send();
     anonymous.assertStatus(401);
   });
 
@@ -84,7 +86,10 @@ test.group('authenticated typed planning transactions', (group) => {
     const { cookie } = await loginAsMember('viewer');
     const data = await readState(companyId, false);
 
-    const read = await session(client.get(planningUrl), cookie).send();
+    const read = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     read.assertStatus(200);
     const { capacity } = read.body().data;
     assert.deepEqual(capacity.window, { from: '2026-05-04', to: '2026-09-28' });
@@ -100,8 +105,8 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.lengthOf(first!.window.over, 148);
     assert.lengthOf(first!.horizon.over, 82);
 
-    const requested = await session(
-      client.get(planningUrl).qs({ from: '2026-01-05', to: '2026-01-11' }),
+    const requested = await intentSession(
+      client.visit('api.planning.show', { companyId }).qs({ from: '2026-01-05', to: '2026-01-11' }),
       cookie
     ).send();
     requested.assertStatus(200);
@@ -132,7 +137,10 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.exists(archivedActivity);
     type Days = { available: number[]; over: boolean[] };
     const readWindow = async () => {
-      const response = await session(client.get(planningUrl), cookie).send();
+      const response = await intentSession(
+        client.visit('api.planning.show', { companyId }),
+        cookie
+      ).send();
       response.assertStatus(200);
       const { capacity } = response.body().data;
       return {
@@ -158,7 +166,7 @@ test.group('authenticated typed planning transactions', (group) => {
         endDate: date,
         hoursPerDay: 24,
       };
-      const created = await session(
+      const created = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -196,7 +204,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const { cookie, userId } = await loginAsMember('editor');
     await db.transaction((trx) => planningRevisions.advancePlanningRevision(trx, companyId));
     const read = (query: Record<string, string | number>) =>
-      session(client.get(planningUrl).qs(query), cookie).send();
+      intentSession(client.visit('api.planning.show', { companyId }).qs(query), cookie).send();
 
     const unchanged = await read({ ifRevision: 1 });
     unchanged.assertStatus(200);
@@ -250,12 +258,15 @@ test.group('authenticated typed planning transactions', (group) => {
       [{ from: '2026-02-30', to: '2026-03-01' }, 'The from field must be a datetime value'],
     ];
     for (const [query, error] of refusals) {
-      const response = await session(client.get(planningUrl).qs(query), cookie).send();
+      const response = await intentSession(
+        client.visit('api.planning.show', { companyId }).qs(query),
+        cookie
+      ).send();
       response.assertStatus(422);
       assert.equal(response.body().errors[0]?.message, error, JSON.stringify(query));
     }
-    const longest = await session(
-      client.get(planningUrl).qs({ from: '2026-01-01', to: '2027-01-01' }),
+    const longest = await intentSession(
+      client.visit('api.planning.show', { companyId }).qs({ from: '2026-01-01', to: '2027-01-01' }),
       cookie
     ).send();
     longest.assertStatus(200);
@@ -263,8 +274,8 @@ test.group('authenticated typed planning transactions', (group) => {
       window: { over: boolean[] };
     }>;
     assert.lengthOf(resource!.window.over, 366);
-    const leapYear = await session(
-      client.get(planningUrl).qs({ from: '2028-01-01', to: '2028-12-31' }),
+    const leapYear = await intentSession(
+      client.visit('api.planning.show', { companyId }).qs({ from: '2028-01-01', to: '2028-12-31' }),
       cookie
     ).send();
     leapYear.assertStatus(200);
@@ -289,7 +300,7 @@ test.group('authenticated typed planning transactions', (group) => {
       baseRevision: 0,
       intent: { operation: 'allocation.create', allocation },
     };
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -315,13 +326,16 @@ test.group('authenticated typed planning transactions', (group) => {
       [['allocations', allocation.id]]
     );
     assert.deepEqual(changes.removed, []);
-    const read = await session(client.get(planningUrl), cookie).send();
+    const read = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     read.assertStatus(200);
     assert.equal(read.body().data.revision, 1);
     assert.isTrue(
       read.body().data.data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
-    const duplicate = await session(
+    const duplicate = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -329,7 +343,10 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     duplicate.assertStatus(409);
     assert.equal((duplicate.body() as unknown as { code: string }).code, 'MUTATION_ID_REUSED');
-    const stale = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    const stale = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json({
         mutationId: randomUUID(),
         baseRevision: 0,
@@ -342,7 +359,10 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     stale.assertStatus(409);
     assert.equal((stale.body() as unknown as { code: string }).code, 'STALE_REVISION');
-    const moved = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+    const moved = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json({
         mutationId: randomUUID(),
         baseRevision: 1,
@@ -512,7 +532,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.lengthOf(operations, 38);
     for (const [revision, build] of operations.entries()) {
       const intent = build();
-      const reply = await session(
+      const reply = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
@@ -572,7 +592,7 @@ test.group('authenticated typed planning transactions', (group) => {
         occurrence: { id, startDate: '2026-11-09', endDate: '2026-11-13' },
       },
     };
-    const response = await session(
+    const response = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -602,7 +622,7 @@ test.group('authenticated typed planning transactions', (group) => {
       after.allocations.find((row) => row.id === source.id),
       source
     );
-    const replay = await session(
+    const replay = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -668,7 +688,10 @@ test.group('authenticated typed planning transactions', (group) => {
       .where('id', foreign.id)
       .update({ avatar_url: imageFor(foreign.id) });
 
-    const response = await session(client.get(planningUrl), cookie).send();
+    const response = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     response.assertStatus(200);
     const resources = response.body().data.data.resources as {
       id: string;
@@ -692,7 +715,7 @@ test.group('authenticated typed planning transactions', (group) => {
     configureAuth(cleanup);
     const { cookie } = await loginAsMember();
     const allocation = newAllocation(await readState(companyId, true));
-    const created = await session(
+    const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -704,7 +727,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     created.assertStatus(200);
     const before = await readState(companyId, true);
-    const occupied = await session(
+    const occupied = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -717,7 +740,7 @@ test.group('authenticated typed planning transactions', (group) => {
     occupied.assertStatus(422);
     assert.isString(validationSentence(occupied));
     const missingId = randomUUID();
-    const missing = await session(
+    const missing = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -751,7 +774,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const data = await readState(companyId, true);
     const allocation = data.allocations.find((row) => row.companyId === companyId)!;
     const before = await readState(companyId, true);
-    const response = await session(
+    const response = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
@@ -773,7 +796,10 @@ test.group('authenticated typed planning transactions', (group) => {
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       0
     );
-    const current = await session(client.get(planningUrl), cookie).send();
+    const current = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(current.body().data.revision, 0);
   });
 });

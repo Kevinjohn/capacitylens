@@ -3,9 +3,8 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, newAllocation, session } from '#tests/functional/planning/helpers';
+import { companyId, newAllocation, intentSession } from '#tests/functional/planning/helpers';
 
-export const mutationsUrl = `/api/v1/companies/${companyId}/planning/mutations`;
 export const note = 'Gotham night shift briefing';
 
 export interface Reply {
@@ -23,13 +22,16 @@ interface ReplyBody {
 export async function send(
   client: ApiClient,
   cookie: string,
-  url: string,
+  company: string,
   baseRevision: number,
   intent: Record<string, unknown>,
   mutationId: string = randomUUID(),
   confirmedRestorationCount?: number
 ) {
-  const response = await session(client.post(url), cookie)
+  const response = await intentSession(
+    client.visit('api.planning_mutations.store', { companyId: company }),
+    cookie
+  )
     .json({
       mutationId,
       baseRevision,
@@ -48,14 +50,7 @@ export const deleteOne = (
   baseRevision: number,
   mutationId?: string
 ) =>
-  send(
-    client,
-    cookie,
-    mutationsUrl,
-    baseRevision,
-    { operation: 'allocation.delete', id },
-    mutationId
-  );
+  send(client, cookie, companyId, baseRevision, { operation: 'allocation.delete', id }, mutationId);
 
 export const deleteGroup = (
   client: ApiClient,
@@ -63,7 +58,7 @@ export const deleteGroup = (
   ids: string[],
   baseRevision: number
 ) =>
-  send(client, cookie, mutationsUrl, baseRevision, {
+  send(client, cookie, companyId, baseRevision, {
     operation: 'allocation.deleteGroup',
     ids,
   });
@@ -79,7 +74,7 @@ export const restore = (
   send(
     client,
     cookie,
-    `/api/v1/companies/${company}/planning/mutations`,
+    company,
     baseRevision,
     { operation: 'planning.restoreGroup', restorationGroupId },
     mutationId
@@ -91,11 +86,11 @@ export async function createAllocations(client: ApiClient, cookie: string, count
   const allocation = { ...newAllocation(data), note, task: 'Watchtower rota' };
   const created =
     count === 1
-      ? await send(client, cookie, mutationsUrl, 0, {
+      ? await send(client, cookie, companyId, 0, {
           operation: 'allocation.create',
           allocation,
         })
-      : await send(client, cookie, mutationsUrl, 0, {
+      : await send(client, cookie, companyId, 0, {
           operation: 'allocation.createGroup',
           allocation,
           repeat: {
@@ -114,7 +109,10 @@ export async function stored(id: string) {
 
 /** Allocation ids in the planning read the browser replaces its slice from. */
 export async function readAllocationIds(client: ApiClient, cookie: string) {
-  const snapshot = await session(client.visit('api.planning.show', { companyId }), cookie).send();
+  const snapshot = await intentSession(
+    client.visit('api.planning.show', { companyId }),
+    cookie
+  ).send();
   snapshot.assertStatus(200);
   return (
     snapshot.body().data as { data: { allocations: Array<{ id: string }> } }
@@ -122,7 +120,7 @@ export async function readAllocationIds(client: ApiClient, cookie: string) {
 }
 
 export async function currentRevision(client: ApiClient, cookie: string, company = companyId) {
-  const snapshot = await session(
+  const snapshot = await intentSession(
     client.visit('api.planning.show', { companyId: company }),
     cookie
   ).send();
@@ -136,10 +134,11 @@ export const planningAudit = () =>
     .from('audit_entries')
     .where({ company_id: companyId, entity: 'planning' })
     .select('entity_id', 'action');
-export const group = (groupId: string) =>
+/** The stored restoration group `groupId`, or null once it is gone. */
+export const restorationGroup = (groupId: string) =>
   db.from('deleted_groups').where('group_id', groupId).first();
 export async function consumedAt(groupId: string) {
-  const row = await group(groupId);
+  const row = await restorationGroup(groupId);
   return row?.consumed_at;
 }
 

@@ -27,10 +27,19 @@ export const trusted = <T extends { header(name: string, value: string): T }>(re
 /** A real session cookie, or a user each request signs in afresh with `loginAs`. */
 export type Credential = string | User;
 
+/** Signs a request in, keeping the route's body and response types. */
 export function session<T extends ApiRequest>(request: T, cookie: Credential): T {
   return typeof cookie === 'string'
     ? asDataOwner(request, cookie)
     : asLoggedInDataOwner(request, cookie);
+}
+
+/**
+ * Signs a request in without the route's body and response types, for planning tests that send
+ * intents the route types do not admit, refusals included.
+ */
+export function intentSession(request: ApiRequest, cookie: Credential): ApiRequest {
+  return session(request, cookie);
 }
 
 export function configureAuth(cleanup: (callback: () => void) => void) {

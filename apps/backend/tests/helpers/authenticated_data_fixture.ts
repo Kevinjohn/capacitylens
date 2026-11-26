@@ -56,7 +56,7 @@ export function asLoggedInDataOwner<T extends ApiRequest>(request: T, user: User
     .setup(async (prepared) => {
       // The context token is the identity's, so a separate sign-in may read it.
       const status = await new ApiClient(prepared.config.baseUrl)
-        .get('/api/v1/masquerade')
+        .visit('api.masquerade.show')
         .loginAs(user)
         .header('sec-fetch-site', 'same-origin');
       if (status.status() !== 200)

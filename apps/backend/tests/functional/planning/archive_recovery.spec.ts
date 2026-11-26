@@ -1,145 +1,27 @@
-import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import type { ApiClient, ApiRequest } from '@japa/api-client';
-import type { AppData } from '@capacitylens/shared/types/entities';
-import type { ArchiveRecovery, ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '#tests/helpers/fresh_database';
-import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
   configureAuth,
   resetPlanningFixture,
-  session,
-  type Credential,
+  intentSession,
   loginAsMember,
   signIn,
   trusted,
   validationSentence,
 } from '#tests/functional/planning/helpers';
-
-const route = (path: string, targetCompanyId = companyId) =>
-  `/api/v1/companies/${targetCompanyId}/${path}`;
-const archiveUrl = route('planning/archive');
-const stamp = '2026-10-01T00:00:00.000Z';
-const privateClientName = 'Wayne Archive Client';
-const privateClientCode = 'Project Nightwing';
-const privateProjectName = 'Wayne Archive Project';
-const privateProjectCode = 'Project Bat Project';
-
-type PlanningBody = {
-  revision: number;
-  data: AppData;
-};
-
-function recovery(response: { body(): unknown }) {
-  return (response.body() as { data: ArchiveRecovery }).data;
-}
-
-function planning(response: { body(): unknown }) {
-  return (response.body() as { data: PlanningBody }).data;
-}
-
-function requestWithContext<T extends ApiRequest>(request: T, cookie: string, context?: string) {
-  const authenticated = session(request, cookie);
-  return context ? authenticated.header('X-Masquerade-Context', context) : authenticated;
-}
-
-function mutationInput(baseRevision: number, intent: Record<string, unknown>) {
-  return { mutationId: randomUUID(), baseRevision, intent };
-}
-
-function restoreOperation(entity: ArchiveRecoveryRow['entity'], id: string) {
-  if (entity === 'resources')
-    return {
-      intent: { operation: 'resource.restore', id },
-    };
-  return {
-    intent: { operation: 'catalogue.restore', entity: { entity, id } },
-  };
-}
-
-async function restore(
-  client: ApiClient,
-  cookie: Credential,
-  entity: ArchiveRecoveryRow['entity'],
-  id: string,
-  baseRevision: number
-) {
-  const operation = restoreOperation(entity, id);
-  return session(client.post(route('planning/mutations')), cookie)
-    .json(mutationInput(baseRevision, operation.intent))
-    .send();
-}
-
-function requireRow<T>(row: T | undefined, label: string): T {
-  if (!row) throw new Error(`Missing archive-recovery fixture row: ${label}`);
-  return row;
-}
-
-/** Add private, archived and inherited-hidden rows with data that must not leave the server. */
-async function prepareArchiveFixture(archiveProject = false) {
-  const data = await readState(companyId, true);
-  const client = requireRow(
-    data.clients.find((row) => row.id === 'c-acme'),
-    'c-acme'
-  );
-  const project = requireRow(
-    data.projects.find((row) => row.id === 'p-brand'),
-    'p-brand'
-  );
-
-  await db.from('clients').where({ id: client.id, company_id: companyId }).update({
-    name: privateClientName,
-    is_private: true,
-    code_name: privateClientCode,
-    archived_at: stamp,
-  });
-  await db.from('projects').where({ id: 'p-acme', company_id: companyId }).update({
-    name: privateProjectName,
-    is_private: true,
-    code_name: privateProjectCode,
-  });
-  await db
-    .from('projects')
-    .where({ id: project.id, company_id: companyId })
-    .update({
-      is_private: true,
-      code_name: null,
-      ...(archiveProject ? { archived_at: stamp } : {}),
-    });
-  await db.from('resources').where({ id: 'r-tyler', company_id: companyId }).update({
-    archived_at: stamp,
-    job_title: 'Secret Designer Role',
-    avatar_url: 'private-avatar-sentinel',
-  });
-  await db.from('resources').where({ id: 'r-alex', company_id: companyId }).update({
-    archived_at: stamp,
-    engagement: 'supplementary',
-  });
-  await db.from('resources').where({ id: 'r-ext-northstar', company_id: companyId }).update({
-    archived_at: stamp,
-  });
-  await db.from('resources').where({ id: 'r-ph-designer', company_id: companyId }).update({
-    project_id: project.id,
-  });
-  await db.from('activities').where({ id: 't-admin', company_id: companyId }).update({
-    archived_at: stamp,
-  });
-  await db.from('clients').where({ id: 'c-internal-studio', company_id: companyId }).update({
-    archived_at: stamp,
-  });
-
-  const verified = await readState(companyId, true);
-  if (
-    verified.clients.find((row) => row.id === client.id)?.isPrivate !== true ||
-    verified.projects.find((row) => row.id === project.id)?.isPrivate !== true ||
-    verified.projects.find((row) => row.id === project.id)?.codeName !== null
-  )
-    throw new Error('Private archive fixtures did not round-trip through the SQLite JSON columns.');
-
-  return { data, clientId: client.id, projectId: project.id };
-}
+import {
+  privateClientName,
+  privateProjectName,
+  recovery,
+  planning,
+  requestWithContext,
+  restore,
+  requireRow,
+  prepareArchiveFixture,
+} from '#tests/helpers/planning/archive_recovery';
+import { mutationInput } from '#tests/helpers/planning/mutations';
 
 test.group('identity-only archive recovery', (suite) => {
   suite.setup(() => freshDatabase());
@@ -161,7 +43,10 @@ test.group('identity-only archive recovery', (suite) => {
         .from('memberships')
         .where({ user_id: actor.userId, scope_id: companyId })
         .update({ role });
-      const response = await session(client.get(archiveUrl), actor.cookie).send();
+      const response = await intentSession(
+        client.visit('api.planning_archive.show', { companyId }),
+        actor.cookie
+      ).send();
       assert.equal(response.status(), 200, response.text());
       const body = recovery(response);
       assert.equal(body.companyId, companyId);
@@ -275,38 +160,53 @@ test.group('identity-only archive recovery', (suite) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const viewer = await signIn(client, 'viewer');
-    const viewerRead = await session(client.get(archiveUrl), viewer.cookie).send();
+    const viewer = await loginAsMember('viewer');
+    const viewerRead = await intentSession(
+      client.visit('api.planning_archive.show', { companyId }),
+      viewer.cookie
+    ).send();
     viewerRead.assertStatus(403);
 
-    const editor = await signIn(client, 'editor');
-    const foreignRead = await session(
-      client.get(route('planning/archive', 'a-loft')),
+    const editor = await loginAsMember('editor');
+    const foreignRead = await intentSession(
+      client.visit('api.planning_archive.show', { companyId: 'a-loft' }),
       editor.cookie
     ).send();
     foreignRead.assertStatus(403);
-    const inactiveRead = await session(client.get(archiveUrl), editor.cookie).send();
+    const inactiveRead = await intentSession(
+      client.visit('api.planning_archive.show', { companyId }),
+      editor.cookie
+    ).send();
     inactiveRead.assertStatus(200);
     await db.from('memberships').where({ user_id: editor.userId, scope_id: companyId }).update({
       status: 'suspended',
     });
-    const removedRead = await session(client.get(archiveUrl), editor.cookie).send();
+    const removedRead = await intentSession(
+      client.visit('api.planning_archive.show', { companyId }),
+      editor.cookie
+    ).send();
     removedRead.assertStatus(403);
 
     const invalidSessionActor = await signIn(client, 'editor');
     await db.from('account_sessions').where({ user_id: invalidSessionActor.userId }).delete();
-    const invalidSession = await session(client.get(archiveUrl), invalidSessionActor.cookie).send();
+    const invalidSession = await intentSession(
+      client.visit('api.planning_archive.show', { companyId }),
+      invalidSessionActor.cookie
+    ).send();
     invalidSession.assertStatus(401);
 
     const owner = await signIn(client, 'owner');
     const target = await signIn(client, 'editor');
-    const contextResponse = await session(client.visit('api.masquerade.show'), owner.cookie).send();
+    const contextResponse = await intentSession(
+      client.visit('api.masquerade.show'),
+      owner.cookie
+    ).send();
     contextResponse.assertStatus(200);
     const masqueradeToken = (contextResponse.body()!.data as { masqueradeToken?: string })
       .masqueradeToken;
     assert.isString(masqueradeToken);
     const started = await requestWithContext(
-      trusted(client.post(route('masquerade'))),
+      trusted(client.visit('api.masquerade.store', { companyId })),
       owner.cookie,
       masqueradeToken
     )
@@ -316,7 +216,7 @@ test.group('identity-only archive recovery', (suite) => {
     const activeToken = ((started.body() as { data: unknown }).data as { masqueradeToken: string })
       .masqueradeToken;
     const masqueradedRead = await requestWithContext(
-      client.get(archiveUrl),
+      client.visit('api.planning_archive.show', { companyId }),
       owner.cookie,
       activeToken
     ).send();
@@ -333,7 +233,10 @@ test.group('identity-only archive recovery', (suite) => {
     const { clientId, projectId } = await prepareArchiveFixture();
     const editor = await loginAsMember('editor');
 
-    const initial = await session(client.get(route('planning')), editor.cookie).send();
+    const initial = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      editor.cookie
+    ).send();
     initial.assertStatus(200);
     const initialData = planning(initial).data;
     assert.notInclude(
@@ -354,7 +257,10 @@ test.group('identity-only archive recovery', (suite) => {
     );
 
     // Capture the archive-to-active projection boundary on a normal typed operation.
-    const archiveProject = await session(client.post(route('planning/mutations')), editor.cookie)
+    const archiveProject = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      editor.cookie
+    )
       .json(
         mutationInput(0, {
           operation: 'catalogue.archive',
@@ -364,7 +270,10 @@ test.group('identity-only archive recovery', (suite) => {
       .send();
     archiveProject.assertStatus(200);
     assert.notInclude(archiveProject.text(), privateProjectName);
-    const afterArchive = await session(client.get(route('planning')), editor.cookie).send();
+    const afterArchive = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      editor.cookie
+    ).send();
     afterArchive.assertStatus(200);
     const afterArchiveData = planning(afterArchive).data;
     assert.notInclude(
@@ -378,7 +287,10 @@ test.group('identity-only archive recovery', (suite) => {
     assert.notInclude(afterArchive.text(), privateProjectName);
 
     for (const [index, id] of ['t-brand', 't-cms'].entries()) {
-      const response = await session(client.post(route('planning/mutations')), editor.cookie)
+      const response = await intentSession(
+        client.visit('api.planning_mutations.store', { companyId }),
+        editor.cookie
+      )
         .json(
           mutationInput(index + 1, {
             operation: 'catalogue.archive',
@@ -401,7 +313,10 @@ test.group('identity-only archive recovery', (suite) => {
         );
     }
 
-    const archiveRead = await session(client.get(archiveUrl), editor.cookie).send();
+    const archiveRead = await intentSession(
+      client.visit('api.planning_archive.show', { companyId }),
+      editor.cookie
+    ).send();
     archiveRead.assertStatus(200);
     const archiveBody = recovery(archiveRead);
     for (const [entity, id] of [
@@ -417,12 +332,20 @@ test.group('identity-only archive recovery', (suite) => {
 
     const childRestore = await restore(client, editor.cookie, 'activities', 't-brand', 3);
     childRestore.assertStatus(200);
-    const stillHidden = await session(client.get(route('planning')), editor.cookie).send();
+    const stillHidden = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      editor.cookie
+    ).send();
     assert.notInclude(
       planning(stillHidden).data.activities.map((row) => row.id),
       't-brand'
     );
-    const afterChildRestore = recovery(await session(client.get(archiveUrl), editor.cookie).send());
+    const afterChildRestore = recovery(
+      await intentSession(
+        client.visit('api.planning_archive.show', { companyId }),
+        editor.cookie
+      ).send()
+    );
     const stillArchivedParent = requireRow(
       afterChildRestore.rows.find((row) => row.entity === 'projects' && row.id === projectId),
       'archived parent after direct child restoration'
@@ -443,7 +366,10 @@ test.group('identity-only archive recovery', (suite) => {
     parentRestore.assertStatus(200);
     assert.notInclude(parentRestore.text(), 'Secret Designer Role');
 
-    const afterParent = await session(client.get(route('planning')), editor.cookie).send();
+    const afterParent = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      editor.cookie
+    ).send();
     assert.notInclude(afterParent.text(), 'Secret Designer Role');
     const afterParentData = planning(afterParent).data;
     assert.include(
@@ -468,7 +394,10 @@ test.group('identity-only archive recovery', (suite) => {
     const clientRestore = await restore(client, editor.cookie, 'clients', clientId, 5);
     clientRestore.assertStatus(200);
     assert.notInclude(clientRestore.text(), privateClientName);
-    const afterClient = await session(client.get(route('planning')), editor.cookie).send();
+    const afterClient = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      editor.cookie
+    ).send();
     assert.notInclude(afterClient.text(), privateClientName);
     const projectedClient = planning(afterClient).data.clients.find((row) => row.id === clientId);
     const projectedProject = planning(afterClient).data.projects.find((row) => row.id === 'p-acme');
@@ -486,7 +415,10 @@ test.group('identity-only archive recovery', (suite) => {
       response.assertStatus(200);
       revision += 1;
     }
-    const final = await session(client.get(route('planning')), editor.cookie).send();
+    const final = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      editor.cookie
+    ).send();
     const finalData = planning(final).data;
     assert.include(
       finalData.activities.map((row) => row.id),
@@ -510,10 +442,16 @@ test.group('identity-only archive recovery', (suite) => {
     configureAuth(cleanup);
     const { clientId } = await prepareArchiveFixture();
     const editor = await loginAsMember('editor');
-    const archiveRead = await session(client.get(archiveUrl), editor.cookie).send();
+    const archiveRead = await intentSession(
+      client.visit('api.planning_archive.show', { companyId }),
+      editor.cookie
+    ).send();
     archiveRead.assertStatus(200);
 
-    const advance = await session(client.post(route('planning/mutations')), editor.cookie)
+    const advance = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      editor.cookie
+    )
       .json(
         mutationInput(0, {
           operation: 'catalogue.archive',
@@ -527,7 +465,10 @@ test.group('identity-only archive recovery', (suite) => {
     stale.assertStatus(409);
     assert.equal((stale.body() as { code: string }).code, 'STALE_REVISION');
 
-    const foreignTarget = await session(client.post(route('planning/mutations')), editor.cookie)
+    const foreignTarget = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      editor.cookie
+    )
       .json(
         mutationInput(1, {
           operation: 'catalogue.restore',

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
+import { ClientFactory } from '#database/factories/client_factory';
 import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates';
 import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
@@ -9,32 +10,13 @@ import {
   companyId,
   configureAuth,
   newAllocation,
-  planningUrl,
   resetPlanningFixture,
-  session,
+  intentSession,
   loginAsMember,
   trusted,
   validationSentence,
 } from '#tests/functional/planning/helpers';
-
-const route = (path: string) => `/api/v1/companies/${companyId}/${path}`;
-const input = (baseRevision: number, intent: Record<string, unknown>) => ({
-  mutationId: randomUUID(),
-  baseRevision,
-  intent,
-});
-/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
-/** The framework's validation answer: one entry per refused field. */
-const validationErrors = (response: { body(): unknown }) =>
-  (response.body() as { errors?: Array<{ message: string }> }).errors;
-const body = (response: { body(): unknown; status(): number }) =>
-  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
-    code?: string;
-    error?: string;
-    status?: string;
-    mutationId?: string;
-    revision?: number;
-  };
+import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations';
 
 test.group('independent typed planning operations', (group) => {
   group.setup(() => freshDatabase());
@@ -52,9 +34,12 @@ test.group('independent typed planning operations', (group) => {
     const { cookie } = await loginAsMember();
     // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
     const first = { ...newAllocation(data), startDate: '2026-10-01', endDate: '2026-10-01' };
-    const committed = await session(client.post(route('planning/mutations')), cookie)
+    const committed = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'allocation.createGroup',
           allocation: first,
           repeat: { pattern: { kind: 'monthly-date' }, until: '2026-11-01' },
@@ -63,7 +48,7 @@ test.group('independent typed planning operations', (group) => {
       .send();
 
     committed.assertStatus(200);
-    assert.equal(body(committed).revision, 1);
+    assert.equal(replyBody(committed).revision, 1);
     const saved = await readState(companyId, true);
     const firstRow = saved.allocations.find((row) => row.id === first.id);
     // The server minted the later occurrence's id.
@@ -103,9 +88,12 @@ test.group('independent typed planning operations', (group) => {
       [[repeated, repeated], 'Entity IDs must be unique.'],
       [[timeOff.id, randomUUID()], 'Entity IDs must be unique.'],
     ] as const) {
-      const refused = await session(client.post(route('planning/mutations')), cookie)
+      const refused = await intentSession(
+        client.visit('api.planning_mutations.store', { companyId }),
+        cookie
+      )
         .json(
-          input(0, {
+          mutationInput(0, {
             operation: 'timeOff.repeat',
             timeOff,
             repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
@@ -129,9 +117,12 @@ test.group('independent typed planning operations', (group) => {
     const { cookie } = await loginAsMember();
     const first = newAllocation(data);
     const before = await readState(companyId, true);
-    const refused = await session(client.post(route('planning/mutations')), cookie)
+    const refused = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'allocation.createGroup',
           allocation: first,
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: first.startDate },
@@ -145,7 +136,10 @@ test.group('independent typed planning operations', (group) => {
       'Repeat until must include at least one repeated occurrence.'
     );
     assert.deepEqual(await readState(companyId, true), before);
-    const snapshot = await session(client.get(planningUrl), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
@@ -193,7 +187,10 @@ test.group('independent typed planning operations', (group) => {
 
     for (const [index, transition] of transitions.entries()) {
       const mutationId = randomUUID();
-      const response = await session(client.post(route('planning/mutations')), cookie)
+      const response = await intentSession(
+        client.visit('api.planning_mutations.store', { companyId }),
+        cookie
+      )
         .json({
           mutationId,
           baseRevision: index,
@@ -204,7 +201,7 @@ test.group('independent typed planning operations', (group) => {
         })
         .send();
       response.assertStatus(200);
-      assert.equal(body(response).revision, index + 1);
+      assert.equal(replyBody(response).revision, index + 1);
       // Only a catalogue archive reports what it hid.
       if (transition.operation !== 'catalogue.archive')
         assert.notProperty((response.body() as { data: unknown }).data as object, 'archived');
@@ -227,7 +224,10 @@ test.group('independent typed planning operations', (group) => {
     const final = await readState(companyId, true);
     assert.isNull(final.clients.find((row) => row.id === clientId)!.archivedAt);
     assert.isNull(final.resources.find((row) => row.id === resourceId)!.archivedAt);
-    const snapshot = await session(client.get(planningUrl), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 4);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 4);
     assert.lengthOf(
@@ -247,40 +247,67 @@ test.group('independent typed planning operations', (group) => {
     const clientId = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.id;
     const missingId = randomUUID();
 
-    const alreadyActive = await session(client.post(route('planning/mutations')), cookie)
+    const alreadyActive = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, { operation: 'catalogue.restore', entity: { entity: 'clients', id: clientId } })
+        mutationInput(0, {
+          operation: 'catalogue.restore',
+          entity: { entity: 'clients', id: clientId },
+        })
       )
       .send();
     alreadyActive.assertStatus(400);
-    assert.equal(body(alreadyActive).code, 'NO_CHANGE');
+    assert.equal(replyBody(alreadyActive).code, 'NO_CHANGE');
     assert.deepEqual(Object.keys(alreadyActive.body() as object).sort(), ['code', 'error']);
 
-    const missing = await session(client.post(route('planning/mutations')), cookie)
+    const missing = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: missingId } })
+        mutationInput(0, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: missingId },
+        })
       )
       .send();
     missing.assertStatus(422);
     assert.isString(validationSentence(missing));
     assert.deepEqual(Object.keys(missing.body() as object), ['errors']);
 
-    const archived = await session(client.post(route('planning/mutations')), cookie)
+    const archived = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: clientId } })
+        mutationInput(0, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: clientId },
+        })
       )
       .send();
     archived.assertStatus(200);
-    const repeated = await session(client.post(route('planning/mutations')), cookie)
+    const repeated = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(1, { operation: 'catalogue.archive', entity: { entity: 'clients', id: clientId } })
+        mutationInput(1, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: clientId },
+        })
       )
       .send();
     repeated.assertStatus(400);
-    assert.equal(body(repeated).code, 'NO_CHANGE');
+    assert.equal(replyBody(repeated).code, 'NO_CHANGE');
     assert.deepEqual(Object.keys(repeated.body() as object).sort(), ['code', 'error']);
 
-    const snapshot = await session(client.get(planningUrl), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 1);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
@@ -299,9 +326,15 @@ test.group('independent typed planning operations', (group) => {
         !row.builtin &&
         before.projects.some((project) => project.clientId === row.id)
     )!;
-    const archived = await session(client.post(route('planning/mutations')), cookie)
+    const archived = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: target.id } })
+        mutationInput(0, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'clients', id: target.id },
+        })
       )
       .send();
     archived.assertStatus(200);
@@ -337,9 +370,12 @@ test.group('independent typed planning operations', (group) => {
     assert.isDefined(before);
 
     for (const operation of ['catalogue.archive', 'catalogue.restore'] as const) {
-      const response = await session(client.post(route('planning/mutations')), cookie)
+      const response = await intentSession(
+        client.visit('api.planning_mutations.store', { companyId }),
+        cookie
+      )
         .json(
-          input(0, {
+          mutationInput(0, {
             operation,
             entity: { entity: 'clients', id: internal.id },
           })
@@ -349,7 +385,10 @@ test.group('independent typed planning operations', (group) => {
       assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
     }
 
-    const snapshot = await session(client.get(planningUrl), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
@@ -370,9 +409,12 @@ test.group('independent typed planning operations', (group) => {
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
 
-    const renamed = await session(client.post(route('planning/mutations')), cookie)
+    const renamed = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.update',
           entity: { entity: 'clients', id: internal.id, changes: { name: 'Renamed Internal' } },
         })
@@ -381,7 +423,10 @@ test.group('independent typed planning operations', (group) => {
     renamed.assertStatus(422);
     assert.isString(validationSentence(renamed));
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
-    const refusedSnapshot = await session(client.get(planningUrl), cookie).send();
+    const refusedSnapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(refusedSnapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
@@ -390,7 +435,7 @@ test.group('independent typed planning operations', (group) => {
     );
 
     const spoofedId = randomUUID();
-    const createInput = input(0, {
+    const createInput = mutationInput(0, {
       operation: 'catalogue.create',
       entity: {
         entity: 'clients',
@@ -398,13 +443,16 @@ test.group('independent typed planning operations', (group) => {
         fields: { name: 'Second Internal', color: internal.color, builtin: true },
       },
     });
-    const spoofed = await session(client.post(route('planning/mutations')), cookie)
+    const spoofed = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(createInput)
       .send();
     spoofed.assertStatus(200);
-    assert.equal(body(spoofed).status, 'committed');
-    assert.equal(body(spoofed).mutationId, createInput.mutationId);
-    assert.equal(body(spoofed).revision, 1);
+    assert.equal(replyBody(spoofed).status, 'committed');
+    assert.equal(replyBody(spoofed).mutationId, createInput.mutationId);
+    assert.equal(replyBody(spoofed).revision, 1);
     const ordinary = await db.from('clients').where({ id: spoofedId }).first();
     assert.deepInclude(ordinary!, {
       id: spoofedId,
@@ -413,7 +461,10 @@ test.group('independent typed planning operations', (group) => {
       builtin: null,
     });
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
-    const createdSnapshot = await session(client.get(planningUrl), cookie).send();
+    const createdSnapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(createdSnapshot.body().data.revision, 1);
     const createdClients = createdSnapshot.body().data.data.clients as Array<{
       id: string;
@@ -437,7 +488,7 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(createdAudit[0].entity_id, createInput.mutationId);
     assert.equal(createdAudit[0].action, 'catalogue.create');
 
-    const renameInput = input(1, {
+    const renameInput = mutationInput(1, {
       operation: 'catalogue.update',
       entity: {
         entity: 'clients',
@@ -445,22 +496,28 @@ test.group('independent typed planning operations', (group) => {
         changes: { name: 'Ordinary renamed', builtin: true },
       },
     });
-    const normalRename = await session(client.post(route('planning/mutations')), cookie)
+    const normalRename = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(renameInput)
       .send();
     normalRename.assertStatus(200);
-    assert.equal(body(normalRename).status, 'committed');
-    assert.equal(body(normalRename).mutationId, renameInput.mutationId);
-    assert.equal(body(normalRename).revision, 2);
+    assert.equal(replyBody(normalRename).status, 'committed');
+    assert.equal(replyBody(normalRename).mutationId, renameInput.mutationId);
+    assert.equal(replyBody(normalRename).revision, 2);
     const ordinaryRenamed = await db.from('clients').where({ id: spoofedId }).first();
     assert.equal(ordinaryRenamed!.name, 'Ordinary renamed');
     assert.isNull(ordinaryRenamed!.builtin);
 
-    const flagOnlyInput = input(2, {
+    const flagOnlyInput = mutationInput(2, {
       operation: 'catalogue.update',
       entity: { entity: 'clients', id: spoofedId, changes: { builtin: true } },
     });
-    const flagOnly = await session(client.post(route('planning/mutations')), cookie)
+    const flagOnly = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(flagOnlyInput)
       .send();
     flagOnly.assertStatus(422);
@@ -468,7 +525,10 @@ test.group('independent typed planning operations', (group) => {
     assert.deepEqual(await db.from('clients').where({ id: spoofedId }).first(), ordinaryRenamed);
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
 
-    const snapshot = await session(client.get(planningUrl), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 2);
     const canonicalClients = snapshot.body().data.data.clients as typeof createdClients;
     assert.equal(canonicalClients.find((row) => row.id === spoofedId)?.name, 'Ordinary renamed');
@@ -509,9 +569,12 @@ test.group('independent typed planning operations', (group) => {
     const before = await db.from('projects').where({ id: foreignProject.id }).first();
     assert.isDefined(before);
 
-    const refused = await session(client.post(route('planning/mutations')), cookie)
+    const refused = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.archive',
           entity: { entity: 'projects', id: foreignProject.id },
         })
@@ -521,7 +584,10 @@ test.group('independent typed planning operations', (group) => {
     refused.assertStatus(422);
     assert.isString(validationSentence(refused));
     assert.deepEqual(await db.from('projects').where({ id: foreignProject.id }).first(), before);
-    const snapshot = await session(client.get(planningUrl), cookie).send();
+    const snapshot = await intentSession(
+      client.visit('api.planning.show', { companyId }),
+      cookie
+    ).send();
     assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
@@ -530,13 +596,17 @@ test.group('independent typed planning operations', (group) => {
     client,
     assert,
   }) => {
-    const snapshot = await trusted(client.get(planningUrl)).send();
+    const snapshot = await trusted(client.visit('api.planning.show', { companyId })).send();
     snapshot.assertStatus(401);
 
     const allocation = newAllocation(await readState(companyId, true));
     const before = await readState(companyId, true);
-    const write = await trusted(client.post(route('planning/mutations')))
-      .json(input(0, { operation: 'allocation.create', allocation }))
+    const write = await trusted(client.visit('api.planning_mutations.store', { companyId }))
+      .json({
+        mutationId: randomUUID(),
+        baseRevision: 0,
+        intent: { operation: 'allocation.create', allocation },
+      })
       .send();
     write.assertStatus(401);
     assert.deepEqual(write.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
@@ -557,23 +627,26 @@ test.group('independent typed planning operations', (group) => {
     const data = await readState(companyId, true);
     const template = data.clients.find((row) => row.companyId === companyId && !row.builtin)!;
     const id = `client:${randomUUID()}`;
-    const templateRow = await db.from('clients').where({ id: template.id }).first();
-    await db.table('clients').insert({
-      ...templateRow,
+    await ClientFactory.merge({
       id,
+      companyId,
       name: 'Daily Planet',
-    });
+      color: template.color,
+    }).create();
     const { cookie } = await loginAsMember();
-    const response = await session(client.post(route('planning/mutations')), cookie)
+    const response = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
       .json(
-        input(0, {
+        mutationInput(0, {
           operation: 'catalogue.update',
           entity: { entity: 'clients', id, changes: { name: 'Daily Planet Press' } },
         })
       )
       .send();
     response.assertStatus(200);
-    assert.equal(body(response).status, 'committed');
+    assert.equal(replyBody(response).status, 'committed');
     const stored = await db.from('clients').where({ id }).first();
     assert.equal(stored?.name, 'Daily Planet Press');
   });

@@ -36,16 +36,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const resource = before.resources.find((row) => row.disciplineId !== null)!;
     const disciplineId = resource.disciplineId!;
     const storedResource = await db.from('resources').where('id', resource.id).first();
-    const deleted = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      0,
-      {
-        operation: 'catalogue.delete',
-        entity: { entity: 'disciplines', id: disciplineId },
-      }
-    );
+    const deleted = await send(client, cookie, companyId, 0, {
+      operation: 'catalogue.delete',
+      entity: { entity: 'disciplines', id: disciplineId },
+    });
     deleted.assertStatus(200);
     const afterDelete = await readState(companyId, true);
     assert.isNull(afterDelete.resources.find((row) => row.id === resource.id)?.disciplineId);
@@ -85,13 +79,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     )!;
     const children = before.resources.filter((row) => row.disciplineId === discipline.id);
     const other = before.disciplines.find((row) => row.id !== discipline.id)!;
-    const deleted = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      0,
-      { operation: 'catalogue.delete', entity: { entity: 'disciplines', id: discipline.id } }
-    );
+    const deleted = await send(client, cookie, companyId, 0, {
+      operation: 'catalogue.delete',
+      entity: { entity: 'disciplines', id: discipline.id },
+    });
     deleted.assertStatus(200);
     const groupId = deleted.body().data.restoration.replacementGroupId;
     await db.from('resources').where('id', children[1]!.id).update({ discipline_id: other.id });
@@ -121,16 +112,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const activity = before.activities.find((row) => row.id === seededActivity.id)!;
     const storedActivity = await db.from('activities').where('id', activity.id).first();
     const phaseId = activity.phaseId!;
-    const deleted = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      0,
-      {
-        operation: 'catalogue.delete',
-        entity: { entity: 'phases', id: phaseId },
-      }
-    );
+    const deleted = await send(client, cookie, companyId, 0, {
+      operation: 'catalogue.delete',
+      entity: { entity: 'phases', id: phaseId },
+    });
     deleted.assertStatus(200);
     const groupId = deleted.body().data.restoration.replacementGroupId;
     const afterDelete = await readState(companyId, true);
@@ -168,43 +153,28 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const clientId = before.clients.find((row) => !row.builtin)!.id;
     const projectId = randomUUID();
     const phaseId = randomUUID();
-    const project = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      0,
-      {
-        operation: 'catalogue.create',
-        entity: {
-          entity: 'projects',
-          id: projectId,
-          fields: {
-            name: 'Gotham restoration project',
-            color: before.clients.find((row) => row.id === clientId)!.color,
-            clientId,
-          },
+    const project = await send(client, cookie, companyId, 0, {
+      operation: 'catalogue.create',
+      entity: {
+        entity: 'projects',
+        id: projectId,
+        fields: {
+          name: 'Gotham restoration project',
+          color: before.clients.find((row) => row.id === clientId)!.color,
+          clientId,
         },
-      }
-    );
+      },
+    });
     project.assertStatus(200);
-    const phase = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      1,
-      {
-        operation: 'catalogue.create',
-        entity: { entity: 'phases', id: phaseId, fields: { name: 'Survey', projectId } },
-      }
-    );
+    const phase = await send(client, cookie, companyId, 1, {
+      operation: 'catalogue.create',
+      entity: { entity: 'phases', id: phaseId, fields: { name: 'Survey', projectId } },
+    });
     phase.assertStatus(200);
-    const deleted = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      2,
-      { operation: 'catalogue.delete', entity: { entity: 'phases', id: phaseId } }
-    );
+    const deleted = await send(client, cookie, companyId, 2, {
+      operation: 'catalogue.delete',
+      entity: { entity: 'phases', id: phaseId },
+    });
     deleted.assertStatus(200);
     const groupId = deleted.body().data.restoration.replacementGroupId;
     await db.from('projects').where('id', projectId).delete();
@@ -244,13 +214,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           updatedAt: new Date().toISOString(),
         },
       ]);
-    const deleted = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      0,
-      { operation: 'timeOff.deleteGroup', ids: ids.slice(0, 2) }
-    );
+    const deleted = await send(client, cookie, companyId, 0, {
+      operation: 'timeOff.deleteGroup',
+      ids: ids.slice(0, 2),
+    });
     deleted.assertStatus(200);
     assert.notInclude(deleted.text(), 'Gotham private note');
     const afterDelete = await readState(companyId, true);
@@ -285,30 +252,18 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const id = randomUUID();
-    const created = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      0,
-      {
-        operation: 'closure.create',
-        id,
-        fields: { name: 'Gotham closure', startDate: '2026-11-02', endDate: '2026-11-02' },
-      }
-    );
+    const created = await send(client, cookie, companyId, 0, {
+      operation: 'closure.create',
+      id,
+      fields: { name: 'Gotham closure', startDate: '2026-11-02', endDate: '2026-11-02' },
+    });
     created.assertStatus(200);
     const afterCreate = await readState(companyId, true);
     const closure = afterCreate.closures.find((row) => row.id === id)!;
-    const deleted = await send(
-      client,
-      cookie,
-      `/api/v1/companies/${companyId}/planning/mutations`,
-      1,
-      {
-        operation: 'closure.delete',
-        id,
-      }
-    );
+    const deleted = await send(client, cookie, companyId, 1, {
+      operation: 'closure.delete',
+      id,
+    });
     deleted.assertStatus(200);
     const afterDelete = await readState(companyId, true);
     assert.isUndefined(afterDelete.closures.find((row) => row.id === id));
