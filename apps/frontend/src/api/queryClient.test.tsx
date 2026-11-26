@@ -120,6 +120,22 @@ describe('requestApiResponse', () => {
     }
   });
 
+  it('decodes the response body only once, when the caller reads it', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ data: { companyId: 'wayne' } })),
+    );
+    const decode = vi.spyOn(Response.prototype, 'json');
+    try {
+      const response = await requestApiResponse('api.session.show', {});
+      expect(decode).not.toHaveBeenCalled();
+      expect(await response.json()).toEqual({ data: { companyId: 'wayne' } });
+    } finally {
+      decode.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('throws the native fetch failure when no response arrives', async () => {
     const failure = new TypeError('Failed to fetch');
     vi.stubGlobal(

@@ -71,15 +71,16 @@ export async function requestApiResponse<Name extends keyof ProductRoutes>(
       hooks: {
         afterResponse: [
           (_request, _options, response) => {
-            // Ky cancels the copy it hands this hook once the hook returns, so keep a copy of it.
+            // Keep a copy for the caller, and hand ky an empty stand-in so neither ky nor Tuyau
+            // decodes the real body: the caller reads it once, from this copy.
             received = response.clone();
+            return new Response(null);
           },
         ],
       },
       ...(timeoutMs === undefined ? {} : { apiTimeoutMs: timeoutMs }),
     })
     .safe();
-  // The client's own body decoding can fail on an unreadable body; the caller reads it instead.
   if (received) return received;
   if (error?.kind === 'network') throw error.cause;
   throw error ?? new Error(`No response for ${String(name)}`);
