@@ -6,6 +6,9 @@ import { randomUUID } from 'node:crypto';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import mail from '@adonisjs/mail/services/main';
 import env from '#start/env';
+import { DateTime } from 'luxon';
+import { UserFactory } from '#database/factories/user_factory';
+import type User from '#models/user';
 
 export const fixturePassword = 'fixture-password-2026';
 const sessionCookieHeaders = new Map<string, string>();
@@ -27,6 +30,17 @@ export function rememberSessionCookie(response: ApiResponse) {
 }
 
 /**
+ * Stores a factory-built identity without the `User` creation hook, which admits only the first
+ * identity before a company exists and needs the Account Kit transaction. Fixtures set up later
+ * identities directly, so the hook's admission rule is not what they test.
+ */
+async function storeIdentity(attributes: Partial<User>) {
+  const now = new Date().toISOString();
+  const user = await UserFactory.merge({ createdAt: now, updatedAt: now, ...attributes }).make();
+  await user.saveQuietly();
+}
+
+/**
  * Inserts an identity the way an accepted invitation leaves it: a password, and unless asked
  * otherwise a confirmed address and an admission approval.
  */
@@ -35,17 +49,14 @@ export async function createIdentity(
   options: { name?: string; password?: string; verified?: boolean; admitted?: boolean } = {}
 ) {
   const id = randomUUID();
-  const now = new Date().toISOString();
   const verified = options.verified ?? true;
-  await db.table('users').insert({
+  await storeIdentity({
     id,
     email,
-    display_name: options.name ?? email.split('@')[0],
+    displayName: options.name ?? email.split('@')[0],
     password: await hash.make(options.password ?? fixturePassword),
-    email_verified_at: verified ? now : null,
-    unverified_email: verified ? null : email,
-    created_at: now,
-    updated_at: now,
+    emailVerifiedAt: verified ? DateTime.now() : null,
+    unverifiedEmail: verified ? null : email,
   });
   if (options.admitted ?? true) {
     const admission = await app.container.make(AccountAdmission);
@@ -103,15 +114,12 @@ export async function signUpAndIn(
 /** Records an Account Kit sign-in row for `userId`, creating that identity when it is absent. */
 export async function fixtureSession(userId: string, expiresAt = '2999-01-01T00:00:00.000Z') {
   if (!(await db.from('users').where('id', userId).first())) {
-    const now = new Date().toISOString();
-    await db.table('users').insert({
+    await storeIdentity({
       id: userId,
       email: `${userId}@wayne.example`,
-      display_name: userId,
+      displayName: userId,
       password: null,
-      email_verified_at: now,
-      created_at: now,
-      updated_at: now,
+      emailVerifiedAt: DateTime.now(),
     });
   }
   const now = new Date().toISOString();
