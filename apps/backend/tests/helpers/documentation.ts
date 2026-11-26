@@ -86,7 +86,9 @@ function listMarkdownLinkTargets(source: string): string[] {
  * @throws If an existing Markdown target cannot be read or has an invalid encoded fragment.
  */
 export function listReadmeLinkFailures(readme: string): string[] {
-  const targets = listMarkdownLinkTargets(readme).filter((target) => !target.includes('://'));
+  const targets = listMarkdownLinkTargets(readme).filter(
+    (target) => !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(target)
+  );
   if (targets.length === 0) return ['No local links in README'];
 
   const failures: string[] = [];

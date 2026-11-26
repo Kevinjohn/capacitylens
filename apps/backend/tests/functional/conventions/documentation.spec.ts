@@ -30,6 +30,7 @@ test.group('documentation and repository rule contracts', () => {
     const readme = [
       '[Try it](#try-it-in-two-minutes) · [Missing](#missing-section)',
       '[Contributing](CONTRIBUTING.md)',
+      '<mailto:bruce@wayne.example> · [External](//example.test/path)',
       '',
       '## Try it in two minutes',
     ].join('\n');
