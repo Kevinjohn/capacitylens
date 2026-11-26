@@ -7,10 +7,6 @@ import type { PasswordConfirmationRequest } from './PasswordConfirmationDialog';
 
 const request = vi.hoisted(() => vi.fn());
 
-vi.mock('@/api/queryClient', () => ({
-  buildApiRouteUrl: () => '/api/v1/auth/password-confirmation',
-  buildJsonBody: (_name: string, body: unknown) => JSON.stringify(body),
-}));
 vi.mock('@/data/requestTimeout', () => ({ fetchApi: (...args: unknown[]) => request(...args) }));
 
 afterEach(() => request.mockReset());
@@ -75,9 +71,11 @@ describe('PasswordConfirmationDialog', () => {
     fireEvent.submit(form);
     expect(screen.getByRole('button', { name: m.reauth_confirming() })).toBeDisabled();
     fireEvent.submit(form);
-    expect(request).toHaveBeenCalledOnce();
+    // The client builds its request asynchronously, so the call reaches fetch a moment later.
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
     resolveRequest?.(Response.json({ data: { confirmationId: 'confirmation-3' } }));
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith('confirmation-3'));
+    expect(request).toHaveBeenCalledOnce();
   });
 
   it.each(['transfer-ownership', 'import', 'anonymise'] as const)(

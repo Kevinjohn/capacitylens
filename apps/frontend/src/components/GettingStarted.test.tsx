@@ -9,6 +9,7 @@ import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
+import { createRequestLog, readRequestTarget } from '@/test/readAccountFetchCall';
 
 const NO_STEPS = {
   person: false,
@@ -121,7 +122,11 @@ describe('Getting started', () => {
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
     expect(screen.queryByTestId('getting-started')).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some(([input, init]) => readRequestTarget(input, init).method === 'PUT'),
+    ).toBe(false);
   });
 
   it('shows the server milestones and reads them again after a planning change', async () => {
@@ -189,8 +194,10 @@ describe('Getting started', () => {
 
   it.each(['starting', 'active', 'ending'] as const)(
     'omits privileged getting-started requests while masquerade is %s',
-    (kind) => {
-      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(readReply(false)));
+    async (kind) => {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockImplementation(async () => new Response(readReply(false)));
       vi.stubGlobal('fetch', fetchMock);
       const state = {
         companyId: 'a-studio',
@@ -213,6 +220,8 @@ describe('Getting started', () => {
       );
 
       renderChecklist('editor', '/resources');
+      // The client reaches fetch asynchronously; give a request time to arrive.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
 
       expect(fetchMock).not.toHaveBeenCalled();
       expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
@@ -232,7 +241,8 @@ describe('Getting started', () => {
     vi.stubGlobal('fetch', fetchMock);
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     renderChecklist('editor', '/resources');
-    expect(fetchMock).toHaveBeenCalledOnce();
+    // The client builds its request asynchronously, so the read reaches fetch a moment later.
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
     act(() =>
       useStore.getState().setMasquerade({
@@ -267,16 +277,24 @@ describe('Getting started', () => {
         planning: { ...state.planning, revision: (state.planning.revision ?? 0) + 1 },
       })),
     );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
     expect(fetchMock).not.toHaveBeenCalled();
     expect(useStore.getState().notice).toBeNull();
   });
 
   it('ignores the legacy device flag and keeps guidance after a failed server save', async () => {
     localStorage.setItem('capacitylens/gettingStartedDismissed', 'on');
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(readReply(false), { status: 200 }))
-      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+    const requests = createRequestLog();
+    const replies = [
+      () => new Response(readReply(false), { status: 200 }),
+      () => new Response(null, { status: 503 }),
+    ];
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      requests.record(input, init);
+      const reply = replies.shift();
+      if (!reply) throw new Error('Unexpected getting-started request');
+      return reply();
+    });
     vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
@@ -286,10 +304,15 @@ describe('Getting started', () => {
     await user.click(screen.getByRole('button', { name: 'Yes' }));
     expect(await screen.findByTestId('getting-started-progress')).toBeVisible();
     expect(useStore.getState().notice?.tone).toBe('error');
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/v1\/companies\/[^/]+\/getting-started$/),
-      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ dismissed: true }) }),
-    );
+    const sent = await requests.read();
+    expect(
+      sent.some(
+        ({ path, method, body }) =>
+          /^\/api\/v1\/companies\/[^/]+\/getting-started$/.test(path) &&
+          method === 'PUT' &&
+          body === JSON.stringify({ dismissed: true }),
+      ),
+    ).toBe(true);
     expect(console.error).toHaveBeenCalledWith('GettingStarted: dismissal could not be saved');
   });
 

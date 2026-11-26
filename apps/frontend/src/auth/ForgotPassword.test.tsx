@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ForgotPassword } from './ForgotPassword';
 import { m } from '@/i18n';
+import { createRequestLog } from '@/test/readAccountFetchCall';
 
 describe('ForgotPassword', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -20,13 +21,18 @@ describe('ForgotPassword', () => {
       fireEvent.click(screen.getByRole('button', { name: m.sign_in_send_reset_link() }));
 
       expect(screen.getByRole('alert')).toHaveTextContent(m.identity_err_email());
+      // The client reaches fetch asynchronously; give a request time to arrive.
+      await new Promise((resolve) => setTimeout(resolve, 20));
       expect(fetch).not.toHaveBeenCalled();
     },
   );
 
   it('normalizes a valid recovery address before submitting it', async () => {
-    const fetch = vi.fn();
-    fetch.mockResolvedValue(Response.json({ ok: true }));
+    const requests = createRequestLog();
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.record(input, init);
+      return Response.json({ ok: true });
+    });
     vi.stubGlobal('fetch', fetch);
     render(<ForgotPassword />);
 
@@ -37,8 +43,8 @@ describe('ForgotPassword', () => {
     fireEvent.click(screen.getByRole('button', { name: m.sign_in_send_reset_link() }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
-    const [, request] = fetch.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit];
-    expect(JSON.parse(String(request.body))).toEqual({ email: 'owner@example.com' });
+    const [request] = await requests.read();
+    expect(JSON.parse(String(request?.body))).toEqual({ email: 'owner@example.com' });
     expect(await screen.findByRole('status')).toHaveTextContent(m.sign_in_reset_confirmation());
   });
 

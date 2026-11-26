@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
+import { createRequestLog } from '@/test/readAccountFetchCall';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -26,9 +27,9 @@ afterEach(() => {
 describe('AuthProvider — server mode', () => {
   it('uses the same-origin auth endpoint when no API origin is configured', async () => {
     // An empty API origin in a same-origin deployment still performs the credentialed auth check.
+    const requests = createRequestLog();
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      void input;
-      void init;
+      requests.record(input, init);
       return makeMeResponse(200, { user: { id: 'demo', name: 'Demo' } });
     });
     vi.stubGlobal('fetch', fetchSpy);
@@ -42,18 +43,17 @@ describe('AuthProvider — server mode', () => {
       await screen.findByRole('heading', { name: 'Unable to verify your session' }),
     ).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const call = fetchSpy.mock.calls.at(0);
-    expect(call).toBeDefined();
-    if (!call) throw new Error('Expected the auth status request');
-    const [request, init] = call;
-    expect(request).toBe('/api/v1/auth/me');
-    expect(init?.credentials).toBe('include');
-    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    const [request] = await requests.read();
+    if (!request) throw new Error('Expected the auth status request');
+    expect(request.url.origin).toBe(window.location.origin);
+    expect(request.path).toBe('/api/v1/auth/me');
+    expect(request.credentials).toBe('include');
+    expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
   it('rejects a body without a user from a credentialed /api/v1/auth/me check', async () => {
+    const requests = createRequestLog();
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      void input;
-      void init;
+      requests.record(input, init);
       return makeMeResponse(200, { user: null });
     });
     vi.stubGlobal('fetch', fetchSpy);
@@ -67,13 +67,12 @@ describe('AuthProvider — server mode', () => {
       await screen.findByRole('heading', { name: 'Unable to verify your session' }),
     ).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const call = fetchSpy.mock.calls.at(0);
-    expect(call).toBeDefined();
-    if (!call) throw new Error('Expected the auth status request');
-    const [request, init] = call;
-    expect(request).toBe('/api/v1/auth/me');
-    expect(init?.credentials).toBe('include');
-    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    const [request] = await requests.read();
+    if (!request) throw new Error('Expected the auth status request');
+    expect(request.url.origin).toBe(window.location.origin);
+    expect(request.path).toBe('/api/v1/auth/me');
+    expect(request.credentials).toBe('include');
+    expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
   it('keeps the retryable auth error boundary for non-401 failures', async () => {
     // The lenient 401 handling is scoped to 401 only. A genuinely unexpected status stays fail-closed.

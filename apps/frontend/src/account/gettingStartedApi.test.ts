@@ -1,7 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const fetchApi = vi.hoisted(() => vi.fn<(url: string, init?: RequestInit) => Promise<Response>>());
-vi.mock('@/data/requestTimeout', () => ({ fetchApi }));
+const { fetchApi, requests } = await vi.hoisted(async () => {
+  const { createRequestLog } = await import('@/test/readAccountFetchCall');
+  return {
+    fetchApi: vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(),
+    requests: createRequestLog(),
+  };
+});
+vi.mock('@/data/requestTimeout', () => ({
+  fetchApi: (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.record(input, init);
+    return fetchApi(input, init);
+  },
+}));
 
 import { gettingStartedApi } from './gettingStartedApi';
 
@@ -9,7 +20,10 @@ const steps = { person: true, client: true, project: false, activity: false, sch
 
 describe('getting-started account api', () => {
   beforeEach(() => {
-    fetchApi.mockReset().mockResolvedValue(new Response(null, { status: 204 }));
+    fetchApi
+      .mockReset()
+      .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+    requests.clear();
   });
 
   it('reads and dismisses the encoded company URL', async () => {
@@ -20,21 +34,24 @@ describe('getting-started account api', () => {
       steps,
     });
     await gettingStartedApi.dismiss('company / one');
-    expect(fetchApi).toHaveBeenNthCalledWith(
-      1,
-      '/api/v1/companies/company%20%2F%20one/getting-started',
-      { credentials: 'include', signal: controller.signal },
-    );
-    expect(fetchApi).toHaveBeenNthCalledWith(
-      2,
-      '/api/v1/companies/company%20%2F%20one/getting-started',
-      {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dismissed: true }),
-      },
-    );
+    const [read, dismiss] = await requests.read();
+    expect(fetchApi).toHaveBeenCalledTimes(2);
+    expect(read).toMatchObject({
+      path: '/api/v1/companies/company%20%2F%20one/getting-started',
+      method: 'GET',
+      credentials: 'include',
+      body: null,
+    });
+    expect(read?.signal.aborted).toBe(false);
+    controller.abort();
+    expect(read?.signal.aborted).toBe(true);
+    expect(dismiss).toMatchObject({
+      path: '/api/v1/companies/company%20%2F%20one/getting-started',
+      method: 'PUT',
+      credentials: 'include',
+      body: JSON.stringify({ dismissed: true }),
+    });
+    expect(dismiss?.headers.get('content-type')).toBe('application/json');
   });
 
   it('throws for a refused read, an off-spec body or a refused dismissal', async () => {

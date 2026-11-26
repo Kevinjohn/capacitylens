@@ -1,14 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  fetchApi: vi
-    .fn<(url: string, init?: RequestInit) => Promise<Response>>()
-    .mockResolvedValue(new Response(null, { status: 204 })),
-  requestSignal: vi.fn((signal?: AbortSignal) => signal),
-}));
+const mocks = await vi.hoisted(async () => {
+  const { createRequestLog } = await import('@/test/readAccountFetchCall');
+  return {
+    requests: createRequestLog(),
+    fetchApi: vi
+      .fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
+      .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 }))),
+    requestSignal: vi.fn((signal?: AbortSignal) => signal),
+  };
+});
 
 vi.mock('@/data/requestTimeout', () => ({
-  fetchApi: mocks.fetchApi,
+  fetchApi: (input: RequestInfo | URL, init?: RequestInit) => {
+    mocks.requests.record(input, init);
+    return mocks.fetchApi(input, init);
+  },
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
 }));
@@ -22,6 +29,7 @@ describe('browser account api', () => {
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
+    mocks.requests.clear();
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -35,14 +43,13 @@ describe('browser account api', () => {
     await sessionRequests.me(controller.signal);
     await sessionRequests.listCompanies(controller.signal);
 
-    expect(mocks.fetchApi).toHaveBeenNthCalledWith(1, '/api/v1/auth/me', {
-      credentials: 'include',
-      signal: controller.signal,
-    });
-    expect(mocks.fetchApi).toHaveBeenNthCalledWith(2, '/api/v1/companies', {
-      credentials: 'include',
-      signal: controller.signal,
-    });
+    const sent = await mocks.requests.read();
+    expect(sent.map(({ path, method, credentials }) => ({ path, method, credentials }))).toEqual([
+      { path: '/api/v1/auth/me', method: 'GET', credentials: 'include' },
+      { path: '/api/v1/companies', method: 'GET', credentials: 'include' },
+    ]);
+    controller.abort();
+    expect(sent.map(({ signal }) => signal.aborted)).toEqual([true, true]);
   });
   it('surfaces an audit-degradation warning when fetchApi reports one for /api/v1/auth/me', async () => {
     // Account reads use fetchApi so audit-degradation headers reach the shared warning surface. The mock preserves that header check.

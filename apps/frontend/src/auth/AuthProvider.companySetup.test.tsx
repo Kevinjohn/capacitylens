@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
+import { readRequestTarget } from '@/test/readAccountFetchCall';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -25,8 +26,8 @@ afterEach(() => {
 
 it('gates company hydration behind authenticated company setup and opens scheduling after confirmation', async () => {
   let created = false;
-  const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
-    if (options?.method === 'POST') {
+  const fetch = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+    if (readRequestTarget(url, options).method === 'POST') {
       created = true;
       return makeMeResponse(201, { companyId: 'wayne' });
     }
@@ -56,14 +57,14 @@ it('gates company hydration behind authenticated company setup and opens schedul
 
 it('adopts a same-user company created in another browser only after confirming Owner access', async () => {
   let createdElsewhere = false;
-  const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
-    if (options?.method === 'POST') {
+  const fetch = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+    if (readRequestTarget(url, options).method === 'POST') {
       createdElsewhere = true;
       return makeMeResponse(409, {
         error: 'First company setup is unavailable for this installation.',
       });
     }
-    if (String(url).endsWith('/api/v1/companies')) {
+    if (readRequestTarget(url, options).path.endsWith('/api/v1/companies')) {
       return makeMeResponse(200, [{ id: 'wayne', role: 'owner' }]);
     }
     return makeMeResponse(200, {
@@ -86,17 +87,21 @@ it('adopts a same-user company created in another browser only after confirming 
   fireEvent.click(screen.getByRole('button', { name: 'Create company' }));
   await screen.findByText('schedule-ready');
   await waitFor(() => expect(ready).toHaveBeenCalledOnce());
-  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
+  expect(
+    fetch.mock.calls.filter(([url, options]) => readRequestTarget(url, options).method === 'POST'),
+  ).toHaveLength(1);
 });
 
 it('keeps a conflicting setup refusal visible when the user has no company access', async () => {
-  const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
-    if (options?.method === 'POST') {
+  const fetch = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+    if (readRequestTarget(url, options).method === 'POST') {
       return makeMeResponse(409, {
         error: 'First company setup is unavailable for this installation.',
       });
     }
-    if (String(url).endsWith('/api/v1/companies')) return makeMeResponse(200, []);
+    if (readRequestTarget(url, options).path.endsWith('/api/v1/companies')) {
+      return makeMeResponse(200, []);
+    }
     return makeMeResponse(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: true,
@@ -118,5 +123,7 @@ it('keeps a conflicting setup refusal visible when the user has no company acces
   expect(await screen.findByRole('alert')).toHaveTextContent('First company setup is unavailable');
   expect(ready).not.toHaveBeenCalled();
   expect(screen.queryByText('schedule-ready')).not.toBeInTheDocument();
-  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
+  expect(
+    fetch.mock.calls.filter(([url, options]) => readRequestTarget(url, options).method === 'POST'),
+  ).toHaveLength(1);
 });
