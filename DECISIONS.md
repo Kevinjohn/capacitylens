@@ -383,9 +383,33 @@ removed entry retires its number.
     set `SESSION_DRIVER=memory`, because the Account Kit session protection in
     `config/session.ts` accepts only the database store. The `loginAsSession` test plugin signs
     API tests in with `.loginAs(user)` on that store (#2572).
-36. Backend tests and `bin/` import the repository's `tooling/*.mjs` scripts by relative path. The
-    scripts sit outside the backend package, and a `#` alias in its `imports` cannot point outside
-    the package root (#2572).
+36. **Aligning (#2578).** The backend imports the repository's `tooling/` scripts by relative
+    path, in `tests/`, `bin/test.ts`, `bin/server.ts` and `scripts/e2e_server.mjs`. `tooling/`
+    becomes a workspace package that the backend imports by its package name.
+37. Tests insert rows into tables that have no Lucid model with the query builder, because a model
+    factory needs a model. This covers `db.table(...).insert` and `multiInsert` under
+    `apps/backend/tests` into any table without a model in `app/models`: today `memberships`,
+    the Account Kit tables (`account_*`, `password_reset_tokens`), `adonis_schema`,
+    `deleted_groups`, `deleted_rows`, `planning_mutations`, `audit_entries`, `request_receipts`,
+    `company_settings` and `company_planning_revisions` (#2572).
+38. Tests that write a stored row on purpose insert it raw, not through a model factory (#2572):
+    - schema CHECK constraints and encoded rows read back: `tests/functional/state/database_contract.spec.ts`;
+    - database triggers fed invalid cross-company references: `tests/functional/state/database_contract_cases.ts`;
+    - the operator command's own SQLite file, which a child process opens:
+      `tests/helpers/operator_command_helpers.ts`, `tests/helpers/unit/operator_databases.ts` and
+      `tests/unit/owner_reset_command.spec.ts`;
+    - the stored format a migration converts: `tests/functional/deletion_marker_migration.spec.ts`;
+    - 32,767 allocation rows written in bulk, where one model insert per row would dominate the
+      suite: `tests/functional/planning/restoration_allocations.spec.ts`;
+    - identities created before any company exists, which the `User` model's `beforeCreate`
+      refuses: `tests/helpers/identities.ts`.
+39. `tests/functional/state/read_path.spec.ts` sends each recorded request from
+    `tests/fixtures_main_responses.json` by its recorded method and path, not by route name: the
+    path is the fixture's data (#2572).
+40. `tests/helpers/unit/mail_config.ts`, used by `tests/unit/mail_config.spec.ts`, replaces
+    `transports.smtp` with `mock.method` and restores it in `finally`. The test checks the options
+    `config/mail.ts` passes when the file is imported, a call that neither the container `swap`
+    nor `mail.fake()` can observe (#2572).
 
 ## Installation
 
