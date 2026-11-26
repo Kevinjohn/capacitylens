@@ -60,9 +60,10 @@ const start = new Ignitor(APP_ROOT, { importer: IMPORTER })
       // start keeps the framework's own request wiring and never evaluates the harness modules.
       const { default: capacitylens } = await import('#config/capacitylens');
       if (!capacitylens.allowReset) return;
-      const { installE2eRequestActivity } = (await import(
-        new URL('../../tooling/e2e_request_activity.ts', APP_ROOT).href
-      )) as { installE2eRequestActivity: E2eRequestActivity };
+      const { installE2eRequestActivity } =
+        (await import('@capacitylens/tooling/e2e_request_activity')) as {
+          installE2eRequestActivity: E2eRequestActivity;
+        };
       installE2eHarness = installE2eRequestActivity;
     });
     app.listen('SIGTERM', () => app.terminate());

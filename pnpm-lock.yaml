@@ -195,6 +195,9 @@ importers:
       '@adonisjs/tsconfig':
         specifier: ^2.0.0
         version: 2.0.0
+      '@capacitylens/tooling':
+        specifier: workspace:*
+        version: link:../../tooling
       '@japa/api-client':
         specifier: 3.2.1
         version: 3.2.1(@japa/assert@4.2.0(@japa/runner@5.4.0))(@japa/runner@5.4.0)
@@ -368,6 +371,8 @@ importers:
       vitest:
         specifier: ^4.1.12
         version: 4.1.12(@types/node@24.19.2)
+
+  tooling: {}
 
 packages:
 

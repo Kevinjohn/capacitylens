@@ -5,11 +5,7 @@ import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import {
-  PORT_LANE_CEILING,
-  portsForPortLane,
-  resolvePortLane,
-} from '../../../../tooling/ports.mjs';
+import { PORT_LANE_CEILING, portsForPortLane, resolvePortLane } from '@capacitylens/tooling/ports';
 import { operatorFixture, withOperatorServer } from '#tests/helpers/operator_command_helpers';
 
 test.group('node entry', () => {

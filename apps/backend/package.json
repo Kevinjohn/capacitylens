@@ -47,6 +47,7 @@
     "@adonisjs/logger": "7.1.1",
     "@adonisjs/prettier-config": "^1.5.0",
     "@adonisjs/tsconfig": "^2.0.0",
+    "@capacitylens/tooling": "workspace:*",
     "@japa/api-client": "3.2.1",
     "@japa/assert": "^4.2.0",
     "@japa/plugin-adonisjs": "^5.2.0",

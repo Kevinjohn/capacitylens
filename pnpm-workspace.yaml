@@ -1,7 +1,9 @@
-# The frontend, AdonisJS backend and pure shared domain package own the active workspace.
+# The frontend, AdonisJS backend, pure shared domain package and repository tooling own the active
+# workspace.
 packages:
   - apps/*
   - packages/*
+  - tooling
 
 # Refuse to install on a Node version outside the root `engines` range instead of warning.
 engineStrict: true

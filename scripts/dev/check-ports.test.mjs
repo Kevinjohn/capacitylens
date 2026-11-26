@@ -27,6 +27,15 @@ test('a hardcoded port lane port is reported, and a file that stopped importing 
   );
 });
 
+test('the workspace package subpath counts as importing the port registry', () => {
+  assert.deepEqual(
+    evaluatePortUsage([
+      { path: 'x.mjs', content: "import { ports } from '@capacitylens/tooling/ports';\n" },
+    ]),
+    [],
+  );
+});
+
 test('prose about a port is not code, so comments never fail the check', () => {
   const content =
     'import { ports } from "./ports.mjs";\n// lane 0 is the historical 5173\n/* and 8787 */\nconst port = ports().web; // was 4173\n';

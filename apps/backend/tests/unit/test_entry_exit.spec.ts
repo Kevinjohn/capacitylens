@@ -2,11 +2,7 @@ import { test } from '@japa/runner';
 import { spawnSync } from 'node:child_process';
 import { existsSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  PORT_LANE_CEILING,
-  portsForPortLane,
-  resolvePortLane,
-} from '../../../../tooling/ports.mjs';
+import { PORT_LANE_CEILING, portsForPortLane, resolvePortLane } from '@capacitylens/tooling/ports';
 
 const PROBE_ENVIRONMENT_KEY = 'CAPACITYLENS_TEST_ENTRY_EXIT_PROBE';
 

@@ -1,0 +1,25 @@
+{
+  "name": "@capacitylens/tooling",
+  "private": true,
+  "type": "module",
+  "description": "Port lanes, process control and the end-to-end harness shared by the repository scripts and the backend.",
+  "exports": {
+    "./devProcesses": {
+      "types": "./devProcesses.d.mts",
+      "default": "./devProcesses.mjs"
+    },
+    "./e2eTestSlots": {
+      "types": "./e2eTestSlots.d.mts",
+      "default": "./e2eTestSlots.mjs"
+    },
+    "./ports": {
+      "types": "./ports.d.mts",
+      "default": "./ports.mjs"
+    },
+    "./smokeSchedule": {
+      "types": "./smokeSchedule.d.mts",
+      "default": "./smokeSchedule.mjs"
+    },
+    "./e2e_request_activity": "./e2e_request_activity.ts"
+  }
+}

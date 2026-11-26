@@ -17,7 +17,7 @@ const { failUnsettledStart } = await import('#bin/unsettled_start');
 process.env.NODE_ENV = 'test';
 
 import { fileURLToPath } from 'node:url';
-import { ports } from '../../../tooling/ports.mjs';
+import { ports } from '@capacitylens/tooling/ports';
 
 const testHttpPort = ports().testHttp;
 const testDatabase = fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url));
