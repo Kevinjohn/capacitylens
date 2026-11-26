@@ -1,8 +1,8 @@
 import { inject } from '@adonisjs/core';
 import { args, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
+import OperatorCommand from '#commands/_operator_command';
 import { OwnerRecoveryService } from '#services/operator/owner_recovery_service';
-import { OperatorCommand } from './_operator_command.js';
 
 /** Recover a sole owner using an audited single-use link while the server is stopped. */
 export default class OwnerResetPassword extends OperatorCommand {

@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
+import OperatorCommand from '#commands/_operator_command';
 import { SchemaIntegrityService } from '#services/schema_integrity_service';
-import { OperatorCommand } from './_operator_command.js';
 
 /** Run the package's backup-then-migrate command, then check the migrated schema. */
 export default class AppUpgrade extends OperatorCommand {
