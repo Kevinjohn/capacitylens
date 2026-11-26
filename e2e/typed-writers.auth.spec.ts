@@ -30,18 +30,17 @@ function recordPlanningWrites(page: Page) {
   page.on('request', (request) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return;
     const path = new URL(request.url()).pathname;
-    if (path === '/api/v1/batch' || path.startsWith('/api/v1/companies/')) {
-      const intent = path.endsWith('/planning/mutations')
-        ? (request.postDataJSON() as { intent: { operation: string; entity?: { entity: string } } })
-            .intent
-        : undefined;
-      writes.push({
-        method: request.method(),
-        path,
-        operation: intent?.operation,
-        entity: intent?.entity?.entity,
-      });
-    }
+    if (path !== '/api/v1/batch' && !path.startsWith('/api/v1/companies/')) return;
+    const intent = path.endsWith('/planning/mutations')
+      ? (request.postDataJSON() as { intent: { operation: string; entity?: { entity: string } } })
+          .intent
+      : undefined;
+    writes.push({
+      method: request.method(),
+      path,
+      operation: intent?.operation,
+      entity: intent?.entity?.entity,
+    });
   });
   return writes;
 }

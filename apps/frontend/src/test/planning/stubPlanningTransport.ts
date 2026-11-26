@@ -87,37 +87,37 @@ export class StubPlanningTransport implements PlanningTransport {
   readonly calls: PlanningIntent[] = [];
   /** Every undo and redo request, in order, including refused ones. */
   readonly historySteps: Array<'undo' | 'redo'> = [];
-  private data = createEmptyAppData();
-  private access = makePlanningAccess();
-  private today: ISODate | null = null;
-  private capacity: CapacitySection | null = null;
+  #data = createEmptyAppData();
+  #access = makePlanningAccess();
+  #today: ISODate | null = null;
+  #capacity: CapacitySection | null = null;
   /** The capacity window each read asked for; undefined for a read that asked for the default. */
   readonly readWindows: (CapacityRange | undefined)[] = [];
-  private revisions = new Map<string, number>();
-  private queued: Queued[] = [];
-  private readLatch: Promise<void> | null = null;
-  private histories = new Map<string, CompanyHistory>();
+  #revisions = new Map<string, number>();
+  #queued: Queued[] = [];
+  #readLatch: Promise<void> | null = null;
+  #histories = new Map<string, CompanyHistory>();
 
   /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
-    this.data = structuredClone(data);
-    this.access = makePlanningAccess();
-    this.today = null;
-    this.capacity = null;
+    this.#data = structuredClone(data);
+    this.#access = makePlanningAccess();
+    this.#today = null;
+    this.#capacity = null;
     this.readWindows.length = 0;
-    this.revisions.clear();
-    this.revisions.set(companyId, 0);
+    this.#revisions.clear();
+    this.#revisions.set(companyId, 0);
     this.calls.length = 0;
     this.historySteps.length = 0;
-    this.queued.length = 0;
-    this.readLatch = null;
-    this.histories.clear();
+    this.#queued.length = 0;
+    this.#readLatch = null;
+    this.#histories.clear();
   }
 
   /** Hold the next read, after it records its window, until the returned release is called. */
   holdNextRead(): () => void {
     let release = () => {};
-    this.readLatch = new Promise((resolve) => {
+    this.#readLatch = new Promise((resolve) => {
       release = resolve;
     });
     return release;
@@ -126,8 +126,8 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Replace canonical fixture rows without clearing test response history. The revision advances
    * only when the rows differ, as the server's does for a change a reader could see. */
   updateSource(data: AppData): void {
-    if (JSON.stringify(data) !== JSON.stringify(this.data)) this.advanceRevisions();
-    this.data = structuredClone(data);
+    if (JSON.stringify(data) !== JSON.stringify(this.#data)) this.#advanceRevisions();
+    this.#data = structuredClone(data);
   }
 
   /**
@@ -139,7 +139,7 @@ export class StubPlanningTransport implements PlanningTransport {
     data?: AppData,
     changed?: (execution: PlanningExecution) => PlanningPatch,
   ): void {
-    this.queued.push({
+    this.#queued.push({
       kind: 'response',
       response,
       ...(data ? { data } : {}),
@@ -149,28 +149,28 @@ export class StubPlanningTransport implements PlanningTransport {
 
   /** Queue a refusal or transport error without implementing the server's validation rule. */
   failNext(error: unknown): void {
-    this.queued.push({ kind: 'error', error });
+    this.#queued.push({ kind: 'error', error });
   }
 
   /** Set the canonical access returned by subsequent reads: an Owner who can write, with these overrides. */
   setAccess(overrides: Partial<PlanningAccess>): void {
-    this.access = makePlanningAccess(overrides);
+    this.#access = makePlanningAccess(overrides);
   }
 
   /** Set the company date returned by subsequent reads, in place of the one read from the clock. */
   setToday(today: ISODate): void {
-    this.today = today;
+    this.#today = today;
   }
 
   /** Set the capacity figures returned by subsequent reads, in place of a section with no resources. */
   setCapacity(capacity: CapacitySection): void {
-    this.capacity = capacity;
+    this.#capacity = capacity;
   }
 
   /** The company date a read returns: the set value, or the clock's date in the company's zone. */
   todayFor(companyId: string): ISODate {
-    if (this.today !== null) return this.today;
-    const company = this.data.companies.find((row) => row.id === companyId);
+    if (this.#today !== null) return this.#today;
+    const company = this.#data.companies.find((row) => row.id === companyId);
     return resolveCalendarToday(company?.timezone ?? 'Etc/GMT').date;
   }
 
@@ -181,27 +181,27 @@ export class StubPlanningTransport implements PlanningTransport {
   ): Promise<PlanningSnapshot> {
     signal.throwIfAborted();
     this.readWindows.push(window);
-    const latch = this.readLatch;
-    this.readLatch = null;
+    const latch = this.#readLatch;
+    this.#readLatch = null;
     if (latch) {
       await latch;
       signal.throwIfAborted();
     }
-    const revision = this.revision(context.companyId);
-    const history = this.history(context.companyId).model.report(historyId, revision);
+    const revision = this.#revision(context.companyId);
+    const history = this.#history(context.companyId).model.report(historyId, revision);
     const base = {
       revision,
-      access: this.access,
+      access: this.#access,
       today: this.todayFor(context.companyId),
-      capacity: this.capacity ?? emptyCapacity(window),
+      capacity: this.#capacity ?? emptyCapacity(window),
       history: {
-        canUndo: this.access.canWrite && history.canUndo,
-        canRedo: this.access.canWrite && history.canRedo,
+        canUndo: this.#access.canWrite && history.canUndo,
+        canRedo: this.#access.canWrite && history.canRedo,
       },
     };
     return ifRevision === revision
       ? { ...base, content: 'unchanged' }
-      : { ...base, content: 'full', data: this.companyRows(context.companyId) };
+      : { ...base, content: 'full', data: this.#companyRows(context.companyId) };
   }
 
   async execute(
@@ -211,18 +211,18 @@ export class StubPlanningTransport implements PlanningTransport {
   ): Promise<PlanningMutationSuccess> {
     signal.throwIfAborted();
     this.calls.push(structuredClone(execution.intent));
-    const queued = this.queued.shift();
+    const queued = this.#queued.shift();
     if (queued?.kind === 'error') throw queued.error;
-    const previousRevision = this.revision(context.companyId);
-    const before = this.companyRows(context.companyId);
+    const previousRevision = this.#revision(context.companyId);
+    const before = this.#companyRows(context.companyId);
     let receipt: PlanningMutationSuccess;
     if (queued) {
       receipt =
         typeof queued.response === 'function' ? queued.response(execution) : queued.response;
-      if (queued.data) this.data = structuredClone(queued.data);
-      else if (queued.changed) this.applyPatch(queued.changed(execution));
+      if (queued.data) this.#data = structuredClone(queued.data);
+      else if (queued.changed) this.#applyPatch(queued.changed(execution));
     } else {
-      const deletion = this.applySingleRow(context.companyId, execution.intent);
+      const deletion = this.#applySingleRow(context.companyId, execution.intent);
       receipt = makeReceipt(execution.mutationId, previousRevision + 1, {
         restoration: {
           consumedGroupId: null,
@@ -231,16 +231,16 @@ export class StubPlanningTransport implements PlanningTransport {
       });
     }
     // Like the server, the receipt carries the rows the write changed.
-    receipt = { ...receipt, changes: diffRows(before, this.companyRows(context.companyId)) };
-    this.revisions.set(context.companyId, receipt.revision);
-    this.record(
+    receipt = { ...receipt, changes: diffRows(before, this.#companyRows(context.companyId)) };
+    this.#revisions.set(context.companyId, receipt.revision);
+    this.#record(
       context.companyId,
       execution.historyId ?? undefined,
       previousRevision,
       receipt.revision,
       {
         before,
-        after: this.companyRows(context.companyId),
+        after: this.#companyRows(context.companyId),
       },
     );
     return structuredClone(receipt);
@@ -251,7 +251,7 @@ export class StubPlanningTransport implements PlanningTransport {
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess> {
-    return this.step('undo', context, step, signal);
+    return this.#step('undo', context, step, signal);
   }
 
   redo(
@@ -259,7 +259,7 @@ export class StubPlanningTransport implements PlanningTransport {
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess> {
-    return this.step('redo', context, step, signal);
+    return this.#step('redo', context, step, signal);
   }
 
   /**
@@ -267,7 +267,7 @@ export class StubPlanningTransport implements PlanningTransport {
    * A stale basis is refused with STALE_REVISION, an empty
    * direction with a bare 409, and a queued refusal ends the history.
    */
-  private async step(
+  async #step(
     kind: 'undo' | 'redo',
     context: PlanningSessionScope,
     step: PlanningHistoryStep,
@@ -276,16 +276,16 @@ export class StubPlanningTransport implements PlanningTransport {
     signal.throwIfAborted();
     this.historySteps.push(kind);
     const { companyId } = context;
-    if (this.queued[0]?.kind === 'error') {
-      const queued = this.queued.shift() as Extract<Queued, { kind: 'error' }>;
-      this.histories.delete(companyId);
+    if (this.#queued[0]?.kind === 'error') {
+      const queued = this.#queued.shift() as Extract<Queued, { kind: 'error' }>;
+      this.#histories.delete(companyId);
       throw queued.error;
     }
-    const revision = this.revision(companyId);
+    const revision = this.#revision(companyId);
     if (step.baseRevision !== revision) {
       throw new PlanningCacheError('The planning data changed.', 'STALE_REVISION', 409);
     }
-    const history = this.history(companyId);
+    const history = this.#history(companyId);
     const available = history.model.report(step.historyId, revision);
     if (!(kind === 'undo' ? available.canUndo : available.canRedo)) {
       throw new PlanningCacheError(`There is nothing to ${kind}.`, undefined, 409);
@@ -295,52 +295,54 @@ export class StubPlanningTransport implements PlanningTransport {
       kind === 'undo' ? [history.past, history.future] : [history.future, history.past];
     const change = from.pop();
     if (!change) throw new Error(`stub: the ${kind} stack is out of step with the history model`);
-    const before = this.companyRows(companyId);
-    this.replaceCompanyRows(companyId, kind === 'undo' ? change.before : change.after, kind);
+    const before = this.#companyRows(companyId);
+    this.#replaceCompanyRows(companyId, kind === 'undo' ? change.before : change.after, kind);
     to.push(change);
-    this.revisions.set(companyId, revision + 1);
+    this.#revisions.set(companyId, revision + 1);
     return makeReceipt(step.mutationId, revision + 1, {
-      changes: diffRows(before, this.companyRows(companyId)),
+      changes: diffRows(before, this.#companyRows(companyId)),
     });
   }
 
-  private advanceRevisions(): void {
-    for (const [companyId, revision] of this.revisions) this.revisions.set(companyId, revision + 1);
+  #advanceRevisions(): void {
+    for (const [companyId, revision] of this.#revisions) {
+      this.#revisions.set(companyId, revision + 1);
+    }
   }
 
-  private revision(companyId: string): number {
-    return this.revisions.get(companyId) ?? 0;
+  #revision(companyId: string): number {
+    return this.#revisions.get(companyId) ?? 0;
   }
 
   /** The company's history, created empty on first use. */
-  private history(companyId: string): CompanyHistory {
-    let history = this.histories.get(companyId);
+  #history(companyId: string): CompanyHistory {
+    let history = this.#histories.get(companyId);
     if (!history) {
       history = { model: createServerHistoryModel(), past: [], future: [] };
-      this.histories.set(companyId, history);
+      this.#histories.set(companyId, history);
     }
     return history;
   }
 
   /** Records a committed change: it extends the writer's live history or starts a new one. */
-  private record(
+  #record(
     companyId: string,
     historyId: string | undefined,
     previousRevision: number,
     revision: number,
     change: HistoryChange,
   ): void {
-    const history = this.history(companyId);
+    const history = this.#history(companyId);
     const continues = history.model.isLive(historyId, previousRevision);
     history.model.committed(historyId, previousRevision, revision);
     history.past = historyId === undefined ? [] : [...(continues ? history.past : []), change];
     history.future = [];
   }
 
-  private companyRows(companyId: string): AppData {
+  #companyRows(companyId: string): AppData {
     const data = createEmptyAppData();
     for (const entity of APP_DATA_KEYS) {
-      const rows = this.rows(entity).filter((row) =>
+      const rows = this.#rows(entity).filter((row) =>
         entity === 'companies' ? row.id === companyId : row.companyId === companyId,
       );
       Object.assign(data, { [entity]: structuredClone(rows) });
@@ -348,48 +350,48 @@ export class StubPlanningTransport implements PlanningTransport {
     return data;
   }
 
-  private replaceCompanyRows(companyId: string, rows: AppData, kind: 'undo' | 'redo'): void {
+  #replaceCompanyRows(companyId: string, rows: AppData, kind: 'undo' | 'redo'): void {
     for (const entity of APP_DATA_KEYS) {
       const inCompany = (row: Row) =>
         entity === 'companies' ? row.id === companyId : row.companyId === companyId;
-      const others = this.rows(entity).filter((row) => !inCompany(row));
+      const others = this.#rows(entity).filter((row) => !inCompany(row));
       const restored = structuredClone(rows[entity]) as unknown as Row[];
       const restoredIds = new Set(restored.map((row) => row.id));
       const archived =
         kind === 'undo'
-          ? this.rows(entity)
+          ? this.#rows(entity)
               .filter((row) => inCompany(row) && !restoredIds.has(row.id) && 'archivedAt' in row)
               .map((row) => ({ ...row, archivedAt: row.archivedAt ?? '2026-01-01T00:00:00.000Z' }))
           : [];
-      this.replaceRows(entity, [...others, ...restored, ...archived]);
+      this.#replaceRows(entity, [...others, ...restored, ...archived]);
     }
   }
 
-  private rows(entity: AppDataKey): Row[] {
-    return this.data[entity] as unknown as Row[];
+  #rows(entity: AppDataKey): Row[] {
+    return this.#data[entity] as unknown as Row[];
   }
-  private replaceRows(entity: AppDataKey, rows: Row[]) {
-    Object.assign(this.data, { [entity]: rows });
+  #replaceRows(entity: AppDataKey, rows: Row[]) {
+    Object.assign(this.#data, { [entity]: rows });
   }
 
-  private applyPatch(patch: PlanningPatch): void {
+  #applyPatch(patch: PlanningPatch): void {
     for (const { entity, id } of patch.removed) {
-      this.replaceRows(
+      this.#replaceRows(
         entity,
-        this.rows(entity).filter((row) => row.id !== id),
+        this.#rows(entity).filter((row) => row.id !== id),
       );
     }
     for (const { entity, row } of patch.upserts) {
-      this.replaceRows(entity, [
-        ...this.rows(entity).filter((current) => current.id !== row.id),
+      this.#replaceRows(entity, [
+        ...this.#rows(entity).filter((current) => current.id !== row.id),
         structuredClone(row) as unknown as Row,
       ]);
     }
   }
 
-  private applySingleRow(companyId: string, intent: PlanningIntent): boolean {
+  #applySingleRow(companyId: string, intent: PlanningIntent): boolean {
     const nextDisciplineSortOrder = () =>
-      this.rows('disciplines')
+      this.#rows('disciplines')
         .filter((row) => row.companyId === companyId)
         .reduce((next, row) => Math.max(next, Number(row.sortOrder) + 1), 0);
     const create = (entity: AppDataKey, id: string, fields: object) => {
@@ -402,21 +404,24 @@ export class StubPlanningTransport implements PlanningTransport {
         id,
         ...(entity === 'companies' ? {} : { companyId }),
       } as Row;
-      this.replaceRows(entity, [...this.rows(entity).filter((current) => current.id !== id), row]);
+      this.#replaceRows(entity, [
+        ...this.#rows(entity).filter((current) => current.id !== id),
+        row,
+      ]);
     };
     const update = (entity: AppDataKey, id: string, changes: object) => {
-      const previous = this.rows(entity).find((row) => row.id === id);
+      const previous = this.#rows(entity).find((row) => row.id === id);
       if (!previous) throw new Error(`stub: load ${entity} row ${id} before updating it`);
       const row = { ...previous, ...changes };
-      this.replaceRows(
+      this.#replaceRows(
         entity,
-        this.rows(entity).map((current) => (current.id === id ? row : current)),
+        this.#rows(entity).map((current) => (current.id === id ? row : current)),
       );
     };
     const remove = (entity: AppDataKey, id: string) => {
-      this.replaceRows(
+      this.#replaceRows(
         entity,
-        this.rows(entity).filter((row) => row.id !== id),
+        this.#rows(entity).filter((row) => row.id !== id),
       );
       return true;
     };
@@ -430,11 +435,11 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'allocation.reassign': {
         // Mirrors the server: the target and company decide the load the row carries.
         const { id, resourceId, startDate, endDate } = intent;
-        const existing = this.rows('allocations').find((row) => row.id === id) as
+        const existing = this.#rows('allocations').find((row) => row.id === id) as
           Allocation | undefined;
-        const target = this.rows('resources').find((row) => row.id === resourceId) as
+        const target = this.#rows('resources').find((row) => row.id === resourceId) as
           Resource | undefined;
-        const company = this.rows('companies').find((row) => row.id === companyId) as
+        const company = this.#rows('companies').find((row) => row.id === companyId) as
           Company | undefined;
         if (!existing || !target || !company) {
           throw new Error('stub: load the allocation, target and company before reassigning');

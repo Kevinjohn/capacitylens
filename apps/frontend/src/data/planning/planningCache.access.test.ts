@@ -80,14 +80,13 @@ describe('planning request access boundaries', () => {
       const fixture = await setup();
       const publications: boolean[] = [];
       fixture.store.subscribe((state) => {
-        if (state.planning.context === null) {
-          publications.push(
-            state.data.clients.length === 0 &&
-              !state.planning.history.canUndo &&
-              !state.planning.history.canRedo &&
-              state.planning.phase.kind !== 'writing',
-          );
-        }
+        if (state.planning.context !== null) return;
+        publications.push(
+          state.data.clients.length === 0 &&
+            !state.planning.history.canUndo &&
+            !state.planning.history.canRedo &&
+            state.planning.phase.kind !== 'writing',
+        );
       });
       rejectStage(fixture, stage, new PlanningCacheError('Access ended', undefined, 401));
       await startRequest(fixture, stage).catch((error: unknown) => error);
