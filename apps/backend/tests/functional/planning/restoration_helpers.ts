@@ -131,10 +131,11 @@ export const planningAudit = () =>
     .from('audit_entries')
     .where({ company_id: companyId, entity: 'planning' })
     .select('entity_id', 'action');
-export const group = (groupId: string) =>
+/** The stored restoration group `groupId`, or undefined once it is gone. */
+export const restorationGroup = (groupId: string) =>
   db.from('deleted_groups').where('group_id', groupId).first();
 export async function consumedAt(groupId: string) {
-  const row = await group(groupId);
+  const row = await restorationGroup(groupId);
   return row?.consumed_at;
 }
 

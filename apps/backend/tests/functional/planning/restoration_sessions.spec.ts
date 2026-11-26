@@ -19,7 +19,7 @@ import {
   currentRevision,
   markers,
   planningAudit,
-  group,
+  restorationGroup,
   consumedAt,
 } from '#tests/functional/planning/restoration_helpers';
 
@@ -88,10 +88,10 @@ test.group('session-bound allocation restoration', (suite) => {
     const deleted = await deleteOne(client, owner.cookie, id!, 1);
     deleted.assertStatus(200);
     const groupId = deleted.body().data.restoration.replacementGroupId;
-    assert.exists(await group(groupId));
+    assert.exists(await restorationGroup(groupId));
     const signedOut = await session(client.visit('api.session.destroy'), owner.cookie).send();
     signedOut.assertStatus(200);
-    assert.notExists(await group(groupId));
+    assert.notExists(await restorationGroup(groupId));
     assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 0);
     const invalidated = await restore(client, owner.cookie, groupId, 2);
     invalidated.assertStatus(401);
