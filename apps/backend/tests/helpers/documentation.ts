@@ -72,10 +72,15 @@ function buildMarkdownAnchorIds(
   );
 }
 
-function listMarkdownLinkTargets(source: string): string[] {
+function listMarkdownLinkTargets(
+  source: string,
+  include: 'links-only' | 'with-images' = 'links-only'
+): string[] {
   return repositoryMarkdown.parse(source, {}).flatMap((token) =>
     (token.children ?? []).flatMap((child) => {
-      const target = child.type === 'link_open' ? child.attrGet('href') : null;
+      let target = null;
+      if (child.type === 'link_open') target = child.attrGet('href');
+      if (include === 'with-images' && child.type === 'image') target = child.attrGet('src');
       return target ? [target] : [];
     })
   );
@@ -87,7 +92,7 @@ function listMarkdownLinkTargets(source: string): string[] {
  * @returns Its decoded filesystem path and encoded fragment, or undefined for an external link.
  * @throws If the target cannot be converted to a local filesystem path.
  */
-export function resolveLocalMarkdownTarget(
+function resolveLocalMarkdownTarget(
   sourceFile: string,
   target: string
 ): { path: string; fragment: string } | undefined {
@@ -124,6 +129,20 @@ export function listReadmeLinkFailures(readme: string): string[] {
       failures.push(`Missing README fragment ${target}`);
   }
   return hasLocalTargets ? failures : ['No local links in README'];
+}
+
+/**
+ * Lists missing local Markdown link and image targets in a user story.
+ *
+ * @throws If a target cannot be converted to a local filesystem path.
+ */
+export function listStoryLinkFailures(story: string, content: string): string[] {
+  const failures: string[] = [];
+  for (const target of listMarkdownLinkTargets(content, 'with-images')) {
+    const link = resolveLocalMarkdownTarget(story, target);
+    if (link && !existsSync(link.path)) failures.push(`Missing story link ${target}`);
+  }
+  return failures;
 }
 
 function listDocumentationTargets(metadata: string): string[] {

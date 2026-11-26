@@ -4,11 +4,11 @@ import { relative, resolve } from 'node:path';
 import {
   listDocumentationLinkFailures,
   listReadmeLinkFailures,
+  listStoryLinkFailures,
   listStoryFiles,
   listStoryPaths,
   readRepositoryFile,
   repositoryRoot,
-  resolveLocalMarkdownTarget,
 } from '#tests/helpers/documentation';
 
 test.group('documentation and repository rule contracts', () => {
@@ -78,6 +78,32 @@ test.group('documentation and repository rule contracts', () => {
       'Missing README fragment #example-heading',
       'Missing README fragment #example-id',
     ]);
+  });
+
+  test('checks parsed story link and image destinations', ({ assert }) => {
+    const story = resolve(
+      repositoryRoot,
+      'user-stories/installation/US-INS-01-install-one-agency.md'
+    );
+    const missingPage = '../../docs-src/self-hosting/missing-guide.md';
+    const missingImage = '../../docs-src/screenshots/steps/missing-guide.png';
+    const content = [
+      '[Reference](<https://docs.adonisjs.com/guides/ace>)',
+      '[Install](../../docs-src/self-hosting/install.md "Installation guide")',
+      '[Upgrades](../../docs-src/self-hosting/upgrades.md)',
+      '![Booking](../../docs-src/screenshots/steps/quick_start_first_booking.png)',
+      `[Missing guide](${missingPage})`,
+      `![Missing illustration](${missingImage})`,
+    ].join('\n');
+
+    assert.deepEqual(listStoryLinkFailures(story, content), [
+      `Missing story link ${missingPage}`,
+      `Missing story link ${missingImage}`,
+    ]);
+    assert.deepEqual(
+      listStoryLinkFailures(story, '[Reference](  https://example.test/guide  )'),
+      []
+    );
   });
 
   test('checks every link on a story documentation metadata line', ({ assert }) => {
@@ -202,11 +228,7 @@ test.group('documentation and repository rule contracts', () => {
       assert.match(content, /^## Acceptance criteria$/m);
       assert.match(content, /^(?:- \S|\|\s+Field\s+\|)/m);
       const metadata = content.split(/^## Acceptance criteria$/m, 1)[0] ?? '';
-      for (const [, target] of content.matchAll(/\]\(([^)]+)\)/g)) {
-        if (!target) continue;
-        const link = resolveLocalMarkdownTarget(file, target);
-        if (link) assert.isTrue(existsSync(link.path), `Missing story link ${target}`);
-      }
+      assert.deepEqual(listStoryLinkFailures(file, content), [], file);
       for (const [, path] of metadata.matchAll(sourceReferences)) {
         if (path)
           assert.isTrue(existsSync(resolve(repositoryRoot, path)), `Missing source ${path}`);
