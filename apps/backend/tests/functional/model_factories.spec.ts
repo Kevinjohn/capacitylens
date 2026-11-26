@@ -41,8 +41,9 @@ test.group('Model factories', (group) => {
     await ClosureFactory.merge({ companyId }).create();
     await TimeOffFactory.merge({ companyId, resourceId: resource.id }).create();
     const user = await db.transaction((trx) => UserFactory.client(trx).create());
-    assert.isNotNull(user.emailVerifiedAt);
-    assert.isNull(user.unverifiedEmail);
+    const stored = await db.from('users').where('id', user.id).firstOrFail();
+    assert.isString(stored.email_verified_at);
+    assert.isNull(stored.unverified_email);
 
     for (const table of [
       'companies',
