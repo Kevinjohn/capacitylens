@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
 import { createMarkdownRenderer, disposeMdItInstance, type MarkdownRenderer } from 'vitepress';
 
@@ -81,31 +82,48 @@ function listMarkdownLinkTargets(source: string): string[] {
 }
 
 /**
+ * Resolves a local Markdown link relative to the source file.
+ *
+ * @returns Its decoded filesystem path and encoded fragment, or undefined for an external link.
+ * @throws If the target cannot be converted to a local filesystem path.
+ */
+export function resolveLocalMarkdownTarget(
+  sourceFile: string,
+  target: string
+): { path: string; fragment: string } | undefined {
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(target)) return;
+  const url = new URL(target, pathToFileURL(sourceFile));
+  try {
+    return { path: fileURLToPath(url), fragment: url.hash.slice(1) };
+  } catch (cause) {
+    // Keep the link text in the error from the filesystem path conversion.
+    throw new Error(`Invalid local Markdown target ${target}`, { cause });
+  }
+}
+
+/**
  * Lists missing local targets and fragments for the public README.
  *
- * @throws If an existing Markdown target cannot be read or has an invalid encoded fragment.
+ * @throws If an existing Markdown target cannot be read or a target has invalid encoding.
  */
 export function listReadmeLinkFailures(readme: string): string[] {
-  const targets = listMarkdownLinkTargets(readme).filter(
-    (target) => !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(target)
-  );
-  if (targets.length === 0) return ['No local links in README'];
-
   const failures: string[] = [];
-  for (const target of targets) {
-    const [path, fragment] = target.split('#', 2);
-    const absolute = path ? resolve(repositoryRoot, path) : readmePath;
-    if (!existsSync(absolute)) {
+  let hasLocalTargets = false;
+  for (const target of listMarkdownLinkTargets(readme)) {
+    const link = resolveLocalMarkdownTarget(readmePath, target);
+    if (!link) continue;
+    hasLocalTargets = true;
+    if (!existsSync(link.path)) {
       failures.push(`Missing README target ${target}`);
       continue;
     }
-    if (!fragment || (path && !/\.md$/i.test(path))) continue;
-    const source = absolute === readmePath ? readme : readFileSync(absolute, 'utf8');
-    const anchors = buildMarkdownAnchorIds(repositoryMarkdown, source, absolute);
-    if (!anchors.has(decodeURIComponent(fragment)))
+    if (!link.fragment || !/\.md$/i.test(link.path)) continue;
+    const source = link.path === readmePath ? readme : readFileSync(link.path, 'utf8');
+    const anchors = buildMarkdownAnchorIds(repositoryMarkdown, source, link.path);
+    if (!anchors.has(decodeURIComponent(link.fragment)))
       failures.push(`Missing README fragment ${target}`);
   }
-  return failures;
+  return hasLocalTargets ? failures : ['No local links in README'];
 }
 
 function listDocumentationTargets(metadata: string): string[] {
@@ -117,7 +135,7 @@ function listDocumentationTargets(metadata: string): string[] {
 /**
  * Lists invalid, missing and unmatched documentation targets in a story's metadata.
  *
- * @throws If an existing documentation target cannot be read or has an invalid encoded fragment.
+ * @throws If an existing documentation target cannot be read or a target has invalid encoding.
  */
 export function listDocumentationLinkFailures(story: string, metadata: string): string[] {
   const targets = listDocumentationTargets(metadata);
@@ -130,30 +148,32 @@ export function listDocumentationLinkFailures(story: string, metadata: string): 
       failures.push(`Documentation target must resolve inside docs-src: ${target}`);
       continue;
     }
-    if (!existsSync(page)) {
+    if (!existsSync(page.path)) {
       failures.push(`Missing documentation page ${target}`);
       continue;
     }
-    const fragment = target.split('#', 2)[1];
-    if (!fragment) continue;
-    const anchors = buildMarkdownAnchorIds(guideMarkdown, readFileSync(page, 'utf8'), page);
-    if (!anchors.has(decodeURIComponent(fragment)))
+    if (!page.fragment) continue;
+    const anchors = buildMarkdownAnchorIds(
+      guideMarkdown,
+      readFileSync(page.path, 'utf8'),
+      page.path
+    );
+    if (!anchors.has(decodeURIComponent(page.fragment)))
       failures.push(`Missing documentation fragment ${target}`);
   }
   return failures;
 }
 
 /**
- * Resolves a story link to an absolute path inside the documentation source directory.
+ * Resolves a story link to a page inside the documentation source directory.
  *
- * @returns The absolute path, or undefined if the link has no path or resolves to docs-src itself
- * or outside it.
+ * @returns The resolved link, or undefined if the target is external or is outside docs-src.
+ * @throws If the target cannot be converted to a local filesystem path.
  */
-function resolveDocumentationPage(story: string, target: string): string | undefined {
-  const path = target.split('#', 1)[0];
-  if (!path) return;
-  const absolute = resolve(dirname(story), path);
-  const relativeToDocs = relative(documentationRoot, absolute);
+function resolveDocumentationPage(story: string, target: string) {
+  const link = resolveLocalMarkdownTarget(story, target);
+  if (!link) return;
+  const relativeToDocs = relative(documentationRoot, link.path);
   if (relativeToDocs.startsWith('..') || relativeToDocs === '') return;
-  return absolute;
+  return link;
 }

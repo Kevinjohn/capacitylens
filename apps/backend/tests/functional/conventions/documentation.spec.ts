@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 import {
   listDocumentationLinkFailures,
   listReadmeLinkFailures,
@@ -8,6 +8,7 @@ import {
   listStoryPaths,
   readRepositoryFile,
   repositoryRoot,
+  resolveLocalMarkdownTarget,
 } from '#tests/helpers/documentation';
 
 test.group('documentation and repository rule contracts', () => {
@@ -29,13 +30,20 @@ test.group('documentation and repository rule contracts', () => {
   test('checks same-page README links against its own headings', ({ assert }) => {
     const readme = [
       '[Try it](#try-it-in-two-minutes) · [Missing](#missing-section)',
-      '[Contributing](CONTRIBUTING.md)',
+      '[Contributing](CONTRIBUTING%2Emd?tab=docs#documentation-and-github-pages)',
       '<mailto:bruce@wayne.example> · [External](//example.test/path)',
       '',
       '## Try it in two minutes',
     ].join('\n');
 
     assert.deepEqual(listReadmeLinkFailures(readme), ['Missing README fragment #missing-section']);
+  });
+
+  test('reports the original target when a local README path cannot be decoded', ({ assert }) => {
+    const target = 'docs-src%2Findex.md';
+    const readme = `[Documentation](${target})`;
+
+    assert.throws(() => listReadmeLinkFailures(readme), `Invalid local Markdown target ${target}`);
   });
 
   test('checks README links against literal HTML ids', ({ assert }) => {
@@ -78,7 +86,7 @@ test.group('documentation and repository rule contracts', () => {
       'user-stories/installation/US-INS-01-install-one-agency.md'
     );
     const install = '../../docs-src/self-hosting/install.md';
-    const guide = '../../docs-src/self-hosting/install-without-docker.md';
+    const guide = '../../docs-src/self-hosting/install-without-docker%2Emd?from=story';
     const upgrades = '../../docs-src/self-hosting/upgrades.md';
     const metadata = `**Documentation:** [Install](${install}); [Guide](${guide}#missing-section); [Upgrades](${upgrades})`;
 
@@ -195,9 +203,9 @@ test.group('documentation and repository rule contracts', () => {
       assert.match(content, /^(?:- \S|\|\s+Field\s+\|)/m);
       const metadata = content.split(/^## Acceptance criteria$/m, 1)[0] ?? '';
       for (const [, target] of content.matchAll(/\]\(([^)]+)\)/g)) {
-        if (!target || target.includes('://') || target.startsWith('#')) continue;
-        const path = target.split('#', 1)[0];
-        assert.isTrue(existsSync(resolve(dirname(file), path!)), `Missing story link ${target}`);
+        if (!target) continue;
+        const link = resolveLocalMarkdownTarget(file, target);
+        if (link) assert.isTrue(existsSync(link.path), `Missing story link ${target}`);
       }
       for (const [, path] of metadata.matchAll(sourceReferences)) {
         if (path)
