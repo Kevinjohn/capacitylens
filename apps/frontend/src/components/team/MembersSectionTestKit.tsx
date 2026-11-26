@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
 import { expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
@@ -48,13 +49,65 @@ export function makeRawMember(
   };
 }
 
-type RouteHandler = (url: string, init: RequestInit | undefined) => Response | Promise<Response>;
+/** A fetch call normalised from the client's `(Request, init)` pair: route path with query, method and body text. */
+export interface ApiRequest {
+  url: string;
+  method: string;
+  body: string | null;
+  signal: AbortSignal | null;
+}
+
+/** Reads a fetch call into an {@link ApiRequest}. Accepts a Request (client transport) or a URL string. */
+export async function readApiRequest(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<ApiRequest> {
+  if (input instanceof Request) {
+    const parsed = new URL(input.url);
+    const text = input.body === null ? '' : await input.clone().text();
+    return {
+      url: `${parsed.pathname}${parsed.search}`,
+      method: input.method,
+      body: text === '' ? null : text,
+      signal: init?.signal ?? input.signal,
+    };
+  }
+  return {
+    url: String(input),
+    method: init?.method ?? 'GET',
+    body: init?.body === undefined || init.body === null ? null : String(init.body),
+    signal: init?.signal ?? null,
+  };
+}
+
+/** Answers one normalised request with a fresh Response. */
+export type ApiHandler = (url: string, request: ApiRequest) => Response | Promise<Response>;
+
+/** A fetch fake whose `requests` lists every call in normalised form, in call order. */
+export type ApiFetchMock = Mock<
+  (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+> & {
+  requests: ApiRequest[];
+};
+
+/** Builds a fetch fake that normalises each call before handing it to `handler`. */
+export function fakeApiFetch(handler: ApiHandler): ApiFetchMock {
+  const requests: ApiRequest[] = [];
+  const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = await readApiRequest(input, init);
+    requests.push(request);
+    return handler(request.url, request);
+  });
+  return Object.assign(mock, { requests });
+}
+
+type RouteHandler = ApiHandler;
 
 /** Builds a request mock with per-method/path-suffix overrides. Matching overrides replace defaults; an empty suffix matches all paths for that method. */
 export function mockApi(
   members: RawMember[] | { status: number } = [],
   overrides: Record<string, RouteHandler> = {},
-) {
+): ApiFetchMock {
   const defaults: Record<string, RouteHandler> = {
     'GET /members': () =>
       'status' in members
@@ -83,13 +136,11 @@ export function mockApi(
     },
   };
   const routes = { ...defaults, ...overrides };
-  return vi.fn(async (url: string, init?: RequestInit) => {
-    const u = String(url);
-    const method = init?.method ?? 'GET';
+  return fakeApiFetch((url, request) => {
     for (const [key, handler] of Object.entries(routes)) {
       const space = key.indexOf(' ');
-      if (method === key.slice(0, space) && u.endsWith(key.slice(space + 1))) {
-        return handler(u, init);
+      if (request.method === key.slice(0, space) && url.endsWith(key.slice(space + 1))) {
+        return handler(url, request);
       }
     }
 
@@ -98,22 +149,18 @@ export function mockApi(
 }
 
 /** Provides a stateful sign-in tracking response for team access tests. */
-export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
+export function makeSignInTrackingApi(): ApiFetchMock {
   let trackingEnabled = false;
   const members: RawMember[] = [
     { userId: 'me', role: 'owner', isSelf: true },
     { userId: 'ed', name: 'Clark Kent', email: 'clark@example.test', role: 'editor' },
   ];
-  return vi.fn(async (url: string, init?: RequestInit) => {
-    const endpoint = String(url);
-    if (endpoint.endsWith('/member-sign-in-tracking') && init?.method === 'PUT') {
-      trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
+  return fakeApiFetch((endpoint, request) => {
+    if (endpoint.endsWith('/member-sign-in-tracking') && request.method === 'PUT') {
+      trackingEnabled = (JSON.parse(String(request.body)) as { enabled: boolean }).enabled;
       return jsonResponse({ data: { enabled: trackingEnabled } });
     }
-    if (
-      endpoint.endsWith('/members') &&
-      (!init || init.method === undefined || init.method === 'GET')
-    ) {
+    if (endpoint.endsWith('/members') && request.method === 'GET') {
       // Compute signInConfirmed from the live tracking setting so the response tests opt-in changes rather than a fixed per-member value.
       return jsonResponse({
         data: {

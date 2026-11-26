@@ -144,15 +144,16 @@ describe('MembersSection — admin affordances', () => {
     expect(
       within(dialog).getByText(/theeditor@x\.io cannot open this company/),
     ).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(
+    expect(fetchMock.requests.map((request) => request.url)).not.toContainEqual(
       expect.stringContaining('/members/theeditor/status'),
-      expect.anything(),
     );
     await user.click(within(dialog).getByRole('button', { name: 'Suspend' }));
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor/status`,
-        expect.objectContaining({ method: 'PATCH' }),
+      expect(fetchMock.requests).toContainEqual(
+        expect.objectContaining({
+          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor/status`,
+          method: 'PATCH',
+        }),
       ),
     );
   });
@@ -178,18 +179,20 @@ describe('MembersSection — admin affordances', () => {
     expect(within(dialog).getByTestId('member-role-summary')).toHaveTextContent(
       /Read-only schedule access/,
     );
-    expect(fetchMock).not.toHaveBeenCalledWith(
+    expect(fetchMock.requests.map((request) => request.url)).not.toContainEqual(
       expect.stringContaining('/members/theeditor'),
-      expect.anything(),
     );
 
     await user.click(within(dialog).getByTestId('member-role-save'));
-    expect(fetchMock).toHaveBeenCalledWith(
-      `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
-      expect.objectContaining({
-        method: 'PATCH',
-        body: JSON.stringify({ role: 'viewer' }),
-      }),
+    // The client reaches fetch asynchronously, so wait for the write to be recorded.
+    await waitFor(() =>
+      expect(fetchMock.requests).toContainEqual(
+        expect.objectContaining({
+          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
+          method: 'PATCH',
+          body: JSON.stringify({ role: 'viewer' }),
+        }),
+      ),
     );
     expect(useStore.getState().membershipRevision).toBe(revisionBefore);
   });

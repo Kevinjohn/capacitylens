@@ -14,6 +14,7 @@ import { m } from '@/i18n';
 import { teamAccessApi } from '@/account/teamAccessApi';
 import {
   chooseMemberAction,
+  fakeApiFetch,
   waitForMemberRow,
   makeSignInTrackingApi,
   mockApi,
@@ -72,16 +73,15 @@ describe('MembersSection — member lifecycle', () => {
     const dialog = screen.getByRole('alertdialog');
     expect(within(dialog).getByText(/cannot open this company until/i)).toBeInTheDocument();
 
-    expect(fetchMock).not.toHaveBeenCalledWith(
+    expect(fetchMock.requests.map((request) => request.url)).not.toContainEqual(
       expect.stringContaining('/status'),
-      expect.anything(),
     );
 
     await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
+      expect(fetchMock.requests).toContainEqual(
         expect.objectContaining({
+          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
           method: 'PATCH',
           body: JSON.stringify({ status: 'suspended' }),
         }),
@@ -115,9 +115,12 @@ describe('MembersSection — member lifecycle', () => {
     );
 
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
+      expect(fetchMock.requests).toContainEqual(
+        expect.objectContaining({
+          url: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'active' }),
+        }),
       ),
     );
   });
@@ -314,13 +317,13 @@ describe('MembersSection — member lifecycle', () => {
       { userId: 'me', role: 'owner', isSelf: true },
       { userId: 'ed', role: 'editor' },
     ]);
-    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-      if (init?.method === 'POST' || init?.method === 'DELETE' || init?.method === 'PATCH') {
+    const fetchMock = fakeApiFetch((url, request) => {
+      if (request.method === 'POST' || request.method === 'DELETE' || request.method === 'PATCH') {
         return new Promise<Response>((resolve) => {
           release = () => resolve(new Response(null, { status: 204 }));
         });
       }
-      return reads(url, init);
+      return reads(url, request);
     });
     vi.stubGlobal('fetch', fetchMock);
     renderSection();
@@ -337,11 +340,9 @@ describe('MembersSection — member lifecycle', () => {
     await user.click(within(editorRow).getByTestId('member-menu'));
     expect(screen.queryByText(m.settings_member_settings_heading())).not.toBeInTheDocument();
 
-    const mutations = fetchMock.mock.calls.filter(
-      ([, init]) => init?.method && init.method !== 'GET',
-    );
+    const mutations = fetchMock.requests.filter((request) => request.method !== 'GET');
     expect(mutations).toHaveLength(1);
-    expect(String(mutations[0]?.[0])).toContain('/status');
+    expect(mutations[0]?.url).toContain('/status');
     requireCallback(release, 'the pending member mutation release callback')();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });
@@ -370,7 +371,7 @@ describe('MembersSection — member lifecycle', () => {
       await within(dialog).findByText(m.settings_member_resource_unknown()),
     ).toBeInTheDocument();
     expect(
-      fetchMock.mock.calls.filter(([url]) => String(url).includes('/members')).length,
+      fetchMock.requests.filter((request) => request.url.includes('/members')).length,
     ).toBeGreaterThan(1);
   });
 
@@ -480,15 +481,16 @@ describe('MembersSection — member lifecycle', () => {
     const dialog = await screen.findByRole('dialog');
     await userEvent.click(within(dialog).getByRole('button', { name: /remove Resource link/i }));
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining(`/members/ed/resource-link`),
+      expect(
+        fetchMock.requests.find((request) => request.url.includes('/members/ed/resource-link')),
+      ).toEqual(
         expect.objectContaining({
           method: 'DELETE',
           body: JSON.stringify({ expectedRevision: 'rev-1' }),
         }),
       ),
     );
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/members'))).toHaveLength(
+    expect(fetchMock.requests.filter((request) => request.url.endsWith('/members'))).toHaveLength(
       2,
     );
   });

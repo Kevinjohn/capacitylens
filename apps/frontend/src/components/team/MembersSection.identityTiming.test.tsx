@@ -8,7 +8,7 @@ import { AUTH_INVALIDATION_STORAGE_KEY } from '@/auth/signOut';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithCompany, jsonResponse, requireValue } from '@/test/fixtures';
 import { MembersSection } from './MembersSection';
-import { mockApi, makeRawMember } from './MembersSectionTestKit';
+import { fakeApiFetch, mockApi, makeRawMember } from './MembersSectionTestKit';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { createDeferred } from '@/test/createDeferred';
 function CurrentUser() {
@@ -69,14 +69,14 @@ beforeEach(async () => {
   });
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).endsWith('/invitations') && (init?.method ?? 'GET') === 'GET') {
+    fakeApiFetch((url, request) => {
+      if (url.endsWith('/invitations') && request.method === 'GET') {
         invitationReads += 1;
       }
-      if (String(url).includes('/api/v1/masquerade')) {
-        return Promise.resolve(jsonResponse({ data: { active: false, masqueradeToken: 'idle' } }));
+      if (url.includes('/api/v1/masquerade')) {
+        return jsonResponse({ data: { active: false, masqueradeToken: 'idle' } });
       }
-      return base(url, init);
+      return base(url, request);
     }),
   );
 });
