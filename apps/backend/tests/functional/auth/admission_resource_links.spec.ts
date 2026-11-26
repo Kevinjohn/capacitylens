@@ -7,6 +7,9 @@ import {
 } from '#tests/helpers/authenticated_data_fixture';
 import { resetState } from '#tests/helpers/state_fixture';
 import { signUpAndIn } from '#tests/helpers/identities';
+import { CompanyFactory } from '#database/factories/company_factory';
+import { UserFactory } from '#database/factories/user_factory';
+import { DateTime } from 'luxon';
 
 const password = 'batman-secret-2026';
 
@@ -79,13 +82,11 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
     ]);
-    await db.table('companies').insert({
+    await CompanyFactory.merge({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
-      created_at: now,
-      updated_at: now,
-    });
+    }).create();
     const person = (id: string, companyId: string, archivedAt: string | null = null) => ({
       id,
       company_id: companyId,
@@ -181,13 +182,11 @@ test.group('direct member resource association', (group) => {
     const ownerId = (owner.body().data as { user: { id: string } }).user.id;
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const now = new Date().toISOString();
-    await db.table('companies').insert({
+    await CompanyFactory.merge({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
-      created_at: now,
-      updated_at: now,
-    });
+    }).create();
     const person = (id: string, companyId: string, kind = 'person') => ({
       id,
       company_id: companyId,
@@ -330,15 +329,15 @@ test.group('direct member resource association', (group) => {
     );
     const second = await put(ownerId, 'r-barry', null);
     second.assertStatus(200);
-    const otherId = crypto.randomUUID();
-    await db.table('users').insert({
-      id: otherId,
-      email: 'barry.allen@wayne.example',
-      email_verified_at: new Date().toISOString(),
-      display_name: 'Barry Allen',
-      created_at: now,
-      updated_at: now,
-    });
+    const { id: otherId } = await db.transaction((trx) =>
+      UserFactory.client(trx)
+        .merge({
+          email: 'barry.allen@wayne.example',
+          displayName: 'Barry Allen',
+          emailVerifiedAt: DateTime.now(),
+        })
+        .create()
+    );
     await db.table('memberships').insert({
       scope_id: 'a-studio',
       user_id: otherId,

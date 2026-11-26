@@ -12,6 +12,10 @@ import { masqueradeAdmission } from '#tests/helpers/masquerade_admission';
 import app from '@adonisjs/core/services/app';
 import { MasqueradeModeService } from '#services/auth/masquerade_mode_service';
 import { StorageMaintenanceService } from '#services/storage_maintenance_service';
+import { ClientFactory } from '#database/factories/client_factory';
+import { CompanyFactory } from '#database/factories/company_factory';
+import { UserFactory } from '#database/factories/user_factory';
+import { DateTime } from 'luxon';
 
 const storageMaintenance = new StorageMaintenanceService();
 
@@ -28,6 +32,13 @@ function asSession<
     prepared.withCookie('adonis-session', cookie);
     if (context) prepared.header('X-Masquerade-Context', context);
   });
+}
+
+/** A verified identity with no password, made by the model factory once a company exists. */
+function verifiedIdentity(email: string, displayName: string) {
+  return db.transaction((trx) =>
+    UserFactory.client(trx).merge({ email, displayName, emailVerifiedAt: DateTime.now() }).create()
+  );
 }
 
 async function masqueradeToken(client: any, cookie: string) {
@@ -61,17 +72,8 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 
   const cookie = owner.cookie('adonis-session')!.value;
   const ownerId = String((owner.body().data as { user: { id: string } }).user.id);
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
-  const targetId = crypto.randomUUID();
+  const { id: targetId } = await verifiedIdentity('clark.kent@wayne.example', 'Clark Kent');
   const now = new Date().toISOString();
-  await db.table('users').insert({
-    id: targetId,
-    email: 'clark.kent@wayne.example',
-    display_name: 'Clark Kent',
-    email_verified_at: new Date().toISOString(),
-    password: null,
-    created_at: now,
-    updated_at: now,
-  });
   await db.table('memberships').insert({
     scope_id: 'a-studio',
     user_id: targetId,
@@ -86,17 +88,11 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 
 /** `fixture` with the signed-in viewer as an Admin under a separate company Owner, Diana Prince. */
 async function adminFixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 'editor') {
   const { cookie, ownerId: adminId, targetId } = await fixture(client, targetRole);
-  const companyOwnerId = crypto.randomUUID();
+  const { id: companyOwnerId } = await verifiedIdentity(
+    'diana.prince@themyscira.example',
+    'Diana Prince'
+  );
   const now = new Date().toISOString();
-  await db.table('users').insert({
-    id: companyOwnerId,
-    email: 'diana.prince@themyscira.example',
-    display_name: 'Diana Prince',
-    email_verified_at: now,
-    password: null,
-    created_at: now,
-    updated_at: now,
-  });
   await db.table('memberships').insert({
     scope_id: 'a-studio',
     user_id: companyOwnerId,
@@ -128,17 +124,13 @@ const privateClientName = 'Wayne Confidential Client';
 
 /** A private a-studio client whose real name only an effective Owner receives. */
 async function insertPrivateClient() {
-  const now = new Date().toISOString();
-  await db.table('clients').insert({
-    id: crypto.randomUUID(),
-    company_id: 'a-studio',
+  await ClientFactory.merge({
+    companyId: 'a-studio',
     name: privateClientName,
-    code_name: 'Nightwing',
+    codeName: 'Nightwing',
     color: '#123456',
-    is_private: true,
-    created_at: now,
-    updated_at: now,
-  });
+    isPrivate: true,
+  }).create();
 }
 
 async function endView(client: any, cookie: string) {
@@ -404,18 +396,13 @@ test.group('native read-only masquerade', (group) => {
     assert,
   }) => {
     const { cookie, ownerId, targetId } = await fixture(client);
-    const privateClientId = crypto.randomUUID();
-    const now = new Date().toISOString();
-    await db.table('clients').insert({
-      id: privateClientId,
-      company_id: 'a-studio',
+    await ClientFactory.merge({
+      companyId: 'a-studio',
       name: 'Wayne Confidential Client',
-      code_name: 'Nightwing',
+      codeName: 'Nightwing',
       color: '#123456',
-      is_private: true,
-      created_at: now,
-      updated_at: now,
-    });
+      isPrivate: true,
+    }).create();
     const ownerRead = await asSession(
       client.visit('api.company_state.show').qs({ companyId: 'a-studio' }),
       cookie
@@ -694,14 +681,11 @@ test.group('native read-only masquerade', (group) => {
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: targetId })
       .update({ status: 'active' });
-    const now = new Date().toISOString();
-    await db.table('companies').insert({
+    await CompanyFactory.merge({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#123456',
-      created_at: now,
-      updated_at: now,
-    });
+    }).create();
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: targetId })
@@ -846,17 +830,10 @@ test.group('native read-only masquerade', (group) => {
     assert,
   }) => {
     const { cookie, targetId } = await fixture(client);
-    const outsiderId = crypto.randomUUID();
-    const now = new Date().toISOString();
-    await db.table('users').insert({
-      id: outsiderId,
-      email: 'diana.prince@themyscira.example',
-      display_name: 'Diana Prince',
-      email_verified_at: now,
-      password: null,
-      created_at: now,
-      updated_at: now,
-    });
+    const { id: outsiderId } = await verifiedIdentity(
+      'diana.prince@themyscira.example',
+      'Diana Prince'
+    );
     const outsider = await startView(client, cookie, outsiderId);
     outsider.assertStatus(403);
     assert.deepEqual(outsider.body(), {
