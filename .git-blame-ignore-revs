@@ -20,3 +20,6 @@
 
 # refactor: rename remaining tenant Account identifiers, locals and files to Company (#2224)
 844a8a47fc8a2c623ff1307069c8d15c3b0292dc
+
+# style: reformat with the AdonisJS Prettier preset (no semicolons)
+72a3a6d3c905cf6b5f1765ba8b3127f1c8fddf03
