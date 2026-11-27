@@ -8,7 +8,7 @@ description: Get support, report a problem, improve the documentation, or contri
 Get help, report a problem or contribute a change. CapacityLens is open source under the GNU
 General Public License v3.0 or later. Read the
 [source code](https://github.com/Kevinjohn/capacitylens) and the full
-[licence](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE). You may run a modified
+[licence](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE.md). You may run a modified
 version for your company under its terms.
 
 [Philosophy](/reference/philosophy) explains what CapacityLens leaves out,

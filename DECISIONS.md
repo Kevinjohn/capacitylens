@@ -375,7 +375,7 @@ removed entry retires its number.
     check.
 31. **Aligning (#2550).** `bin/test.ts` holds the test values computed per port lane; the rest are
     in `.env.test`.
-32. **Aligning (#2550).** The licence file is `LICENSE`, not `LICENSE.md`.
+32. Retired. The licence file is `LICENSE.md` (TOOL-6).
 33. **Aligning (#2553).** Ten `catch` blocks in nine controllers answer with the product's
     own error body (a status of 400 or above) instead of letting the exception reach the exception
     handler. The answers on the wire do not change when they move.

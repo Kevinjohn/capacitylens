@@ -19,11 +19,6 @@
         "path": "package.json"
       },
       {
-        "entry": 32,
-        "item": "TOOL-6",
-        "path": "LICENSE.md"
-      },
-      {
         "entry": 21,
         "item": "DB-6",
         "path": "apps/backend/database/migrations/1791763200000_create_capacitylens_baseline_table.ts"

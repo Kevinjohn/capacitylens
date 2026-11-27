@@ -33,3 +33,6 @@ patches
 .claude/worktrees
 .claude/workflows
 to-my-siblings/reference-kit
+
+# The licence text is kept verbatim.
+LICENSE.md
