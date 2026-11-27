@@ -94,10 +94,10 @@ test.group('retained restoration reads', (suite) => {
       const row = await db.from(targetTables[target]).where('id', ids[target]).first()
       assert.exists(row, `${target} must remain physically present for Undo`)
       assert.isNotNull(row.deleted_at)
-      assert.isString(row.deletion_group_id)
+      assert.isString(row.deleted_batch_id)
       const ledger = await db
         .from('deleted_rows')
-        .where({ group_id: row.deletion_group_id, entity: target, row_id: ids[target] })
+        .where({ deleted_batch_id: row.deleted_batch_id, entity: target, row_id: ids[target] })
         .first()
       assert.exists(ledger)
       assert.deepEqual(JSON.parse(ledger.payload_json), { kind: 'row' })
@@ -111,8 +111,8 @@ test.group('retained restoration reads', (suite) => {
       ).send()
       planning.assertStatus(200)
       assert.notInclude(planning.text(), ids[target])
-      assert.notInclude(planning.text(), 'deletionGroupId')
-      assert.notInclude(planning.text(), 'deletion_group_id')
+      assert.notInclude(planning.text(), 'deletedBatchId')
+      assert.notInclude(planning.text(), 'deleted_batch_id')
 
       const exported = await session(
         client.visit('api.company_state.show').qs({ companyId, includeInactive: '1' }),
@@ -120,8 +120,8 @@ test.group('retained restoration reads', (suite) => {
       ).send()
       exported.assertStatus(200)
       assert.notInclude(exported.text(), ids[target])
-      assert.notInclude(exported.text(), 'deletionGroupId')
-      assert.notInclude(exported.text(), 'deletion_group_id')
+      assert.notInclude(exported.text(), 'deletedBatchId')
+      assert.notInclude(exported.text(), 'deleted_batch_id')
     }
   })
 
@@ -151,7 +151,7 @@ test.group('retained restoration reads', (suite) => {
       .restoration.replacementGroupId
     const restoredRowBeforeReuse = await db.from('allocations').where('id', allocation.id).first()
     assert.exists(restoredRowBeforeReuse)
-    assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId)
+    assert.equal(restoredRowBeforeReuse.deleted_batch_id, groupId)
 
     assert.equal(await db.transaction((trx) => restoration.countRestorableItems(trx, companyId)), 1)
     const reused = await session(
@@ -168,9 +168,12 @@ test.group('retained restoration reads', (suite) => {
     const active = await db.from('allocations').where('id', allocation.id).first()
     assert.exists(active)
     assert.isNull(active.deleted_at)
-    assert.isNull(active.deletion_group_id)
-    assert.exists(await db.from('deleted_groups').where('group_id', groupId).first())
-    const ledgerAfterReuse = await db.from('deleted_rows').where('group_id', groupId).first()
+    assert.isNull(active.deleted_batch_id)
+    assert.exists(await db.from('deleted_batches').where('id', groupId).first())
+    const ledgerAfterReuse = await db
+      .from('deleted_rows')
+      .where('deleted_batch_id', groupId)
+      .first()
     assert.deepEqual(JSON.parse(ledgerAfterReuse.payload_json), { kind: 'row' })
 
     assert.equal(await db.transaction((trx) => restoration.countRestorableItems(trx, companyId)), 0)
@@ -187,7 +190,7 @@ test.group('retained restoration reads', (suite) => {
       .send()
     refused.assertStatus(409)
     assert.deepEqual(await readState(companyId, true), beforeRefusal)
-    const unconsumedGroup = await db.from('deleted_groups').where('group_id', groupId).first()
+    const unconsumedGroup = await db.from('deleted_batches').where('id', groupId).first()
     assert.isNull(unconsumedGroup.consumed_at)
     assert.equal(await revision(), 3)
   })
@@ -222,7 +225,7 @@ test.group('retained restoration reads', (suite) => {
       .from('audit_entries')
       .where({ company_id: companyId, entity: 'planning' })
       .select('*')
-    await db.from('deleted_rows').where('group_id', groupId).delete()
+    await db.from('deleted_rows').where('deleted_batch_id', groupId).delete()
 
     const refused = await session(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -248,11 +251,11 @@ test.group('retained restoration reads', (suite) => {
         .select('*'),
       auditBefore
     )
-    const group = await db.from('deleted_groups').where('group_id', groupId).first()
+    const group = await db.from('deleted_batches').where('id', groupId).first()
     const retained = await db.from('allocations').where('id', allocation.id).first()
     assert.isNull(group.consumed_at)
     assert.isNotNull(retained.deleted_at)
-    assert.equal(retained.deletion_group_id, groupId)
+    assert.equal(retained.deleted_batch_id, groupId)
     assert.equal(await revision(), 1)
   })
 })

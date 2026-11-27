@@ -56,7 +56,7 @@ test.group('session-bound allocation restoration', (suite) => {
     try {
       Allocation.prototype.serialize = function (...args) {
         const serialized = originalSerialize.apply(this, args)
-        if (this.id === id && this.deletionGroupId === groupId)
+        if (this.id === id && this.deletedBatchId === groupId)
           Object.defineProperty(serialized, 'activityId', {
             configurable: true,
             get() {
@@ -108,8 +108,8 @@ test.group('session-bound allocation restoration', (suite) => {
       const retained = await db.from('allocations').where('id', id!).first()
       assert.isDefined(retained)
       assert.isNotNull(retained.deleted_at)
-      assert.equal(retained.deletion_group_id, groupId)
-      const ledger = await db.from('deleted_rows').where('group_id', groupId).first()
+      assert.equal(retained.deleted_batch_id, groupId)
+      const ledger = await db.from('deleted_rows').where('deleted_batch_id', groupId).first()
       assert.deepEqual(JSON.parse(ledger.payload_json), { kind: 'row' })
       assert.equal(ledger.entity, 'allocations')
       assert.equal(ledger.row_id, id)
@@ -128,7 +128,7 @@ test.group('session-bound allocation restoration', (suite) => {
       assert.deepEqual(await stored(id!), original)
       const restoredRow = await db.from('allocations').where('id', id!).first()
       assert.isNull(restoredRow.deleted_at)
-      assert.isNull(restoredRow.deletion_group_id)
+      assert.isNull(restoredRow.deleted_batch_id)
       mutations.push({ mutationId: restoreId, action: 'planning.restoreGroup' })
     }
     assert.equal(await currentRevision(client, cookie), 5)
@@ -137,7 +137,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.lengthOf(audit, 5)
     for (const { mutationId, action } of mutations)
       assert.deepEqual(
-        audit.filter((row) => row.entity_id === mutationId).map((row) => row.action),
+        audit.filter((row) => row.entity_id === mutationId).map((row) => row.operation),
         [action]
       )
   })
@@ -233,7 +233,7 @@ test.group('session-bound allocation restoration', (suite) => {
     partial.assertStatus(422)
     assert.isString(validationSentence(partial))
     assert.deepEqual(await readState(companyId, true), before)
-    assert.lengthOf(await db.from('deleted_groups'), 1)
+    assert.lengthOf(await db.from('deleted_batches'), 1)
     const restored = await restore(
       client,
       cookie,
@@ -272,8 +272,8 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.notInclude(deleted.text(), note)
     const groupId = deleted.body().data.restoration.replacementGroupId
     assert.isString(groupId)
-    assert.lengthOf(await db.from('deleted_groups'), 1)
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 501)
+    assert.lengthOf(await db.from('deleted_batches'), 1)
+    assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', groupId), 501)
     const afterDelete = await readState(companyId, true)
     assert.lengthOf(
       afterDelete.allocations.filter((row) => (listed as string[]).includes(row.id)),
@@ -331,8 +331,8 @@ test.group('session-bound allocation restoration', (suite) => {
         mutationId: randomUUID(),
       })
     )
-    assert.lengthOf(await db.from('deleted_groups'), 1)
-    const saved = await db.from('deleted_rows').where('group_id', groupId).select('row_id')
+    assert.lengthOf(await db.from('deleted_batches'), 1)
+    const saved = await db.from('deleted_rows').where('deleted_batch_id', groupId).select('row_id')
     assert.lengthOf(saved, listedCount)
     const listedIds = new Set(listed)
     assert.isTrue(saved.every((row) => listedIds.has(String(row.row_id))))
@@ -370,7 +370,7 @@ test.group('session-bound allocation restoration', (suite) => {
       /can no longer be restored/
     )
     assert.deepEqual(await db.from('allocations').whereIn('id', listed).orderBy('id'), before)
-    assert.lengthOf(await db.from('deleted_groups'), 0)
+    assert.lengthOf(await db.from('deleted_batches'), 0)
   })
 
   test('a child moved off its parent since the snapshot refuses the parent deletion', async ({
@@ -397,7 +397,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.deepEqual(await db.from('resources').orderBy('id'), resourcesBefore)
     const discipline = await db.from('disciplines').where('id', disciplineId).first()
     assert.isNull(discipline.deleted_at)
-    assert.lengthOf(await db.from('deleted_groups'), 0)
+    assert.lengthOf(await db.from('deleted_batches'), 0)
   })
 
   test('stale delete and restore revisions return 409 without effects', async ({
@@ -412,7 +412,7 @@ test.group('session-bound allocation restoration', (suite) => {
     staleDelete.assertStatus(409)
     assert.equal(staleDelete.body().code, 'E_STALE_REVISION')
     assert.isDefined(await stored(id!))
-    assert.lengthOf(await db.from('deleted_groups'), 0)
+    assert.lengthOf(await db.from('deleted_batches'), 0)
     const deleted = await deleteOne(client, cookie, other!, 1)
     deleted.assertStatus(200)
     const groupId = deleted.body().data.restoration.replacementGroupId
@@ -439,7 +439,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const before = await readState(companyId, true)
     const retainedBefore = await db.from('allocations').where('id', second!).first()
     assert.isNotNull(retainedBefore.deleted_at)
-    assert.equal(retainedBefore.deletion_group_id, groupId)
+    assert.equal(retainedBefore.deleted_batch_id, groupId)
     await db.rawQuery(`CREATE TEMP TRIGGER restore_constraint_failure
       BEFORE UPDATE OF deleted_at ON allocations
       WHEN NEW.id = '${second}' AND NEW.deleted_at IS NULL
@@ -455,7 +455,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.isNull(await consumedAt(groupId))
     const retainedAfterFailure = await db.from('allocations').where('id', second!).first()
     assert.isNotNull(retainedAfterFailure.deleted_at)
-    assert.equal(retainedAfterFailure.deletion_group_id, groupId)
+    assert.equal(retainedAfterFailure.deleted_batch_id, groupId)
     assert.equal(await currentRevision(client, cookie), 2)
     const restored = await restore(client, cookie, groupId, 2)
     restored.assertStatus(200)
@@ -463,6 +463,6 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.isDefined(await stored(second!))
     const restoredSecond = await db.from('allocations').where('id', second!).first()
     assert.isNull(restoredSecond.deleted_at)
-    assert.isNull(restoredSecond.deletion_group_id)
+    assert.isNull(restoredSecond.deleted_batch_id)
   })
 })

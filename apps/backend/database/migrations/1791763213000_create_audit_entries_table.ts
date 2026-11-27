@@ -11,7 +11,7 @@ export default class extends BaseSchema {
       table.string('id').primary()
       table.string('company_id').notNullable()
       table.string('actor_id').nullable()
-      table.string('action').notNullable()
+      table.string('operation').notNullable()
       table.string('entity').notNullable()
       table.string('entity_id').nullable()
       table.json('details').nullable()

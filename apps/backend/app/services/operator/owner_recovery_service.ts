@@ -65,7 +65,7 @@ export class OwnerRecoveryService {
             id: crypto.randomUUID(),
             company_id: companyId,
             actor_id: null,
-            action: 'identity.owner_recovery_issued',
+            operation: 'identity.owner_recovery_issued',
             entity: 'user',
             entity_id: userId,
             details: JSON.stringify({ changedFields: ['credential'] }),

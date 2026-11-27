@@ -147,7 +147,7 @@ export class AdonisSessionSchema extends BaseModel {
 }
 
 export class AllocationSchema extends BaseModel {
-  static $columns = ['activityId', 'companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'hoursPerDay', 'id', 'ignoreWorkingDays', 'note', 'projectId', 'resourceId', 'seriesId', 'startDate', 'status', 'task', 'updatedAt'] as const
+  static $columns = ['activityId', 'companyId', 'createdAt', 'deletedAt', 'deletedBatchId', 'endDate', 'hoursPerDay', 'id', 'ignoreWorkingDays', 'note', 'projectId', 'resourceId', 'seriesId', 'startDate', 'status', 'task', 'updatedAt'] as const
   $columns = AllocationSchema.$columns
   @column()
   declare activityId: string
@@ -158,7 +158,7 @@ export class AllocationSchema extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
-  declare deletionGroupId: string | null
+  declare deletedBatchId: string | null
   @column()
   declare endDate: import('@capacitylens/shared/types/entities').ISODate
   @column()
@@ -234,7 +234,7 @@ export class ClientSchema extends BaseModel {
 }
 
 export class ClosureSchema extends BaseModel {
-  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'id', 'name', 'startDate', 'updatedAt'] as const
+  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletedBatchId', 'endDate', 'id', 'name', 'startDate', 'updatedAt'] as const
   $columns = ClosureSchema.$columns
   @column()
   declare companyId: string
@@ -243,7 +243,7 @@ export class ClosureSchema extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
-  declare deletionGroupId: string | null
+  declare deletedBatchId: string | null
   @column()
   declare endDate: import('@capacitylens/shared/types/entities').ISODate
   @column({ isPrimary: true })
@@ -369,7 +369,7 @@ export class DeletedRowSchema extends BaseModel {
 }
 
 export class DisciplineSchema extends BaseModel {
-  static $columns = ['color', 'companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'id', 'name', 'sortOrder', 'updatedAt'] as const
+  static $columns = ['color', 'companyId', 'createdAt', 'deletedAt', 'deletedBatchId', 'id', 'name', 'sortOrder', 'updatedAt'] as const
   $columns = DisciplineSchema.$columns
   @column()
   declare color: string | null
@@ -380,7 +380,7 @@ export class DisciplineSchema extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
-  declare deletionGroupId: string | null
+  declare deletedBatchId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -565,7 +565,7 @@ export class PasswordResetTokenSchema extends BaseModel {
 }
 
 export class PhaseSchema extends BaseModel {
-  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'id', 'name', 'projectId', 'updatedAt'] as const
+  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletedBatchId', 'id', 'name', 'projectId', 'updatedAt'] as const
   $columns = PhaseSchema.$columns
   @column()
   declare companyId: string
@@ -574,7 +574,7 @@ export class PhaseSchema extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
-  declare deletionGroupId: string | null
+  declare deletedBatchId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -838,7 +838,7 @@ export class SocialTransactionSchema extends BaseModel {
 }
 
 export class TimeOffSchema extends BaseModel {
-  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'id', 'note', 'resourceId', 'startDate', 'type', 'updatedAt'] as const
+  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletedBatchId', 'endDate', 'id', 'note', 'resourceId', 'startDate', 'type', 'updatedAt'] as const
   $columns = TimeOffSchema.$columns
   @column()
   declare companyId: string
@@ -847,7 +847,7 @@ export class TimeOffSchema extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
-  declare deletionGroupId: string | null
+  declare deletedBatchId: string | null
   @column()
   declare endDate: import('@capacitylens/shared/types/entities').ISODate
   @column({ isPrimary: true })

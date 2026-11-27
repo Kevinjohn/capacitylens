@@ -319,7 +319,7 @@ test.group('data routes', (group) => {
     second.assertStatus(409)
     const audit = await db
       .from('audit_entries')
-      .where({ company_id: company.id, action: 'exampleData' })
+      .where({ company_id: company.id, operation: 'exampleData' })
     assert.lengthOf(audit, 1)
   })
 

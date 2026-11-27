@@ -92,7 +92,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const signedOut = await session(client.visit('api.session.destroy'), owner.cookie).send()
     signedOut.assertStatus(200)
     assert.notExists(await restorationGroup(groupId))
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 0)
+    assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', groupId), 0)
     const invalidated = await restore(client, owner.cookie, groupId, 2)
     invalidated.assertStatus(401)
     const later = await signInAgain(client, owner.email)
@@ -121,7 +121,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const lateDelete = await deleteOne(client, owner.cookie, id!, 1, deleteId)
     lateDelete.assertStatus(409)
     assert.equal(lateDelete.body().code, 'E_MUTATION_ID_REUSED')
-    assert.lengthOf(await db.from('deleted_groups'), 1)
+    assert.lengthOf(await db.from('deleted_batches'), 1)
 
     const restoreId = randomUUID()
     const restored = await restore(client, owner.cookie, groupId, 2, restoreId)

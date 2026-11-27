@@ -218,7 +218,7 @@ test.group('independent typed planning operations', (group) => {
         .from('audit_entries')
         .where({ company_id: companyId, entity: 'planning', entity_id: marker!.mutation_id })
         .first()
-      assert.equal(audit?.action, transition.operation)
+      assert.equal(audit?.operation, transition.operation)
     }
 
     const final = await readState(companyId, true)

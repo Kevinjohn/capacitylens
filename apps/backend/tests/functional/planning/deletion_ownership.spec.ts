@@ -31,7 +31,7 @@ test.group('planning deletion ownership', (suite) => {
       const id = row.id
       const groupId = await createDeletionGroup('a-studio', sessionId)
       await row.delete()
-      await db.from(table).where('id', id).update({ deletion_group_id: groupId })
+      await db.from(table).where('id', id).update({ deleted_batch_id: groupId })
       const deleted = await (modelClass as typeof Allocation)
         .query()
         .withScopes((scopes) => scopes.forCompany('a-studio'))
@@ -40,11 +40,11 @@ test.group('planning deletion ownership', (suite) => {
         .firstOrFail()
       assert.isTrue(deleted.trashed)
       assert.isUndefined(deleted.serialize().deletedAt)
-      assert.isUndefined(deleted.serialize().deletionGroupId)
-      await db.from(table).where('id', id).update({ deletion_group_id: null })
+      assert.isUndefined(deleted.serialize().deletedBatchId)
+      await db.from(table).where('id', id).update({ deleted_batch_id: null })
       await deleted.restore()
       assert.isNull((await db.from(table).where('id', id).first())!.deleted_at)
-      assert.isNull((await db.from(table).where('id', id).first())!.deletion_group_id)
+      assert.isNull((await db.from(table).where('id', id).first())!.deleted_batch_id)
     }
   })
 
@@ -58,25 +58,22 @@ test.group('planning deletion ownership', (suite) => {
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .firstOrFail()
     await assert.rejects(() =>
-      db.from('allocations').where('id', row.id).update({ deletion_group_id: ownGroupId })
+      db.from('allocations').where('id', row.id).update({ deleted_batch_id: ownGroupId })
     )
     await row.delete()
     await assert.rejects(() =>
-      db.from('allocations').where('id', row.id).update({ deletion_group_id: foreignGroupId })
+      db.from('allocations').where('id', row.id).update({ deleted_batch_id: foreignGroupId })
     )
-    await db.from('allocations').where('id', row.id).update({ deletion_group_id: ownGroupId })
-    const groupBefore = await db.from('deleted_groups').where('group_id', ownGroupId).first()
+    await db.from('allocations').where('id', row.id).update({ deleted_batch_id: ownGroupId })
+    const groupBefore = await db.from('deleted_batches').where('id', ownGroupId).first()
     const rowBefore = await db.from('allocations').where('id', row.id).first()
     await assert.rejects(() =>
-      db.from('deleted_groups').where('group_id', ownGroupId).update({
+      db.from('deleted_batches').where('id', ownGroupId).update({
         company_id: 'a-loft',
         consumed_at: new Date().toISOString(),
       })
     )
-    assert.deepEqual(
-      await db.from('deleted_groups').where('group_id', ownGroupId).first(),
-      groupBefore
-    )
+    assert.deepEqual(await db.from('deleted_batches').where('id', ownGroupId).first(), groupBefore)
     assert.deepEqual(await db.from('allocations').where('id', row.id).first(), rowBefore)
   })
 
@@ -90,20 +87,20 @@ test.group('planning deletion ownership', (suite) => {
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .firstOrFail()
     await first.delete()
-    await db.from('allocations').where('id', first.id).update({ deletion_group_id: oldGroup })
-    await db.from('allocations').where('id', first.id).update({ deletion_group_id: null })
+    await db.from('allocations').where('id', first.id).update({ deleted_batch_id: oldGroup })
+    await db.from('allocations').where('id', first.id).update({ deleted_batch_id: null })
     await first.restore()
     await first.delete()
-    await db.from('allocations').where('id', first.id).update({ deletion_group_id: currentGroup })
+    await db.from('allocations').where('id', first.id).update({ deleted_batch_id: currentGroup })
     await db
-      .from('deleted_groups')
-      .where('group_id', oldGroup)
+      .from('deleted_batches')
+      .where('id', oldGroup)
       .update({ consumed_at: new Date().toISOString() })
-    await db.from('deleted_groups').where('group_id', oldGroup).delete()
+    await db.from('deleted_batches').where('id', oldGroup).delete()
     assert.exists(await db.from('allocations').where('id', first.id).first())
     await db.from('account_sessions').where('id', sessionId).delete()
     assert.isNull(await db.from('allocations').where('id', first.id).first())
-    assert.isNull(await db.from('deleted_groups').where('group_id', currentGroup).first())
+    assert.isNull(await db.from('deleted_batches').where('id', currentGroup).first())
   })
 
   test('active-row group guard aborts cleanup and rolls back earlier deletions', async ({
@@ -117,7 +114,7 @@ test.group('planning deletion ownership', (suite) => {
       .limit(2)
     assert.lengthOf(rows, 2)
     await rows[0]!.delete()
-    await db.from('allocations').where('id', rows[0]!.id).update({ deletion_group_id: cleanGroup })
+    await db.from('allocations').where('id', rows[0]!.id).update({ deleted_batch_id: cleanGroup })
     await assert.rejects(() =>
       db.transaction(async (trx) => {
         // Simulate historical corruption while retaining the production guard on group deletion.
@@ -125,15 +122,13 @@ test.group('planning deletion ownership', (suite) => {
         await trx
           .from('allocations')
           .where('id', rows[1]!.id)
-          .update({ deletion_group_id: blockedGroup })
-        await trx.from('deleted_groups').where('group_id', cleanGroup).delete()
-        await trx.from('deleted_groups').where('group_id', blockedGroup).delete()
+          .update({ deleted_batch_id: blockedGroup })
+        await trx.from('deleted_batches').where('id', cleanGroup).delete()
+        await trx.from('deleted_batches').where('id', blockedGroup).delete()
       })
     )
-    assert.exists(await db.from('deleted_groups').where('group_id', cleanGroup).first())
+    assert.exists(await db.from('deleted_batches').where('id', cleanGroup).first())
     assert.exists(await db.from('allocations').where('id', rows[0]!.id).first())
-    assert.isNull(
-      (await db.from('allocations').where('id', rows[1]!.id).first())!.deletion_group_id
-    )
+    assert.isNull((await db.from('allocations').where('id', rows[1]!.id).first())!.deleted_batch_id)
   })
 })

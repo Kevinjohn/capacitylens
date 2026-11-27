@@ -105,7 +105,7 @@ test.group('company member administration', (group) => {
     })
     const audits = await db
       .from('audit_entries')
-      .where({ company_id: 'a-studio', action: 'member.role_changed', entity_id: editorId })
+      .where({ company_id: 'a-studio', operation: 'member.role_changed', entity_id: editorId })
     assert.lengthOf(audits, 1)
     const unchanged = await asLoggedInDataOwner(
       client.visit('api.members.update', target),
@@ -444,7 +444,7 @@ test.group('company member administration', (group) => {
       .where({ scope_id: 'a-studio', user_id: editorId })
       .first()
     assert.equal(unchangedMember.role, 'editor')
-    assert.lengthOf(await db.from('audit_entries').where({ action: 'member.role_changed' }), 0)
+    assert.lengthOf(await db.from('audit_entries').where({ operation: 'member.role_changed' }), 0)
   })
 
   test('a stale but valid Admin session cannot create another company', async ({

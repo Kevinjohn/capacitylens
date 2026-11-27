@@ -385,7 +385,7 @@ removed entry retires its number.
     factory needs a model. This covers `db.table(...).insert` and `multiInsert` under
     `apps/backend/tests` into any table without a model in `app/models`: today `memberships`,
     the Account Kit tables (`account_*`, `password_reset_tokens`), `adonis_schema`,
-    `deleted_groups`, `deleted_rows`, `planning_mutations`, `audit_entries`, `request_receipts`,
+    `deleted_batches`, `deleted_rows`, `planning_mutations`, `audit_entries`, `request_receipts`,
     `company_settings` and `company_planning_revisions` (#2572).
 38. Tests that write a stored row on purpose insert it raw, not through a model factory (#2572):
     - schema CHECK constraints and encoded rows read back: `tests/functional/state/database_contract.spec.ts`;

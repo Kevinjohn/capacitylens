@@ -136,7 +136,7 @@ export const planningAudit = () =>
     .select('entity_id', 'action')
 /** The stored restoration group `groupId`, or null once it is gone. */
 export const restorationGroup = (groupId: string) =>
-  db.from('deleted_groups').where('group_id', groupId).first()
+  db.from('deleted_batches').where('id', groupId).first()
 export async function consumedAt(groupId: string) {
   const row = await restorationGroup(groupId)
   return row?.consumed_at

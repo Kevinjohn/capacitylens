@@ -83,7 +83,7 @@ test.group('disposable development demo', (group) => {
     const revision = await db.from('company_planning_revisions').firstOrFail()
     assert.equal(revision.revision, 1)
     const audit = await db.from('audit_entries').firstOrFail()
-    assert.equal(audit.action, 'company.initialized')
+    assert.equal(audit.operation, 'company.initialized')
     assert.equal(audit.actor_id, owner.id)
     assert.lengthOf(
       await db.from('clients').where('company_id', 'a-studio').where('builtin', true),

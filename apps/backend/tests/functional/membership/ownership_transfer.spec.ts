@@ -47,7 +47,7 @@ test.group('atomic ownership transfer', (group) => {
       .where({ scope_id: 'a-studio', user_id: ownerId })
       .firstOrFail()
     assert.equal(owner.role, 'owner')
-    assert.lengthOf(await db.from('audit_entries').where('action', 'ownership.transferred'), 0)
+    assert.lengthOf(await db.from('audit_entries').where('operation', 'ownership.transferred'), 0)
   })
 
   test('retired and unknown lifecycle actions return 404 before body validation', async ({
@@ -158,7 +158,7 @@ test.group('atomic ownership transfer', (group) => {
     differentCompany.assertStatus(409)
     const audits = await db
       .from('audit_entries')
-      .where({ company_id: 'a-studio', action: 'ownership.transferred' })
+      .where({ company_id: 'a-studio', operation: 'ownership.transferred' })
     assert.lengthOf(audits, 1)
     assert.equal(audits[0].actor_id, ownerId)
     assert.equal(audits[0].entity_id, adminId)
@@ -288,7 +288,7 @@ test.group('atomic ownership transfer', (group) => {
       error: 'Confirm this action again.',
       code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
     })
-    assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1)
+    assert.lengthOf(await db.from('audit_entries').where({ operation: 'ownership.transferred' }), 1)
     const reverseProof = await transferProof(client, adminCookie, ownerId)
     const reverse = () =>
       asDataOwner(
@@ -304,7 +304,7 @@ test.group('atomic ownership transfer', (group) => {
     const replay = await reverse()
     replay.assertStatus(200)
     assert.deepEqual(replay.body().data, reversed.body().data)
-    assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 2)
+    assert.lengthOf(await db.from('audit_entries').where({ operation: 'ownership.transferred' }), 2)
     assert.lengthOf(
       await db
         .from('request_receipts')
@@ -373,7 +373,10 @@ test.group('atomic ownership transfer', (group) => {
           .where('command_id', `ownership-fault-command-${suffix}`)
           .first()
       )
-      assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 0)
+      assert.lengthOf(
+        await db.from('audit_entries').where({ operation: 'ownership.transferred' }),
+        0
+      )
     }
     await db.rawQuery(
       `CREATE TRIGGER fail_owner_promotion BEFORE UPDATE OF role ON memberships WHEN OLD.user_id = '${adminId}' AND NEW.role = 'owner' BEGIN SELECT RAISE(ABORT, 'forced promotion failure'); END`
@@ -386,7 +389,7 @@ test.group('atomic ownership transfer', (group) => {
       await db.rawQuery('DROP TRIGGER IF EXISTS fail_owner_promotion')
     }
     await db.rawQuery(
-      "CREATE TRIGGER fail_ownership_audit BEFORE INSERT ON audit_entries WHEN NEW.action = 'ownership.transferred' BEGIN SELECT RAISE(ABORT, 'forced audit failure'); END"
+      "CREATE TRIGGER fail_ownership_audit BEFORE INSERT ON audit_entries WHEN NEW.operation = 'ownership.transferred' BEGIN SELECT RAISE(ABORT, 'forced audit failure'); END"
     )
     try {
       const failed = await tryTransfer('audit')
@@ -443,7 +446,7 @@ test.group('atomic ownership transfer', (group) => {
       .first()
     assert.equal(formerOwner.role, 'admin')
     assert.equal(newOwner.role, 'owner')
-    assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1)
+    assert.lengthOf(await db.from('audit_entries').where({ operation: 'ownership.transferred' }), 1)
     assert.lengthOf(
       await db
         .from('request_receipts')
@@ -494,6 +497,6 @@ test.group('atomic ownership transfer', (group) => {
         .where('command_id', 'ownership-broken-owner-command-0001')
         .first()
     )
-    assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 0)
+    assert.lengthOf(await db.from('audit_entries').where({ operation: 'ownership.transferred' }), 0)
   })
 })

@@ -168,7 +168,7 @@ test.group('password sign-in and sessions', (group) => {
     const stored = await db.from('users').where('id', userId).select('password').first()
     assert.match(String(stored?.password), /^\$(scrypt|argon2|bcrypt)/)
     assert.deepInclude(
-      await db.from('audit_entries').where('action', 'identity.credentials_changed').first(),
+      await db.from('audit_entries').where('operation', 'identity.credentials_changed').first(),
       { company_id: companyId, actor_id: userId }
     )
   })

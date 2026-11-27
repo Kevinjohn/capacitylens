@@ -39,11 +39,11 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const before = await readState(companyId, true)
     const target = before.projects.find((row) => !row.isPrivate)!
     const foreignGroup = randomUUID()
-    await db.table('deleted_groups').insert({
-      group_id: foreignGroup,
+    await db.table('deleted_batches').insert({
+      id: foreignGroup,
       company_id: 'a-loft',
       actor_id: 'other-actor',
-      session_id: await fixtureSession('other-actor'),
+      account_session_id: await fixtureSession('other-actor'),
       mutation_id: randomUUID(),
       created_at: new Date().toISOString(),
       consumed_at: null,
@@ -207,30 +207,30 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       [other, null],
       [consumed, new Date().toISOString()],
     ] as const) {
-      await db.table('deleted_groups').insert({
-        group_id: id,
+      await db.table('deleted_batches').insert({
+        id,
         company_id: companyId,
         actor_id: 'another-actor',
-        session_id: await fixtureSession('another-actor'),
+        account_session_id: await fixtureSession('another-actor'),
         mutation_id: randomUUID(),
         created_at: new Date().toISOString(),
         consumed_at: consumedInstant,
       })
       await db.table('deleted_rows').multiInsert([
         {
-          group_id: id,
+          deleted_batch_id: id,
           entity: 'allocations',
           row_id: id === other ? otherRowIds[0]! : consumedRowId,
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
-          group_id: id,
+          deleted_batch_id: id,
           entity: 'allocations',
           row_id: id === other ? otherRowIds[1]! : randomUUID(),
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
-          group_id: id,
+          deleted_batch_id: id,
           entity: 'activities',
           row_id: randomUUID(),
           payload_json: JSON.stringify({ kind: 'link', parentId: 'gotham' }),
@@ -240,7 +240,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const retainedFixtureRow = (id: string, groupId: string) => ({
       ...retainedAllocation,
       id,
-      deletion_group_id: groupId,
+      deleted_batch_id: groupId,
     })
     await db
       .table('allocations')
@@ -277,10 +277,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.isNull(await db.from('planning_mutations').where('mutation_id', mutationId).first())
     // An expired sign-in's groups stop counting before pruning removes them, and neither changes
     // the planning revision.
-    const otherGroup = await db.from('deleted_groups').where('group_id', other).first()
+    const otherGroup = await db.from('deleted_batches').where('id', other).first()
     await db
       .from('account_sessions')
-      .where('id', otherGroup.session_id)
+      .where('id', otherGroup.account_session_id)
       .update({ expires_at: '2000-01-01T00:00:00.000Z' })
     const stale = await request(3)
     stale.assertStatus(409)

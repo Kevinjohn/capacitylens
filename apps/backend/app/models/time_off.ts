@@ -28,7 +28,7 @@ export default class TimeOff extends compose(TimeOffSchema, SoftDeletes) {
   static table = 'time_off'
   @column.dateTime(timestampColumn('time_off', 'created_at')) declare createdAt: DateTime
   @column.dateTime({ serializeAs: null }) declare deletedAt: DateTime | null
-  @column({ serializeAs: null }) declare deletionGroupId: string | null
+  @column({ serializeAs: null }) declare deletedBatchId: string | null
   @column(isoDateColumn('time_off', 'end_date')) declare endDate: ISODate
   @column(isoDateColumn('time_off', 'start_date')) declare startDate: ISODate
   @column.dateTime(timestampColumn('time_off', 'updated_at')) declare updatedAt: DateTime

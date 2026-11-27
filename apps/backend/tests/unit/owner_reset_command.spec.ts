@@ -56,7 +56,7 @@ test.group('owner reset command', () => {
       const audits = inspect.prepare('SELECT * FROM audit_entries').all()
       assert.lengthOf(audits, 2)
       assert.equal(audits[0]!.actor_id, null)
-      assert.equal(audits[0]!.action, 'identity.owner_recovery_issued')
+      assert.equal(audits[0]!.operation, 'identity.owner_recovery_issued')
       assert.notInclude(JSON.stringify(audits), firstResult.link.split('/').at(-1)!)
       assert.equal(inspect.prepare('SELECT password FROM users').get()!.password, 'old-credential')
       inspect.close()
@@ -250,7 +250,7 @@ test.group('owner reset command', () => {
       assert.equal(
         inspect
           .prepare(
-            "SELECT COUNT(*) AS n FROM audit_entries WHERE action='identity.credentials_changed'"
+            "SELECT COUNT(*) AS n FROM audit_entries WHERE operation='identity.credentials_changed'"
           )
           .get()!.n,
         1
