@@ -552,7 +552,7 @@ Source: [API client](https://docs.adonisjs.com/guides/frontend/api-client) and
 - `apps/backend/eslint.config.js` starts from `configApp()` in `@adonisjs/eslint-config`. It adds
   type-aware rules, allows `== null`, and turns Prettier off for the generated
   `database/schema.ts`. Prettier starts from `@adonisjs/prettier-config`: single quotes, 100 columns, ES5
-  trailing commas. Semicolons are kept.
+  trailing commas, no semicolons, declared once in the root `package.json`.
 - `tsconfig.json` extends `@adonisjs/tsconfig/tsconfig.app.json`.
 - The backend scripts keep the starter kit's names and commands: `dev` (`node ace serve --hmr`),
   `build` (`node ace build`), `start` (`node bin/server.js`), `test` (`node ace test`),

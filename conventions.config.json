@@ -14,11 +14,6 @@
         "path": "apps/backend/app/exceptions/"
       },
       {
-        "entry": 28,
-        "item": "TOOL-2",
-        "path": "package.json"
-      },
-      {
         "entry": 21,
         "item": "DB-6",
         "path": "apps/backend/database/migrations/1791763200000_create_capacitylens_baseline_table.ts"

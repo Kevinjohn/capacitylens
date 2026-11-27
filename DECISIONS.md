@@ -368,7 +368,7 @@ removed entry retires its number.
     (`FIRST_COMPANY_PENDING`). Only framework exception codes are `E_UPPER_SNAKE`.
 27. Retired. Every API route is under `/api/v1`; the health probes stay at `/health/live` and
     `/health/ready`.
-28. **Aligning (#2550).** Prettier keeps semicolons (`semi: true` over the AdonisJS preset).
+28. Retired. The root `package.json` sets `@adonisjs/prettier-config` unchanged (TOOL-2).
 29. **Aligning (#2550).** The `dbAssertions` plugin is not registered; tests read rows with the
     query builder and check them with `assert`.
 30. **Aligning (#2550).** A provider connects or spawns in `start` behind an `app.getMode()`

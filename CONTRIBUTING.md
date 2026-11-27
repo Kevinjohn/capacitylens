@@ -210,12 +210,9 @@ does not currently require a copyright assignment or CLA.
 
 ## Formatting
 
-Prettier owns whitespace, quoting and line breaks. The root `.prettierrc.json` sets single quotes
-and a 100-column width, matching the AdonisJS preset; the vendored shadcn primitives in
-`apps/frontend/src/components/ui/` retain the upstream 80-column width and double quotes so
-registry diffs show substantive changes instead of reflow noise, and stylesheets keep double quotes.
-`apps/backend/prettier.config.js` spreads the AdonisJS
-preset and keeps semicolons, which the repository uses everywhere. Run `pnpm run format` before
+Prettier owns whitespace, quoting and line breaks. The root `package.json` sets
+`@adonisjs/prettier-config` for every package, unchanged: single quotes, 100 columns, ES5 trailing
+commas and no semicolons. Run `pnpm run format` before
 committing: `pnpm run gate` fails on unformatted files.
 
 Use clear names, small result shapes and explicit module boundaries. Style is not reviewable: if
