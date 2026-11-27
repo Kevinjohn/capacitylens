@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { teamAccessApi } from '@/account/teamAccessApi'
-import type { TeamDirectory, TeamMember } from '@/account/teamAccessApi'
+import type { TeamDirectory } from '@/account/teamAccessApi'
 import { AuthContext } from '@/auth/authContext'
 import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures'
 import { holdCalls } from '@/test/holdCalls'
@@ -13,7 +13,7 @@ import { useTeamDirectory } from './useTeamDirectory'
 type MembersRead = Awaited<ReturnType<typeof teamAccessApi.listMembers>>
 
 function makeDirectory(
-  resourceLink: NonNullable<TeamMember['resourceLink']> | null
+  resourceLink: { resourceId: string; revision: string } | null
 ): TeamDirectory {
   return {
     signInTrackingEnabled: false,
@@ -29,7 +29,9 @@ function makeDirectory(
         email: 'ed@x.io',
         signInConfirmed: null,
         isSelf: false,
-        resourceLink,
+        resourceLink: resourceLink
+          ? { resourceName: null, resourceStatus: 'active', ...resourceLink }
+          : null,
       },
     ],
   }
