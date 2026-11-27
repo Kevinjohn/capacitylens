@@ -115,12 +115,12 @@ const contracts: Record<string, BodyContract> = {
     url: () => '/api/v1/invitations/token/sign-up',
     body: () => ({ name: 'Clark Kent', password }),
   },
-  'api.member_resource_links.update': {
+  'api.member_resource_link.update': {
     method: 'put',
     url: (companyId) => `/api/v1/companies/${companyId}/members/u1/resource-link`,
     body: () => ({ resourceId: 'r1', expectedRevision: null }),
   },
-  'api.member_resource_links.destroy': {
+  'api.member_resource_link.destroy': {
     method: 'delete',
     url: (companyId) => `/api/v1/companies/${companyId}/members/u1/resource-link`,
     body: () => ({ expectedRevision: '1' }),
