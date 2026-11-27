@@ -58,7 +58,8 @@ const appBuildEnvironment = {
 }
 // A rule or ignore change can fail files the branch never touched.
 const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/
-const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/
+// The root package.json carries the `prettier` key that selects the preset.
+const formatConfig = /^(?:\.prettier(?:rc[^/]*|ignore)|package\.json)$/
 // `check:ui` pins the source-owned shadcn primitives and the tooling that fetches them.
 const uiPrimitiveInput =
   /^(?:apps\/frontend\/src\/components\/ui\/|\.mcp\.json$|scripts\/maintenance\/(?:check-ui-primitives|ui-registry)\.mjs$)/

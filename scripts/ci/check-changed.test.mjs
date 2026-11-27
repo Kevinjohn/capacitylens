@@ -227,6 +227,10 @@ test('a lint or format configuration change checks the whole repository', () => 
   assert.equal(step(lint, 'lint: backend'), undefined)
   const format = planChecks(['.prettierignore', 'README.md'], everything)
   assert.deepEqual(step(format, 'format').args, ['run', 'format:check'])
+  const preset = planChecks(['package.json'], everything)
+  assert.deepEqual(step(preset, 'format: whole repository').args, ['run', 'format:check'])
+  const workspace = planChecks(['apps/frontend/package.json'], everything)
+  assert.equal(step(workspace, 'format: whole repository'), undefined)
 })
 
 test('a dependency or workspace change runs the type-check and both full suites', () => {
