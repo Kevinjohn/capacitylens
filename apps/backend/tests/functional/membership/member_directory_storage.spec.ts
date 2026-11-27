@@ -60,6 +60,8 @@ test.group('member directory malformed storage', (group) => {
       )
       const failed = await ownerGet({ client, ownerCookie, masqueradeToken }).send()
       failed.assertStatus(500)
+      // Outside production the 500 carries the service's own message, never the stored value.
+      assert.notInclude(JSON.stringify(failed.body()), corruption.invalidValue)
       assert.deepEqual(
         await readProductState(),
         beforeRead,
