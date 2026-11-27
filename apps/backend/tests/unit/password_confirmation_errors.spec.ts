@@ -12,6 +12,7 @@ import {
 } from '@kevinjohn/adonisjs-confirm-action-with-password'
 import HttpExceptionHandler from '#exceptions/handler'
 import { describeFailure } from '#services/logging_safety'
+import { inProduction } from '#tests/helpers/unit/error_answers'
 import loggerConfig from '#config/logger'
 
 const required = { error: 'Confirm this action again.', code: 'E_PASSWORD_CONFIRMATION_REQUIRED' }
@@ -76,21 +77,12 @@ test.group('password confirmation errors', () => {
           },
         },
       } as unknown as HttpContext
-      const { default: app } = await import('@adonisjs/core/services/app')
-      const descriptor = Object.getOwnPropertyDescriptor(app, 'inProduction')
-      if (status === 500) {
-        Object.defineProperty(app, 'inProduction', { configurable: true, value: true })
-      }
-      try {
+      const answer = async () => {
         const handler = new HttpExceptionHandler()
         await handler.handle(error, ctx)
         await handler.report(error, ctx)
-      } finally {
-        if (status === 500) {
-          if (descriptor) Object.defineProperty(app, 'inProduction', descriptor)
-          else Reflect.deleteProperty(app, 'inProduction')
-        }
       }
+      await (status === 500 ? inProduction(answer) : answer())
       assert.equal(actualStatus, status)
       assert.deepEqual(body, expected)
       const retryAfter =
