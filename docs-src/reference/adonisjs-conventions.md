@@ -248,8 +248,7 @@ Source: [Controllers](https://docs.adonisjs.com/guides/basics/controllers) and
   on and using a resourceful action (the starter kit's `NewAccountController.store`), or a single
   action controller with one `handle` method. Do not grow a controller into a list of verbs.
 - An action takes the HTTP context first and destructures only what it uses:
-  `async store({ request, response }: HttpContext)`. The view-as control actions keep the whole
-  context because the Masquerade service takes it as its request (see `DECISIONS.md`).
+  `async store({ request, response }: HttpContext)`.
 - A controller has no `private` or `protected` methods. A step two actions share moves to a
   service or a model.
 - A controller does not wrap its work in `try`/`catch` to build an error response. It lets the
@@ -417,7 +416,9 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
 - Business logic lives in `app/services`. A service does not receive the HTTP context or build a
   response: the controller validates, reads route parameters and headers, passes plain values and
   serialises the result. A service may take the context's `auth` only to open the actor's
-  transaction with `withActor`.
+  transaction with `withActor`, and a request-scoped service wrapping a package bound to the
+  request (such as `MasqueradeControlService`) may receive `HttpContext` through constructor
+  injection only to hand it to that package.
 - A service is a class named `<Name>Service` in `<name>_service.ts`, exported by name as
   `node ace make:service` writes it. The container constructs it. A controller or another service
   takes it through the constructor with `@inject()`; an Ace command takes it as a parameter of an
