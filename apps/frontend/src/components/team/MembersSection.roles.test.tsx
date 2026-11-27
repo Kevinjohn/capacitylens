@@ -315,7 +315,7 @@ describe('MembersSection — owner affordances', () => {
         {
           userId: 'ed',
           role: 'editor',
-          resourceLink: { resourceId: resource.id, revision: 'rev-1' },
+          resourceLink: { resourceId: resource.id, revision: 'rev-1', resourceStatus: 'active' },
         },
       ])
     )
