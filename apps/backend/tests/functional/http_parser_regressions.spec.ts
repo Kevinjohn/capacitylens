@@ -13,7 +13,7 @@ test.group('HTTP parser regressions', (group) => {
       .json({ report: 'ignored' })
       .send();
     assert.equal(response.status(), 404);
-    assert.deepEqual(response.body(), { error: 'Not found.', code: 'NOT_FOUND' });
+    assert.deepEqual(response.body(), { error: 'Not found.', code: 'E_NOT_FOUND' });
   });
 
   test('maps actual oversized form and unsupported encoding parser failures safely', async ({
@@ -38,7 +38,7 @@ test.group('HTTP parser regressions', (group) => {
     assert.equal(oversized.statusCode, 413);
     assert.deepEqual(JSON.parse(oversized.body), {
       error: 'Request body is too large.',
-      code: 'PAYLOAD_TOO_LARGE',
+      code: 'E_PAYLOAD_TOO_LARGE',
     });
 
     const unsupported = await postRaw(
@@ -51,7 +51,7 @@ test.group('HTTP parser regressions', (group) => {
     assert.equal(unsupported.statusCode, 415);
     assert.deepEqual(JSON.parse(unsupported.body), {
       error: 'Unsupported media type.',
-      code: 'UNSUPPORTED_MEDIA_TYPE',
+      code: 'E_UNSUPPORTED_MEDIA_TYPE',
     });
   });
 });

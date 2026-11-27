@@ -16,7 +16,7 @@ test('package refusals for an account operation retain the exact HTTP status and
     [
       new E_DUPLICATE_REQUEST_CONFLICT(),
       409,
-      { error: 'Operation id already used.', code: 'IDEMPOTENCY_CONFLICT' },
+      { error: 'Operation id already used.', code: 'E_IDEMPOTENCY_CONFLICT' },
     ],
   ] as const) {
     const mapped = accountOperations.mapAccountOperationError(error);

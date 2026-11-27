@@ -333,7 +333,11 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     const context = state.planning.context;
     const baseRevision = state.planning.revision;
     if (!canWritePlanning(state.planning.access)) {
-      throw new PlanningCacheError('This planning view is read-only.', 'AUTHORIZATION_DENIED', 403);
+      throw new PlanningCacheError(
+        'This planning view is read-only.',
+        'E_AUTHORIZATION_DENIED',
+        403,
+      );
     }
     if (!context || baseRevision === null || !isPlanningReadyForChange(state.planning)) {
       throw new PlanningCacheError('Planning is not ready for a new change.');
@@ -368,7 +372,11 @@ export function createPlanningCache(options: PlanningCacheOptions) {
       throw new PlanningCacheError('Planning context changed before the change could be sent.');
     }
     if (!canWritePlanning(state.planning.access)) {
-      throw new PlanningCacheError('This planning view is read-only.', 'AUTHORIZATION_DENIED', 403);
+      throw new PlanningCacheError(
+        'This planning view is read-only.',
+        'E_AUTHORIZATION_DENIED',
+        403,
+      );
     }
     if (state.planning.phase.kind === 'writing') {
       throw new PlanningCacheError('A planning change is already pending.');
@@ -431,7 +439,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     } catch (error) {
       if (
         !(error instanceof PlanningCacheError) ||
-        error.code !== 'RESTORATION_CONFIRMATION_REQUIRED' ||
+        error.code !== 'E_RESTORATION_CONFIRMATION_REQUIRED' ||
         !Number.isSafeInteger(error.restorableItemCount) ||
         error.restorableItemCount === undefined ||
         error.restorableItemCount <= 0 ||
@@ -551,25 +559,25 @@ export function createPlanningCache(options: PlanningCacheOptions) {
       if (isAttemptOwner(owner)) loseScope();
       throw new PlanningCacheError(details.message, details.code, details.status);
     }
-    if (details.code === 'MUTATION_ID_REUSED') {
+    if (details.code === 'E_MUTATION_ID_REUSED') {
       if (isAttemptOwner(owner)) await settleUnconfirmed(owner);
       throw new PlanningCacheError(details.message, details.code, details.status, true);
     }
-    if (details.code === 'STALE_REVISION' || details.status === 409) {
+    if (details.code === 'E_STALE_REVISION' || details.status === 409) {
       if (isAttemptOwner(owner)) {
-        markRefused(owner, error, details.code ?? 'STALE_REVISION');
+        markRefused(owner, error, details.code ?? 'E_STALE_REVISION');
         await refresh();
       }
       throw new PlanningCacheError(
         details.message,
-        details.code ?? 'STALE_REVISION',
+        details.code ?? 'E_STALE_REVISION',
         details.status,
       );
     }
     if (
       details.status !== 408 &&
-      (details.code === 'AUTHORIZATION_DENIED' ||
-        details.code === 'NO_CHANGE' ||
+      (details.code === 'E_AUTHORIZATION_DENIED' ||
+        details.code === 'E_NO_CHANGE' ||
         (details.status !== undefined && details.status < 500))
     ) {
       if (isAttemptOwner(owner)) {

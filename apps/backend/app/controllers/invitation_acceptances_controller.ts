@@ -39,7 +39,7 @@ export default class InvitationAcceptancesController {
       });
       email = user.email;
     } catch (error) {
-      // Keeps the product codes `INVALID_TOKEN` and `EMAIL_IN_USE`, which the browser reads and
+      // Keeps the product codes `E_INVALID_TOKEN` and `E_EMAIL_IN_USE`, which the browser reads and
       // the Kit's own codes do not carry.
       if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
         return response.badRequest(invalidLinkAnswer);

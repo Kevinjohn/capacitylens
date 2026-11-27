@@ -221,7 +221,7 @@ test.group('identity-only archive recovery', (suite) => {
       activeToken
     ).send();
     masqueradedRead.assertStatus(403);
-    assert.equal((masqueradedRead.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
+    assert.equal((masqueradedRead.body() as { code: string }).code, 'E_MASQUERADE_READ_ONLY');
   });
 
   test('Editor discovers and restores four entity types through typed writes without exposing inactive rows', async ({
@@ -463,7 +463,7 @@ test.group('identity-only archive recovery', (suite) => {
 
     const stale = await restore(client, editor.cookie, 'clients', clientId, 0);
     stale.assertStatus(409);
-    assert.equal((stale.body() as { code: string }).code, 'STALE_REVISION');
+    assert.equal((stale.body() as { code: string }).code, 'E_STALE_REVISION');
 
     const foreignTarget = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -485,6 +485,6 @@ test.group('identity-only archive recovery', (suite) => {
     // Membership changes after the read are checked when the write is actually submitted.
     const demotedWrite = await restore(client, editor.cookie, 'clients', clientId, 1);
     demotedWrite.assertStatus(403);
-    assert.equal((demotedWrite.body() as { code: string }).code, 'AUTHORIZATION_DENIED');
+    assert.equal((demotedWrite.body() as { code: string }).code, 'E_AUTHORIZATION_DENIED');
   });
 });

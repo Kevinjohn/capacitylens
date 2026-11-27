@@ -38,7 +38,7 @@ export class InvitationAnswerService {
   buildMailUnavailableBody() {
     return {
       error: 'Invitations need email delivery. Ask your administrator to configure mail.',
-      code: 'MAIL_UNAVAILABLE',
+      code: 'E_MAIL_UNAVAILABLE',
     };
   }
 

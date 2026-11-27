@@ -162,7 +162,7 @@ test.describe('member masquerade', () => {
       },
     );
     expect(refusedWrite.status()).toBe(403);
-    expect((await refusedWrite.json()).code).toBe('MASQUERADE_READ_ONLY');
+    expect((await refusedWrite.json()).code).toBe('E_MASQUERADE_READ_ONLY');
 
     await page.getByRole('link', { name: 'Resources' }).click();
     await expect(page.getByRole('heading', { name: 'Resources' })).toBeVisible();

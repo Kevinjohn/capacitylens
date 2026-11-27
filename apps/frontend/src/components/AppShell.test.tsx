@@ -79,7 +79,7 @@ describe('AppShell planning problems', () => {
         lastWrite: {
           kind: 'refused',
           mutationId: 'mutation-1',
-          error: new PlanningCacheError('Refused.', 'ACCOUNT_MEMBERSHIP_LOST', 403),
+          error: new PlanningCacheError('Refused.', 'E_ACCOUNT_MEMBERSHIP_LOST', 403),
         },
       },
       m.app_planning_refused(),

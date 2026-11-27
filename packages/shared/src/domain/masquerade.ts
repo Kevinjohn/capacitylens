@@ -48,11 +48,11 @@ export type MasqueradeStatus =
 
 /** Stable machine-readable failures shared by server guards and browser recovery. */
 export const MASQUERADE_ERROR_CODES = {
-  active: 'MASQUERADE_ACTIVE',
-  readOnly: 'MASQUERADE_READ_ONLY',
-  ended: 'MASQUERADE_ENDED',
-  contextRequired: 'MASQUERADE_CONTEXT_REQUIRED',
-  contextChanged: 'MASQUERADE_CONTEXT_CHANGED',
+  active: 'E_MASQUERADE_ACTIVE',
+  readOnly: 'E_MASQUERADE_READ_ONLY',
+  ended: 'E_MASQUERADE_ENDED',
+  contextRequired: 'E_MASQUERADE_CONTEXT_REQUIRED',
+  contextChanged: 'E_MASQUERADE_CONTEXT_CHANGED',
 } as const;
 
 /** Union of stable masquerade failure codes. */

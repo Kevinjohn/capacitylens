@@ -229,7 +229,7 @@ test.group('server-held undo and redo', (suite) => {
     page.revision = 0;
     const stale = await page.undo();
     assert.equal(stale.status, 409);
-    assert.equal(stale.code, 'STALE_REVISION');
+    assert.equal(stale.code, 'E_STALE_REVISION');
 
     assert.deepEqual(await historyOf(page.read()), { canUndo: true, canRedo: false });
     assert.equal(await statusOf(page.undo()), 200);

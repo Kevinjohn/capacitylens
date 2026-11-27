@@ -31,20 +31,20 @@ afterEach(() => {
 
 // The redeem endpoint returns typed failure codes, so each supported code and malformed shape must map to a fixed user-facing recovery message.
 describe('ResetPassword — maps native API error codes to recovery guidance', () => {
-  it('maps INVALID_TOKEN to the invalid-link message', () => {
-    expect(resolveResetPasswordFailureMessage({ code: 'INVALID_TOKEN' })).toBe(
+  it('maps E_INVALID_TOKEN to the invalid-link message', () => {
+    expect(resolveResetPasswordFailureMessage({ code: 'E_INVALID_TOKEN' })).toBe(
       m.reset_err_invalid(),
     );
   });
 
-  it('maps PASSWORD_TOO_SHORT to the short message with MIN_PASSWORD_LENGTH interpolated', () => {
-    expect(resolveResetPasswordFailureMessage({ code: 'PASSWORD_TOO_SHORT' })).toBe(
+  it('maps E_PASSWORD_TOO_SHORT to the short message with MIN_PASSWORD_LENGTH interpolated', () => {
+    expect(resolveResetPasswordFailureMessage({ code: 'E_PASSWORD_TOO_SHORT' })).toBe(
       m.reset_err_short({ min: MIN_PASSWORD_LENGTH }),
     );
   });
 
-  it('maps PASSWORD_TOO_LONG to the long message with MAX_PASSWORD_LENGTH interpolated', () => {
-    expect(resolveResetPasswordFailureMessage({ code: 'PASSWORD_TOO_LONG' })).toBe(
+  it('maps E_PASSWORD_TOO_LONG to the long message with MAX_PASSWORD_LENGTH interpolated', () => {
+    expect(resolveResetPasswordFailureMessage({ code: 'E_PASSWORD_TOO_LONG' })).toBe(
       m.reset_err_long({ max: MAX_PASSWORD_LENGTH }),
     );
   });
@@ -126,7 +126,7 @@ describe('ResetPassword — terminal request outcomes', () => {
         new Response(
           JSON.stringify({
             error: 'private reset proof detail',
-            code: 'INVALID_TOKEN',
+            code: 'E_INVALID_TOKEN',
           }),
           { status: 400 },
         ),

@@ -8,7 +8,7 @@ export const companyId = 'a-studio';
 /** The refusal of an action that needs a fresh password confirmation. */
 export const confirmationRequired = {
   error: 'Confirm this action again.',
-  code: 'PASSWORD_CONFIRMATION_REQUIRED',
+  code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
 };
 
 /** A valid request for an anonymisation proof in `a-studio`. */

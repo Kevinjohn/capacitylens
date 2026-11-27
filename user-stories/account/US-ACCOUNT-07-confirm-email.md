@@ -49,8 +49,8 @@ flowchart TD
   inspect -->|Valid| form["Show password form"]
   form -->|Valid submit| complete["authApi.completeEmailVerification calls EmailVerificationsController.update"]
   complete --> kit["Account Kit spends the proof and confirms the address with the supplied password"]
-  kit -->|Success or VERIFICATION_COMMITTED| done["Show confirmation complete"]
-  kit -->|INVALID_TOKEN| invalid
+  kit -->|Success or E_VERIFICATION_COMMITTED| done["Show confirmation complete"]
+  kit -->|E_INVALID_TOKEN| invalid
   kit -->|Ordinary refusal| form
   kit -->|Other 5xx| uncertain["Explain which passwords to try before requesting a fresh link"]
   complete -->|No response| uncertain

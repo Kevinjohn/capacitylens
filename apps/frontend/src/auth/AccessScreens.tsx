@@ -126,7 +126,7 @@ function VerifyEmailStep() {
             const { error } = await authApi.sendEmailVerification();
             if (error) {
               step.setError(
-                error.code === 'MAIL_UNAVAILABLE' ? m.limited_mail_unavailable() : error.message,
+                error.code === 'E_MAIL_UNAVAILABLE' ? m.limited_mail_unavailable() : error.message,
               );
             } else step.setNotice(m.limited_verify_sent());
           })

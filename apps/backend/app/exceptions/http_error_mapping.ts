@@ -34,7 +34,7 @@ export interface HttpErrorResponse {
 
 /**
  * Admission refusals carry the decision so the limited screens can explain it. Planning access
- * refusals (`ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection)
+ * refusals (`E_ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection)
  * are produced in `company_scope_middleware.ts` and the planning access check, not here.
  */
 function buildAdmissionRequiredResponse(
@@ -44,7 +44,7 @@ function buildAdmissionRequiredResponse(
     status: 403,
     body: {
       error: 'Your access to this company is waiting on admission.',
-      code: 'ADMISSION_REQUIRED',
+      code: 'E_ADMISSION_REQUIRED',
       decision: error.decision,
     } satisfies ProductHttpErrorBody,
   };
@@ -58,33 +58,33 @@ const masqueradeResponses: ReadonlyArray<
     masqueradeErrors.E_MASQUERADE_CONTEXT_REQUIRED,
     {
       status: 428,
-      code: 'MASQUERADE_CONTEXT_REQUIRED',
+      code: 'E_MASQUERADE_CONTEXT_REQUIRED',
       message: 'Masquerade context is required.',
     },
   ],
   [
     masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED,
-    { status: 409, code: 'MASQUERADE_CONTEXT_CHANGED', message: 'Masquerade context changed.' },
+    { status: 409, code: 'E_MASQUERADE_CONTEXT_CHANGED', message: 'Masquerade context changed.' },
   ],
   [
     masqueradeErrors.E_MASQUERADE_ACTION_BLOCKED,
-    { status: 403, code: 'MASQUERADE_READ_ONLY', message: 'Masquerade is read-only.' },
+    { status: 403, code: 'E_MASQUERADE_READ_ONLY', message: 'Masquerade is read-only.' },
   ],
   [
     masqueradeErrors.E_MASQUERADE_NOT_ALLOWED,
-    { status: 403, code: 'AUTHORIZATION_DENIED', message: 'This action is not allowed.' },
+    { status: 403, code: 'E_AUTHORIZATION_DENIED', message: 'This action is not allowed.' },
   ],
   [
     masqueradeErrors.E_MASQUERADE_ALREADY_ACTIVE,
-    { status: 409, code: 'MASQUERADE_ACTIVE', message: 'Masquerade is already active.' },
+    { status: 409, code: 'E_MASQUERADE_ACTIVE', message: 'Masquerade is already active.' },
   ],
   [
     masqueradeErrors.E_MASQUERADE_UNAUTHENTICATED,
-    { status: 401, code: 'SIGN_IN_REQUIRED', message: 'Sign-in required.' },
+    { status: 401, code: 'E_SIGN_IN_REQUIRED', message: 'Sign-in required.' },
   ],
   [
     masqueradeErrors.E_MASQUERADE_UNAVAILABLE,
-    { status: 503, code: 'MASQUERADE_UNAVAILABLE', message: 'Masquerade is unavailable.' },
+    { status: 503, code: 'E_MASQUERADE_UNAVAILABLE', message: 'Masquerade is unavailable.' },
   ],
 ];
 
@@ -105,13 +105,13 @@ function buildConfirmationResponse(error: unknown): HttpErrorResponse | undefine
   ) {
     return {
       status: 403,
-      body: { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+      body: { error: 'Confirm this action again.', code: 'E_PASSWORD_CONFIRMATION_REQUIRED' },
     };
   }
   if (error instanceof PasswordConfirmationDeniedException) {
     return {
       status: 403,
-      body: { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
+      body: { error: 'Incorrect password.', code: 'E_PASSWORD_CONFIRMATION_DENIED' },
     };
   }
   if (error instanceof PasswordConfirmationThrottledException) {
@@ -143,7 +143,7 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
       status: 415,
       body: {
         error: 'Unsupported media type.',
-        code: 'UNSUPPORTED_MEDIA_TYPE',
+        code: 'E_UNSUPPORTED_MEDIA_TYPE',
       } satisfies ProductHttpErrorBody,
     };
   }
@@ -158,7 +158,7 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
       status: 400,
       body: {
         error: 'Request body must be valid JSON.',
-        code: 'INVALID_JSON',
+        code: 'E_INVALID_JSON',
       } satisfies ProductHttpErrorBody,
     };
   }
@@ -174,7 +174,7 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
       status: 400,
       body: {
         error: 'Request JSON must be an object or array.',
-        code: 'INVALID_JSON_SHAPE',
+        code: 'E_INVALID_JSON_SHAPE',
       } satisfies ProductHttpErrorBody,
     };
   }
@@ -186,7 +186,7 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
   if (error instanceof httpServerErrors.E_ROUTE_NOT_FOUND) {
     return {
       status: 404,
-      body: { error: 'Not found.', code: 'NOT_FOUND' } satisfies ProductHttpErrorBody,
+      body: { error: 'Not found.', code: 'E_NOT_FOUND' } satisfies ProductHttpErrorBody,
     };
   }
   if (code === 'E_REQUEST_ENTITY_TOO_LARGE') {
@@ -194,7 +194,7 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
       status: 413,
       body: {
         error: 'Request body is too large.',
-        code: 'PAYLOAD_TOO_LARGE',
+        code: 'E_PAYLOAD_TOO_LARGE',
       } satisfies ProductHttpErrorBody,
     };
   }
@@ -203,7 +203,7 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
       status: 415,
       body: {
         error: 'Unsupported media type.',
-        code: 'UNSUPPORTED_MEDIA_TYPE',
+        code: 'E_UNSUPPORTED_MEDIA_TYPE',
       } satisfies ProductHttpErrorBody,
     };
   }

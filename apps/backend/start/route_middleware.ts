@@ -6,7 +6,7 @@
 // `X-Masquerade-Context` is refused, reads included.
 // `tests/functional/auth/masquerade_routes.spec.ts` pins every route's classification from `node
 // ace masquerade:routes`. Because these rules run after routing and body parsing, a write to a path
-// with no route answers 404 and a malformed body answers 400, not `MASQUERADE_READ_ONLY`.
+// with no route answers 404 and a malformed body answers 400, not `E_MASQUERADE_READ_ONLY`.
 
 import type { MiddlewareFn, ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import { sensitive } from '@kevinjohn/adonisjs-masquerade/http';
@@ -32,7 +32,7 @@ export const asCompanyMemberOnly = (): RouteMiddleware => [
   middleware.companyScope(),
 ];
 
-/** A planning route: a company route whose refusal is the planning `ACCOUNT_MEMBERSHIP_LOST`. */
+/** A planning route: a company route whose refusal is the planning `E_ACCOUNT_MEMBERSHIP_LOST`. */
 export const asPlanningMember = (): RouteMiddleware => [
   ...asMember(),
   middleware.companyScope({ planning: true }),

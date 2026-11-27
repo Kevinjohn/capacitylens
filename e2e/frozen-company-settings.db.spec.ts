@@ -117,7 +117,7 @@ test.describe('single-company production entry', () => {
       },
     });
     expect(res.status()).toBe(409);
-    expect(await res.json()).toMatchObject({ code: 'COMPANY_SETUP_UNAVAILABLE' });
+    expect(await res.json()).toMatchObject({ code: 'E_COMPANY_SETUP_UNAVAILABLE' });
 
     // The company list refuses an installation with more than one company.
     const companies = await request.get(`${API}/api/v1/companies`);

@@ -126,7 +126,7 @@ test.group('account operation retries', (group) => {
     // An attempt that fails before commit leaves no receipt, so the stored key runs afresh.
     const refused = await transfer('00000000-0000-4000-8000-000000000000');
     refused.assertStatus(403);
-    assert.equal(codeOf(refused), 'PASSWORD_CONFIRMATION_REQUIRED');
+    assert.equal(codeOf(refused), 'E_PASSWORD_CONFIRMATION_REQUIRED');
     assert.lengthOf(await db.from('request_receipts'), 0);
 
     const firstProof = await transferConfirmation(client, owner.cookie, admin.id);
@@ -138,7 +138,7 @@ test.group('account operation retries', (group) => {
     // confirmation; the stored key replays the receipt without reading the confirmation at all.
     const secondProof = await transferConfirmation(client, owner.cookie, admin.id);
     secondProof.assertStatus(403);
-    assert.equal(codeOf(secondProof), 'PASSWORD_CONFIRMATION_REQUIRED');
+    assert.equal(codeOf(secondProof), 'E_PASSWORD_CONFIRMATION_REQUIRED');
     const replayed = await transfer('00000000-0000-4000-8000-000000000001');
     replayed.assertStatus(200);
     assert.deepEqual(replayed.body().data, committed.body().data);
@@ -152,7 +152,7 @@ test.group('account operation retries', (group) => {
       .json({ toUserId: admin.id, confirmationId: firstProof.body().data.confirmationId })
       .send();
     fresh.assertStatus(403);
-    assert.equal(codeOf(fresh), 'IDENTITY_AUTHORIZATION_DENIED');
+    assert.equal(codeOf(fresh), 'E_IDENTITY_AUTHORIZATION_DENIED');
     assert.lengthOf(await db.from('audit_entries').where('action', 'ownership.transferred'), 1);
   });
 });

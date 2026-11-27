@@ -9,11 +9,6 @@
         "path": "apps/backend/app/controllers/masquerade_controller.ts"
       },
       {
-        "entry": 26,
-        "item": "EXC-7",
-        "path": "apps/backend/app/exceptions/"
-      },
-      {
         "entry": 28,
         "item": "TOOL-2",
         "path": "package.json"

@@ -42,11 +42,11 @@ flowchart TD
   current -->|Refused| field
   proof -->|Password or throttle refusal| field["Show the current-password error"]
   proof -->|Spent| kit["Account Kit rechecks password and starts the deletion transaction"]
-  kit -->|Owner| owner["LAST_OWNER: show transfer-ownership requirement"]
+  kit -->|Owner| owner["E_LAST_OWNER: show transfer-ownership requirement"]
   kit -->|Wrong current password| field
   kit -->|Eligible| cleanup["Delete identity and memberships/links; record revision and audit; retain resources, history and invitations with inviter cleared"]
   cleanup --> terminate["Terminate the browser session through the raw web guard"]
-  terminate -->|Success or ACCOUNT_DELETION_COMMITTED| reload["Navigate to the root"]
+  terminate -->|Success or E_ACCOUNT_DELETION_COMMITTED| reload["Navigate to the root"]
   api -->|No response| unknown["Show outcome unknown if the dialog is still current"]
   guard -->|Refused| field
 ```

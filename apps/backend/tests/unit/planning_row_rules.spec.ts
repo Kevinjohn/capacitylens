@@ -160,7 +160,7 @@ const cases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
     'http avatar',
     'resources',
     { avatarUrl: 'http://example.com/clark.png' },
-    'resource_avatar_url_invalid: Avatar URL must be an HTTPS URL without embedded credentials.',
+    'E_RESOURCE_AVATAR_URL_INVALID: Avatar URL must be an HTTPS URL without embedded credentials.',
   ],
   ['supported time zone', 'companies', { timezone: 'Europe/London' }, 'accepted'],
   [

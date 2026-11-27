@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core';
 // The wire names are `POST /api/v1/auth/password-confirmation`, `confirmationId`,
-// `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`.
+// `E_PASSWORD_CONFIRMATION_REQUIRED` and `E_PASSWORD_CONFIRMATION_DENIED`.
 //
 // Confirmations are pruned globally after successful issuance, outside every transaction; a pruning
 // failure cannot fail the issuance response.

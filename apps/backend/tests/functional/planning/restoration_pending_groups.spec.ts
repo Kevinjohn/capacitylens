@@ -94,7 +94,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     );
     changed.assertStatus(409);
-    assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED');
+    assert.equal(changed.body().code, 'E_RESTORATION_CONFIRMATION_REQUIRED');
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isNotNull(await restorationGroup(groupId));
     const confirmed = await session(
@@ -163,7 +163,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     );
     changed.assertStatus(409);
-    assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED');
+    assert.equal(changed.body().code, 'E_RESTORATION_CONFIRMATION_REQUIRED');
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isNotNull(await restorationGroup(groupId));
     const confirmed = await session(
@@ -286,7 +286,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     stale.assertStatus(409);
     assert.equal(
       (stale.body() as unknown as { code: string }).code,
-      'RESTORATION_CONFIRMATION_STALE'
+      'E_RESTORATION_CONFIRMATION_STALE'
     );
     assert.equal(
       (stale.body() as unknown as { restorableItemCount?: number }).restorableItemCount,
@@ -295,7 +295,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.deepEqual(await readState(companyId, true), before);
     const staleRevision = await request(1, 1);
     staleRevision.assertStatus(409);
-    assert.equal((staleRevision.body() as unknown as { code: string }).code, 'STALE_REVISION');
+    assert.equal((staleRevision.body() as unknown as { code: string }).code, 'E_STALE_REVISION');
     assert.isUndefined(
       (staleRevision.body() as unknown as { restorableItemCount?: number }).restorableItemCount
     );

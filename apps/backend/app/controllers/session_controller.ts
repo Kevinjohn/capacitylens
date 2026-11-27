@@ -76,7 +76,7 @@ export default class SessionController {
       const hasUsers = await this.#installationCompany.hasAnyIdentity();
       return response.unauthorized({
         error: 'Sign-in required.',
-        code: 'SIGN_IN_REQUIRED',
+        code: 'E_SIGN_IN_REQUIRED',
         passwordResetEmail: this.#mailDelivery.isMailConfigured(),
         ...(!hasUsers ? { needsSetup: true } : {}),
       });

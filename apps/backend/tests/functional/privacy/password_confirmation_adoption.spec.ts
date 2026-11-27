@@ -67,7 +67,7 @@ test.group('package proof adoption boundaries', (group) => {
         const currentActor = await app.container.make(CurrentActorService);
         expected = {
           error: 'Your access to this company is waiting on admission.',
-          code: 'ADMISSION_REQUIRED',
+          code: 'E_ADMISSION_REQUIRED',
           decision: await db.transaction((trx) =>
             currentActor.requireAdmissionDecision(userId, trx)
           ),
@@ -121,7 +121,7 @@ test.group('package proof adoption boundaries', (group) => {
       response.assertStatus(403);
       assert.deepEqual(response.body(), {
         error: 'Incorrect password.',
-        code: 'PASSWORD_CONFIRMATION_DENIED',
+        code: 'E_PASSWORD_CONFIRMATION_DENIED',
       });
     }
     const success = await issueProof(client, browser.cookie, {
@@ -197,7 +197,7 @@ test.group('package proof adoption boundaries', (group) => {
     response.assertStatus(403);
     assert.deepEqual(response.body(), {
       error: 'Your access to this company is waiting on admission.',
-      code: 'ADMISSION_REQUIRED',
+      code: 'E_ADMISSION_REQUIRED',
       decision,
     });
     assert.lengthOf(await db.from('password_confirmations').where('user_id', userId), 0);

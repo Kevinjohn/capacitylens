@@ -58,7 +58,7 @@ test.group('password confirmation bindings', (group) => {
     anonymise.assertStatus(403);
     assert.deepEqual(anonymise.body(), {
       error: 'Confirm this action again.',
-      code: 'PASSWORD_CONFIRMATION_REQUIRED',
+      code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
     });
     const imported = await asDataOwner(client.visit('api.imports.store'), successorCookie)
       .json({ companyId, document, baseRevision, confirmationId: importProof })
@@ -66,7 +66,7 @@ test.group('password confirmation bindings', (group) => {
     imported.assertStatus(403);
     assert.deepEqual(imported.body(), {
       error: 'Confirm this action again.',
-      code: 'PASSWORD_CONFIRMATION_REQUIRED',
+      code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
     });
 
     assert.deepEqual(await readState(companyId, true), before);
@@ -111,7 +111,7 @@ test.group('password confirmation bindings', (group) => {
     anonymise.assertStatus(403);
     assert.deepEqual(anonymise.body(), {
       error: 'Confirm this action again.',
-      code: 'PASSWORD_CONFIRMATION_REQUIRED',
+      code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
     });
     assert.deepEqual(await readState(companyId, true), before);
     assert.equal(await readPlanningRevision(), baseRevision);

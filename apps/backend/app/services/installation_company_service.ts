@@ -21,7 +21,7 @@ export class InstallationCompanyService {
 
   /**
    * The installation's single company, or null before first setup.
-   * @throws MultipleCompaniesException 409 `MULTIPLE_COMPANIES` when a second company exists.
+   * @throws MultipleCompaniesException 409 `E_MULTIPLE_COMPANIES` when a second company exists.
    */
   async getInstallationCompanyId(client?: QueryClientContract): Promise<string | null> {
     const rows = await Company.query({ client }).select('id').limit(2);

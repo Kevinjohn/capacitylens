@@ -60,7 +60,7 @@ export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
           if (companyDirectory.pending) return new Promise<Response>(() => {});
           // The server refuses the directory when the installation holds more than one company.
           if (companyDirectory.refused) {
-            return Response.json({ code: 'MULTIPLE_COMPANIES' }, { status: 409 });
+            return Response.json({ code: 'E_MULTIPLE_COMPANIES' }, { status: 409 });
           }
           return Response.json({
             data: companyDirectory.response.map(({ id, name, role, roleStatus }) =>

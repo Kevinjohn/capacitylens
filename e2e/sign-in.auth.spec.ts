@@ -19,7 +19,7 @@ const EMAIL = 'tester@capacitylens.dev';
 const ORG_NAME = `Sign-in Studio ${Date.now()}`;
 
 // This unconfirmed identity uses its own anonymous request context, separate from any session used
-// to create the control company. The test tolerates EMAIL_IN_USE (409) on a reused server.
+// to create the control company. The test tolerates E_EMAIL_IN_USE (409) on a reused server.
 async function createUser(email = EMAIL) {
   const anonymousRequest = await playwrightRequest.newContext();
   try {

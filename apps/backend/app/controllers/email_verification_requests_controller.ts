@@ -20,7 +20,7 @@ export default class EmailVerificationRequestsController {
     if (!this.#mailDelivery.isMailConfigured()) {
       return response.serviceUnavailable({
         error: 'Email delivery is not configured. Ask your administrator.',
-        code: 'MAIL_UNAVAILABLE',
+        code: 'E_MAIL_UNAVAILABLE',
       });
     }
     const account = await this.#currentActor.readCurrentAccount(auth);
@@ -34,7 +34,7 @@ export default class EmailVerificationRequestsController {
       logger.warn({ code: 'VERIFICATION_DELIVERY_FAILED' }, 'Verification delivery failed');
       return response.serviceUnavailable({
         error: 'The confirmation email could not be sent. Try again later.',
-        code: 'MAIL_UNAVAILABLE',
+        code: 'E_MAIL_UNAVAILABLE',
       });
     }
   }
