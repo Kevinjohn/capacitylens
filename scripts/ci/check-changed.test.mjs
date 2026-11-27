@@ -573,7 +573,7 @@ test('selection modes cannot be combined', () => {
 
 test('the selection modes load no installed dependency, so CI can select before installing', () => {
   const source = readFileSync(new URL('./check-changed.mjs', import.meta.url), 'utf8')
-  const staticImports = source.match(/^import .+ from '[^']+';$/gm)
+  const staticImports = source.match(/^import .+ from '[^']+';?$/gm)
   assert.ok(
     staticImports.every((line) => /from '(?:node:[^']+|\.\.\/\.\.\/apps\/[^']+\.ts)'/.test(line))
   )
