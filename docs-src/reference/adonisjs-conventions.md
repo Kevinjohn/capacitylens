@@ -207,8 +207,8 @@ Source: the Configuration and Folder structure pages of the AdonisJS start guide
 - Resolve paths with `app.makePath()`, `app.publicPath()` and `app.tmpPath()`.
 - `.env.example` lists every variable with a placeholder value. Values for tests belong in
   `.env.test`; `bin/test.ts` keeps only the values computed per port lane or that must override the shell.
-- Product variables use the `CAPACITYLENS_` prefix (departure 5). Framework packages are pinned to
-  exact versions (departure 16).
+- Product variables use the `CAPACITYLENS_` prefix. Framework packages are pinned to exact
+  versions.
 
 ## Routes
 
@@ -268,13 +268,12 @@ Source: [Validation](https://docs.adonisjs.com/guides/basics/validation).
   `updateMemberValidator`, `listMembersValidator`. A name is unique across the application.
 - Validate with `request.validateUsing(validator)` as the first step of the action. Nothing reads
   `request.body()`, `request.all()` or `request.qs()` unvalidated.
-- CapacityLens passes the one request source a validator reads, `{ data: request.body() }` for a
-  write and `{ data: request.qs() }` for a read, so the merged `request.all()` is never validated
-  (departure 22).
 - Validate route parameters, headers and cookies in the same validator, under its `params`,
-  `headers` and `cookies` keys. `requestData(request, source)` in `app/validators/request_rules.ts`
-  places the route parameters and headers beside the one request source; an action without a
-  body passes `requestData(request)`.
+  `headers` and `cookies` keys, and list `REQUEST_CONTEXT_FIELDS` in its `allowedFields`.
+- A credential or bearer-token route reads the request body alone, `{ data: request.body() }`, so
+  a password or token is never accepted from a URL query string (departure 22).
+  `requestData(request, request.body())` in `app/validators/request_rules.ts` places the route
+  parameters and headers beside that body.
 - Do not wrap `validateUsing` in `try`/`catch`. Use `request.tryValidateUsing` when the action
   must handle the failure itself.
 - After validation the payload is trusted. Services do not validate shape again; they enforce
@@ -327,8 +326,8 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
   which answers like a request validation failure: 422 with `{ errors: [{ message }] }`.
 - The handler's `handle` answers only the errors that are not ours to describe (package and body
   parser errors) in the same flat body, then calls `super.handle`. Anything else, a database
-  constraint failure included, is answered as a 500 with a fixed sentence. The handler shows debug output in development
-  only (departure 19).
+  constraint failure included, is answered as a 500 with a fixed sentence. Outside production the handler's debug
+  output carries the error's message and stack (`protected debug = !app.inProduction`).
 - The handler's `report` calls `super.report`. Every status below 500 is in `ignoreStatuses`, and
   `context()` adds the method and route pattern. A product exception is reported as it is; any
   other error is reported as an `UnexpectedException` whose `cause` is the original, and the
@@ -391,7 +390,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
 - Prefer the managed form, `db.transaction(async (trx) => { ... })`, which commits on return and
   rolls back on a throw.
 - Pass one `trx` through the whole unit of work. A mutating service takes it as a method argument.
-  Network, mail and password hashing stay outside it (departure 7).
+  Network, mail and password hashing stay outside it.
 - Bind values in `db.rawQuery`. Never build SQL from input.
 
 **Migrations, seeders and factories**
@@ -572,7 +571,7 @@ than the documentation does. CapacityLens does not install them. This is where i
 | `playwright-locators-are-exact`     | A text locator states `exact`.                                      | Applies to `e2e/` specs.                                        |
 | `no-top-level-functions`            | Behaviour is a class method, not a top-level function.              | Adopted for services; pure helper modules keep their functions. |
 | `exported-functions-are-factories`  | An exported function only builds and returns a class instance.      | Adopted for services; pure helper modules keep their functions. |
-| `types-live-in-types-directory`     | Types and interfaces live in a `types/` folder.                     | Not followed (departure 20).                                    |
+| `types-live-in-types-directory`     | Types and interfaces live in a `types/` folder.                     | Not followed: single-file types stay in-file.                   |
 
 Its code style guide adds one rule this page adopts: return early. Check each condition that ends
 the work at the top of the function, and do not wrap the main logic in an `if`.
