@@ -12,7 +12,12 @@ export const shipped = readdirSync(join(appRoot, 'database/migrations')).filter(
   name.endsWith('.ts')
 ).length
 
-export function command(root: string, databasePath: string, args: string[], backupDir?: string) {
+export function runSubprocess(
+  root: string,
+  databasePath: string,
+  args: string[],
+  backupDir?: string
+) {
   const web = args.includes('bin/server.ts')
   const child = spawnSync(process.execPath, args, {
     cwd: root,
@@ -43,7 +48,7 @@ export function command(root: string, databasePath: string, args: string[], back
 }
 
 export const ace = (root: string, databasePath: string, name: string, backupDir?: string) =>
-  command(root, databasePath, ['ace.js', name], backupDir)
+  runSubprocess(root, databasePath, ['ace.js', name], backupDir)
 
 export function journal(databasePath: string) {
   const database = new Database(databasePath, { readonly: true, fileMustExist: true })

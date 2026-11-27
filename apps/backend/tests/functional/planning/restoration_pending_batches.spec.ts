@@ -16,7 +16,7 @@ import {
   deleteOne,
   createAllocations,
   currentRevision,
-  restorationGroup,
+  restorationBatch,
 } from '#tests/functional/planning/restoration_helpers'
 
 test.group('typed catalogue and time-off restoration', (suite) => {
@@ -60,7 +60,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     )
     settings.assertStatus(200)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const ordinary = await send(
       client,
       cookie,
@@ -77,7 +77,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     )
     ordinary.assertStatus(200)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const changed = await send(
       client,
       cookie,
@@ -96,7 +96,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     changed.assertStatus(409)
     assert.equal(changed.body().code, 'E_RESTORATION_CONFIRMATION_REQUIRED')
     assert.equal(changed.body().restorableItemCount, 1)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const confirmed = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -116,8 +116,8 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       })
       .send()
     confirmed.assertStatus(200)
-    assert.isNull(await restorationGroup(groupId))
-    assert.isNotNull(await restorationGroup(foreignGroup))
+    assert.isNull(await restorationBatch(groupId))
+    assert.isNotNull(await restorationBatch(foreignGroup))
     assert.isNull(await db.from('allocations').where('id', allocationId!).first())
   })
 
@@ -150,7 +150,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     )
     renamed.assertStatus(200)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const changed = await send(
       client,
       cookie,
@@ -165,7 +165,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     changed.assertStatus(409)
     assert.equal(changed.body().code, 'E_RESTORATION_CONFIRMATION_REQUIRED')
     assert.equal(changed.body().restorableItemCount, 1)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const confirmed = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -181,7 +181,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       })
       .send()
     confirmed.assertStatus(200)
-    assert.isNull(await restorationGroup(groupId))
+    assert.isNull(await restorationBatch(groupId))
     assert.isNull(await db.from('allocations').where('id', allocationId!).first())
   })
 
@@ -314,7 +314,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .update({ role: 'owner' })
     const confirmed = await request(1)
     confirmed.assertStatus(200)
-    assert.isNull(await restorationGroup(deletion.body().data.restoration.replacementGroupId))
+    assert.isNull(await restorationBatch(deletion.body().data.restoration.replacementGroupId))
   })
 
   test('a failed privacy transaction retains its data and restoration group', async ({
@@ -351,7 +351,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         1
       )
       refused.assertStatus(500)
-      assert.isNotNull(await restorationGroup(groupId))
+      assert.isNotNull(await restorationBatch(groupId))
       const afterRefusal = await readState(companyId, true)
       assert.equal(
         afterRefusal.projects.find((row) => row.id === target.id)?.codeName,

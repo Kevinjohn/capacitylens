@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import capacitylens from '#config/capacitylens'
 import { CurrentActorService } from '#services/auth/current_actor_service'
@@ -16,7 +15,7 @@ export default class DiagnosticsController {
     this.#diagnostics = diagnostics
   }
 
-  async show({ auth, response, serialize }: HttpContext) {
+  async show({ auth, logger, response, serialize }: HttpContext) {
     const administers = await this.#currentActor.withActor(auth, (actor, trx) =>
       this.#diagnostics.isOwnerOrAdminOfAnyCompany(actor.userId, trx)
     )
@@ -25,7 +24,7 @@ export default class DiagnosticsController {
     }
     try {
       return serialize(
-        await this.#diagnostics.readServerDiagnostics(db, capacitylens.backupDirectory)
+        await this.#diagnostics.readServerDiagnostics(db, capacitylens.backupDirectory, logger)
       )
     } catch (error) {
       // The `err` serializer logs the error's class, never its message, which can carry a database path.

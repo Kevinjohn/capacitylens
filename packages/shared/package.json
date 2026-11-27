@@ -236,7 +236,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
-    "type-check": "pnpm run typecheck"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   }
 }
