@@ -76,9 +76,9 @@ not migrate authentication. Redacted and malformed documents are refused.
 Startup and the operator commands refuse a database that has not recorded every migration this
 release ships, with a `Database schema drift` message; run `app:upgrade` to apply them. They do
 not compare the schema itself. A database created before the move to password-only sign-in, or
-before a later change to the baseline schema such as the invitation `scope` column or the Access
-Control memberships table, records the same baseline, so it passes that check but cannot be
-upgraded in place. Start a fresh database instead:
+before a later change to the pre-release migrations such as the invitation `scope` column, the
+Access Control memberships table or the move to one migration per table, cannot be upgraded in
+place, whether or not it passes that check. Start a fresh database instead:
 
 1. Stop the service and keep the old database file where it is.
 2. Point `CAPACITYLENS_DB` at a new, unused path.
