@@ -74,7 +74,7 @@ test.group('admission and membership completion', (group) => {
     )
     pending.assertStatus(200)
     assert.deepEqual(
-      pending.body().data.items.map((item: { userId: string }) => String(item.userId)),
+      pending.body().data.map((item: { userId: string }) => String(item.userId)),
       [userId]
     )
     const approved = await as(ownerSession.cookie).post(

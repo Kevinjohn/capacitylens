@@ -200,17 +200,17 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"]],
     types: placeholder as Registry['api.members.index']['types'],
   },
+  'api.members.update': {
+    methods: ["PUT","PATCH"],
+    pattern: '/api/v1/companies/:companyId/members/:userId',
+    tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"],[1,"userId"]],
+    types: placeholder as Registry['api.members.update']['types'],
+  },
   'api.member_sign_in_tracking.update': {
     methods: ["PUT"],
     pattern: '/api/v1/companies/:companyId/member-sign-in-tracking',
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"member-sign-in-tracking"]],
     types: placeholder as Registry['api.member_sign_in_tracking.update']['types'],
-  },
-  'api.members.update': {
-    methods: ["PATCH"],
-    pattern: '/api/v1/companies/:companyId/members/:userId',
-    tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"],[1,"userId"]],
-    types: placeholder as Registry['api.members.update']['types'],
   },
   'api.member_status.update': {
     methods: ["PATCH"],

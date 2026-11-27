@@ -10,11 +10,15 @@ router
   .group(() => {
     router
       .group(() => {
-        router.get('/members', [controllers.Members, 'index']).use(asCompanyMemberOnly())
+        router
+          .resource('members', controllers.Members)
+          .only(['index', 'update'])
+          .params({ members: 'userId' })
+          .use('index', asCompanyMemberOnly())
+          .use('update', asCompanyMember())
         router
           .group(() => {
             router.put('/member-sign-in-tracking', [controllers.MemberSignInTracking, 'update'])
-            router.patch('/members/:userId', [controllers.Members, 'update'])
             router.patch('/members/:userId/status', [controllers.MemberStatus, 'update'])
           })
           .use(asCompanyMember())

@@ -365,9 +365,11 @@ describe('teamAccessApi admission requests', () => {
     { userId: 'bruce', email: null, requestedAt: null },
     { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 42 },
   ])('rejects an admission page with a malformed required row', async (row) => {
+    const page = (data: unknown[], nextCursor: string | null) =>
+      Response.json({ data, metadata: { nextCursor } })
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
-      .mockImplementation(async () => json({ items: [row], nextCursor: null }))
+      .mockImplementation(async () => page([row], null))
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toMatchObject({
       kind: 'invalid',
@@ -380,10 +382,10 @@ describe('teamAccessApi admission requests', () => {
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status) =>
-        json(
+        Response.json(
           status === 'pending'
-            ? { items: [row], nextCursor: null }
-            : { items: [], nextCursor: null }
+            ? { data: [row], metadata: { nextCursor: null } }
+            : { data: [], metadata: { nextCursor: null } }
         )
       )
 
@@ -402,10 +404,12 @@ describe('teamAccessApi admission requests', () => {
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
         if (status === 'pending' && cursor === null) {
-          return json({ items: [valid, malformed], nextCursor: 'next' })
+          return Response.json({ data: [valid, malformed], metadata: { nextCursor: 'next' } })
         }
-        if (status === 'pending' && cursor === 'next') return json({ items: [], nextCursor: null })
-        return json({ items: [], nextCursor: null })
+        if (status === 'pending' && cursor === 'next') {
+          return Response.json({ data: [], metadata: { nextCursor: null } })
+        }
+        return Response.json({ data: [], metadata: { nextCursor: null } })
       })
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
@@ -423,11 +427,13 @@ describe('teamAccessApi admission requests', () => {
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
-        if (status === 'pending') return json({ items: [valid], nextCursor: null })
-        if (status === 'rejected' && cursor === null) {
-          return json({ items: [malformed], nextCursor: 'next' })
+        if (status === 'pending') {
+          return Response.json({ data: [valid], metadata: { nextCursor: null } })
         }
-        return json({ items: [], nextCursor: null })
+        if (status === 'rejected' && cursor === null) {
+          return Response.json({ data: [malformed], metadata: { nextCursor: 'next' } })
+        }
+        return Response.json({ data: [], metadata: { nextCursor: null } })
       })
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
@@ -448,11 +454,13 @@ describe('teamAccessApi admission requests', () => {
       .mockImplementation(async (status, cursor) => {
         if (status === 'pending') {
           return cursor
-            ? json({ items: [row('dick')], nextCursor: null })
-            : json({ items: [row('jason')], nextCursor: 'next' })
+            ? Response.json({ data: [row('dick')], metadata: { nextCursor: null } })
+            : Response.json({ data: [row('jason')], metadata: { nextCursor: 'next' } })
         }
-        if (status === 'rejected') return json({ items: [row('selina')], nextCursor: null })
-        return json({ items: [], nextCursor: null })
+        if (status === 'rejected') {
+          return Response.json({ data: [row('selina')], metadata: { nextCursor: null } })
+        }
+        return Response.json({ data: [], metadata: { nextCursor: null } })
       })
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toMatchObject({
