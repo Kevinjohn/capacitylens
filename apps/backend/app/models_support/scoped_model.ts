@@ -1,5 +1,13 @@
-import { scope } from '@adonisjs/lucid/orm'
-import type { LucidRow } from '@adonisjs/lucid/types/model'
+import type { NormalizeConstructor } from '@adonisjs/core/types/helpers'
+import {
+  type BaseModel,
+  beforeDelete,
+  beforeFetch,
+  beforeFind,
+  beforeSave,
+  scope,
+} from '@adonisjs/lucid/orm'
+import type { LucidModel, LucidRow, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
 /**
  * Model reads that applied an explicit company scope. The record is private to this class, so only
@@ -35,4 +43,50 @@ export function requireRowCompany(row: LucidRow & { companyId: unknown }) {
   if (row.$isPersisted && Object.hasOwn(row.$dirty, 'companyId')) {
     throw new Error('A stored row keeps its company')
   }
+}
+
+/** Static members added by `withCompanyScope`. */
+export interface CompanyScopedStatics {
+  forCompany: typeof CompanyScope.forCompany
+  selfAssignPrimaryKey: boolean
+  requireFindScope<Model extends LucidModel>(query: ModelQueryBuilderContract<Model>): void
+  requireFetchScope<Model extends LucidModel>(query: ModelQueryBuilderContract<Model>): void
+  requireWriteScope(row: LucidRow & { companyId: unknown }): void
+}
+
+/** Constructor type returned by `withCompanyScope(Superclass)`. */
+export type CompanyScopedConstructor<T extends NormalizeConstructor<typeof BaseModel>> = Omit<
+  T,
+  'constructor'
+> &
+  CompanyScopedStatics & {
+    new (...args: never[]): InstanceType<T>
+  }
+
+/** Mixin that enforces company-scoped reads, writes, and UUID primary keys on a product model. */
+export function withCompanyScope<T extends NormalizeConstructor<typeof BaseModel>>(
+  Superclass: T
+): CompanyScopedConstructor<T> {
+  class CompanyScopedModel extends Superclass {
+    static forCompany = CompanyScope.forCompany
+    static selfAssignPrimaryKey = true
+
+    @beforeFind()
+    static requireFindScope(query: ModelQueryBuilderContract<typeof CompanyScopedModel>) {
+      CompanyScope.requireCompanyScope(query)
+    }
+
+    @beforeFetch()
+    static requireFetchScope(query: ModelQueryBuilderContract<typeof CompanyScopedModel>) {
+      CompanyScope.requireCompanyScope(query)
+    }
+
+    @beforeSave()
+    @beforeDelete()
+    static requireWriteScope(row: LucidRow & { companyId: unknown }) {
+      requireRowCompany(row)
+    }
+  }
+
+  return CompanyScopedModel as unknown as CompanyScopedConstructor<T>
 }
