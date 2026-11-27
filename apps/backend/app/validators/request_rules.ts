@@ -10,18 +10,20 @@ import {
 import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password'
 import { MAX_NAME_LENGTH, countUnicodeCharacters } from '@capacitylens/shared/lib/strings'
 
-/** The keys AdonisJS `request.validateUsing` places beside request data at the root. */
+/**
+ * The keys AdonisJS `request.validateUsing` places beside request data at the root. A validator
+ * read through it lists them in `allowedFields`; a credential validator reads the body alone and
+ * does not, so a body carrying one is refused.
+ */
 export const REQUEST_CONTEXT_FIELDS = ['params', 'headers', 'cookies']
 
 /** Refuses a body that carries a key outside `fields`. */
 export const allowedFields = vine.createRule((value, options: { fields: string[] }, field) => {
-  const allowed =
-    field.wildCardPath === '' ? [...options.fields, ...REQUEST_CONTEXT_FIELDS] : options.fields
   if (
     value &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
-    Object.keys(value).some((key) => !allowed.includes(key))
+    Object.keys(value).some((key) => !options.fields.includes(key))
   ) {
     field.report('Unsupported field.', 'unknownField', field)
   }

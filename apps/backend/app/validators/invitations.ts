@@ -23,7 +23,7 @@ export const createInvitationValidator = vine.create(
       email: vine.string().use(accountEmail()).transform(normalizeAccountEmail),
       companyId: vine.string().minLength(1),
     })
-    .use(allowedFields({ fields: ['companyId', 'role', 'email'] }))
+    .use(allowedFields({ fields: ['companyId', 'role', 'email', ...REQUEST_CONTEXT_FIELDS] }))
 )
 
 export const acceptInvitationSignUpValidator = vine.create(

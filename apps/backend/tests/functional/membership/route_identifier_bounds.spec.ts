@@ -121,4 +121,22 @@ test.group('company route identifier bounds', (group) => {
       { message: 'Unsupported field.', rule: 'unknownField', field: 'params' },
     ])
   })
+
+  test('a body-only credential body that names a request context key is refused', async ({
+    client,
+    assert,
+  }) => {
+    for (const key of ['params', 'headers', 'cookies']) {
+      const response = await client
+        .visit('api.password_reset_requests.store')
+        .header('sec-fetch-site', 'same-origin')
+        // Deliberately outside the generated body type, to reach the server's refusal.
+        .json({ email: owner.email, [key]: {} } as never)
+        .send()
+      response.assertStatus(422)
+      assert.deepEqual((response.body() as unknown as { errors: unknown }).errors, [
+        { message: 'Unsupported field.', rule: 'unknownField', field: '' },
+      ])
+    }
+  })
 })
