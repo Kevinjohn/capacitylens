@@ -15,4 +15,7 @@ export default class DiagnosticsUnavailableException extends ProductException {
       },
     }
   }
+
+  /** Not reported: the 503 is an expected outcome, and the controller logs its cause where it has one. */
+  report() {}
 }

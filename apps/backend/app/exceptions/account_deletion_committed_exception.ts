@@ -9,4 +9,7 @@ export default class AccountDeletionCommittedException extends ProductException 
   override body(): Record<string, unknown> {
     return { ...super.body(), committed: true }
   }
+
+  /** Not reported: the 503 is an expected outcome, and the controller logs its cause where it has one. */
+  report() {}
 }
