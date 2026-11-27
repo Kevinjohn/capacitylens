@@ -65,7 +65,7 @@ export async function signUpWithInvitation(
   if (response.ok) return { kind: 'signed-up' };
   if (response.status >= 500) return { kind: 'uncertain' };
   const code = await readApiErrorCode(response);
-  if (code === 'INVALID_TOKEN') return { kind: 'invalid-token' };
-  if (code === 'EMAIL_IN_USE') return { kind: 'email-in-use' };
+  if (code === 'E_INVALID_TOKEN') return { kind: 'invalid-token' };
+  if (code === 'E_EMAIL_IN_USE') return { kind: 'email-in-use' };
   return { kind: 'refused', message: await readApiError(response) };
 }

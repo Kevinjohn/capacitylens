@@ -35,7 +35,7 @@ const refusals: ReadonlyArray<
   ],
   [
     errors.E_ACCESS_CONTROL_LAST_OWNER,
-    { status: 409, code: 'LAST_OWNER', error: 'Transfer ownership first.' },
+    { status: 409, code: 'E_LAST_OWNER', error: 'Transfer ownership first.' },
   ],
   [
     errors.E_ACCESS_CONTROL_CONFLICT,

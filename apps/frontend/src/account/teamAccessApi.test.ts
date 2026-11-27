@@ -15,7 +15,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('teamAccessApi operation outcomes', () => {
   it('classifies an in-progress operation as an unknown outcome', async () => {
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
-      Response.json({ code: 'COMMAND_IN_PROGRESS', error: 'Still running.' }, { status: 409 }),
+      Response.json({ code: 'E_COMMAND_IN_PROGRESS', error: 'Still running.' }, { status: 409 }),
     );
 
     await expect(

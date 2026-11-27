@@ -170,7 +170,7 @@ test.group('authenticated first company setup', (group) => {
       .json({ email: 'joker@wayne.example', password, name: 'Jack Napier' })
       .send();
     route.assertStatus(403);
-    assert.equal((route.body() as { code?: string }).code, 'SIGN_UP_CLOSED');
+    assert.equal((route.body() as { code?: string }).code, 'E_SIGN_UP_CLOSED');
     // Every creation path saves through the model inside the Kit transaction; a sign-up
     // leaves the address unconfirmed, which the model refuses before the company exists.
     const signUp = (address: string) =>
@@ -277,7 +277,7 @@ test.group('authenticated first company setup', (group) => {
     const unadmitted = await signIn(client, email, password);
     const pending = await setUp(client, unadmitted.cookie);
     pending.assertStatus(403);
-    assert.equal((pending.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
+    assert.equal((pending.body() as { code?: string }).code, 'E_ADMISSION_REQUIRED');
     assert.lengthOf(await db.from('companies'), 0);
   });
 

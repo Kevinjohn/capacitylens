@@ -609,7 +609,7 @@ test.group('independent typed planning operations', (group) => {
       })
       .send();
     write.assertStatus(401);
-    assert.deepEqual(write.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
+    assert.deepEqual(write.body(), { error: 'Sign-in required.', code: 'E_SIGN_IN_REQUIRED' });
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(

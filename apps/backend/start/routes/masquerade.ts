@@ -10,7 +10,7 @@ router
     router
       .group(() => {
         // The service compares the context token and refuses a second start itself, so a stale tab
-        // gets MASQUERADE_CONTEXT_CHANGED rather than a blocker's MASQUERADE_READ_ONLY.
+        // gets E_MASQUERADE_CONTEXT_CHANGED rather than a blocker's E_MASQUERADE_READ_ONLY.
         router
           .post('/companies/:companyId/masquerade', [controllers.Masquerade, 'store'])
           .use(asCompanySignedInPerson());

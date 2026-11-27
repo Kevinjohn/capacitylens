@@ -8,8 +8,8 @@ export function resolveResetPasswordFailureMessage(
 ): string {
   if (status === 404) return m.reset_err_unavailable();
   if (body === null) return m.reset_err_generic();
-  if (body.code === 'INVALID_TOKEN') return m.reset_err_invalid();
-  if (body.code === 'PASSWORD_TOO_SHORT') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
-  if (body.code === 'PASSWORD_TOO_LONG') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
+  if (body.code === 'E_INVALID_TOKEN') return m.reset_err_invalid();
+  if (body.code === 'E_PASSWORD_TOO_SHORT') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
+  if (body.code === 'E_PASSWORD_TOO_LONG') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
   return m.reset_err_generic();
 }

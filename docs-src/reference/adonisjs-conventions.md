@@ -321,7 +321,7 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
   what the message or the response needs. Classes that still take them are being split in
   [#2494](https://github.com/Kevinjohn/capacitylens/issues/2494); until that lands, match the
   surrounding code.
-- Exception codes are `E_UPPER_SNAKE`, the product's as well as the framework's.
+- Every code is `E_UPPER_SNAKE`: the framework's, and every product code on the wire.
 - A product exception extends `ProductException` (`app/exceptions/product_exception.ts`) and
   answers for itself: its `handle` sends the product's flat body `{ error, code? }`, so no central
   table lists product exceptions. A domain validation refusal throws `ValidationRefusalException`,

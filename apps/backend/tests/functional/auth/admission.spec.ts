@@ -39,7 +39,11 @@ test.group('admission and membership completion', (group) => {
     cleanup,
   }) => {
     captureMail(cleanup);
-    const body = { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED', passwordResetEmail: true };
+    const body = {
+      error: 'Sign-in required.',
+      code: 'E_SIGN_IN_REQUIRED',
+      passwordResetEmail: true,
+    };
     const first = await client.visit('api.session.show').send();
     first.assertStatus(401);
     assert.deepEqual(first.body(), { ...body, needsSetup: true });
@@ -314,7 +318,7 @@ test.group('address confirmation', (group) => {
       password: 'confirmed-password-2026',
     });
     confirmed.assertStatus(503);
-    assert.equal(confirmed.body().code, 'VERIFICATION_COMMITTED');
+    assert.equal(confirmed.body().code, 'E_VERIFICATION_COMMITTED');
   });
 
   test('a database holding two companies refuses membership completion and the company list', async ({

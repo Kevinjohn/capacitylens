@@ -40,7 +40,7 @@ flowchart TD
   form -->|Invalid draft| invalidDraft["Show client field error"]
   endpoint --> kit["Validate submitted fields; Account Kit creates the confirmed identity and the registered callback adds invitation evidence"]
   kit -->|Expired or invalid| invalid
-  kit -->|EMAIL_IN_USE| signIn["Return to the form with the sign-in message"]
+  kit -->|E_EMAIL_IN_USE| signIn["Return to the form with the sign-in message"]
   kit -->|Other known refusal| refusal["Show refusal in the form"]
   kit -->|Company invitation| membership["Access Control creates membership; recordInvitationAccepted writes audit and revision in the same transaction"]
   membership --> session["Try signInWithPassword"]

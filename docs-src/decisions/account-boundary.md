@@ -37,7 +37,7 @@ account service or database.
 Password policy bounds, link lifetimes (invitations last seven days), throttling, session idle
 expiry (fourteen days), ending every session on a credential change, and mail delivery. Every
 emailed flow needs `CAPACITYLENS_MAIL_HOST`; without it, sending an invitation refuses with
-`MAIL_UNAVAILABLE`. Production action links require an HTTPS public origin.
+`E_MAIL_UNAVAILABLE`. Production action links require an HTTPS public origin.
 
 ## First identity
 

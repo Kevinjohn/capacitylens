@@ -6,7 +6,7 @@
 // `X-Masquerade-Context` is refused, reads included.
 // `tests/functional/auth/masquerade_routes.spec.ts` pins every route's classification from `node
 // ace masquerade:routes`. Because these rules run after routing and body parsing, a write to a path
-// with no route answers 404 and a malformed body answers 400, not `MASQUERADE_READ_ONLY`.
+// with no route answers 404 and a malformed body answers 400, not `E_MASQUERADE_READ_ONLY`.
 
 import type { MiddlewareFn, ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import { sensitive } from '@kevinjohn/adonisjs-masquerade/http';

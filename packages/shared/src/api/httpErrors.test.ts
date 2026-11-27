@@ -7,10 +7,10 @@ describe('flat HTTP failure boundary', () => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     expect(
       readHttpErrorBody(
-        { error: 'Waiting', code: 'ADMISSION_REQUIRED', decision, committed: true },
+        { error: 'Waiting', code: 'E_ADMISSION_REQUIRED', decision, committed: true },
         'Fallback',
       ),
-    ).toEqual({ error: 'Waiting', code: 'ADMISSION_REQUIRED', decision, committed: true });
+    ).toEqual({ error: 'Waiting', code: 'E_ADMISSION_REQUIRED', decision, committed: true });
     expect(
       readHttpErrorBody(
         { error: 1, code: 2, decision: [], committed: 'true', restorableItemCount: -1 },
@@ -56,7 +56,7 @@ describe('flat HTTP failure boundary', () => {
 function productTypeContracts() {
   const registered = {
     error: 'An account already uses this email.',
-    code: 'EMAIL_IN_USE',
+    code: 'E_EMAIL_IN_USE',
   } satisfies ProductHttpErrorBody;
   // @ts-expect-error An arbitrary dependency code cannot be assumed to be a known product code.
   const unsupported: ProductHttpErrorBody = { error: 'Unknown', code: 'FUTURE_DEPENDENCY_CODE' };

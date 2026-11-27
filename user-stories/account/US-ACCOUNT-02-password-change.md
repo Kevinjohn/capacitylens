@@ -44,7 +44,7 @@ flowchart TD
   guard -->|Refused| error
   kit -->|Wrong current password or other refusal| error
   kit -->|Changed or committed with a follow-up warning| terminate["PasswordController terminates the browser session through the raw web guard"]
-  terminate --> response["Ordinary success or CREDENTIAL_UPDATE_COMMITTED"]
+  terminate --> response["Ordinary success or E_CREDENTIAL_UPDATE_COMMITTED"]
   response --> reload["Navigate to the root to sign in with the new password"]
   request -->|No response| unknown["Current dialog asks the person to check which password works"]
 ```

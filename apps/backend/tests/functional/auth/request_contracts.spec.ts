@@ -181,7 +181,7 @@ test.group('ordinary authentication request contracts', (group) => {
         })
         .send();
       response.assertStatus(403);
-      assert.deepEqual(response.body(), { error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
+      assert.deepEqual(response.body(), { error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' });
     }
   });
 
@@ -216,7 +216,7 @@ test.group('ordinary authentication request contracts', (group) => {
     response.assertStatus(409);
     assert.deepEqual(response.body(), {
       error: 'An account already uses this email. Sign in or reset your password.',
-      code: 'EMAIL_IN_USE',
+      code: 'E_EMAIL_IN_USE',
     });
   });
 

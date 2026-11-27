@@ -235,7 +235,7 @@ describe('generated planning transport', () => {
 
   it('surfaces context changes without replaying a stale write', async () => {
     const { transport, fetcher } = harness(
-      { error: 'The masquerade context changed.', code: 'MASQUERADE_CONTEXT_CHANGED' },
+      { error: 'The masquerade context changed.', code: 'E_MASQUERADE_CONTEXT_CHANGED' },
       409,
     );
 
@@ -245,7 +245,7 @@ describe('generated planning transport', () => {
         execution({ operation: 'allocation.create', allocation }),
         signal,
       ),
-    ).rejects.toMatchObject({ status: 409, code: 'MASQUERADE_CONTEXT_CHANGED' });
+    ).rejects.toMatchObject({ status: 409, code: 'E_MASQUERADE_CONTEXT_CHANGED' });
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
@@ -394,13 +394,13 @@ describe('generated planning transport', () => {
 
   it('surfaces a stale proof on a canonical read without replaying it', async () => {
     const { transport, fetcher, requests } = harness(
-      { error: 'The masquerade context changed.', code: 'MASQUERADE_CONTEXT_CHANGED' },
+      { error: 'The masquerade context changed.', code: 'E_MASQUERADE_CONTEXT_CHANGED' },
       409,
     );
 
     await expect(transport.read(context, signal)).rejects.toMatchObject({
       status: 409,
-      code: 'MASQUERADE_CONTEXT_CHANGED',
+      code: 'E_MASQUERADE_CONTEXT_CHANGED',
     });
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
     expect(fetcher).toHaveBeenCalledOnce();

@@ -36,7 +36,7 @@ export default class PasswordController {
       if (error instanceof E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED) {
         return response.forbidden({
           error: 'Current password is incorrect.',
-          code: 'CURRENT_PASSWORD_INCORRECT',
+          code: 'E_CURRENT_PASSWORD_INCORRECT',
         });
       }
       if (!isCommittedFailure(error)) throw error;

@@ -79,9 +79,9 @@ export function VerifyEmail() {
     setState('working');
     try {
       const { error: failure } = await authApi.completeEmailVerification({ token, password });
-      // VERIFICATION_COMMITTED: the address is confirmed and only a later step failed.
-      if (!failure || failure.code === 'VERIFICATION_COMMITTED') finish('done');
-      else if (failure.code === 'INVALID_TOKEN') finish('invalid');
+      // E_VERIFICATION_COMMITTED: the address is confirmed and only a later step failed.
+      if (!failure || failure.code === 'E_VERIFICATION_COMMITTED') finish('done');
+      else if (failure.code === 'E_INVALID_TOKEN') finish('invalid');
       else if (failure.status >= 500) finish('uncertain');
       else {
         setError(failure.message || m.verify_failed());

@@ -4,13 +4,13 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 // These currently defined 409 codes prove that the server reached a terminal refusal. A new or
 // malformed code stays unknown, so the screen re-reads state instead of reporting a refusal.
 const TERMINAL_OPERATION_CONFLICT_CODES = new Set<string>([
-  'INVITATION_USED',
+  'E_INVITATION_USED',
   'E_CONFLICT',
-  'AUTHORIZATION_CHANGED',
+  'E_AUTHORIZATION_CHANGED',
   'E_IDEMPOTENCY_CONFLICT',
 ] satisfies readonly AccountErrorCode[]);
 // The server refuses an emailed operation without mail delivery before it writes anything.
-const TERMINAL_SERVER_CODES = new Set<string>(['MAIL_UNAVAILABLE']);
+const TERMINAL_SERVER_CODES = new Set<string>(['E_MAIL_UNAVAILABLE']);
 
 async function readResponseBody(response: Response, parsedBody: unknown): Promise<unknown> {
   if (parsedBody !== undefined) return parsedBody;

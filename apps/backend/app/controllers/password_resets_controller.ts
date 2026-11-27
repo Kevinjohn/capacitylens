@@ -28,7 +28,7 @@ export default class PasswordResetsController {
       await accountKit.passwordReset.reset({ token: body.token, password: body.newPassword });
       return serialize({ ok: true });
     } catch (error) {
-      // Keeps `INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
+      // Keeps `E_INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
       if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
         return response.badRequest(invalidLinkAnswer);
       }

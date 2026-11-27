@@ -221,7 +221,7 @@ test.group('identity-only archive recovery', (suite) => {
       activeToken
     ).send();
     masqueradedRead.assertStatus(403);
-    assert.equal((masqueradedRead.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
+    assert.equal((masqueradedRead.body() as { code: string }).code, 'E_MASQUERADE_READ_ONLY');
   });
 
   test('Editor discovers and restores four entity types through typed writes without exposing inactive rows', async ({

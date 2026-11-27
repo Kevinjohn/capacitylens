@@ -93,19 +93,19 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
         'E_MASQUERADE_CONTEXT_REQUIRED',
         428,
         'Masquerade context is required.',
-        'MASQUERADE_CONTEXT_REQUIRED',
+        'E_MASQUERADE_CONTEXT_REQUIRED',
       ],
       [
         'E_MASQUERADE_CONTEXT_CHANGED',
         409,
         'Masquerade context changed.',
-        'MASQUERADE_CONTEXT_CHANGED',
+        'E_MASQUERADE_CONTEXT_CHANGED',
       ],
-      ['E_MASQUERADE_ACTION_BLOCKED', 403, 'Masquerade is read-only.', 'MASQUERADE_READ_ONLY'],
+      ['E_MASQUERADE_ACTION_BLOCKED', 403, 'Masquerade is read-only.', 'E_MASQUERADE_READ_ONLY'],
       ['E_MASQUERADE_NOT_ALLOWED', 403, 'This action is not allowed.', 'E_AUTHORIZATION_DENIED'],
-      ['E_MASQUERADE_ALREADY_ACTIVE', 409, 'Masquerade is already active.', 'MASQUERADE_ACTIVE'],
-      ['E_MASQUERADE_UNAUTHENTICATED', 401, 'Sign-in required.', 'SIGN_IN_REQUIRED'],
-      ['E_MASQUERADE_UNAVAILABLE', 503, 'Masquerade is unavailable.', 'MASQUERADE_UNAVAILABLE'],
+      ['E_MASQUERADE_ALREADY_ACTIVE', 409, 'Masquerade is already active.', 'E_MASQUERADE_ACTIVE'],
+      ['E_MASQUERADE_UNAUTHENTICATED', 401, 'Sign-in required.', 'E_SIGN_IN_REQUIRED'],
+      ['E_MASQUERADE_UNAVAILABLE', 503, 'Masquerade is unavailable.', 'E_MASQUERADE_UNAVAILABLE'],
     ] as const
   ).map(([code, status, error, wire]): [string, () => unknown, number, Record<string, unknown>] => [
     code,
@@ -134,7 +134,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
       ['E_ACCESS_CONTROL_USER_NOT_FOUND', 404, 'Not found.', 'E_NOT_FOUND'],
       ['E_ACCESS_CONTROL_SCOPE_NOT_FOUND', 404, 'Company not found.', 'E_NOT_FOUND'],
       ['E_ACCESS_CONTROL_ALREADY_MEMBER', 409, 'Already a member of this company.', 'E_CONFLICT'],
-      ['E_ACCESS_CONTROL_LAST_OWNER', 409, 'Transfer ownership first.', 'LAST_OWNER'],
+      ['E_ACCESS_CONTROL_LAST_OWNER', 409, 'Transfer ownership first.', 'E_LAST_OWNER'],
       ['E_ACCESS_CONTROL_CONFLICT', 409, 'The company changed. Try again.', 'E_CONFLICT'],
     ] as const
   ).map(([code, status, error, wire]): [string, () => unknown, number, Record<string, unknown>] => [
@@ -157,7 +157,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'PasswordConfirmationDeniedException',
     () => answered(new PasswordConfirmationDeniedException()),
     403,
-    { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
+    { error: 'Incorrect password.', code: 'E_PASSWORD_CONFIRMATION_DENIED' },
   ],
   [
     'PasswordConfirmationThrottledException',
@@ -459,7 +459,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     400,
     {
       error: 'This link is invalid or expired.',
-      code: 'INVALID_TOKEN',
+      code: 'E_INVALID_TOKEN',
     },
   ],
   [
@@ -468,7 +468,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     409,
     {
       error: 'An account already uses this email. Sign in or reset your password.',
-      code: 'EMAIL_IN_USE',
+      code: 'E_EMAIL_IN_USE',
     },
   ],
   [
@@ -478,7 +478,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     {
       error:
         'Your password was changed, but a follow-up step failed. Sign in with the new password.',
-      code: 'CREDENTIAL_UPDATE_COMMITTED',
+      code: 'E_CREDENTIAL_UPDATE_COMMITTED',
       committed: true,
     },
   ],
@@ -486,13 +486,13 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'unsupported content encoding',
     () => answered(Object.assign(new Error('Unsupported Content-Encoding: br'), { status: 415 })),
     415,
-    { error: 'Unsupported media type.', code: 'UNSUPPORTED_MEDIA_TYPE' },
+    { error: 'Unsupported media type.', code: 'E_UNSUPPORTED_MEDIA_TYPE' },
   ],
   [
     'invalid JSON',
     () => answered(Object.assign(new SyntaxError('Unexpected end'), { status: 400, body: '{' })),
     400,
-    { error: 'Request body must be valid JSON.', code: 'INVALID_JSON' },
+    { error: 'Request body must be valid JSON.', code: 'E_INVALID_JSON' },
   ],
   [
     'JSON that is not an object or array',
@@ -501,7 +501,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
         Object.assign(new Error('Invalid JSON, only supports object and array'), { status: 422 })
       ),
     400,
-    { error: 'Request JSON must be an object or array.', code: 'INVALID_JSON_SHAPE' },
+    { error: 'Request JSON must be an object or array.', code: 'E_INVALID_JSON_SHAPE' },
   ],
   [
     'E_ROUTE_NOT_FOUND',
@@ -513,13 +513,13 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'E_REQUEST_ENTITY_TOO_LARGE',
     () => answered(Object.assign(new Error('too large'), { code: 'E_REQUEST_ENTITY_TOO_LARGE' })),
     413,
-    { error: 'Request body is too large.', code: 'PAYLOAD_TOO_LARGE' },
+    { error: 'Request body is too large.', code: 'E_PAYLOAD_TOO_LARGE' },
   ],
   [
     'E_ENCODING_UNSUPPORTED',
     () => answered(Object.assign(new Error('encoding'), { code: 'E_ENCODING_UNSUPPORTED' })),
     415,
-    { error: 'Unsupported media type.', code: 'UNSUPPORTED_MEDIA_TYPE' },
+    { error: 'Unsupported media type.', code: 'E_UNSUPPORTED_MEDIA_TYPE' },
   ],
   [
     'database constraint',
@@ -579,7 +579,7 @@ test.group('product error adapters', () => {
       assert.equal(result.status, 403);
       assert.properties(result.body as object, ['error', 'code', 'decision']);
       assert.deepEqual((result.body as { decision: unknown }).decision, decision);
-      assert.equal((result.body as { code: string }).code, 'ADMISSION_REQUIRED');
+      assert.equal((result.body as { code: string }).code, 'E_ADMISSION_REQUIRED');
     });
   }
   const routeNames = [
@@ -622,7 +622,7 @@ test.group('product error adapters', () => {
         status: 403,
         body: {
           error: 'Your access to this company is waiting on admission.',
-          code: 'ADMISSION_REQUIRED',
+          code: 'E_ADMISSION_REQUIRED',
           decision,
         },
       });

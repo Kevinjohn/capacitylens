@@ -488,7 +488,7 @@ test.group('company member administration', (group) => {
         .json({ name: 'Stark Industries' })
         .send();
       second.assertStatus(409);
-      second.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
+      second.assertBodyContains({ code: 'E_COMPANY_SETUP_UNAVAILABLE' });
       assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }]);
     } finally {
       Date.now = realNow;

@@ -23,7 +23,7 @@ test.group('password confirmation errors', () => {
     [
       new PasswordConfirmationDeniedException(),
       403,
-      { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
+      { error: 'Incorrect password.', code: 'E_PASSWORD_CONFIRMATION_DENIED' },
     ],
     [
       new PasswordConfirmationThrottledException(1200),

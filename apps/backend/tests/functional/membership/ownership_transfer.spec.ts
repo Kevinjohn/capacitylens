@@ -268,7 +268,7 @@ test.group('atomic ownership transfer', (group) => {
     started.assertStatus(200);
     const refused = await ownerRequest();
     refused.assertStatus(403);
-    assert.equal((refused.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY');
+    assert.equal((refused.body() as unknown as { code: string }).code, 'E_MASQUERADE_READ_ONLY');
     const token = ((started.body() as { data: unknown }).data as { token: string }).token;
     const ended = await asDataOwner(client.visit('api.masquerade.destroy'), ownerCookie)
       .json({ token, reason: 'explicit' })

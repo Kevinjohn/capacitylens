@@ -338,7 +338,7 @@ db.exec('COMMIT')`,
         .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'suspended' });
       const lost = await capturedPlanningRead();
       assert.equal(lost.status, 409);
-      assert.equal(lost.body.code, 'MASQUERADE_CONTEXT_CHANGED');
+      assert.equal(lost.body.code, 'E_MASQUERADE_CONTEXT_CHANGED');
       assert.isUndefined(lost.body.data);
       assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     });

@@ -2,12 +2,12 @@ import { isRecord } from '../lib/isRecord.js';
 
 /** Product codes consumed by browser flows; dependency and future codes remain open on the wire. */
 export const PRODUCT_ERROR_CODES = [
-  'INVALID_JSON',
-  'INVALID_JSON_SHAPE',
-  'PAYLOAD_TOO_LARGE',
-  'UNSUPPORTED_MEDIA_TYPE',
+  'E_INVALID_JSON',
+  'E_INVALID_JSON_SHAPE',
+  'E_PAYLOAD_TOO_LARGE',
+  'E_UNSUPPORTED_MEDIA_TYPE',
   'E_NOT_FOUND',
-  'ADMISSION_REQUIRED',
+  'E_ADMISSION_REQUIRED',
   'E_PASSWORD_CONFIRMATION_REQUIRED',
   'E_FIRST_COMPANY_PENDING',
   'E_IDENTITY_AUTHORIZATION_DENIED',
@@ -18,14 +18,14 @@ export const PRODUCT_ERROR_CODES = [
   'E_NO_CHANGE',
   'E_RESTORATION_CONFIRMATION_REQUIRED',
   'E_RESTORATION_CONFIRMATION_STALE',
-  'INVALID_TOKEN',
-  'PASSWORD_TOO_SHORT',
-  'PASSWORD_TOO_LONG',
-  'MAIL_UNAVAILABLE',
-  'EMAIL_IN_USE',
-  'VERIFICATION_COMMITTED',
-  'CREDENTIAL_UPDATE_COMMITTED',
-  'ACCOUNT_DELETION_COMMITTED',
+  'E_INVALID_TOKEN',
+  'E_PASSWORD_TOO_SHORT',
+  'E_PASSWORD_TOO_LONG',
+  'E_MAIL_UNAVAILABLE',
+  'E_EMAIL_IN_USE',
+  'E_VERIFICATION_COMMITTED',
+  'E_CREDENTIAL_UPDATE_COMMITTED',
+  'E_ACCOUNT_DELETION_COMMITTED',
 ] as const;
 
 /** Known product codes are deliberately separate from arbitrary dependency response codes. */
@@ -46,15 +46,15 @@ export type ProductHttpErrorBody =
       error: string;
       code: Exclude<
         ProductErrorCode,
-        | 'ADMISSION_REQUIRED'
+        | 'E_ADMISSION_REQUIRED'
         | 'E_RESTORATION_CONFIRMATION_REQUIRED'
         | 'E_RESTORATION_CONFIRMATION_STALE'
-        | 'VERIFICATION_COMMITTED'
-        | 'CREDENTIAL_UPDATE_COMMITTED'
-        | 'ACCOUNT_DELETION_COMMITTED'
+        | 'E_VERIFICATION_COMMITTED'
+        | 'E_CREDENTIAL_UPDATE_COMMITTED'
+        | 'E_ACCOUNT_DELETION_COMMITTED'
       >;
     }
-  | { error: string; code: 'ADMISSION_REQUIRED'; decision: object }
+  | { error: string; code: 'E_ADMISSION_REQUIRED'; decision: object }
   | {
       error: string;
       code: 'E_RESTORATION_CONFIRMATION_REQUIRED' | 'E_RESTORATION_CONFIRMATION_STALE';
@@ -62,7 +62,10 @@ export type ProductHttpErrorBody =
     }
   | {
       error: string;
-      code: 'VERIFICATION_COMMITTED' | 'CREDENTIAL_UPDATE_COMMITTED' | 'ACCOUNT_DELETION_COMMITTED';
+      code:
+        | 'E_VERIFICATION_COMMITTED'
+        | 'E_CREDENTIAL_UPDATE_COMMITTED'
+        | 'E_ACCOUNT_DELETION_COMMITTED';
       committed: true;
     };
 

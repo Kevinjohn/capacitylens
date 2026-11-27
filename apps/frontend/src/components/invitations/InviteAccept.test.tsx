@@ -83,10 +83,10 @@ describe('InviteAccept outcomes', () => {
     expect(signUp).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the form and shows existing-account guidance for EMAIL_IN_USE', async () => {
+  it('keeps the form and shows existing-account guidance for E_EMAIL_IN_USE', async () => {
     const registered = {
       error: 'An account already uses this email. Sign in or reset your password.',
-      code: 'EMAIL_IN_USE',
+      code: 'E_EMAIL_IN_USE',
     } satisfies ProductHttpErrorBody;
     vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       Response.json({ data: preview }),
