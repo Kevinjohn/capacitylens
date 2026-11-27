@@ -154,7 +154,7 @@ export const retainedModels = {
 } as const
 
 /** Inserts one pending deletion group of `company`, owned by Bruce's session `sessionId`. */
-export async function createDeletionGroup(company: string, sessionId: number) {
+export async function createDeletionBatch(company: string, sessionId: number) {
   const groupId = randomUUID()
   await db.table('deleted_groups').insert({
     group_id: groupId,
