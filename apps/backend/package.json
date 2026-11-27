@@ -30,6 +30,7 @@
     "#listeners/*": "./app/listeners/*.js",
     "#events/*": "./app/events/*.js",
     "#generated/*": "./.adonisjs/server/*.js",
+    "#generated_client/*": "./.adonisjs/client/*.js",
     "#middleware/*": "./app/middleware/*.js",
     "#transformers/*": "./app/transformers/*.js",
     "#validators/*": "./app/validators/*.js",

@@ -18,9 +18,7 @@ export default configApp(
     },
   },
   {
-    files: ['database/schema.ts'],
-    // Lucid owns this output's format; all semantic lint and type checks still apply.
-    rules: { 'prettier/prettier': 'off' },
+    ignores: ['database/schema.ts'],
   },
   {
     files: ['app/services/**/*.ts'],

@@ -32,11 +32,12 @@ export default class BackupProvider {
   constructor(protected application: ApplicationService) {}
 
   /** Failures and warnings log above `info`, so a quieter `LOG_LEVEL` still shows them. */
-  protected log(message: string, level: 'info' | 'warn' | 'error' = 'info'): void {
-    logger[level](message)
+  protected log(message: string, level: 'info' | 'warn' | 'error' = 'info', err?: unknown): void {
+    if (err !== undefined) logger[level]({ err }, message)
+    else logger[level](message)
   }
 
-  protected schedule(callback: () => void, delayMs: number): () => void {
+  #schedule(callback: () => void, delayMs: number): () => void {
     const timer = setInterval(callback, delayMs)
     timer.unref()
     return () => clearInterval(timer)
@@ -61,14 +62,14 @@ export default class BackupProvider {
         return
       }
       void this.runBackup().catch((error) => {
-        this.log(`backup FAILED — ${String(error)}`, 'error')
+        this.log(`backup FAILED — ${String(error)}`, 'error', error)
         const cleanupError = (error as { cleanupError?: unknown } | null)?.cleanupError
         if (cleanupError !== undefined) {
-          this.log(`backup temp cleanup failed: ${String(cleanupError)}`, 'error')
+          this.log(`backup temp cleanup failed: ${String(cleanupError)}`, 'error', cleanupError)
         }
       })
     }
-    this.#cancelSchedule = this.schedule(run, DAY_MS)
+    this.#cancelSchedule = this.#schedule(run, DAY_MS)
     run()
   }
 
@@ -87,7 +88,7 @@ export default class BackupProvider {
           this.log(`backup retention could not remove ${failure.name}: ${failure.reason}`, 'error')
         }
       } catch (error) {
-        this.log(`backup retention failed: ${String(error)}`, 'error')
+        this.log(`backup retention failed: ${String(error)}`, 'error', error)
       }
       return created
     })()
