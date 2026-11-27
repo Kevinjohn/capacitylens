@@ -166,9 +166,9 @@ and the tests, not here.
 - An unmatched URL is navigation state: a branded not-found page with a schedule link. Valid
   reset and invitation bearer paths keep their exact matcher; malformed signed-out entries stay
   behind the sign-in wall.
-- Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
-  an online backup before migrating; the backup is the rollback. There are no down migrations and
-  no checksum ledger. Startup, readiness, diagnostics and the operator commands refuse a database
+- Migrations create one table each, are forward-only and run through Lucid. `app:upgrade` writes
+  an online backup before migrating; the backup is the rollback. Production refuses `down()`, and
+  there is no checksum ledger. Startup, readiness, diagnostics and the operator commands refuse a database
   that has not recorded every migration the running build ships; nothing compares the schema itself.
 - An online SQLite backup runs at startup and on a schedule, with count-based retention of
   verified bundles on local storage. Pre-migration bundles and reset archives stay outside
@@ -346,11 +346,9 @@ removed entry retires its number.
     test environment answers with the same error bodies as production.
 20. A type used by one file stays in it. A type shared across files goes in the feature's
     `types.ts` or `app/types/`; there is no `types/` folder for every declaration.
-21. Before the first release there is one baseline migration without `down()`, and it is edited
-    in place: no installed database exists, and the alpha tags that carried it do not make it
-    released (#2345 decision D4). Released migrations are append-only. Production refuses rollbacks
-    (`disableRollbacksInProduction`). The baseline has no single `tableName` because it creates
-    every table (departure 44).
+21. Before the first release the migrations are edited in place: no installed database exists,
+    and the alpha tags that carried them do not make them released (#2345 decision D4). Released
+    migrations are append-only. Production refuses rollbacks (`disableRollbacksInProduction`).
 22. A validator reads one request source: the body for a write and the query string for a read,
     passed as `validateUsing(validator, { data })`. It never validates the merged `request.all()`,
     so a credential is never accepted from a URL.
@@ -421,7 +419,7 @@ removed entry retires its number.
 43. The database readiness check logs with the logger service, not `ctx.logger` (OPS-1): the
     framework's health check runner gives a check no request, and a check's result is serialised
     into the public probe body, which must not name migrations.
-44. The baseline migration creates every table, so it sets no `protected tableName` (DB-6).
+44. Retired. Each table has its own migration with its tableName (DB-6).
 45. **Aligning (Kevinjohn/oss-adonisjs-confirm-action-with-password#117).**
     `password_confirmations.sign_in_id` keeps the name the confirm-action package reads and writes,
     instead of `account_session_id` (MOD-5).

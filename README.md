@@ -150,7 +150,7 @@ published release updates the live site. See the
 
 Your schedule stays yours: it is one SQLite file on your server, **Export JSON** downloads the
 scheduling records at any time, and the licence lets anyone carry the code on. `app:upgrade` backs
-up the database before it runs pending migrations, which are forward-only from one baseline.
+up the database before it runs pending migrations, which are forward-only.
 
 CapacityLens is an alpha release maintained by one person. Until beta, settings and the upgrade
 path may still change between releases; the release notes say when they do.
