@@ -1,16 +1,16 @@
-import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import { useEffect, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { buildScopeQueryKey } from '@/api/queryClient';
-import { useQueryScope } from '@/api/useQueryScope';
-import { Link, useLocation } from 'react-router-dom';
-import { Check } from 'lucide-react';
-import { useCan, useRole } from '@/auth/permissionContext';
-import { useTourOperation } from '@/hooks/useTourOperation';
-import { gettingStartedApi } from '@/account/gettingStartedApi';
-import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
-import { useStore } from '@/store/useStore';
-import { Button } from './ui/button';
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access'
+import { useEffect, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { buildScopeQueryKey } from '@/api/queryClient'
+import { useQueryScope } from '@/api/useQueryScope'
+import { Link, useLocation } from 'react-router-dom'
+import { Check } from 'lucide-react'
+import { useCan, useRole } from '@/auth/permissionContext'
+import { useTourOperation } from '@/hooks/useTourOperation'
+import { gettingStartedApi } from '@/account/gettingStartedApi'
+import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted'
+import { useStore } from '@/store/useStore'
+import { Button } from './ui/button'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,8 +20,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from './ui/alert-dialog';
-import { m } from '@/i18n';
+} from './ui/alert-dialog'
+import { m } from '@/i18n'
 
 function StepRow({ done, label, to }: { done: boolean; label: string; to: string }) {
   const labelContent = done ? (
@@ -36,7 +36,7 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
     >
       {label}
     </Link>
-  );
+  )
   return (
     <li className="flex items-center gap-2 text-sm">
       {done ? (
@@ -49,33 +49,33 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
       )}
       <div className="min-w-0">{labelContent}</div>
     </li>
-  );
+  )
 }
 
 /** Shows company setup guidance based on the active company state. */
 export function GettingStarted() {
-  const companyId = useStore((state) => state.activeCompanyId);
-  const masqueradeKind = useStore((state) => state.masquerade.kind);
-  const canWrite = useCan('planning:write');
+  const companyId = useStore((state) => state.activeCompanyId)
+  const masqueradeKind = useStore((state) => state.masquerade.kind)
+  const canWrite = useCan('planning:write')
   // Company getting started is outside the read-only member projection, including its transitions.
-  if (!companyId || masqueradeKind !== 'inactive') return null;
+  if (!companyId || masqueradeKind !== 'inactive') return null
   // Readers never see the panel, so they must not read its state or receive its load notice.
-  if (!canWrite) return null;
-  return <GettingStartedForCompany key={companyId} companyId={companyId} />;
+  if (!canWrite) return null
+  return <GettingStartedForCompany key={companyId} companyId={companyId} />
 }
 
 function isChecklistOpenByDefault(pathname: string): boolean {
-  return pathname === '/';
+  return pathname === '/'
 }
 
 function GettingStartedForCompany({ companyId }: { companyId: string }) {
-  const setNotice = useStore((state) => state.setNotice);
-  const role = useRole();
-  const { pathname } = useLocation();
-  const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null);
-  const open = openChoice?.path === pathname ? openChoice.open : isChecklistOpenByDefault(pathname);
-  const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
-  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice);
+  const setNotice = useStore((state) => state.setNotice)
+  const role = useRole()
+  const { pathname } = useLocation()
+  const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null)
+  const open = openChoice?.path === pathname ? openChoice.open : isChecklistOpenByDefault(pathname)
+  const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value })
+  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice)
   const {
     dismissed,
     steps,
@@ -86,11 +86,11 @@ function GettingStartedForCompany({ companyId }: { companyId: string }) {
     setConfirmOpen,
     saving,
     dismiss,
-  } = useCompanyDismissal(companyId, pathname, setNotice);
-  const done = Object.values(steps).filter(Boolean).length;
-  const requestDismiss = () => setConfirmOpen(true);
-  if (done === 5 || !loaded || dismissed) return null;
-  const canDismiss = isOwnerOrAdmin(role);
+  } = useCompanyDismissal(companyId, pathname, setNotice)
+  const done = Object.values(steps).filter(Boolean).length
+  const requestDismiss = () => setConfirmOpen(true)
+  if (done === 5 || !loaded || dismissed) return null
+  const canDismiss = isOwnerOrAdmin(role)
 
   return (
     <div
@@ -153,8 +153,8 @@ function GettingStartedForCompany({ companyId }: { companyId: string }) {
             <AlertDialogAction
               disabled={saving}
               onClick={(event) => {
-                event.preventDefault();
-                void dismiss();
+                event.preventDefault()
+                void dismiss()
               }}
             >
               {m.gs_yes()}
@@ -163,7 +163,7 @@ function GettingStartedForCompany({ companyId }: { companyId: string }) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
+  )
 }
 
 function GettingStartedChecklist({
@@ -172,10 +172,10 @@ function GettingStartedChecklist({
   tourBusy,
   showTour,
 }: {
-  steps: GettingStartedSteps;
-  canShowTour: boolean;
-  tourBusy: boolean;
-  showTour: () => Promise<void>;
+  steps: GettingStartedSteps
+  canShowTour: boolean
+  tourBusy: boolean
+  showTour: () => Promise<void>
 }) {
   return (
     <section
@@ -195,7 +195,7 @@ function GettingStartedChecklist({
         {m.gs_show_me_around()}
       </Button>
     </section>
-  );
+  )
 }
 
 function FirstUseMilestones({ steps }: { steps: GettingStartedSteps }) {
@@ -207,7 +207,7 @@ function FirstUseMilestones({ steps }: { steps: GettingStartedSteps }) {
       <StepRow done={steps.activity} label={m.gs_step_activity()} to="/activities" />
       <StepRow done={steps.scheduled} label={m.gs_step_schedule()} to="/" />
     </ol>
-  );
+  )
 }
 
 /** Shown until the server first reports the company's milestones. */
@@ -217,20 +217,20 @@ const NO_STEPS: GettingStartedSteps = {
   project: false,
   activity: false,
   scheduled: false,
-};
+}
 
 function useCompanyDismissal(
   companyId: string,
   pathname: string,
-  setNotice: (message: string, tone: 'error') => void,
+  setNotice: (message: string, tone: 'error') => void
 ) {
   // Once dismissed, here or by the server, the company is never read again in this mount.
-  const [dismissedHere, setDismissedHere] = useState(false);
+  const [dismissedHere, setDismissedHere] = useState(false)
   // Every committed or refetched planning change advances the revision, so milestones refetch.
-  const planningRevision = useStore((state) => state.planning.revision);
-  const scope = useQueryScope();
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const planningRevision = useStore((state) => state.planning.revision)
+  const scope = useQueryScope()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
   const query = useQuery({
     queryKey: buildScopeQueryKey(scope, ['getting-started', companyId, planningRevision]),
     enabled: !dismissedHere,
@@ -239,41 +239,41 @@ function useCompanyDismissal(
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) => gettingStartedApi.read(companyId, signal),
-  });
-  const { refetch, error, errorUpdatedAt } = query;
+  })
+  const { refetch, error, errorUpdatedAt } = query
   useEffect(() => {
-    if (!error || dismissedHere) return;
-    console.error('GettingStarted: company state could not be loaded');
-    setNotice(m.gs_load_failed(), 'error');
-  }, [error, errorUpdatedAt, dismissedHere, setNotice]);
-  const serverDismissed = query.data?.dismissed === true;
+    if (!error || dismissedHere) return
+    console.error('GettingStarted: company state could not be loaded')
+    setNotice(m.gs_load_failed(), 'error')
+  }, [error, errorUpdatedAt, dismissedHere, setNotice])
+  const serverDismissed = query.data?.dismissed === true
   // Adjusting state while rendering: the next render disables the query before any re-read.
-  if (serverDismissed && !dismissedHere) setDismissedHere(true);
-  const dismissed = dismissedHere || serverDismissed;
+  if (serverDismissed && !dismissedHere) setDismissedHere(true)
+  const dismissed = dismissedHere || serverDismissed
   // Navigating re-reads the milestones; the read already in flight at mount is joined, not restarted.
   useEffect(() => {
-    if (!dismissed) void refetch({ cancelRefetch: false });
-  }, [pathname, dismissed, refetch]);
-  const steps = query.data?.steps ?? NO_STEPS;
-  const loaded = query.data !== undefined || query.isError;
-  const loadFailed = query.isError || (query.isFetched && query.data === undefined);
+    if (!dismissed) void refetch({ cancelRefetch: false })
+  }, [pathname, dismissed, refetch])
+  const steps = query.data?.steps ?? NO_STEPS
+  const loaded = query.data !== undefined || query.isError
+  const loadFailed = query.isError || (query.isFetched && query.data === undefined)
 
   const dismiss = async () => {
-    if (saving) return;
-    setSaving(true);
+    if (saving) return
+    setSaving(true)
     try {
-      await gettingStartedApi.dismiss(companyId);
-      setDismissedHere(true);
-      setConfirmOpen(false);
+      await gettingStartedApi.dismiss(companyId)
+      setDismissedHere(true)
+      setConfirmOpen(false)
     } catch {
       // A failed dismissal must remain visible so getting started is not presented as durably dismissed.
-      console.error('GettingStarted: dismissal could not be saved');
-      setNotice(m.gs_dismiss_failed(), 'error');
-      setConfirmOpen(false);
+      console.error('GettingStarted: dismissal could not be saved')
+      setNotice(m.gs_dismiss_failed(), 'error')
+      setConfirmOpen(false)
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
   return {
     dismissed,
     steps,
@@ -284,5 +284,5 @@ function useCompanyDismissal(
     setConfirmOpen,
     saving,
     dismiss,
-  };
+  }
 }

@@ -1,20 +1,20 @@
-import { Plus } from 'lucide-react';
-import { m } from '@/i18n';
-import { SelectField } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { AllocationControlColumn } from './AllocationDialogFieldLayout';
-import type { AllocationDialogState } from './useAllocationDialogState';
+import { Plus } from 'lucide-react'
+import { m } from '@/i18n'
+import { SelectField } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { Field } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { AllocationControlColumn } from './AllocationDialogFieldLayout'
+import type { AllocationDialogState } from './useAllocationDialogState'
 
-type AllocationTargetFieldsProps = AllocationDialogState['targetFields'];
+type AllocationTargetFieldsProps = AllocationDialogState['targetFields']
 
 function getNewActivityPlaceholder(
-  kind: AllocationTargetFieldsProps['activityScope']['kind'],
+  kind: AllocationTargetFieldsProps['activityScope']['kind']
 ): string {
-  if (kind === 'internal') return m.form_allocation_new_internal_activity_placeholder();
-  if (kind === 'allProjects') return m.form_allocation_new_all_projects_activity_placeholder();
-  return m.form_allocation_new_activity_placeholder();
+  if (kind === 'internal') return m.form_allocation_new_internal_activity_placeholder()
+  if (kind === 'allProjects') return m.form_allocation_new_all_projects_activity_placeholder()
+  return m.form_allocation_new_activity_placeholder()
 }
 
 function InlineActivityField({
@@ -45,8 +45,8 @@ function InlineActivityField({
           onChange={(event) => setNewActivityName(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
-              event.preventDefault();
-              void onAddActivity();
+              event.preventDefault()
+              void onAddActivity()
             }
           }}
         />
@@ -56,7 +56,7 @@ function InlineActivityField({
         </Button>
       </Field>
     </AllocationControlColumn>
-  );
+  )
 }
 
 function AssigneeFields({
@@ -98,7 +98,7 @@ function AssigneeFields({
         </AllocationControlColumn>
       )}
     </>
-  );
+  )
 }
 
 function ActivitySelectionFields({
@@ -142,7 +142,7 @@ function ActivitySelectionFields({
         layout="label-control"
       />
     </>
-  );
+  )
 }
 
 /** Selects the resource and activity attribution for an allocation. */
@@ -200,5 +200,5 @@ export function AllocationTargetFields({
         />
       )}
     </>
-  );
+  )
 }

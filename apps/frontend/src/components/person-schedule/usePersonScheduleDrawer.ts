@@ -1,13 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
-import type { RefObject } from 'react';
-import type { AppData, ID } from '@capacitylens/shared/types/entities';
-import { useStore } from '@/store/useStore';
-import { resolvePersonScheduleIdentity, usePersonSchedule } from './usePersonSchedule';
+import { useCallback, useMemo, useState } from 'react'
+import type { RefObject } from 'react'
+import type { AppData, ID } from '@capacitylens/shared/types/entities'
+import { useStore } from '@/store/useStore'
+import { resolvePersonScheduleIdentity, usePersonSchedule } from './usePersonSchedule'
 
 interface PersonScheduleSelection {
-  companyId: ID;
-  resourceId: ID;
-  opener: HTMLButtonElement;
+  companyId: ID
+  resourceId: ID
+  opener: HTMLButtonElement
 }
 
 /** Coordinates opening and closing a resource schedule drawer. */
@@ -15,37 +15,37 @@ export function usePersonScheduleDrawer({
   data,
   fallbackRef,
 }: {
-  data: AppData;
-  fallbackRef: RefObject<HTMLDivElement | null>;
+  data: AppData
+  fallbackRef: RefObject<HTMLDivElement | null>
 }) {
-  const [selection, setSelection] = useState<PersonScheduleSelection | null>(null);
-  const [open, setOpen] = useState(false);
+  const [selection, setSelection] = useState<PersonScheduleSelection | null>(null)
+  const [open, setOpen] = useState(false)
   const schedule = usePersonSchedule({
     companyId: selection?.companyId ?? null,
     resourceId: selection?.resourceId ?? null,
-  });
+  })
   const titlesByResourceId = useMemo(
     () =>
       new Map(
         data.resources.map((resource) => [
           resource.id,
           resolvePersonScheduleIdentity(resource, data),
-        ]),
+        ])
       ),
-    [data],
-  );
+    [data]
+  )
   const viewSchedule = useCallback((resourceId: ID, opener: HTMLButtonElement) => {
-    const companyId = useStore.getState().activeCompanyId;
-    if (!companyId) return;
-    setSelection({ companyId, resourceId, opener });
-    setOpen(true);
-  }, []);
+    const companyId = useStore.getState().activeCompanyId
+    if (!companyId) return
+    setSelection({ companyId, resourceId, opener })
+    setOpen(true)
+  }, [])
   const restoreFocus = useCallback(() => {
     if (selection?.opener.isConnected) {
-      selection.opener.focus({ preventScroll: true });
-      return;
+      selection.opener.focus({ preventScroll: true })
+      return
     }
-    fallbackRef.current?.focus({ preventScroll: true });
-  }, [fallbackRef, selection]);
-  return { open, schedule, setOpen, restoreFocus, titlesByResourceId, viewSchedule };
+    fallbackRef.current?.focus({ preventScroll: true })
+  }, [fallbackRef, selection])
+  return { open, schedule, setOpen, restoreFocus, titlesByResourceId, viewSchedule }
 }

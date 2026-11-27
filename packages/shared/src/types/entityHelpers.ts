@@ -4,32 +4,32 @@ import type {
   ResourceKind,
   SchedulingMode,
   ScopedEntity,
-} from './entityTypes.js';
-import { FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from './entityKeys.js';
-import type { ScopedEntityKey } from './entityKeys.js';
+} from './entityTypes.js'
+import { FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from './entityKeys.js'
+import type { ScopedEntityKey } from './entityKeys.js'
 
 /** Does an allocation entered in this mode carry an hourly load? Blocks record placement and use
  * `resolveBlockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
  * validation use this predicate for a consistent distinction. */
 export function hasHourlyLoad(mode: SchedulingMode): boolean {
-  return mode !== 'blocks';
+  return mode !== 'blocks'
 }
 
 /** Narrow a table name to the scoped-entity vocabulary in SCOPED_KEYS. */
 export function isScopedEntityKey(key: string): key is ScopedEntityKey {
-  return (SCOPED_KEYS as readonly string[]).includes(key);
+  return (SCOPED_KEYS as readonly string[]).includes(key)
 }
 
 /** View AppData’s scoped tables through their common ScopedEntity shape.
  * Returns the same object and arrays; mutating the view also mutates data. Copy before changes that must preserve the input. */
 export function buildScopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
-  return data;
+  return data
 }
 
 /** Clamp computed gesture hours into [0, MAX_HOURS_PER_DAY].
  * Ordinary allocation writes validate supplied values instead of repairing them. */
 export function clampHoursPerDay(hours: number): number {
-  return Number.isFinite(hours) ? Math.max(0, Math.min(hours, MAX_HOURS_PER_DAY)) : 0;
+  return Number.isFinite(hours) ? Math.max(0, Math.min(hours, MAX_HOURS_PER_DAY)) : 0
 }
 
 /** Clamp a resource's working hours/day to (0, MAX_HOURS_PER_DAY]. Unlike an allocation, a
@@ -37,28 +37,28 @@ export function clampHoursPerDay(hours: number): number {
  * reason the store rejects an empty working-week), so junk / <= 0 falls back to a normal 8h
  * day; a finite positive value just clamps to the 24h ceiling. */
 export function clampWorkingHoursPerDay(hours: number): number {
-  return Number.isFinite(hours) && hours > 0 ? Math.min(hours, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS;
+  return Number.isFinite(hours) && hours > 0 ? Math.min(hours, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS
 }
 
 /** True for external resources, which are excluded from capacity and utilisation. */
 export function isExternalResource(resource: { kind: ResourceKind }): boolean {
-  return resource.kind === 'external';
+  return resource.kind === 'external'
 }
 
 /** Inverse of {@link isExternalResource}, true when a resource participates in capacity/utilisation. */
 export function isCapacityTracked(resource: { kind: ResourceKind }): boolean {
-  return !isExternalResource(resource);
+  return !isExternalResource(resource)
 }
 
 /** True when a resource persists its own working-week pattern. Placeholders derive their live week
  * from the company calendar, while externals have no capacity at all. */
 export function hasPersonalWorkingPattern(resource: { kind: ResourceKind }): boolean {
-  return resource.kind === 'person';
+  return resource.kind === 'person'
 }
 
 /** The single kind check for placeholder-specific persistence and import rules. */
 export function isPlaceholderResource(resource: { kind: ResourceKind }): boolean {
-  return resource.kind === 'placeholder';
+  return resource.kind === 'placeholder'
 }
 
 // Return fresh weekday arrays so callers cannot mutate another resource’s defaults.
@@ -66,7 +66,7 @@ function buildDefaultCapacityWorkingPattern(): Pick<Resource, 'workingDays' | 'h
   return {
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
-  };
+  }
 }
 
 /** The unused silent-default capacity fields every `external` resource is created with: externals
@@ -82,7 +82,7 @@ export function buildExternalCapacityDefaults(): Pick<
     engagement: 'studio' as const,
     workingHoursPerDay: FULL_DAY_HOURS,
     ...buildDefaultCapacityWorkingPattern(),
-  };
+  }
 }
 
 /** The company-independent silent defaults for placeholder capacity fields. Placeholders derive
@@ -90,7 +90,7 @@ export function buildExternalCapacityDefaults(): Pick<
  * inert and must never copy a company's current selection. A factory gives every caller fresh
  * arrays, avoiding aliases if a consumer mutates one. */
 export function buildPlaceholderCapacityDefaults(): Pick<Resource, 'workingDays' | 'halfDays'> {
-  return buildDefaultCapacityWorkingPattern();
+  return buildDefaultCapacityWorkingPattern()
 }
 
 /** A fresh, empty dataset, the starting point before seeding. */
@@ -106,5 +106,5 @@ export function createEmptyAppData(): AppData {
     allocations: [],
     timeOff: [],
     closures: [],
-  };
+  }
 }

@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import type { TeamInvitation, TeamMember } from '@/account/teamAccessApi';
+import { describe, expect, it } from 'vitest'
+import type { TeamInvitation, TeamMember } from '@/account/teamAccessApi'
 import {
   buildMemberDirectoryPresentation,
   sortInvitationsForPresentation,
-} from './buildMemberDirectoryPresentation';
+} from './buildMemberDirectoryPresentation'
 
 function member({
   userId,
@@ -11,12 +11,12 @@ function member({
   name,
   status = 'active',
 }: {
-  userId: string;
-  role: TeamMember['role'];
-  name: string;
-  status?: TeamMember['status'];
+  userId: string
+  role: TeamMember['role']
+  name: string
+  status?: TeamMember['status']
 }) {
-  return { userId, role, name, status } as TeamMember;
+  return { userId, role, name, status } as TeamMember
 }
 
 describe('member directory presentation', () => {
@@ -41,8 +41,8 @@ describe('member directory presentation', () => {
           status: 'suspended',
         }),
       ],
-      [],
-    );
+      []
+    )
 
     expect(result.activeMembers?.map(({ userId }) => userId)).toEqual([
       'owner',
@@ -50,12 +50,12 @@ describe('member directory presentation', () => {
       'admin-b',
       'editor-z',
       'viewer',
-    ]);
+    ])
     expect(result.inactiveMembers.map(({ userId }) => userId)).toEqual([
       'inactive-owner',
       'inactive-viewer',
-    ]);
-  });
+    ])
+  })
 
   it('orders invitations by role, email, creation time, then id', () => {
     const invitations = [
@@ -87,13 +87,13 @@ describe('member directory presentation', () => {
         createdAt: '2026-01-01',
         expiresAt: '2026-12-01T00:00:00.000Z',
       },
-    ] satisfies TeamInvitation[];
+    ] satisfies TeamInvitation[]
 
     expect(sortInvitationsForPresentation(invitations).map(({ id }) => id)).toEqual([
       'admin-a',
       'admin-b',
       'editor',
       'viewer',
-    ]);
-  });
-});
+    ])
+  })
+})

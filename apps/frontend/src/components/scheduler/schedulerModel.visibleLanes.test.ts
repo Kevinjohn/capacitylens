@@ -1,38 +1,38 @@
-import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { ISODate } from '@capacitylens/shared/types/entities';
-import { buildEmptyFilters, useStore } from '@/store/useStore';
-import { makeActivity, makeAllocation, makeResource, requireValue } from '@/test/fixtures';
-import { buildColumnGeometry } from './columnGeometry';
-import { applyVisibleUtilisation, buildSchedulerModel } from './schedulerModel';
+import { act, renderHook } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import type { ISODate } from '@capacitylens/shared/types/entities'
+import { buildEmptyFilters, useStore } from '@/store/useStore'
+import { makeActivity, makeAllocation, makeResource, requireValue } from '@/test/fixtures'
+import { buildColumnGeometry } from './columnGeometry'
+import { applyVisibleUtilisation, buildSchedulerModel } from './schedulerModel'
 import {
   isNextColumnPartiallyExposed,
   usePartiallyExposedNextColumn,
-} from './useSchedulerGridModel';
+} from './useSchedulerGridModel'
 
-type ProjectWindowOptions = { partiallyExposesNextColumn: boolean };
+type ProjectWindowOptions = { partiallyExposesNextColumn: boolean }
 describe('visible-window lane projection', () => {
   it.each([false, true])(
     'derives partial next-column exposure for aligned and offset scroll positions (minimise weekends: %s)',
     (minimiseWeekends) => {
-      const days = listDaysISO('2026-06-01', '2026-06-30');
+      const days = listDaysISO('2026-06-01', '2026-06-30')
       const geometry = buildColumnGeometry(days, 48, {
         minimiseWeekends,
         weekendWidth: 22,
         targetWeekWidth: minimiseWeekends ? 289 : 336,
-      });
-      const timelineWidth = 256 + geometry.x(7);
+      })
+      const timelineWidth = 256 + geometry.x(7)
 
       expect(
-        isNextColumnPartiallyExposed({ geometry, days, scrollLeft: 0, timelineWidth, zoom: 1 }),
-      ).toBe(false);
+        isNextColumnPartiallyExposed({ geometry, days, scrollLeft: 0, timelineWidth, zoom: 1 })
+      ).toBe(false)
       expect(
-        isNextColumnPartiallyExposed({ geometry, days, scrollLeft: 1, timelineWidth, zoom: 1 }),
-      ).toBe(true);
-    },
-  );
+        isNextColumnPartiallyExposed({ geometry, days, scrollLeft: 1, timelineWidth, zoom: 1 })
+      ).toBe(true)
+    }
+  )
 
   function projectWindow({ partiallyExposesNextColumn: exposesNextColumn }: ProjectWindowOptions) {
     const data = {
@@ -57,8 +57,8 @@ describe('visible-window lane projection', () => {
           endDate: '2026-06-10',
         }),
       ],
-    };
-    const timelineDays = listDaysISO('2026-05-01', '2026-06-30');
+    }
+    const timelineDays = listDaysISO('2026-05-01', '2026-06-30')
     const base = buildSchedulerModel({
       data,
       geom: buildColumnGeometry(timelineDays, 48, { minimiseWeekends: false, weekendWidth: 22 }),
@@ -67,7 +67,7 @@ describe('visible-window lane projection', () => {
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: false, placeholdersEnabled: true, externalEnabled: true },
-    });
+    })
 
     return requireValue(
       applyVisibleUtilisation({
@@ -79,27 +79,27 @@ describe('visible-window lane projection', () => {
       })
         .flatMap((group) => group.rows)
         .find((candidate) => candidate.resource.id === 'r1'),
-      'scheduler row',
-    );
+      'scheduler row'
+    )
   }
 
   it('packs the partially exposed next column with the visible window', () => {
-    const row = projectWindow({ partiallyExposesNextColumn: true });
+    const row = projectWindow({ partiallyExposesNextColumn: true })
     expect(Object.fromEntries(row.bars.map((bar) => [bar.allocation.id, bar.top]))).toEqual({
       'visible-allocation': 20,
       'partially-exposed-allocation': 62,
-    });
-    expect(row.rowHeight).toBe(108);
-  });
+    })
+    expect(row.rowHeight).toBe(108)
+  })
 
   it('does not pack a fully off-screen next column', () => {
-    const row = projectWindow({ partiallyExposesNextColumn: false });
+    const row = projectWindow({ partiallyExposesNextColumn: false })
     expect(Object.fromEntries(row.bars.map((bar) => [bar.allocation.id, bar.top]))).toEqual({
       'visible-allocation': 20,
       'partially-exposed-allocation': 20,
-    });
-    expect(row.rowHeight).toBe(66);
-  });
+    })
+    expect(row.rowHeight).toBe(66)
+  })
 
   it('does not retain row height from an off-screen overlap', () => {
     const data = {
@@ -140,8 +140,8 @@ describe('visible-window lane projection', () => {
           endDate: '2026-09-23',
         }),
       ],
-    };
-    const timelineDays = listDaysISO('2026-08-17', '2026-10-31');
+    }
+    const timelineDays = listDaysISO('2026-08-17', '2026-10-31')
     const base = buildSchedulerModel({
       data,
       geom: buildColumnGeometry(timelineDays, 48, { minimiseWeekends: false, weekendWidth: 22 }),
@@ -150,7 +150,7 @@ describe('visible-window lane projection', () => {
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: false, placeholdersEnabled: true, externalEnabled: true },
-    });
+    })
     const windowRow = (start: ISODate, end: ISODate) =>
       requireValue(
         applyVisibleUtilisation({
@@ -161,25 +161,25 @@ describe('visible-window lane projection', () => {
         })
           .flatMap((group) => group.rows)
           .find((row) => row.resource.id === 'r1'),
-        'scheduler row',
-      );
+        'scheduler row'
+      )
 
-    const septemberRow = windowRow('2026-09-14', '2026-09-27');
-    expect(septemberRow.rowHeight).toBe(66);
-    expect(new Set(septemberRow.bars.map((bar) => bar.top))).toEqual(new Set([20]));
+    const septemberRow = windowRow('2026-09-14', '2026-09-27')
+    expect(septemberRow.rowHeight).toBe(66)
+    expect(new Set(septemberRow.bars.map((bar) => bar.top))).toEqual(new Set([20]))
 
-    const augustRow = windowRow('2026-08-17', '2026-08-30');
-    expect(augustRow.rowHeight).toBe(108);
-    expect(new Set(augustRow.bars.slice(0, 2).map((bar) => bar.top)).size).toBe(2);
-  });
-});
+    const augustRow = windowRow('2026-08-17', '2026-08-30')
+    expect(augustRow.rowHeight).toBe(108)
+    expect(new Set(augustRow.bars.slice(0, 2).map((bar) => bar.top)).size).toBe(2)
+  })
+})
 
 describe('partial exposure during an allocation drag', () => {
   function renderExposure() {
-    const days = listDaysISO('2026-06-01', '2026-06-30');
-    const geometry = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
-    const element = document.createElement('div');
-    const scrollRef = { current: element };
+    const days = listDaysISO('2026-06-01', '2026-06-30')
+    const geometry = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 })
+    const element = document.createElement('div')
+    const scrollRef = { current: element }
     const viewport = {
       days,
       geom: geometry,
@@ -188,35 +188,35 @@ describe('partial exposure during an allocation drag', () => {
       leftEdgeIdx: 0,
       start: days[0] as ISODate,
       end: days[6] as ISODate,
-    };
-    const view = renderHook(() => usePartiallyExposedNextColumn(viewport, 1));
+    }
+    const view = renderHook(() => usePartiallyExposedNextColumn(viewport, 1))
     const scrollTo = (scrollLeft: number) =>
       act(() => {
-        element.scrollLeft = scrollLeft;
-        element.dispatchEvent(new Event('scroll'));
-      });
-    return { ...view, scrollTo };
+        element.scrollLeft = scrollLeft
+        element.dispatchEvent(new Event('scroll'))
+      })
+    return { ...view, scrollTo }
   }
 
   it('holds the flag while an allocation is dragged and resyncs on drop', () => {
-    const { result, scrollTo, unmount } = renderExposure();
+    const { result, scrollTo, unmount } = renderExposure()
     try {
-      expect(result.current).toBe(false);
+      expect(result.current).toBe(false)
 
-      scrollTo(1);
-      expect(result.current).toBe(true);
-      scrollTo(0);
-      expect(result.current).toBe(false);
+      scrollTo(1)
+      expect(result.current).toBe(true)
+      scrollTo(0)
+      expect(result.current).toBe(false)
 
-      act(() => useStore.setState({ draggingAllocationId: 'a1' }));
-      scrollTo(1);
-      expect(result.current).toBe(false);
+      act(() => useStore.setState({ draggingAllocationId: 'a1' }))
+      scrollTo(1)
+      expect(result.current).toBe(false)
 
-      act(() => useStore.setState({ draggingAllocationId: null }));
-      expect(result.current).toBe(true);
+      act(() => useStore.setState({ draggingAllocationId: null }))
+      expect(result.current).toBe(true)
     } finally {
-      unmount();
-      useStore.setState({ draggingAllocationId: null });
+      unmount()
+      useStore.setState({ draggingAllocationId: null })
     }
-  });
-});
+  })
+})

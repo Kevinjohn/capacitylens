@@ -1,44 +1,44 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type userEvent from '@testing-library/user-event';
-import { expect, vi } from 'vitest';
-import type { Mock } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthContext } from '@/auth/authContext';
-import { PermissionContext } from '@/auth/permissionContext';
-import type { Role } from '@capacitylens/shared/domain/access';
-import { permissionValue } from '@/test/permissionGrants';
-import type { AuthContextValue } from '@/auth/authContext';
-import { DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
-import { readFetchRequest } from '@/test/fetchRequests';
-import type { FetchRequest } from '@/test/fetchRequests';
-import { useStore } from '@/store/useStore';
-import { m } from '@/i18n';
-import { MembersSection } from './MembersSection';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import type userEvent from '@testing-library/user-event'
+import { expect, vi } from 'vitest'
+import type { Mock } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthContext } from '@/auth/authContext'
+import { PermissionContext } from '@/auth/permissionContext'
+import type { Role } from '@capacitylens/shared/domain/access'
+import { permissionValue } from '@/test/permissionGrants'
+import type { AuthContextValue } from '@/auth/authContext'
+import { DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures'
+import { readFetchRequest } from '@/test/fetchRequests'
+import type { FetchRequest } from '@/test/fetchRequests'
+import { useStore } from '@/store/useStore'
+import { m } from '@/i18n'
+import { MembersSection } from './MembersSection'
 
 interface ConfirmMemberActionInput {
-  user: User;
-  row: HTMLElement;
-  testId: string;
-  confirmationName: RegExp | string;
+  user: User
+  row: HTMLElement
+  testId: string
+  confirmationName: RegExp | string
 }
 
 /** Unnormalized member response used by access tests. */
 export interface RawMember {
-  userId: string;
-  role: 'owner' | 'admin' | 'editor' | 'viewer';
-  status?: string;
-  manage?: boolean;
-  createdAt?: string;
-  signInConfirmed?: boolean | null;
-  name?: string | null;
-  email?: string | null;
-  isSelf?: boolean;
-  resourceLink?: { resourceId: string; revision: string; resourceName?: string | null } | null;
+  userId: string
+  role: 'owner' | 'admin' | 'editor' | 'viewer'
+  status?: string
+  manage?: boolean
+  createdAt?: string
+  signInConfirmed?: boolean | null
+  name?: string | null
+  email?: string | null
+  isSelf?: boolean
+  resourceLink?: { resourceId: string; revision: string; resourceName?: string | null } | null
 }
 
 /** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. `manage` defaults to the server's answer for an Owner or Admin reader: anyone but themselves and the Owner. */
 export function makeRawMember(
-  overrides: Partial<RawMember> & { userId: string; role: RawMember['role'] },
+  overrides: Partial<RawMember> & { userId: string; role: RawMember['role'] }
 ): RawMember {
   return {
     status: 'active',
@@ -48,36 +48,36 @@ export function makeRawMember(
     isSelf: false,
     manage: overrides.isSelf !== true && overrides.role !== 'owner',
     ...overrides,
-  };
+  }
 }
 
 /** Answers one normalised request, given its encoded path and query, with a fresh Response. */
-export type ApiHandler = (path: string, request: FetchRequest) => Response | Promise<Response>;
+export type ApiHandler = (path: string, request: FetchRequest) => Response | Promise<Response>
 
 /** A fetch fake whose `requests` lists every call in normalised form, in call order. */
 export type ApiFetchMock = Mock<
   (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 > & {
-  requests: FetchRequest[];
-};
+  requests: FetchRequest[]
+}
 
 /** Builds a fetch fake that normalises each call before handing it to `handler`. */
 export function fakeApiFetch(handler: ApiHandler): ApiFetchMock {
-  const requests: FetchRequest[] = [];
+  const requests: FetchRequest[] = []
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = await readFetchRequest(input, init);
-    requests.push(request);
-    return handler(request.path, request);
-  });
-  return Object.assign(mock, { requests });
+    const request = await readFetchRequest(input, init)
+    requests.push(request)
+    return handler(request.path, request)
+  })
+  return Object.assign(mock, { requests })
 }
 
-type RouteHandler = ApiHandler;
+type RouteHandler = ApiHandler
 
 /** Builds a request mock with per-method/path-suffix overrides. Matching overrides replace defaults; an empty suffix matches all paths for that method. */
 export function mockApi(
   members: RawMember[] | { status: number } = [],
-  overrides: Record<string, RouteHandler> = {},
+  overrides: Record<string, RouteHandler> = {}
 ): ApiFetchMock {
   const defaults: Record<string, RouteHandler> = {
     'GET /members': () =>
@@ -90,7 +90,7 @@ export function mockApi(
               resourceCandidates: useStore
                 .getState()
                 .data.resources.filter(
-                  (resource) => resource.kind === 'person' && !resource.archivedAt,
+                  (resource) => resource.kind === 'person' && !resource.archivedAt
                 )
                 .map((resource) => ({
                   resourceId: resource.id,
@@ -100,36 +100,36 @@ export function mockApi(
           }),
     'GET /invitations': () => jsonResponse({ data: { invites: [] } }),
     'GET /api/v1/companies': () => {
-      const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined;
+      const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined
       return jsonResponse({
         data: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: self?.role ?? 'owner' }],
-      });
+      })
     },
-  };
-  const routes = { ...defaults, ...overrides };
+  }
+  const routes = { ...defaults, ...overrides }
   return fakeApiFetch((url, request) => {
     for (const [key, handler] of Object.entries(routes)) {
-      const space = key.indexOf(' ');
+      const space = key.indexOf(' ')
       if (request.method === key.slice(0, space) && url.endsWith(key.slice(space + 1))) {
-        return handler(url, request);
+        return handler(url, request)
       }
     }
 
-    return new Response(null, { status: 204 });
-  });
+    return new Response(null, { status: 204 })
+  })
 }
 
 /** Provides a stateful sign-in tracking response for team access tests. */
 export function makeSignInTrackingApi(): ApiFetchMock {
-  let trackingEnabled = false;
+  let trackingEnabled = false
   const members: RawMember[] = [
     { userId: 'me', role: 'owner', isSelf: true },
     { userId: 'ed', name: 'Clark Kent', email: 'clark@example.test', role: 'editor' },
-  ];
+  ]
   return fakeApiFetch((endpoint, request) => {
     if (endpoint.endsWith('/member-sign-in-tracking') && request.method === 'PUT') {
-      trackingEnabled = (JSON.parse(String(request.body)) as { enabled: boolean }).enabled;
-      return jsonResponse({ data: { enabled: trackingEnabled } });
+      trackingEnabled = (JSON.parse(String(request.body)) as { enabled: boolean }).enabled
+      return jsonResponse({ data: { enabled: trackingEnabled } })
     }
     if (endpoint.endsWith('/members') && request.method === 'GET') {
       // Compute signInConfirmed from the live tracking setting so the response tests opt-in changes rather than a fixed per-member value.
@@ -147,11 +147,11 @@ export function makeSignInTrackingApi(): ApiFetchMock {
             signInConfirmed: trackingEnabled ? member.isSelf === true : null,
           })),
         },
-      });
+      })
     }
-    if (endpoint.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } });
-    return new Response(null, { status: 204 });
-  });
+    if (endpoint.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } })
+    return new Response(null, { status: 204 })
+  })
 }
 
 /** Creates an auth context value for member section tests. */
@@ -160,11 +160,11 @@ export const makeAuthValue = (over: Partial<AuthContextValue> = {}): AuthContext
   refreshAuth: async () => {},
   signOut: async () => {},
   ...over,
-});
+})
 
 /** Renders the member section with the supplied authentication context and the caller's role grant. */
 export function renderSection(authOverrides: Partial<AuthContextValue> = {}, role: Role = 'owner') {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={makeAuthValue(authOverrides)}>
@@ -172,64 +172,64 @@ export function renderSection(authOverrides: Partial<AuthContextValue> = {}, rol
           <MembersSection />
         </PermissionContext.Provider>
       </AuthContext.Provider>
-    </QueryClientProvider>,
-  );
+    </QueryClientProvider>
+  )
 }
 
 /** Represents the user-event interface used by the member section tests. */
-export type User = ReturnType<typeof userEvent.setup>;
+export type User = ReturnType<typeof userEvent.setup>
 
 /** Returns a defined value or throws with the supplied test context. */
 export function requireValue<T>(value: T | undefined, context: string): T {
-  if (value === undefined) throw new Error(`Expected ${context}`);
-  return value;
+  if (value === undefined) throw new Error(`Expected ${context}`)
+  return value
 }
 
 /** Returns a callback or throws with the supplied test context. */
 export function requireCallback(value: (() => void) | null, context: string): () => void {
-  if (value === null) throw new Error(`Expected ${context}`);
-  return value;
+  if (value === null) throw new Error(`Expected ${context}`)
+  return value
 }
 
 /** Opens a member's action menu. Portal items are queried from `screen`. */
 export async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
-  await user.click(within(row).getByTestId('member-menu'));
-  await screen.findByText(m.settings_member_settings_heading());
+  await user.click(within(row).getByTestId('member-menu'))
+  await screen.findByText(m.settings_member_settings_heading())
 }
 
 /** Suspended rows live behind a collapsed disclosure, open it before reaching
  * for one. Returns once the second table is on screen. */
 export async function openInactiveGroup(user: User): Promise<HTMLElement> {
-  await user.click(await screen.findByTestId('members-inactive-toggle'));
-  return screen.findByTestId('members-inactive-table');
+  await user.click(await screen.findByTestId('members-inactive-toggle'))
+  return screen.findByTestId('members-inactive-table')
 }
 
 /** Open a row's gear menu and choose one action by test id. */
 export async function chooseMemberAction(
   user: User,
   row: HTMLElement,
-  testId: string,
+  testId: string
 ): Promise<void> {
-  await openMemberMenu(user, row);
-  await user.click(screen.getByTestId(testId));
+  await openMemberMenu(user, row)
+  await user.click(screen.getByTestId(testId))
 }
 
 /** Selects a role in the edit dialog and saves the draft. No write occurs before Save. */
 export async function saveRoleVia(user: User, row: HTMLElement, option: string): Promise<void> {
-  await user.click(within(row).getByTestId('member-edit'));
-  const dialog = await screen.findByRole('dialog');
-  fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'ArrowDown' });
-  fireEvent.click(screen.getByRole('option', { name: option }));
-  await user.click(within(dialog).getByTestId('member-role-save'));
+  await user.click(within(row).getByTestId('member-edit'))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'ArrowDown' })
+  fireEvent.click(screen.getByRole('option', { name: option }))
+  await user.click(within(dialog).getByTestId('member-role-save'))
 }
 
 /** Finds a rendered member row whose email matches the supplied pattern. */
 export async function waitForMemberRow(email: RegExp): Promise<HTMLElement> {
-  const rows = await screen.findAllByTestId('member-row');
+  const rows = await screen.findAllByTestId('member-row')
   return requireValue(
     rows.find((candidate) => within(candidate).queryByText(email)),
-    `a member row matching ${email}`,
-  );
+    `a member row matching ${email}`
+  )
 }
 
 /** Confirms the selected member action in the alert dialog. */
@@ -239,10 +239,10 @@ export async function confirmMemberAction({
   testId,
   confirmationName,
 }: ConfirmMemberActionInput): Promise<void> {
-  await chooseMemberAction(user, row, testId);
+  await chooseMemberAction(user, row, testId)
   await user.click(
-    within(screen.getByRole('alertdialog')).getByRole('button', { name: confirmationName }),
-  );
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: confirmationName })
+  )
 }
 
 /** Test members representing an owner and editor with distinct permissions. */
@@ -250,13 +250,13 @@ export const ownerAndEditor: RawMember[] = [
   { userId: 'owner', role: 'owner' },
   { userId: 'me', role: 'admin', isSelf: true },
   { userId: 'ed', role: 'editor' },
-];
+]
 
 /** Test members for an owner who is the only owner, plus an editor. */
 export const soleOwnerAndEditor: RawMember[] = [
   { userId: 'me', role: 'owner', isSelf: true },
   { userId: 'ed', role: 'editor' },
-];
+]
 
 /** Test members with names that exercise accessible row labels. */
 export const accessibleNameMembers: RawMember[] = [
@@ -273,19 +273,19 @@ export const accessibleNameMembers: RawMember[] = [
     email: 'bob@example.test',
     role: 'viewer',
   },
-];
+]
 
 /** Expected accessible labels for the test members. */
 export const accessibleMemberNames = [
   ['Barbara Gordon', 'Barbara Gordon (alice@example.test)'],
   ['James Gordon', 'James Gordon (bob@example.test)'],
-] as const;
+] as const
 
 interface AccessibleMemberControlsInput {
-  user: User;
-  rows: HTMLElement[];
-  name: string;
-  member: string;
+  user: User
+  rows: HTMLElement[]
+  name: string
+  member: string
 }
 
 /** Checks that each member row exposes its expected accessible controls. */
@@ -295,19 +295,19 @@ export async function expectAccessibleMemberControls({
   name,
   member,
 }: AccessibleMemberControlsInput): Promise<void> {
-  expect(screen.getByRole('button', { name: `Edit ${member}` })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: `More actions for ${member}` })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: `Edit ${member}` })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: `More actions for ${member}` })).toBeInTheDocument()
 
   const row = requireValue(
     rows.find((candidate) => within(candidate).queryByText(name)),
-    `the ${name} row in the members table`,
-  );
-  await openMemberMenu(user, row);
-  expect(screen.getByRole('button', { name: `Suspend ${member}` })).toBeInTheDocument();
-  await user.keyboard('{Escape}');
+    `the ${name} row in the members table`
+  )
+  await openMemberMenu(user, row)
+  expect(screen.getByRole('button', { name: `Suspend ${member}` })).toBeInTheDocument()
+  await user.keyboard('{Escape}')
 }
 
 /** Waits until the store notice matches the supplied message. */
 export async function expectNotice(message: RegExp): Promise<void> {
-  await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message));
+  await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message))
 }

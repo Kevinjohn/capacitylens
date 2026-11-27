@@ -1,6 +1,6 @@
-import type { ISODate } from '@capacitylens/shared/types/entities';
-import { buildEmptyFilters } from './types';
-import type { SchedulerUI } from './types';
+import type { ISODate } from '@capacitylens/shared/types/entities'
+import { buildEmptyFilters } from './types'
+import type { SchedulerUI } from './types'
 
 // Company transitions must clear session-owned state so the leaving company cannot
 // leak into the next view. Shared reset fields keep each boundary complete.
@@ -12,13 +12,13 @@ export const buildClearedSession = () => ({
   dirtyForm: false,
   dirtyFormSources: new Set<symbol>(),
   draggingAllocationId: null,
-});
+})
 
 /** The scheduler view blanked for the incoming company. Pass an `anchor` ({@link readCurrentWeekAnchor}) to also
  * open on that company's current week; omit it where the week in view must be preserved. */
 export const resetSchedulerView = (
   schedulerUi: SchedulerUI,
-  anchor?: { originDate: ISODate; focusDate: ISODate },
+  anchor?: { originDate: ISODate; focusDate: ISODate }
 ): SchedulerUI => ({
   ...schedulerUi,
   filters: buildEmptyFilters(),
@@ -26,4 +26,4 @@ export const resetSchedulerView = (
   selectedAllocationId: null,
   scrollToResource: null,
   ...anchor,
-});
+})

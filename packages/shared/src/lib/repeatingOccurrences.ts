@@ -1,34 +1,34 @@
-import { addDaysISO, countDaysInclusive } from './dateMath.js';
-import { hasNoEffectiveWorkingDays } from './effectiveWorkingWeek.js';
-import type { EffectiveWorkingWeek } from './effectiveWorkingWeek.js';
-import { isValidISODate } from './isoDates.js';
+import { addDaysISO, countDaysInclusive } from './dateMath.js'
+import { hasNoEffectiveWorkingDays } from './effectiveWorkingWeek.js'
+import type { EffectiveWorkingWeek } from './effectiveWorkingWeek.js'
+import { isValidISODate } from './isoDates.js'
 import {
   generateRepeatingStartDates,
   RepeatingDateError,
   TIME_OFF_REPEAT_RULES,
-} from './repeatingDates.js';
-import type { RepeatPattern } from './repeatingDates.js';
-import { endDateForSpan, calculateMaxSpanDays, MAX_SPAN_DAYS } from './schedulingDays.js';
-import { isExternalResource } from '../types/entities.js';
-import type { ISODate, Resource, SchedulingMode } from '../types/entities.js';
+} from './repeatingDates.js'
+import type { RepeatPattern } from './repeatingDates.js'
+import { endDateForSpan, calculateMaxSpanDays, MAX_SPAN_DAYS } from './schedulingDays.js'
+import { isExternalResource } from '../types/entities.js'
+import type { ISODate, Resource, SchedulingMode } from '../types/entities.js'
 
 // The dated occurrences a repeat produces from its first occurrence, shared by the form preview and
 // the save.
 
 /** The allocation fields a repeat expansion reads; every other field is copied unchanged. */
 interface RepeatingAllocation {
-  resourceId: string;
-  startDate: ISODate;
-  endDate: ISODate;
-  ignoreWorkingDays?: boolean | null;
+  resourceId: string
+  startDate: ISODate
+  endDate: ISODate
+  ignoreWorkingDays?: boolean | null
 }
 
 /** Scheduling inputs that a persisted allocation draft does not carry. */
 export interface RepeatExpansionInput {
-  schedulingMode: SchedulingMode;
-  daysOver: number;
-  resource: Pick<Resource, 'id' | 'kind'>;
-  effectiveWeek: EffectiveWorkingWeek;
+  schedulingMode: SchedulingMode
+  daysOver: number
+  resource: Pick<Resource, 'id' | 'kind'>
+  effectiveWeek: EffectiveWorkingWeek
 }
 
 /**
@@ -43,69 +43,69 @@ export interface RepeatExpansionInput {
 export function buildRepeatedAllocationDrafts<T extends RepeatingAllocation>(
   baseDraft: T,
   startDates: readonly ISODate[],
-  context: RepeatExpansionInput,
+  context: RepeatExpansionInput
 ): T[] {
-  assertRepeatExpansion(baseDraft, startDates, context);
-  const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
+  assertRepeatExpansion(baseDraft, startDates, context)
+  const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate)
   const usesCalendarSpan =
-    isExternalResource(context.resource) || context.schedulingMode === 'hourly';
+    isExternalResource(context.resource) || context.schedulingMode === 'hourly'
   const spanOptions = {
     ...(context.effectiveWeek.kind === 'days' ? { workingDays: context.effectiveWeek.days } : {}),
     ...(baseDraft.ignoreWorkingDays !== undefined
       ? { ignoreWorkingDays: baseDraft.ignoreWorkingDays }
       : {}),
-  };
-  assertProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan });
+  }
+  assertProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan })
 
   return startDates.map((generatedStart, index) => {
-    if (index === 0) return baseDraft;
+    if (index === 0) return baseDraft
     const projectedEnd = usesCalendarSpan
       ? addDaysISO(generatedStart, calendarSpan - 1)
-      : endDateForSpan(generatedStart, context.daysOver, spanOptions);
-    return { ...baseDraft, startDate: generatedStart, endDate: projectedEnd };
-  });
+      : endDateForSpan(generatedStart, context.daysOver, spanOptions)
+    return { ...baseDraft, startDate: generatedStart, endDate: projectedEnd }
+  })
 }
 
 function assertRepeatExpansion(
   baseDraft: RepeatingAllocation,
   startDates: readonly ISODate[],
-  context: RepeatExpansionInput,
+  context: RepeatExpansionInput
 ): void {
   if (context.resource.id !== baseDraft.resourceId) {
-    throw new Error('The repeat expansion resource does not match the allocation resource.');
+    throw new Error('The repeat expansion resource does not match the allocation resource.')
   }
   if (startDates.length === 0 || startDates[0] !== baseDraft.startDate) {
-    throw new Error('Repeat expansion must begin with the validated allocation draft.');
+    throw new Error('Repeat expansion must begin with the validated allocation draft.')
   }
   const usesCalendarSpan =
-    isExternalResource(context.resource) || context.schedulingMode === 'hourly';
+    isExternalResource(context.resource) || context.schedulingMode === 'hourly'
   if (!usesCalendarSpan && !isValidWorkingSpan(context.daysOver)) {
     throw new RangeError(
-      `Repeat expansion daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`,
-    );
+      `Repeat expansion daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`
+    )
   }
 
-  const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
+  const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate)
   if (calendarSpan < 1) {
-    throw new RangeError('Repeat expansion requires a valid inclusive date range.');
+    throw new RangeError('Repeat expansion requires a valid inclusive date range.')
   }
   if (
     !usesCalendarSpan &&
     hasNoEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWorkingDays ?? undefined)
   ) {
-    throw new RangeError('Repeat expansion requires at least one effective working day.');
+    throw new RangeError('Repeat expansion requires at least one effective working day.')
   }
 }
 
 function isValidWorkingSpan(daysOver: number): boolean {
-  return Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
+  return Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS
 }
 
 interface ValidateProjectedSpansInput {
-  startDates: readonly ISODate[];
-  daysOver: number;
-  spanOptions: Parameters<typeof calculateMaxSpanDays>[1];
-  usesCalendarSpan: boolean;
+  startDates: readonly ISODate[]
+  daysOver: number
+  spanOptions: Parameters<typeof calculateMaxSpanDays>[1]
+  usesCalendarSpan: boolean
 }
 
 function assertProjectedSpans({
@@ -114,10 +114,10 @@ function assertProjectedSpans({
   spanOptions,
   usesCalendarSpan,
 }: ValidateProjectedSpansInput): void {
-  if (usesCalendarSpan) return;
+  if (usesCalendarSpan) return
   for (const generatedStart of startDates) {
     if (daysOver > calculateMaxSpanDays(generatedStart, spanOptions)) {
-      throw new RangeError('A repeated working span extends beyond the supported date range.');
+      throw new RangeError('A repeated working span extends beyond the supported date range.')
     }
   }
 }
@@ -126,38 +126,38 @@ function assertProjectedSpans({
 export function buildRepeatedTimeOffDrafts<T extends { startDate: ISODate; endDate: ISODate }>(
   baseDraft: T,
   repeatUntil: ISODate,
-  pattern: RepeatPattern,
+  pattern: RepeatPattern
 ): { repeatUntil: ISODate; drafts: T[] } {
   if (!isValidISODate(baseDraft.startDate) || !isValidISODate(baseDraft.endDate)) {
-    throw new RepeatingDateError('invalid-date', 'Time off requires valid ISO dates.');
+    throw new RepeatingDateError('invalid-date', 'Time off requires valid ISO dates.')
   }
-  const duration = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
+  const duration = countDaysInclusive(baseDraft.startDate, baseDraft.endDate)
   if (!Number.isSafeInteger(duration) || duration < 1) {
     throw new RepeatingDateError(
       'invalid-date',
-      'Repeat expansion requires a valid inclusive date range.',
-    );
+      'Repeat expansion requires a valid inclusive date range.'
+    )
   }
   const generated = generateRepeatingStartDates(
     baseDraft.startDate,
     repeatUntil,
     pattern,
-    TIME_OFF_REPEAT_RULES,
-  );
+    TIME_OFF_REPEAT_RULES
+  )
   const drafts = generated.startDates.map((startDate, index) => {
-    if (index === 0) return baseDraft;
+    if (index === 0) return baseDraft
     try {
-      return { ...baseDraft, startDate, endDate: addDaysISO(startDate, duration - 1) };
+      return { ...baseDraft, startDate, endDate: addDaysISO(startDate, duration - 1) }
     } catch (error) {
       // Translate date overflow into a field-domain failure while allowing unrelated programming errors to propagate.
       if (error instanceof RangeError) {
         throw new RepeatingDateError(
           'invalid-date',
-          'Repeated time off extends beyond the supported ISO date range.',
-        );
+          'Repeated time off extends beyond the supported ISO date range.'
+        )
       }
-      throw error;
+      throw error
     }
-  });
-  return { repeatUntil: generated.repeatUntil, drafts };
+  })
+  return { repeatUntil: generated.repeatUntil, drafts }
 }

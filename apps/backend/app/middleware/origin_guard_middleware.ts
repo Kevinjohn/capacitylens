@@ -6,12 +6,12 @@
 // list used for proxy trust. This middleware runs straight after the security headers
 // (`start/kernel.ts`), so a refusal still carries them.
 
-import { createOriginGuard } from '@kevinjohn/adonisjs-origin-guard';
-import { publicOrigin } from '#config/public_origin';
-import { corsOrigins } from '#config/cors';
+import { createOriginGuard } from '@kevinjohn/adonisjs-origin-guard'
+import { publicOrigin } from '#config/public_origin'
+import { corsOrigins } from '#config/cors'
 
 /** Refuses unsafe requests from any origin other than the public URL's or a configured CORS origin. */
 export default createOriginGuard({
   publicOrigin: publicOrigin.origin,
   allowedOrigins: corsOrigins,
-});
+})

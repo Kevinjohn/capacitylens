@@ -1,23 +1,23 @@
-import { describe, expect, it } from 'vitest';
-import type { DomainError } from './errors.js';
-import type { Resource, Weekday } from '../types/entities.js';
-import { resolveEffectiveWorkingWeek } from '../lib/effectiveWorkingWeek.js';
-import { makeResource } from '../lib/capacity/capacityTestKit.js';
-import { assertAllocationPlacement, reconcileReassignedHours } from './placement.js';
-import type { ReconcileReassignedHoursInput } from './placement.js';
+import { describe, expect, it } from 'vitest'
+import type { DomainError } from './errors.js'
+import type { Resource, Weekday } from '../types/entities.js'
+import { resolveEffectiveWorkingWeek } from '../lib/effectiveWorkingWeek.js'
+import { makeResource } from '../lib/capacity/capacityTestKit.js'
+import { assertAllocationPlacement, reconcileReassignedHours } from './placement.js'
+import type { ReconcileReassignedHoursInput } from './placement.js'
 
 const resource = (overrides: Record<string, unknown> = {}) => ({
   kind: 'person' as const,
   workingDays: [1, 2, 3, 4, 5] as Weekday[],
   ...overrides,
-});
+})
 
 const allocation = (overrides: Record<string, unknown> = {}) => ({
   resourceId: 'r1',
   startDate: '2026-06-15',
   endDate: '2026-06-16',
   ...overrides,
-});
+})
 
 const changedPlacements = [
   {
@@ -48,7 +48,7 @@ const changedPlacements = [
     resource: resource({ firstAvailableDate: '2026-06-15' }),
     code: 'allocation_before_resource_availability',
   },
-] as const;
+] as const
 
 describe('assertAllocationPlacement', () => {
   it("skips availability checks when an existing allocation's placement is unchanged", () => {
@@ -58,9 +58,9 @@ describe('assertAllocationPlacement', () => {
         existing: allocation(),
         resource: resource({ firstAvailableDate: '2026-06-20' }),
         companyWorkingDays: [1, 2, 3, 4, 5],
-      }),
-    ).not.toThrow();
-  });
+      })
+    ).not.toThrow()
+  })
 
   it('checks availability for a new placement and preserves the domain error', () => {
     expect(() =>
@@ -68,14 +68,14 @@ describe('assertAllocationPlacement', () => {
         allocation: allocation(),
         resource: resource({ firstAvailableDate: '2026-06-20' }),
         companyWorkingDays: [1, 2, 3, 4, 5],
-      }),
+      })
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
         code: 'allocation_before_resource_availability',
-      }),
-    );
-  });
-});
+      })
+    )
+  })
+})
 
 describe('changed allocation placement', () => {
   it.each(changedPlacements)(
@@ -87,24 +87,24 @@ describe('changed allocation placement', () => {
           existing,
           resource: subject,
           companyWorkingDays: [1, 2, 3, 4, 5],
-        }),
+        })
       ).toThrowError(
         expect.objectContaining<Partial<DomainError>>({
           code: code as DomainError['code'],
-        }),
-      );
-    },
-  );
-});
+        })
+      )
+    }
+  )
+})
 
 describe('reconcileReassignedHours', () => {
   const res = (kind: Resource['kind'], workingHoursPerDay = 8): Resource =>
-    makeResource({ kind, workingHoursPerDay });
+    makeResource({ kind, workingHoursPerDay })
   const reconcile = (input: Omit<ReconcileReassignedHoursInput, 'effectiveWeek'>) =>
     reconcileReassignedHours({
       ...input,
       effectiveWeek: resolveEffectiveWorkingWeek(input.target, [1, 2, 3, 4, 5]),
-    });
+    })
   it('forces 0 hours when reassigning onto an external (a capacity-free row carries no load)', () => {
     expect(
       reconcile({
@@ -112,17 +112,17 @@ describe('reconcileReassignedHours', () => {
         target: res('external'),
         zeroLoadMode: false,
         startDate: '2026-06-01',
-      }),
-    ).toBe(0);
+      })
+    ).toBe(0)
     expect(
       reconcile({
         current: 8,
         target: res('external'),
         zeroLoadMode: true,
         startDate: '2026-06-01',
-      }),
-    ).toBe(0);
-  });
+      })
+    ).toBe(0)
+  })
   it('keeps a real resource positive hours on a real-to-real reassign', () => {
     expect(
       reconcile({
@@ -130,9 +130,9 @@ describe('reconcileReassignedHours', () => {
         target: res('person'),
         zeroLoadMode: false,
         startDate: '2026-06-01',
-      }),
-    ).toBe(6);
-  });
+      })
+    ).toBe(6)
+  })
   it('promotes a 0-hour booking (dragged off an external) to the target working day', () => {
     expect(
       reconcile({
@@ -140,9 +140,9 @@ describe('reconcileReassignedHours', () => {
         target: res('person', 7),
         zeroLoadMode: false,
         startDate: '2026-06-01',
-      }),
-    ).toBe(8);
-  });
+      })
+    ).toBe(8)
+  })
   it('promotes a 0-hour booking to four hours on a target half day', () => {
     expect(
       reconcile({
@@ -150,9 +150,9 @@ describe('reconcileReassignedHours', () => {
         target: { ...res('person', 7), halfDays: [2] },
         zeroLoadMode: false,
         startDate: '2026-06-02',
-      }),
-    ).toBe(4);
-  });
+      })
+    ).toBe(4)
+  })
   it('keeps a zero-hour block at zero when reassigning it off an external', () => {
     expect(
       reconcile({
@@ -160,7 +160,7 @@ describe('reconcileReassignedHours', () => {
         target: res('person', 7),
         zeroLoadMode: true,
         startDate: '2026-06-01',
-      }),
-    ).toBe(0);
-  });
-});
+      })
+    ).toBe(0)
+  })
+})

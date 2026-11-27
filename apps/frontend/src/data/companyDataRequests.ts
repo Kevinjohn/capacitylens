@@ -1,25 +1,25 @@
-import { requestApiResponse } from '@/api/queryClient';
-import { readApiData } from '@/api/readApiData';
-import { API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
-import { readApiError } from '@/lib/readApiError';
-import { m } from '@/i18n';
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
-import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
-import type { ScopedEntityKey } from '@capacitylens/shared/types/entities';
+import { requestApiResponse } from '@/api/queryClient'
+import { readApiData } from '@/api/readApiData'
+import { API_BULK_TIMEOUT_MS } from '@/data/requestTimeout'
+import { readApiError } from '@/lib/readApiError'
+import { m } from '@/i18n'
+import { isRecord } from '@capacitylens/shared/lib/isRecord'
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities'
+import type { ScopedEntityKey } from '@capacitylens/shared/types/entities'
 
 /** What the server reports about a transfer document it would import into one company. */
 export interface ImportPreviewSummary {
-  baseRevision: number;
-  companyName: string;
-  counts: Record<ScopedEntityKey, number>;
+  baseRevision: number
+  companyName: string
+  counts: Record<ScopedEntityKey, number>
 }
 
 /** The confirmed import of one transfer document into one company. */
 export interface ApplyImportInput {
-  companyId: string;
-  document: unknown;
-  baseRevision: number;
-  confirmationId: string;
+  companyId: string
+  document: unknown
+  baseRevision: number
+  confirmationId: string
 }
 
 /**
@@ -28,24 +28,24 @@ export interface ApplyImportInput {
  * whether the page needs a fresh read.
  */
 export interface ImportSummary {
-  imported: number | null;
-  skipped: number;
-  unchanged: boolean;
-  changed: boolean;
+  imported: number | null
+  skipped: number
+  unchanged: boolean
+  changed: boolean
 }
 
 const parseCount = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null
 
 /** Reads the summary of a committed import response, consuming its body. */
 export async function readImportSummary(response: Response): Promise<ImportSummary> {
   // An unreadable body is an off-spec success, reported with the generic completion notice.
-  const body: unknown = await readApiData(response).catch(() => null);
-  const imported = parseCount(isRecord(body) ? body.imported : undefined);
-  const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
-  const unchanged = isRecord(body) && body.changed === false;
-  const changed = imported === null || (!unchanged && imported > 0);
-  return { imported, skipped, unchanged, changed };
+  const body: unknown = await readApiData(response).catch(() => null)
+  const imported = parseCount(isRecord(body) ? body.imported : undefined)
+  const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0
+  const unchanged = isRecord(body) && body.changed === false
+  const changed = imported === null || (!unchanged && imported > 0)
+  return { imported, skipped, unchanged, changed }
 }
 
 /**
@@ -63,14 +63,14 @@ export const companyDataRequests = {
   async readImportPreview(companyId: string, document: unknown): Promise<ImportPreviewSummary> {
     const response = await requestApiResponse('api.import_previews.store', {
       body: { companyId, document },
-    });
+    })
     if (!response.ok) {
       throw new Error(
-        (await readApiError(response)) ?? m.data_import_failed({ status: response.status }),
-      );
+        (await readApiError(response)) ?? m.data_import_failed({ status: response.status })
+      )
     }
-    const result: unknown = await readApiData(response);
-    const counts = isRecord(result) && isRecord(result.counts) ? result.counts : null;
+    const result: unknown = await readApiData(response)
+    const counts = isRecord(result) && isRecord(result.counts) ? result.counts : null
     if (
       !isRecord(result) ||
       !Number.isSafeInteger(result.baseRevision) ||
@@ -78,7 +78,7 @@ export const companyDataRequests = {
       !counts ||
       SCOPED_KEYS.some((key) => parseCount(counts[key]) === null)
     ) {
-      throw new Error(m.data_import_failed({ status: 0 }));
+      throw new Error(m.data_import_failed({ status: 0 }))
     }
     // These casts are sound because each value was just checked.
     return {
@@ -88,7 +88,7 @@ export const companyDataRequests = {
         ScopedEntityKey,
         number
       >,
-    };
+    }
   },
 
   /** Sends a confirmed whole-company import. */
@@ -101,8 +101,8 @@ export const companyDataRequests = {
     return requestApiResponse(
       'api.imports.store',
       { body: { companyId, document, baseRevision, confirmationId } },
-      API_BULK_TIMEOUT_MS,
-    );
+      API_BULK_TIMEOUT_MS
+    )
   },
 
   /** Sends the password-confirmed anonymisation of every person in one company. */
@@ -110,8 +110,8 @@ export const companyDataRequests = {
     return requestApiResponse(
       'api.company_anonymisations.store',
       { params: { companyId }, body: { confirmationId } },
-      API_BULK_TIMEOUT_MS,
-    );
+      API_BULK_TIMEOUT_MS
+    )
   },
 
   /** Sends the anonymisation of one person resource. */
@@ -119,12 +119,12 @@ export const companyDataRequests = {
     return requestApiResponse(
       'api.resource_anonymisations.store',
       { params: { companyId, id: resourceId } },
-      API_BULK_TIMEOUT_MS,
-    );
+      API_BULK_TIMEOUT_MS
+    )
   },
 
   /** Adds the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(companyId: string): Promise<Response> {
-    return requestApiResponse('api.example_data.store', { params: { companyId } });
+    return requestApiResponse('api.example_data.store', { params: { companyId } })
   },
-};
+}

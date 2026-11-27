@@ -1,27 +1,27 @@
-import { inject } from '@adonisjs/core';
-import type { CommandOptions } from '@adonisjs/core/types/ace';
-import OperatorCommand from '#commands/_operator_command';
-import { SchemaIntegrityService } from '#services/schema_integrity_service';
+import { inject } from '@adonisjs/core'
+import type { CommandOptions } from '@adonisjs/core/types/ace'
+import OperatorCommand from '#commands/_operator_command'
+import { SchemaIntegrityService } from '#services/schema_integrity_service'
 
 /** Run the package's backup-then-migrate command, then check the migrated schema. */
 export default class AppUpgrade extends OperatorCommand {
-  static commandName = 'app:upgrade';
-  static description = 'Back up the SQLite database, then run pending migrations';
-  static options: CommandOptions = { startApp: true };
+  static commandName = 'app:upgrade'
+  static description = 'Back up the SQLite database, then run pending migrations'
+  static options: CommandOptions = { startApp: true }
 
   @inject()
   async run(schemaIntegrity: SchemaIntegrityService) {
-    const upgrade = await this.kernel.exec('db:upgrade', ['--no-schema-generate']);
+    const upgrade = await this.kernel.exec('db:upgrade', ['--no-schema-generate'])
     // `db:upgrade` has already reported its own failure as one line; reporting it again would
     // print it twice.
     if (upgrade.exitCode !== 0) {
-      this.exitCode = upgrade.exitCode ?? 1;
-      return;
+      this.exitCode = upgrade.exitCode ?? 1
+      return
     }
-    await schemaIntegrity.assertSchemaIntegrity();
+    await schemaIntegrity.assertSchemaIntegrity()
   }
 
   protected buildFailureMessage(error: unknown) {
-    return `Upgrade failed: ${String(error)}`;
+    return `Upgrade failed: ${String(error)}`
   }
 }

@@ -1,5 +1,5 @@
-import { canWritePlanning } from './planningAccess';
-import type { PlanningCacheMetadata } from './planningCacheTypes';
+import { canWritePlanning } from './planningAccess'
+import type { PlanningCacheMetadata } from './planningCacheTypes'
 
 /** The one readiness rule: a writable, loaded context at a known revision with no unresolved write. */
 export function isPlanningReadyForChange(planning: PlanningCacheMetadata): boolean {
@@ -8,19 +8,19 @@ export function isPlanningReadyForChange(planning: PlanningCacheMetadata): boole
     canWritePlanning(planning.access) &&
     planning.revision !== null &&
     planning.phase.kind === 'ready'
-  );
+  )
 }
 
 /** Undo or Redo is available when a change could be made and the server's last read reported a
  * step in that direction for this page's history. */
 export function isPlanningHistoryReady(
   planning: PlanningCacheMetadata,
-  step: 'undo' | 'redo',
+  step: 'undo' | 'redo'
 ): boolean {
   return (
     isPlanningReadyForChange(planning) &&
     (step === 'undo' ? planning.history.canUndo : planning.history.canRedo)
-  );
+  )
 }
 
 /**
@@ -30,7 +30,7 @@ export function isPlanningHistoryReady(
  */
 export function isSoleAcknowledgedAdvance(
   basis: Pick<PlanningCacheMetadata, 'context' | 'revision'>,
-  planning: PlanningCacheMetadata,
+  planning: PlanningCacheMetadata
 ): boolean {
   return (
     basis.revision !== null &&
@@ -39,5 +39,5 @@ export function isSoleAcknowledgedAdvance(
     'lastWrite' in planning.phase &&
     planning.phase.lastWrite?.kind === 'acknowledged' &&
     planning.phase.lastWrite.revision === planning.revision
-  );
+  )
 }

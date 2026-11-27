@@ -3,21 +3,21 @@
 // CapacityLens's own names follow it (`idempotencyKey`, `isAccountIdempotencyKey`,
 // `IDEMPOTENCY_CONFLICT`); only values passed to the package use its `requestKey` name.
 
-import ValidationRefusalException from '#exceptions/validation_refusal_exception';
-import { randomUUID } from 'node:crypto';
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import ValidationRefusalException from '#exceptions/validation_refusal_exception'
+import { randomUUID } from 'node:crypto'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import {
   E_DUPLICATE_REQUEST_CONFLICT,
   E_INVALID_COMMAND_VALUE,
   executeIn,
   type ExecuteInput,
   type Operation,
-} from '@kevinjohn/adonisjs-duplicate-request-guard';
-import IdempotencyConflictException from '#exceptions/idempotency_conflict_exception';
+} from '@kevinjohn/adonisjs-duplicate-request-guard'
+import IdempotencyConflictException from '#exceptions/idempotency_conflict_exception'
 
 export interface AccountOperationIdentity {
-  commandId: string;
-  requestKey: string;
+  commandId: string
+  requestKey: string
 }
 
 /** Account operation headers, receipts and their HTTP errors. */
@@ -32,20 +32,20 @@ export class AccountOperationService {
     requestKey: string | undefined
   ): AccountOperationIdentity {
     if (commandId === undefined || requestKey === undefined) {
-      return { commandId: randomUUID(), requestKey: randomUUID() };
+      return { commandId: randomUUID(), requestKey: randomUUID() }
     }
-    return { commandId, requestKey };
+    return { commandId, requestKey }
   }
 
   /** Adapts package refusals to the existing account-operation HTTP contract. */
   mapAccountOperationError(error: unknown): unknown {
     if (error instanceof E_DUPLICATE_REQUEST_CONFLICT) {
-      return new IdempotencyConflictException();
+      return new IdempotencyConflictException()
     }
     if (error instanceof E_INVALID_COMMAND_VALUE) {
-      return new ValidationRefusalException('Invalid operation payload.');
+      return new ValidationRefusalException('Invalid operation payload.')
     }
-    return error;
+    return error
   }
 
   /** Runs an account operation in the caller's transaction and preserves its HTTP errors. */
@@ -54,11 +54,11 @@ export class AccountOperationService {
     input: Operation<Payload, Authorization, Result> & ExecuteInput<Payload>
   ): Promise<Result> {
     try {
-      const outcome = await executeIn(trx, input, input);
-      return outcome.result;
+      const outcome = await executeIn(trx, input, input)
+      return outcome.result
     } catch (error) {
       // Translate package refusals; other failures retain their identity for rollback and reporting.
-      throw this.mapAccountOperationError(error);
+      throw this.mapAccountOperationError(error)
     }
   }
 }

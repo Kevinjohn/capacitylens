@@ -1,14 +1,14 @@
-import { spawnSync } from 'node:child_process';
-import type { SpawnSyncOptions } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process'
+import type { SpawnSyncOptions } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../', import.meta.url))
 
 function run(description: string, command: string, args: string[], options?: SpawnSyncOptions) {
-  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', ...options });
-  if (result.error) throw result.error;
+  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', ...options })
+  if (result.error) throw result.error
   if (result.status !== 0)
-    throw new Error(`${description} failed (${result.status ?? result.signal}).`);
+    throw new Error(`${description} failed (${result.status ?? result.signal}).`)
 }
 
 /**
@@ -32,8 +32,8 @@ export default function globalSetup(): void {
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
       CAPACITYLENS_E2E_WORKER_API: '0',
     },
-  });
-  run('Paraglide compilation', 'pnpm', ['run', 'paraglide:compile']);
+  })
+  run('Paraglide compilation', 'pnpm', ['run', 'paraglide:compile'])
   // Deployment settings from a local environment file must not change what the specs see.
   run(
     'SPA build',
@@ -45,7 +45,7 @@ export default function globalSetup(): void {
         VITE_CAPACITYLENS_BUILD_SHA: '',
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: '',
       },
-    },
-  );
-  run('SPA sync', process.execPath, ['scripts/build/sync-adonisjs-public.mjs']);
+    }
+  )
+  run('SPA sync', process.execPath, ['scripts/build/sync-adonisjs-public.mjs'])
 }

@@ -1,9 +1,9 @@
-import env from '#start/env';
-import app from '@adonisjs/core/services/app';
-import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types';
-import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger';
-import UnexpectedException from '#exceptions/unexpected_exception';
-import { describeFailure } from '#services/logging_safety';
+import env from '#start/env'
+import app from '@adonisjs/core/services/app'
+import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types'
+import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger'
+import UnexpectedException from '#exceptions/unexpected_exception'
+import { describeFailure } from '#services/logging_safety'
 
 const ERROR_CATEGORIES = new Map<string, string>([
   ['E_VALIDATION_ERROR', 'validation'],
@@ -15,37 +15,37 @@ const ERROR_CATEGORIES = new Map<string, string>([
   ['SQLITE_CONSTRAINT_UNIQUE', 'database_constraint'],
   ['SQLITE_CONSTRAINT_FOREIGNKEY', 'database_constraint'],
   ['SQLITE_CONSTRAINT_CHECK', 'database_constraint'],
-]);
+])
 
 /** Return a fixed error category without retaining caller controlled exception values. */
 export function classifyLogError(error: unknown): string {
-  if (typeof error !== 'object' || error === null) return 'unexpected';
+  if (typeof error !== 'object' || error === null) return 'unexpected'
   try {
-    const code = 'code' in error ? error.code : undefined;
-    return typeof code === 'string' ? (ERROR_CATEGORIES.get(code) ?? 'unexpected') : 'unexpected';
+    const code = 'code' in error ? error.code : undefined
+    return typeof code === 'string' ? (ERROR_CATEGORIES.get(code) ?? 'unexpected') : 'unexpected'
   } catch {
-    return 'unexpected';
+    return 'unexpected'
   }
 }
 
 /** The class name and an upper-case error code, never a message or a caller-controlled value. */
 export function describeErrorIdentity(error: unknown): { errorName: string; code?: string } {
-  if (!(error instanceof Error)) return { errorName: typeof error };
-  const code = 'code' in error ? error.code : undefined;
+  if (!(error instanceof Error)) return { errorName: typeof error }
+  const code = 'code' in error ? error.code : undefined
   return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code)
     ? { errorName: error.constructor.name, code }
-    : { errorName: error.constructor.name };
+    : { errorName: error.constructor.name }
 }
 
 type AppLoggerConfig = LoggerConfig & {
-  enabled: true;
-  name: string | undefined;
-  level: string;
-  destination?: LoggerConfig['destination'];
-  transport: { targets: [ReturnType<typeof targets.file>] };
-};
+  enabled: true
+  name: string | undefined
+  level: string
+  destination?: LoggerConfig['destination']
+  transport: { targets: [ReturnType<typeof targets.file>] }
+}
 
-type CapacityLensLoggerConfig = LoggerManagerConfig<{ app: AppLoggerConfig }>;
+type CapacityLensLoggerConfig = LoggerManagerConfig<{ app: AppLoggerConfig }>
 
 const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConfig }>({
   default: 'app',
@@ -67,9 +67,9 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
               errorType: error.errorType ?? classifyLogError(error.cause),
               status: error.status,
               ...describeFailure(error.cause),
-            };
+            }
           }
-          return { category: classifyLogError(error), ...describeErrorIdentity(error) };
+          return { category: classifyLogError(error), ...describeErrorIdentity(error) }
         },
       },
 
@@ -96,9 +96,9 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
       },
     },
   },
-});
+})
 
-export default loggerConfig;
+export default loggerConfig
 
 declare module '@adonisjs/core/types' {
   export interface LoggersList extends InferLoggers<typeof loggerConfig> {}

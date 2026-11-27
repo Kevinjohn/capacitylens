@@ -1,5 +1,5 @@
-import { test, expect } from './fixtures';
-import type { APIRequestContext, Page } from './fixtures';
+import { test, expect } from './fixtures'
+import type { APIRequestContext, Page } from './fixtures'
 import {
   AUTH_API,
   AUTH_PASSWORD,
@@ -8,8 +8,8 @@ import {
   createTestMember,
   sendPlanningIntent,
   signUpUser,
-} from './authTestKit';
-import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
+} from './authTestKit'
+import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities'
 import {
   computedStyles,
   disableCssMotion,
@@ -18,44 +18,44 @@ import {
   goToSeedWeek,
   setZoom,
   showScheduleFilters,
-} from './browserTestKit';
+} from './browserTestKit'
 
-test.use({ contextOptions: { reducedMotion: 'reduce' } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
-const STAMP = `${Date.now()}`;
-const ORG = `Gotham Closures ${STAMP}`;
-const OWNER = `closure-owner-${STAMP}@capacitylens.dev`;
-const EDITOR = `closure-editor-${STAMP}@capacitylens.dev`;
+const STAMP = `${Date.now()}`
+const ORG = `Gotham Closures ${STAMP}`
+const OWNER = `closure-owner-${STAMP}@capacitylens.dev`
+const EDITOR = `closure-editor-${STAMP}@capacitylens.dev`
 const IDS = {
   person: crypto.randomUUID(),
   external: crypto.randomUUID(),
-};
+}
 
 async function signInAsEditor(page: Page) {
-  await freezeBrowserDate(page);
-  await page.goto('/');
-  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
-  await page.getByLabel('Email').fill(EDITOR);
-  await page.getByLabel('Password').fill(AUTH_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
+  await freezeBrowserDate(page)
+  await page.goto('/')
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor()
+  await page.getByLabel('Email').fill(EDITOR)
+  await page.getByLabel('Password').fill(AUTH_PASSWORD)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }))
 }
 
 async function createClosureCompany(request: APIRequestContext) {
-  const owner = await signUpUser(OWNER);
-  const editor = await signUpUser(EDITOR);
-  const companyId = await bootstrapOrg(request, owner.cookie, ORG);
+  const owner = await signUpUser(OWNER)
+  const editor = await signUpUser(EDITOR)
+  const companyId = await bootstrapOrg(request, owner.cookie, ORG)
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'settings.update',
     changes: { externalEnabled: true },
-  });
+  })
 
   await createTestPerson(request, owner.cookie, companyId, {
     id: IDS.person,
     name: 'Barbara Gordon',
     jobTitle: 'Designer',
-  });
+  })
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'resource.create',
     id: IDS.external,
@@ -72,104 +72,104 @@ async function createClosureCompany(request: APIRequestContext) {
       firstAvailableDate: null,
       lastAvailableDate: null,
     },
-  });
+  })
 
-  createTestMember(companyId, editor.email, 'editor');
-  return { companyId, editorCookie: editor.cookie };
+  createTestMember(companyId, editor.email, 'editor')
+  return { companyId, editorCookie: editor.cookie }
 }
 
 async function createClosure(
   page: Page,
   request: APIRequestContext,
   companyId: string,
-  editorCookie: string,
+  editorCookie: string
 ) {
-  await page.getByRole('link', { name: 'Time off' }).click();
-  await expect(page.getByTestId('company-closures-empty')).toBeVisible();
-  await page.getByRole('button', { name: 'Add closure' }).click();
-  const create = page.getByRole('dialog', { name: 'Add closure' });
-  await create.getByLabel('Name').fill('Long weekend');
-  await create.getByLabel('Start').fill('2026-06-05');
-  await create.getByLabel('End').fill('2026-06-08');
-  await create.getByRole('button', { name: 'Save' }).click();
-  const closureRow = page.getByTestId('company-closure-row');
-  await expect(closureRow).toContainText('Long weekend');
-  await expect(closureRow).toContainText('Fri 5th – Mon 8th Jun');
+  await page.getByRole('link', { name: 'Time off' }).click()
+  await expect(page.getByTestId('company-closures-empty')).toBeVisible()
+  await page.getByRole('button', { name: 'Add closure' }).click()
+  const create = page.getByRole('dialog', { name: 'Add closure' })
+  await create.getByLabel('Name').fill('Long weekend')
+  await create.getByLabel('Start').fill('2026-06-05')
+  await create.getByLabel('End').fill('2026-06-08')
+  await create.getByRole('button', { name: 'Save' }).click()
+  const closureRow = page.getByTestId('company-closure-row')
+  await expect(closureRow).toContainText('Long weekend')
+  await expect(closureRow).toContainText('Fri 5th – Mon 8th Jun')
 
-  let closureId = '';
+  let closureId = ''
   await expect
     .poll(async () => {
       const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
-      });
+      })
       const state = (
         (await response.json()) as { data: { closures: Array<{ id: string; name: string }> } }
-      ).data;
-      closureId = state.closures.find((closure) => closure.name === 'Long weekend')?.id ?? '';
-      return closureId;
+      ).data
+      closureId = state.closures.find((closure) => closure.name === 'Long weekend')?.id ?? ''
+      return closureId
     })
-    .not.toBe('');
-  return closureId;
+    .not.toBe('')
+  return closureId
 }
 
 async function assertClosureBand(page: Page) {
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await setZoom(page, 1);
-  await goToSeedWeek(page);
-  const band = page.getByTestId('scheduler-closure-band');
-  await expect(band).toHaveCount(1);
+  await page.getByRole('link', { name: 'Schedule' }).click()
+  await setZoom(page, 1)
+  await goToSeedWeek(page)
+  const band = page.getByTestId('scheduler-closure-band')
+  await expect(band).toHaveCount(1)
   // The closure name lives on its own sibling layer, not inside the band: `z-0` on the band makes
   // a stacking context, so a nested label could never clear the group-header rows.
-  await expect(page.getByTestId('scheduler-closure-label-layer')).toContainText('Long weekend');
-  await expect(band).toHaveAttribute('data-start-date', '2026-06-05');
-  await expect(band).toHaveAttribute('data-end-date', '2026-06-08');
+  await expect(page.getByTestId('scheduler-closure-label-layer')).toContainText('Long weekend')
+  await expect(band).toHaveAttribute('data-start-date', '2026-06-05')
+  await expect(band).toHaveAttribute('data-end-date', '2026-06-08')
   const literalSpanWidth = await page.getByTestId('scheduler-day-tier').evaluate((tier) =>
     ['2026-06-05', '2026-06-06', '2026-06-07', '2026-06-08'].reduce((width, date) => {
-      const day = tier.querySelector<HTMLElement>(`[data-date="${date}"]`);
-      return width + (day?.offsetWidth ?? 0);
-    }, 0),
-  );
+      const day = tier.querySelector<HTMLElement>(`[data-date="${date}"]`)
+      return width + (day?.offsetWidth ?? 0)
+    }, 0)
+  )
   expect(
-    await band.evaluate((element) => Number.parseFloat((element as HTMLElement).style.width)),
-  ).toBe(literalSpanWidth);
+    await band.evaluate((element) => Number.parseFloat((element as HTMLElement).style.width))
+  ).toBe(literalSpanWidth)
 
   // Company closures must receive the personal-time-off selected treatment in Time off draw mode.
-  await showScheduleFilters(page);
-  await disableCssMotion(page);
-  const workTreatment = await computedStyles(band, ['background-color', 'box-shadow']);
-  await page.getByRole('radio', { name: 'Time off', exact: true }).click();
-  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeOff');
+  await showScheduleFilters(page)
+  await disableCssMotion(page)
+  const workTreatment = await computedStyles(band, ['background-color', 'box-shadow'])
+  await page.getByRole('radio', { name: 'Time off', exact: true }).click()
+  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeOff')
   const timeOffTreatment = await computedStyles(band, [
     'background-color',
     'background-image',
     'box-shadow',
     'color',
-  ]);
-  expect(timeOffTreatment['background-color']).toBe('rgb(250, 204, 21)');
-  expect(timeOffTreatment['background-color']).not.toBe(workTreatment['background-color']);
-  expect(timeOffTreatment['background-image']).toContain('repeating-linear-gradient');
-  expect(timeOffTreatment['box-shadow']).toContain('6px 1px');
+  ])
+  expect(timeOffTreatment['background-color']).toBe('rgb(250, 204, 21)')
+  expect(timeOffTreatment['background-color']).not.toBe(workTreatment['background-color'])
+  expect(timeOffTreatment['background-image']).toContain('repeating-linear-gradient')
+  expect(timeOffTreatment['box-shadow']).toContain('6px 1px')
 
-  await page.getByRole('radio', { name: 'Work', exact: true }).click();
-  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'work');
-  const revertedTreatment = await computedStyles(band, ['background-color', 'box-shadow']);
-  expect(revertedTreatment).toEqual(workTreatment);
+  await page.getByRole('radio', { name: 'Work', exact: true }).click()
+  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'work')
+  const revertedTreatment = await computedStyles(band, ['background-color', 'box-shadow'])
+  expect(revertedTreatment).toEqual(workTreatment)
 
-  const externalRow = page.getByTestId('scheduler-row').filter({ hasText: 'Kord Industries' });
-  await expect(externalRow).toBeVisible();
-  const [bandBox, externalBox] = await Promise.all([band.boundingBox(), externalRow.boundingBox()]);
-  if (!bandBox || !externalBox) throw new Error('closure band or external row was not laid out');
-  expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(externalBox.y);
+  const externalRow = page.getByTestId('scheduler-row').filter({ hasText: 'Kord Industries' })
+  await expect(externalRow).toBeVisible()
+  const [bandBox, externalBox] = await Promise.all([band.boundingBox(), externalRow.boundingBox()])
+  if (!bandBox || !externalBox) throw new Error('closure band or external row was not laid out')
+  expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(externalBox.y)
 }
 
 async function editClosure(page: Page) {
-  await page.getByRole('link', { name: 'Time off' }).click();
-  await page.getByRole('button', { name: /Edit Long weekend closure/ }).click();
-  const edit = page.getByRole('dialog', { name: 'Edit closure' });
-  await edit.getByLabel('Name').fill('Studio shutdown');
-  await edit.getByLabel('End').fill('2026-06-09');
-  await edit.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByTestId('company-closure-row')).toContainText('Studio shutdown');
+  await page.getByRole('link', { name: 'Time off' }).click()
+  await page.getByRole('button', { name: /Edit Long weekend closure/ }).click()
+  const edit = page.getByRole('dialog', { name: 'Edit closure' })
+  await edit.getByLabel('Name').fill('Studio shutdown')
+  await edit.getByLabel('End').fill('2026-06-09')
+  await edit.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByTestId('company-closure-row')).toContainText('Studio shutdown')
 }
 
 async function assertEditedAndDeletedClosure(
@@ -177,63 +177,63 @@ async function assertEditedAndDeletedClosure(
   request: APIRequestContext,
   companyId: string,
   editorCookie: string,
-  closureId: string,
+  closureId: string
 ) {
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await setZoom(page, 1);
-  await goToSeedWeek(page);
-  await expect(page.getByTestId('scheduler-closure-label-layer')).toContainText('Studio shutdown');
+  await page.getByRole('link', { name: 'Schedule' }).click()
+  await setZoom(page, 1)
+  await goToSeedWeek(page)
+  await expect(page.getByTestId('scheduler-closure-label-layer')).toContainText('Studio shutdown')
   await expect(page.getByTestId('scheduler-closure-band')).toHaveAttribute(
     'data-end-date',
-    '2026-06-09',
-  );
+    '2026-06-09'
+  )
 
-  await page.getByRole('link', { name: 'Time off' }).click();
-  await page.getByRole('button', { name: /Delete Studio shutdown closure/ }).click();
+  await page.getByRole('link', { name: 'Time off' }).click()
+  await page.getByRole('button', { name: /Delete Studio shutdown closure/ }).click()
   await page
     .getByRole('alertdialog', { name: 'Delete closure?' })
     .getByRole('button', { name: 'Delete' })
-    .click();
-  await expect(page.getByTestId('company-closure-row')).toHaveCount(0);
+    .click()
+  await expect(page.getByTestId('company-closure-row')).toHaveCount(0)
   await expect
     .poll(async () => {
       const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
-      });
-      const state = ((await response.json()) as { data: { closures: Array<{ id: string }> } }).data;
-      return state.closures.some((closure) => closure.id === closureId);
+      })
+      const state = ((await response.json()) as { data: { closures: Array<{ id: string }> } }).data
+      return state.closures.some((closure) => closure.id === closureId)
     })
-    .toBe(false);
+    .toBe(false)
 
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await setZoom(page, 1);
-  await goToSeedWeek(page);
-  await expect(page.getByTestId('scheduler-closure-band')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Schedule' }).click()
+  await setZoom(page, 1)
+  await goToSeedWeek(page)
+  await expect(page.getByTestId('scheduler-closure-band')).toHaveCount(0)
 
-  await page.getByTestId('undo-button').click();
-  await expect(page.getByTestId('scheduler-closure-band')).toHaveCount(1);
+  await page.getByTestId('undo-button').click()
+  await expect(page.getByTestId('scheduler-closure-band')).toHaveCount(1)
   await expect
     .poll(async () => {
       const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
-      });
+      })
       const state = (
         (await response.json()) as { data: { closures: Array<{ id: string; name: string }> } }
-      ).data;
-      return state.closures.find((closure) => closure.id === closureId)?.name;
+      ).data
+      return state.closures.find((closure) => closure.id === closureId)?.name
     })
-    .toBe('Studio shutdown');
+    .toBe('Studio shutdown')
 }
 
 test('an editor creates, edits, deletes and restores a literal company closure band', async ({
   page,
   request,
 }) => {
-  const { companyId, editorCookie } = await createClosureCompany(request);
+  const { companyId, editorCookie } = await createClosureCompany(request)
 
-  await signInAsEditor(page);
-  const closureId = await createClosure(page, request, companyId, editorCookie);
-  await assertClosureBand(page);
-  await editClosure(page);
-  await assertEditedAndDeletedClosure(page, request, companyId, editorCookie, closureId);
-});
+  await signInAsEditor(page)
+  const closureId = await createClosure(page, request, companyId, editorCookie)
+  await assertClosureBand(page)
+  await editClosure(page)
+  await assertEditedAndDeletedClosure(page, request, companyId, editorCookie, closureId)
+})

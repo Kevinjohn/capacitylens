@@ -1,1 +1,1 @@
-export const password = 'batman-secret-2026';
+export const password = 'batman-secret-2026'

@@ -1,23 +1,23 @@
-import { useState } from 'react';
-import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { useEntityListState } from '@/hooks/useEntityListState';
-import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
-import { resolveResourceDisplayName } from '@/lib/metadata';
-import { ConfirmDialog, ListPage } from '@/components/common/ui';
-import { ExternalForm } from '@/components/external/ExternalForm';
-import { ResourceForm } from './ResourceForm';
-import { ResourceListContent } from './ResourceListContent';
-import { useResourceListModel } from './useResourceListModel';
-import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
+import { useState } from 'react'
+import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { useEntityListState } from '@/hooks/useEntityListState'
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations'
+import { resolveResourceDisplayName } from '@/lib/metadata'
+import { ConfirmDialog, ListPage } from '@/components/common/ui'
+import { ExternalForm } from '@/components/external/ExternalForm'
+import { ResourceForm } from './ResourceForm'
+import { ResourceListContent } from './ResourceListContent'
+import { useResourceListModel } from './useResourceListModel'
+import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection'
 
 /** Shows scoped people and external resources using the resource list model. */
 export function ResourceList() {
-  const model = useResourceListModel();
-  const { archive } = useLifecycleOperations();
-  const { editing, setEditing, confirming, setConfirming } = useEntityListState<Resource>();
-  const externalState = useEntityListState<Resource>();
-  const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null);
+  const model = useResourceListModel()
+  const { archive } = useLifecycleOperations()
+  const { editing, setEditing, confirming, setConfirming } = useEntityListState<Resource>()
+  const externalState = useEntityListState<Resource>()
+  const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null)
   return (
     <ListPage
       title={m.list_resources_title()}
@@ -59,15 +59,15 @@ export function ResourceList() {
         />
       )}
     </ListPage>
-  );
+  )
 }
 
 type ArchiveDialogProps = {
-  resource: Resource;
-  messageName?: string;
-  archive: (table: 'resources', id: string) => Promise<unknown> | void;
-  onClose: () => void;
-};
+  resource: Resource
+  messageName?: string
+  archive: (table: 'resources', id: string) => Promise<unknown> | void
+  onClose: () => void
+}
 
 function ArchiveDialog({
   resource,
@@ -81,10 +81,10 @@ function ArchiveDialog({
       message={m.list_resources_archive_message({ name: messageName })}
       confirmLabel={m.list_archive()}
       onConfirm={() => {
-        void archive('resources', resource.id);
-        onClose();
+        void archive('resources', resource.id)
+        onClose()
       }}
       onCancel={onClose}
     />
-  );
+  )
 }

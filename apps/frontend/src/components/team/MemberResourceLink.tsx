@@ -1,49 +1,49 @@
-import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import { useEffect, useRef, useState } from 'react';
-import { m } from '@/i18n';
-import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessApi';
-import { FormDialog, SelectField } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { Link as LinkIcon } from 'lucide-react';
-import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access'
+import { useEffect, useRef, useState } from 'react'
+import { m } from '@/i18n'
+import type { Role } from '@capacitylens/shared/domain/access'
+import type { TeamMember } from '@/account/teamAccessApi'
+import { FormDialog, SelectField } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { Link as LinkIcon } from 'lucide-react'
+import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest'
 
 interface MemberResourceLinkProps {
-  member: TeamMember;
-  myRole: Role | undefined;
-  linkedResourceIds: ReadonlySet<string>;
-  resourceCandidates: readonly { resourceId: string; label: string }[];
+  member: TeamMember
+  myRole: Role | undefined
+  linkedResourceIds: ReadonlySet<string>
+  resourceCandidates: readonly { resourceId: string; label: string }[]
 }
 
-type MemberResourceView = ReturnType<typeof buildMemberResourceView>;
+type MemberResourceView = ReturnType<typeof buildMemberResourceView>
 
 // Retain missing, archived or disabled person links as inactive instead of silently unlinking the member.
-type IsLinkedPersonInactiveOptions = { link: TeamMember['resourceLink']; listed: boolean };
+type IsLinkedPersonInactiveOptions = { link: TeamMember['resourceLink']; listed: boolean }
 function isLinkedPersonInactive({ link, listed }: IsLinkedPersonInactiveOptions): boolean {
-  if (!link) return false;
-  return !listed || link.resourceStatus === 'archived' || link.resourceStatus === 'disabled';
+  if (!link) return false
+  return !listed || link.resourceStatus === 'archived' || link.resourceStatus === 'disabled'
 }
 
 function isMemberLinkEditable(member: TeamMember): boolean {
-  return member.status === 'active';
+  return member.status === 'active'
 }
 
 function buildMemberResourceView(
   member: TeamMember,
   linkedResourceIds: ReadonlySet<string>,
-  resourceCandidates: MemberResourceLinkProps['resourceCandidates'],
+  resourceCandidates: MemberResourceLinkProps['resourceCandidates']
 ) {
-  const linkedId = member.resourceLink?.resourceId;
-  const currentPerson = resourceCandidates.find((resource) => resource.resourceId === linkedId);
+  const linkedId = member.resourceLink?.resourceId
+  const currentPerson = resourceCandidates.find((resource) => resource.resourceId === linkedId)
   const people = resourceCandidates
     .filter(
-      (resource) => !linkedResourceIds.has(resource.resourceId) || resource.resourceId === linkedId,
+      (resource) => !linkedResourceIds.has(resource.resourceId) || resource.resourceId === linkedId
     )
-    .map((resource) => ({ id: resource.resourceId, name: resource.label }));
+    .map((resource) => ({ id: resource.resourceId, name: resource.label }))
   const currentPersonInactive = isLinkedPersonInactive({
     link: member.resourceLink,
     listed: currentPerson !== undefined,
-  });
+  })
   return {
     people,
     memberLabel: member.name ?? member.email ?? member.userId,
@@ -54,15 +54,15 @@ function buildMemberResourceView(
     // A retained link to an archived or disabled person is shown, never offered as a choice.
     showInactive: currentPersonInactive,
     canEdit: isMemberLinkEditable(member) && !currentPersonInactive && people.length > 0,
-  };
+  }
 }
 
 /** Owner or Admin control linking a member to one eligible person Resource. */
 export function MemberResourceLink(props: MemberResourceLinkProps) {
-  const { member, myRole, linkedResourceIds, resourceCandidates } = props;
-  if (!isOwnerOrAdmin(myRole)) return <td className="py-2 px-4" />;
-  const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates);
-  return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;
+  const { member, myRole, linkedResourceIds, resourceCandidates } = props
+  if (!isOwnerOrAdmin(myRole)) return <td className="py-2 px-4" />
+  const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates)
+  return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />
 }
 
 function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberResourceView }) {
@@ -83,7 +83,7 @@ function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberRes
         )}
       </div>
     </td>
-  );
+  )
 }
 
 function MemberResourceEditor({
@@ -92,13 +92,13 @@ function MemberResourceEditor({
   request,
   view,
 }: {
-  member: TeamMember;
-  companyId: string | null;
-  request: MemberResourceLinkRequest;
-  view: MemberResourceView;
+  member: TeamMember
+  companyId: string | null
+  request: MemberResourceLinkRequest
+  view: MemberResourceView
 }) {
-  const { pending, error, statusMessage, change } = request;
-  const disabled = pending || !companyId;
+  const { pending, error, statusMessage, change } = request
+  const disabled = pending || !companyId
   return (
     <div className="flex flex-col items-start gap-2">
       {view.showInactive && (
@@ -120,7 +120,7 @@ function MemberResourceEditor({
             ...view.people.map((person) => ({ value: person.id, label: person.name })),
           ]}
           onChange={(resourceId) => {
-            change(resourceId);
+            change(resourceId)
           }}
         />
       )}
@@ -147,7 +147,7 @@ function MemberResourceEditor({
         </p>
       )}
     </div>
-  );
+  )
 }
 
 /** Row action that opens the resource-link editor without mixing it into lifecycle settings. */
@@ -160,20 +160,20 @@ export function MemberResourceDialog({
   request,
   busy,
 }: MemberResourceLinkProps & {
-  companyId: string | null;
+  companyId: string | null
   /** Owned by the members section so it outlives this row and its dialog. */
-  request: MemberResourceLinkRequest;
-  busy: boolean;
+  request: MemberResourceLinkRequest
+  busy: boolean
 }) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const wasOpen = useRef(false);
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
   useEffect(() => {
-    if (wasOpen.current && !open) requestAnimationFrame(() => triggerRef.current?.focus());
-    wasOpen.current = open;
-  }, [open]);
-  if (!isOwnerOrAdmin(myRole)) return null;
-  const memberLabel = member.name ?? member.email ?? member.userId;
+    if (wasOpen.current && !open) requestAnimationFrame(() => triggerRef.current?.focus())
+    wasOpen.current = open
+  }, [open])
+  if (!isOwnerOrAdmin(myRole)) return null
+  const memberLabel = member.name ?? member.email ?? member.userId
   return (
     <>
       <Button
@@ -186,8 +186,8 @@ export function MemberResourceDialog({
         data-testid="member-resource-menu"
         disabled={busy}
         onClick={() => {
-          request.clearStatus();
-          setOpen(true);
+          request.clearStatus()
+          setOpen(true)
         }}
       >
         <LinkIcon />
@@ -213,5 +213,5 @@ export function MemberResourceDialog({
         </FormDialog>
       )}
     </>
-  );
+  )
 }

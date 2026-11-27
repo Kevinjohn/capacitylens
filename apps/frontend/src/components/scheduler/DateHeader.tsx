@@ -1,56 +1,56 @@
-import { memo, useMemo } from 'react';
-import { format } from 'date-fns/format';
-import { m } from '@/i18n';
-import { formatDayMonth, formatMonthYear } from '@/lib/dateDisplay';
-import { useDateStyle } from '@/store/useDateStyle';
-import { parseDate, getWeekday } from '@capacitylens/shared/lib/dateMath';
-import type { WeeksZoom } from '@/lib/schedulerConfig';
-import { LAYOUT } from './layout';
-import type { ColumnGeometry } from './columnGeometry';
-import { buildVisibleSpanInsets } from './visibleSpanInsets';
+import { memo, useMemo } from 'react'
+import { format } from 'date-fns/format'
+import { m } from '@/i18n'
+import { formatDayMonth, formatMonthYear } from '@/lib/dateDisplay'
+import { useDateStyle } from '@/store/useDateStyle'
+import { parseDate, getWeekday } from '@capacitylens/shared/lib/dateMath'
+import type { WeeksZoom } from '@/lib/schedulerConfig'
+import { LAYOUT } from './layout'
+import type { ColumnGeometry } from './columnGeometry'
+import { buildVisibleSpanInsets } from './visibleSpanInsets'
 
-const MONTH_LABEL_INSETS = buildVisibleSpanInsets('x', 'var(--month-start)', 'var(--month-width)');
+const MONTH_LABEL_INSETS = buildVisibleSpanInsets('x', 'var(--month-start)', 'var(--month-width)')
 
 interface Span {
-  key: string;
-  label: string;
-  days: number;
+  key: string
+  label: string
+  days: number
   /** Index of the span's first day in `days`, lets the width come from `geom.spanWidth`
    * (so a span containing narrowed weekend columns is sized from their real widths). */
-  start: number;
+  start: number
 }
 
 function buildMonthSpans(days: string[]): Span[] {
-  const spans: Span[] = [];
+  const spans: Span[] = []
   days.forEach((day, i) => {
-    const key = day.slice(0, 7);
-    const last = spans[spans.length - 1];
-    if (last && last.key === key) last.days += 1;
-    else spans.push({ key, label: formatMonthYear(day), days: 1, start: i });
-  });
-  return spans;
+    const key = day.slice(0, 7)
+    const last = spans[spans.length - 1]
+    if (last && last.key === key) last.days += 1
+    else spans.push({ key, label: formatMonthYear(day), days: 1, start: i })
+  })
+  return spans
 }
 
 function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
-  const blocks: Span[] = [];
+  const blocks: Span[] = []
   days.forEach((day, i) => {
     if (i === 0 || getWeekday(day) === weekStartsOn) {
-      blocks.push({ key: day, label: formatDayMonth(day), days: 1, start: i });
+      blocks.push({ key: day, label: formatDayMonth(day), days: 1, start: i })
     } else {
-      const currentBlock = blocks[blocks.length - 1];
-      if (currentBlock) currentBlock.days += 1;
+      const currentBlock = blocks[blocks.length - 1]
+      if (currentBlock) currentBlock.days += 1
     }
-  });
-  return blocks;
+  })
+  return blocks
 }
 
-type ResolveDayClassOptions = { weekStart: boolean; isToday: boolean; weekend: boolean };
+type ResolveDayClassOptions = { weekStart: boolean; isToday: boolean; weekend: boolean }
 function resolveDayClass({ weekStart, isToday, weekend }: ResolveDayClassOptions): string {
-  let stateClass = 'text-muted-foreground';
+  let stateClass = 'text-muted-foreground'
   if (isToday) {
-    stateClass = 'bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]';
-  } else if (weekend) stateClass = 'bg-weekend text-muted-foreground';
-  return `flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? 'border-l border-line' : ''} ${stateClass}`;
+    stateClass = 'bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]'
+  } else if (weekend) stateClass = 'bg-weekend text-muted-foreground'
+  return `flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? 'border-l border-line' : ''} ${stateClass}`
 }
 
 function DateDayTier({
@@ -59,17 +59,17 @@ function DateDayTier({
   weekStartsOn,
   today,
 }: {
-  days: string[];
-  geometry: ColumnGeometry;
-  weekStartsOn: 0 | 1;
-  today: string;
+  days: string[]
+  geometry: ColumnGeometry
+  weekStartsOn: 0 | 1
+  today: string
 }) {
   return (
     <div data-testid="scheduler-day-tier" className="flex flex-auto">
       {days.map((day, index) => {
-        const weekday = getWeekday(day);
-        const weekend = weekday === 0 || weekday === 6;
-        const date = parseDate(day);
+        const weekday = getWeekday(day)
+        const weekend = weekday === 0 || weekday === 6
+        const date = parseDate(day)
         return (
           <div
             key={day}
@@ -90,24 +90,24 @@ function DateDayTier({
               </span>
             )}
           </div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
 
 interface DateMonthTierProps {
-  months: Span[];
-  geometry: ColumnGeometry;
-  alignVisibleMonths: boolean;
+  months: Span[]
+  geometry: ColumnGeometry
+  alignVisibleMonths: boolean
 }
 
 function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierProps) {
   return (
     <div className="flex shrink-0 border-b border-line">
       {months.map((month) => {
-        const width = geometry.spanWidth(month.start, month.start + month.days - 1);
-        const start = geometry.x(month.start);
+        const width = geometry.spanWidth(month.start, month.start + month.days - 1)
+        const start = geometry.x(month.start)
         return (
           <div
             key={month.key}
@@ -150,10 +150,10 @@ function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierPr
               </span>
             )}
           </div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
 
 /** Renders date and week labels for the visible schedule columns. */
@@ -164,29 +164,29 @@ export const DateHeader = memo(function DateHeaderComponent({
   weekStartsOn,
   today,
 }: {
-  days: string[];
+  days: string[]
 
-  geom: ColumnGeometry;
-  visibleWeeks: WeeksZoom;
-  weekStartsOn: 0 | 1;
-  today: string;
+  geom: ColumnGeometry
+  visibleWeeks: WeeksZoom
+  weekStartsOn: 0 | 1
+  today: string
 }) {
-  const showDays = geometry.perDayColumns;
-  const showWeekday = geometry.showWeekdayLabels;
+  const showDays = geometry.perDayColumns
+  const showWeekday = geometry.showWeekdayLabels
   // The 1/2-week views have enough room to place labels at the visible month segment's start.
   // At compact zooms that treatment would leave too little room, so keep the bounded sticky label.
-  const alignVisibleMonths = visibleWeeks <= 2 && showWeekday;
-  const totalWidth = geometry.totalWidth;
+  const alignVisibleMonths = visibleWeeks <= 2 && showWeekday
+  const totalWidth = geometry.totalWidth
 
   const resolveSpanWidth = (span: Span) =>
-    geometry.spanWidth(span.start, span.start + span.days - 1);
+    geometry.spanWidth(span.start, span.start + span.days - 1)
   // Month grouping depends on visible dates, while formatted week labels also depend on date style. The style subscription wakes this memoized header for company date-style changes.
-  const dateStyle = useDateStyle();
-  const months = useMemo(() => buildMonthSpans(days), [days]);
+  const dateStyle = useDateStyle()
+  const months = useMemo(() => buildMonthSpans(days), [days])
   // `buildWeekBlocks` formats its labels through `formatDayMonth`, which reads the active style
   // from a module-level mirror rather than an argument, so the linter cannot see the dependency.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the style is a real input to the labels
-  const weeks = useMemo(() => buildWeekBlocks(days, weekStartsOn), [days, weekStartsOn, dateStyle]);
+  const weeks = useMemo(() => buildWeekBlocks(days, weekStartsOn), [days, weekStartsOn, dateStyle])
 
   return (
     // The date header uses column index 2 to match the timeline cells and the grid's two-column accessibility model.
@@ -217,5 +217,5 @@ export const DateHeader = memo(function DateHeaderComponent({
         </div>
       )}
     </div>
-  );
-});
+  )
+})

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react'
 
 // The synchronous ref rejects another operation before React can disable controls.
 // State communicates the same lock through the rendered busy state.
@@ -6,19 +6,19 @@ import { useCallback, useRef, useState } from 'react';
 /** The exclusion lock returned by {@link useExclusiveOperation}. */
 export interface ExclusiveOperation {
   /** `true` while an operation is in flight, bind it to every participating control's `disabled`. */
-  busy: boolean;
+  busy: boolean
   /**
    * Start `operation` unless one is already running, in which case this is a no-op (not a queue: a
    * suppressed second click is a double-click to discard, never a second mutation to run later).
    * Rejections go to `onError`; the lock always releases afterwards.
    */
-  run(operation: () => Promise<void>, onError: (error: unknown) => void): void;
+  run(operation: () => Promise<void>, onError: (error: unknown) => void): void
   /**
    * Is an operation in flight right now? Reads the synchronous ref, so unlike {@link busy} it is
    * already true inside the same click that started one. For guards that run before React can
    * re-render, e.g. refusing to open a confirmation dialog while a mutation is settling.
    */
-  locked(): boolean;
+  locked(): boolean
 }
 
 /**
@@ -37,33 +37,33 @@ export interface ExclusiveOperation {
  * and `locked()` for same-click guards.
  */
 export function useExclusiveOperation(): ExclusiveOperation {
-  const operationLock = useRef(false);
-  const [busy, setBusy] = useState(false);
+  const operationLock = useRef(false)
+  const [busy, setBusy] = useState(false)
 
   const run = useCallback((operation: () => Promise<void>, onError: (error: unknown) => void) => {
-    if (operationLock.current) return;
-    operationLock.current = true;
-    setBusy(true);
+    if (operationLock.current) return
+    operationLock.current = true
+    setBusy(true)
     const reopen = () => {
-      operationLock.current = false;
-      setBusy(false);
-    };
+      operationLock.current = false
+      setBusy(false)
+    }
     const report = (error: unknown) => {
       try {
-        onError(error);
+        onError(error)
       } catch (reportingError) {
-        console.error('Exclusive action error handler failed', reportingError);
+        console.error('Exclusive action error handler failed', reportingError)
       }
-    };
-    try {
-      void operation().catch(report).finally(reopen);
-    } catch (error) {
-      report(error);
-      reopen();
     }
-  }, []);
+    try {
+      void operation().catch(report).finally(reopen)
+    } catch (error) {
+      report(error)
+      reopen()
+    }
+  }, [])
 
-  const locked = useCallback(() => operationLock.current, []);
+  const locked = useCallback(() => operationLock.current, [])
 
-  return { busy, run, locked };
+  return { busy, run, locked }
 }

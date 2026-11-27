@@ -1,17 +1,17 @@
-import { act, screen, waitFor } from '@testing-library/react';
-import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
-import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthContext } from '@/auth/authContext';
-import { DiagnosticsView } from './DiagnosticsView';
+import { act, screen, waitFor } from '@testing-library/react'
+import { renderWithQueryClient as render } from '@/test/renderWithQueryClient'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthContext } from '@/auth/authContext'
+import { DiagnosticsView } from './DiagnosticsView'
 
-const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
-const migration = 'database/migrations/1795478400000_store_deletion_markers_in_lucid_format_table';
-const backupAt = '2026-09-10T12:00:00.000Z';
+const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }))
+const migration = 'database/migrations/1795478400000_store_deletion_markers_in_lucid_format_table'
+const backupAt = '2026-09-10T12:00:00.000Z'
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', fetchMock.fetch);
-  fetchMock.fetch.mockReset();
+  vi.stubGlobal('fetch', fetchMock.fetch)
+  fetchMock.fetch.mockReset()
   fetchMock.fetch.mockImplementation(async () =>
     Response.json({
       data: {
@@ -22,29 +22,29 @@ beforeEach(() => {
           backup: { newestBackupAt: backupAt },
         },
       },
-    }),
-  );
-});
+    })
+  )
+})
 
 afterEach(() => {
-  vi.unstubAllEnvs();
-  vi.unstubAllGlobals();
-});
+  vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
+})
 
-const reportText = () => screen.getByTestId('diagnostics-report-text');
+const reportText = () => screen.getByTestId('diagnostics-report-text')
 
 describe('DiagnosticsView — report', () => {
   it('shows server diagnostics and reports the server deployment', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
-    render(<DiagnosticsView />);
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d')
+    render(<DiagnosticsView />)
 
-    expect(screen.getByRole('heading', { name: 'Diagnostics', level: 1 })).toBeInTheDocument();
-    expect(reportText()).toHaveTextContent('Build revision: a1b2c3d');
-    expect(reportText()).toHaveTextContent('Deployment mode: server');
-    expect(await screen.findByText(/Database: ok/)).toBeInTheDocument();
-    expect(reportText()).toHaveTextContent(/Time zone: \S+/);
-    expect(fetchMock.fetch).toHaveBeenCalled();
-  });
+    expect(screen.getByRole('heading', { name: 'Diagnostics', level: 1 })).toBeInTheDocument()
+    expect(reportText()).toHaveTextContent('Build revision: a1b2c3d')
+    expect(reportText()).toHaveTextContent('Deployment mode: server')
+    expect(await screen.findByText(/Database: ok/)).toBeInTheDocument()
+    expect(reportText()).toHaveTextContent(/Time zone: \S+/)
+    expect(fetchMock.fetch).toHaveBeenCalled()
+  })
 
   it('never includes the signed-in identity', () => {
     render(
@@ -56,13 +56,13 @@ describe('DiagnosticsView — report', () => {
         }}
       >
         <DiagnosticsView />
-      </AuthContext.Provider>,
-    );
+      </AuthContext.Provider>
+    )
 
-    expect(reportText()).not.toHaveTextContent('Sign-in mode');
-    expect(reportText()).not.toHaveTextContent('Bruce Wayne');
-    expect(reportText()).not.toHaveTextContent('@');
-  });
+    expect(reportText()).not.toHaveTextContent('Sign-in mode')
+    expect(reportText()).not.toHaveTextContent('Bruce Wayne')
+    expect(reportText()).not.toHaveTextContent('@')
+  })
 
   it('keeps a safe server projection from a non-OK response', async () => {
     fetchMock.fetch.mockImplementation(async () =>
@@ -76,60 +76,60 @@ describe('DiagnosticsView — report', () => {
             secret: 'must not render',
           },
         },
-        { status: 503 },
-      ),
-    );
-    render(<DiagnosticsView />);
+        { status: 503 }
+      )
+    )
+    render(<DiagnosticsView />)
 
-    await waitFor(() => expect(reportText()).toHaveTextContent(`Newest backup: ${backupAt}`));
-    expect(reportText()).toHaveTextContent('Database: unavailable');
-    expect(reportText()).toHaveTextContent('Schema migration: Unknown');
-    expect(reportText()).not.toHaveTextContent('must not render');
-  });
-});
+    await waitFor(() => expect(reportText()).toHaveTextContent(`Newest backup: ${backupAt}`))
+    expect(reportText()).toHaveTextContent('Database: unavailable')
+    expect(reportText()).toHaveTextContent('Schema migration: Unknown')
+    expect(reportText()).not.toHaveTextContent('must not render')
+  })
+})
 
 describe('DiagnosticsView — observation', () => {
   it('records the client time when a diagnostics snapshot fails', async () => {
-    const observedAt = '2026-09-11T10:11:12.123Z';
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(observedAt));
-    fetchMock.fetch.mockRejectedValueOnce(new TypeError('offline'));
+    const observedAt = '2026-09-11T10:11:12.123Z'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(observedAt))
+    fetchMock.fetch.mockRejectedValueOnce(new TypeError('offline'))
     try {
-      render(<DiagnosticsView />);
+      render(<DiagnosticsView />)
       await act(async () => {
-        await Promise.resolve();
-        await Promise.resolve();
+        await Promise.resolve()
+        await Promise.resolve()
         // TanStack Query hands results to React on a timer.
-        await vi.advanceTimersByTimeAsync(0);
-      });
-      expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`);
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`)
     } finally {
-      vi.useRealTimers();
+      vi.useRealTimers()
     }
-  });
+  })
 
   it('keeps a pending server snapshot unobserved until its response arrives', async () => {
-    const observedAt = '2026-09-11T10:11:12.123Z';
-    let resolveResponse: ((response: unknown) => void) | undefined;
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(observedAt));
+    const observedAt = '2026-09-11T10:11:12.123Z'
+    let resolveResponse: ((response: unknown) => void) | undefined
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(observedAt))
     fetchMock.fetch.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
-          resolveResponse = resolve;
-        }),
-    );
+          resolveResponse = resolve
+        })
+    )
     try {
-      render(<DiagnosticsView />);
-      expect(reportText()).toHaveTextContent('Observed at: Unknown');
+      render(<DiagnosticsView />)
+      expect(reportText()).toHaveTextContent('Observed at: Unknown')
       // The API client reaches fetch after a few asynchronous steps.
       await act(async () => {
         for (let step = 0; step < 20 && !resolveResponse; step += 1) {
-          await vi.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(0)
         }
-      });
-      expect(resolveResponse).toBeDefined();
-      expect(reportText()).toHaveTextContent('Observed at: Unknown');
+      })
+      expect(resolveResponse).toBeDefined()
+      expect(reportText()).toHaveTextContent('Observed at: Unknown')
 
       await act(async () => {
         resolveResponse?.(
@@ -142,41 +142,41 @@ describe('DiagnosticsView — observation', () => {
                 backup: { newestBackupAt: null },
               },
             },
-          }),
-        );
-        await Promise.resolve();
-        await Promise.resolve();
+          })
+        )
+        await Promise.resolve()
+        await Promise.resolve()
         // TanStack Query hands results to React on a timer.
-        await vi.advanceTimersByTimeAsync(0);
-      });
-      expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`);
-      expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`);
-      expect(reportText()).toHaveTextContent('Newest backup: Unknown');
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`)
+      expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`)
+      expect(reportText()).toHaveTextContent('Newest backup: Unknown')
     } finally {
-      vi.useRealTimers();
+      vi.useRealTimers()
     }
-  });
-});
+  })
+})
 
 describe('DiagnosticsView — clipboard', () => {
   it('copies the shown report and reports both clipboard success and failure', async () => {
-    const user = userEvent.setup();
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as unknown as Clipboard);
-    render(<DiagnosticsView />);
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as unknown as Clipboard)
+    render(<DiagnosticsView />)
 
-    await waitFor(() => expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`));
-    expect(reportText()).toHaveTextContent(`Newest backup: ${backupAt}`);
-    const fetchCountBeforeCopy = fetchMock.fetch.mock.calls.length;
+    await waitFor(() => expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`))
+    expect(reportText()).toHaveTextContent(`Newest backup: ${backupAt}`)
+    const fetchCountBeforeCopy = fetchMock.fetch.mock.calls.length
 
-    await user.click(screen.getByTestId('copy-diagnostics'));
-    expect(writeText).toHaveBeenCalledWith(reportText().textContent);
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('CapacityLens diagnostics'));
-    expect(fetchMock.fetch).toHaveBeenCalledTimes(fetchCountBeforeCopy);
-    expect(screen.getByRole('status')).toHaveTextContent('Diagnostics copied.');
+    await user.click(screen.getByTestId('copy-diagnostics'))
+    expect(writeText).toHaveBeenCalledWith(reportText().textContent)
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('CapacityLens diagnostics'))
+    expect(fetchMock.fetch).toHaveBeenCalledTimes(fetchCountBeforeCopy)
+    expect(screen.getByRole('status')).toHaveTextContent('Diagnostics copied.')
 
-    writeText.mockRejectedValueOnce(new Error('denied'));
-    await user.click(screen.getByTestId('copy-diagnostics'));
-    expect(screen.getByRole('status')).toHaveTextContent('Diagnostics could not be copied');
-  });
-});
+    writeText.mockRejectedValueOnce(new Error('denied'))
+    await user.click(screen.getByTestId('copy-diagnostics'))
+    expect(screen.getByRole('status')).toHaveTextContent('Diagnostics could not be copied')
+  })
+})

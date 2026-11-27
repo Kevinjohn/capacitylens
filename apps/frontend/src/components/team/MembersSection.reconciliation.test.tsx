@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
-import { resetStoreWithCompany, jsonResponse } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { m } from '@/i18n';
+import { resetStoreWithCompany, jsonResponse } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { m } from '@/i18n'
 import {
   confirmMemberAction,
   expectNotice,
@@ -14,42 +14,42 @@ import {
   makeRawMember,
   renderSection,
   saveRoleVia,
-} from './MembersSectionTestKit';
+} from './MembersSectionTestKit'
 
 interface RoleFailureCaseInput {
-  status: number;
-  body: { error: string };
-  expected: RegExp;
-  reconciles: boolean;
+  status: number
+  body: { error: string }
+  expected: RegExp
+  reconciles: boolean
 }
 
 const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
-}));
+}))
 
 vi.mock('@/auth/companyTransition', () => ({
   startMasquerade: companyTransitionMocks.startMasquerade,
-}));
+}))
 
 beforeEach(async () => {
-  companyTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithCompany();
-});
+  companyTransitionMocks.startMasquerade.mockClear()
+  await resetStoreWithCompany()
+})
 afterEach(() => {
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('MembersSection — mutation failure reconciliation', () => {
   it('reports an authoritative reload failure after an unknown non-self mutation', async () => {
-    let mutationSent = false;
+    let mutationSent = false
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
         'PATCH /members/ed': () => {
-          mutationSent = true;
-          return jsonResponse({ error: 'Unknown.' }, 503);
+          mutationSent = true
+          return jsonResponse({ error: 'Unknown.' }, 503)
         },
         'GET /members': () =>
           mutationSent
@@ -57,60 +57,60 @@ describe('MembersSection — mutation failure reconciliation', () => {
             : jsonResponse({
                 data: { members: ownerAndEditor.map((member) => makeRawMember(member)) },
               }),
-      }),
-    );
-    renderSection();
+      })
+    )
+    renderSection()
 
-    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer')
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(/Reload the page before retrying/i);
-    expect(alert).not.toHaveTextContent(/company access was refreshed/i);
-  });
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(/Reload the page before retrying/i)
+    expect(alert).not.toHaveTextContent(/company access was refreshed/i)
+  })
 
   it('does not publish a role result after the active company switches mid-request', async () => {
-    const nextCompanyId = 'acc_second';
+    const nextCompanyId = 'acc_second'
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
         'PATCH /members/ed': () => {
-          useStore.setState({ activeCompanyId: nextCompanyId });
-          return new Response(null, { status: 204 });
+          useStore.setState({ activeCompanyId: nextCompanyId })
+          return new Response(null, { status: 204 })
         },
-      }),
-    );
-    renderSection();
+      })
+    )
+    renderSection()
 
-    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer')
 
-    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextCompanyId));
-    expect(useStore.getState().notice).toBeNull();
-  });
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextCompanyId))
+    expect(useStore.getState().notice).toBeNull()
+  })
   it('does not publish an unknown reconcile whose member reread switches companies', async () => {
-    const nextCompanyId = 'acc_second';
-    let mutationSent = false;
+    const nextCompanyId = 'acc_second'
+    let mutationSent = false
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
         'PATCH /members/ed': () => {
-          mutationSent = true;
-          return jsonResponse({}, 503);
+          mutationSent = true
+          return jsonResponse({}, 503)
         },
         'GET /members': () => {
-          if (mutationSent) useStore.setState({ activeCompanyId: nextCompanyId });
+          if (mutationSent) useStore.setState({ activeCompanyId: nextCompanyId })
           return jsonResponse({
             data: { members: ownerAndEditor.map((member) => makeRawMember(member)) },
-          });
+          })
         },
-      }),
-    );
-    renderSection();
+      })
+    )
+    renderSection()
 
-    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer')
 
-    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextCompanyId));
-    expect(useStore.getState().notice).toBeNull();
-  });
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextCompanyId))
+    expect(useStore.getState().notice).toBeNull()
+  })
   it.each([
     { status: 503, body: { error: 'Uncertain.' }, expected: /unknown outcome/i, reconciles: true },
     {
@@ -122,65 +122,65 @@ describe('MembersSection — mutation failure reconciliation', () => {
   ])(
     'handles a $status role-change response without claiming success',
     async ({ status, body, expected, reconciles }: RoleFailureCaseInput) => {
-      let memberReads = 0;
+      let memberReads = 0
       vi.stubGlobal(
         'fetch',
         mockApi(ownerAndEditor, {
           'GET /members': () => {
-            memberReads += 1;
+            memberReads += 1
             return jsonResponse({
               data: { members: ownerAndEditor.map((member) => makeRawMember(member)) },
-            });
+            })
           },
           'PATCH /members/ed': () => jsonResponse(body, status),
-        }),
-      );
-      renderSection();
+        })
+      )
+      renderSection()
 
-      await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
+      await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer')
 
-      if (reconciles) await expectNotice(expected);
-      else expect(await screen.findByRole('alert')).toHaveTextContent(expected);
-      expect(useStore.getState().notice?.message).not.toBe(m.settings_members_role_updated());
-      expect(memberReads).toBe(reconciles ? 2 : 1);
-    },
-  );
+      if (reconciles) await expectNotice(expected)
+      else expect(await screen.findByRole('alert')).toHaveTextContent(expected)
+      expect(useStore.getState().notice?.message).not.toBe(m.settings_members_role_updated())
+      expect(memberReads).toBe(reconciles ? 2 : 1)
+    }
+  )
   it('reconciles a 503 status change without claiming success', async () => {
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
         'PATCH /members/ed/status': () => jsonResponse({ error: 'Uncertain.' }, 503),
-      }),
-    );
-    renderSection();
+      })
+    )
+    renderSection()
 
     await confirmMemberAction({
       user: userEvent.setup(),
       row: await waitForMemberRow(/ed@x\.io/),
       testId: 'member-suspend',
       confirmationName: /suspend/i,
-    });
+    })
 
-    await expectNotice(/unknown outcome.*reloaded/i);
-    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
-  });
+    await expectNotice(/unknown outcome.*reloaded/i)
+    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed())
+  })
 
   it('includes transport detail when a status change throws', async () => {
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
         'PATCH /members/ed/status': () => Promise.reject(new Error('status connection lost')),
-      }),
-    );
-    renderSection();
+      })
+    )
+    renderSection()
 
     await confirmMemberAction({
       user: userEvent.setup(),
       row: await waitForMemberRow(/ed@x\.io/),
       testId: 'member-suspend',
       confirmationName: /suspend/i,
-    });
+    })
 
-    await expectNotice(/unknown outcome.*status connection lost.*reloaded/i);
-  });
-});
+    await expectNotice(/unknown outcome.*status connection lost.*reloaded/i)
+  })
+})

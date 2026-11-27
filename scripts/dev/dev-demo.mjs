@@ -1,3 +1,3 @@
-import { runDevelopmentStack } from './dev-fullstack.mjs';
+import { runDevelopmentStack } from './dev-fullstack.mjs'
 
-await runDevelopmentStack({ demo: true });
+await runDevelopmentStack({ demo: true })

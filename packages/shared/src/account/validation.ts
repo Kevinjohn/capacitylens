@@ -1,19 +1,19 @@
-import { hasDisallowedChars, MAX_EMAIL_LENGTH, countUtf8Bytes } from '../lib/strings.js';
+import { hasDisallowedChars, MAX_EMAIL_LENGTH, countUtf8Bytes } from '../lib/strings.js'
 
-const OPAQUE_CREDENTIAL_RE = /^[A-Za-z0-9_-]{16,128}$/;
+const OPAQUE_CREDENTIAL_RE = /^[A-Za-z0-9_-]{16,128}$/
 
 function hasOpaqueCredentialShape(value: unknown): value is string {
-  return typeof value === 'string' && OPAQUE_CREDENTIAL_RE.test(value);
+  return typeof value === 'string' && OPAQUE_CREDENTIAL_RE.test(value)
 }
 
 /** Validate the reconciliation handle for one account operation. */
 export function isAccountCommandId(value: unknown): value is string {
-  return hasOpaqueCredentialShape(value);
+  return hasOpaqueCredentialShape(value)
 }
 
 /** Validate the independent idempotency key for one account operation. */
 export function isAccountIdempotencyKey(value: unknown): value is string {
-  return hasOpaqueCredentialShape(value);
+  return hasOpaqueCredentialShape(value)
 }
 
 /**
@@ -23,7 +23,7 @@ export function isAccountIdempotencyKey(value: unknown): value is string {
  * never throws; callers must use {@link isAccountEmail} when they also need admission validation.
  */
 export function normalizeAccountEmail(value: string): string {
-  return value.trim().toLowerCase();
+  return value.trim().toLowerCase()
 }
 
 /**
@@ -34,15 +34,15 @@ export function normalizeAccountEmail(value: string): string {
  * attempting mailbox-deliverability or full RFC syntax validation.
  */
 export function isAccountEmail(value: string): boolean {
-  const normalized = normalizeAccountEmail(value);
+  const normalized = normalizeAccountEmail(value)
   if (
     value.length === 0 ||
     countUtf8Bytes(value) > MAX_EMAIL_LENGTH ||
     countUtf8Bytes(normalized) > MAX_EMAIL_LENGTH ||
     value !== value.trim()
   ) {
-    return false;
+    return false
   }
-  if (hasDisallowedChars(value)) return false;
-  return /^[^@\s]+@[^@\s]+$/.test(value);
+  if (hasDisallowedChars(value)) return false
+  return /^[^@\s]+@[^@\s]+$/.test(value)
 }

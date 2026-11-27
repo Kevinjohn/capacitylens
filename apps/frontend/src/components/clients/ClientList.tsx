@@ -1,6 +1,6 @@
-import { useActiveScopedData } from '@/store/useScopedData';
-import { useEntityListState } from '@/hooks/useEntityListState';
-import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
+import { useActiveScopedData } from '@/store/useScopedData'
+import { useEntityListState } from '@/hooks/useEntityListState'
+import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import {
   ColorSwatch,
   ConfirmDialog,
@@ -8,27 +8,27 @@ import {
   EditButton,
   EmptyState,
   ListPage,
-} from '@/components/common/ui';
-import { ClientForm } from './ClientForm';
-import type { Client } from '@capacitylens/shared/types/entities';
-import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
-import { m } from '@/i18n';
-import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames';
-import { Fragment, useMemo } from 'react';
-import { Briefcase, Plus } from 'lucide-react';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { byName } from '@/lib/displayOrder';
-import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
+} from '@/components/common/ui'
+import { ClientForm } from './ClientForm'
+import type { Client } from '@capacitylens/shared/types/entities'
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations'
+import { m } from '@/i18n'
+import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames'
+import { Fragment, useMemo } from 'react'
+import { Briefcase, Plus } from 'lucide-react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { byName } from '@/lib/displayOrder'
+import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection'
 
 function buildClientArchiveMessage(client: Client): string {
-  const name = client.isPrivate === true ? buildQuotedContextName(client.name) : client.name;
-  return m.list_clients_archive_message({ name });
+  const name = client.isPrivate === true ? buildQuotedContextName(client.name) : client.name
+  return m.list_clients_archive_message({ name })
 }
 
 interface ClientItemsProps {
-  clients: Client[];
-  onEdit: (client: Client) => void;
-  onArchive: (client: Client) => void;
+  clients: Client[]
+  onEdit: (client: Client) => void
+  onArchive: (client: Client) => void
 }
 
 function ClientItems({ clients, onEdit, onArchive }: ClientItemsProps) {
@@ -56,21 +56,21 @@ function ClientItems({ clients, onEdit, onArchive }: ClientItemsProps) {
         </Fragment>
       ))}
     </ItemGroup>
-  );
+  )
 }
 
 /** Lists scoped clients while keeping the internal data anchor out of ordinary management. */
 export function ClientList() {
   // The Internal client is a persisted bucket available to project and schedule selection, while ordinary client management hides it.
-  const scoped = useActiveScopedData();
+  const scoped = useActiveScopedData()
   const clients = useMemo(
     () => scoped.clients.filter((client) => !isBuiltinClient(client)).sort(byName),
-    [scoped.clients],
-  );
+    [scoped.clients]
+  )
 
-  const { archive } = useLifecycleOperations();
+  const { archive } = useLifecycleOperations()
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
-    useEntityListState<Client>();
+    useEntityListState<Client>()
 
   return (
     <ListPage
@@ -105,12 +105,12 @@ export function ClientList() {
           message={buildClientArchiveMessage(confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void archive('clients', confirming.id);
-            setConfirming(null);
+            void archive('clients', confirming.id)
+            setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
     </ListPage>
-  );
+  )
 }

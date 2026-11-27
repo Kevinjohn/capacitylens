@@ -1,33 +1,33 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
 
 vi.mock('./masqueradeApi', () => ({
   masqueradeApi: { status: vi.fn(async () => ({ active: false, masqueradeToken: 'idle' })) },
-}));
+}))
 vi.mock('@/data/planning/storePlanningTransport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/planning/storePlanningTransport')>();
-  const { createPlanningTransport } = await import('@/data/planning/planningTransport');
-  return { ...actual, createStorePlanningTransport: () => createPlanningTransport() };
-});
+  const actual = await importOriginal<typeof import('@/data/planning/storePlanningTransport')>()
+  const { createPlanningTransport } = await import('@/data/planning/planningTransport')
+  return { ...actual, createStorePlanningTransport: () => createPlanningTransport() }
+})
 
 afterEach(() => {
-  vi.unstubAllEnvs();
-  vi.unstubAllGlobals();
-});
+  vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
+})
 
 // The test resets modules and re-imports the whole application graph, so a cold transform counts against
 // the test body; it measures ~6s on a loaded aarch64 host. DOM waits retain their normal bounds.
 it('revalidates /me after a real planning GET returns 401 and clears private queries', async () => {
-  vi.resetModules();
-  let authReads = 0;
-  const requests: string[] = [];
+  vi.resetModules()
+  let authReads = 0
+  const requests: string[] = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
-      const url = input instanceof Request ? input.url : String(input);
-      requests.push(url);
+      const url = input instanceof Request ? input.url : String(input)
+      requests.push(url)
       if (url.endsWith('/api/v1/auth/me')) {
-        authReads += 1;
+        authReads += 1
         return Response.json(
           authReads === 1
             ? {
@@ -39,34 +39,34 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
                 },
               }
             : {},
-          { status: authReads === 1 ? 200 : 401 },
-        );
+          { status: authReads === 1 ? 200 : 401 }
+        )
       }
-      return Response.json({ error: 'Sign in' }, { status: 401 });
-    }),
-  );
-  const { AuthProvider } = await import('./AuthProvider');
-  const { useStore } = await import('@/store/useStore');
-  const { queryClient } = await import('@/api/queryClient');
+      return Response.json({ error: 'Sign in' }, { status: 401 })
+    })
+  )
+  const { AuthProvider } = await import('./AuthProvider')
+  const { useStore } = await import('@/store/useStore')
+  const { queryClient } = await import('@/api/queryClient')
 
   render(
     <AuthProvider>
       <div>app-content</div>
-    </AuthProvider>,
-  );
-  expect(await screen.findByText('app-content')).toBeInTheDocument();
-  queryClient.setQueryData(['private-account'], 'sensitive data');
+    </AuthProvider>
+  )
+  expect(await screen.findByText('app-content')).toBeInTheDocument()
+  queryClient.setQueryData(['private-account'], 'sensitive data')
   await act(async () => {
-    useStore.setState({ activeCompanyId: 'a-studio' });
-    await useStore.getState().refreshPlanning({ fresh: true });
-  });
+    useStore.setState({ activeCompanyId: 'a-studio' })
+    await useStore.getState().refreshPlanning({ fresh: true })
+  })
 
   // The read names the page's history; the path alone identifies the planning GET.
   expect(requests.map((url) => url.split('?')[0])).toContain(
-    `${window.location.origin}/api/v1/companies/a-studio/planning`,
-  );
-  expect(useStore.getState().planningAuthLossVersion).toBeGreaterThan(0);
-  expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
-  expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
-  expect(useStore.getState().masquerade.kind).toBe('inactive');
-}, 20_000);
+    `${window.location.origin}/api/v1/companies/a-studio/planning`
+  )
+  expect(useStore.getState().planningAuthLossVersion).toBeGreaterThan(0)
+  expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+  expect(queryClient.getQueryData(['private-account'])).toBeUndefined()
+  expect(useStore.getState().masquerade.kind).toBe('inactive')
+}, 20_000)

@@ -1,45 +1,45 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { SlidersHorizontal, Users } from 'lucide-react';
-import { m } from '@/i18n';
-import { useStore } from '@/store/useStore';
-import type { SchedulerUI } from '@/store/useStore';
-import { resolveSharedScopedData } from '@/store/useScopedData';
-import { listCompanyWorkingDays } from '@/store/selectors';
-import { EmptyState } from '@/components/common/ui';
-import { LAYOUT } from './layout';
-import { SchedulerGridHeader } from './SchedulerGridHeader';
-import { useSchedulerViewport } from './useSchedulerViewport';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
-import type { ID, ISODate } from '@capacitylens/shared/types/entities';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { isCreationStartBlocked } from './creationAvailability';
-import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
-import { SchedulerGridRows } from './SchedulerGridRows';
-import type { DialogState } from './schedulerGridDialog';
-import { SchedulerGridActionsContext } from './schedulerGridActions';
-import { useSchedulerGridPreferences, useSchedulerGridModel } from './useSchedulerGridModel';
-import { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization';
-import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet';
-import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonScheduleDrawer';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { SlidersHorizontal, Users } from 'lucide-react'
+import { m } from '@/i18n'
+import { useStore } from '@/store/useStore'
+import type { SchedulerUI } from '@/store/useStore'
+import { resolveSharedScopedData } from '@/store/useScopedData'
+import { listCompanyWorkingDays } from '@/store/selectors'
+import { EmptyState } from '@/components/common/ui'
+import { LAYOUT } from './layout'
+import { SchedulerGridHeader } from './SchedulerGridHeader'
+import { useSchedulerViewport } from './useSchedulerViewport'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
+import type { ID, ISODate } from '@capacitylens/shared/types/entities'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { isCreationStartBlocked } from './creationAvailability'
+import { listRenderableDateRanges } from '@/lib/renderableDateRanges'
+import { SchedulerGridRows } from './SchedulerGridRows'
+import type { DialogState } from './schedulerGridDialog'
+import { SchedulerGridActionsContext } from './schedulerGridActions'
+import { useSchedulerGridPreferences, useSchedulerGridModel } from './useSchedulerGridModel'
+import { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization'
+import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet'
+import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonScheduleDrawer'
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
 const AllocationDialog = lazy(() =>
   import('./AllocationDialog').then((module) => ({
     default: module.AllocationDialog,
-  })),
-);
+  }))
+)
 const TimeOffForm = lazy(() =>
   import('@/components/time-off/TimeOffForm').then((module) => ({
     default: module.TimeOffForm,
-  })),
-);
+  }))
+)
 
 function SchedulerDialog({ dialog, close }: { dialog: DialogState; close: () => void }) {
   if (dialog.kind === 'edit') {
-    return <AllocationDialog kind="edit" allocationId={dialog.allocationId} onClose={close} />;
+    return <AllocationDialog kind="edit" allocationId={dialog.allocationId} onClose={close} />
   }
   if (dialog.kind === 'timeOff') {
     return (
@@ -51,7 +51,7 @@ function SchedulerDialog({ dialog, close }: { dialog: DialogState; close: () => 
         }}
         onClose={close}
       />
-    );
+    )
   }
   return (
     <AllocationDialog
@@ -63,7 +63,7 @@ function SchedulerDialog({ dialog, close }: { dialog: DialogState; close: () => 
       }}
       onClose={close}
     />
-  );
+  )
 }
 
 function SchedulerEmptyRow({
@@ -72,10 +72,10 @@ function SchedulerEmptyRow({
   clearFilters,
   navigateToResources,
 }: {
-  filtersActive: boolean;
-  timelineWidth: number;
-  clearFilters: () => void;
-  navigateToResources: () => void;
+  filtersActive: boolean
+  timelineWidth: number
+  clearFilters: () => void
+  navigateToResources: () => void
 }) {
   const emptyState = filtersActive ? (
     <EmptyState
@@ -93,7 +93,7 @@ function SchedulerEmptyRow({
     >
       {m.scheduler_empty_title()}
     </EmptyState>
-  );
+  )
   return (
     <div
       role="row"
@@ -111,7 +111,7 @@ function SchedulerEmptyRow({
         {emptyState}
       </div>
     </div>
-  );
+  )
 }
 
 function openDrawDialog({
@@ -120,16 +120,16 @@ function openDrawDialog({
   endDate,
   setDialog,
 }: {
-  resourceId: ID;
-  startDate: ISODate;
-  endDate: ISODate;
-  setDialog: (dialog: DialogState) => void;
+  resourceId: ID
+  startDate: ISODate
+  endDate: ISODate
+  setDialog: (dialog: DialogState) => void
 }) {
-  const state = useStore.getState();
-  const drawMode = state.ui.drawMode;
-  const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
-  if (!resource) return;
-  const scopedData = resolveSharedScopedData(state.data, state.activeCompanyId);
+  const state = useStore.getState()
+  const drawMode = state.ui.drawMode
+  const resource = state.data.resources.find((candidate) => candidate.id === resourceId)
+  if (!resource) return
+  const scopedData = resolveSharedScopedData(state.data, state.activeCompanyId)
   if (
     isCreationStartBlocked({
       resource,
@@ -139,60 +139,60 @@ function openDrawDialog({
       closures: drawMode === 'timeOff' ? [] : listRenderableDateRanges(scopedData.closures),
     })
   ) {
-    return;
+    return
   }
-  if (drawMode === 'timeOff' && isExternalResource(resource)) return;
+  if (drawMode === 'timeOff' && isExternalResource(resource)) return
   setDialog({
     kind: drawMode === 'timeOff' ? 'timeOff' : 'create',
     resourceId,
     startDate,
     endDate,
-  });
+  })
 }
 
 function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
-  const screenReaderAnnouncement = useStore((state) => state.srAnnouncement);
-  const announceStatus = useStore((state) => state.announceCapacity);
-  const [dialog, setDialog] = useState<DialogState | null>(null);
-  const previousDrawMode = useRef(ui.drawMode);
+  const screenReaderAnnouncement = useStore((state) => state.srAnnouncement)
+  const announceStatus = useStore((state) => state.announceCapacity)
+  const [dialog, setDialog] = useState<DialogState | null>(null)
+  const previousDrawMode = useRef(ui.drawMode)
   useEffect(() => {
-    if (previousDrawMode.current === ui.drawMode) return;
-    previousDrawMode.current = ui.drawMode;
+    if (previousDrawMode.current === ui.drawMode) return
+    previousDrawMode.current = ui.drawMode
     announceStatus(
       ui.drawMode === 'timeOff'
         ? m.scheduler_sr_time_off_mode_enabled()
-        : m.scheduler_sr_work_mode_enabled(),
-    );
-  }, [announceStatus, ui.drawMode]);
+        : m.scheduler_sr_work_mode_enabled()
+    )
+  }, [announceStatus, ui.drawMode])
   const editAllocation = useCallback(
     (allocationId: ID) => setDialog({ kind: 'edit', allocationId }),
-    [],
-  );
+    []
+  )
   const createFromDraw = useCallback(
     (resourceId: ID, startDate: ISODate, endDate: ISODate) =>
       openDrawDialog({ resourceId, startDate, endDate, setDialog }),
-    [],
-  );
-  return { screenReaderAnnouncement, dialog, setDialog, editAllocation, createFromDraw };
+    []
+  )
+  return { screenReaderAnnouncement, dialog, setDialog, editAllocation, createFromDraw }
 }
 
 function SchedulerDialogHost({
   dialog,
   setDialog,
 }: Pick<ReturnType<typeof useSchedulerInteractions>, 'dialog' | 'setDialog'>) {
-  if (!dialog) return null;
+  if (!dialog) return null
   return (
     <Suspense fallback={null}>
       <SchedulerDialog dialog={dialog} close={() => setDialog(null)} />
     </Suspense>
-  );
+  )
 }
 
 function SchedulerGridFooter({
   visibleClosures,
   screenReaderAnnouncement,
 }: Pick<ReturnType<typeof useSchedulerGridVirtualization>, 'visibleClosures'> & {
-  screenReaderAnnouncement: ReturnType<typeof useSchedulerInteractions>['screenReaderAnnouncement'];
+  screenReaderAnnouncement: ReturnType<typeof useSchedulerInteractions>['screenReaderAnnouncement']
 }) {
   return (
     <>
@@ -221,7 +221,7 @@ function SchedulerGridFooter({
         )}
       </div>
     </>
-  );
+  )
 }
 
 // Publish viewport dimensions only after measurement; an unmeasured zero would hide
@@ -246,7 +246,7 @@ function buildViewportVariables({
           ['--sched-visible-height' as string]: `${Math.max(0, timelineHeight - stickyHeaderHeight)}px`,
         }
       : {}),
-  };
+  }
 }
 
 function SchedulerGridSurface({
@@ -257,14 +257,14 @@ function SchedulerGridSurface({
   footer,
   children,
 }: {
-  viewport: ReturnType<typeof useSchedulerViewport>;
-  personScheduleDrawer: ReturnType<typeof usePersonScheduleDrawer>;
-  drawMode: SchedulerUI['drawMode'];
-  rowCount: number;
-  footer: ReactNode;
-  children: ReactNode;
+  viewport: ReturnType<typeof useSchedulerViewport>
+  personScheduleDrawer: ReturnType<typeof usePersonScheduleDrawer>
+  drawMode: SchedulerUI['drawMode']
+  rowCount: number
+  footer: ReactNode
+  children: ReactNode
 }) {
-  const { scrollRef, stickyHeaderHeight, timelineWidth, timelineHeight, onScroll } = viewport;
+  const { scrollRef, stickyHeaderHeight, timelineWidth, timelineHeight, onScroll } = viewport
   return (
     <div className="h-full">
       <div
@@ -290,42 +290,42 @@ function SchedulerGridSurface({
       />
       {footer}
     </div>
-  );
+  )
 }
 
 /** Coordinates the visible week grid, resource lanes, and drawing interactions. */
 export function SchedulerGrid() {
-  const navigate = useNavigate();
-  const preferences = useSchedulerGridPreferences();
-  const toggleGroup = useStore((state) => state.toggleGroup);
-  const clearFilters = useStore((state) => state.clearFilters);
-  const { companyPrefs, ui, utilisationPrefs, minimiseWeekends, weekSnapEnabled } = preferences;
-  const interactions = useSchedulerInteractions(ui);
+  const navigate = useNavigate()
+  const preferences = useSchedulerGridPreferences()
+  const toggleGroup = useStore((state) => state.toggleGroup)
+  const clearFilters = useStore((state) => state.clearFilters)
+  const { companyPrefs, ui, utilisationPrefs, minimiseWeekends, weekSnapEnabled } = preferences
+  const interactions = useSchedulerInteractions(ui)
   const viewport = useSchedulerViewport({
     ui,
     minimiseWeekends,
     weekSnapEnabled,
     calendarWeekStartsOn: companyPrefs.calendarWeekStartsOn,
-  });
-  const gridModel = useSchedulerGridModel(preferences, viewport);
-  const { model, today, todayX, visibleWeeksLabel, visibleSpanCompact } = gridModel;
-  const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport;
+  })
+  const gridModel = useSchedulerGridModel(preferences, viewport)
+  const { model, today, todayX, visibleWeeksLabel, visibleSpanCompact } = gridModel
+  const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport
   const virtualization = useSchedulerGridVirtualization({
     model,
     ui,
     data: preferences.data,
     viewport,
-  });
+  })
   const personScheduleDrawer = usePersonScheduleDrawer({
     data: preferences.data,
     fallbackRef: scrollRef,
-  });
-  const { setDialog } = interactions;
-  const { viewSchedule } = personScheduleDrawer;
+  })
+  const { setDialog } = interactions
+  const { viewSchedule } = personScheduleDrawer
   const actions = useMemo(
     () => ({ setDialog, onViewSchedule: viewSchedule, visibleStartDate }),
-    [setDialog, viewSchedule, visibleStartDate],
-  );
+    [setDialog, viewSchedule, visibleStartDate]
+  )
 
   return (
     <TooltipProvider>
@@ -379,5 +379,5 @@ export function SchedulerGrid() {
         </SchedulerGridSurface>
       </SchedulerGridActionsContext.Provider>
     </TooltipProvider>
-  );
+  )
 }

@@ -1,39 +1,38 @@
-import { Fragment } from 'react';
-import { LAYOUT } from './layout';
-import { ClosureBand } from './ClosureBand';
-import { SchedulerGridRow } from './SchedulerGridRow';
-import type { SchedulerGridRowProps } from './SchedulerGridRow';
-import { SchedulerGridGroupHeader } from './SchedulerGridGroupHeader';
-import type { SchedulerUI, StoreState } from '@/store/useStore';
-import type { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization';
+import { Fragment } from 'react'
+import { LAYOUT } from './layout'
+import { ClosureBand } from './ClosureBand'
+import { SchedulerGridRow } from './SchedulerGridRow'
+import type { SchedulerGridRowProps } from './SchedulerGridRow'
+import { SchedulerGridGroupHeader } from './SchedulerGridGroupHeader'
+import type { SchedulerUI, StoreState } from '@/store/useStore'
+import type { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization'
 
 type Props = ReturnType<typeof useSchedulerGridVirtualization> &
   Omit<SchedulerGridRowProps, 'group' | 'row' | 'rowIndex'> & {
-    ui: SchedulerUI;
-    utilisationPrefs: StoreState['utilisationPrefs'];
-    toggleGroup: (key: string) => void;
-  };
+    ui: SchedulerUI
+    utilisationPrefs: StoreState['utilisationPrefs']
+    toggleGroup: (key: string) => void
+  }
 
 function SchedulerGridItem({
   props,
   itemIndex,
   position,
 }: {
-  props: Props;
-  itemIndex: number;
-  position: number;
+  props: Props
+  itemIndex: number
+  position: number
 }) {
-  const { items, renderedIndices, layout, heights, ui, toggleGroup, geom, utilisationPrefs } =
-    props;
-  const item = items[itemIndex];
-  if (!item) return null;
-  const previousIndex = renderedIndices[position - 1];
+  const { items, renderedIndices, layout, heights, ui, toggleGroup, geom, utilisationPrefs } = props
+  const item = items[itemIndex]
+  if (!item) return null
+  const previousIndex = renderedIndices[position - 1]
   const previousBottom =
     previousIndex === undefined
       ? 0
-      : (layout.tops[previousIndex] ?? 0) + (heights[previousIndex] ?? 0);
-  const gap = Math.max(0, (layout.tops[itemIndex] ?? 0) - previousBottom);
-  const rowIndex = itemIndex + 2;
+      : (layout.tops[previousIndex] ?? 0) + (heights[previousIndex] ?? 0)
+  const gap = Math.max(0, (layout.tops[itemIndex] ?? 0) - previousBottom)
+  const rowIndex = itemIndex + 2
   const rendered =
     item.kind === 'group' ? (
       <SchedulerGridGroupHeader
@@ -53,13 +52,13 @@ function SchedulerGridItem({
         row={item.row}
         rowIndex={rowIndex}
       />
-    );
+    )
   return (
     <Fragment key={`window-${itemIndex}`}>
       {gap > 0 && <div aria-hidden style={{ height: gap }} />}
       {rendered}
     </Fragment>
-  );
+  )
 }
 
 function TrailingSpacer({
@@ -67,11 +66,11 @@ function TrailingSpacer({
   layout,
   heights,
 }: Pick<Props, 'renderedIndices' | 'layout' | 'heights'>) {
-  const finalIndex = renderedIndices[renderedIndices.length - 1];
-  if (finalIndex === undefined) return null;
-  const renderedBottom = (layout.tops[finalIndex] ?? 0) + (heights[finalIndex] ?? 0);
-  const gap = Math.max(0, layout.total - renderedBottom);
-  return gap > 0 ? <div aria-hidden style={{ height: gap }} /> : null;
+  const finalIndex = renderedIndices[renderedIndices.length - 1]
+  if (finalIndex === undefined) return null
+  const renderedBottom = (layout.tops[finalIndex] ?? 0) + (heights[finalIndex] ?? 0)
+  const gap = Math.max(0, layout.total - renderedBottom)
+  return gap > 0 ? <div aria-hidden style={{ height: gap }} /> : null
 }
 
 /** Renders only realized rows while preserving virtualized lane spacing. */
@@ -84,7 +83,7 @@ export function SchedulerGridRows(props: Props) {
     visibleClosures,
     trackedGridHeight,
     geom,
-  } = props;
+  } = props
   return (
     <>
       {items.length > 0 && (
@@ -114,5 +113,5 @@ export function SchedulerGridRows(props: Props) {
         </div>
       )}
     </>
-  );
+  )
 }

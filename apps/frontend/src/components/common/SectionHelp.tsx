@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import type { ReactNode } from 'react';
-import { CircleHelp } from 'lucide-react';
-import { m } from '@/i18n';
-import { Button } from '@/components/ui/button';
-import { FormDialog } from './dialogs';
+import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { CircleHelp } from 'lucide-react'
+import { m } from '@/i18n'
+import { Button } from '@/components/ui/button'
+import { FormDialog } from './dialogs'
 
 /** Keeps explanatory section content collapsed until requested. */
 export function SectionHelp({ title, children }: { title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const helpLabel = m.settings_help_aria({ section: title });
+  const [open, setOpen] = useState(false)
+  const helpLabel = m.settings_help_aria({ section: title })
 
   return (
     <>
@@ -37,5 +37,5 @@ export function SectionHelp({ title, children }: { title: string; children: Reac
         </FormDialog>
       )}
     </>
-  );
+  )
 }

@@ -1,37 +1,37 @@
-import { getMasqueradeToken } from '@/api/masqueradeToken';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { m } from '@/i18n';
-import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessApi';
-import { useAuth } from '@/auth/authContext';
-import { useAccessGrant } from '@/auth/permissionContext';
-import { useDeadlineClock } from '@/hooks/useDeadlineClock';
-import { useFieldError } from '@/hooks/useFieldError';
-import { useStore } from '@/store/useStore';
-import type { StoreState } from '@/store/types';
-import { useTeamDirectory } from './useTeamDirectory';
-import { useTeamOperationLock } from './useTeamOperationLock';
-import { useMemberInvites } from './useMemberInvites';
-import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
-import { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
-import { createMemberMutations } from './createMemberMutations';
-import { startMasquerade } from '@/auth/companyTransition';
-import { STATUS_FOR_ACTION } from './memberConfirmationCopy';
-import type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy';
-import { buildMemberDirectoryPresentation } from './buildMemberDirectoryPresentation';
-import { useResourceListModel } from '@/components/resources/useResourceListModel';
+import { getMasqueradeToken } from '@/api/masqueradeToken'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { m } from '@/i18n'
+import type { Role } from '@capacitylens/shared/domain/access'
+import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessApi'
+import { useAuth } from '@/auth/authContext'
+import { useAccessGrant } from '@/auth/permissionContext'
+import { useDeadlineClock } from '@/hooks/useDeadlineClock'
+import { useFieldError } from '@/hooks/useFieldError'
+import { useStore } from '@/store/useStore'
+import type { StoreState } from '@/store/types'
+import { useTeamDirectory } from './useTeamDirectory'
+import { useTeamOperationLock } from './useTeamOperationLock'
+import { useMemberInvites } from './useMemberInvites'
+import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest'
+import { createMemberAccessReconciliation } from './createMemberAccessReconciliation'
+import { createMemberMutations } from './createMemberMutations'
+import { startMasquerade } from '@/auth/companyTransition'
+import { STATUS_FOR_ACTION } from './memberConfirmationCopy'
+import type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy'
+import { buildMemberDirectoryPresentation } from './buildMemberDirectoryPresentation'
+import { useResourceListModel } from '@/components/resources/useResourceListModel'
 
-const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
+const NO_INVITES: readonly TeamInvitation[] = Object.freeze([])
 
 function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory>['directory']) {
   switch (directory.kind) {
     case 'ready':
-      return directory.snapshot;
+      return directory.snapshot
     case 'error':
-      return directory.content.kind === 'authorized' ? directory.content.snapshot : null;
+      return directory.content.kind === 'authorized' ? directory.content.snapshot : null
     case 'hidden':
     case 'loading':
-      return null;
+      return null
   }
 }
 
@@ -39,15 +39,15 @@ function pickNextInviteDeadline(invites: readonly TeamInvitation[], clock: numbe
   const nextExpiry = invites
     .map((invite) => Date.parse(invite.expiresAt))
     .filter((expiry) => Number.isFinite(expiry) && expiry > clock)
-    .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
-  return Number.isFinite(nextExpiry) ? nextExpiry : null;
+    .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY)
+  return Number.isFinite(nextExpiry) ? nextExpiry : null
 }
 
 function useMemberViewState() {
-  const [roleEdit, setRoleEdit] = useState<{ member: Member; nextRole: Role } | null>(null);
-  const [memberConfirmation, setMemberConfirmation] = useState<MemberConfirmation | null>(null);
-  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
-  const [inactiveOpen, setInactiveOpen] = useState(false);
+  const [roleEdit, setRoleEdit] = useState<{ member: Member; nextRole: Role } | null>(null)
+  const [memberConfirmation, setMemberConfirmation] = useState<MemberConfirmation | null>(null)
+  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null)
+  const [inactiveOpen, setInactiveOpen] = useState(false)
   return {
     roleEdit,
     setRoleEdit,
@@ -57,96 +57,96 @@ function useMemberViewState() {
     setOpenMenuFor,
     inactiveOpen,
     setInactiveOpen,
-  };
+  }
 }
 
 function useActionStatusFocus(busyAction: string | null) {
-  const actionStatusRef = useRef<HTMLParagraphElement>(null);
+  const actionStatusRef = useRef<HTMLParagraphElement>(null)
   const setActionStatusElement = useCallback((element: HTMLParagraphElement | null) => {
-    actionStatusRef.current = element;
-  }, []);
+    actionStatusRef.current = element
+  }, [])
   useEffect(() => {
-    if (busyAction !== null) actionStatusRef.current?.focus();
-  }, [busyAction]);
-  return setActionStatusElement;
+    if (busyAction !== null) actionStatusRef.current?.focus()
+  }, [busyAction])
+  return setActionStatusElement
 }
 
 function createConfirmationActions(
   activeCompanyId: string | null,
   state: ReturnType<typeof useMemberViewState>,
-  actions: ReturnType<typeof createMemberMutations>,
+  actions: ReturnType<typeof createMemberMutations>
 ) {
   const chooseMemberAction = (action: MemberConfirmationAction, member: Member) => {
-    state.setOpenMenuFor(null);
-    state.setMemberConfirmation({ kind: action, member });
-  };
+    state.setOpenMenuFor(null)
+    state.setMemberConfirmation({ kind: action, member })
+  }
   const confirmMemberAction = () => {
-    if (!state.memberConfirmation) return;
-    const pending = state.memberConfirmation;
-    state.setMemberConfirmation(null);
+    if (!state.memberConfirmation) return
+    const pending = state.memberConfirmation
+    state.setMemberConfirmation(null)
     switch (pending.kind) {
       case 'masquerade':
-        if (activeCompanyId) void startMasquerade(activeCompanyId, pending.member.userId);
-        return;
+        if (activeCompanyId) void startMasquerade(activeCompanyId, pending.member.userId)
+        return
       case 'suspend':
       case 'restore':
-        void actions.changeStatus(pending.member, STATUS_FOR_ACTION[pending.kind]);
-        return;
+        void actions.changeStatus(pending.member, STATUS_FOR_ACTION[pending.kind])
+        return
     }
-  };
-  return { chooseMemberAction, confirmMemberAction };
+  }
+  return { chooseMemberAction, confirmMemberAction }
 }
 
 interface MemberDirectoryStateInput {
-  activeCompanyId: string | null;
-  enabled: boolean;
-  fail: ReturnType<typeof useFieldError>['fail'];
-  setNotice: StoreState['setNotice'];
+  activeCompanyId: string | null
+  enabled: boolean
+  fail: ReturnType<typeof useFieldError>['fail']
+  setNotice: StoreState['setNotice']
 }
 
 function useMemberDirectoryState(input: MemberDirectoryStateInput) {
-  const mounted = useRef(true);
+  const mounted = useRef(true)
   useLayoutEffect(() => {
-    mounted.current = true;
+    mounted.current = true
     return () => {
-      mounted.current = false;
-    };
-  }, []);
-  const actionContext = getMasqueradeToken();
+      mounted.current = false
+    }
+  }, [])
+  const actionContext = getMasqueradeToken()
   const directoryState = useTeamDirectory({
     enabled: input.enabled,
     activeCompanyId: input.activeCompanyId,
     fail: input.fail,
-  });
-  const operationLock = useTeamOperationLock();
-  const authorizedDirectory = selectAuthorizedDirectory(directoryState.directory);
-  const members = authorizedDirectory?.members ?? null;
-  const invites = authorizedDirectory?.invites ?? NO_INVITES;
-  const resourceCandidates = authorizedDirectory?.resourceCandidates ?? [];
+  })
+  const operationLock = useTeamOperationLock()
+  const authorizedDirectory = selectAuthorizedDirectory(directoryState.directory)
+  const members = authorizedDirectory?.members ?? null
+  const invites = authorizedDirectory?.invites ?? NO_INVITES
+  const resourceCandidates = authorizedDirectory?.resourceCandidates ?? []
   const requestCompanyId = (): string => {
-    if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_company());
-    return input.activeCompanyId;
-  };
+    if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_company())
+    return input.activeCompanyId
+  }
   const isActiveCompany = (companyId: string): boolean =>
     mounted.current &&
     useStore.getState().activeCompanyId === companyId &&
-    getMasqueradeToken() === actionContext;
+    getMasqueradeToken() === actionContext
   const withMemberAction = async (
     key: string,
-    body: (companyId: string) => Promise<void>,
+    body: (companyId: string) => Promise<void>
   ): Promise<void> => {
-    const companyId = requestCompanyId();
-    if (!operationLock.beginAction(key)) return;
+    const companyId = requestCompanyId()
+    if (!operationLock.beginAction(key)) return
     try {
-      await body(companyId);
+      await body(companyId)
     } finally {
-      operationLock.endAction();
+      operationLock.endAction()
     }
-  };
+  }
   const renderedAt = useDeadlineClock({
     pickNextDeadline: (clock) => pickNextInviteDeadline(invites, clock),
     readNow: Date.now,
-  });
+  })
   return {
     ...directoryState,
     busyAction: operationLock.busyAction,
@@ -160,40 +160,40 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
       fail: input.fail,
       setNotice: input.setNotice,
     },
-  };
+  }
 }
 
 interface MemberMutationStateInput {
-  activeCompanyId: string | null;
-  clear: ReturnType<typeof useFieldError>['clear'];
-  viewState: ReturnType<typeof useMemberViewState>;
-  createInviteActions: ReturnType<typeof useMemberInvites>['createActions'];
-  directoryState: ReturnType<typeof useMemberDirectoryState>;
+  activeCompanyId: string | null
+  clear: ReturnType<typeof useFieldError>['clear']
+  viewState: ReturnType<typeof useMemberViewState>
+  createInviteActions: ReturnType<typeof useMemberInvites>['createActions']
+  directoryState: ReturnType<typeof useMemberDirectoryState>
 }
 
 function useMemberMutationState(input: MemberMutationStateInput) {
-  const refreshDirectory = input.directoryState.reload;
+  const refreshDirectory = input.directoryState.reload
   const reconciliation = createMemberAccessReconciliation({
     ...input.directoryState.actionDependencies,
     replaceAuthorizedDirectory: input.directoryState.replaceAuthorizedDirectory,
-  });
+  })
   const actions = createMemberMutations({
     ...input.directoryState.actionDependencies,
     ...reconciliation,
     refreshDirectory,
     reload: input.directoryState.reload,
-  });
+  })
   const inviteActions = input.createInviteActions({
     clear: input.clear,
     ...input.directoryState.actionDependencies,
     reloadInvites: input.directoryState.reloadInvites,
     reconcileUnknownMutation: reconciliation.reconcileUnknownMutation,
-  });
+  })
   return {
     actions,
     inviteActions,
     confirmationActions: createConfirmationActions(input.activeCompanyId, input.viewState, actions),
-  };
+  }
 }
 
 function selectPublicViewState(viewState: ReturnType<typeof useMemberViewState>) {
@@ -206,61 +206,61 @@ function selectPublicViewState(viewState: ReturnType<typeof useMemberViewState>)
     setOpenMenuFor: viewState.setOpenMenuFor,
     inactiveOpen: viewState.inactiveOpen,
     setInactiveOpen: viewState.setInactiveOpen,
-  };
+  }
 }
 
 function useMemberStoreActions() {
   return {
     setNotice: useStore((state) => state.setNotice),
-  };
+  }
 }
 
 /** Coordinates member reads, invitations, and access mutations for the active company. */
 export function useMembersOrchestration(activeCompanyId: string | null) {
-  const { user } = useAuth();
-  const { setNotice } = useMemberStoreActions();
-  const { error, errorField, errorId, fail, clear } = useFieldError();
-  const viewState = useMemberViewState();
-  const memberInvites = useMemberInvites();
-  const { resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
-  const enabled = user !== null;
+  const { user } = useAuth()
+  const { setNotice } = useMemberStoreActions()
+  const { error, errorField, errorId, fail, clear } = useFieldError()
+  const viewState = useMemberViewState()
+  const memberInvites = useMemberInvites()
+  const { resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites
+  const enabled = user !== null
   const directoryState = useMemberDirectoryState({
     activeCompanyId,
     enabled,
     fail,
     setNotice,
-  });
+  })
   useEffect(() => {
     const unauthorized =
       directoryState.directory.kind === 'hidden' ||
       (directoryState.directory.kind === 'error' &&
-        directoryState.directory.content.kind === 'unavailable');
-    if (unauthorized) resetInviteDraft();
-  }, [directoryState.directory, resetInviteDraft]);
+        directoryState.directory.content.kind === 'unavailable')
+    if (unauthorized) resetInviteDraft()
+  }, [directoryState.directory, resetInviteDraft])
   // Candidate eligibility comes from the server; local Resources state affects only presentation order. Never intersect the candidate set with a potentially stale local roster.
-  const resourceListModel = useResourceListModel();
+  const resourceListModel = useResourceListModel()
   const resourceOrder = new Map(
-    resourceListModel.people.map((resource, index) => [resource.id, index]),
-  );
+    resourceListModel.people.map((resource, index) => [resource.id, index])
+  )
   const resourceCandidates = [...directoryState.resourceCandidates].sort(
     (left, right) =>
       (resourceOrder.get(left.resourceId) ?? Number.POSITIVE_INFINITY) -
-      (resourceOrder.get(right.resourceId) ?? Number.POSITIVE_INFINITY),
-  );
+      (resourceOrder.get(right.resourceId) ?? Number.POSITIVE_INFINITY)
+  )
   const mutationState = useMemberMutationState({
     activeCompanyId,
     clear,
     viewState,
     createInviteActions,
     directoryState,
-  });
+  })
   const getResourceLinkRequest = useMemberResourceLinkRequests({
     companyId: activeCompanyId,
     reload: directoryState.reload,
     acceptedReadGeneration: directoryState.acceptedReadGeneration,
-  });
-  const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
-  const { permissions } = useAccessGrant();
+  })
+  const setActionStatusElement = useActionStatusFocus(directoryState.busyAction)
+  const { permissions } = useAccessGrant()
   return {
     activeCompanyId,
     enabled,
@@ -284,5 +284,5 @@ export function useMembersOrchestration(activeCompanyId: string | null) {
     chooseMemberAction: mutationState.confirmationActions.chooseMemberAction,
     confirmedMemberAction: mutationState.confirmationActions.confirmMemberAction,
     changeRole: mutationState.actions.changeRole,
-  };
+  }
 }

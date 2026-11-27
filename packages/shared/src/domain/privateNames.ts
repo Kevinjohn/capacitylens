@@ -1,9 +1,9 @@
-import type { Client, Project } from '../types/entities.js';
+import type { Client, Project } from '../types/entities.js'
 
 // The fallback used when an id is absent, empty, or yields no alphanumerics, so a derived label is
 // never left with an empty marker. Constant (not random) to keep {@link buildShortIdTag} deterministic;
 // `0000` reads clearly as "no usable id".
-const SHORT_ID_FALLBACK_TAG = '0000';
+const SHORT_ID_FALLBACK_TAG = '0000'
 
 /**
  * Derive a short, stable, opaque tag from an entity id, for the labels that must distinguish rows
@@ -15,33 +15,33 @@ const SHORT_ID_FALLBACK_TAG = '0000';
  * user data. A non-string, empty or alphanumeric-free id yields {@link SHORT_ID_FALLBACK_TAG}.
  */
 export function buildShortIdTag(id: unknown): string {
-  const tag = typeof id === 'string' ? id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) : '';
-  return tag.length > 0 ? tag : SHORT_ID_FALLBACK_TAG;
+  const tag = typeof id === 'string' ? id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) : ''
+  return tag.length > 0 ? tag : SHORT_ID_FALLBACK_TAG
 }
 
 /** Stable, non-secret cover name used only when repairing malformed private data. Imported records
  * have already received their final remapped id, so the tag distinguishes rows without using the
  * private name. */
 export function buildPrivateCodeNameFallback(id: unknown): string {
-  return `Confidential #${buildShortIdTag(id)}`;
+  return `Confidential #${buildShortIdTag(id)}`
 }
 
-const CODE_NAME_QUOTES = new Set(['"', '“', '”']);
+const CODE_NAME_QUOTES = new Set(['"', '“', '”'])
 
 /** Strip quotation marks a user may have typed around a code name. Quotes are display chrome, not data. */
 export function normalizeCodeName(value: string): string {
   // Index scan rather than an end-anchored regex, which backtracks quadratically on long quote runs.
-  const trimmed = value.trim();
-  let start = 0;
-  let end = trimmed.length;
-  while (start < end && CODE_NAME_QUOTES.has(trimmed.charAt(start))) start++;
-  while (end > start && CODE_NAME_QUOTES.has(trimmed.charAt(end - 1))) end--;
-  return trimmed.slice(start, end).trim();
+  const trimmed = value.trim()
+  let start = 0
+  let end = trimmed.length
+  while (start < end && CODE_NAME_QUOTES.has(trimmed.charAt(start))) start++
+  while (end > start && CODE_NAME_QUOTES.has(trimmed.charAt(end - 1))) end--
+  return trimmed.slice(start, end).trim()
 }
 
 /** Code names always render inside straight double quotation marks. */
 export function buildQuotedCodeName(value: string, id?: unknown): string {
-  return `"${normalizeCodeName(value) || buildPrivateCodeNameFallback(id)}"`;
+  return `"${normalizeCodeName(value) || buildPrivateCodeNameFallback(id)}"`
 }
 
 /** Ordinary writes must supply a real code name when they make a client/project private. */
@@ -49,17 +49,17 @@ export function hasUsablePrivateCodeName(entity: Record<string, unknown>): boole
   return (
     entity.isPrivate !== true ||
     (typeof entity.codeName === 'string' && normalizeCodeName(entity.codeName).length > 0)
-  );
+  )
 }
 
 /** Name value to pass into copy that already supplies its own surrounding quotation marks. Private
  * read projections already carry quotes, so remove only those outer marks to prevent `""Code""`. */
 export function buildQuotedContextName(value: string): string {
-  return normalizeCodeName(value);
+  return normalizeCodeName(value)
 }
 
-type PrivateNamedEntity = Client | Project;
-const projectedPrivateNames = new WeakMap<object, string>();
+type PrivateNamedEntity = Client | Project
+const projectedPrivateNames = new WeakMap<object, string>()
 
 /**
  * Replace one private entity's real name with its quoted code name and clear the raw `codeName`
@@ -67,13 +67,13 @@ const projectedPrivateNames = new WeakMap<object, string>();
  * projection and is also used for write/conflict echoes, so no non-owner response path can drift.
  */
 export function redactPrivateName<T extends PrivateNamedEntity>(entity: T): T {
-  if (!entity.isPrivate) return entity;
+  if (!entity.isPrivate) return entity
   // Only this module can establish that an object with a cleared codeName is already projected. Quotation
   // marks are not provenance: malformed persisted input may itself contain a quoted private name.
-  if (entity.codeName === null && projectedPrivateNames.get(entity) === entity.name) return entity;
-  const codeName = typeof entity.codeName === 'string' ? entity.codeName : '';
-  const redacted = { ...entity, name: buildQuotedCodeName(codeName, entity.id) };
-  redacted.codeName = null;
-  projectedPrivateNames.set(redacted, redacted.name);
-  return redacted;
+  if (entity.codeName === null && projectedPrivateNames.get(entity) === entity.name) return entity
+  const codeName = typeof entity.codeName === 'string' ? entity.codeName : ''
+  const redacted = { ...entity, name: buildQuotedCodeName(codeName, entity.id) }
+  redacted.codeName = null
+  projectedPrivateNames.set(redacted, redacted.name)
+  return redacted
 }

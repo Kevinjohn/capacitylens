@@ -1,7 +1,7 @@
-import { test } from '@japa/runner';
-import { FIXTURE_TIME_OFF } from '@capacitylens/shared/data/fixtures';
-import TimeOff from '#models/time_off';
-import { transformRow } from '#transformers/row_transformer';
+import { test } from '@japa/runner'
+import { FIXTURE_TIME_OFF } from '@capacitylens/shared/data/fixtures'
+import TimeOff from '#models/time_off'
+import { transformRow } from '#transformers/row_transformer'
 
 test('produces a stored row in its wire shape and key order, without deletion metadata', ({
   assert,
@@ -18,10 +18,10 @@ test('produces a stored row in its wire shape and key order, without deletion me
     updated_at: FIXTURE_TIME_OFF.updatedAt,
     deleted_at: null,
     deletion_group_id: 'group-1',
-  });
-  if (!stored) throw new Error('The stored row did not load');
-  const row = transformRow(stored);
-  assert.deepEqual(row, { ...FIXTURE_TIME_OFF });
+  })
+  if (!stored) throw new Error('The stored row did not load')
+  const row = transformRow(stored)
+  assert.deepEqual(row, { ...FIXTURE_TIME_OFF })
   assert.deepEqual(Object.keys(row), [
     'companyId',
     'createdAt',
@@ -32,5 +32,5 @@ test('produces a stored row in its wire shape and key order, without deletion me
     'startDate',
     'type',
     'updatedAt',
-  ]);
-});
+  ])
+})

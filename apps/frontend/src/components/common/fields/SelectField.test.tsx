@@ -1,49 +1,49 @@
-import { loadPlanningData } from '@/test/fixtures';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { FormDialog, SelectField } from '@/components/common/ui';
-import { useStore } from '@/store/useStore';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
+import { loadPlanningData } from '@/test/fixtures'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import { FormDialog, SelectField } from '@/components/common/ui'
+import { useStore } from '@/store/useStore'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
 
 beforeEach(() => {
-  loadPlanningData(createEmptyAppData());
-  useStore.getState().clearFilters();
-  useStore.getState().setDirtyForm(false);
-});
+  loadPlanningData(createEmptyAppData())
+  useStore.getState().clearFilters()
+  useStore.getState().setDirtyForm(false)
+})
 
 const selectFieldOptions = [
   { value: 'a', label: 'Option A' },
   { value: 'b', label: 'Option B' },
   { value: 'c', label: 'Option C' },
-];
+]
 
 describe('SelectField', () => {
-  const options: typeof selectFieldOptions = selectFieldOptions;
+  const options: typeof selectFieldOptions = selectFieldOptions
   it('renders all options', () => {
-    render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
-    const select = screen.getByLabelText('Pick one');
-    expect(select).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByLabelText('Pick one'), { key: 'ArrowDown' });
-    expect(screen.getByRole('option', { name: 'Option A' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Option B' })).toHaveAttribute('data-value', 'b');
-    expect(screen.getByRole('option', { name: 'Option C' })).toBeInTheDocument();
-  });
+    render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />)
+    const select = screen.getByLabelText('Pick one')
+    expect(select).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByLabelText('Pick one'), { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Option A' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Option B' })).toHaveAttribute('data-value', 'b')
+    expect(screen.getByRole('option', { name: 'Option C' })).toBeInTheDocument()
+  })
   it('calls onChange when an option is selected', () => {
-    const onChange = vi.fn();
-    render(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />);
-    const select = screen.getByLabelText('Pick one');
-    select.focus();
-    fireEvent.keyDown(screen.getByLabelText('Pick one'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
-    expect(onChange).toHaveBeenCalledWith('b');
-  });
+    const onChange = vi.fn()
+    render(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />)
+    const select = screen.getByLabelText('Pick one')
+    select.focus()
+    fireEvent.keyDown(screen.getByLabelText('Pick one'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }))
+    expect(onChange).toHaveBeenCalledWith('b')
+  })
   it('opts into a responsive label-control row without changing the default layout', () => {
     const { rerender } = render(
-      <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />,
-    );
+      <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />
+    )
     expect(screen.getByLabelText('Pick one').closest('[data-slot="field"]')).not.toHaveAttribute(
-      'data-product-layout',
-    );
+      'data-product-layout'
+    )
 
     rerender(
       <SelectField
@@ -52,13 +52,13 @@ describe('SelectField', () => {
         onChange={vi.fn()}
         options={options}
         layout="label-control"
-      />,
-    );
+      />
+    )
     expect(screen.getByLabelText('Pick one').closest('[data-slot="field"]')).toHaveAttribute(
       'data-product-layout',
-      'label-control',
-    );
-  });
+      'label-control'
+    )
+  })
   it('renders an optional structural separator without creating another option', () => {
     const { baseElement } = render(
       <SelectField
@@ -69,16 +69,16 @@ describe('SelectField', () => {
           { value: 'internal', label: 'Internal' },
           { value: 'client', label: 'Client', separatorBefore: true },
         ]}
-      />,
-    );
+      />
+    )
 
-    fireEvent.keyDown(screen.getByLabelText('Grouped choices'), { key: 'ArrowDown' });
-    expect(screen.getAllByRole('option')).toHaveLength(2);
+    fireEvent.keyDown(screen.getByLabelText('Grouped choices'), { key: 'ArrowDown' })
+    expect(screen.getAllByRole('option')).toHaveLength(2)
     expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute(
       'aria-hidden',
-      'true',
-    );
-  });
+      'true'
+    )
+  })
   it('renders contiguous options in accessible labelled groups', () => {
     render(
       <SelectField
@@ -89,21 +89,21 @@ describe('SelectField', () => {
           { value: 'all-projects', label: 'Planning', groupLabel: 'All projects' },
           { value: 'project', label: 'Delivery', groupLabel: 'Project-specific' },
         ]}
-      />,
-    );
+      />
+    )
 
-    fireEvent.keyDown(screen.getByLabelText('Activities'), { key: 'ArrowDown' });
+    fireEvent.keyDown(screen.getByLabelText('Activities'), { key: 'ArrowDown' })
     expect(
       within(screen.getByRole('group', { name: 'All projects' })).getByRole('option', {
         name: 'Planning',
-      }),
-    ).toBeInTheDocument();
+      })
+    ).toBeInTheDocument()
     expect(
       within(screen.getByRole('group', { name: 'Project-specific' })).getByRole('option', {
         name: 'Delivery',
-      }),
-    ).toBeInTheDocument();
-  });
+      })
+    ).toBeInTheDocument()
+  })
 
   it('keeps adjacent translated labels in one group when they share semantic identity', () => {
     render(
@@ -125,17 +125,17 @@ describe('SelectField', () => {
             groupLabel: 'Tous les projets',
           },
         ]}
-      />,
-    );
+      />
+    )
 
-    fireEvent.keyDown(screen.getByLabelText('Semantic groups'), { key: 'ArrowDown' });
-    const group = screen.getByRole('group', { name: 'All projects' });
-    expect(within(group).getByRole('option', { name: 'Planning' })).toBeInTheDocument();
-    expect(within(group).getByRole('option', { name: 'Design' })).toBeInTheDocument();
-    expect(screen.getAllByRole('group')).toHaveLength(1);
-  });
+    fireEvent.keyDown(screen.getByLabelText('Semantic groups'), { key: 'ArrowDown' })
+    const group = screen.getByRole('group', { name: 'All projects' })
+    expect(within(group).getByRole('option', { name: 'Planning' })).toBeInTheDocument()
+    expect(within(group).getByRole('option', { name: 'Design' })).toBeInTheDocument()
+    expect(screen.getAllByRole('group')).toHaveLength(1)
+  })
   it('round-trips empty and sentinel-shaped option values without collision', () => {
-    const onChange = vi.fn();
+    const onChange = vi.fn()
     const { rerender } = render(
       <SelectField
         label="Collision-safe"
@@ -145,13 +145,13 @@ describe('SelectField', () => {
           { value: '', label: 'None' },
           { value: '__capacitylens_empty__', label: 'Sentinel-shaped id' },
         ]}
-      />,
-    );
+      />
+    )
 
-    const select = screen.getByLabelText('Collision-safe');
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'Sentinel-shaped id' }));
-    expect(onChange).toHaveBeenLastCalledWith('__capacitylens_empty__');
+    const select = screen.getByLabelText('Collision-safe')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Sentinel-shaped id' }))
+    expect(onChange).toHaveBeenLastCalledWith('__capacitylens_empty__')
 
     rerender(
       <SelectField
@@ -162,25 +162,25 @@ describe('SelectField', () => {
           { value: '', label: 'None' },
           { value: '__capacitylens_empty__', label: 'Sentinel-shaped id' },
         ]}
-      />,
-    );
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'None' }));
-    expect(onChange).toHaveBeenLastCalledWith('');
-  });
+      />
+    )
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'None' }))
+    expect(onChange).toHaveBeenLastCalledWith('')
+  })
   it('marks a changed selection dirty inside a FormDialog', () => {
-    const onClose = vi.fn();
+    const onClose = vi.fn()
     render(
       <FormDialog title="Select dialog" onClose={onClose}>
         <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />
-      </FormDialog>,
-    );
-    const select = screen.getByLabelText('Pick one');
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onClose).not.toHaveBeenCalled();
-  });
+      </FormDialog>
+    )
+    const select = screen.getByLabelText('Pick one')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
   it('renders a placeholder option when provided', () => {
     render(
       <SelectField
@@ -189,17 +189,17 @@ describe('SelectField', () => {
         onChange={vi.fn()}
         options={options}
         placeholder="-- Select --"
-      />,
-    );
-    expect(screen.getByText('-- Select --')).toBeInTheDocument();
-  });
+      />
+    )
+    expect(screen.getByText('-- Select --')).toBeInTheDocument()
+  })
   it('surfaces a non-empty value that is absent from the supplied options', () => {
-    const onChange = vi.fn();
+    const onChange = vi.fn()
     const { rerender } = render(
-      <SelectField label="Unresolved" value="missing-id" onChange={onChange} options={options} />,
-    );
-    expect(screen.getByLabelText('Unresolved')).toHaveTextContent('missing-id');
-    expect(onChange).not.toHaveBeenCalled();
+      <SelectField label="Unresolved" value="missing-id" onChange={onChange} options={options} />
+    )
+    expect(screen.getByLabelText('Unresolved')).toHaveTextContent('missing-id')
+    expect(onChange).not.toHaveBeenCalled()
 
     rerender(
       <SelectField
@@ -208,39 +208,39 @@ describe('SelectField', () => {
         onChange={onChange}
         options={options}
         placeholder="Unknown selection"
-      />,
-    );
-    expect(screen.getByLabelText('Unresolved')).toHaveTextContent('Unknown selection');
-    expect(onChange).not.toHaveBeenCalled();
-  });
+      />
+    )
+    expect(screen.getByLabelText('Unresolved')).toHaveTextContent('Unknown selection')
+    expect(onChange).not.toHaveBeenCalled()
+  })
   it('is disabled when disabled prop is true', () => {
-    render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />);
-    expect(screen.getByLabelText('Locked')).toBeDisabled();
-  });
+    render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />)
+    expect(screen.getByLabelText('Locked')).toBeDisabled()
+  })
   it('closes an open menu when disabled and does not restore it when re-enabled', () => {
-    const onChange = vi.fn();
+    const onChange = vi.fn()
     const { rerender } = render(
-      <SelectField label="Pick one" value="a" onChange={onChange} options={options} />,
-    );
-    const select = screen.getByLabelText('Pick one');
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
-    expect(screen.getByRole('option', { name: 'Option B' })).toBeInTheDocument();
+      <SelectField label="Pick one" value="a" onChange={onChange} options={options} />
+    )
+    const select = screen.getByLabelText('Pick one')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Option B' })).toBeInTheDocument()
 
     rerender(
-      <SelectField label="Pick one" value="a" onChange={onChange} options={options} disabled />,
-    );
-    expect(screen.queryByRole('option', { name: 'Option B' })).not.toBeInTheDocument();
-    const disabledSelect = screen.getByLabelText('Pick one');
-    fireEvent.keyDown(disabledSelect, { key: 'ArrowDown' });
-    fireEvent.click(disabledSelect);
-    expect(onChange).not.toHaveBeenCalled();
+      <SelectField label="Pick one" value="a" onChange={onChange} options={options} disabled />
+    )
+    expect(screen.queryByRole('option', { name: 'Option B' })).not.toBeInTheDocument()
+    const disabledSelect = screen.getByLabelText('Pick one')
+    fireEvent.keyDown(disabledSelect, { key: 'ArrowDown' })
+    fireEvent.click(disabledSelect)
+    expect(onChange).not.toHaveBeenCalled()
 
-    rerender(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />);
-    expect(screen.queryByRole('option', { name: 'Option B' })).not.toBeInTheDocument();
-    const enabledSelect = screen.getByLabelText('Pick one');
-    fireEvent.keyDown(enabledSelect, { key: 'ArrowDown' });
-    expect(screen.getByRole('option', { name: 'Option B' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
-    expect(onChange).toHaveBeenCalledWith('b');
-  });
-});
+    rerender(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />)
+    expect(screen.queryByRole('option', { name: 'Option B' })).not.toBeInTheDocument()
+    const enabledSelect = screen.getByLabelText('Pick one')
+    fireEvent.keyDown(enabledSelect, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Option B' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }))
+    expect(onChange).toHaveBeenCalledWith('b')
+  })
+})

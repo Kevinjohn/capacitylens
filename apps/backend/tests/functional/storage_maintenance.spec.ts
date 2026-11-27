@@ -1,26 +1,26 @@
-import { test } from '@japa/runner';
-import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { resetState } from '#tests/helpers/state_fixture';
+import { test } from '@japa/runner'
+import db from '@adonisjs/lucid/services/db'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { resetState } from '#tests/helpers/state_fixture'
 import {
   REQUEST_RECEIPT_RETENTION_MS,
   StorageMaintenanceService,
-} from '#services/storage_maintenance_service';
+} from '#services/storage_maintenance_service'
 
-const storageMaintenance = new StorageMaintenanceService();
+const storageMaintenance = new StorageMaintenanceService()
 
 test.group('storage maintenance', (group) => {
-  group.setup(() => freshDatabase());
-  group.each.setup(() => resetState('single'));
+  group.setup(() => freshDatabase())
+  group.each.setup(() => resetState('single'))
 
   test('one pass deletes completed receipts past the window and keeps pending and recent ones', async ({
     assert,
   }) => {
-    const now = new Date('2026-11-13T12:00:00.000Z');
-    const past = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS - 1).toISOString();
-    const atWindow = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS).toISOString();
-    const company = await db.from('companies').select('id').firstOrFail();
-    const companyId = company.id as string;
+    const now = new Date('2026-11-13T12:00:00.000Z')
+    const past = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS - 1).toISOString()
+    const atWindow = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS).toISOString()
+    const company = await db.from('companies').select('id').firstOrFail()
+    const companyId = company.id as string
     const receipt = (id: string, state: 'pending' | 'completed', updatedAt: string) => ({
       id,
       scope_id: companyId,
@@ -32,70 +32,70 @@ test.group('storage maintenance', (group) => {
       result: state === 'completed' ? '{}' : null,
       created_at: updatedAt,
       updated_at: updatedAt,
-    });
+    })
     await db
       .table('request_receipts')
       .multiInsert([
         receipt('completed-past-window', 'completed', past),
         receipt('pending-past-window', 'pending', past),
         receipt('completed-at-window', 'completed', atWindow),
-      ]);
+      ])
 
-    assert.equal(await storageMaintenance.pruneRequestReceipts(now), 1);
+    assert.equal(await storageMaintenance.pruneRequestReceipts(now), 1)
 
-    const kept = await db.from('request_receipts').orderBy('id').select('id');
+    const kept = await db.from('request_receipts').orderBy('id').select('id')
     assert.deepEqual(
       kept.map((row) => row.id),
       ['completed-at-window', 'pending-past-window']
-    );
-  });
-});
+    )
+  })
+})
 
 test.group('maintenance passes', () => {
   test('a failing task is reported and the next one still runs', async ({ assert }) => {
-    const ran: string[] = [];
-    const reported: [string, unknown][] = [];
-    const failure = new Error('prune refused');
+    const ran: string[] = []
+    const reported: [string, unknown][] = []
+    const failure = new Error('prune refused')
     const maintenance = storageMaintenance.createMaintenance(
       [
         ['first', () => Promise.reject(failure)],
         ['second', async () => void ran.push('second')],
       ],
       (task, error) => reported.push([task, error])
-    );
-    await maintenance.run();
-    assert.deepEqual(ran, ['second']);
-    assert.deepEqual(reported, [['first', failure]]);
-  });
+    )
+    await maintenance.run()
+    assert.deepEqual(ran, ['second'])
+    assert.deepEqual(reported, [['first', failure]])
+  })
 
   test('stopping waits for the task in flight and starts no further task', async ({ assert }) => {
-    const ran: string[] = [];
-    let release!: () => void;
-    const held = new Promise<void>((resolve) => (release = resolve));
+    const ran: string[] = []
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
     const maintenance = storageMaintenance.createMaintenance(
       [
         [
           'first',
           async () => {
-            ran.push('first started');
-            await held;
-            ran.push('first ended');
+            ran.push('first started')
+            await held
+            ran.push('first ended')
           },
         ],
         ['second', async () => void ran.push('second')],
       ],
       () => assert.fail('No task fails')
-    );
-    void maintenance.run();
-    await Promise.resolve();
-    let stopped = false;
-    const stopping = maintenance.stop().then(() => (stopped = true));
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.isFalse(stopped);
-    release();
-    await stopping;
-    assert.deepEqual(ran, ['first started', 'first ended']);
-    await maintenance.run();
-    assert.deepEqual(ran, ['first started', 'first ended']);
-  });
-});
+    )
+    void maintenance.run()
+    await Promise.resolve()
+    let stopped = false
+    const stopping = maintenance.stop().then(() => (stopped = true))
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.isFalse(stopped)
+    release()
+    await stopping
+    assert.deepEqual(ran, ['first started', 'first ended'])
+    await maintenance.run()
+    assert.deepEqual(ran, ['first started', 'first ended'])
+  })
+})

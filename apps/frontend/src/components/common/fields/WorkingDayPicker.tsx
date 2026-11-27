@@ -1,30 +1,30 @@
-import { useId } from 'react';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
-import { Label } from '@/components/ui/label';
-import { m } from '@/i18n';
-import type { Weekday } from '@capacitylens/shared/types/entities';
-import { resolveWeekdayLabel } from '@/lib/weekdays';
-import { useMarkFormDirty } from '@/components/common/formDirty';
-import type { WorkingDayOption } from './fieldTypes';
+import { useId } from 'react'
+import { FieldLegend, FieldSet } from '@/components/ui/field'
+import { Label } from '@/components/ui/label'
+import { m } from '@/i18n'
+import type { Weekday } from '@capacitylens/shared/types/entities'
+import { resolveWeekdayLabel } from '@/lib/weekdays'
+import { useMarkFormDirty } from '@/components/common/formDirty'
+import type { WorkingDayOption } from './fieldTypes'
 
 // Resolve weekday labels at render time so they follow company locale changes. The picker's Monday-first order is independent of numeric weekday order.
-const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
+const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0]
 
 function buildWorkingDayOptions(): Array<{ value: WorkingDayOption; label: string }> {
   return [
     { value: 'full', label: m.form_resource_working_day_full() },
     { value: 'half', label: m.form_resource_working_day_half() },
     { value: 'off', label: m.form_resource_working_day_off() },
-  ];
+  ]
 }
 
 function resolveWorkingDayOption(
   day: Weekday,
   workingDays: Weekday[],
-  halfDays: Weekday[],
+  halfDays: Weekday[]
 ): WorkingDayOption {
-  if (!workingDays.includes(day)) return 'off';
-  return halfDays.includes(day) ? 'half' : 'full';
+  if (!workingDays.includes(day)) return 'off'
+  return halfDays.includes(day) ? 'half' : 'full'
 }
 
 function applyWorkingDayOption({
@@ -33,30 +33,30 @@ function applyWorkingDayOption({
   workingDays,
   halfDays,
 }: {
-  day: Weekday;
-  option: WorkingDayOption;
-  workingDays: Weekday[];
-  halfDays: Weekday[];
+  day: Weekday
+  option: WorkingDayOption
+  workingDays: Weekday[]
+  halfDays: Weekday[]
 }): { workingDays: Weekday[]; halfDays: Weekday[] } {
   const nextWorkingDays =
     option === 'off'
       ? workingDays.filter((candidate) => candidate !== day)
-      : [...new Set([...workingDays, day])].sort((a, b) => a - b);
+      : [...new Set([...workingDays, day])].sort((a, b) => a - b)
   const nextHalfDays =
     option === 'half'
       ? [...new Set([...halfDays, day])]
           .filter((candidate) => nextWorkingDays.includes(candidate))
           .sort((a, b) => a - b)
-      : halfDays.filter((candidate) => candidate !== day);
-  return { workingDays: nextWorkingDays, halfDays: nextHalfDays };
+      : halfDays.filter((candidate) => candidate !== day)
+  return { workingDays: nextWorkingDays, halfDays: nextHalfDays }
 }
 
 interface WorkingDayRowsProps {
-  groupId: string;
-  workingDays: Weekday[];
-  halfDays: Weekday[];
-  onChoose: (day: Weekday, option: WorkingDayOption) => void;
-  options: ReturnType<typeof buildWorkingDayOptions>;
+  groupId: string
+  workingDays: Weekday[]
+  halfDays: Weekday[]
+  onChoose: (day: Weekday, option: WorkingDayOption) => void
+  options: ReturnType<typeof buildWorkingDayOptions>
 }
 
 function chooseWorkingDay({
@@ -67,16 +67,16 @@ function chooseWorkingDay({
   markDirty,
   onChange,
 }: {
-  day: Weekday;
-  option: WorkingDayOption;
-  workingDays: Weekday[];
-  halfDays: Weekday[];
-  markDirty: () => void;
-  onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void;
+  day: Weekday
+  option: WorkingDayOption
+  workingDays: Weekday[]
+  halfDays: Weekday[]
+  markDirty: () => void
+  onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void
 }) {
-  const next = applyWorkingDayOption({ day, option, workingDays, halfDays });
-  markDirty();
-  onChange(next.workingDays, next.halfDays);
+  const next = applyWorkingDayOption({ day, option, workingDays, halfDays })
+  markDirty()
+  onChange(next.workingDays, next.halfDays)
 }
 
 function WorkingDayRows({
@@ -87,8 +87,8 @@ function WorkingDayRows({
   options,
 }: WorkingDayRowsProps) {
   return WEEKDAY_ORDER.map((day) => {
-    const dayLabel = resolveWeekdayLabel(day);
-    const rowHeadingId = `${groupId}-${day}-heading`;
+    const dayLabel = resolveWeekdayLabel(day)
+    const rowHeadingId = `${groupId}-${day}-heading`
     return (
       <tr key={day} className="border-b last:border-b-0">
         <th
@@ -99,7 +99,7 @@ function WorkingDayRows({
           {dayLabel}
         </th>
         {options.map((option) => {
-          const radioId = `${groupId}-${day}-${option.value}`;
+          const radioId = `${groupId}-${day}-${option.value}`
           return (
             <td key={option.value} className="px-3 py-1 text-center">
               <Label htmlFor={radioId} className="flex min-h-8 cursor-pointer justify-center">
@@ -116,11 +116,11 @@ function WorkingDayRows({
                 />
               </Label>
             </td>
-          );
+          )
         })}
       </tr>
-    );
-  });
+    )
+  })
 }
 
 /** Edits full, half, and non-working weekdays as one schedule field. */
@@ -132,17 +132,17 @@ export function WorkingDayPicker({
   invalid,
   describedById,
 }: {
-  label: string;
-  workingDays: Weekday[];
-  halfDays: Weekday[];
-  onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void;
+  label: string
+  workingDays: Weekday[]
+  halfDays: Weekday[]
+  onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void
   // Mark errors on the fieldset so assistive technology announces the required-day failure when focus returns to the group.
-  invalid?: boolean;
-  describedById?: string;
+  invalid?: boolean
+  describedById?: string
 }) {
-  const markDirty = useMarkFormDirty();
-  const groupId = useId();
-  const options = buildWorkingDayOptions();
+  const markDirty = useMarkFormDirty()
+  const groupId = useId()
+  const options = buildWorkingDayOptions()
 
   return (
     <FieldSet
@@ -184,5 +184,5 @@ export function WorkingDayPicker({
         </table>
       </div>
     </FieldSet>
-  );
+  )
 }

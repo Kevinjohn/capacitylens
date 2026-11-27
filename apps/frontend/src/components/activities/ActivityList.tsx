@@ -1,38 +1,38 @@
-import { useActiveScopedData } from '@/store/useScopedData';
-import { useEntityListState } from '@/hooks/useEntityListState';
+import { useActiveScopedData } from '@/store/useScopedData'
+import { useEntityListState } from '@/hooks/useEntityListState'
 import {
   ConfirmDialog,
   DeleteButton,
   EditButton,
   EmptyState,
   ListPage,
-} from '@/components/common/ui';
-import { ActivityForm } from './ActivityForm';
-import type { Activity } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { Fragment, useEffect, useMemo, useRef } from 'react';
-import { ClipboardCheck } from 'lucide-react';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { buildActivityListModel } from './activityListModel';
-import { useStore } from '@/store/useStore';
-import { isShownByPlanningState } from '@/data/planning/planningNotices';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
-import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy';
+} from '@/components/common/ui'
+import { ActivityForm } from './ActivityForm'
+import type { Activity } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { Fragment, useEffect, useMemo, useRef } from 'react'
+import { ClipboardCheck } from 'lucide-react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { buildActivityListModel } from './activityListModel'
+import { useStore } from '@/store/useStore'
+import { isShownByPlanningState } from '@/data/planning/planningNotices'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection'
+import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy'
 
 interface BoxInput {
-  rows: Activity[];
-  empty: string;
-  testid: string;
-  description: string;
+  rows: Activity[]
+  empty: string
+  testid: string
+  description: string
 }
 
 interface ActivityRowProps {
-  activity: Activity;
-  selectedActivityId?: string;
-  selectedRowRef: React.RefObject<HTMLDivElement | null>;
-  onEdit: (activity: Activity) => void;
-  onArchive: (activity: Activity) => void;
+  activity: Activity
+  selectedActivityId?: string
+  selectedRowRef: React.RefObject<HTMLDivElement | null>
+  onEdit: (activity: Activity) => void
+  onArchive: (activity: Activity) => void
 }
 
 function ActivityRow({
@@ -42,7 +42,7 @@ function ActivityRow({
   onEdit,
   onArchive,
 }: ActivityRowProps) {
-  const selected = activity.id === selectedActivityId;
+  const selected = activity.id === selectedActivityId
   return (
     <Item
       ref={selected ? selectedRowRef : undefined}
@@ -67,7 +67,7 @@ function ActivityRow({
         />
       </ItemActions>
     </Item>
-  );
+  )
 }
 
 function ActivityBox({
@@ -82,7 +82,7 @@ function ActivityBox({
       <EmptyState icon={ClipboardCheck} description={description}>
         {empty}
       </EmptyState>
-    );
+    )
   }
   return (
     <ItemGroup data-testid={testid} className="rounded-md border bg-card">
@@ -93,22 +93,22 @@ function ActivityBox({
         </Fragment>
       ))}
     </ItemGroup>
-  );
+  )
 }
 
 function ProjectActivities({
   clients,
   renderRow,
 }: {
-  clients: ReturnType<typeof buildActivityListModel>['clients'];
-  renderRow: (activity: Activity) => React.ReactNode;
+  clients: ReturnType<typeof buildActivityListModel>['clients']
+  renderRow: (activity: Activity) => React.ReactNode
 }) {
   if (clients.length === 0) {
     return (
       <EmptyState icon={ClipboardCheck} description={m.list_activities_project_empty_desc()}>
         {m.list_activities_project_empty()}
       </EmptyState>
-    );
+    )
   }
   return (
     <div data-testid="project-specific-activities" className="space-y-6">
@@ -133,18 +133,18 @@ function ProjectActivities({
         </section>
       ))}
     </div>
-  );
+  )
 }
 
 interface ActivitySectionsProps {
-  model: ReturnType<typeof buildActivityListModel>;
-  renderRow: (activity: Activity) => React.ReactNode;
+  model: ReturnType<typeof buildActivityListModel>
+  renderRow: (activity: Activity) => React.ReactNode
 }
 
 function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
-  const renderBox = (input: BoxInput) => <ActivityBox {...input} renderRow={renderRow} />;
+  const renderBox = (input: BoxInput) => <ActivityBox {...input} renderRow={renderRow} />
   return model.kindOrder.map((kind, index) => {
-    const headingClassName = `mb-4 flex items-center justify-between${index > 0 ? ' mt-8' : ''}`;
+    const headingClassName = `mb-4 flex items-center justify-between${index > 0 ? ' mt-8' : ''}`
     if (kind === 'internal') {
       return (
         <Fragment key={kind}>
@@ -158,7 +158,7 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
             description: m.list_activities_empty_desc(),
           })}
         </Fragment>
-      );
+      )
     }
     if (kind === 'allProjects') {
       return (
@@ -173,7 +173,7 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
             description: m.list_activities_all_projects_empty_desc(),
           })}
         </Fragment>
-      );
+      )
     }
     return (
       <Fragment key={kind}>
@@ -182,25 +182,25 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
         </div>
         <ProjectActivities clients={model.clients} renderRow={renderRow} />
       </Fragment>
-    );
-  });
+    )
+  })
 }
 
 /** Lists scoped activities with selection and editing actions. */
 export function ActivityList({ selectedActivityId }: { selectedActivityId?: string }) {
-  const data = useActiveScopedData();
-  const activities = data.activities;
-  const projects = data.projects;
-  const clients = data.clients;
-  const deleteActivity = useStore((state) => state.deleteActivity);
-  const setNotice = useStore((state) => state.setNotice);
+  const data = useActiveScopedData()
+  const activities = data.activities
+  const projects = data.projects
+  const clients = data.clients
+  const deleteActivity = useStore((state) => state.deleteActivity)
+  const setNotice = useStore((state) => state.setNotice)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
-    useEntityListState<Activity>();
-  const selectedRowRef = useRef<HTMLDivElement | null>(null);
+    useEntityListState<Activity>()
+  const selectedRowRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    selectedRowRef.current?.focus();
-  }, [selectedActivityId, activities]);
+    selectedRowRef.current?.focus()
+  }, [selectedActivityId, activities])
 
   const activityList = useMemo(
     () =>
@@ -211,8 +211,8 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
         unavailableClient: m.list_activities_unavailable_client(),
         unavailableProject: m.list_activities_unavailable_project(),
       }),
-    [activities, clients, projects],
-  );
+    [activities, clients, projects]
+  )
 
   const renderRow = (activity: Activity) => (
     <ActivityRow
@@ -222,7 +222,7 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
       onEdit={setEditing}
       onArchive={setConfirming}
     />
-  );
+  )
 
   return (
     <ListPage
@@ -246,18 +246,18 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
               (receipt) => {
                 const notice = receipt?.archived
                   ? buildArchiveImpactNotice('activities', receipt.archived)
-                  : null;
-                if (notice) setNotice(notice);
+                  : null
+                if (notice) setNotice(notice)
               },
               (error: unknown) => {
-                if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error');
-              },
-            );
-            setConfirming(null);
+                if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error')
+              }
+            )
+            setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
     </ListPage>
-  );
+  )
 }

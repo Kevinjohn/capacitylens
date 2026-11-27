@@ -4,10 +4,10 @@
 
 // Load the click-only tour library lazily so it does not enlarge the eager app chunk.
 // Import its CSS before app styles so theme overrides retain precedence.
-import type { Role } from '@capacitylens/shared/domain/access';
-import { m } from '@/i18n';
-import { buildRoleTour } from './tourSteps';
-import type { RoleTourStepId } from './tourSteps';
+import type { Role } from '@capacitylens/shared/domain/access'
+import { m } from '@/i18n'
+import { buildRoleTour } from './tourSteps'
+import type { RoleTourStepId } from './tourSteps'
 
 const tourCopy: Record<RoleTourStepId, { title: () => string; description: () => string }> = {
   'owner-import': {
@@ -42,11 +42,11 @@ const tourCopy: Record<RoleTourStepId, { title: () => string; description: () =>
     title: () => m.role_tour_viewer_toolbar_title(),
     description: () => m.role_tour_viewer_toolbar_desc(),
   },
-};
+}
 
 function buildDriverSteps(steps: ReturnType<typeof buildRoleTour>) {
   return steps.map((step) => {
-    const copy = tourCopy[step.id];
+    const copy = tourCopy[step.id]
     return {
       element: step.anchor,
       ...(step.waitForElement ? { waitForElement: step.waitForElement } : {}),
@@ -55,35 +55,35 @@ function buildDriverSteps(steps: ReturnType<typeof buildRoleTour>) {
         description: copy.description(),
         ...(step.anchor.startsWith('[data-nav=') ? { side: 'right' as const } : {}),
       },
-    };
-  });
+    }
+  })
 }
 
 interface TourInput {
-  role: Role | null;
-  navigate: (path: string) => void;
+  role: Role | null
+  navigate: (path: string) => void
 }
 
-let currentTour: Promise<void> | null = null;
+let currentTour: Promise<void> | null = null
 
 /** Launch the role tour, sharing its lifecycle across launchers until it closes. */
 export function startTour(input: TourInput): Promise<void> {
   currentTour ??= runTour(input).finally(() => {
-    currentTour = null;
-  });
-  return currentTour;
+    currentTour = null
+  })
+  return currentTour
 }
 
 async function runTour({ role, navigate }: TourInput): Promise<void> {
-  if (window.location.pathname !== '/') navigate('/');
-  const { driver } = await import('driver.js');
+  if (window.location.pathname !== '/') navigate('/')
+  const { driver } = await import('driver.js')
   await new Promise<void>((resolve, reject) => {
-    let observer: MutationObserver | null = null;
+    let observer: MutationObserver | null = null
     const finishIfDestroyed = () => {
-      if (document.body.classList.contains('driver-active')) return;
-      observer?.disconnect();
-      resolve();
-    };
+      if (document.body.classList.contains('driver-active')) return
+      observer?.disconnect()
+      resolve()
+    }
     try {
       const tour = driver({
         showProgress: true,
@@ -99,18 +99,18 @@ async function runTour({ role, navigate }: TourInput): Promise<void> {
         // Defining onDestroyStarted transfers cleanup ownership to the callback in driver.js.
         onDestroyStarted: (_element, _step, { driver: activeTour }) => activeTour.destroy(),
         steps: buildDriverSteps(buildRoleTour({ role })),
-      });
+      })
       // driver.js 1.7 does not call onDestroyed when teardown lands during some transition states.
       // The body class is its authoritative lifecycle marker, so observe that actual state instead
       // of leaving the caller's busy lock dependent on an optional library callback.
-      observer = new MutationObserver(finishIfDestroyed);
-      observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-      tour.drive();
-      finishIfDestroyed();
+      observer = new MutationObserver(finishIfDestroyed)
+      observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+      tour.drive()
+      finishIfDestroyed()
     } catch (error) {
       // Disconnect the observer before rejecting failed tour setup so the caller can reopen its launch control without a leaked observer.
-      observer?.disconnect();
-      reject(error);
+      observer?.disconnect()
+      reject(error)
     }
-  });
+  })
 }

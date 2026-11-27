@@ -1,6 +1,6 @@
-import { useId } from 'react';
-import type { ReactNode } from 'react';
-import { SettingsGroupContext } from './settingsGroupContext';
+import { useId } from 'react'
+import type { ReactNode } from 'react'
+import { SettingsGroupContext } from './settingsGroupContext'
 
 /** Groups related settings under one labelled section. */
 export function SettingsGroup({
@@ -9,12 +9,12 @@ export function SettingsGroup({
   id,
   description,
 }: {
-  title: string;
-  children: ReactNode;
-  id?: string;
-  description?: string;
+  title: string
+  children: ReactNode
+  id?: string
+  description?: string
 }) {
-  const headingId = useId();
+  const headingId = useId()
   return (
     <section
       id={id}
@@ -32,5 +32,5 @@ export function SettingsGroup({
         <div className="divide-y">{children}</div>
       </SettingsGroupContext.Provider>
     </section>
-  );
+  )
 }

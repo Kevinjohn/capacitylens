@@ -1,10 +1,10 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, it, expect } from 'vitest';
-import { compareByDisciplineOrder, getResourceById, getActivityById } from './selectors';
-import type { Discipline } from '@capacitylens/shared/types/entities';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { AppData } from '@capacitylens/shared/types/entities';
-import { DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, it, expect } from 'vitest'
+import { compareByDisciplineOrder, getResourceById, getActivityById } from './selectors'
+import type { Discipline } from '@capacitylens/shared/types/entities'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
+import { DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures'
 
 const data: AppData = {
   ...createEmptyAppData(),
@@ -100,25 +100,25 @@ const data: AppData = {
       note: null,
     },
   ],
-};
+}
 
 function assertDefined<T>(value: T | undefined, label: string): T {
   if (value === undefined) {
-    throw new Error(`Expected ${label} to exist`);
+    throw new Error(`Expected ${label} to exist`)
   }
-  return value;
+  return value
 }
 
 describe('lookup selectors', () => {
   it('by-id selectors find entities (and return undefined for misses)', () => {
-    const activity = assertDefined(getActivityById(data, 't1'), 'activity t1');
-    const resource = assertDefined(getResourceById(data, 'r1'), 'resource r1');
+    const activity = assertDefined(getActivityById(data, 't1'), 'activity t1')
+    const resource = assertDefined(getResourceById(data, 'r1'), 'resource r1')
 
-    expect(activity.name).toBe('T1');
-    expect(resource.name).toBe('A');
-    expect(getResourceById(data, 'nope')).toBeUndefined();
-  });
-});
+    expect(activity.name).toBe('T1')
+    expect(resource.name).toBe('A')
+    expect(getResourceById(data, 'nope')).toBeUndefined()
+  })
+})
 
 describe('byDisciplineOrder (scheduler grouping)', () => {
   const disc = (id: string, name: string, sortOrder: number): Discipline => ({
@@ -129,14 +129,14 @@ describe('byDisciplineOrder (scheduler grouping)', () => {
     color: null,
     createdAt: 't',
     updatedAt: 't',
-  });
+  })
 
   it('orders by sortOrder, then name as a stable tiebreak on equal sortOrder', () => {
-    const list = [disc('a', 'Zeta', 1), disc('b', 'Alpha', 1), disc('c', 'Beta', 0)];
+    const list = [disc('a', 'Zeta', 1), disc('b', 'Alpha', 1), disc('c', 'Beta', 0)]
     expect([...list].sort(compareByDisciplineOrder).map((d) => d.name)).toEqual([
       'Beta',
       'Alpha',
       'Zeta',
-    ]);
-  });
-});
+    ])
+  })
+})

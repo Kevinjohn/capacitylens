@@ -8,12 +8,12 @@ export function AuthLoading({ message, overlay = false }: { message: string; ove
     >
       {message}
     </p>
-  );
+  )
   return overlay ? (
     <div className="fixed inset-0 z-(--z-index-dialog) flex items-center justify-center bg-black/40 p-6">
       {status}
     </div>
   ) : (
     <main className="flex min-h-screen items-center justify-center p-6">{status}</main>
-  );
+  )
 }

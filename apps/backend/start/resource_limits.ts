@@ -2,10 +2,10 @@
 // echoed in the `X-Request-Id` response header); a client-supplied `X-Request-Id` is discarded
 // before the framework reads it.
 
-import type { Server } from 'node:http';
+import type { Server } from 'node:http'
 
-export const MAX_SERVER_CONNECTIONS = 512;
-const DROP_LOG_WINDOW_MS = 60_000;
+export const MAX_SERVER_CONNECTIONS = 512
+const DROP_LOG_WINDOW_MS = 60_000
 
 /**
  * Applies the finite socket limits and the server-generated request id to every supported HTTP
@@ -17,21 +17,21 @@ export function configureNodeServer(
 ) {
   // The framework adopts a supplied `X-Request-Id` as the request id; drop it so it always generates one.
   nodeServer.prependListener('request', (request) => {
-    delete request.headers['x-request-id'];
-  });
-  nodeServer.maxConnections = MAX_SERVER_CONNECTIONS;
-  nodeServer.requestTimeout = 30_000;
-  nodeServer.setTimeout(30_000);
-  let lastDropLog = 0;
+    delete request.headers['x-request-id']
+  })
+  nodeServer.maxConnections = MAX_SERVER_CONNECTIONS
+  nodeServer.requestTimeout = 30_000
+  nodeServer.setTimeout(30_000)
+  let lastDropLog = 0
   nodeServer.on('drop', () => {
-    const now = Date.now();
-    if (now - lastDropLog < DROP_LOG_WINDOW_MS) return;
-    lastDropLog = now;
+    const now = Date.now()
+    if (now - lastDropLog < DROP_LOG_WINDOW_MS) return
+    lastDropLog = now
     logConnectionDrop({
       event: 'connection_limit',
       outcome: 'blocked',
       limit: MAX_SERVER_CONNECTIONS,
-    });
-  });
-  return nodeServer;
+    })
+  })
+  return nodeServer
 }

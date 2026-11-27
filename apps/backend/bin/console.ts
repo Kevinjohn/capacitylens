@@ -11,18 +11,18 @@
 |
 */
 
-const { assertSupportedNodeVersion } = await import('#bin/node_version');
-assertSupportedNodeVersion();
-const { failUnsettledStart } = await import('#bin/unsettled_start');
+const { assertSupportedNodeVersion } = await import('#bin/node_version')
+assertSupportedNodeVersion()
+const { failUnsettledStart } = await import('#bin/unsettled_start')
 
-await import('reflect-metadata');
-const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor');
+await import('reflect-metadata')
+const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor')
 
 /**
  * URL to the application root. AdonisJS need it to resolve
  * paths to file and directories for scaffolding commands
  */
-const APP_ROOT = new URL('../', import.meta.url);
+const APP_ROOT = new URL('../', import.meta.url)
 
 /**
  * The importer is used to import files in context of the
@@ -30,23 +30,23 @@ const APP_ROOT = new URL('../', import.meta.url);
  */
 const IMPORTER = (filePath: string) => {
   if (filePath.startsWith('./') || filePath.startsWith('../')) {
-    return import(new URL(filePath, APP_ROOT).href);
+    return import(new URL(filePath, APP_ROOT).href)
   }
-  return import(filePath);
-};
+  return import(filePath)
+}
 
 const start = new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
     app.booting(async () => {
-      await import('#start/env');
-    });
-    app.listen('SIGTERM', () => app.terminate());
-    app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate());
+      await import('#start/env')
+    })
+    app.listen('SIGTERM', () => app.terminate())
+    app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate())
   })
   .ace()
   .handle(process.argv.slice(2))
   .catch((error) => {
-    process.exitCode = 1;
-    prettyPrintError(error);
-  });
-void failUnsettledStart(start, 'The command');
+    process.exitCode = 1
+    prettyPrintError(error)
+  })
+void failUnsettledStart(start, 'The command')

@@ -10,7 +10,7 @@ const structuralChecks = [
   'packaging:release:test',
   'security:screenshot-publication',
   'security:screenshot-publication:test',
-].map((name) => ['run', name]);
+].map((name) => ['run', name])
 
 // Repository policy, dependency and packaging checks that need no application build.
 const toolingChecks = [
@@ -20,14 +20,14 @@ const toolingChecks = [
   ...structuralChecks,
   ['run', 'policy:release-validation:test'],
   ['run', 'policy:script-processes:test'],
-];
+]
 const staticChecks = [
   ['run', 'check:ui'],
   ['run', 'policy:terminology'],
   ['run', 'format:check'],
   ['run', 'typecheck'],
   ['run', 'lint'],
-];
+]
 
 // CI runs `tooling` and `static` as separate jobs beside the build, frontend and backend tests.
 const commands = {
@@ -48,20 +48,20 @@ const commands = {
     ['--dir', 'apps/backend', 'test'],
     ['--dir', 'apps/backend', 'lint'],
   ],
-};
+}
 
-const commandKey = (args) => JSON.stringify(args);
-const appCommandKeys = new Set(commands.app.map(commandKey));
-const serverCommandKeys = new Set(commands.backend.map(commandKey));
-const sharedCommands = commands.backend.filter((args) => appCommandKeys.has(commandKey(args)));
-const appOnlyCommands = commands.app.filter((args) => !serverCommandKeys.has(commandKey(args)));
-const serverOnlyCommands = commands.backend.filter((args) => !appCommandKeys.has(commandKey(args)));
+const commandKey = (args) => JSON.stringify(args)
+const appCommandKeys = new Set(commands.app.map(commandKey))
+const serverCommandKeys = new Set(commands.backend.map(commandKey))
+const sharedCommands = commands.backend.filter((args) => appCommandKeys.has(commandKey(args)))
+const appOnlyCommands = commands.app.filter((args) => !serverCommandKeys.has(commandKey(args)))
+const serverOnlyCommands = commands.backend.filter((args) => !appCommandKeys.has(commandKey(args)))
 
-commands.all = [...sharedCommands, ...appOnlyCommands, ...serverOnlyCommands];
+commands.all = [...sharedCommands, ...appOnlyCommands, ...serverOnlyCommands]
 
 /** Return independent, ordered pnpm argument arrays for a known repository gate. */
 export function gateCommands(mode) {
   if (!Object.hasOwn(commands, mode))
-    throw new Error('Expected app, backend, all, tooling or static with no extra arguments.');
-  return commands[mode].map((args) => [...args]);
+    throw new Error('Expected app, backend, all, tooling or static with no extra arguments.')
+  return commands[mode].map((args) => [...args])
 }

@@ -1,11 +1,11 @@
-import type { PropsWithChildren } from 'react';
-import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Activity, Resource } from '@capacitylens/shared/types/entities';
-import { AuthContext } from '@/auth/authContext';
-import { PermissionContext } from '@/auth/permissionContext';
-import type { PermissionContextValue } from '@/auth/permissionContext';
-import { useStore } from '@/store/useStore';
+import type { PropsWithChildren } from 'react'
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Activity, Resource } from '@capacitylens/shared/types/entities'
+import { AuthContext } from '@/auth/authContext'
+import { PermissionContext } from '@/auth/permissionContext'
+import type { PermissionContextValue } from '@/auth/permissionContext'
+import { useStore } from '@/store/useStore'
 import {
   loadPlanningData,
   makeCompany,
@@ -14,15 +14,15 @@ import {
   makeAppData,
   makeResource,
   makeTimeOff,
-} from '@/test/fixtures';
-import { usePersonSchedule } from './usePersonSchedule';
-import { permissionValue } from '@/test/permissionGrants';
+} from '@/test/fixtures'
+import { usePersonSchedule } from './usePersonSchedule'
+import { permissionValue } from '@/test/permissionGrants'
 
-const calendarToday = vi.hoisted(() => ({ today: '2026-09-10' }));
+const calendarToday = vi.hoisted(() => ({ today: '2026-09-10' }))
 
 vi.mock('@/hooks/useCompanyToday', () => ({
   useCompanyToday: () => calendarToday.today,
-}));
+}))
 
 function wrapper({
   role = null,
@@ -41,25 +41,25 @@ function wrapper({
           {children}
         </PermissionContext.Provider>
       </AuthContext.Provider>
-    );
-  };
+    )
+  }
 }
 
-const resource = makeResource({ id: 'r1', companyId: 'a1', name: 'Diana Prince' });
+const resource = makeResource({ id: 'r1', companyId: 'a1', name: 'Diana Prince' })
 
 function withoutProjectId(value: Activity): Activity {
-  const copy = { ...value };
-  copy.projectId = null;
-  return copy;
+  const copy = { ...value }
+  copy.projectId = null
+  return copy
 }
 
 function withoutName(value: Resource): Resource {
-  const copy = { ...value };
-  copy.name = null;
-  return copy;
+  const copy = { ...value }
+  copy.name = null
+  return copy
 }
 
-const activity = withoutProjectId(makeActivity({ id: 't1', companyId: 'a1', kind: 'internal' }));
+const activity = withoutProjectId(makeActivity({ id: 't1', companyId: 'a1', kind: 'internal' }))
 
 function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
   loadPlanningData(
@@ -71,34 +71,34 @@ function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
         makeAllocation({ companyId: 'a1', resourceId: resource.id, activityId: activity.id }),
       ],
       ...overrides,
-    }),
-  );
-  useStore.getState().setActiveCompany('a1');
+    })
+  )
+  useStore.getState().setActiveCompany('a1')
 }
 
 beforeEach(() => {
-  calendarToday.today = '2026-09-10';
-  seed();
-});
+  calendarToday.today = '2026-09-10'
+  seed()
+})
 
 describe('usePersonSchedule availability', () => {
   it('builds the current company-local four-week window independently of grid dates', () => {
     const monday = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'owner' }),
-    });
+    })
     expect(monday.result.current).toMatchObject({
       kind: 'available',
       model: { window: { startDate: '2026-09-07', endDate: '2026-10-04' } },
-    });
+    })
 
     act(() => {
-      seed({ companies: [makeCompany({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 0 })] });
-    });
+      seed({ companies: [makeCompany({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 0 })] })
+    })
     expect(monday.result.current).toMatchObject({
       kind: 'available',
       model: { window: { startDate: '2026-09-06', endDate: '2026-10-03' } },
-    });
-  });
+    })
+  })
 
   it('fails closed for null selections, company mismatches, missing resources, and hidden resource kinds', () => {
     const { result, rerender } = renderHook(
@@ -106,23 +106,23 @@ describe('usePersonSchedule availability', () => {
         usePersonSchedule({ companyId, resourceId }),
       {
         initialProps: { companyId: null, resourceId: null } as {
-          companyId: string | null;
-          resourceId: string | null;
+          companyId: string | null
+          resourceId: string | null
         },
-      },
-    );
-    expect(result.current).toEqual({ kind: 'unavailable' });
+      }
+    )
+    expect(result.current).toEqual({ kind: 'unavailable' })
 
-    rerender({ companyId: 'another-company', resourceId: 'r1' });
-    expect(result.current).toEqual({ kind: 'unavailable' });
-    rerender({ companyId: 'a1', resourceId: 'missing' });
-    expect(result.current).toEqual({ kind: 'unavailable' });
+    rerender({ companyId: 'another-company', resourceId: 'r1' })
+    expect(result.current).toEqual({ kind: 'unavailable' })
+    rerender({ companyId: 'a1', resourceId: 'missing' })
+    expect(result.current).toEqual({ kind: 'unavailable' })
 
-    act(() => seed({ resources: [makeResource({ ...resource, kind: 'placeholder' })] }));
-    rerender({ companyId: 'a1', resourceId: 'r1' });
-    expect(result.current).toEqual({ kind: 'unavailable' });
-  });
-});
+    act(() => seed({ resources: [makeResource({ ...resource, kind: 'placeholder' })] }))
+    rerender({ companyId: 'a1', resourceId: 'r1' })
+    expect(result.current).toEqual({ kind: 'unavailable' })
+  })
+})
 
 describe('usePersonSchedule calendar rollover', () => {
   it('recomputes the drawer window and entries when the company date rolls over a year', () => {
@@ -133,7 +133,7 @@ describe('usePersonSchedule calendar rollover', () => {
       activityId: activity.id,
       startDate: '2026-12-28',
       endDate: '2026-12-31',
-    });
+    })
     const newAllocation = makeAllocation({
       id: 'new-allocation',
       companyId: 'a1',
@@ -141,49 +141,49 @@ describe('usePersonSchedule calendar rollover', () => {
       activityId: activity.id,
       startDate: '2027-01-20',
       endDate: '2027-01-21',
-    });
-    calendarToday.today = '2026-12-31';
+    })
+    calendarToday.today = '2026-12-31'
     seed({
       companies: [makeCompany({ id: 'a1', timezone: 'Pacific/Kiritimati', weekStartsOn: 1 })],
       allocations: [oldAllocation, newAllocation],
-    });
+    })
 
     const { result, rerender } = renderHook(
       () => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }),
-      { wrapper: wrapper({ role: 'owner' }) },
-    );
+      { wrapper: wrapper({ role: 'owner' }) }
+    )
     expect(result.current).toMatchObject({
       kind: 'available',
       model: {
         window: { startDate: '2026-12-28', endDate: '2027-01-24' },
         entries: [{ sourceId: 'old-allocation' }, { sourceId: 'new-allocation' }],
       },
-    });
+    })
 
-    calendarToday.today = '2027-01-04';
-    rerender();
+    calendarToday.today = '2027-01-04'
+    rerender()
     expect(result.current).toMatchObject({
       kind: 'available',
       model: {
         window: { startDate: '2027-01-04', endDate: '2027-01-31' },
         entries: [{ sourceId: 'new-allocation' }],
       },
-    });
-  });
-});
+    })
+  })
+})
 
 describe('usePersonSchedule permissions and identity', () => {
   it('fails closed while authenticated permissions are unresolved', () => {
     const pending = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'viewer', status: 'pending' }),
-    });
+    })
     const unavailable = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'viewer', status: 'unavailable' }),
-    });
-    expect(pending.result.current).toEqual({ kind: 'unavailable' });
-    expect(unavailable.result.current).toEqual({ kind: 'unavailable' });
-  });
-});
+    })
+    expect(pending.result.current).toEqual({ kind: 'unavailable' })
+    expect(unavailable.result.current).toEqual({ kind: 'unavailable' })
+  })
+})
 
 describe('usePersonSchedule authorized projection', () => {
   it('includes placeholder job title and discipline context when the row feature is enabled', () => {
@@ -193,8 +193,8 @@ describe('usePersonSchedule authorized projection', () => {
         kind: 'placeholder',
         jobTitle: 'Designer',
         disciplineId: 'discipline-1',
-      }),
-    );
+      })
+    )
     seed({
       companies: [makeCompany({ id: 'a1', placeholdersEnabled: true })],
       resources: [placeholder],
@@ -209,15 +209,15 @@ describe('usePersonSchedule authorized projection', () => {
           color: null,
         },
       ],
-    });
+    })
     const { result } = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'owner' }),
-    });
+    })
     expect(result.current).toMatchObject({
       kind: 'available',
       model: { title: 'Placeholder — Designer · Design' },
-    });
-  });
+    })
+  })
 
   it.each([
     ['owner', true],
@@ -236,15 +236,15 @@ describe('usePersonSchedule authorized projection', () => {
           note: 'Private',
         }),
       ],
-    });
+    })
     const { result } = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role, status: 'resolved' }),
-    });
-    expect(result.current.kind).toBe('available');
-    if (result.current.kind !== 'available') return;
-    expect(Object.hasOwn(result.current.model.entries[0] ?? {}, 'note')).toBe(expected);
-  });
-});
+    })
+    expect(result.current.kind).toBe('available')
+    if (result.current.kind !== 'available') return
+    expect(Object.hasOwn(result.current.model.entries[0] ?? {}, 'note')).toBe(expected)
+  })
+})
 
 describe('usePersonSchedule lifecycle', () => {
   it('retains OFF/demo note semantics and invalidates when the resource leaves active scoped data', () => {
@@ -259,16 +259,16 @@ describe('usePersonSchedule lifecycle', () => {
           note: 'Private',
         }),
       ],
-    });
+    })
     const { result } = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'owner' }),
-    });
+    })
     expect(result.current).toMatchObject({
       kind: 'available',
       model: { entries: [{ note: 'Private' }] },
-    });
+    })
 
-    act(() => seed({ resources: [{ ...resource, archivedAt: '2026-09-10T00:00:00.000Z' }] }));
-    expect(result.current).toEqual({ kind: 'unavailable' });
-  });
-});
+    act(() => seed({ resources: [{ ...resource, archivedAt: '2026-09-10T00:00:00.000Z' }] }))
+    expect(result.current).toEqual({ kind: 'unavailable' })
+  })
+})

@@ -1,5 +1,5 @@
-import vine from '@vinejs/vine';
-import { writableFields } from '@capacitylens/shared/types/entityFields';
+import vine from '@vinejs/vine'
+import { writableFields } from '@capacitylens/shared/types/entityFields'
 import {
   calendarDate,
   dateRange,
@@ -8,18 +8,18 @@ import {
   hasOperation,
   requireChanges,
   uuid,
-} from '#validators/planning/fields';
+} from '#validators/planning/fields'
 
 const closureFields = {
   name: nameText(),
   startDate: calendarDate(),
   endDate: calendarDate(),
-};
+}
 export const closureChanges = {
   name: closureFields.name.optional(),
   startDate: closureFields.startDate.optional(),
   endDate: closureFields.endDate.optional(),
-};
+}
 export const closureIntent = vine.union([
   vine.union.if(
     (value) => hasOperation(value, 'closure.create'),
@@ -41,4 +41,4 @@ export const closureIntent = vine.union([
     })
   ),
   vine.union.else(vine.object({ operation: vine.literal('closure.delete'), id: entityId() })),
-]);
+])

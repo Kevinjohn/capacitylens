@@ -3,8 +3,8 @@
 // once in `packages/shared/src/domain/access.ts`. The package owns the Bouncer abilities for each
 // permission key.
 
-import { defineAccessControl } from '@kevinjohn/adonisjs-access-control';
-import { accessPermissions, accessRoles } from '@capacitylens/shared/domain/access';
+import { defineAccessControl } from '@kevinjohn/adonisjs-access-control'
+import { accessPermissions, accessRoles } from '@capacitylens/shared/domain/access'
 
 /** Company memberships: `companies` is the scope table; string keys match the users table. */
 export default defineAccessControl({
@@ -13,4 +13,4 @@ export default defineAccessControl({
   users: { table: 'users', keyType: 'string' },
   scope: { table: 'companies', keyType: 'string' },
   permissions: accessPermissions,
-});
+})

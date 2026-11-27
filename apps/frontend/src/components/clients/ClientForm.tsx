@@ -1,22 +1,22 @@
-import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useState } from 'react';
-import { useStore } from '@/store/useStore';
-import { useEditSubmit } from '@/hooks/useEditSubmit';
-import { useFieldError } from '@/hooks/useFieldError';
-import { validatePresetColor, parseName } from '@/lib/validation';
-import { m } from '@/i18n';
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose'
+import { useState } from 'react'
+import { useStore } from '@/store/useStore'
+import { useEditSubmit } from '@/hooks/useEditSubmit'
+import { useFieldError } from '@/hooks/useFieldError'
+import { validatePresetColor, parseName } from '@/lib/validation'
+import { m } from '@/i18n'
 import {
   ColorField,
   FormButtons,
   FormDialog,
   RequiredLegend,
   TextField,
-} from '@/components/common/ui';
-import { PrivateNameFields } from '@/components/common/PrivateNameFields';
-import { usePrivateNameFields } from '@/components/common/usePrivateNameFields';
-import { FieldError } from '@/components/ui/field';
-import { DEFAULT_COLORS } from '@/lib/palette';
-import type { Client } from '@capacitylens/shared/types/entities';
+} from '@/components/common/ui'
+import { PrivateNameFields } from '@/components/common/PrivateNameFields'
+import { usePrivateNameFields } from '@/components/common/usePrivateNameFields'
+import { FieldError } from '@/components/ui/field'
+import { DEFAULT_COLORS } from '@/lib/palette'
+import type { Client } from '@capacitylens/shared/types/entities'
 
 function ClientFormFields({
   name,
@@ -29,15 +29,15 @@ function ClientFormFields({
   error,
   pending,
 }: {
-  name: string;
-  onNameChange: (value: string) => void;
-  privateNameFields: ReturnType<typeof usePrivateNameFields>;
-  color: string;
-  onColorChange: (value: string) => void;
-  errorField: string | null;
-  errorId: string;
-  error: string | null;
-  pending: boolean;
+  name: string
+  onNameChange: (value: string) => void
+  privateNameFields: ReturnType<typeof usePrivateNameFields>
+  color: string
+  onColorChange: (value: string) => void
+  errorField: string | null
+  errorId: string
+  error: string | null
+  pending: boolean
 }) {
   return (
     <>
@@ -71,35 +71,35 @@ function ClientFormFields({
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </>
-  );
+  )
 }
 
 /** Add (no `client`) or edit a client: name + preset colour. `onClose` fires on save or cancel. */
 export function ClientForm({ client, onClose: close }: { client?: Client; onClose: () => void }) {
-  const onClose = useFormLifetimeClose(close);
-  const addClient = useStore((state) => state.addClient);
-  const updateClient = useStore((state) => state.updateClient);
-  const [name, setName] = useState(client?.name ?? '');
-  const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client);
-  const { error, errorField, errorId, fail } = useFieldError();
-  const privateNameFields = usePrivateNameFields(client, fail);
-  const clients = useStore((state) => state.data.clients);
+  const onClose = useFormLifetimeClose(close)
+  const addClient = useStore((state) => state.addClient)
+  const updateClient = useStore((state) => state.updateClient)
+  const [name, setName] = useState(client?.name ?? '')
+  const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client)
+  const { error, errorField, errorId, fail } = useFieldError()
+  const privateNameFields = usePrivateNameFields(client, fail)
+  const clients = useStore((state) => state.data.clients)
   const { pending, submit } = useEditSubmit({
     editing: client,
     rows: clients,
     staleMessage: m.form_client_err_changed,
     fail,
     onSaved: onClose,
-  });
+  })
 
   const prepareSave = () => {
-    const trimmed = parseName(name, fail);
-    if (!trimmed) return null;
-    const privacy = privateNameFields.parsePrivacyPatch();
-    if (!privacy) return null;
-    if (!validatePresetColor(color, fail)) return null;
+    const trimmed = parseName(name, fail)
+    if (!trimmed) return null
+    const privacy = privateNameFields.parsePrivacyPatch()
+    if (!privacy) return null
+    if (!validatePresetColor(color, fail)) return null
     if (client) {
-      return () => updateClient(client.id, { name: trimmed, color, ...privacy }, client.updatedAt);
+      return () => updateClient(client.id, { name: trimmed, color, ...privacy }, client.updatedAt)
     }
     return () =>
       addClient({
@@ -108,15 +108,15 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
         ...(privacy.isPrivate && privacy.codeName
           ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
           : {}),
-      });
-  };
+      })
+  }
 
   return (
     <FormDialog
       title={client ? m.form_client_edit_title() : m.form_client_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit(prepareSave);
+        void submit(prepareSave)
       }}
       footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
@@ -132,5 +132,5 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
         pending={pending}
       />
     </FormDialog>
-  );
+  )
 }

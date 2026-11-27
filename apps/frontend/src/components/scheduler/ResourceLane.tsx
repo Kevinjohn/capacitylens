@@ -1,34 +1,34 @@
-import { memo } from 'react';
-import { Plus } from 'lucide-react';
-import type { ID, ISODate } from '@capacitylens/shared/types/entities';
-import { useStore } from '@/store/useStore';
-import { AllocationBar } from './AllocationBar';
-import type { ColumnGeometry } from './columnGeometry';
-import { LAYOUT } from './layout';
-import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel';
-import { useResourceLaneInteraction } from './useResourceLaneInteraction';
+import { memo } from 'react'
+import { Plus } from 'lucide-react'
+import type { ID, ISODate } from '@capacitylens/shared/types/entities'
+import { useStore } from '@/store/useStore'
+import { AllocationBar } from './AllocationBar'
+import type { ColumnGeometry } from './columnGeometry'
+import { LAYOUT } from './layout'
+import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
+import { useResourceLaneInteraction } from './useResourceLaneInteraction'
 
 /** Resource, geometry, and interaction state consumed by one schedule lane. */
 export interface ResourceLaneProps {
-  resourceId: ID;
-  days: ISODate[];
-  dayStates: DayState[];
-  timeOff: TimeOffBlock[];
-  todayX: number | null;
-  geom: ColumnGeometry;
-  rowHeight: number;
-  barTop: number;
-  bars: BarLayout[];
-  placeholder?: boolean;
-  weekStartsOn: 0 | 1;
-  onEdit?: (allocationId: ID) => void;
-  onDraw?: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void;
+  resourceId: ID
+  days: ISODate[]
+  dayStates: DayState[]
+  timeOff: TimeOffBlock[]
+  todayX: number | null
+  geom: ColumnGeometry
+  rowHeight: number
+  barTop: number
+  bars: BarLayout[]
+  placeholder?: boolean
+  weekStartsOn: 0 | 1
+  onEdit?: (allocationId: ID) => void
+  onDraw?: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void
 }
 interface LayersProps extends Omit<ResourceLaneProps, 'geom' | 'resourceId' | 'rowHeight'> {
-  geometry: ColumnGeometry;
-  draw: { a: number; b: number } | null;
-  hoverDay: number | null;
-  indexAt: (x: number) => number;
+  geometry: ColumnGeometry
+  draw: { a: number; b: number } | null
+  hoverDay: number | null
+  indexAt: (x: number) => number
 }
 
 const BarsLayer = memo(function BarsLayerComponent({
@@ -37,7 +37,7 @@ const BarsLayer = memo(function BarsLayerComponent({
   indexAt,
   onEdit,
 }: Pick<LayersProps, 'bars' | 'geometry' | 'indexAt' | 'onEdit'>) {
-  const inert = useStore((state) => state.ui.drawMode === 'timeOff');
+  const inert = useStore((state) => state.ui.drawMode === 'timeOff')
   return (
     <div className="absolute inset-0" inert={inert || undefined}>
       {bars.map((bar) => (
@@ -50,8 +50,8 @@ const BarsLayer = memo(function BarsLayerComponent({
         />
       ))}
     </div>
-  );
-});
+  )
+})
 
 function CalendarLayers({ days, dayStates, geometry, placeholder, weekStartsOn }: LayersProps) {
   return (
@@ -60,16 +60,16 @@ function CalendarLayers({ days, dayStates, geometry, placeholder, weekStartsOn }
         <div aria-hidden className="hatch-lines pointer-events-none absolute inset-0" />
       )}
       {days.map((day, index) => {
-        if (index === 0) return null;
-        const weekStart = geometry.weekdays[index] === weekStartsOn;
-        if (!weekStart && !geometry.perDayColumns) return null;
+        if (index === 0) return null
+        const weekStart = geometry.weekdays[index] === weekStartsOn
+        if (!weekStart && !geometry.perDayColumns) return null
         return (
           <div
             key={`w-${day}`}
             className={`absolute top-0 h-full border-l ${weekStart ? 'border-line' : 'border-line-faint'}`}
             style={{ left: geometry.x(index) }}
           />
-        );
+        )
       })}
       {geometry.perDayColumns &&
         days.map((day, index) =>
@@ -81,7 +81,7 @@ function CalendarLayers({ days, dayStates, geometry, placeholder, weekStartsOn }
               className="absolute top-0 h-full bg-weekend"
               style={{ left: geometry.x(index), width: geometry.widthOf(index) }}
             />
-          ) : null,
+          ) : null
         )}
       {geometry.perDayColumns &&
         days.map((day, index) =>
@@ -94,10 +94,10 @@ function CalendarLayers({ days, dayStates, geometry, placeholder, weekStartsOn }
               className="pointer-events-none absolute bottom-0 h-1/2 bg-weekend"
               style={{ left: geometry.x(index), width: geometry.widthOf(index) }}
             />
-          ) : null,
+          ) : null
         )}
     </>
-  );
+  )
 }
 
 function ScheduleSignals({ days, dayStates, geometry, timeOff }: LayersProps) {
@@ -120,8 +120,8 @@ function ScheduleSignals({ days, dayStates, geometry, timeOff }: LayersProps) {
         </div>
       ))}
       {days.map((day, index) => {
-        const state = dayStates[index];
-        if (!state?.over && !state?.timeOffConflict) return null;
+        const state = dayStates[index]
+        if (!state?.over && !state?.timeOffConflict) return null
         return (
           <div
             key={`o-${day}`}
@@ -130,10 +130,10 @@ function ScheduleSignals({ days, dayStates, geometry, timeOff }: LayersProps) {
             className={`pointer-events-none absolute top-0 h-full border-t-[3px] border-danger ${state.hasTimeOff ? 'bg-danger/55' : 'bg-danger-cell'}`}
             style={{ left: geometry.x(index), width: geometry.widthOf(index) }}
           />
-        );
+        )
       })}
     </>
-  );
+  )
 }
 
 function GestureLayers({ barTop, draw, geometry, hoverDay, onDraw }: LayersProps) {
@@ -161,7 +161,7 @@ function GestureLayers({ barTop, draw, geometry, hoverDay, onDraw }: LayersProps
         />
       )}
     </>
-  );
+  )
 }
 
 function ResourceLaneLayers(props: LayersProps) {
@@ -179,7 +179,7 @@ function ResourceLaneLayers(props: LayersProps) {
         />
       )}
     </>
-  );
+  )
 }
 
 /** Displays one resource's dated bars and handles lane interactions. */
@@ -203,7 +203,7 @@ export const ResourceLane = memo(function ResourceLaneComponent({
     dayStates: props.dayStates,
     geometry,
     ...(props.onDraw ? { onDraw: props.onDraw } : {}),
-  });
+  })
   const layers = {
     ...props,
     geometry,
@@ -211,7 +211,7 @@ export const ResourceLane = memo(function ResourceLaneComponent({
     draw,
     hoverDay,
     indexAt,
-  };
+  }
   return (
     <div
       ref={laneRef}
@@ -228,5 +228,5 @@ export const ResourceLane = memo(function ResourceLaneComponent({
     >
       <ResourceLaneLayers {...layers} />
     </div>
-  );
-});
+  )
+})

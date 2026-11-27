@@ -1,12 +1,12 @@
-import { test } from '@japa/runner';
-import app from '@adonisjs/core/services/app';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { readdir } from 'node:fs/promises';
-import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
-import { strictPolicy } from '#tests/helpers/state/http_responses';
+import { test } from '@japa/runner'
+import app from '@adonisjs/core/services/app'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { readdir } from 'node:fs/promises'
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture'
+import { strictPolicy } from '#tests/helpers/state/http_responses'
 
 test.group('static fallback', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   test('serves the shell only for SPA routes', async ({ client, assert }) => {
     for (const path of [
       '/',
@@ -17,15 +17,15 @@ test.group('static fallback', (group) => {
       '/reset-password/abc',
     ]) {
       // A redirect is not followed: the address asked for must itself answer with the shell.
-      const response = await client.get(path).redirects(0);
-      assert.equal(response.status(), 200, path);
-      assert.include(response.header('content-type'), 'text/html');
-      assert.equal(response.header('cache-control'), 'no-store');
-      assert.equal(response.header('content-security-policy'), strictPolicy);
-      assert.equal(response.header('x-content-type-options'), 'nosniff');
-      assert.equal(response.header('x-frame-options'), 'DENY');
+      const response = await client.get(path).redirects(0)
+      assert.equal(response.status(), 200, path)
+      assert.include(response.header('content-type'), 'text/html')
+      assert.equal(response.header('cache-control'), 'no-store')
+      assert.equal(response.header('content-security-policy'), strictPolicy)
+      assert.equal(response.header('x-content-type-options'), 'nosniff')
+      assert.equal(response.header('x-frame-options'), 'DENY')
     }
-  });
+  })
 
   test('does not turn missing files, directories, traversal, or APIs into the shell', async ({
     client,
@@ -39,15 +39,15 @@ test.group('static fallback', (group) => {
       '/assets/',
       '/assets/..%2F..%2Fpackage.json',
     ]) {
-      const response = await client.get(path);
-      assert.equal(response.status(), 404, path);
-      assert.notInclude(response.text(), '<!doctype html>');
+      const response = await client.get(path)
+      assert.equal(response.status(), 404, path)
+      assert.notInclude(response.text(), '<!doctype html>')
     }
-    client = await resetAuthenticatedClient(client, true);
-    const api = await client.get('/api/v1/does-not-exist');
-    assert.equal(api.status(), 404);
-    assert.deepEqual(api.body(), { error: 'Not found' });
-  });
+    client = await resetAuthenticatedClient(client, true)
+    const api = await client.get('/api/v1/does-not-exist')
+    assert.equal(api.status(), 404)
+    assert.deepEqual(api.body(), { error: 'Not found' })
+  })
 
   test('opens a page whose address has a trailing slash at the address without it', async ({
     client,
@@ -60,11 +60,11 @@ test.group('static fallback', (group) => {
       ['/schedule/?from=mail', '/schedule?from=mail'],
       ['/schedule/?x=1&x=2&flag&q=a+b', '/schedule?x=1&x=2&flag&q=a+b'],
     ]) {
-      const response = await client.get(path).redirects(0);
-      assert.equal(response.status(), 301, path);
-      assert.equal(response.header('location'), location, path);
+      const response = await client.get(path).redirects(0)
+      assert.equal(response.status(), 301, path)
+      assert.equal(response.header('location'), location, path)
     }
-  });
+  })
 
   test('never redirects a trailing slash to another host or outside the page addresses', async ({
     client,
@@ -78,32 +78,32 @@ test.group('static fallback', (group) => {
       '/assets/',
       '/nested/missing.png/',
     ]) {
-      const response = await client.get(path).redirects(0);
-      assert.equal(response.status(), 404, path);
-      assert.isUndefined(response.header('location'), path);
+      const response = await client.get(path).redirects(0)
+      assert.equal(response.status(), 404, path)
+      assert.isUndefined(response.header('location'), path)
     }
-  });
+  })
 
   test('serves hashed assets as immutable and root files as no-store', async ({
     client,
     assert,
   }) => {
-    const assets = await readdir(app.publicPath('assets'));
-    const asset = assets.find((name) => name.endsWith('.js'));
-    assert.isString(asset);
-    const response = await client.get(`/assets/${asset}`);
-    assert.equal(response.status(), 200);
-    assert.equal(response.header('cache-control'), 'public, max-age=31536000, immutable');
-    assert.equal(response.header('content-security-policy'), strictPolicy);
-    assert.equal(response.header('x-content-type-options'), 'nosniff');
-    assert.equal(response.header('x-frame-options'), 'DENY');
-    const etag = response.header('etag');
-    assert.isString(etag);
-    const revalidated = await client.get(`/assets/${asset}`).header('if-none-match', etag!);
-    assert.equal(revalidated.status(), 304);
-    assert.equal(revalidated.header('cache-control'), 'public, max-age=31536000, immutable');
-    const rootFile = await client.get('/theme-init.js');
-    assert.equal(rootFile.status(), 200);
-    assert.equal(rootFile.header('cache-control'), 'no-store');
-  });
-});
+    const assets = await readdir(app.publicPath('assets'))
+    const asset = assets.find((name) => name.endsWith('.js'))
+    assert.isString(asset)
+    const response = await client.get(`/assets/${asset}`)
+    assert.equal(response.status(), 200)
+    assert.equal(response.header('cache-control'), 'public, max-age=31536000, immutable')
+    assert.equal(response.header('content-security-policy'), strictPolicy)
+    assert.equal(response.header('x-content-type-options'), 'nosniff')
+    assert.equal(response.header('x-frame-options'), 'DENY')
+    const etag = response.header('etag')
+    assert.isString(etag)
+    const revalidated = await client.get(`/assets/${asset}`).header('if-none-match', etag!)
+    assert.equal(revalidated.status(), 304)
+    assert.equal(revalidated.header('cache-control'), 'public, max-age=31536000, immutable')
+    const rootFile = await client.get('/theme-init.js')
+    assert.equal(rootFile.status(), 200)
+    assert.equal(rootFile.header('cache-control'), 'no-store')
+  })
+})

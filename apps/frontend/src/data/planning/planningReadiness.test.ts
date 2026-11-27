@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import type { PlanningCacheMetadata } from './planningCacheTypes';
-import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
-import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
+import { describe, expect, it } from 'vitest'
+import type { PlanningCacheMetadata } from './planningCacheTypes'
+import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness'
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 const ready: PlanningCacheMetadata = {
   context: { identity: 'bruce-user', companyId: 'wayne' },
@@ -11,11 +11,11 @@ const ready: PlanningCacheMetadata = {
   capacity: null,
   phase: { kind: 'ready', lastWrite: null },
   history: { canUndo: true, canRedo: false },
-};
+}
 
 describe('planning readiness', () => {
   it('admits a new change only for a writable, loaded context with no unresolved write', () => {
-    expect(isPlanningReadyForChange(ready)).toBe(true);
+    expect(isPlanningReadyForChange(ready)).toBe(true)
     expect(
       isPlanningReadyForChange({
         ...ready,
@@ -23,16 +23,16 @@ describe('planning readiness', () => {
           kind: 'ready',
           lastWrite: { kind: 'refused', mutationId: 'm0', error: new Error('Refused') },
         },
-      }),
-    ).toBe(true);
-    expect(isPlanningReadyForChange({ ...ready, context: null })).toBe(false);
+      })
+    ).toBe(true)
+    expect(isPlanningReadyForChange({ ...ready, context: null })).toBe(false)
     expect(
-      isPlanningReadyForChange({ ...ready, access: makePlanningAccess({ canWrite: false }) }),
-    ).toBe(false);
-    expect(isPlanningReadyForChange({ ...ready, revision: null })).toBe(false);
+      isPlanningReadyForChange({ ...ready, access: makePlanningAccess({ canWrite: false }) })
+    ).toBe(false)
+    expect(isPlanningReadyForChange({ ...ready, revision: null })).toBe(false)
     expect(
-      isPlanningReadyForChange({ ...ready, phase: { kind: 'loading', lastWrite: null } }),
-    ).toBe(false);
+      isPlanningReadyForChange({ ...ready, phase: { kind: 'loading', lastWrite: null } })
+    ).toBe(false)
     expect(
       isPlanningReadyForChange({
         ...ready,
@@ -48,21 +48,21 @@ describe('planning readiness', () => {
           },
           readError: null,
         },
-      }),
-    ).toBe(false);
-  });
+      })
+    ).toBe(false)
+  })
 
   it('admits undo and redo only in the direction the server reported, when a change could start', () => {
-    expect(isPlanningHistoryReady(ready, 'undo')).toBe(true);
-    expect(isPlanningHistoryReady(ready, 'redo')).toBe(false);
+    expect(isPlanningHistoryReady(ready, 'undo')).toBe(true)
+    expect(isPlanningHistoryReady(ready, 'redo')).toBe(false)
     expect(
-      isPlanningHistoryReady({ ...ready, history: { canUndo: false, canRedo: true } }, 'redo'),
-    ).toBe(true);
+      isPlanningHistoryReady({ ...ready, history: { canUndo: false, canRedo: true } }, 'redo')
+    ).toBe(true)
     expect(
-      isPlanningHistoryReady({ ...ready, access: makePlanningAccess({ canWrite: false }) }, 'undo'),
-    ).toBe(false);
+      isPlanningHistoryReady({ ...ready, access: makePlanningAccess({ canWrite: false }) }, 'undo')
+    ).toBe(false)
     expect(
-      isPlanningHistoryReady({ ...ready, phase: { kind: 'loading', lastWrite: null } }, 'undo'),
-    ).toBe(false);
-  });
-});
+      isPlanningHistoryReady({ ...ready, phase: { kind: 'loading', lastWrite: null } }, 'undo')
+    ).toBe(false)
+  })
+})

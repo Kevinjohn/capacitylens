@@ -1,4 +1,4 @@
-import type { LaneLayout } from '@/lib/lanePacking';
+import type { LaneLayout } from '@/lib/lanePacking'
 
 // Fixed pixel geometry for the scheduler. dayWidth is dynamic (zoom) and lives in
 // the store; everything here is constant.
@@ -22,12 +22,12 @@ export const LAYOUT = {
    * so the name/avatar stays aligned with the first bar however tall a multi-allocation row grows.
    * Mirrors the single-lane case of `resolveRowHeightForLanes`; the two must move together. */
   identityBandHeight: 66,
-};
+}
 
 /** Insets a bar within its raw span, capping the inset so narrow bars keep a visible width. */
 export function buildAllocationBarInset(left: number, width: number) {
-  const inset = Math.min(LAYOUT.barInset, width / 3);
-  return { insetLeft: left + inset, insetWidth: Math.max(1, width - inset * 2) };
+  const inset = Math.min(LAYOUT.barInset, width / 3)
+  return { insetLeft: left + inset, insetWidth: Math.max(1, width - inset * 2) }
 }
 
 /** The lane geometry buildSchedulerModel packs rows with. */
@@ -35,7 +35,7 @@ export const SCHEDULER_LANE_LAYOUT: LaneLayout = {
   barHeight: LAYOUT.barHeight,
   laneGap: LAYOUT.laneGap,
   rowPadding: LAYOUT.rowPadding,
-};
+}
 
 /** Vertical rhythm of the scheduler toolbar and the app sidebar, in px. Y axis only: the toolbar's
  * horizontal gap is fixed, because widening it would make the row wrap sooner and fight the Reflow
@@ -46,4 +46,4 @@ export const CHROME_SPACING = {
   navMenuGapY: 8,
   navSectionPadY: 16,
   navSectionGapY: 16,
-};
+}

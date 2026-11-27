@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { cn } from '@/lib/cn';
-import { SectionHelp } from '@/components/common/ui';
+import type { ReactNode } from 'react'
+import { cn } from '@/lib/cn'
+import { SectionHelp } from '@/components/common/ui'
 
 /** Compact presentation of an existing section inside a Settings group. */
 export function SettingsRow({
@@ -17,18 +17,18 @@ export function SettingsRow({
   id,
   testId,
 }: {
-  title: string;
-  titleContent: ReactNode;
-  help: ReactNode;
-  description: string | undefined;
-  children: ReactNode;
-  danger: boolean;
-  collapsible: boolean;
-  expanded: boolean;
-  contentId: string;
-  contentClassName: string | undefined;
-  id: string | undefined;
-  testId: string | undefined;
+  title: string
+  titleContent: ReactNode
+  help: ReactNode
+  description: string | undefined
+  children: ReactNode
+  danger: boolean
+  collapsible: boolean
+  expanded: boolean
+  contentId: string
+  contentClassName: string | undefined
+  id: string | undefined
+  testId: string | undefined
 }) {
   return (
     <div
@@ -57,7 +57,7 @@ export function SettingsRow({
             id={contentId}
             className={cn(
               'flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere] [&_[data-segmented-control]]:max-w-full [&_[data-segmented-control]]:flex-wrap [&_[role=radio]]:h-auto [&_[role=radio]]:min-h-7 [&_[role=radio]]:whitespace-normal [&_[role=radio]]:overflow-visible',
-              contentClassName,
+              contentClassName
             )}
           >
             {children}
@@ -65,5 +65,5 @@ export function SettingsRow({
         )}
       </div>
     </div>
-  );
+  )
 }

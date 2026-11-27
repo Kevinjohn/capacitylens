@@ -1,17 +1,17 @@
-import app from '@adonisjs/core/services/app';
-import { execCommand } from '#tests/helpers/auth/commands';
+import app from '@adonisjs/core/services/app'
+import { execCommand } from '#tests/helpers/auth/commands'
 
 /** Each route line of `node ace masquerade:routes`, without column padding. */
 export async function routeReport() {
-  const ace = await app.container.make('ace');
-  ace.ui.switchMode('raw');
-  const command = await execCommand('masquerade:routes', []);
-  command.assertSucceeded();
+  const ace = await app.container.make('ace')
+  ace.ui.switchMode('raw')
+  const command = await execCommand('masquerade:routes', [])
+  command.assertSucceeded()
   return ace.ui.logger
     .getLogs()
     .flatMap((log) => log.message.split('\n'))
     .filter((line) => line.startsWith('  '))
-    .map((line) => line.trim().replace(/\s+/g, ' '));
+    .map((line) => line.trim().replace(/\s+/g, ' '))
 }
 
 /**
@@ -39,7 +39,7 @@ export const reviewedUnclassified = [
   'GET,HEAD /health/ready [UNCLASSIFIED READ]',
   'GET,HEAD /api/v1/* [UNCLASSIFIED READ]',
   'GET,HEAD /* [UNCLASSIFIED READ]',
-];
+]
 
 /** Member reads refused outright while a view-as mode is active. */
 export const sensitiveReads = [
@@ -51,10 +51,10 @@ export const sensitiveReads = [
   'GET,HEAD /api/v1/admission [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/v1/admission/requests [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/v1/diagnostics [BUSINESS READ] (sensitive)',
-];
+]
 
 /** The view-as controls, which always run as the signed-in person. */
 export const signedInPersonRoutes = [
   'POST /api/v1/companies/:companyId/masquerade [RAW-GUARD BUSINESS MUTATION]',
   'DELETE /api/v1/masquerade [RAW-GUARD BUSINESS MUTATION]',
-];
+]

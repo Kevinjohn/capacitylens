@@ -1,6 +1,6 @@
-import factory from '@adonisjs/lucid/factories';
-import Closure from '#models/closure';
-import { DateTime } from 'luxon';
+import factory from '@adonisjs/lucid/factories'
+import Closure from '#models/closure'
+import { DateTime } from 'luxon'
 
 /** Closures rows are company-scoped: merge `companyId` and the parent ids the test needs. */
 export const ClosureFactory = factory
@@ -12,4 +12,4 @@ export const ClosureFactory = factory
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   }))
-  .build();
+  .build()

@@ -1,6 +1,6 @@
-import type { Draft, Patch } from '@/lib/entityDrafts';
-import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates';
-import type { PlanningMutationSuccess } from '@/api/planningContracts';
+import type { Draft, Patch } from '@/lib/entityDrafts'
+import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates'
+import type { PlanningMutationSuccess } from '@/api/planningContracts'
 import type {
   Activity,
   Allocation,
@@ -13,23 +13,23 @@ import type {
   Project,
   Resource,
   TimeOff,
-} from '@capacitylens/shared/types/entities';
+} from '@capacitylens/shared/types/entities'
 
 /** The pattern and inclusive last start of a repeated create; the server places each occurrence. */
 export interface RepeatRange {
-  pattern: RepeatPattern;
-  until: ISODate;
+  pattern: RepeatPattern
+  until: ISODate
 }
 
 /** A create action can be blocked until a writable role is confirmed. */
-export type CreateResult<T> = { kind: 'created'; value: T } | { kind: 'blocked' };
+export type CreateResult<T> = { kind: 'created'; value: T } | { kind: 'blocked' }
 
 /** The capacity advisory the server computed for the allocation rows a save wrote. */
-export type AllocationSaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdvisory'>;
+export type AllocationSaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdvisory'>
 
 /** An allocation create result that also carries the save reply's capacity advisory. */
 export type AllocationCreateResult<T> =
-  ({ kind: 'created'; value: T } & AllocationSaveAdvisory) | { kind: 'blocked' };
+  ({ kind: 'created'; value: T } & AllocationSaveAdvisory) | { kind: 'blocked' }
 
 /** Store actions write the active company through the canonical planning transport. Access
  * restrictions may return a blocked result or no-op; stale IDs are no-ops. Reference and input-integrity
@@ -38,87 +38,87 @@ export type AllocationCreateResult<T> =
  * has changed since. */
 export interface StoreEntityActions {
   /** Create a discipline in the active company. */
-  addDiscipline: (input: Omit<Draft<Discipline>, 'sortOrder'>) => Promise<CreateResult<Discipline>>;
+  addDiscipline: (input: Omit<Draft<Discipline>, 'sortOrder'>) => Promise<CreateResult<Discipline>>
   /** Patch a discipline in the active company. */
-  updateDiscipline: (id: ID, patch: Patch<Discipline>, expectedUpdatedAt?: string) => Promise<void>;
+  updateDiscipline: (id: ID, patch: Patch<Discipline>, expectedUpdatedAt?: string) => Promise<void>
   /** Delete a discipline from the active company; dependent rows follow the shared cascade rules. */
-  deleteDiscipline: (id: ID) => Promise<void>;
+  deleteDiscipline: (id: ID) => Promise<void>
 
   /** Create a resource in the active company. */
-  addResource: (input: Draft<Resource>) => Promise<CreateResult<Resource>>;
+  addResource: (input: Draft<Resource>) => Promise<CreateResult<Resource>>
   /** Patch a resource in the active company. */
-  updateResource: (id: ID, patch: Patch<Resource>, expectedUpdatedAt?: string) => Promise<void>;
+  updateResource: (id: ID, patch: Patch<Resource>, expectedUpdatedAt?: string) => Promise<void>
 
   /** Create a client in the active company. */
-  addClient: (input: Draft<Client>) => Promise<CreateResult<Client>>;
+  addClient: (input: Draft<Client>) => Promise<CreateResult<Client>>
   /** Patch a client in the active company. */
-  updateClient: (id: ID, patch: Patch<Client>, expectedUpdatedAt?: string) => Promise<void>;
+  updateClient: (id: ID, patch: Patch<Client>, expectedUpdatedAt?: string) => Promise<void>
 
   /** Create a project in the active company. */
-  addProject: (input: Draft<Project>) => Promise<CreateResult<Project>>;
+  addProject: (input: Draft<Project>) => Promise<CreateResult<Project>>
   /** Patch a project in the active company. */
-  updateProject: (id: ID, patch: Patch<Project>, expectedUpdatedAt?: string) => Promise<void>;
+  updateProject: (id: ID, patch: Patch<Project>, expectedUpdatedAt?: string) => Promise<void>
 
   /** Create a phase in the active company. */
-  addPhase: (input: Draft<Phase>) => Promise<CreateResult<Phase>>;
+  addPhase: (input: Draft<Phase>) => Promise<CreateResult<Phase>>
   /** Patch a phase in the active company. */
-  updatePhase: (id: ID, patch: Patch<Phase>) => Promise<void>;
+  updatePhase: (id: ID, patch: Patch<Phase>) => Promise<void>
   /** Delete a phase from the active company; dependent rows follow the shared cascade rules. */
-  deletePhase: (id: ID) => Promise<void>;
+  deletePhase: (id: ID) => Promise<void>
 
   /** Create an activity in the active company. */
-  addActivity: (input: Draft<Activity>) => Promise<CreateResult<Activity>>;
+  addActivity: (input: Draft<Activity>) => Promise<CreateResult<Activity>>
   /** Patch an activity in the active company. */
-  updateActivity: (id: ID, patch: Patch<Activity>, expectedUpdatedAt?: string) => Promise<void>;
+  updateActivity: (id: ID, patch: Patch<Activity>, expectedUpdatedAt?: string) => Promise<void>
   /** Archive an activity in the active company and resolve with the server reply, or with nothing
    * when the write is blocked; dependent rows follow the shared cascade rules. */
-  deleteActivity: (id: ID) => Promise<PlanningMutationSuccess | undefined>;
+  deleteActivity: (id: ID) => Promise<PlanningMutationSuccess | undefined>
 
   /** Create one allocation as one typed planning write; it resolves once the server acknowledges it. */
-  addAllocation: (input: Draft<Allocation>) => Promise<AllocationCreateResult<Allocation>>;
+  addAllocation: (input: Draft<Allocation>) => Promise<AllocationCreateResult<Allocation>>
   /** Create a repeated set as one typed planning write and one Undo step. The server expands the
    * repeat from the first occurrence and mints the later ids; a refusal rejects. */
   addRepeatedAllocation: (
     input: Draft<Allocation>,
-    repeat: RepeatRange,
-  ) => Promise<AllocationCreateResult<Allocation[]>>;
+    repeat: RepeatRange
+  ) => Promise<AllocationCreateResult<Allocation[]>>
   /** Copy an allocation as one typed planning write, reusing the source when nothing else changed. */
   duplicateAllocation: (
     sourceId: ID,
-    input: Draft<Allocation>,
-  ) => Promise<AllocationCreateResult<Allocation>>;
+    input: Draft<Allocation>
+  ) => Promise<AllocationCreateResult<Allocation>>
   /** Apply an allocation patch and resolve with the save reply's capacity advisory. False means an
    * access refusal, a missing target or no change; validation, company scoping and server refusals reject. */
-  updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<false | AllocationSaveAdvisory>;
+  updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<false | AllocationSaveAdvisory>
   /** Move an allocation onto another resource and dates. The server decides the hours it carries
    * there; false means an access refusal or a missing allocation. */
   reassignAllocation: (
     id: ID,
-    placement: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate'>,
-  ) => Promise<false | AllocationSaveAdvisory>;
+    placement: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate'>
+  ) => Promise<false | AllocationSaveAdvisory>
   /** Delete an allocation from the active company. */
-  deleteAllocation: (id: ID) => Promise<void>;
+  deleteAllocation: (id: ID) => Promise<void>
   /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */
-  deleteAllocationSeriesFrom: (id: ID) => Promise<void>;
+  deleteAllocationSeriesFrom: (id: ID) => Promise<void>
 
   /** Create a time-off entry in the active company. */
-  addTimeOff: (input: Draft<TimeOff>) => Promise<CreateResult<TimeOff>>;
+  addTimeOff: (input: Draft<TimeOff>) => Promise<CreateResult<TimeOff>>
   /** Create repeated time off as one typed planning write and one Undo step. The server places the
    * `count` entries from the first one and the repeat; a mismatched count or a refusal rejects. */
   addRepeatedTimeOff: (
     input: Draft<TimeOff>,
     repeat: RepeatRange,
-    count: number,
-  ) => Promise<CreateResult<TimeOff[]>>;
+    count: number
+  ) => Promise<CreateResult<TimeOff[]>>
   /** Patch a time-off entry in the active company. */
-  updateTimeOff: (id: ID, patch: Patch<TimeOff>, expectedUpdatedAt?: string) => Promise<void>;
+  updateTimeOff: (id: ID, patch: Patch<TimeOff>, expectedUpdatedAt?: string) => Promise<void>
   /** Delete a time-off entry from the active company. */
-  deleteTimeOff: (id: ID) => Promise<void>;
+  deleteTimeOff: (id: ID) => Promise<void>
 
   /** Create a company closure in the active company. */
-  addClosure: (input: Draft<Closure>) => Promise<CreateResult<Closure>>;
+  addClosure: (input: Draft<Closure>) => Promise<CreateResult<Closure>>
   /** Patch a company closure in the active company. */
-  updateClosure: (id: ID, patch: Patch<Closure>, expectedUpdatedAt?: string) => Promise<void>;
+  updateClosure: (id: ID, patch: Patch<Closure>, expectedUpdatedAt?: string) => Promise<void>
   /** Delete a company closure from the active company. */
-  deleteClosure: (id: ID) => Promise<void>;
+  deleteClosure: (id: ID) => Promise<void>
 }

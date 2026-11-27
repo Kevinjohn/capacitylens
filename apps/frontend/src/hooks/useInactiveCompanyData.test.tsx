@@ -1,18 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { AuthContext } from '@/auth/authContext';
-import { PermissionContext } from '@/auth/permissionContext';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { invalidateInactiveReads } from '@/api/queryClient';
-import { QueryCacheLifecycle } from '@/api/QueryCacheLifecycle';
-import { useStore } from '@/store/useStore';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { makeCompany, makeClient } from '@/test/fixtures';
-import { useInactiveCompanyData } from './useInactiveCompanyData';
-import { permissionValue } from '@/test/permissionGrants';
-import { createDeferred } from '@/test/createDeferred';
-import { m } from '@/i18n';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { AuthContext } from '@/auth/authContext'
+import { PermissionContext } from '@/auth/permissionContext'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { invalidateInactiveReads } from '@/api/queryClient'
+import { QueryCacheLifecycle } from '@/api/QueryCacheLifecycle'
+import { useStore } from '@/store/useStore'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { makeCompany, makeClient } from '@/test/fixtures'
+import { useInactiveCompanyData } from './useInactiveCompanyData'
+import { permissionValue } from '@/test/permissionGrants'
+import { createDeferred } from '@/test/createDeferred'
+import { m } from '@/i18n'
 
 function payload(companyId: string, name: string) {
   return {
@@ -30,20 +30,20 @@ function payload(companyId: string, name: string) {
         archivedAt: '2026-01-01T00:00:00.000Z',
       }),
     ],
-  };
+  }
 }
 
 function Probe() {
-  const { data } = useInactiveCompanyData();
-  return <div>{data?.clients.map((client) => client.name).join(',') ?? 'hidden'}</div>;
+  const { data } = useInactiveCompanyData()
+  return <div>{data?.clients.map((client) => client.name).join(',') ?? 'hidden'}</div>
 }
 
-let cache = new QueryClient();
+let cache = new QueryClient()
 
 function view(
   role: 'owner' | 'admin' | 'editor',
   userId = 'bruce',
-  permissions = permissionValue(role, 'resolved'),
+  permissions = permissionValue(role, 'resolved')
 ) {
   return (
     <AuthContext.Provider
@@ -60,63 +60,60 @@ function view(
         </QueryClientProvider>
       </PermissionContext.Provider>
     </AuthContext.Provider>
-  );
+  )
 }
 
 beforeEach(() => {
-  cache = new QueryClient();
-  useStore.setState({ activeCompanyId: 'a1' });
-});
+  cache = new QueryClient()
+  useStore.setState({ activeCompanyId: 'a1' })
+})
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => vi.unstubAllGlobals())
 
 describe('useInactiveCompanyData', () => {
   it('reads inactive rows under the key the server checks, not the anonymise key', async () => {
-    const fetchMock = vi.fn(async () => Response.json({ data: payload('a1', 'Gotham') }));
-    vi.stubGlobal('fetch', fetchMock);
-    const admin = permissionValue('admin', 'resolved');
+    const fetchMock = vi.fn(async () => Response.json({ data: payload('a1', 'Gotham') }))
+    vi.stubGlobal('fetch', fetchMock)
+    const admin = permissionValue('admin', 'resolved')
     const permissions = {
       ...admin,
       grant: {
         ...admin.grant,
         permissions: admin.grant.permissions.filter((key) => key !== 'resources:anonymise'),
       },
-    };
-    render(view('admin', 'bruce', permissions));
-    expect(await screen.findByText(/Gotham/)).toBeInTheDocument();
-  });
+    }
+    render(view('admin', 'bruce', permissions))
+    expect(await screen.findByText(/Gotham/)).toBeInTheDocument()
+  })
 
   it('invalidates its private server set after a lifecycle mutation', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ data: payload('a1', 'First') }))
-      .mockResolvedValueOnce(Response.json({ data: payload('a1', 'Refreshed') }));
-    vi.stubGlobal('fetch', fetchMock);
-    render(view('admin'));
-    expect(await screen.findByText(/First/)).toBeInTheDocument();
-    await act(async () => void invalidateInactiveReads(cache));
-    expect(await screen.findByText(/Refreshed/)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
+      .mockResolvedValueOnce(Response.json({ data: payload('a1', 'Refreshed') }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(view('admin'))
+    expect(await screen.findByText(/First/)).toBeInTheDocument()
+    await act(async () => void invalidateInactiveReads(cache))
+    expect(await screen.findByText(/Refreshed/)).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 
   it('does not reveal an old admin response after an editor role transition', async () => {
-    const first = createDeferred<Response>();
-    const second = createDeferred<Response>();
-    const fetchMock = vi
-      .fn()
-      .mockReturnValueOnce(first.promise)
-      .mockReturnValueOnce(second.promise);
-    vi.stubGlobal('fetch', fetchMock);
-    const rendered = render(view('admin'));
-    rendered.rerender(view('editor'));
-    first.resolve(Response.json({ data: payload('a1', 'Stale') }));
-    await waitFor(() => expect(screen.getByText('hidden')).toBeInTheDocument());
-    rendered.rerender(view('admin'));
-    expect(screen.getByText('hidden')).toBeInTheDocument();
-    second.resolve(Response.json({ data: payload('a1', 'Fresh') }));
-    expect(await screen.findByText(/Fresh/)).toBeInTheDocument();
-    expect(screen.queryByText('Stale')).not.toBeInTheDocument();
-  });
+    const first = createDeferred<Response>()
+    const second = createDeferred<Response>()
+    const fetchMock = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+    vi.stubGlobal('fetch', fetchMock)
+    const rendered = render(view('admin'))
+    rendered.rerender(view('editor'))
+    first.resolve(Response.json({ data: payload('a1', 'Stale') }))
+    await waitFor(() => expect(screen.getByText('hidden')).toBeInTheDocument())
+    rendered.rerender(view('admin'))
+    expect(screen.getByText('hidden')).toBeInTheDocument()
+    second.resolve(Response.json({ data: payload('a1', 'Fresh') }))
+    expect(await screen.findByText(/Fresh/)).toBeInTheDocument()
+    expect(screen.queryByText('Stale')).not.toBeInTheDocument()
+  })
 
   it('does not reuse company A data while A is being refetched after A → B → A', async () => {
     vi.stubGlobal(
@@ -125,73 +122,73 @@ describe('useInactiveCompanyData', () => {
         .fn()
         .mockResolvedValueOnce(Response.json({ data: payload('a1', 'Old A') }))
         .mockResolvedValueOnce(Response.json({ data: payload('a2', 'B') }))
-        .mockReturnValueOnce(new Promise(() => undefined)),
-    );
-    render(view('admin'));
-    expect(await screen.findByText(/Old A/)).toBeInTheDocument();
-    useStore.setState({ activeCompanyId: 'a2' });
-    expect(await screen.findByText('Internal,B')).toBeInTheDocument();
-    useStore.setState({ activeCompanyId: 'a1' });
-    await waitFor(() => expect(screen.getByText('hidden')).toBeInTheDocument());
-    expect(screen.queryByText('Old A')).not.toBeInTheDocument();
-  });
+        .mockReturnValueOnce(new Promise(() => undefined))
+    )
+    render(view('admin'))
+    expect(await screen.findByText(/Old A/)).toBeInTheDocument()
+    useStore.setState({ activeCompanyId: 'a2' })
+    expect(await screen.findByText('Internal,B')).toBeInTheDocument()
+    useStore.setState({ activeCompanyId: 'a1' })
+    await waitFor(() => expect(screen.getByText('hidden')).toBeInTheDocument())
+    expect(screen.queryByText('Old A')).not.toBeInTheDocument()
+  })
   it('hides Owner labels immediately on Admin demotion and same-company user replacement', async () => {
-    const next = createDeferred<Response>();
+    const next = createDeferred<Response>()
     vi.stubGlobal(
       'fetch',
       vi
         .fn()
         .mockResolvedValueOnce(Response.json({ data: payload('a1', 'Owner secret') }))
-        .mockReturnValue(next.promise),
-    );
-    const rendered = render(view('owner'));
-    expect(await screen.findByText(/Owner secret/)).toBeInTheDocument();
-    rendered.rerender(view('admin'));
-    expect(screen.getByText('hidden')).toBeInTheDocument();
-    rendered.rerender(view('admin', 'diana'));
-    expect(screen.getByText('hidden')).toBeInTheDocument();
-    next.resolve(Response.json({ data: payload('a1', 'Safe cover') }));
-    expect(await screen.findByText(/Safe cover/)).toBeInTheDocument();
-    expect(screen.queryByText(/Owner secret/)).not.toBeInTheDocument();
-  });
-});
+        .mockReturnValue(next.promise)
+    )
+    const rendered = render(view('owner'))
+    expect(await screen.findByText(/Owner secret/)).toBeInTheDocument()
+    rendered.rerender(view('admin'))
+    expect(screen.getByText('hidden')).toBeInTheDocument()
+    rendered.rerender(view('admin', 'diana'))
+    expect(screen.getByText('hidden')).toBeInTheDocument()
+    next.resolve(Response.json({ data: payload('a1', 'Safe cover') }))
+    expect(await screen.findByText(/Safe cover/)).toBeInTheDocument()
+    expect(screen.queryByText(/Owner secret/)).not.toBeInTheDocument()
+  })
+})
 
 describe('useInactiveCompanyData read failure notices', () => {
-  beforeEach(() => useStore.getState().setNotice(null));
+  beforeEach(() => useStore.getState().setNotice(null))
 
   async function renderFailedRead(response: Response) {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
-    render(view('admin'));
-    await waitFor(() => expect(cache.getQueryCache().getAll()[0]?.state.status).toBe('error'));
-    expect(screen.getByText('hidden')).toBeInTheDocument();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+    render(view('admin'))
+    await waitFor(() => expect(cache.getQueryCache().getAll()[0]?.state.status).toBe('error'))
+    expect(screen.getByText('hidden')).toBeInTheDocument()
   }
 
   it('stays silent on a 403, which only means inactive rows are not offered', async () => {
-    await renderFailedRead(Response.json({ error: 'Forbidden.' }, { status: 403 }));
-    expect(useStore.getState().notice).toBeNull();
-  });
+    await renderFailedRead(Response.json({ error: 'Forbidden.' }, { status: 403 }))
+    expect(useStore.getState().notice).toBeNull()
+  })
 
   it('reports another HTTP failure by its status', async () => {
-    await renderFailedRead(new Response(null, { status: 500 }));
+    await renderFailedRead(new Response(null, { status: 500 }))
     expect(useStore.getState().notice).toEqual({
       message: m.settings_archived_err_load({ status: 500 }),
       tone: 'error',
-    });
-  });
+    })
+  })
 
   it('prefers the server sentence for an HTTP failure that carries one', async () => {
-    await renderFailedRead(Response.json({ error: 'The archive is resting.' }, { status: 503 }));
+    await renderFailedRead(Response.json({ error: 'The archive is resting.' }, { status: 503 }))
     expect(useStore.getState().notice).toEqual({
       message: 'The archive is resting.',
       tone: 'error',
-    });
-  });
+    })
+  })
 
   it('reports an answer that is not a complete company set', async () => {
-    await renderFailedRead(Response.json({ data: { companies: [] } }));
+    await renderFailedRead(Response.json({ data: { companies: [] } }))
     expect(useStore.getState().notice).toEqual({
       message: m.settings_archived_err_incomplete(),
       tone: 'error',
-    });
-  });
-});
+    })
+  })
+})

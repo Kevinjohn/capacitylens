@@ -1,20 +1,20 @@
-import { randomUUID } from 'node:crypto';
-import type { ApiClient, ApiResponse } from '@japa/api-client';
-import db from '@adonisjs/lucid/services/db';
-import Allocation from '#models/allocation';
-import Closure from '#models/closure';
-import Discipline from '#models/discipline';
-import Phase from '#models/phase';
-import TimeOff from '#models/time_off';
-import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
-import { readState } from '#tests/helpers/state_fixture';
-import { companyId, newAllocation, session } from '#tests/functional/planning/helpers';
+import { randomUUID } from 'node:crypto'
+import type { ApiClient, ApiResponse } from '@japa/api-client'
+import db from '@adonisjs/lucid/services/db'
+import Allocation from '#models/allocation'
+import Closure from '#models/closure'
+import Discipline from '#models/discipline'
+import Phase from '#models/phase'
+import TimeOff from '#models/time_off'
+import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts'
+import { readState } from '#tests/helpers/state_fixture'
+import { companyId, newAllocation, session } from '#tests/functional/planning/helpers'
 
 export interface SendPlanningOptions {
-  client: ApiClient;
-  cookie: string;
-  baseRevision: number;
-  intent: PlanningIntent;
+  client: ApiClient
+  cookie: string
+  baseRevision: number
+  intent: PlanningIntent
 }
 
 export async function sendPlanning({ client, cookie, baseRevision, intent }: SendPlanningOptions) {
@@ -23,9 +23,9 @@ export async function sendPlanning({ client, cookie, baseRevision, intent }: Sen
     cookie
   )
     .json({ mutationId: randomUUID(), baseRevision, intent })
-    .send();
+    .send()
   // Callers assert 200 before reading success fields; refusal bodies are compared as whole values.
-  return response as ApiResponse<{ data: PlanningMutationSuccess }>;
+  return response as ApiResponse<{ data: PlanningMutationSuccess }>
 }
 
 export async function readPlanningStorage() {
@@ -36,39 +36,39 @@ export async function readPlanningStorage() {
     revisions: await db.from('company_planning_revisions').orderBy('company_id'),
     receipts: await db.from('planning_mutations').orderBy('mutation_id'),
     audit: await db.from('audit_entries').where('entity', 'planning').orderBy('id'),
-  };
+  }
 }
 
 export async function revision() {
-  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
-  return Number(row?.revision ?? 0);
+  const row = await db.from('company_planning_revisions').where('company_id', companyId).first()
+  return Number(row?.revision ?? 0)
 }
 
 export async function deleteAllocation(client: ApiClient, cookie: string) {
-  const data = await readState(companyId, true);
-  const allocation = newAllocation(data);
-  const baseRevision = await revision();
+  const data = await readState(companyId, true)
+  const allocation = newAllocation(data)
+  const baseRevision = await revision()
   const created = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
       intent: { operation: 'allocation.create', allocation },
     })
-    .send();
-  created.assertStatus(200);
+    .send()
+  created.assertStatus(200)
   const deleted = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision: baseRevision + 1,
       intent: { operation: 'allocation.delete', id: allocation.id },
     })
-    .send();
-  deleted.assertStatus(200);
+    .send()
+  deleted.assertStatus(200)
   return {
     allocationId: allocation.id,
     groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId,
-  };
+  }
 }
 
 export async function deleteExistingAllocation(
@@ -82,13 +82,13 @@ export async function deleteExistingAllocation(
       baseRevision: await revision(),
       intent: { operation: 'allocation.delete', id: allocationId },
     })
-    .send();
-  deleted.assertStatus(200);
+    .send()
+  deleted.assertStatus(200)
   return {
     allocationId,
     groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId,
-  };
+  }
 }
 
 export async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
@@ -98,22 +98,22 @@ export async function restoreAllocation(client: ApiClient, cookie: string, group
       baseRevision: await revision(),
       intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
     })
-    .send();
+    .send()
 }
 
 export async function createActiveAllocation(client: ApiClient, cookie: string) {
-  const data = await readState(companyId, true);
-  const allocation = newAllocation(data);
-  const baseRevision = await revision();
+  const data = await readState(companyId, true)
+  const allocation = newAllocation(data)
+  const baseRevision = await revision()
   const created = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
       intent: { operation: 'allocation.create', allocation },
     })
-    .send();
-  created.assertStatus(200);
-  return allocation.id;
+    .send()
+  created.assertStatus(200)
+  return allocation.id
 }
 
 export const targetTables = {
@@ -122,9 +122,9 @@ export const targetTables = {
   closures: 'closures',
   phases: 'phases',
   disciplines: 'disciplines',
-} as const;
+} as const
 
-export type Target = keyof typeof targetTables;
+export type Target = keyof typeof targetTables
 
 export async function deleteTarget(
   client: ApiClient,
@@ -139,10 +139,10 @@ export async function deleteTarget(
     closures: { operation: 'closure.delete', id },
     phases: { operation: 'catalogue.delete', entity: { entity: target, id } },
     disciplines: { operation: 'catalogue.delete', entity: { entity: target, id } },
-  };
+  }
   return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({ mutationId: randomUUID(), baseRevision, intent: intents[target] } as never)
-    .send();
+    .send()
 }
 
 export const retainedModels = {
@@ -151,11 +151,11 @@ export const retainedModels = {
   disciplines: Discipline,
   phases: Phase,
   time_off: TimeOff,
-} as const;
+} as const
 
 /** Inserts one pending deletion group of `company`, owned by Bruce's session `sessionId`. */
 export async function createDeletionGroup(company: string, sessionId: number) {
-  const groupId = randomUUID();
+  const groupId = randomUUID()
   await db.table('deleted_groups').insert({
     group_id: groupId,
     company_id: company,
@@ -163,6 +163,6 @@ export async function createDeletionGroup(company: string, sessionId: number) {
     session_id: sessionId,
     mutation_id: randomUUID(),
     created_at: new Date().toISOString(),
-  });
-  return groupId;
+  })
+  return groupId
 }

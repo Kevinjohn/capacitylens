@@ -1,13 +1,13 @@
-import { m } from '@/i18n';
-import { resolveTimeZoneOptionLabel } from '@/lib/timezones';
-import { SettingsSection } from './SettingsSection';
-import type { Company } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n'
+import { resolveTimeZoneOptionLabel } from '@/lib/timezones'
+import { SettingsSection } from './SettingsSection'
+import type { Company } from '@capacitylens/shared/types/entities'
 
 type SettingsCompanyOptionsProps = {
-  companyName: Company['name'];
-  weekStartsOn: NonNullable<Company['weekStartsOn']>;
-  timezone: NonNullable<Company['timezone']>;
-};
+  companyName: Company['name']
+  weekStartsOn: NonNullable<Company['weekStartsOn']>
+  timezone: NonNullable<Company['timezone']>
+}
 
 /** Displays the company name and fixed calendar week/timezone convention. */
 export function SettingsCompanyOptions({
@@ -16,12 +16,12 @@ export function SettingsCompanyOptions({
   timezone,
 }: SettingsCompanyOptionsProps) {
   const weekStartLabel =
-    weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
+    weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday()
   const rows = [
     [m.settings_company_name_label(), companyName],
     [m.settings_week_start_label(), weekStartLabel],
     [m.settings_timezone_label(), resolveTimeZoneOptionLabel(timezone)],
-  ];
+  ]
   return (
     <SettingsSection
       title={m.settings_company_options_heading()}
@@ -47,5 +47,5 @@ export function SettingsCompanyOptions({
         </tbody>
       </table>
     </SettingsSection>
-  );
+  )
 }

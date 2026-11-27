@@ -1,25 +1,25 @@
-import { loadPlanningData } from '@/test/fixtures';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { cleanup, screen, act } from '@testing-library/react';
-import { fireEvent } from '@testing-library/react';
-import { ResourceLane } from './ResourceLane';
-import { buildColumnGeometry } from './columnGeometry';
-import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel';
-import { useStore } from '@/store/useStore';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import { renderWithTooltip as render } from '@/test/schedulerTestKit';
+import { loadPlanningData } from '@/test/fixtures'
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { cleanup, screen, act } from '@testing-library/react'
+import { fireEvent } from '@testing-library/react'
+import { ResourceLane } from './ResourceLane'
+import { buildColumnGeometry } from './columnGeometry'
+import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
+import { useStore } from '@/store/useStore'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import { renderWithTooltip as render } from '@/test/schedulerTestKit'
 
 beforeEach(() => {
-  loadPlanningData(createEmptyAppData());
-  useStore.getState().clearFilters();
-});
+  loadPlanningData(createEmptyAppData())
+  useStore.getState().clearFilters()
+})
 
-const DAYS: [string, string, string] = ['2026-06-01', '2026-06-02', '2026-06-03'];
-const DAY_WIDTH = 48;
-const GEOM = buildColumnGeometry(DAYS, DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 });
+const DAYS: [string, string, string] = ['2026-06-01', '2026-06-02', '2026-06-03']
+const DAY_WIDTH = 48
+const GEOM = buildColumnGeometry(DAYS, DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 })
 // Build coarse geometry explicitly so per-day decorations remain disabled under the grid's zoom threshold.
-const COARSE_GEOM = buildColumnGeometry(DAYS, 17, { minimiseWeekends: false, weekendWidth: 22 });
+const COARSE_GEOM = buildColumnGeometry(DAYS, 17, { minimiseWeekends: false, weekendWidth: 22 })
 
 const dayState = (overrides: Partial<DayState> = {}): DayState => ({
   over: false,
@@ -29,7 +29,7 @@ const dayState = (overrides: Partial<DayState> = {}): DayState => ({
   creationBlocked: false,
   hasTimeOff: false,
   ...overrides,
-});
+})
 
 // Days 0 and 1 are inside TIME_OFF_BLOCKS below. The lane reads that from `hasTimeOff` (date
 // space), not by intersecting the block's pixels, so the two must be kept consistent here.
@@ -37,9 +37,9 @@ const DAY_STATES: DayState[] = [
   dayState({ unavailable: true, hasTimeOff: true }),
   dayState({ over: true, partialCapacity: true, hasTimeOff: true }),
   dayState(),
-];
+]
 
-const TIME_OFF_BLOCKS: TimeOffBlock[] = [{ id: 'to1', x: 0, width: 96, label: 'Holiday' }];
+const TIME_OFF_BLOCKS: TimeOffBlock[] = [{ id: 'to1', x: 0, width: 96, label: 'Holiday' }]
 
 const makeBar = (): BarLayout => ({
   allocation: {
@@ -61,11 +61,11 @@ const makeBar = (): BarLayout => ({
   color: '#2563eb',
   label: 'My Activity',
   external: false,
-});
+})
 
 function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {}) {
-  const onEdit = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]['onEdit']>>();
-  const onDraw = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]['onDraw']>>();
+  const onEdit = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]['onEdit']>>()
+  const onDraw = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]['onDraw']>>()
   const baseProps: Parameters<typeof ResourceLane>[0] = {
     resourceId: 'r1',
     days: DAYS,
@@ -80,58 +80,58 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
     onEdit,
     onDraw,
     ...overrides,
-  };
-  const view = render(<ResourceLane {...baseProps} />);
+  }
+  const view = render(<ResourceLane {...baseProps} />)
   const rerenderLane = (next: Partial<Parameters<typeof ResourceLane>[0]>) =>
-    view.rerender(<ResourceLane {...baseProps} {...next} />);
-  return { onEdit, onDraw, rerenderLane };
+    view.rerender(<ResourceLane {...baseProps} {...next} />)
+  return { onEdit, onDraw, rerenderLane }
 }
 
 describe('ResourceLane day rendering', () => {
   it('renders an unavailable-day marker for the unavailable day', () => {
-    renderLane();
-    expect(screen.getByTestId('unavailable-day')).toBeInTheDocument();
-  });
+    renderLane()
+    expect(screen.getByTestId('unavailable-day')).toBeInTheDocument()
+  })
 
   it('tints exactly the bottom half of a half day without taking pointer or focus', () => {
-    renderLane();
-    const halfDay = screen.getByTestId('half-day');
-    expect(halfDay).toHaveClass('bottom-0', 'h-1/2', 'bg-weekend', 'pointer-events-none');
-    expect(halfDay).toHaveAttribute('aria-hidden', 'true');
-    expect(halfDay).toHaveStyle({ left: '48px', width: '48px' });
-  });
+    renderLane()
+    const halfDay = screen.getByTestId('half-day')
+    expect(halfDay).toHaveClass('bottom-0', 'h-1/2', 'bg-weekend', 'pointer-events-none')
+    expect(halfDay).toHaveAttribute('aria-hidden', 'true')
+    expect(halfDay).toHaveStyle({ left: '48px', width: '48px' })
+  })
 
   it('does not paint half-day tint on full or unavailable dates, or at coarse zoom', () => {
-    renderLane({ dayStates: [dayState({ unavailable: true }), dayState(), dayState()] });
-    expect(screen.queryByTestId('half-day')).not.toBeInTheDocument();
+    renderLane({ dayStates: [dayState({ unavailable: true }), dayState(), dayState()] })
+    expect(screen.queryByTestId('half-day')).not.toBeInTheDocument()
 
-    cleanup();
-    renderLane({ geom: COARSE_GEOM });
-    expect(screen.queryByTestId('half-day')).not.toBeInTheDocument();
-  });
+    cleanup()
+    renderLane({ geom: COARSE_GEOM })
+    expect(screen.queryByTestId('half-day')).not.toBeInTheDocument()
+  })
 
   it('renders an over-marker (red background) for the over day', () => {
-    renderLane({ timeOff: [], dayStates: DAY_STATES.map((s) => ({ ...s, hasTimeOff: false })) });
-    const marker = screen.getByTestId('over-marker');
-    expect(marker).toBeInTheDocument();
+    renderLane({ timeOff: [], dayStates: DAY_STATES.map((s) => ({ ...s, hasTimeOff: false })) })
+    const marker = screen.getByTestId('over-marker')
+    expect(marker).toBeInTheDocument()
     // Over-capacity cells use the strong semantic danger fill so the conflict remains visible rather than resembling an action-button tint.
-    expect(marker).toHaveClass('bg-danger-cell');
-  });
+    expect(marker).toHaveClass('bg-danger-cell')
+  })
 
   it('composites a holiday conflict above the hatch and below the allocation bar', () => {
-    renderLane();
-    const block = screen.getByTestId('timeoff-block');
-    const halfDay = screen.getByTestId('half-day');
-    const marker = screen.getByTestId('over-marker');
-    const bar = screen.getByTestId('allocation-bar');
+    renderLane()
+    const block = screen.getByTestId('timeoff-block')
+    const halfDay = screen.getByTestId('half-day')
+    const marker = screen.getByTestId('over-marker')
+    const bar = screen.getByTestId('allocation-bar')
 
-    expect(marker).toHaveClass('bg-danger/55');
-    expect(marker).not.toHaveClass('bg-danger-cell');
-    expect(block).toHaveTextContent('Holiday');
-    expect(halfDay.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
+    expect(marker).toHaveClass('bg-danger/55')
+    expect(marker).not.toHaveClass('bg-danger-cell')
+    expect(block).toHaveTextContent('Holiday')
+    expect(halfDay.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 
   it('renders the same layered marker for a zero-load block/time-off conflict', () => {
     renderLane({
@@ -140,56 +140,56 @@ describe('ResourceLane day rendering', () => {
         dayState({ unavailable: true }),
         dayState(),
       ],
-    });
+    })
 
-    const block = screen.getByTestId('timeoff-block');
-    const marker = screen.getByTestId('over-marker');
-    const bar = screen.getByTestId('allocation-bar');
-    expect(marker).toHaveClass('bg-danger/55');
-    expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-});
+    const block = screen.getByTestId('timeoff-block')
+    const marker = screen.getByTestId('over-marker')
+    const bar = screen.getByTestId('allocation-bar')
+    expect(marker).toHaveClass('bg-danger/55')
+    expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
 
 describe('ResourceLane allocation rendering', () => {
   // The render-layer boundary mirroring the pure-fn boundary: a day that is at-or-under
   // capacity carries `over: false`, so no over-marker / red background renders for it.
   it('does NOT render an over-marker when no day is over (at-or-under capacity)', () => {
-    renderLane({ bars: [], dayStates: [dayState(), dayState(), dayState()] });
-    expect(screen.queryByTestId('over-marker')).not.toBeInTheDocument();
-  });
+    renderLane({ bars: [], dayStates: [dayState(), dayState(), dayState()] })
+    expect(screen.queryByTestId('over-marker')).not.toBeInTheDocument()
+  })
 
   it('renders a timeoff-block for the time off entry', () => {
-    renderLane();
-    expect(screen.getByTestId('timeoff-block')).toBeInTheDocument();
-  });
+    renderLane()
+    expect(screen.getByTestId('timeoff-block')).toBeInTheDocument()
+  })
 
   it('keeps the time-off label available to AT even when too narrow for the visible label (WCAG 1.3.1)', () => {
     // A 30px block drops the visible uppercase label (<=44px), but the sr-only span must still name it.
-    renderLane({ timeOff: [{ id: 'to1', x: 0, width: 30, label: 'Holiday' }] });
-    const block = screen.getByTestId('timeoff-block');
+    renderLane({ timeOff: [{ id: 'to1', x: 0, width: 30, label: 'Holiday' }] })
+    const block = screen.getByTestId('timeoff-block')
 
-    expect(block).toHaveTextContent('Holiday');
-    expect(block.querySelector('.sr-only')?.textContent).toBe('Holiday');
+    expect(block).toHaveTextContent('Holiday')
+    expect(block.querySelector('.sr-only')?.textContent).toBe('Holiday')
 
-    expect(block).not.toHaveAttribute('title');
-  });
+    expect(block).not.toHaveAttribute('title')
+  })
 
   it('drops the dead pointer-events-none title from the over-marker', () => {
-    renderLane();
-    expect(screen.getByTestId('over-marker')).not.toHaveAttribute('title');
-  });
+    renderLane()
+    expect(screen.getByTestId('over-marker')).not.toHaveAttribute('title')
+  })
 
   it('renders an allocation-bar for the bar layout', () => {
-    renderLane();
-    expect(screen.getByTestId('allocation-bar')).toBeInTheDocument();
-  });
-});
+    renderLane()
+    expect(screen.getByTestId('allocation-bar')).toBeInTheDocument()
+  })
+})
 
 describe('ResourceLane draw availability', () => {
   it('keeps the hover add hint and click creation active across the full half-day cell', () => {
-    const { onDraw } = renderLane({ bars: [], timeOff: [] });
-    const lane = screen.getByTestId('resource-lane');
+    const { onDraw } = renderLane({ bars: [], timeOff: [] })
+    const lane = screen.getByTestId('resource-lane')
     lane.getBoundingClientRect = () =>
       ({
         left: 0,
@@ -201,19 +201,19 @@ describe('ResourceLane draw availability', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      }) as DOMRect;
+      }) as DOMRect
 
-    fireEvent.pointerMove(lane, { clientX: 60, clientY: 56, pointerType: 'mouse' });
-    expect(screen.getByTestId('day-add-hint')).toHaveStyle({ left: '48px', width: '48px' });
-    fireEvent.pointerDown(lane, { clientX: 60, clientY: 56, button: 0 });
+    fireEvent.pointerMove(lane, { clientX: 60, clientY: 56, pointerType: 'mouse' })
+    expect(screen.getByTestId('day-add-hint')).toHaveStyle({ left: '48px', width: '48px' })
+    fireEvent.pointerDown(lane, { clientX: 60, clientY: 56, button: 0 })
     act(() => {
       document.dispatchEvent(
-        new MouseEvent('pointerup', { clientX: 60, clientY: 56, bubbles: true }),
-      );
-    });
+        new MouseEvent('pointerup', { clientX: 60, clientY: 56, bubbles: true })
+      )
+    })
 
-    expect(onDraw).toHaveBeenCalledWith('r1', '2026-06-02', '2026-06-02');
-  });
+    expect(onDraw).toHaveBeenCalledWith('r1', '2026-06-02', '2026-06-02')
+  })
 
   it('hides the hover hint and rejects the click when creation is blocked on that day', () => {
     const { onDraw } = renderLane({
@@ -224,8 +224,8 @@ describe('ResourceLane draw availability', () => {
         dayState({ partialCapacity: true }),
         dayState(),
       ],
-    });
-    const lane = screen.getByTestId('resource-lane');
+    })
+    const lane = screen.getByTestId('resource-lane')
     lane.getBoundingClientRect = () =>
       ({
         left: 0,
@@ -237,21 +237,21 @@ describe('ResourceLane draw availability', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      }) as DOMRect;
+      }) as DOMRect
 
-    fireEvent.pointerMove(lane, { clientX: 20, pointerType: 'mouse' });
-    expect(screen.queryByTestId('day-add-hint')).not.toBeInTheDocument();
+    fireEvent.pointerMove(lane, { clientX: 20, pointerType: 'mouse' })
+    expect(screen.queryByTestId('day-add-hint')).not.toBeInTheDocument()
 
-    fireEvent.pointerDown(lane, { clientX: 20, button: 0 });
+    fireEvent.pointerDown(lane, { clientX: 20, button: 0 })
     act(() => {
-      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 20, bubbles: true }));
-    });
-    expect(onDraw).not.toHaveBeenCalled();
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 20, bubbles: true }))
+    })
+    expect(onDraw).not.toHaveBeenCalled()
 
-    fireEvent.pointerMove(lane, { clientX: 60, pointerType: 'mouse' });
-    expect(screen.getByTestId('day-add-hint')).toBeInTheDocument();
-  });
-});
+    fireEvent.pointerMove(lane, { clientX: 60, pointerType: 'mouse' })
+    expect(screen.getByTestId('day-add-hint')).toBeInTheDocument()
+  })
+})
 
 describe('ResourceLane draw spans', () => {
   it('allows a span to cross a blocked date when it starts on an allowed date', () => {
@@ -263,8 +263,8 @@ describe('ResourceLane draw spans', () => {
         dayState({ unavailable: true, creationBlocked: true }),
         dayState({ unavailable: true, creationBlocked: true }),
       ],
-    });
-    const lane = screen.getByTestId('resource-lane');
+    })
+    const lane = screen.getByTestId('resource-lane')
     lane.getBoundingClientRect = () =>
       ({
         left: 0,
@@ -276,16 +276,16 @@ describe('ResourceLane draw spans', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      }) as DOMRect;
+      }) as DOMRect
 
-    fireEvent.pointerDown(lane, { clientX: 20, button: 0 });
+    fireEvent.pointerDown(lane, { clientX: 20, button: 0 })
     act(() => {
-      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 120, bubbles: true }));
-    });
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 120, bubbles: true }))
+    })
 
-    expect(onDraw).toHaveBeenCalledWith('r1', '2026-06-01', '2026-06-03');
-  });
-});
+    expect(onDraw).toHaveBeenCalledWith('r1', '2026-06-01', '2026-06-03')
+  })
+})
 
 describe('ResourceLane draw reconciliation', () => {
   const setLaneRect = () => {
@@ -300,105 +300,105 @@ describe('ResourceLane draw reconciliation', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      }) as DOMRect;
-  };
+      }) as DOMRect
+  }
 
   it('cancels when the lane resource changes during the gesture', () => {
-    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [] });
-    setLaneRect();
+    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [] })
+    setLaneRect()
     fireEvent.pointerDown(screen.getByTestId('resource-lane'), {
       clientX: 20,
       pointerId: 3,
       button: 0,
-    });
+    })
 
-    rerenderLane({ resourceId: 'r2' });
+    rerenderLane({ resourceId: 'r2' })
     act(() => {
       document.dispatchEvent(
-        new PointerEvent('pointerup', { clientX: 80, pointerId: 3, bubbles: true }),
-      );
-    });
+        new PointerEvent('pointerup', { clientX: 80, pointerId: 3, bubbles: true })
+      )
+    })
 
-    expect(onDraw).not.toHaveBeenCalled();
-  });
+    expect(onDraw).not.toHaveBeenCalled()
+  })
 
   it('cancels when the visible calendar window changes during the gesture', () => {
-    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [] });
-    setLaneRect();
+    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [] })
+    setLaneRect()
     fireEvent.pointerDown(screen.getByTestId('resource-lane'), {
       clientX: 20,
       pointerId: 4,
       button: 0,
-    });
+    })
 
-    const nextDays = ['2026-07-01', '2026-07-02', '2026-07-03'] as const;
+    const nextDays = ['2026-07-01', '2026-07-02', '2026-07-03'] as const
     rerenderLane({
       days: [...nextDays],
       geom: buildColumnGeometry([...nextDays], DAY_WIDTH, {
         minimiseWeekends: false,
         weekendWidth: 22,
       }),
-    });
+    })
     act(() => {
       document.dispatchEvent(
-        new PointerEvent('pointerup', { clientX: 80, pointerId: 4, bubbles: true }),
-      );
-    });
+        new PointerEvent('pointerup', { clientX: 80, pointerId: 4, bubbles: true })
+      )
+    })
 
-    expect(onDraw).not.toHaveBeenCalled();
-  });
+    expect(onDraw).not.toHaveBeenCalled()
+  })
 
   it('cancels when the current start day becomes blocked', () => {
     const { onDraw, rerenderLane } = renderLane({
       bars: [],
       timeOff: [],
       dayStates: DAYS.map(() => dayState()),
-    });
-    setLaneRect();
+    })
+    setLaneRect()
     fireEvent.pointerDown(screen.getByTestId('resource-lane'), {
       clientX: 20,
       pointerId: 5,
       button: 0,
-    });
+    })
 
-    rerenderLane({ dayStates: [dayState({ creationBlocked: true }), dayState(), dayState()] });
+    rerenderLane({ dayStates: [dayState({ creationBlocked: true }), dayState(), dayState()] })
     act(() => {
       document.dispatchEvent(
-        new PointerEvent('pointerup', { clientX: 80, pointerId: 5, bubbles: true }),
-      );
-    });
+        new PointerEvent('pointerup', { clientX: 80, pointerId: 5, bubbles: true })
+      )
+    })
 
-    expect(onDraw).not.toHaveBeenCalled();
-  });
+    expect(onDraw).not.toHaveBeenCalled()
+  })
 
   it('preserves reverse spans across an ordinary rerender', () => {
     const { onDraw, rerenderLane } = renderLane({
       bars: [],
       timeOff: [],
       dayStates: DAYS.map(() => dayState()),
-    });
-    setLaneRect();
+    })
+    setLaneRect()
     fireEvent.pointerDown(screen.getByTestId('resource-lane'), {
       clientX: 120,
       pointerId: 6,
       button: 0,
-    });
+    })
 
-    rerenderLane({ todayX: 24 });
+    rerenderLane({ todayX: 24 })
     act(() => {
       document.dispatchEvent(
-        new PointerEvent('pointerup', { clientX: 20, pointerId: 6, bubbles: true }),
-      );
-    });
+        new PointerEvent('pointerup', { clientX: 20, pointerId: 6, bubbles: true })
+      )
+    })
 
-    expect(onDraw).toHaveBeenCalledWith('r1', '2026-06-01', '2026-06-03');
-  });
-});
+    expect(onDraw).toHaveBeenCalledWith('r1', '2026-06-01', '2026-06-03')
+  })
+})
 
 describe('ResourceLane draw coordinates', () => {
   it('calls onDraw with ISO date strings after pointerDown on the lane and document pointerup', () => {
-    const { onDraw } = renderLane();
-    const lane = screen.getByTestId('resource-lane');
+    const { onDraw } = renderLane()
+    const lane = screen.getByTestId('resource-lane')
 
     // Supply an explicit lane rectangle because jsdom does not measure layout; the gesture then uses deterministic column coordinates.
     lane.getBoundingClientRect = () =>
@@ -412,32 +412,32 @@ describe('ResourceLane draw coordinates', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      }) as DOMRect;
-    fireEvent.pointerDown(lane, { clientX: 0, button: 0 });
+      }) as DOMRect
+    fireEvent.pointerDown(lane, { clientX: 0, button: 0 })
 
     act(() => {
-      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, bubbles: true }));
-    });
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, bubbles: true }))
+    })
 
-    expect(onDraw).toHaveBeenCalledTimes(1);
-    const call = onDraw.mock.calls[0];
-    expect(call).toBeDefined();
-    if (!call) throw new Error('Expected the draw callback arguments.');
-    const [resourceId, startDate, endDate] = call;
-    expect(resourceId).toBe('r1');
-    expect(startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(startDate <= endDate).toBe(true);
+    expect(onDraw).toHaveBeenCalledTimes(1)
+    const call = onDraw.mock.calls[0]
+    expect(call).toBeDefined()
+    if (!call) throw new Error('Expected the draw callback arguments.')
+    const [resourceId, startDate, endDate] = call
+    expect(resourceId).toBe('r1')
+    expect(startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(startDate <= endDate).toBe(true)
 
-    expect(startDate).toBe('2026-06-01');
-    expect(endDate).toBe('2026-06-03');
-  });
-});
+    expect(startDate).toBe('2026-06-01')
+    expect(endDate).toBe('2026-06-03')
+  })
+})
 
 describe('ResourceLane draw clicks', () => {
   it('treats a bare click (no movement) as a single-day allocation on the clicked day', () => {
-    const { onDraw } = renderLane();
-    const lane = screen.getByTestId('resource-lane');
+    const { onDraw } = renderLane()
+    const lane = screen.getByTestId('resource-lane')
     lane.getBoundingClientRect = () =>
       ({
         left: 0,
@@ -449,33 +449,33 @@ describe('ResourceLane draw clicks', () => {
         x: 0,
         y: 0,
         toJSON: () => ({}),
-      }) as DOMRect;
+      }) as DOMRect
 
-    fireEvent.pointerDown(lane, { clientX: 30, button: 0 });
+    fireEvent.pointerDown(lane, { clientX: 30, button: 0 })
     act(() => {
-      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 30, bubbles: true }));
-    });
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 30, bubbles: true }))
+    })
 
-    expect(onDraw).toHaveBeenCalledTimes(1);
-    const call = onDraw.mock.calls[0];
-    expect(call).toBeDefined();
-    if (!call) throw new Error('Expected the draw callback arguments.');
-    const [resourceId, startDate, endDate] = call;
-    expect(resourceId).toBe('r1');
-    expect(startDate).toBe('2026-06-01');
-    expect(endDate).toBe('2026-06-01');
-  });
+    expect(onDraw).toHaveBeenCalledTimes(1)
+    const call = onDraw.mock.calls[0]
+    expect(call).toBeDefined()
+    if (!call) throw new Error('Expected the draw callback arguments.')
+    const [resourceId, startDate, endDate] = call
+    expect(resourceId).toBe('r1')
+    expect(startDate).toBe('2026-06-01')
+    expect(endDate).toBe('2026-06-01')
+  })
 
   it('does not call onDraw when pointerDown uses a non-primary button', () => {
-    const { onDraw } = renderLane();
-    const lane = screen.getByTestId('resource-lane');
+    const { onDraw } = renderLane()
+    const lane = screen.getByTestId('resource-lane')
 
-    fireEvent.pointerDown(lane, { clientX: 0, button: 2 });
+    fireEvent.pointerDown(lane, { clientX: 0, button: 2 })
 
     act(() => {
-      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 0, bubbles: true }));
-    });
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 0, bubbles: true }))
+    })
 
-    expect(onDraw).not.toHaveBeenCalled();
-  });
-});
+    expect(onDraw).not.toHaveBeenCalled()
+  })
+})

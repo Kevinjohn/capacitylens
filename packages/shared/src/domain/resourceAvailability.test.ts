@@ -1,33 +1,33 @@
-import { describe, expect, it } from 'vitest';
-import type { DomainError } from './errors.js';
-import type { Weekday } from '../types/entities.js';
+import { describe, expect, it } from 'vitest'
+import type { DomainError } from './errors.js'
+import type { Weekday } from '../types/entities.js'
 import {
   assertAllocationWithinResourceAvailability,
   validateResourceAvailabilityPair,
-} from './resourceAvailability.js';
+} from './resourceAvailability.js'
 
 const person = (overrides: Record<string, unknown> = {}) => ({
   kind: 'person' as const,
   workingDays: [1, 2, 3, 4, 5] as Weekday[],
   ...overrides,
-});
+})
 
 describe('resource availability boundaries', () => {
   it('allows optional unbounded and equal inclusive boundaries', () => {
-    expect(validateResourceAvailabilityPair()).toEqual({ ok: true, errors: [], codes: [] });
+    expect(validateResourceAvailabilityPair()).toEqual({ ok: true, errors: [], codes: [] })
     expect(validateResourceAvailabilityPair('2026-06-15', '2026-06-15')).toEqual({
       ok: true,
       errors: [],
       codes: [],
-    });
+    })
     expect(() =>
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-15', endDate: '2026-06-15' },
         resource: person({ firstAvailableDate: '2026-06-15', lastAvailableDate: '2026-06-15' }),
         companyWorkingDays: [1, 2, 3, 4, 5],
-      }),
-    ).not.toThrow();
-  });
+      })
+    ).not.toThrow()
+  })
 
   it('checks only scheduled weekdays unless ignoreWorkingDays is enabled', () => {
     expect(() =>
@@ -35,20 +35,20 @@ describe('resource availability boundaries', () => {
         allocation: { startDate: '2026-06-13', endDate: '2026-06-14' },
         resource: person({ firstAvailableDate: '2026-06-15' }),
         companyWorkingDays: [1, 2, 3, 4, 5],
-      }),
-    ).not.toThrow();
+      })
+    ).not.toThrow()
     expect(() =>
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-13', endDate: '2026-06-14', ignoreWorkingDays: true },
         resource: person({ firstAvailableDate: '2026-06-15' }),
         companyWorkingDays: [1, 2, 3, 4, 5],
-      }),
+      })
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
         code: 'allocation_before_resource_availability',
-      }),
-    );
-  });
+      })
+    )
+  })
 
   it('uses direction-specific errors, ignores non-people, and rejects reverse pairs', () => {
     expect(() =>
@@ -56,28 +56,28 @@ describe('resource availability boundaries', () => {
         allocation: { startDate: '2026-06-15', endDate: '2026-06-16' },
         resource: person({ lastAvailableDate: '2026-06-12' }),
         companyWorkingDays: [1, 2, 3, 4, 5],
-      }),
+      })
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
         code: 'allocation_after_resource_availability',
-      }),
-    );
+      })
+    )
     expect(() =>
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-15', endDate: '2026-06-16' },
         resource: person({ kind: 'placeholder', firstAvailableDate: '2026-01-01' }),
         companyWorkingDays: [1, 2, 3, 4, 5],
-      }),
-    ).not.toThrow();
+      })
+    ).not.toThrow()
     expect(validateResourceAvailabilityPair('2026-06-16', '2026-06-15')).toMatchObject({
       ok: false,
       codes: ['date_reversed'],
-    });
+    })
     expect(validateResourceAvailabilityPair('2026-02-30')).toMatchObject({
       ok: false,
       codes: ['date_invalid'],
-    });
-  });
+    })
+  })
 
   it('checks availability only on the company/person effective working-day intersection', () => {
     expect(() =>
@@ -85,7 +85,7 @@ describe('resource availability boundaries', () => {
         allocation: { startDate: '2026-06-15', endDate: '2026-06-15' },
         resource: person({ firstAvailableDate: '2026-06-16' }),
         companyWorkingDays: [2, 3, 4, 5, 6],
-      }),
-    ).not.toThrow();
-  });
-});
+      })
+    ).not.toThrow()
+  })
+})

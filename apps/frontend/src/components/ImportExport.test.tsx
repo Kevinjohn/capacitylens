@@ -1,33 +1,33 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
-import { seed } from '@capacitylens/shared/data/seed';
-import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
-import { PermissionContext } from '@/auth/permissionContext';
-import { useStore } from '@/store/useStore';
-import { loadPlanningData, resetStoreWithCompany } from '@/test/fixtures';
-import { companyExport } from '@/test/companyExport';
-import { ImportExport } from './ImportExport';
-import { useServerImport } from './import-export/useServerImport';
-import { permissionValue } from '@/test/permissionGrants';
-import { readFetchRequest } from '@/test/fetchRequests';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
+import { seed } from '@capacitylens/shared/data/seed'
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities'
+import { PermissionContext } from '@/auth/permissionContext'
+import { useStore } from '@/store/useStore'
+import { loadPlanningData, resetStoreWithCompany } from '@/test/fixtures'
+import { companyExport } from '@/test/companyExport'
+import { ImportExport } from './ImportExport'
+import { useServerImport } from './import-export/useServerImport'
+import { permissionValue } from '@/test/permissionGrants'
+import { readFetchRequest } from '@/test/fetchRequests'
 
-const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }));
-const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
+const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }))
+const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }))
 const originalPlanning = {
   refreshPlanning: useStore.getState().refreshPlanning,
   planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
   suspendPlanningIntents: useStore.getState().suspendPlanningIntents,
-};
+}
 
-const companyId = 'a-studio';
+const companyId = 'a-studio'
 
 function document() {
-  return companyExport(companyId);
+  return companyExport(companyId)
 }
 
 /** A preview reply as the server sends it for {@link document}. */
 function previewReply(baseRevision: number) {
-  const data = document().data;
+  const data = document().data
   return Response.json({
     data: {
       baseRevision,
@@ -36,7 +36,7 @@ function previewReply(baseRevision: number) {
       companyName: 'Wayne Enterprises',
       counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, data[key].length])),
     },
-  });
+  })
 }
 
 function renderTools() {
@@ -44,95 +44,95 @@ function renderTools() {
     refreshPlanning: async () => refreshOverride.result.kind === 'reloaded',
     planningReadyForReplacement: () => true,
     suspendPlanningIntents: () => {
-      planningProbe.suspends += 1;
+      planningProbe.suspends += 1
       return () => {
-        planningProbe.releases += 1;
-      };
+        planningProbe.releases += 1
+      }
     },
-  });
+  })
   return render(
     <PermissionContext.Provider value={permissionValue('owner', 'resolved')}>
       <ImportExport />
-    </PermissionContext.Provider>,
-  );
+    </PermissionContext.Provider>
+  )
 }
 
 function selectFile(contents: string) {
-  const input = screen.getByTestId('import-input');
+  const input = screen.getByTestId('import-input')
   Object.defineProperty(input, 'files', {
     value: [new File([contents], 'transfer.json', { type: 'application/json' })],
     configurable: true,
-  });
-  fireEvent.change(input);
+  })
+  fireEvent.change(input)
 }
 
 async function previewFile(file: unknown) {
-  selectFile(JSON.stringify(file));
-  fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-  await screen.findByRole('button', { name: 'Replace data' });
+  selectFile(JSON.stringify(file))
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue' }))
+  await screen.findByRole('button', { name: 'Replace data' })
 }
 
 async function submitServerImport(applyResponse: Response): Promise<void> {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
-      const url = input instanceof Request ? input.url : String(input);
+      const url = input instanceof Request ? input.url : String(input)
       if (url.endsWith('/api/v1/import/preview')) {
-        return previewReply(7);
+        return previewReply(7)
       }
       if (url.endsWith('/api/v1/auth/password-confirmation')) {
-        return Response.json({ data: { confirmationId: 'proof-7' } });
+        return Response.json({ data: { confirmationId: 'proof-7' } })
       }
-      if (url.endsWith('/api/v1/import/apply')) return applyResponse;
-      throw new Error(`Unexpected request: ${url}`);
-    }),
-  );
-  renderTools();
-  await previewFile(document());
-  fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
-  fireEvent.click(screen.getByTestId('password-confirmation-submit'));
-  await waitFor(() => expect(planningProbe.suspends).toBe(1));
+      if (url.endsWith('/api/v1/import/apply')) return applyResponse
+      throw new Error(`Unexpected request: ${url}`)
+    })
+  )
+  renderTools()
+  await previewFile(document())
+  fireEvent.click(screen.getByRole('button', { name: 'Replace data' }))
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } })
+  fireEvent.click(screen.getByTestId('password-confirmation-submit'))
+  await waitFor(() => expect(planningProbe.suspends).toBe(1))
 }
 
 beforeEach(async () => {
-  refreshOverride.result = { kind: 'reloaded' };
-  planningProbe.suspends = 0;
-  planningProbe.releases = 0;
-  await resetStoreWithCompany(companyId);
-  loadPlanningData(seed());
-  sessionStorage.clear();
-  window.history.replaceState(null, '', '/settings');
-});
+  refreshOverride.result = { kind: 'reloaded' }
+  planningProbe.suspends = 0
+  planningProbe.releases = 0
+  await resetStoreWithCompany(companyId)
+  loadPlanningData(seed())
+  sessionStorage.clear()
+  window.history.replaceState(null, '', '/settings')
+})
 
 afterEach(() => {
-  useStore.setState(originalPlanning);
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-});
+  useStore.setState(originalPlanning)
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('beta import and export', () => {
   it('dispatches one replacement when confirmation is pressed twice before a response', async () => {
-    let finish!: (response: Response) => void;
+    let finish!: (response: Response) => void
     const fetchMock = vi.fn(
       () =>
         new Promise<Response>((resolve) => {
-          finish = resolve;
-        }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    const { result } = renderHook(() => useServerImport());
-    let first!: Promise<void>;
-    let second!: Promise<void>;
+          finish = resolve
+        })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useServerImport())
+    let first!: Promise<void>
+    let second!: Promise<void>
 
     act(() => {
-      first = result.current.confirm(document(), 1, 'proof-1');
-      second = result.current.confirm(document(), 1, 'proof-1');
-    });
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    finish(Response.json({ error: 'Import refused.' }, { status: 403 }));
-    await Promise.all([first, second]);
-  });
+      first = result.current.confirm(document(), 1, 'proof-1')
+      second = result.current.confirm(document(), 1, 'proof-1')
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+    finish(Response.json({ error: 'Import refused.' }, { status: 403 }))
+    await Promise.all([first, second])
+  })
 
   it('does not dispatch an ordinary import from an unsettled recovery-readable context', async () => {
     useStore.setState((state) => ({
@@ -141,268 +141,268 @@ describe('beta import and export', () => {
         phase: { kind: 'failed', error: new Error('Read failed'), lastWrite: null },
         revision: null,
       },
-    }));
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    const { result } = renderHook(() => useServerImport());
+    }))
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useServerImport())
 
-    await result.current.confirm(document(), 1, 'proof-1');
+    await result.current.confirm(document(), 1, 'proof-1')
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(useStore.getState().notice?.tone).toBe('error');
-    const releaseRecovery = useStore.getState().suspendPlanningIntents();
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(useStore.getState().notice?.tone).toBe('error')
+    const releaseRecovery = useStore.getState().suspendPlanningIntents()
     if (!releaseRecovery) {
-      throw new Error('The selected context was not available for access recovery.');
+      throw new Error('The selected context was not available for access recovery.')
     }
-    releaseRecovery();
-  });
+    releaseRecovery()
+  })
 
   it.each([false, true])(
     'does not recover an old import into a successor context (return to A: %s)',
     async (returnToA) => {
-      let finish!: (response: Response) => void;
+      let finish!: (response: Response) => void
       const fetchMock = vi.fn(
         () =>
           new Promise<Response>((resolve) => {
-            finish = resolve;
-          }),
-      );
-      vi.stubGlobal('fetch', fetchMock);
-      const first = renderHook(() => useServerImport());
-      const second = renderHook(() => useServerImport());
-      const oldOperation = first.result.current.confirm(document(), 1, 'proof-old');
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-      await second.result.current.confirm(document(), 1, 'proof-second');
-      expect(fetchMock).toHaveBeenCalledOnce();
+            finish = resolve
+          })
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const first = renderHook(() => useServerImport())
+      const second = renderHook(() => useServerImport())
+      const oldOperation = first.result.current.confirm(document(), 1, 'proof-old')
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+      await second.result.current.confirm(document(), 1, 'proof-second')
+      expect(fetchMock).toHaveBeenCalledOnce()
 
-      useStore.getState().setActiveCompany('a-loft');
-      await useStore.getState().refreshPlanning();
+      useStore.getState().setActiveCompany('a-loft')
+      await useStore.getState().refreshPlanning()
       if (returnToA) {
-        useStore.getState().setActiveCompany(companyId);
-        await useStore.getState().refreshPlanning();
+        useStore.getState().setActiveCompany(companyId)
+        await useStore.getState().refreshPlanning()
       }
-      const successorRelease = useStore.getState().suspendPlanningIntents();
-      if (!successorRelease) throw new Error('The successor planning context was not ready.');
-      const successorNotice = useStore.getState().notice;
-      const refresh = vi.fn(async () => true);
-      useStore.setState({ refreshPlanning: refresh });
+      const successorRelease = useStore.getState().suspendPlanningIntents()
+      if (!successorRelease) throw new Error('The successor planning context was not ready.')
+      const successorNotice = useStore.getState().notice
+      const refresh = vi.fn(async () => true)
+      useStore.setState({ refreshPlanning: refresh })
 
-      finish(Response.json({ error: 'Outcome unavailable' }, { status: 503 }));
-      await oldOperation;
-      expect(refresh).not.toHaveBeenCalled();
-      expect(useStore.getState().notice).toBe(successorNotice);
-      expect(useStore.getState().planningReadyForReplacement()).toBe(false);
-      successorRelease();
-    },
-  );
+      finish(Response.json({ error: 'Outcome unavailable' }, { status: 503 }))
+      await oldOperation
+      expect(refresh).not.toHaveBeenCalled()
+      expect(useStore.getState().notice).toBe(successorNotice)
+      expect(useStore.getState().planningReadyForReplacement()).toBe(false)
+      successorRelease()
+    }
+  )
 
   it("saves the server's export document unchanged", async () => {
-    let downloaded: Blob | undefined;
-    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    let downloaded: Blob | undefined
+    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     // A subclass keeps URL constructible for the API client while the download hooks are faked.
     vi.stubGlobal(
       'URL',
       class extends URL {
         static createObjectURL = vi.fn((blob: Blob) => {
-          downloaded = blob;
-          return 'blob:transfer';
-        });
-        static revokeObjectURL = vi.fn();
-      },
-    );
-    const body = '{"exported":true}';
+          downloaded = blob
+          return 'blob:transfer'
+        })
+        static revokeObjectURL = vi.fn()
+      }
+    )
+    const body = '{"exported":true}'
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = input instanceof Request ? input.url : String(input);
-      expect(url).toMatch(new RegExp(`/api/v1/companies/${companyId}/export$`));
-      return new Response(body);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    renderTools();
-    fireEvent.click(screen.getByTestId('export-data'));
-    await waitFor(() => expect(downloaded).toBeDefined());
-    if (!downloaded) throw new Error('The export was not downloaded.');
-    expect(await downloaded.text()).toBe(body);
-    expect(useStore.getState().notice).toBeNull();
-    expect(download).toHaveBeenCalledOnce();
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
+      const url = input instanceof Request ? input.url : String(input)
+      expect(url).toMatch(new RegExp(`/api/v1/companies/${companyId}/export$`))
+      return new Response(body)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderTools()
+    fireEvent.click(screen.getByTestId('export-data'))
+    await waitFor(() => expect(downloaded).toBeDefined())
+    if (!downloaded) throw new Error('The export was not downloaded.')
+    expect(await downloaded.text()).toBe(body)
+    expect(useStore.getState().notice).toBeNull()
+    expect(download).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
 
   it('reports a refused export and saves nothing', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => Response.json({ error: 'Export refused.' }, { status: 403 })),
-    );
-    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    renderTools();
-    fireEvent.click(screen.getByTestId('export-data'));
-    await waitFor(() => expect(useStore.getState().notice?.message).toBe('Export refused.'));
-    expect(useStore.getState().notice?.tone).toBe('error');
-    expect(download).not.toHaveBeenCalled();
-  });
+      vi.fn(async () => Response.json({ error: 'Export refused.' }, { status: 403 }))
+    )
+    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    renderTools()
+    fireEvent.click(screen.getByTestId('export-data'))
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe('Export refused.'))
+    expect(useStore.getState().notice?.tone).toBe('error')
+    expect(download).not.toHaveBeenCalled()
+  })
 
   it('refuses a file that is not JSON without asking the server', async () => {
-    const before = structuredClone(useStore.getState().data);
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    renderTools();
-    selectFile('{ "format":');
+    const before = structuredClone(useStore.getState().data)
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    renderTools()
+    selectFile('{ "format":')
     await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(/not valid CapacityLens JSON/),
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(useStore.getState().data).toEqual(before);
-  });
+      expect(useStore.getState().notice?.message).toMatch(/not valid CapacityLens JSON/)
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(useStore.getState().data).toEqual(before)
+  })
 
   it("shows the server's reason for refusing a document in the preview dialog", async () => {
-    const before = structuredClone(useStore.getState().data);
+    const before = structuredClone(useStore.getState().data)
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
         Response.json(
           { error: 'format: is not a beta-native CapacityLens export' },
-          { status: 400 },
-        ),
-      ),
-    );
-    renderTools();
-    selectFile('{ "hello": "world" }');
-    const alert = await screen.findByRole('alert');
-    expect(screen.getByRole('dialog')).toContainElement(alert);
-    expect(alert).toHaveTextContent('format: is not a beta-native CapacityLens export');
-    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
-    expect(useStore.getState().data).toEqual(before);
-  });
+          { status: 400 }
+        )
+      )
+    )
+    renderTools()
+    selectFile('{ "hello": "world" }')
+    const alert = await screen.findByRole('alert')
+    expect(screen.getByRole('dialog')).toContainElement(alert)
+    expect(alert).toHaveTextContent('format: is not a beta-native CapacityLens export')
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+    expect(useStore.getState().data).toEqual(before)
+  })
 
   it('binds server preview, password proof and apply to one document and revision', async () => {
-    const incoming = document();
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const incoming = document()
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const request = await readFetchRequest(input, init);
-        const path = request.path;
+        const request = await readFetchRequest(input, init)
+        const path = request.path
         const body = (request.body === null ? {} : JSON.parse(request.body)) as Record<
           string,
           unknown
-        >;
-        requests.push({ url: path, body });
+        >
+        requests.push({ url: path, body })
         if (path.endsWith('/api/v1/import/preview')) {
-          return previewReply(7);
+          return previewReply(7)
         }
         if (path.endsWith('/api/v1/auth/password-confirmation')) {
-          return Response.json({ data: { confirmationId: 'proof-7' } });
+          return Response.json({ data: { confirmationId: 'proof-7' } })
         }
         if (path.endsWith('/api/v1/import/apply')) {
-          return Response.json({ data: { imported: 5, changed: true, revision: 8 } });
+          return Response.json({ data: { imported: 5, changed: true, revision: 8 } })
         }
-        throw new Error(`Unexpected request: ${path}`);
-      }),
-    );
-    renderTools();
-    await previewFile(incoming);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    expect(requests.map((request) => request.url)).toEqual(['/api/v1/import/preview']);
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
-    fireEvent.click(screen.getByTestId('password-confirmation-submit'));
+        throw new Error(`Unexpected request: ${path}`)
+      })
+    )
+    renderTools()
+    await previewFile(incoming)
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }))
+    expect(requests.map((request) => request.url)).toEqual(['/api/v1/import/preview'])
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } })
+    fireEvent.click(screen.getByTestId('password-confirmation-submit'))
     await waitFor(() =>
       expect(requests.map((request) => request.url)).toEqual([
         '/api/v1/import/preview',
         '/api/v1/auth/password-confirmation',
         '/api/v1/import/apply',
-      ]),
-    );
+      ])
+    )
     expect(requests[1]?.body).toMatchObject({
       action: 'import',
       companyId,
-    });
-    expect(requests[1]?.body.intent).toEqual({ baseRevision: 7, document: incoming });
+    })
+    expect(requests[1]?.body.intent).toEqual({ baseRevision: 7, document: incoming })
     expect(requests[2]?.body).toMatchObject({
       companyId,
       baseRevision: 7,
       confirmationId: 'proof-7',
-    });
-    expect(requests[2]?.body.document).toEqual(incoming);
-  });
+    })
+    expect(requests[2]?.body.document).toEqual(incoming)
+  })
 
   it.each([403, 409])('releases planning intents after a refused %i import', async (status) => {
-    await submitServerImport(Response.json({ error: 'Import refused.' }, { status }));
-    await waitFor(() => expect(planningProbe.releases).toBe(1));
-    expect(useStore.getState().notice).toMatchObject({ tone: 'error', message: 'Import refused.' });
-  });
+    await submitServerImport(Response.json({ error: 'Import refused.' }, { status }))
+    await waitFor(() => expect(planningProbe.releases).toBe(1))
+    expect(useStore.getState().notice).toMatchObject({ tone: 'error', message: 'Import refused.' })
+  })
 
   it('reloads the authoritative set after an uncertain import response', async () => {
-    await submitServerImport(Response.json({ error: 'Unknown outcome.' }, { status: 503 }));
-    await waitFor(() => expect(planningProbe.releases).toBe(1));
-    expect(useStore.getState().notice?.tone).toBe('warning');
-  });
+    await submitServerImport(Response.json({ error: 'Unknown outcome.' }, { status: 503 }))
+    await waitFor(() => expect(planningProbe.releases).toBe(1))
+    expect(useStore.getState().notice?.tone).toBe('warning')
+  })
 
   it('keeps intents suspended and requires reload when a committed import refresh fails', async () => {
-    refreshOverride.result = { kind: 'failed' };
-    await submitServerImport(Response.json({ data: { imported: 5, changed: true, revision: 8 } }));
-    await screen.findByTestId('import-reload-required');
-    expect(planningProbe.releases).toBe(0);
-    expect(useStore.getState().notice?.tone).toBe('error');
-  });
+    refreshOverride.result = { kind: 'failed' }
+    await submitServerImport(Response.json({ data: { imported: 5, changed: true, revision: 8 } }))
+    await screen.findByTestId('import-reload-required')
+    expect(planningProbe.releases).toBe(0)
+    expect(useStore.getState().notice?.tone).toBe('error')
+  })
 
   it("ignores a cancelled file's late preview before confirming a newer selection", async () => {
-    const first = document();
-    const second = document();
-    const secondCompany = second.data.companies[0];
-    if (!secondCompany) throw new Error('The second import fixture has no company.');
-    secondCompany.name = 'Wayne Enterprises replacement';
-    const previews: Array<(response: Response) => void> = [];
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const first = document()
+    const second = document()
+    const secondCompany = second.data.companies[0]
+    if (!secondCompany) throw new Error('The second import fixture has no company.')
+    secondCompany.name = 'Wayne Enterprises replacement'
+    const previews: Array<(response: Response) => void> = []
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const request = await readFetchRequest(input, init);
-        const path = request.path;
+        const request = await readFetchRequest(input, init)
+        const path = request.path
         const body = (request.body === null ? {} : JSON.parse(request.body)) as Record<
           string,
           unknown
-        >;
-        requests.push({ url: path, body });
+        >
+        requests.push({ url: path, body })
         if (path.endsWith('/api/v1/import/preview')) {
-          return new Promise<Response>((resolve) => previews.push(resolve));
+          return new Promise<Response>((resolve) => previews.push(resolve))
         }
         if (path.endsWith('/api/v1/auth/password-confirmation')) {
-          return Response.json({ data: { confirmationId: 'proof-b' } });
+          return Response.json({ data: { confirmationId: 'proof-b' } })
         }
         if (path.endsWith('/api/v1/import/apply')) {
-          return Response.json({ data: { imported: 5, changed: true, revision: 23 } });
+          return Response.json({ data: { imported: 5, changed: true, revision: 23 } })
         }
-        throw new Error(`Unexpected request: ${path}`);
-      }),
-    );
-    renderTools();
-    selectFile(JSON.stringify(first));
-    await waitFor(() => expect(previews).toHaveLength(1));
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    selectFile(JSON.stringify(second));
-    await waitFor(() => expect(previews).toHaveLength(2));
-    previews[0]?.(previewReply(11));
+        throw new Error(`Unexpected request: ${path}`)
+      })
+    )
+    renderTools()
+    selectFile(JSON.stringify(first))
+    await waitFor(() => expect(previews).toHaveLength(1))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    selectFile(JSON.stringify(second))
+    await waitFor(() => expect(previews).toHaveLength(2))
+    previews[0]?.(previewReply(11))
     // Let the stale reply settle completely before checking it was ignored.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
-    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
-    previews[1]?.(previewReply(22));
-    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    await screen.findByRole('button', { name: 'Replace data' });
-    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
-    fireEvent.click(screen.getByTestId('password-confirmation-submit'));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+    previews[1]?.(previewReply(22))
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }))
+    await screen.findByRole('button', { name: 'Replace data' })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }))
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } })
+    fireEvent.click(screen.getByTestId('password-confirmation-submit'))
     await waitFor(() =>
-      expect(requests.some((request) => request.url.endsWith('/api/v1/import/apply'))).toBe(true),
-    );
+      expect(requests.some((request) => request.url.endsWith('/api/v1/import/apply'))).toBe(true)
+    )
     const proof = requests.find((request) =>
-      request.url.endsWith('/api/v1/auth/password-confirmation'),
-    );
-    expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second });
-    const apply = requests.find((request) => request.url.endsWith('/api/v1/import/apply'));
-    expect(apply?.body).toMatchObject({ baseRevision: 22, confirmationId: 'proof-b' });
-    expect(apply?.body.document).toEqual(second);
-  });
+      request.url.endsWith('/api/v1/auth/password-confirmation')
+    )
+    expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second })
+    const apply = requests.find((request) => request.url.endsWith('/api/v1/import/apply'))
+    expect(apply?.body).toMatchObject({ baseRevision: 22, confirmationId: 'proof-b' })
+    expect(apply?.body.document).toEqual(second)
+  })
 
   it.each(['admin', 'editor', 'viewer'] as const)(
     'hides server import from a %s while keeping export',
@@ -410,10 +410,10 @@ describe('beta import and export', () => {
       render(
         <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
           <ImportExport />
-        </PermissionContext.Provider>,
-      );
-      expect(screen.queryByTestId('import-input')).toBeNull();
-      expect(screen.getByTestId('export-data')).toBeInTheDocument();
-    },
-  );
-});
+        </PermissionContext.Provider>
+      )
+      expect(screen.queryByTestId('import-input')).toBeNull()
+      expect(screen.getByTestId('export-data')).toBeInTheDocument()
+    }
+  )
+})

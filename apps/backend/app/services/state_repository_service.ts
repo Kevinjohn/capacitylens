@@ -1,30 +1,30 @@
-import type { AppData } from '@capacitylens/shared/types/entities';
-import type { Role } from '@capacitylens/shared/account/types';
-import access from '#config/access_control';
-import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
-import Company from '#models/company';
-import Activity from '#models/activity';
-import Allocation from '#models/allocation';
-import Client from '#models/client';
-import Closure from '#models/closure';
-import Discipline from '#models/discipline';
-import Phase from '#models/phase';
-import Project from '#models/project';
-import Resource from '#models/resource';
-import TimeOff from '#models/time_off';
-import type { BaseModel } from '@adonisjs/lucid/orm';
-import type { QueryClientContract } from '@adonisjs/lucid/types/database';
-import { transformRow } from '#transformers/row_transformer';
+import type { AppData } from '@capacitylens/shared/types/entities'
+import type { Role } from '@capacitylens/shared/account/types'
+import access from '#config/access_control'
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle'
+import Company from '#models/company'
+import Activity from '#models/activity'
+import Allocation from '#models/allocation'
+import Client from '#models/client'
+import Closure from '#models/closure'
+import Discipline from '#models/discipline'
+import Phase from '#models/phase'
+import Project from '#models/project'
+import Resource from '#models/resource'
+import TimeOff from '#models/time_off'
+import type { BaseModel } from '@adonisjs/lucid/orm'
+import type { QueryClientContract } from '@adonisjs/lucid/types/database'
+import { transformRow } from '#transformers/row_transformer'
 
 function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, unknown>[] {
-  return rows.map(transformRow);
+  return rows.map(transformRow)
 }
 
 /** Reads one company's rows on a given client. */
 export class StateRepositoryService {
   /** Whether a role may read the inactive rows: only one that may manage members. */
   mayReadInactive(role: Role): boolean {
-    return access.can(role, 'members:manage');
+    return access.can(role, 'members:manage')
   }
 
   /**
@@ -37,7 +37,7 @@ export class StateRepositoryService {
     includeInactive = false
   ): Promise<AppData> {
     if (companyId.trim() === '') {
-      throw new Error('A company scope is required');
+      throw new Error('A company scope is required')
     }
     const [
       companies,
@@ -61,7 +61,7 @@ export class StateRepositoryService {
       Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
       TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
       Closure.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
-    ]);
+    ])
     const data = {
       companies: serializeRows(companies),
       clients: serializeRows(clients),
@@ -73,7 +73,7 @@ export class StateRepositoryService {
       allocations: serializeRows(allocations),
       timeOff: serializeRows(timeOff),
       closures: serializeRows(closures),
-    } as unknown as AppData;
-    return includeInactive ? data : buildActiveData(data);
+    } as unknown as AppData
+    return includeInactive ? data : buildActiveData(data)
   }
 }

@@ -1,11 +1,11 @@
-import { createId } from '@capacitylens/shared/lib/id';
-import { clampWorkingHoursPerDay } from '@capacitylens/shared/types/entities';
+import { createId } from '@capacitylens/shared/lib/id'
+import { clampWorkingHoursPerDay } from '@capacitylens/shared/types/entities'
 import {
   isWeekdaySet,
   normalizeCompanyWorkingDays,
-} from '@capacitylens/shared/lib/companyWorkingDays';
-import { assertResourceExists } from '@capacitylens/shared/domain/mutations';
-import { getOwned } from '@capacitylens/shared/domain/mutations';
+} from '@capacitylens/shared/lib/companyWorkingDays'
+import { assertResourceExists } from '@capacitylens/shared/domain/mutations'
+import { getOwned } from '@capacitylens/shared/domain/mutations'
 import type {
   Company,
   Activity,
@@ -16,7 +16,7 @@ import type {
   Project,
   Resource,
   TimeOff,
-} from '@capacitylens/shared/types/entities';
+} from '@capacitylens/shared/types/entities'
 import {
   buildCatalogueCreate,
   buildCatalogueUpdate,
@@ -27,14 +27,14 @@ import {
   buildSettingsUpdate,
   buildTimeOffCreate,
   buildTimeOffUpdate,
-} from '@/data/planning/planningIntents';
-import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
-import type { CreateResult, Draft, Patch, RepeatRange, StoreState } from './types';
-import type { StoreInternals } from './storeInternal';
+} from '@/data/planning/planningIntents'
+import type { PlanningIntentRequest } from '@/data/planning/planningIntents'
+import type { CreateResult, Draft, Patch, RepeatRange, StoreState } from './types'
+import type { StoreInternals } from './storeInternal'
 
 function requireCreatedId(value: unknown): string {
-  if (typeof value !== 'string') throw new Error('The planning row has no id.');
-  return value;
+  if (typeof value !== 'string') throw new Error('The planning row has no id.')
+  return value
 }
 
 /** The remaining planning writers share the planning cache and await its reconciliation. */
@@ -43,32 +43,32 @@ export function createTypedPlanningActions(
   {
     requireCompany,
     isBlockedByViewer,
-  }: Pick<StoreInternals, 'requireCompany' | 'isBlockedByViewer'>,
+  }: Pick<StoreInternals, 'requireCompany' | 'isBlockedByViewer'>
 ) {
-  const blocked = isBlockedByViewer;
+  const blocked = isBlockedByViewer
   // After a failed first read the company row was never published, so a create reports that, as it
   // did before the permission check existed, instead of the check's role-unavailable notice.
   const requireCreateAccount = () => {
-    const companyId = requireCompany();
-    const { data, planning, masquerade } = get();
+    const companyId = requireCompany()
+    const { data, planning, masquerade } = get()
     if (
       masquerade.kind === 'inactive' &&
       planning.access === null &&
       planning.phase.kind === 'failed' &&
       !data.companies.some((row) => row.id === companyId)
     ) {
-      throw new Error('No active company is selected.');
+      throw new Error('No active company is selected.')
     }
-    return companyId;
-  };
+    return companyId
+  }
   // The guard admits a company still loading from the summaries; no intent can be built for it
   // until its row is published, which the person sees as no company being selected yet.
   const buildUnpreparedError = (companyId: string, message: string) =>
     new Error(
       get().data.companies.some((row) => row.id === companyId)
         ? message
-        : 'No active company is selected.',
-    );
+        : 'No active company is selected.'
+    )
   const owned = <
     K extends
       | 'clients'
@@ -82,18 +82,18 @@ export function createTypedPlanningActions(
   >(
     key: K,
     id: string,
-    companyId: string,
-  ) => getOwned(get().data, companyId, key, id);
+    companyId: string
+  ) => getOwned(get().data, companyId, key, id)
   const send = async (intentRequest: PlanningIntentRequest | null) =>
-    intentRequest ? get().sendPlanningIntent(intentRequest) : undefined;
+    intentRequest ? get().sendPlanningIntent(intentRequest) : undefined
   /** Adds the edited row's opening `updatedAt` to an update, when the form supplied one. */
   const applyExpectedUpdatedAt = (
     intentRequest: PlanningIntentRequest | null,
-    expectedUpdatedAt: string | undefined,
+    expectedUpdatedAt: string | undefined
   ) =>
     intentRequest && expectedUpdatedAt !== undefined
       ? { ...intentRequest, expectedUpdatedAt }
-      : intentRequest;
+      : intentRequest
   const created = <
     K extends keyof Pick<
       StoreState['data'],
@@ -108,40 +108,40 @@ export function createTypedPlanningActions(
     >,
   >(
     key: K,
-    id: string,
+    id: string
   ): StoreState['data'][K][number] => {
-    const row = get().data[key].find((candidate) => candidate.id === id);
-    if (!row) throw new Error('The saved planning row was not returned.');
-    return row;
-  };
+    const row = get().data[key].find((candidate) => candidate.id === id)
+    if (!row) throw new Error('The saved planning row was not returned.')
+    return row
+  }
   const createCatalogue = async <T extends Client | Project | Phase | Activity | Discipline>(
     key: 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines',
-    fields: Omit<Draft<T>, 'sortOrder'>,
+    fields: Omit<Draft<T>, 'sortOrder'>
   ): Promise<CreateResult<T>> => {
-    const companyId = requireCreateAccount();
-    if (blocked()) return { kind: 'blocked' };
-    const id = createId();
+    const companyId = requireCreateAccount()
+    if (blocked()) return { kind: 'blocked' }
+    const id = createId()
     const intentRequest = buildCatalogueCreate({
       data: get().data,
       companyId,
       args: { entity: key, id, fields } as Parameters<typeof buildCatalogueCreate>[0]['args'],
-    });
+    })
     if (!intentRequest) {
-      throw buildUnpreparedError(companyId, 'The planning change could not be prepared.');
+      throw buildUnpreparedError(companyId, 'The planning change could not be prepared.')
     }
-    await send(intentRequest);
-    return { kind: 'created', value: created(key, id) as T };
-  };
+    await send(intentRequest)
+    return { kind: 'created', value: created(key, id) as T }
+  }
   const updateCatalogue = async (
     key: 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines',
     id: string,
     changes: object,
-    expectedUpdatedAt?: string,
+    expectedUpdatedAt?: string
   ) => {
-    const companyId = requireCompany();
-    if (blocked()) return;
-    const original = owned(key, id, companyId);
-    if (!original) return;
+    const companyId = requireCompany()
+    if (blocked()) return
+    const original = owned(key, id, companyId)
+    if (!original) return
     await send(
       applyExpectedUpdatedAt(
         buildCatalogueUpdate({
@@ -150,31 +150,31 @@ export function createTypedPlanningActions(
           original,
           args: { entity: key, id, changes },
         }),
-        expectedUpdatedAt,
-      ),
-    );
-  };
+        expectedUpdatedAt
+      )
+    )
+  }
   const deleteCatalogue = async (key: 'phases' | 'disciplines', id: string) => {
-    const companyId = requireCompany();
-    if (blocked() || !owned(key, id, companyId)) return;
-    await send({ intent: { operation: 'catalogue.delete', entity: { entity: key, id } } });
-  };
+    const companyId = requireCompany()
+    if (blocked() || !owned(key, id, companyId)) return
+    await send({ intent: { operation: 'catalogue.delete', entity: { entity: key, id } } })
+  }
   const createTimeOff = async (input: Draft<TimeOff>): Promise<CreateResult<TimeOff>> => {
-    const companyId = requireCreateAccount();
-    if (blocked()) return { kind: 'blocked' };
-    assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
-    const id = createId();
+    const companyId = requireCreateAccount()
+    if (blocked()) return { kind: 'blocked' }
+    assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId })
+    const id = createId()
     const intentRequest = buildTimeOffCreate({
       data: get().data,
       companyId,
       args: { id, fields: input },
-    });
+    })
     if (!intentRequest) {
-      throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.');
+      throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.')
     }
-    await send(intentRequest);
-    return { kind: 'created', value: created('timeOff', id) };
-  };
+    await send(intentRequest)
+    return { kind: 'created', value: created('timeOff', id) }
+  }
   return {
     addDiscipline: (input: Omit<Draft<Discipline>, 'sortOrder'>) =>
       createCatalogue<Discipline>('disciplines', input),
@@ -194,40 +194,40 @@ export function createTypedPlanningActions(
     updateActivity: (id: string, patch: Patch<Activity>, expectedUpdatedAt?: string) =>
       updateCatalogue('activities', id, patch, expectedUpdatedAt),
     deleteActivity: async (id: string) => {
-      const companyId = requireCompany();
-      if (blocked() || !owned('activities', id, companyId)) return undefined;
+      const companyId = requireCompany()
+      if (blocked() || !owned('activities', id, companyId)) return undefined
       return send({
         intent: { operation: 'catalogue.archive', entity: { entity: 'activities', id } },
-      });
+      })
     },
     addResource: async (input: Draft<Resource>): Promise<CreateResult<Resource>> => {
-      const companyId = requireCreateAccount();
-      if (blocked()) return { kind: 'blocked' };
-      const id = createId();
+      const companyId = requireCreateAccount()
+      if (blocked()) return { kind: 'blocked' }
+      const id = createId()
       const fields = {
         ...input,
         workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
-      };
+      }
       const intentRequest = buildResourceCreate({
         data: get().data,
         companyId,
         args: { id, fields },
-      });
+      })
       if (!intentRequest) {
-        throw buildUnpreparedError(companyId, 'The resource could not be prepared.');
+        throw buildUnpreparedError(companyId, 'The resource could not be prepared.')
       }
-      await send(intentRequest);
-      return { kind: 'created', value: created('resources', id) };
+      await send(intentRequest)
+      return { kind: 'created', value: created('resources', id) }
     },
     updateResource: async (id: string, patch: Patch<Resource>, expectedUpdatedAt?: string) => {
-      const companyId = requireCompany();
-      if (blocked()) return;
-      const original = owned('resources', id, companyId);
-      if (!original) return;
+      const companyId = requireCompany()
+      if (blocked()) return
+      const original = owned('resources', id, companyId)
+      if (!original) return
       const changes =
         patch.workingHoursPerDay === undefined
           ? patch
-          : { ...patch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) };
+          : { ...patch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
       await send(
         applyExpectedUpdatedAt(
           buildResourceUpdate({
@@ -236,41 +236,41 @@ export function createTypedPlanningActions(
             original,
             args: { id, changes },
           }),
-          expectedUpdatedAt,
-        ),
-      );
+          expectedUpdatedAt
+        )
+      )
     },
     addTimeOff: createTimeOff,
     addRepeatedTimeOff: async (
       input: Draft<TimeOff>,
       repeat: RepeatRange,
-      count: number,
+      count: number
     ): Promise<CreateResult<TimeOff[]>> => {
       if (!Number.isSafeInteger(count) || count < 2) {
-        throw new Error('A repeat needs at least two entries.');
+        throw new Error('A repeat needs at least two entries.')
       }
-      const companyId = requireCreateAccount();
-      if (blocked()) return { kind: 'blocked' };
-      assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
+      const companyId = requireCreateAccount()
+      if (blocked()) return { kind: 'blocked' }
+      assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId })
       const intentRequest = buildTimeOffCreate({
         data: get().data,
         companyId,
         args: { id: createId(), fields: input },
-      });
+      })
       if (!intentRequest || intentRequest.intent.operation !== 'timeOff.create') {
-        throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.');
+        throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.')
       }
-      const timeOff = intentRequest.intent.timeOff;
+      const timeOff = intentRequest.intent.timeOff
       // Later entry ids are minted here too, so every created row can be returned by id.
-      const occurrenceIds = Array.from({ length: count - 1 }, () => createId());
-      const ids = [requireCreatedId(timeOff.id), ...occurrenceIds];
-      await send({ intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds } });
-      return { kind: 'created', value: ids.map((id) => created('timeOff', id)) };
+      const occurrenceIds = Array.from({ length: count - 1 }, () => createId())
+      const ids = [requireCreatedId(timeOff.id), ...occurrenceIds]
+      await send({ intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds } })
+      return { kind: 'created', value: ids.map((id) => created('timeOff', id)) }
     },
     updateTimeOff: async (id: string, changes: Patch<TimeOff>, expectedUpdatedAt?: string) => {
-      const companyId = requireCompany();
-      if (blocked()) return;
-      const original = owned('timeOff', id, companyId);
+      const companyId = requireCompany()
+      if (blocked()) return
+      const original = owned('timeOff', id, companyId)
       if (original) {
         await send(
           applyExpectedUpdatedAt(
@@ -280,35 +280,35 @@ export function createTypedPlanningActions(
               original,
               args: { id, changes },
             }),
-            expectedUpdatedAt,
-          ),
-        );
+            expectedUpdatedAt
+          )
+        )
       }
     },
     deleteTimeOff: async (id: string) => {
-      const companyId = requireCompany();
-      if (blocked() || !owned('timeOff', id, companyId)) return;
-      await send({ intent: { operation: 'timeOff.delete', id } });
+      const companyId = requireCompany()
+      if (blocked() || !owned('timeOff', id, companyId)) return
+      await send({ intent: { operation: 'timeOff.delete', id } })
     },
     addClosure: async (input: Draft<Closure>): Promise<CreateResult<Closure>> => {
-      const companyId = requireCreateAccount();
-      if (blocked()) return { kind: 'blocked' };
-      const id = createId();
+      const companyId = requireCreateAccount()
+      if (blocked()) return { kind: 'blocked' }
+      const id = createId()
       const intentRequest = buildClosureCreate({
         data: get().data,
         companyId,
         args: { id, fields: input },
-      });
+      })
       if (!intentRequest) {
-        throw buildUnpreparedError(companyId, 'The closure could not be prepared.');
+        throw buildUnpreparedError(companyId, 'The closure could not be prepared.')
       }
-      await send(intentRequest);
-      return { kind: 'created', value: created('closures', id) };
+      await send(intentRequest)
+      return { kind: 'created', value: created('closures', id) }
     },
     updateClosure: async (id: string, changes: Patch<Closure>, expectedUpdatedAt?: string) => {
-      const companyId = requireCompany();
-      if (blocked()) return;
-      const original = owned('closures', id, companyId);
+      const companyId = requireCompany()
+      if (blocked()) return
+      const original = owned('closures', id, companyId)
       if (original) {
         await send(
           applyExpectedUpdatedAt(
@@ -318,31 +318,31 @@ export function createTypedPlanningActions(
               original,
               args: { id, changes },
             }),
-            expectedUpdatedAt,
-          ),
-        );
+            expectedUpdatedAt
+          )
+        )
       }
     },
     deleteClosure: async (id: string) => {
-      const companyId = requireCompany();
-      if (blocked() || !owned('closures', id, companyId)) return;
-      await send({ intent: { operation: 'closure.delete', id } });
+      const companyId = requireCompany()
+      if (blocked() || !owned('closures', id, companyId)) return
+      await send({ intent: { operation: 'closure.delete', id } })
     },
     updateCompany: async (id: string, patch: Patch<Company>) => {
-      const companyId = requireCompany();
-      if (blocked()) return;
+      const companyId = requireCompany()
+      if (blocked()) return
       if (id !== companyId) {
-        throw new Error('Cannot update a company other than the active company.');
+        throw new Error('Cannot update a company other than the active company.')
       }
-      const original = get().data.companies.find((row) => row.id === id);
-      if (!original) return;
+      const original = get().data.companies.find((row) => row.id === id)
+      if (!original) return
       if (
         patch.workingDays != null &&
         (!isWeekdaySet(patch.workingDays) || patch.workingDays.length === 0)
       ) {
         throw new Error(
-          'At least one working day is required, using unique whole-number weekdays from 0 to 6.',
-        );
+          'At least one working day is required, using unique whole-number weekdays from 0 to 6.'
+        )
       }
       const changes =
         patch.workingDays == null
@@ -351,10 +351,10 @@ export function createTypedPlanningActions(
               ...patch,
               workingDays: normalizeCompanyWorkingDays(
                 patch.workingDays,
-                original.weekStartsOn ?? 1,
+                original.weekStartsOn ?? 1
               ),
-            };
-      await send(buildSettingsUpdate({ data: get().data, companyId: id, original, args: changes }));
+            }
+      await send(buildSettingsUpdate({ data: get().data, companyId: id, original, args: changes }))
     },
-  };
+  }
 }

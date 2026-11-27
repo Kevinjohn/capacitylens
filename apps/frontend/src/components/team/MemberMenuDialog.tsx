@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
-import { m } from '@/i18n';
-import { FormDialog } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
+import { useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { m } from '@/i18n'
+import { FormDialog } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { Settings } from 'lucide-react'
 
 /** Presents the management actions available for one member. */
 export function MemberMenuDialog({
@@ -14,26 +14,26 @@ export function MemberMenuDialog({
   onOpenChange,
   children,
 }: {
-  memberLabel: string;
-  hasExistingActions: boolean;
-  busy: boolean;
-  open: boolean;
-  onOpenChange(open: boolean): void;
-  children: ReactNode;
+  memberLabel: string
+  hasExistingActions: boolean
+  busy: boolean
+  open: boolean
+  onOpenChange(open: boolean): void
+  children: ReactNode
 }) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const wasOpen = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
   useEffect(() => {
     if (wasOpen.current && !open) {
       requestAnimationFrame(() => {
-        const confirmation = document.querySelector<HTMLElement>('[role="alertdialog"]');
-        if (confirmation) confirmation.focus();
-        else triggerRef.current?.focus();
-      });
+        const confirmation = document.querySelector<HTMLElement>('[role="alertdialog"]')
+        if (confirmation) confirmation.focus()
+        else triggerRef.current?.focus()
+      })
     }
-    wasOpen.current = open;
-  }, [open]);
-  if (!hasExistingActions) return null;
+    wasOpen.current = open
+  }, [open])
+  if (!hasExistingActions) return null
   return (
     <>
       <Button
@@ -71,5 +71,5 @@ export function MemberMenuDialog({
         </FormDialog>
       )}
     </>
-  );
+  )
 }

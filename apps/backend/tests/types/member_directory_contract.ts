@@ -1,4 +1,4 @@
-import type { MemberDirectoryEntry } from '#services/membership/member_directory_service';
+import type { MemberDirectoryEntry } from '#services/membership/member_directory_service'
 
 const validMember: MemberDirectoryEntry = {
   userId: 'user-clark',
@@ -11,19 +11,19 @@ const validMember: MemberDirectoryEntry = {
   signInConfirmed: null,
   isSelf: false,
   resourceLink: null,
-};
+}
 
 const invalidRole: MemberDirectoryEntry = {
   ...validMember,
   // @ts-expect-error Database projections must not widen the shared role vocabulary.
   role: 'operator',
-};
+}
 
 const invalidStatus: MemberDirectoryEntry = {
   ...validMember,
   // @ts-expect-error Database projections must not widen the shared membership lifecycle.
   status: 'removed',
-};
+}
 
-void invalidRole;
-void invalidStatus;
+void invalidRole
+void invalidStatus

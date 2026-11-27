@@ -1,32 +1,32 @@
 // A schedule write used by the backend's company initialisation test.
-import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
 
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 10_000
 
 /** The name of the person the smoke schedule creates. */
-export const RESOURCE_NAME = 'Bruce Wayne Packaged Schedule';
+export const RESOURCE_NAME = 'Bruce Wayne Packaged Schedule'
 
 async function fetchOk(url, options = {}) {
   const response = await fetch(url, {
     ...options,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  const body = await response.text();
-  assert.ok(response.ok, `${options.method ?? 'GET'} ${url} returned ${response.status}: ${body}`);
-  return { response, body };
+  })
+  const body = await response.text()
+  assert.ok(response.ok, `${options.method ?? 'GET'} ${url} returned ${response.status}: ${body}`)
+  return { response, body }
 }
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
 export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, masqueradeToken) {
-  const company = fixture.companies.find((row) => row.id === 'a-studio');
-  assert.ok(company);
+  const company = fixture.companies.find((row) => row.id === 'a-studio')
+  assert.ok(company)
   const resource = {
     ...fixture.resources.find((row) => row.kind === 'person' && row.companyId === 'a-studio'),
     id: randomUUID(),
     name: RESOURCE_NAME,
-  };
-  assert.ok(resource.id);
+  }
+  assert.ok(resource.id)
   const createdResource = await fetchOk(
     `${baseUrl}/api/v1/companies/${companyId}/planning/mutations`,
     {
@@ -62,9 +62,9 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
           },
         },
       }),
-    },
-  );
-  assert.equal(JSON.parse(createdResource.body).data.revision, 2);
+    }
+  )
+  assert.equal(JSON.parse(createdResource.body).data.revision, 2)
 
   const activity = {
     id: randomUUID(),
@@ -72,7 +72,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
     kind: 'internal',
     projectId: null,
     phaseId: null,
-  };
+  }
   const createdActivity = await fetchOk(
     `${baseUrl}/api/v1/companies/${companyId}/planning/mutations`,
     {
@@ -95,9 +95,9 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
           },
         },
       }),
-    },
-  );
-  assert.equal(JSON.parse(createdActivity.body).data.revision, 3);
+    }
+  )
+  assert.equal(JSON.parse(createdActivity.body).data.revision, 3)
 
   const allocation = {
     id: randomUUID(),
@@ -108,7 +108,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
     endDate: '2026-11-06',
     hoursPerDay: 7.5,
     status: 'confirmed',
-  };
+  }
   const createdAllocation = await fetchOk(
     `${baseUrl}/api/v1/companies/${companyId}/planning/mutations`,
     {
@@ -124,8 +124,8 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, ma
         baseRevision: 3,
         intent: { operation: 'allocation.create', allocation },
       }),
-    },
-  );
-  assert.equal(JSON.parse(createdAllocation.body).data.revision, 4);
-  return { companyId, resource, activity, allocation };
+    }
+  )
+  assert.equal(JSON.parse(createdAllocation.body).data.revision, 4)
+  return { companyId, resource, activity, allocation }
 }

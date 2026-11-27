@@ -1,15 +1,15 @@
-import { m } from '@/i18n';
-import { teamAccessApi } from '@/account/teamAccessApi';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import type { MemberOperationDependencies } from './MemberOperationDependencies';
-import type { useTeamDirectory } from './useTeamDirectory';
+import { m } from '@/i18n'
+import { teamAccessApi } from '@/account/teamAccessApi'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import type { MemberOperationDependencies } from './MemberOperationDependencies'
+import type { useTeamDirectory } from './useTeamDirectory'
 
 type MemberAccessDependencies = Pick<
   MemberOperationDependencies,
   'requestCompanyId' | 'isActiveCompany' | 'fail' | 'setNotice'
 > & {
-  replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>['replaceAuthorizedDirectory'];
-};
+  replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>['replaceAuthorizedDirectory']
+}
 
 async function reloadAuthorizedDirectory({
   companyId,
@@ -21,24 +21,24 @@ async function reloadAuthorizedDirectory({
   MemberAccessDependencies,
   'isActiveCompany' | 'setNotice' | 'replaceAuthorizedDirectory'
 > & {
-  companyId: string;
-  message: string;
+  companyId: string
+  message: string
 }): Promise<{ kind: 'ready' } | { kind: 'stale' } | { kind: 'failed'; error: unknown }> {
   try {
     const [memberResult, inviteResult] = await Promise.all([
       teamAccessApi.listMembers(companyId),
       teamAccessApi.listInvitations(companyId),
-    ]);
-    if (!isActiveCompany(companyId)) return { kind: 'stale' };
+    ])
+    if (!isActiveCompany(companyId)) return { kind: 'stale' }
     if (memberResult.kind !== 'ok' || inviteResult.kind !== 'ok') {
-      return { kind: 'failed', error: new Error(m.settings_members_err_authoritative_reload()) };
+      return { kind: 'failed', error: new Error(m.settings_members_err_authoritative_reload()) }
     }
-    replaceAuthorizedDirectory(memberResult.value, inviteResult.value);
-    setNotice(m.settings_members_reconcile_directory({ message }), 'warning');
-    return { kind: 'ready' };
+    replaceAuthorizedDirectory(memberResult.value, inviteResult.value)
+    setNotice(m.settings_members_reconcile_directory({ message }), 'warning')
+    return { kind: 'ready' }
   } catch (error) {
     // Return a typed failed reconciliation result so its owner can decide the visible recovery policy.
-    return { kind: 'failed', error };
+    return { kind: 'failed', error }
   }
 }
 
@@ -51,23 +51,23 @@ export function createMemberAccessReconciliation({
   replaceAuthorizedDirectory,
 }: MemberAccessDependencies) {
   const reconcileUnknownMutation = async (message: string): Promise<void> => {
-    const companyId = requestCompanyId();
-    if (!isActiveCompany(companyId)) return;
+    const companyId = requestCompanyId()
+    if (!isActiveCompany(companyId)) return
     const reloadResult = await reloadAuthorizedDirectory({
       companyId,
       message,
       isActiveCompany,
       setNotice,
       replaceAuthorizedDirectory,
-    });
-    if (reloadResult.kind !== 'failed' || !isActiveCompany(companyId)) return;
+    })
+    if (reloadResult.kind !== 'failed' || !isActiveCompany(companyId)) return
     fail(
       null,
       m.settings_members_reconcile_reload_failed({
         message,
         error: resolveErrorMessage(reloadResult.error),
-      }),
-    );
-  };
-  return { reconcileUnknownMutation };
+      })
+    )
+  }
+  return { reconcileUnknownMutation }
 }

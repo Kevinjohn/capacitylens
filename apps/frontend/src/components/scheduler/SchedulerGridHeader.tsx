@@ -1,9 +1,9 @@
-import type { Ref } from 'react';
-import { m } from '@/i18n';
-import { LAYOUT } from './layout';
-import { DateHeader } from './DateHeader';
-import type { useSchedulerViewport } from './useSchedulerViewport';
-import type { useSchedulerGridModel, useSchedulerGridPreferences } from './useSchedulerGridModel';
+import type { Ref } from 'react'
+import { m } from '@/i18n'
+import { LAYOUT } from './layout'
+import { DateHeader } from './DateHeader'
+import type { useSchedulerViewport } from './useSchedulerViewport'
+import type { useSchedulerGridModel, useSchedulerGridPreferences } from './useSchedulerGridModel'
 
 type Props = Pick<ReturnType<typeof useSchedulerViewport>, 'days' | 'geom'> &
   Pick<
@@ -11,9 +11,9 @@ type Props = Pick<ReturnType<typeof useSchedulerViewport>, 'days' | 'geom'> &
     'today' | 'visibleWeeksLabel' | 'visibleSpanCompact' | 'overallUtil'
   > &
   Pick<ReturnType<typeof useSchedulerGridPreferences>, 'ui' | 'utilisationPrefs'> & {
-    headerRef: Ref<HTMLDivElement>;
-    calendarWeekStartsOn: 0 | 1;
-  };
+    headerRef: Ref<HTMLDivElement>
+    calendarWeekStartsOn: 0 | 1
+  }
 /** Aligns date labels and capacity columns with the schedule grid. */
 export function SchedulerGridHeader({
   headerRef,
@@ -70,5 +70,5 @@ export function SchedulerGridHeader({
         />
       </div>
     </>
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import type { PlanningIntent } from '@/api/planningContracts';
-import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
+import type { PlanningIntent } from '@/api/planningContracts'
+import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integrity'
 import {
   buildExternalCapacityDefaults,
   buildPlaceholderCapacityDefaults,
-} from '@capacitylens/shared/types/entities';
+} from '@capacitylens/shared/types/entities'
 import type {
   Company,
   Activity,
@@ -17,88 +17,88 @@ import type {
   Project,
   Resource,
   TimeOff,
-} from '@capacitylens/shared/types/entities';
-import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
-import type { Draft, Patch } from '@/lib/entityDrafts';
+} from '@capacitylens/shared/types/entities'
+import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color'
+import type { Draft, Patch } from '@/lib/entityDrafts'
 
 export interface PlanningIntentRequest {
-  intent: PlanningIntent;
+  intent: PlanningIntent
   /** The edited row's `updatedAt` when its form opened; the server refuses a row that has moved on. */
-  expectedUpdatedAt?: string;
+  expectedUpdatedAt?: string
   /** The change cannot be undone and ends the page's history. */
-  endsHistory?: true;
+  endsHistory?: true
 }
 
 interface IntentScope {
-  data: AppData;
-  companyId: string;
+  data: AppData
+  companyId: string
 }
 
 interface CreateIntentScope extends IntentScope {
-  args: { id: string };
+  args: { id: string }
 }
 
 interface UpdateIntentScope<Row> extends IntentScope {
-  original: Row;
-  args: { id: string; changes: object };
+  original: Row
+  args: { id: string; changes: object }
 }
 
 const equal = (left: unknown, right: unknown): boolean => {
-  if (Object.is(left, right)) return true;
+  if (Object.is(left, right)) return true
   if (Array.isArray(left) && Array.isArray(right)) {
-    return left.length === right.length && left.every((value, index) => equal(value, right[index]));
+    return left.length === right.length && left.every((value, index) => equal(value, right[index]))
   }
-  return false;
-};
+  return false
+}
 
-type OwnedRow<K extends AppDataKey> = K extends 'companies' ? Company : AppData[K][number];
+type OwnedRow<K extends AppDataKey> = K extends 'companies' ? Company : AppData[K][number]
 
 function getOwnedRow<K extends AppDataKey>(
   data: AppData,
   key: K,
   companyId: string,
-  id: string,
+  id: string
 ): OwnedRow<K> | undefined {
   if (key === 'companies') {
-    return data.companies.find((row) => row.id === id) as OwnedRow<K> | undefined;
+    return data.companies.find((row) => row.id === id) as OwnedRow<K> | undefined
   }
   return data[key].find(
-    (row) => 'companyId' in row && row.companyId === companyId && row.id === id,
-  ) as OwnedRow<K> | undefined;
+    (row) => 'companyId' in row && row.companyId === companyId && row.id === id
+  ) as OwnedRow<K> | undefined
 }
 
 function hasCompany(data: AppData, companyId: string): boolean {
-  return data.companies.some((company) => company.id === companyId);
+  return data.companies.some((company) => company.id === companyId)
 }
 
 function diffFields(
   original: object,
   requested: object,
   fields: readonly string[],
-  nullable: readonly string[] = [],
+  nullable: readonly string[] = []
 ): { changes: Record<string, unknown> } | null {
-  const changes: Record<string, unknown> = {};
+  const changes: Record<string, unknown> = {}
   for (const field of fields) {
-    if (!Object.hasOwn(requested, field)) continue;
-    const rawValue = Reflect.get(requested, field) as unknown;
-    const value = rawValue === undefined && nullable.includes(field) ? null : rawValue;
-    const originalValue = Reflect.get(original, field) as unknown;
-    if (equal(originalValue, value)) continue;
-    changes[field] = value;
+    if (!Object.hasOwn(requested, field)) continue
+    const rawValue = Reflect.get(requested, field) as unknown
+    const value = rawValue === undefined && nullable.includes(field) ? null : rawValue
+    const originalValue = Reflect.get(original, field) as unknown
+    if (equal(originalValue, value)) continue
+    changes[field] = value
   }
-  return Object.keys(changes).length === 0 ? null : { changes };
+  return Object.keys(changes).length === 0 ? null : { changes }
 }
 
 /** Build an explicit allocation creation intent. */
 export function buildAllocationCreate(
-  context: CreateIntentScope & { args: { id: string; fields: Draft<Allocation> } },
+  context: CreateIntentScope & { args: { id: string; fields: Draft<Allocation> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, args } = context;
-  if (!hasCompany(data, companyId)) return null;
+  const { data, companyId, args } = context
+  if (!hasCompany(data, companyId)) return null
   const activity = data.activities.find(
-    (row) => row.companyId === companyId && row.id === args.fields.activityId,
-  );
-  if (!activity) return null;
+    (row) => row.companyId === companyId && row.id === args.fields.activityId
+  )
+  if (!activity) return null
   const allocation = {
     id: args.id,
     resourceId: args.fields.resourceId,
@@ -113,30 +113,30 @@ export function buildAllocationCreate(
     note: args.fields.note ?? null,
     task: args.fields.task ?? null,
     ignoreWorkingDays: args.fields.ignoreWorkingDays ?? null,
-  };
+  }
   return {
     intent: { operation: 'allocation.create', allocation },
-  };
+  }
 }
 
 /** Use source duplication for unchanged copies, retaining deliberate edits through explicit creation. */
 export function buildAllocationDuplicate(
   context: IntentScope & {
-    original: Allocation;
-    args: { sourceId: string; id: string; fields: Draft<Allocation> };
-  },
+    original: Allocation
+    args: { sourceId: string; id: string; fields: Draft<Allocation> }
+  }
 ): PlanningIntentRequest | null {
-  const { data, companyId, original, args } = context;
+  const { data, companyId, original, args } = context
   if (
     original.id !== args.sourceId ||
     original.companyId !== companyId ||
     !getOwnedRow(data, 'allocations', companyId, args.sourceId)
   ) {
-    return null;
+    return null
   }
-  const intentRequest = buildAllocationCreate({ data, companyId, args });
-  if (!intentRequest || intentRequest.intent.operation !== 'allocation.create') return null;
-  const created = intentRequest.intent.allocation;
+  const intentRequest = buildAllocationCreate({ data, companyId, args })
+  if (!intentRequest || intentRequest.intent.operation !== 'allocation.create') return null
+  const created = intentRequest.intent.allocation
   const copyFields = [
     'resourceId',
     'activityId',
@@ -145,11 +145,11 @@ export function buildAllocationDuplicate(
     'status',
     'note',
     'task',
-  ] as const;
+  ] as const
   const sameSource =
     copyFields.every((field) => equal(created[field] ?? null, original[field] ?? null)) &&
-    Boolean(created.ignoreWorkingDays) === Boolean(original.ignoreWorkingDays);
-  if (!sameSource) return intentRequest;
+    Boolean(created.ignoreWorkingDays) === Boolean(original.ignoreWorkingDays)
+  if (!sameSource) return intentRequest
   return {
     ...intentRequest,
     intent: {
@@ -157,7 +157,7 @@ export function buildAllocationDuplicate(
       sourceAllocationId: args.sourceId,
       occurrence: { id: args.id, startDate: args.fields.startDate, endDate: args.fields.endDate },
     },
-  };
+  }
 }
 
 const ALLOCATION_FIELDS = [
@@ -171,35 +171,35 @@ const ALLOCATION_FIELDS = [
   'note',
   'task',
   'ignoreWorkingDays',
-] as const satisfies readonly (keyof Allocation)[];
+] as const satisfies readonly (keyof Allocation)[]
 
 /** Build an allocation patch against the captured draft basis. */
 export function buildAllocationUpdate(
-  context: UpdateIntentScope<Allocation> & { args: { id: string; changes: Patch<Allocation> } },
+  context: UpdateIntentScope<Allocation> & { args: { id: string; changes: Patch<Allocation> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, original, args } = context;
-  const current = getOwnedRow(data, 'allocations', companyId, args.id);
-  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
+  const { data, companyId, original, args } = context
+  const current = getOwnedRow(data, 'allocations', companyId, args.id)
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null
   const diff = diffFields(original, args.changes, ALLOCATION_FIELDS, [
     'projectId',
     'note',
     'task',
     'ignoreWorkingDays',
-  ]);
-  if (!diff) return null;
-  const changes = { ...diff.changes };
-  const activityId = changes.activityId ?? current.activityId;
+  ])
+  if (!diff) return null
+  const changes = { ...diff.changes }
+  const activityId = changes.activityId ?? current.activityId
   if (Object.hasOwn(changes, 'activityId') || Object.hasOwn(changes, 'projectId')) {
     const activity = data.activities.find(
-      (row) => row.companyId === companyId && row.id === activityId,
-    );
+      (row) => row.companyId === companyId && row.id === activityId
+    )
     // An activity missing from this cache is still sent, so the server's refusal stays visible.
     if (
       activity &&
       !isAllocationAttributionAllowed(activity.kind) &&
       (changes.projectId ?? current.projectId) !== null
     ) {
-      changes.projectId = null;
+      changes.projectId = null
     }
   }
   return {
@@ -208,21 +208,21 @@ export function buildAllocationUpdate(
       id: args.id,
       changes,
     },
-  };
+  }
 }
 
 /** Build an explicit time-off creation intent. */
 export function buildTimeOffCreate(
-  context: CreateIntentScope & { args: { id: string; fields: Draft<TimeOff> } },
+  context: CreateIntentScope & { args: { id: string; fields: Draft<TimeOff> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, args } = context;
+  const { data, companyId, args } = context
   if (
     !hasCompany(data, companyId) ||
     !data.resources.some(
-      (resource) => resource.companyId === companyId && resource.id === args.fields.resourceId,
+      (resource) => resource.companyId === companyId && resource.id === args.fields.resourceId
     )
   ) {
-    return null;
+    return null
   }
   const timeOff = {
     id: args.id,
@@ -231,10 +231,10 @@ export function buildTimeOffCreate(
     endDate: args.fields.endDate,
     type: args.fields.type,
     ...(Object.hasOwn(args.fields, 'note') ? { note: args.fields.note ?? null } : {}),
-  };
+  }
   return {
     intent: { operation: 'timeOff.create', timeOff },
-  };
+  }
 }
 
 const TIME_OFF_FIELDS = [
@@ -243,32 +243,32 @@ const TIME_OFF_FIELDS = [
   'endDate',
   'type',
   'note',
-] as const satisfies readonly (keyof TimeOff)[];
+] as const satisfies readonly (keyof TimeOff)[]
 
 /** Build a time-off patch against the captured draft basis. */
 export function buildTimeOffUpdate(
-  context: UpdateIntentScope<TimeOff> & { args: { id: string; changes: Patch<TimeOff> } },
+  context: UpdateIntentScope<TimeOff> & { args: { id: string; changes: Patch<TimeOff> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, original, args } = context;
-  const current = getOwnedRow(data, 'timeOff', companyId, args.id);
-  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
-  const diff = diffFields(original, args.changes, TIME_OFF_FIELDS, ['note']);
-  if (!diff) return null;
+  const { data, companyId, original, args } = context
+  const current = getOwnedRow(data, 'timeOff', companyId, args.id)
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null
+  const diff = diffFields(original, args.changes, TIME_OFF_FIELDS, ['note'])
+  if (!diff) return null
   return {
     intent: {
       operation: 'timeOff.update',
       id: args.id,
       changes: diff.changes,
     },
-  };
+  }
 }
 
 /** Build an explicit company-closure creation intent. */
 export function buildClosureCreate(
-  context: CreateIntentScope & { args: { fields: Draft<Closure> } },
+  context: CreateIntentScope & { args: { fields: Draft<Closure> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, args } = context;
-  if (!hasCompany(data, companyId)) return null;
+  const { data, companyId, args } = context
+  if (!hasCompany(data, companyId)) return null
   return {
     intent: {
       operation: 'closure.create',
@@ -279,45 +279,43 @@ export function buildClosureCreate(
         endDate: args.fields.endDate,
       },
     },
-  };
+  }
 }
 
 const CLOSURE_FIELDS = [
   'name',
   'startDate',
   'endDate',
-] as const satisfies readonly (keyof Closure)[];
+] as const satisfies readonly (keyof Closure)[]
 
 /** Build a company-closure patch against the captured draft basis. */
 export function buildClosureUpdate(
-  context: UpdateIntentScope<Closure> & { args: { id: string; changes: Patch<Closure> } },
+  context: UpdateIntentScope<Closure> & { args: { id: string; changes: Patch<Closure> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, original, args } = context;
-  const current = getOwnedRow(data, 'closures', companyId, args.id);
-  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
-  const diff = diffFields(original, args.changes, CLOSURE_FIELDS);
-  if (!diff) return null;
+  const { data, companyId, original, args } = context
+  const current = getOwnedRow(data, 'closures', companyId, args.id)
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null
+  const diff = diffFields(original, args.changes, CLOSURE_FIELDS)
+  if (!diff) return null
   return {
     intent: {
       operation: 'closure.update',
       id: args.id,
       changes: diff.changes,
     },
-  };
+  }
 }
 
 /** Build an explicit resource creation intent with normalised kind-specific fields. */
 export function buildResourceCreate(
-  context: CreateIntentScope & { args: { id: string; fields: Draft<Resource> } },
+  context: CreateIntentScope & { args: { id: string; fields: Draft<Resource> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, args } = context;
-  if (!hasCompany(data, companyId)) return null;
-  const input = args.fields;
+  const { data, companyId, args } = context
+  if (!hasCompany(data, companyId)) return null
+  const input = args.fields
   const kindDefaults =
-    input.kind === 'external'
-      ? buildExternalCapacityDefaults()
-      : buildPlaceholderCapacityDefaults();
-  const externalDefaults = buildExternalCapacityDefaults();
+    input.kind === 'external' ? buildExternalCapacityDefaults() : buildPlaceholderCapacityDefaults()
+  const externalDefaults = buildExternalCapacityDefaults()
   const fields = {
     kind: input.kind,
     name: input.name ?? null,
@@ -336,10 +334,10 @@ export function buildResourceCreate(
     isFavourite: input.isFavourite ?? null,
     firstAvailableDate: input.kind === 'person' ? (input.firstAvailableDate ?? null) : null,
     lastAvailableDate: input.kind === 'person' ? (input.lastAvailableDate ?? null) : null,
-  };
+  }
   return {
     intent: { operation: 'resource.create', id: args.id, fields },
-  };
+  }
 }
 
 const RESOURCE_FIELDS = [
@@ -358,29 +356,29 @@ const RESOURCE_FIELDS = [
   'isFavourite',
   'firstAvailableDate',
   'lastAvailableDate',
-] as const satisfies readonly (keyof Resource)[];
+] as const satisfies readonly (keyof Resource)[]
 
 /** Build a resource patch with kind changes normalised to valid resource fields. */
 export function buildResourceUpdate(
-  context: UpdateIntentScope<Resource> & { args: { id: string; changes: Patch<Resource> } },
+  context: UpdateIntentScope<Resource> & { args: { id: string; changes: Patch<Resource> } }
 ): PlanningIntentRequest | null {
-  const { data, companyId, original, args } = context;
-  const current = getOwnedRow(data, 'resources', companyId, args.id);
-  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
-  const normalized: Patch<Resource> = { ...args.changes };
+  const { data, companyId, original, args } = context
+  const current = getOwnedRow(data, 'resources', companyId, args.id)
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null
+  const normalized: Patch<Resource> = { ...args.changes }
   if (args.changes.kind === 'external') {
     Object.assign(normalized, buildExternalCapacityDefaults(), {
       color: NEUTRAL_COLOR,
       projectId: null,
-    });
+    })
   } else if (args.changes.kind === 'placeholder') {
-    Object.assign(normalized, buildPlaceholderCapacityDefaults(), { engagement: 'studio' });
+    Object.assign(normalized, buildPlaceholderCapacityDefaults(), { engagement: 'studio' })
   } else if (args.changes.kind === 'person') {
-    normalized.projectId = null;
+    normalized.projectId = null
   }
   if (args.changes.kind !== undefined && args.changes.kind !== 'person') {
-    normalized.firstAvailableDate = null;
-    normalized.lastAvailableDate = null;
+    normalized.firstAvailableDate = null
+    normalized.lastAvailableDate = null
   }
   const diff = diffFields(original, normalized, RESOURCE_FIELDS, [
     'name',
@@ -390,45 +388,45 @@ export function buildResourceUpdate(
     'isFavourite',
     'firstAvailableDate',
     'lastAvailableDate',
-  ]);
-  if (!diff) return null;
+  ])
+  if (!diff) return null
   return {
     intent: {
       operation: 'resource.update',
       id: args.id,
       changes: diff.changes,
     },
-  };
+  }
 }
 
-type CatalogueEntity = 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines';
+type CatalogueEntity = 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines'
 type CatalogueCreateFields =
   | {
-      entity: 'clients';
-      fields: Pick<Client, 'name' | 'color'> & Partial<Pick<Client, 'isPrivate' | 'codeName'>>;
+      entity: 'clients'
+      fields: Pick<Client, 'name' | 'color'> & Partial<Pick<Client, 'isPrivate' | 'codeName'>>
     }
   | {
-      entity: 'projects';
+      entity: 'projects'
       fields: Pick<Project, 'name' | 'color' | 'clientId'> &
-        Partial<Pick<Project, 'isPrivate' | 'codeName'>>;
+        Partial<Pick<Project, 'isPrivate' | 'codeName'>>
     }
   | { entity: 'phases'; fields: Pick<Phase, 'name' | 'projectId'> }
   | {
-      entity: 'activities';
-      fields: Pick<Activity, 'name' | 'kind'> & Partial<Pick<Activity, 'projectId' | 'phaseId'>>;
+      entity: 'activities'
+      fields: Pick<Activity, 'name' | 'kind'> & Partial<Pick<Activity, 'projectId' | 'phaseId'>>
     }
   | {
-      entity: 'disciplines';
-      fields: Pick<Discipline, 'name'> & Partial<Pick<Discipline, 'color'>>;
-    };
+      entity: 'disciplines'
+      fields: Pick<Discipline, 'name'> & Partial<Pick<Discipline, 'color'>>
+    }
 
 /** Build an explicit catalogue creation intent, preserving supplied links for validation. */
 export function buildCatalogueCreate(
-  context: CreateIntentScope & { args: { id: string } & CatalogueCreateFields },
+  context: CreateIntentScope & { args: { id: string } & CatalogueCreateFields }
 ): PlanningIntentRequest | null {
-  const { data, companyId, args } = context;
-  if (!hasCompany(data, companyId)) return null;
-  let entity: Extract<PlanningIntent, { operation: 'catalogue.create' }>['entity'];
+  const { data, companyId, args } = context
+  if (!hasCompany(data, companyId)) return null
+  let entity: Extract<PlanningIntent, { operation: 'catalogue.create' }>['entity']
   switch (args.entity) {
     case 'clients':
       entity = {
@@ -440,8 +438,8 @@ export function buildCatalogueCreate(
           isPrivate: args.fields.isPrivate ?? null,
           codeName: args.fields.codeName ?? null,
         },
-      };
-      break;
+      }
+      break
     case 'projects':
       entity = {
         entity: 'projects',
@@ -451,11 +449,11 @@ export function buildCatalogueCreate(
           isPrivate: args.fields.isPrivate ?? null,
           codeName: args.fields.codeName ?? null,
         },
-      };
-      break;
+      }
+      break
     case 'phases':
-      entity = { entity: 'phases', id: args.id, fields: args.fields };
-      break;
+      entity = { entity: 'phases', id: args.id, fields: args.fields }
+      break
     case 'activities': {
       entity = {
         entity: 'activities',
@@ -466,29 +464,29 @@ export function buildCatalogueCreate(
           projectId: args.fields.projectId ?? null,
           phaseId: args.fields.phaseId ?? null,
         },
-      };
-      break;
+      }
+      break
     }
     case 'disciplines':
       entity = {
         entity: 'disciplines',
         id: args.id,
         fields: { name: args.fields.name, color: args.fields.color ?? null },
-      };
-      break;
+      }
+      break
   }
   return {
     intent: { operation: 'catalogue.create', entity },
-  };
+  }
 }
 
-type CatalogueRow = Client | Project | Phase | Activity | Discipline;
+type CatalogueRow = Client | Project | Phase | Activity | Discipline
 type CatalogueChanges =
   | { entity: 'clients'; id: string; changes: Patch<Client> }
   | { entity: 'projects'; id: string; changes: Patch<Project> }
   | { entity: 'phases'; id: string; changes: Patch<Phase> }
   | { entity: 'activities'; id: string; changes: Patch<Activity> }
-  | { entity: 'disciplines'; id: string; changes: Patch<Discipline> };
+  | { entity: 'disciplines'; id: string; changes: Patch<Discipline> }
 
 const CATALOGUE_FIELDS: Record<CatalogueEntity, readonly string[]> = {
   clients: ['name', 'color', 'isPrivate', 'codeName'],
@@ -496,26 +494,26 @@ const CATALOGUE_FIELDS: Record<CatalogueEntity, readonly string[]> = {
   phases: ['name', 'projectId'],
   activities: ['name', 'kind', 'projectId', 'phaseId'],
   disciplines: ['name', 'color', 'sortOrder'],
-};
+}
 
 /** Build a catalogue patch against its captured draft basis. */
 export function buildCatalogueUpdate(
-  context: IntentScope & { original: CatalogueRow; args: CatalogueChanges },
+  context: IntentScope & { original: CatalogueRow; args: CatalogueChanges }
 ): PlanningIntentRequest | null {
-  const { data, companyId, original, args } = context;
-  const key = args.entity;
-  const current = getOwnedRow(data, key, companyId, args.id);
-  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
-  const requested = { ...args.changes };
+  const { data, companyId, original, args } = context
+  const key = args.entity
+  const current = getOwnedRow(data, key, companyId, args.id)
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null
+  const requested = { ...args.changes }
   if (key === 'activities') {
-    const requestedKind = args.changes.kind;
+    const requestedKind = args.changes.kind
     const currentActivity = data.activities.find(
-      (row) => row.companyId === companyId && row.id === args.id,
-    );
-    if (!currentActivity) return null;
-    const effectiveKind = requestedKind ?? currentActivity.kind;
+      (row) => row.companyId === companyId && row.id === args.id
+    )
+    if (!currentActivity) return null
+    const effectiveKind = requestedKind ?? currentActivity.kind
     if (effectiveKind !== 'project') {
-      Object.assign(requested, { projectId: null, phaseId: null });
+      Object.assign(requested, { projectId: null, phaseId: null })
     }
   }
   const nullableFields: readonly string[] =
@@ -525,26 +523,26 @@ export function buildCatalogueUpdate(
         ? ['projectId', 'phaseId']
         : key === 'disciplines'
           ? ['color']
-          : [];
-  const diff = diffFields(original, requested, CATALOGUE_FIELDS[key], nullableFields);
-  if (!diff) return null;
+          : []
+  const diff = diffFields(original, requested, CATALOGUE_FIELDS[key], nullableFields)
+  if (!diff) return null
   if (
     (key === 'clients' || key === 'projects') &&
     Object.hasOwn(args.changes, 'isPrivate') &&
     isPublic(Reflect.get(original, 'isPrivate')) &&
     isPublic(Reflect.get(args.changes, 'isPrivate'))
   ) {
-    delete diff.changes.isPrivate;
-    if (Object.keys(diff.changes).length === 0) return null;
+    delete diff.changes.isPrivate
+    if (Object.keys(diff.changes).length === 0) return null
   }
-  const entity = { entity: key, id: args.id, changes: diff.changes };
+  const entity = { entity: key, id: args.id, changes: diff.changes }
   return {
     intent: { operation: 'catalogue.update', entity },
-  };
+  }
 }
 
 function isPublic(value: unknown): boolean {
-  return value === null || value === false || value === undefined;
+  return value === null || value === false || value === undefined
 }
 
 type SettingsFields = Pick<
@@ -562,15 +560,15 @@ type SettingsFields = Pick<
   | 'showTaskFieldInSchedule'
   | 'capacityOverviewAccess'
   | 'dateStyle'
->;
+>
 
 /** Build a field-limited company settings patch. */
 export function buildSettingsUpdate(
-  context: IntentScope & { original: Company; args: Pick<Patch<Company>, keyof SettingsFields> },
+  context: IntentScope & { original: Company; args: Pick<Patch<Company>, keyof SettingsFields> }
 ): PlanningIntentRequest | null {
-  const { data, companyId, original, args } = context;
-  const current = data.companies.find((company) => company.id === companyId);
-  if (!current || original.id !== companyId) return null;
+  const { data, companyId, original, args } = context
+  const current = data.companies.find((company) => company.id === companyId)
+  if (!current || original.id !== companyId) return null
   const allowedFields = [
     'name',
     'color',
@@ -585,8 +583,8 @@ export function buildSettingsUpdate(
     'showTaskFieldInSchedule',
     'capacityOverviewAccess',
     'dateStyle',
-  ] as const satisfies readonly (keyof SettingsFields)[];
-  const fields = allowedFields.filter((field) => Object.hasOwn(args, field));
+  ] as const satisfies readonly (keyof SettingsFields)[]
+  const fields = allowedFields.filter((field) => Object.hasOwn(args, field))
   const diff = diffFields(original, args, fields, [
     'weekStartsOn',
     'timezone',
@@ -599,9 +597,9 @@ export function buildSettingsUpdate(
     'showTaskFieldInSchedule',
     'capacityOverviewAccess',
     'dateStyle',
-  ]);
-  if (!diff) return null;
+  ])
+  if (!diff) return null
   return {
     intent: { operation: 'settings.update', changes: diff.changes },
-  };
+  }
 }

@@ -1,4 +1,4 @@
-import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
+import { NULLABLE_FIELDS } from '../../types/nullableFields.js'
 import type {
   Activity,
   Allocation,
@@ -10,32 +10,32 @@ import type {
   Project,
   Resource,
   TimeOff,
-} from '../../types/entities.js';
-import { DomainError } from '../errors.js';
-import type { DomainErrorCode } from '../errors.js';
+} from '../../types/entities.js'
+import { DomainError } from '../errors.js'
+import type { DomainErrorCode } from '../errors.js'
 
-export const TS = '2026-01-01T00:00:00.000Z';
-export const A1 = 'a-studio';
-export const A2 = 'a-loft';
+export const TS = '2026-01-01T00:00:00.000Z'
+export const A1 = 'a-studio'
+export const A2 = 'a-loft'
 
 /** The code and the English message a write assertion refuses with; the wire carries both. */
 export interface Failure {
-  code: DomainErrorCode;
-  message: string;
+  code: DomainErrorCode
+  message: string
 }
 
 /** Run an assertion and return its refusal, or undefined when it passes. Any other throw escapes. */
 export function captureFailure(run: () => unknown): Failure | undefined {
   try {
-    run();
+    run()
   } catch (error) {
-    if (!(error instanceof DomainError)) throw error;
-    return { code: error.code, message: error.message };
+    if (!(error instanceof DomainError)) throw error
+    return { code: error.code, message: error.message }
   }
-  return undefined;
+  return undefined
 }
 
-const makeMeta = (id: ID) => ({ id, companyId: A1, createdAt: TS, updatedAt: TS });
+const makeMeta = (id: ID) => ({ id, companyId: A1, createdAt: TS, updatedAt: TS })
 
 /** Build a company row. */
 export const makeCompany = (id: ID, name: string): Company => ({
@@ -45,7 +45,7 @@ export const makeCompany = (id: ID, name: string): Company => ({
   color: '#3b82f6',
   createdAt: TS,
   updatedAt: TS,
-});
+})
 
 /** Build a client row in A1 unless overridden. */
 export const makeClient = (id: ID, overrides: Partial<Client> = {}): Client => ({
@@ -54,7 +54,7 @@ export const makeClient = (id: ID, overrides: Partial<Client> = {}): Client => (
   name: 'Gotham City',
   color: '#3b82f6',
   ...overrides,
-});
+})
 
 /** Build a project row under client c1 in A1 unless overridden. */
 export const makeProject = (id: ID, overrides: Partial<Project> = {}): Project => ({
@@ -64,7 +64,7 @@ export const makeProject = (id: ID, overrides: Partial<Project> = {}): Project =
   clientId: 'c1',
   color: '#3b82f6',
   ...overrides,
-});
+})
 
 /** Build a discipline row in A1 unless overridden. */
 export const makeDiscipline = (id: ID, overrides: Partial<Discipline> = {}): Discipline => ({
@@ -73,7 +73,7 @@ export const makeDiscipline = (id: ID, overrides: Partial<Discipline> = {}): Dis
   name: 'Design',
   sortOrder: 0,
   ...overrides,
-});
+})
 
 /** Build a phase row in A1 unless overridden. */
 export const makePhase = (id: ID, projectId: ID, overrides: Partial<Phase> = {}): Phase => ({
@@ -81,7 +81,7 @@ export const makePhase = (id: ID, projectId: ID, overrides: Partial<Phase> = {})
   name: 'Discovery',
   projectId,
   ...overrides,
-});
+})
 
 /** Build a project activity under p1 in A1 unless overridden. */
 export const makeActivity = (id: ID, overrides: Partial<Activity> = {}): Activity => ({
@@ -91,7 +91,7 @@ export const makeActivity = (id: ID, overrides: Partial<Activity> = {}): Activit
   kind: 'project',
   projectId: 'p1',
   ...overrides,
-});
+})
 
 /** Build a person resource in A1 unless overridden. */
 export const makePerson = (id: ID, overrides: Partial<Resource> = {}): Resource => ({
@@ -107,16 +107,16 @@ export const makePerson = (id: ID, overrides: Partial<Resource> = {}): Resource 
   halfDays: [],
   color: '#3b82f6',
   ...overrides,
-});
+})
 
 /** Build a placeholder resource bound to projectId. */
 export const makePlaceholder = (id: ID, projectId: ID | null): Resource =>
-  makePerson(id, { kind: 'placeholder', name: 'Batgirl', projectId });
+  makePerson(id, { kind: 'placeholder', name: 'Batgirl', projectId })
 
 /** Build an eight-hour confirmed allocation in A1 unless overridden. */
 export const makeAllocation = (
   id: ID,
-  fields: Pick<Allocation, 'resourceId' | 'activityId'> & Partial<Allocation>,
+  fields: Pick<Allocation, 'resourceId' | 'activityId'> & Partial<Allocation>
 ): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
   ...makeMeta(id),
@@ -125,7 +125,7 @@ export const makeAllocation = (
   hoursPerDay: 8,
   status: 'confirmed',
   ...fields,
-});
+})
 
 /** Build a holiday for resourceId in A1 unless overridden. */
 export const makeTimeOff = (id: ID, resourceId: ID, overrides: Partial<TimeOff> = {}): TimeOff => ({
@@ -136,4 +136,4 @@ export const makeTimeOff = (id: ID, resourceId: ID, overrides: Partial<TimeOff> 
   endDate: '2026-01-13',
   type: 'holiday',
   ...overrides,
-});
+})

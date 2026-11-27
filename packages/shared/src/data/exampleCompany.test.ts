@@ -1,14 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { isPresetColor } from '../lib/color.js';
-import { calculateDayIndex, getWeekday } from '../lib/dateMath.js';
-import { createEmptyAppData } from '../types/entities.js';
-import type { AppData } from '../types/entities.js';
-import { buildExampleCompany, countExampleRows } from './exampleCompany.js';
+import { describe, expect, it } from 'vitest'
+import { isPresetColor } from '../lib/color.js'
+import { calculateDayIndex, getWeekday } from '../lib/dateMath.js'
+import { createEmptyAppData } from '../types/entities.js'
+import type { AppData } from '../types/entities.js'
+import { buildExampleCompany, countExampleRows } from './exampleCompany.js'
 
-const COMPANY = 'a-example';
-const NOW = '2031-09-17T10:00:00.000Z';
+const COMPANY = 'a-example'
+const NOW = '2031-09-17T10:00:00.000Z'
 // Week starts Monday 15th.
-const WEDNESDAY = '2031-09-17';
+const WEDNESDAY = '2031-09-17'
 
 function build(overrides: Partial<Parameters<typeof buildExampleCompany>[0]> = {}) {
   return buildExampleCompany({
@@ -16,75 +16,75 @@ function build(overrides: Partial<Parameters<typeof buildExampleCompany>[0]> = {
     referenceDate: WEDNESDAY,
     now: NOW,
     ...overrides,
-  });
+  })
 }
 
 describe('buildExampleCompany', () => {
   it('builds exactly the documented small company, every row in the company', () => {
-    const data = build();
+    const data = build()
     expect(data.resources.map((row) => [row.name, row.jobTitle])).toEqual([
       ['Dick Grayson', 'Designer'],
       ['Barbara Gordon', 'Developer'],
-    ]);
-    expect(data.disciplines).toHaveLength(2);
-    expect(data.clients).toHaveLength(1);
-    expect(data.projects).toHaveLength(1);
-    expect(data.phases).toHaveLength(1);
+    ])
+    expect(data.disciplines).toHaveLength(2)
+    expect(data.clients).toHaveLength(1)
+    expect(data.projects).toHaveLength(1)
+    expect(data.phases).toHaveLength(1)
     expect(data.activities.map((row) => row.kind).sort()).toEqual([
       'internal',
       'project',
       'project',
-    ]);
-    expect(data.timeOff).toHaveLength(1);
-    expect(countExampleRows(data)).toBe(15);
+    ])
+    expect(data.timeOff).toHaveLength(1)
+    expect(countExampleRows(data)).toBe(15)
     for (const rows of Object.values(data) as { companyId: string }[][]) {
-      for (const row of rows) expect(row.companyId).toBe(COMPANY);
+      for (const row of rows) expect(row.companyId).toBe(COMPANY)
     }
-  });
+  })
 
   it('mints fresh unique ids on every call', () => {
     const ids = (data: AppData) =>
-      (Object.values(data) as { id: string }[][]).flatMap((rows) => rows.map((row) => row.id));
-    const first = ids({ ...createEmptyAppData(), ...build() });
-    const second = ids({ ...createEmptyAppData(), ...build() });
-    expect(new Set([...first, ...second]).size).toBe(first.length + second.length);
-  });
+      (Object.values(data) as { id: string }[][]).flatMap((rows) => rows.map((row) => row.id))
+    const first = ids({ ...createEmptyAppData(), ...build() })
+    const second = ids({ ...createEmptyAppData(), ...build() })
+    expect(new Set([...first, ...second]).size).toBe(first.length + second.length)
+  })
 
   it('opens on the reference week and spans this week and the next on working days', () => {
-    const { allocations, timeOff } = build();
-    const starts = allocations.map((row) => calculateDayIndex(row.startDate, '2031-09-15'));
-    expect(Math.min(...starts)).toBe(0);
+    const { allocations, timeOff } = build()
+    const starts = allocations.map((row) => calculateDayIndex(row.startDate, '2031-09-15'))
+    expect(Math.min(...starts)).toBe(0)
     expect(
-      Math.max(...allocations.map((row) => calculateDayIndex(row.endDate, '2031-09-15'))),
-    ).toBeGreaterThan(6);
+      Math.max(...allocations.map((row) => calculateDayIndex(row.endDate, '2031-09-15')))
+    ).toBeGreaterThan(6)
     for (const row of [...allocations, ...timeOff]) {
-      expect(getWeekday(row.startDate)).not.toBe(0);
-      expect(getWeekday(row.startDate)).not.toBe(6);
-      expect(getWeekday(row.endDate)).not.toBe(0);
-      expect(getWeekday(row.endDate)).not.toBe(6);
+      expect(getWeekday(row.startDate)).not.toBe(0)
+      expect(getWeekday(row.startDate)).not.toBe(6)
+      expect(getWeekday(row.endDate)).not.toBe(0)
+      expect(getWeekday(row.endDate)).not.toBe(6)
     }
-  });
+  })
 
   it("lands on the company's own week when weeks start on Sunday", () => {
-    const sunday = '2031-09-14';
-    const { allocations } = build({ referenceDate: sunday, weekStartsOn: 0 });
-    expect(allocations.map((row) => row.startDate).sort()[0]).toBe('2031-09-15');
-  });
-});
+    const sunday = '2031-09-14'
+    const { allocations } = build({ referenceDate: sunday, weekStartsOn: 0 })
+    expect(allocations.map((row) => row.startDate).sort()[0]).toBe('2031-09-15')
+  })
+})
 
 describe('buildExampleCompany rules', () => {
   it('follows the activity, project and colour rules', () => {
-    const data = build();
-    const colourOf = new Map(data.disciplines.map((row) => [row.id, row.color]));
+    const data = build()
+    const colourOf = new Map(data.disciplines.map((row) => [row.id, row.color]))
     for (const person of data.resources) {
-      expect(person.color).toBe(colourOf.get(person.disciplineId ?? ''));
+      expect(person.color).toBe(colourOf.get(person.disciplineId ?? ''))
     }
     for (const row of [...data.disciplines, ...data.resources, ...data.clients, ...data.projects]) {
-      expect(isPresetColor(row.color)).toBe(true);
+      expect(isPresetColor(row.color)).toBe(true)
     }
     for (const activity of data.activities) {
-      expect(activity.projectId === null).toBe(activity.kind !== 'project');
-      expect(activity.phaseId === null || activity.kind === 'project').toBe(true);
+      expect(activity.projectId === null).toBe(activity.kind !== 'project')
+      expect(activity.phaseId === null || activity.kind === 'project').toBe(true)
     }
-  });
-});
+  })
+})

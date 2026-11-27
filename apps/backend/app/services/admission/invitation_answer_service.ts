@@ -1,26 +1,26 @@
-import { inject } from '@adonisjs/core';
-import type { HttpContext } from '@adonisjs/core/http';
-import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
-import { AuthorizationService } from '#services/auth/authorization_service';
-import { CurrentActorService } from '#services/auth/current_actor_service';
-import { refuseMissingAdmission } from '#exceptions/admission_errors';
-import { InstallationCompanyService } from '#services/installation_company_service';
+import { inject } from '@adonisjs/core'
+import type { HttpContext } from '@adonisjs/core/http'
+import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types'
+import { AuthorizationService } from '#services/auth/authorization_service'
+import { CurrentActorService } from '#services/auth/current_actor_service'
+import { refuseMissingAdmission } from '#exceptions/admission_errors'
+import { InstallationCompanyService } from '#services/installation_company_service'
 
 /** The checks and shapes the invitation controllers share. */
 @inject()
 export class InvitationAnswerService {
-  #authorization: AuthorizationService;
-  #currentActor: CurrentActorService;
-  #installationCompany: InstallationCompanyService;
+  #authorization: AuthorizationService
+  #currentActor: CurrentActorService
+  #installationCompany: InstallationCompanyService
 
   constructor(
     authorization: AuthorizationService,
     currentActor: CurrentActorService,
     installationCompany: InstallationCompanyService
   ) {
-    this.#authorization = authorization;
-    this.#currentActor = currentActor;
-    this.#installationCompany = installationCompany;
+    this.#authorization = authorization
+    this.#currentActor = currentActor
+    this.#installationCompany = installationCompany
   }
 
   /** The invitation fields a manager sees. */
@@ -31,7 +31,7 @@ export class InvitationAnswerService {
       preauthEmail: invitation.email,
       expiresAt: invitation.expiresAt.toISO(),
       createdAt: invitation.createdAt.toISO(),
-    };
+    }
   }
 
   /** The 503 body answered when invitations cannot be emailed. */
@@ -39,7 +39,7 @@ export class InvitationAnswerService {
     return {
       error: 'Invitations need email delivery. Ask your administrator to configure mail.',
       code: 'MAIL_UNAVAILABLE',
-    };
+    }
   }
 
   /** Confirms the caller manages invitations for this installation's company. */
@@ -49,11 +49,11 @@ export class InvitationAnswerService {
         companyId,
         'invitations:manage',
         trx
-      );
+      )
       if ((await this.#installationCompany.getInstallationCompanyId(trx)) !== companyId) {
-        refuseMissingAdmission('Company not found.');
+        refuseMissingAdmission('Company not found.')
       }
-      return actorId;
-    });
+      return actorId
+    })
   }
 }

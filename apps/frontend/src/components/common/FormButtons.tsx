@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { m } from '@/i18n';
-import { Button } from '@/components/ui/button';
+import type { ReactNode } from 'react'
+import { m } from '@/i18n'
+import { Button } from '@/components/ui/button'
 
 /** The standard Cancel/submit actions shared by simple editor forms. */
 export function FormButtons({
@@ -8,9 +8,9 @@ export function FormButtons({
   submitLabel = m.form_save(),
   disabled = false,
 }: {
-  onCancel: () => void;
-  submitLabel?: ReactNode;
-  disabled?: boolean;
+  onCancel: () => void
+  submitLabel?: ReactNode
+  disabled?: boolean
 }) {
   return (
     <>
@@ -21,5 +21,5 @@ export function FormButtons({
         {submitLabel}
       </Button>
     </>
-  );
+  )
 }

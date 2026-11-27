@@ -1,12 +1,7 @@
-import { test, expect } from './dbFixtures';
-import { API, serverState, requireStateRows } from './serverTestState';
-import { failRequestsUntilReleased } from './failRequestsUntilReleased';
-import {
-  freezeBrowserDate,
-  isPlanningMutation,
-  openApp,
-  waitForAppLanding,
-} from './browserTestKit';
+import { test, expect } from './dbFixtures'
+import { API, serverState, requireStateRows } from './serverTestState'
+import { failRequestsUntilReleased } from './failRequestsUntilReleased'
+import { freezeBrowserDate, isPlanningMutation, openApp, waitForAppLanding } from './browserTestKit'
 
 test.describe('database-backed resilience', () => {
   test('an initial planning read failure prevents a write until reload recovers the real server data', async ({
@@ -19,161 +14,159 @@ test.describe('database-backed resilience', () => {
       {
         status: 503,
         body: { error: 'Temporary test outage' },
-      },
-    );
+      }
+    )
 
-    await freezeBrowserDate(page);
-    await page.goto('/');
+    await freezeBrowserDate(page)
+    await page.goto('/')
 
     await expect(page.getByRole('alert')).toContainText(
-      'The schedule couldn’t be loaded from the server',
-    );
-    expect(stateFailure.attempts()).toBeGreaterThan(0);
-    await expect(page.getByText('Bruce Wayne')).toHaveCount(0);
+      'The schedule couldn’t be loaded from the server'
+    )
+    expect(stateFailure.attempts()).toBeGreaterThan(0)
+    await expect(page.getByText('Bruce Wayne')).toHaveCount(0)
 
-    await page.getByRole('link', { name: 'Clients' }).click();
-    await page.getByRole('button', { name: 'Add client' }).click();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Outage Client');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('link', { name: 'Clients' }).click()
+    await page.getByRole('button', { name: 'Add client' }).click()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Outage Client')
+    await page.getByRole('button', { name: 'Save' }).click()
     await expect(
-      page.getByRole('dialog', { name: 'Add client' }).getByText('No active company is selected.'),
-    ).toBeVisible();
+      page.getByRole('dialog', { name: 'Add client' }).getByText('No active company is selected.')
+    ).toBeVisible()
     expect(
       requireStateRows(await serverState(request), 'clients').some(
-        ({ name }) => name === 'Outage Client',
-      ),
-    ).toBe(false);
+        ({ name }) => name === 'Outage Client'
+      )
+    ).toBe(false)
 
-    stateFailure.release();
-    await page.goto('/');
-    await waitForAppLanding(page, page.locator('#main'));
-    await expect(page.getByText('Bruce Wayne')).toBeVisible();
-    await expect(page.getByRole('alert')).toHaveCount(0);
-  });
+    stateFailure.release()
+    await page.goto('/')
+    await waitForAppLanding(page, page.locator('#main'))
+    await expect(page.getByText('Bruce Wayne')).toBeVisible()
+    await expect(page.getByRole('alert')).toHaveCount(0)
+  })
   test('an unconfirmed typed save is not replayed and a deliberate retry persists exactly once', async ({
     page,
     request,
   }) => {
-    await openApp(page, '/clients');
-    const clientPosts: string[] = [];
+    await openApp(page, '/clients')
+    const clientPosts: string[] = []
     page.on('request', (browserRequest) => {
       if (isPlanningMutation(browserRequest, 'catalogue.create', 'clients'))
-        clientPosts.push(new URL(browserRequest.url()).pathname);
-    });
+        clientPosts.push(new URL(browserRequest.url()).pathname)
+    })
     const clientFailure = await failRequestsUntilReleased(
       page,
       '**/api/v1/companies/*/planning/mutations',
       { status: 503, body: { error: 'Temporary test outage' } },
-      (request) => isPlanningMutation(request, 'catalogue.create', 'clients'),
-    );
+      (request) => isPlanningMutation(request, 'catalogue.create', 'clients')
+    )
 
-    await page.getByRole('button', { name: 'Add client' }).click();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Retry Recovery Co');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Add client' }).click()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Retry Recovery Co')
+    await page.getByRole('button', { name: 'Save' }).click()
 
-    await expect.poll(clientFailure.attempts).toBe(1);
-    expect(clientPosts).toHaveLength(1);
+    await expect.poll(clientFailure.attempts).toBe(1)
+    expect(clientPosts).toHaveLength(1)
     await expect(
       page
         .getByRole('dialog', { name: 'Add client' })
-        .getByText(/couldn’t confirm that your last schedule change was saved/),
-    ).toBeVisible();
+        .getByText(/couldn’t confirm that your last schedule change was saved/)
+    ).toBeVisible()
     expect(
       requireStateRows(await serverState(request), 'clients').filter(
-        ({ name }) => name === 'Retry Recovery Co',
-      ),
-    ).toHaveLength(0);
+        ({ name }) => name === 'Retry Recovery Co'
+      )
+    ).toHaveLength(0)
 
-    clientFailure.release();
-    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    clientFailure.release()
+    await page.evaluate(() => window.dispatchEvent(new Event('online')))
     await page
       .getByRole('dialog', { name: 'Add client' })
       .getByRole('button', { name: 'Save' })
-      .click();
+      .click()
     // The unconfirmed save was refetched, not replayed; this second Save is the person's own retry.
     await expect
       .poll(
         async () =>
           requireStateRows(await serverState(request), 'clients').filter(
-            ({ name }) => name === 'Retry Recovery Co',
-          ).length,
+            ({ name }) => name === 'Retry Recovery Co'
+          ).length
       )
-      .toBe(1);
-    expect(clientPosts).toHaveLength(2);
+      .toBe(1)
+    expect(clientPosts).toHaveLength(2)
 
-    await openApp(page, '/clients');
+    await openApp(page, '/clients')
     await expect(
-      page.getByTestId('client-row').filter({ hasText: 'Retry Recovery Co' }),
-    ).toHaveCount(1);
-  });
+      page.getByTestId('client-row').filter({ hasText: 'Retry Recovery Co' })
+    ).toHaveCount(1)
+  })
   test('a stale concurrent edit is rejected, explained, and replaced by server truth', async ({
     page,
     request,
     newObservedContext,
   }) => {
-    await openApp(page, '/clients');
-    const secondContext = await newObservedContext({ baseURL: new URL(page.url()).origin });
+    await openApp(page, '/clients')
+    const secondContext = await newObservedContext({ baseURL: new URL(page.url()).origin })
     const secondSignIn = await secondContext.request.post(`${API}/api/v1/auth/sign-in`, {
       data: { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' },
       headers: { 'sec-fetch-site': 'same-origin' },
-    });
-    expect(secondSignIn.status()).toBe(200);
-    const secondPage = await secondContext.newPage();
-    await openApp(secondPage, '/clients');
+    })
+    expect(secondSignIn.status()).toBe(200)
+    const secondPage = await secondContext.newPage()
+    await openApp(secondPage, '/clients')
 
-    const firstRow = page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' });
-    const secondRow = secondPage
-      .getByTestId('client-row')
-      .filter({ hasText: 'Queen Consolidated' });
-    await firstRow.getByRole('button', { name: /^Edit / }).click();
-    await secondRow.getByRole('button', { name: /^Edit / }).click();
+    const firstRow = page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' })
+    const secondRow = secondPage.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' })
+    await firstRow.getByRole('button', { name: /^Edit / }).click()
+    await secondRow.getByRole('button', { name: /^Edit / }).click()
 
     await page
       .getByRole('dialog')
       .getByRole('textbox', { name: 'Name', exact: true })
-      .fill('First Editor Co');
+      .fill('First Editor Co')
     await secondPage
       .getByRole('dialog')
       .getByRole('textbox', { name: 'Name', exact: true })
-      .fill('Stale Second Editor Co');
+      .fill('Stale Second Editor Co')
 
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save' }).click()
     await expect
       .poll(
         async () =>
           requireStateRows(await serverState(request), 'clients').find(({ id }) => id === 'c-acme')
-            ?.name,
+            ?.name
       )
-      .toBe('First Editor Co');
+      .toBe('First Editor Co')
 
     const conflict = secondPage.waitForResponse(
       (response) =>
         isPlanningMutation(response.request(), 'catalogue.update', 'clients') &&
         (response.request().postDataJSON() as { intent: { entity: { id: string } } }).intent.entity
-          .id === 'c-acme',
-    );
-    await secondPage.getByRole('button', { name: 'Save' }).click();
-    expect((await conflict).status()).toBe(409);
+          .id === 'c-acme'
+    )
+    await secondPage.getByRole('button', { name: 'Save' }).click()
+    expect((await conflict).status()).toBe(409)
     await expect(
       secondPage
         .getByRole('dialog', { name: 'Edit client' })
-        .getByText(/planning revision changed/i),
-    ).toBeVisible();
+        .getByText(/planning revision changed/i)
+    ).toBeVisible()
     await secondPage
       .getByRole('dialog', { name: 'Edit client' })
       .getByRole('button', { name: 'Cancel' })
-      .click();
+      .click()
     await expect(
-      secondPage.getByTestId('client-row').filter({ hasText: 'First Editor Co' }),
-    ).toBeVisible();
+      secondPage.getByTestId('client-row').filter({ hasText: 'First Editor Co' })
+    ).toBeVisible()
     await expect(
-      secondPage.getByTestId('client-row').filter({ hasText: 'Stale Second Editor Co' }),
-    ).toHaveCount(0);
+      secondPage.getByTestId('client-row').filter({ hasText: 'Stale Second Editor Co' })
+    ).toHaveCount(0)
 
     expect(
       requireStateRows(await serverState(request), 'clients').find(({ id }) => id === 'c-acme')
-        ?.name,
-    ).toBe('First Editor Co');
-    await secondContext.close();
-  });
-});
+        ?.name
+    ).toBe('First Editor Co')
+    await secondContext.close()
+  })
+})

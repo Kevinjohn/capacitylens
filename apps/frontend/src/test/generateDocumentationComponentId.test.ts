@@ -1,21 +1,21 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
-import { generateDocumentationComponentId } from '../../../../docs-src/.vitepress/generateDocumentationComponentId.mts';
+import { describe, expect, it, vi } from 'vitest'
+import { generateDocumentationComponentId } from '../../../../docs-src/.vitepress/generateDocumentationComponentId.mts'
 
-const identityHash = (value: string) => value;
+const identityHash = (value: string) => value
 
 describe('documentation Vue component IDs', () => {
   it('passes the generator through the VitePress Vue feature config', async () => {
     const { default: documentationConfig } = await vi.importActual<{
       default: {
-        vue?: { features?: { componentIdGenerator?: typeof generateDocumentationComponentId } };
-      };
-    }>('../../../../docs-src/.vitepress/config.mts');
+        vue?: { features?: { componentIdGenerator?: typeof generateDocumentationComponentId } }
+      }
+    }>('../../../../docs-src/.vitepress/config.mts')
 
     expect(documentationConfig.vue?.features?.componentIdGenerator).toBe(
-      generateDocumentationComponentId,
-    );
-  });
+      generateDocumentationComponentId
+    )
+  })
 
   it.each([
     [
@@ -34,60 +34,60 @@ describe('documentation Vue component IDs', () => {
       'node_modules/@vue/runtime-core/dist/runtime-core.cjs.js',
     ],
   ])('normalizes %s without losing package identity', (_name, filepath, expected) => {
-    expect(generateDocumentationComponentId(filepath, '', false, identityHash)).toBe(expected);
-  });
+    expect(generateDocumentationComponentId(filepath, '', false, identityHash)).toBe(expected)
+  })
 
   it('ignores worktree and pnpm virtual-store paths for equivalent dependencies', () => {
-    const source = '<template><div /></template>';
+    const source = '<template><div /></template>'
     const first = generateDocumentationComponentId(
       '../../../../worktrees/first/node_modules/.pnpm/vitepress@1.6.4_hash-a/node_modules/vitepress/dist/client/theme-default/components/VPBackdrop.vue',
       source,
       true,
-      identityHash,
-    );
+      identityHash
+    )
     const second = generateDocumentationComponentId(
       '../../../../worktrees/second/node_modules/.pnpm/vitepress@1.6.4_hash-b/node_modules/vitepress/dist/client/theme-default/components/VPBackdrop.vue',
       source,
       true,
-      identityHash,
-    );
+      identityHash
+    )
 
-    expect(first).toBe(second);
-  });
+    expect(first).toBe(second)
+  })
 
   it('keeps distinct component paths and source changes distinct', () => {
     const dependencyPath =
-      '../../../../worktrees/docs/node_modules/.pnpm/vitepress@1.6.4_hash/node_modules/vitepress/dist/client/theme-default/components/VPBackdrop.vue';
+      '../../../../worktrees/docs/node_modules/.pnpm/vitepress@1.6.4_hash/node_modules/vitepress/dist/client/theme-default/components/VPBackdrop.vue'
     const first = generateDocumentationComponentId(
       dependencyPath,
       '<div>first</div>',
       true,
-      identityHash,
-    );
+      identityHash
+    )
     const otherPath = generateDocumentationComponentId(
       dependencyPath.replace('VPBackdrop', 'VPNavBar'),
       '<div>first</div>',
       true,
-      identityHash,
-    );
+      identityHash
+    )
     const otherSource = generateDocumentationComponentId(
       dependencyPath,
       '<div>second</div>',
       true,
-      identityHash,
-    );
+      identityHash
+    )
 
-    expect(first).not.toBe(otherPath);
-    expect(first).not.toBe(otherSource);
-  });
+    expect(first).not.toBe(otherPath)
+    expect(first).not.toBe(otherSource)
+  })
 
   it("matches Vue's default hash input for project components in dev and production", () => {
-    const filepath = '../../.vitepress/theme/Breadcrumbs.vue';
-    const source = '<template><nav /></template>';
+    const filepath = '../../.vitepress/theme/Breadcrumbs.vue'
+    const source = '<template><nav /></template>'
 
-    expect(generateDocumentationComponentId(filepath, source, false, identityHash)).toBe(filepath);
+    expect(generateDocumentationComponentId(filepath, source, false, identityHash)).toBe(filepath)
     expect(generateDocumentationComponentId(filepath, source, true, identityHash)).toBe(
-      filepath + source,
-    );
-  });
-});
+      filepath + source
+    )
+  })
+})

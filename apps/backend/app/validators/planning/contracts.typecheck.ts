@@ -1,34 +1,34 @@
-import type { Infer, SchemaTypes } from '@vinejs/vine/types';
+import type { Infer, SchemaTypes } from '@vinejs/vine/types'
 import type {
   Activity,
   Allocation,
   Company,
   Resource,
   TimeOff,
-} from '@capacitylens/shared/types/entities';
-import type { WritableField } from '@capacitylens/shared/types/entityFields';
-import type { allocationChanges } from '#validators/planning/allocation';
+} from '@capacitylens/shared/types/entities'
+import type { WritableField } from '@capacitylens/shared/types/entityFields'
+import type { allocationChanges } from '#validators/planning/allocation'
 import type {
   activityChanges,
   clientChanges,
   disciplineChanges,
   phaseChanges,
   projectChanges,
-} from '#validators/planning/catalogue';
-import type { closureChanges } from '#validators/planning/closure';
-import type { resourceChanges } from '#validators/planning/resource';
-import type { settingsChanges } from '#validators/planning/settings';
-import type { timeOffChanges } from '#validators/planning/time_off';
+} from '#validators/planning/catalogue'
+import type { closureChanges } from '#validators/planning/closure'
+import type { resourceChanges } from '#validators/planning/resource'
+import type { settingsChanges } from '#validators/planning/settings'
+import type { timeOffChanges } from '#validators/planning/time_off'
 
 // Compile-time checks that each planning update schema accepts exactly the writable fields of its
 // entity in the shared field table, and that each enum field infers the shared type. Nothing runs.
 
-type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-type Assert<T extends true> = T;
-type Changes<T extends SchemaTypes> = Required<Infer<T>>;
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+type Assert<T extends true> = T
+type Changes<T extends SchemaTypes> = Required<Infer<T>>
 type ObjectChanges<T extends Record<string, SchemaTypes>> = Required<{
-  [K in keyof T]: Infer<T[K]>;
-}>;
+  [K in keyof T]: Infer<T[K]>
+}>
 
 export type PlanningChangeContracts = [
   Assert<Equal<keyof Changes<typeof allocationChanges>, WritableField<'allocations'>>>,
@@ -81,4 +81,4 @@ export type PlanningChangeContracts = [
       NonNullable<Company['dateStyle']>
     >
   >,
-];
+]

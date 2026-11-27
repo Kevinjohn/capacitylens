@@ -1,29 +1,29 @@
-import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 
-const mcpManifest = JSON.parse(await readFile(new URL('../../.mcp.json', import.meta.url), 'utf8'));
-const registryCommand = await readFile(new URL('./ui-registry.mjs', import.meta.url), 'utf8');
-const registryPin = registryCommand.match(/shadcn@([^\s"']+)/)?.[1];
+const mcpManifest = JSON.parse(await readFile(new URL('../../.mcp.json', import.meta.url), 'utf8'))
+const registryCommand = await readFile(new URL('./ui-registry.mjs', import.meta.url), 'utf8')
+const registryPin = registryCommand.match(/shadcn@([^\s"']+)/)?.[1]
 const mcpPin = mcpManifest.mcpServers.shadcn.args
   .find((argument) => argument.startsWith('shadcn@'))
-  ?.slice(7);
+  ?.slice(7)
 if (!registryPin || registryPin !== mcpPin) {
   console.error(
-    `shadcn tooling versions differ: registry=${registryPin ?? 'missing'}, MCP=${mcpPin ?? 'missing'}`,
-  );
-  process.exit(1);
+    `shadcn tooling versions differ: registry=${registryPin ?? 'missing'}, MCP=${mcpPin ?? 'missing'}`
+  )
+  process.exit(1)
 }
 // shadcn reads components.json from its working directory, so both entry points must start beside it.
 const registryDir = registryCommand.match(
-  /cwd: fileURLToPath\(new URL\('\.\.\/\.\.\/([^']+?)\/?'/,
-)?.[1];
-const mcpArgs = mcpManifest.mcpServers.shadcn.args;
-const mcpDir = mcpArgs[mcpArgs.indexOf('--cwd') + 1];
+  /cwd: fileURLToPath\(new URL\('\.\.\/\.\.\/([^']+?)\/?'/
+)?.[1]
+const mcpArgs = mcpManifest.mcpServers.shadcn.args
+const mcpDir = mcpArgs[mcpArgs.indexOf('--cwd') + 1]
 if (!registryDir || !mcpArgs.includes('--cwd') || registryDir !== mcpDir) {
   console.error(
-    `shadcn tooling directories differ: registry=${registryDir ?? 'missing'}, MCP=${mcpDir ?? 'missing'}`,
-  );
-  process.exit(1);
+    `shadcn tooling directories differ: registry=${registryDir ?? 'missing'}, MCP=${mcpDir ?? 'missing'}`
+  )
+  process.exit(1)
 }
 
 const sourceOwnedPrimitives = {
@@ -57,13 +57,13 @@ const sourceOwnedPrimitives = {
     'c13b73081fc00c367bc22de16799071d9e7616448d8cc05240484384ff9c0210',
   'apps/frontend/src/components/ui/tooltip.tsx':
     '7bc26e506e5379fc21ae6711a83cb46ea90e6b0a204d1b59cbc02ec7aded1aeb',
-};
+}
 
-const changed = [];
+const changed = []
 for (const [path, expected] of Object.entries(sourceOwnedPrimitives)) {
-  const source = await readFile(new URL(`../../${path}`, import.meta.url));
-  const actual = createHash('sha256').update(source).digest('hex');
-  if (actual !== expected) changed.push(path);
+  const source = await readFile(new URL(`../../${path}`, import.meta.url))
+  const actual = createHash('sha256').update(source).digest('hex')
+  if (actual !== expected) changed.push(path)
 }
 
 if (changed.length > 0) {
@@ -72,11 +72,11 @@ if (changed.length > 0) {
       'Source-owned UI primitive contract changed:',
       ...changed.map((path) => `- ${path}`),
       'Review the pinned registry dry-run, preserve documented local behaviour, then update this contract deliberately.',
-    ].join('\n'),
-  );
-  process.exit(1);
+    ].join('\n')
+  )
+  process.exit(1)
 }
 
 console.log(
-  `UI primitive contract verified (${Object.keys(sourceOwnedPrimitives).length} source-owned files; shadcn ${registryPin}).`,
-);
+  `UI primitive contract verified (${Object.keys(sourceOwnedPrimitives).length} source-owned files; shadcn ${registryPin}).`
+)

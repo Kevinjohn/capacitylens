@@ -1,11 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 
 import type {
   PersonScheduleAllocationEntry,
   PersonScheduleTimeOffEntry,
-} from './personScheduleTypes';
-import { PersonScheduleEntry } from './PersonScheduleEntry';
+} from './personScheduleTypes'
+import { PersonScheduleEntry } from './PersonScheduleEntry'
 
 describe('PersonScheduleEntry', () => {
   it('leaves the year off a range that stays inside one', () => {
@@ -22,18 +22,18 @@ describe('PersonScheduleEntry', () => {
       hoursPerDay: 6.25,
       startDate: '2026-09-09',
       endDate: '2026-10-14',
-    };
+    }
 
     render(
       <ul>
         <PersonScheduleEntry entry={entry} />
-      </ul>,
-    );
+      </ul>
+    )
 
-    const item = screen.getByTestId('person-schedule-entry');
-    expect(within(item).getByText('9 Sep – 14 Oct · 6.25h/day')).toBeVisible();
-    expect(within(item).queryByText(/2026/)).not.toBeInTheDocument();
-  });
+    const item = screen.getByTestId('person-schedule-entry')
+    expect(within(item).getByText('9 Sep – 14 Oct · 6.25h/day')).toBeVisible()
+    expect(within(item).queryByText(/2026/)).not.toBeInTheDocument()
+  })
 
   it('renders compact allocation details as readable, read-only content', () => {
     const entry: PersonScheduleAllocationEntry = {
@@ -50,30 +50,30 @@ describe('PersonScheduleEntry', () => {
       endDate: '2027-01-08',
       seriesEnd: '2027-01-15',
       note: 'Review the research\nThen prepare the workshop.',
-    };
+    }
 
     render(
       <ul>
         <PersonScheduleEntry entry={entry} />
-      </ul>,
-    );
+      </ul>
+    )
 
-    const item = screen.getByTestId('person-schedule-entry');
-    expect(item).toHaveAttribute('data-entry-id', 'allocation:a1');
-    expect(within(item).getByText('Prototype discovery')).toBeVisible();
-    expect(within(item).getByText('Project Gotham · Wayne Enterprises')).toBeVisible();
+    const item = screen.getByTestId('person-schedule-entry')
+    expect(item).toHaveAttribute('data-entry-id', 'allocation:a1')
+    expect(within(item).getByText('Prototype discovery')).toBeVisible()
+    expect(within(item).getByText('Project Gotham · Wayne Enterprises')).toBeVisible()
     // A range crossing New Year must show both years so its chronology stays unambiguous.
-    expect(within(item).getByText('28 Dec 2026 – 8 Jan 2027 · 6.25h/day')).toBeVisible();
-    expect(within(item).queryByText(/Confirmed|Series through/)).not.toBeInTheDocument();
-    expect(within(item).getByText(/Review the research/)).toHaveClass('whitespace-pre-wrap');
+    expect(within(item).getByText('28 Dec 2026 – 8 Jan 2027 · 6.25h/day')).toBeVisible()
+    expect(within(item).queryByText(/Confirmed|Series through/)).not.toBeInTheDocument()
+    expect(within(item).getByText(/Review the research/)).toHaveClass('whitespace-pre-wrap')
     expect(within(item).getByTestId('person-schedule-colour')).toHaveAttribute(
       'aria-hidden',
-      'true',
-    );
-    expect(item).not.toHaveClass('border-l-4');
-    expect(within(item).queryByRole('button')).not.toBeInTheDocument();
-    expect(within(item).queryByRole('link')).not.toBeInTheDocument();
-  });
+      'true'
+    )
+    expect(item).not.toHaveClass('border-l-4')
+    expect(within(item).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(item).queryByRole('link')).not.toBeInTheDocument()
+  })
 
   it('renders personal time off distinctly, including an already-authorized note', () => {
     const entry: PersonScheduleTimeOffEntry = {
@@ -84,25 +84,25 @@ describe('PersonScheduleEntry', () => {
       startDate: '2026-09-10',
       endDate: '2026-09-10',
       note: 'Family day',
-    };
+    }
 
     render(
       <ul>
         <PersonScheduleEntry entry={entry} />
-      </ul>,
-    );
+      </ul>
+    )
 
-    const item = screen.getByTestId('person-schedule-entry');
-    expect(item).toHaveAttribute('data-entry-kind', 'timeOff');
-    expect(within(item).getByText('Holiday')).toBeVisible();
-    expect(within(item).getByText('10 Sep')).toBeVisible();
-    expect(within(item).queryByText(/2026/)).not.toBeInTheDocument();
-    expect(within(item).getByText('Family day')).toHaveClass('whitespace-pre-wrap');
-    expect(within(item).queryByTestId('person-schedule-timeoff-accent')).not.toBeInTheDocument();
-    expect(item).not.toHaveClass('pl-6', 'overflow-hidden');
-    expect(within(item).queryByRole('button')).not.toBeInTheDocument();
-  });
-});
+    const item = screen.getByTestId('person-schedule-entry')
+    expect(item).toHaveAttribute('data-entry-kind', 'timeOff')
+    expect(within(item).getByText('Holiday')).toBeVisible()
+    expect(within(item).getByText('10 Sep')).toBeVisible()
+    expect(within(item).queryByText(/2026/)).not.toBeInTheDocument()
+    expect(within(item).getByText('Family day')).toHaveClass('whitespace-pre-wrap')
+    expect(within(item).queryByTestId('person-schedule-timeoff-accent')).not.toBeInTheDocument()
+    expect(item).not.toHaveClass('pl-6', 'overflow-hidden')
+    expect(within(item).queryByRole('button')).not.toBeInTheDocument()
+  })
+})
 
 describe('PersonScheduleEntry wrapping', () => {
   it('keeps long activity, attribution, and note content wrap-safe', () => {
@@ -120,21 +120,21 @@ describe('PersonScheduleEntry wrapping', () => {
       endDate: '2026-06-05',
       note: 'A long note with a line break\nthat remains readable without horizontal overflow.',
       task: 'Prototype review',
-    };
+    }
 
     render(
       <ul>
         <PersonScheduleEntry entry={entry} />
-      </ul>,
-    );
+      </ul>
+    )
 
-    const item = screen.getByTestId('person-schedule-entry');
-    expect(within(item).getByRole('heading')).toHaveClass('break-words');
-    expect(within(item).getByText(/very long project attribution/)).toHaveClass('break-words');
+    const item = screen.getByTestId('person-schedule-entry')
+    expect(within(item).getByRole('heading')).toHaveClass('break-words')
+    expect(within(item).getByText(/very long project attribution/)).toHaveClass('break-words')
     expect(within(item).getByText(/long note with a line break/)).toHaveClass(
       'whitespace-pre-wrap',
-      'break-words',
-    );
-    expect(within(item).getByText('Prototype review')).toBeInTheDocument();
-  });
-});
+      'break-words'
+    )
+    expect(within(item).getByText('Prototype review')).toBeInTheDocument()
+  })
+})

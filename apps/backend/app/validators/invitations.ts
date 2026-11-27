@@ -1,6 +1,6 @@
-import vine from '@vinejs/vine';
-import { normalizeAccountEmail } from '@capacitylens/shared/account/validation';
-import { INVITABLE_ROLES } from '#services/account_kit/admission_rule_service';
+import vine from '@vinejs/vine'
+import { normalizeAccountEmail } from '@capacitylens/shared/account/validation'
+import { INVITABLE_ROLES } from '#services/account_kit/admission_rule_service'
 import {
   REQUEST_CONTEXT_FIELDS,
   accountEmail,
@@ -11,10 +11,10 @@ import {
   positiveIdParam,
   tokenParam,
   userAgentHeaders,
-} from '#validators/request_rules';
+} from '#validators/request_rules'
 
 const invitationParams = () =>
-  vine.object({ params: vine.object({ companyId: companyIdParam(), id: positiveIdParam() }) });
+  vine.object({ params: vine.object({ companyId: companyIdParam(), id: positiveIdParam() }) })
 
 export const createInvitationValidator = vine.create(
   vine
@@ -24,7 +24,7 @@ export const createInvitationValidator = vine.create(
       companyId: vine.string().minLength(1),
     })
     .use(allowedFields({ fields: ['companyId', 'role', 'email'] }))
-);
+)
 
 export const acceptInvitationSignUpValidator = vine.create(
   vine
@@ -38,17 +38,17 @@ export const acceptInvitationSignUpValidator = vine.create(
       headers: userAgentHeaders(),
     })
     .use(allowedFields({ fields: ['name', 'password', ...REQUEST_CONTEXT_FIELDS] }))
-);
+)
 
 /** What an invitation link offers; the token is the route's. */
 export const showInvitationLinkValidator = vine.create(
   vine.object({ params: vine.object({ token: tokenParam() }) })
-);
+)
 
 export const listInvitationsValidator = vine.create(
   vine.object({ params: vine.object({ companyId: companyIdParam() }) })
-);
+)
 
-export const resendInvitationValidator = vine.create(invitationParams());
+export const resendInvitationValidator = vine.create(invitationParams())
 
-export const revokeInvitationValidator = vine.create(invitationParams());
+export const revokeInvitationValidator = vine.create(invitationParams())

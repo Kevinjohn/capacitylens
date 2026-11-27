@@ -1,32 +1,32 @@
-import { createStore } from 'zustand/vanilla';
-import { vi } from 'vitest';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { Company, AppData, ISODate } from '@capacitylens/shared/types/entities';
-import type { PlanningMutationSuccess } from '@/api/planningContracts';
-import { createPlanningCache, createPlanningCacheState } from './planningCache';
-import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
-import { getMasqueradeToken } from '@/api/masqueradeToken';
-import { makeCompany } from '@/test/fixtures';
-import { emptyCapacity } from '@/test/capacityFixtures';
-import { makeReceipt } from '@/test/planning/makeReceipt';
-import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
-import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
+import { createStore } from 'zustand/vanilla'
+import { vi } from 'vitest'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import type { Company, AppData, ISODate } from '@capacitylens/shared/types/entities'
+import type { PlanningMutationSuccess } from '@/api/planningContracts'
+import { createPlanningCache, createPlanningCacheState } from './planningCache'
+import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes'
+import { getMasqueradeToken } from '@/api/masqueradeToken'
+import { makeCompany } from '@/test/fixtures'
+import { emptyCapacity } from '@/test/capacityFixtures'
+import { makeReceipt } from '@/test/planning/makeReceipt'
+import { createServerHistoryModel } from '@/test/planning/serverHistoryModel'
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
-export { makeReceipt };
+export { makeReceipt }
 
-export const context = { identity: 'actor-1', companyId: 'company-1' };
+export const context = { identity: 'actor-1', companyId: 'company-1' }
 export const intent = {
   operation: 'allocation.update',
   id: 'allocation-1',
   changes: { startDate: '2026-10-21' },
-} as const;
-const makeState = (): PlanningCacheState => createPlanningCacheState();
+} as const
+const makeState = (): PlanningCacheState => createPlanningCacheState()
 /** The company date every canonical read in these tests carries. */
-export const companyToday: ISODate = '2026-06-03';
+export const companyToday: ISODate = '2026-06-03'
 export const makeCanonicalData = (companyOverrides: Partial<Company> = {}): AppData => ({
   ...createEmptyAppData(),
   companies: [makeCompany({ id: context.companyId, ...companyOverrides })],
-});
+})
 
 /**
  * A cache over `transport`. Reads come from queued snapshots, then the transport, then the
@@ -35,45 +35,45 @@ export const makeCanonicalData = (companyOverrides: Partial<Company> = {}): AppD
  */
 export function createHarness(
   transport: Pick<PlanningTransport, 'read' | 'execute'> &
-    Partial<Pick<PlanningTransport, 'undo' | 'redo'>>,
+    Partial<Pick<PlanningTransport, 'undo' | 'redo'>>
 ) {
-  const store = createStore<PlanningCacheState>(() => makeState());
-  const snapshots: PlanningSnapshot[] = [];
+  const store = createStore<PlanningCacheState>(() => makeState())
+  const snapshots: PlanningSnapshot[] = []
   let serverSnapshot: PlanningSnapshot = {
     revision: 0,
     access: makePlanningAccess(),
     data: makeCanonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
-  };
-  const history = createServerHistoryModel();
+  }
+  const history = createServerHistoryModel()
   const applyHistory = (snapshot: PlanningSnapshot, historyId: string | undefined) =>
     snapshot.history || typeof snapshot.revision !== 'number'
       ? snapshot
-      : { ...snapshot, history: history.report(historyId, snapshot.revision) };
+      : { ...snapshot, history: history.report(historyId, snapshot.revision) }
   const read = vi.fn<PlanningTransport['read']>(async (clientContext, signal, request) => {
-    const snapshot = snapshots.shift();
+    const snapshot = snapshots.shift()
     if (snapshot) {
-      serverSnapshot = snapshot;
-      return applyHistory(snapshot, request?.historyId);
+      serverSnapshot = snapshot
+      return applyHistory(snapshot, request?.historyId)
     }
-    const result: unknown = await transport.read(clientContext, signal, request);
+    const result: unknown = await transport.read(clientContext, signal, request)
     if (typeof result === 'object' && result !== null) {
-      return applyHistory(result as PlanningSnapshot, request?.historyId);
+      return applyHistory(result as PlanningSnapshot, request?.historyId)
     }
-    return applyHistory(serverSnapshot, request?.historyId);
-  });
+    return applyHistory(serverSnapshot, request?.historyId)
+  })
   const step =
     (kind: 'undo' | 'redo'): PlanningTransport['undo'] =>
     async (clientContext, historyStep, signal) => {
-      const own = transport[kind];
-      if (own) return own(clientContext, historyStep, signal);
-      const revision = historyStep.baseRevision + 1;
-      history.step(kind, historyStep.historyId, historyStep.baseRevision, revision);
-      serverSnapshot = { ...serverSnapshot, revision };
-      return makeReceipt(historyStep.mutationId, revision);
-    };
-  let id = 0;
+      const own = transport[kind]
+      if (own) return own(clientContext, historyStep, signal)
+      const revision = historyStep.baseRevision + 1
+      history.step(kind, historyStep.historyId, historyStep.baseRevision, revision)
+      serverSnapshot = { ...serverSnapshot, revision }
+      return makeReceipt(historyStep.mutationId, revision)
+    }
+  let id = 0
   const cache = createPlanningCache({
     readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
@@ -82,27 +82,27 @@ export function createHarness(
       ...transport,
       read,
       async execute(...args) {
-        const receipt = await transport.execute(...args);
+        const receipt = await transport.execute(...args)
         // A malformed reply may carry no receipt; pass it through for the cache to judge.
-        const revision = (receipt as PlanningMutationSuccess | null)?.revision;
+        const revision = (receipt as PlanningMutationSuccess | null)?.revision
         if (revision !== undefined) {
-          serverSnapshot = { ...serverSnapshot, revision };
-          history.committed(args[1].historyId, args[1].baseRevision, revision);
+          serverSnapshot = { ...serverSnapshot, revision }
+          history.committed(args[1].historyId, args[1].baseRevision, revision)
         }
-        return receipt;
+        return receipt
       },
       undo: step('undo'),
       redo: step('redo'),
     },
     createMutationId: vi.fn(() => `mutation-${++id}`),
-  });
+  })
   return {
     cache,
     read,
     state: store.getState,
     async readSnapshot(snapshot: PlanningSnapshot) {
-      snapshots.push(snapshot);
-      return cache.refresh();
+      snapshots.push(snapshot)
+      return cache.refresh()
     },
-  };
+  }
 }

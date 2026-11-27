@@ -1,34 +1,34 @@
-import { inject } from '@adonisjs/core';
-import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { invalidLinkAnswer } from '#exceptions/credential_answers';
-import { InstallationCompanyService } from '#services/installation_company_service';
-import { showInvitationLinkValidator } from '#validators/invitations';
-import { requestData } from '#validators/request_rules';
+import { inject } from '@adonisjs/core'
+import type { HttpContext } from '@adonisjs/core/http'
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
+import { invalidLinkAnswer } from '#exceptions/credential_answers'
+import { InstallationCompanyService } from '#services/installation_company_service'
+import { showInvitationLinkValidator } from '#validators/invitations'
+import { requestData } from '#validators/request_rules'
 
 /** What an invitation link offers. */
 @inject()
 export default class InvitationLinksController {
-  #installationCompany: InstallationCompanyService;
+  #installationCompany: InstallationCompanyService
 
   constructor(installationCompany: InstallationCompanyService) {
-    this.#installationCompany = installationCompany;
+    this.#installationCompany = installationCompany
   }
 
   /** What the link offers, without spending it. */
   async show({ request, response, serialize }: HttpContext) {
     const { params } = await request.validateUsing(showInvitationLinkValidator, {
       data: requestData(request),
-    });
-    const invitation = await accountKit.invitations.inspect({ token: params.token });
-    if (!invitation) return response.notFound(invalidLinkAnswer);
-    const { companyId, companyName } = await this.#installationCompany.getInstallationCompany();
+    })
+    const invitation = await accountKit.invitations.inspect({ token: params.token })
+    if (!invitation) return response.notFound(invalidLinkAnswer)
+    const { companyId, companyName } = await this.#installationCompany.getInstallationCompany()
     return serialize({
       companyId,
       companyName,
       // Before the company exists the role is only bootstrap metadata; setup grants Owner.
       role: companyId ? invitation.role : null,
       email: invitation.email,
-    });
+    })
   }
 }

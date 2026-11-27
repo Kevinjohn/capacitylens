@@ -1,24 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { buildScopeQueryKey } from '@/api/queryClient';
-import { useQueryScope } from '@/api/useQueryScope';
-import { isRole } from '@capacitylens/shared/account/types';
-import { m } from '@/i18n';
-import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
-import type { AdmissionRequest } from '@/account/teamAccessApi';
-import { resolveRoleLabel } from '@/lib/accessCopy';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { buildScopeQueryKey } from '@/api/queryClient'
+import { useQueryScope } from '@/api/useQueryScope'
+import { isRole } from '@capacitylens/shared/account/types'
+import { m } from '@/i18n'
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi'
+import type { AdmissionRequest } from '@/account/teamAccessApi'
+import { resolveRoleLabel } from '@/lib/accessCopy'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 async function fetchRequests(signal: AbortSignal): Promise<AdmissionRequest[]> {
   try {
-    const result = await teamAccessApi.listAdmissionRequests(signal);
-    if (result.kind === 'ok') return result.value;
+    const result = await teamAccessApi.listAdmissionRequests(signal)
+    if (result.kind === 'ok') return result.value
   } catch (failure) {
-    if (!signal.aborted) console.warn('AdmissionRequestsPanel: listing failed', failure);
-    throw failure;
+    if (!signal.aborted) console.warn('AdmissionRequestsPanel: listing failed', failure)
+    throw failure
   }
-  throw new Error('The admission requests could not be listed.');
+  throw new Error('The admission requests could not be listed.')
 }
 
 /**
@@ -26,25 +26,25 @@ async function fetchRequests(signal: AbortSignal): Promise<AdmissionRequest[]> {
  * and revoked people stay listed so a mistaken decision can be reversed.
  */
 export function AdmissionRequestsPanel() {
-  const scope = useQueryScope();
-  const queryClient = useQueryClient();
-  const queryKey = buildScopeQueryKey(scope, ['admission-requests']);
+  const scope = useQueryScope()
+  const queryClient = useQueryClient()
+  const queryKey = buildScopeQueryKey(scope, ['admission-requests'])
   const query = useQuery({
     queryKey,
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) => fetchRequests(signal),
-  });
-  const [busy, setBusy] = useState(false);
+  })
+  const [busy, setBusy] = useState(false)
   // A retired panel must not surface a late decision outcome in a successor context.
-  const live = useRef(true);
+  const live = useRef(true)
   useEffect(() => {
-    live.current = true;
+    live.current = true
     return () => {
-      live.current = false;
-    };
-  }, []);
-  const [error, setError] = useState<string | null>(null);
+      live.current = false
+    }
+  }, [])
+  const [error, setError] = useState<string | null>(null)
   // A query that held data keeps its error while it refetches, so a retry checks `isFetching`.
   const listing = query.isError
     ? query.isFetching
@@ -52,26 +52,26 @@ export function AdmissionRequestsPanel() {
       : ({ kind: 'failed' } as const)
     : query.data
       ? ({ kind: 'ready', requests: query.data } as const)
-      : ({ kind: 'loading' } as const);
+      : ({ kind: 'loading' } as const)
 
   const decide = async (request: AdmissionRequest, decision: 'approve' | 'reject') => {
-    setBusy(true);
-    setError(null);
+    setBusy(true)
+    setError(null)
     try {
-      const result = await teamAccessApi.decideAdmission(request.userId, decision);
-      if (!live.current) return;
+      const result = await teamAccessApi.decideAdmission(request.userId, decision)
+      if (!live.current) return
       if (result.kind !== 'ok') {
-        setError(resolveRefusalMessage(result, m.settings_admission_failed()));
+        setError(resolveRefusalMessage(result, m.settings_admission_failed()))
       }
-      await queryClient.invalidateQueries({ queryKey, exact: true });
+      await queryClient.invalidateQueries({ queryKey, exact: true })
     } catch (failure) {
-      if (!live.current) return;
-      console.warn('AdmissionRequestsPanel: decision failed', failure);
-      setError(m.settings_admission_failed());
+      if (!live.current) return
+      console.warn('AdmissionRequestsPanel: decision failed', failure)
+      setError(m.settings_admission_failed())
     } finally {
-      if (live.current) setBusy(false);
+      if (live.current) setBusy(false)
     }
-  };
+  }
 
   return (
     <Card data-testid="admission-requests" aria-busy={busy || listing.kind === 'loading'}>
@@ -159,5 +159,5 @@ export function AdmissionRequestsPanel() {
         )}
       </CardContent>
     </Card>
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
-import { assertFourDigitISODate } from '@capacitylens/shared/lib/dateMath';
-import type { ISODate } from '@capacitylens/shared/types/entities';
+import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday'
+import { assertFourDigitISODate } from '@capacitylens/shared/lib/dateMath'
+import type { ISODate } from '@capacitylens/shared/types/entities'
 
 /** The zone a company without a stored time zone uses, as in its initial defaults. */
-const DEFAULT_TIME_ZONE = 'Etc/GMT';
+const DEFAULT_TIME_ZONE = 'Etc/GMT'
 
 /**
  * The company's current calendar date in its own time zone at `now`. `fixedToday`, the configured
@@ -18,10 +18,10 @@ export function readCompanyToday(
   fixedToday: string | undefined,
   now: number
 ): ISODate {
-  if (fixedToday) return assertFourDigitISODate(fixedToday);
-  const today = resolveCalendarToday(timezone ?? DEFAULT_TIME_ZONE, now);
+  if (fixedToday) return assertFourDigitISODate(fixedToday)
+  const today = resolveCalendarToday(timezone ?? DEFAULT_TIME_ZONE, now)
   if (today.kind === 'invalid-time-zone') {
-    throw new Error('The company time zone is invalid.', { cause: today.cause });
+    throw new Error('The company time zone is invalid.', { cause: today.cause })
   }
-  return today.date;
+  return today.date
 }

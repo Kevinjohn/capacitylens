@@ -1,5 +1,5 @@
-import { test, expect } from './dbFixtures';
-import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from './browserTestKit';
+import { test, expect } from './dbFixtures'
+import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from './browserTestKit'
 
 // Covers route navigation and theme switching. Database resilience specs exercise load failures and recovery.
 const deepDestinations = [
@@ -14,7 +14,7 @@ const deepDestinations = [
   ['/diagnostics', 'Diagnostics'],
   ['/account', 'Account'],
   ['/help', 'Help'],
-] as const;
+] as const
 
 test.describe('Navigation & shell', () => {
   // This exercises real document navigations rather than React Router transitions. The backend's page
@@ -24,49 +24,49 @@ test.describe('Navigation & shell', () => {
       `valid deep link ${path} survives a browser reload`,
       { tag: '@engine' },
       async ({ page }) => {
-        await freezeBrowserDate(page);
-        const directResponse = await page.goto(path);
-        expect(directResponse?.status()).toBe(200);
-        expect(directResponse?.headers()['content-type']).toContain('text/html');
+        await freezeBrowserDate(page)
+        const directResponse = await page.goto(path)
+        expect(directResponse?.status()).toBe(200)
+        expect(directResponse?.headers()['content-type']).toContain('text/html')
 
-        const destinationHeading = page.getByRole('heading', { name: heading, exact: true });
+        const destinationHeading = page.getByRole('heading', { name: heading, exact: true })
         if (path === '/account') {
-          await waitForAppLanding(page, destinationHeading);
-          await expect(destinationHeading).toBeVisible();
-          const reloadResponse = await page.reload();
-          expect([200, 304]).toContain(reloadResponse?.status());
-          await expect(page).toHaveURL(/\/account$/);
-          await expect(destinationHeading).toBeVisible();
-          return;
+          await waitForAppLanding(page, destinationHeading)
+          await expect(destinationHeading).toBeVisible()
+          const reloadResponse = await page.reload()
+          expect([200, 304]).toContain(reloadResponse?.status())
+          await expect(page).toHaveURL(/\/account$/)
+          await expect(destinationHeading).toBeVisible()
+          return
         }
 
-        await waitForAppLanding(page, destinationHeading);
-        await expect(destinationHeading).toBeVisible();
+        await waitForAppLanding(page, destinationHeading)
+        await expect(destinationHeading).toBeVisible()
 
-        const reloadResponse = await page.reload();
+        const reloadResponse = await page.reload()
         // Firefox exposes a successful cache revalidation as 304 here, while Chromium and WebKit
         // report the cached shell as 200. In both cases the browser has loaded the SPA document; the
         // URL, company gate and resumed destination assertions below verify the observable contract.
-        expect([200, 304]).toContain(reloadResponse?.status());
-        await expect(page).toHaveURL(new RegExp(`${path}$`));
-        await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+        expect([200, 304]).toContain(reloadResponse?.status())
+        await expect(page).toHaveURL(new RegExp(`${path}$`))
+        await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
 
-        await expect(destinationHeading).toBeVisible();
-        await expect(page).toHaveURL(new RegExp(`${path}$`));
-      },
-    );
+        await expect(destinationHeading).toBeVisible()
+        await expect(page).toHaveURL(new RegExp(`${path}$`))
+      }
+    )
   }
   test("an unknown extensionless path reaches the application's Not Found screen", async ({
     page,
   }) => {
-    await openApp(page);
-    const unknownResponse = await page.goto('/stale-bookmark-that-does-not-exist');
-    expect(unknownResponse?.status()).toBe(200);
-    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
-  });
+    await openApp(page)
+    const unknownResponse = await page.goto('/stale-bookmark-that-does-not-exist')
+    expect(unknownResponse?.status()).toBe(200)
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible()
+  })
   test('sidebar links route to each section', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
+    await openApp(page)
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
 
     const sections: [string, () => Promise<void>][] = [
       [
@@ -119,23 +119,23 @@ test.describe('Navigation & shell', () => {
         async () =>
           void (await expect(page.getByRole('heading', { name: 'Your identity' })).toBeVisible()),
       ],
-    ];
+    ]
     for (const [link, assert] of sections) {
-      await page.getByRole('link', { name: link, exact: true }).click();
-      await assert();
+      await page.getByRole('link', { name: link, exact: true }).click()
+      await assert()
     }
-    await page.getByRole('link', { name: 'Schedule' }).click();
-    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
-  });
+    await page.getByRole('link', { name: 'Schedule' }).click()
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+  })
   // Assert the links appear above the account block; presence alone does not verify their order.
   test('pins Team & access and Settings below the working destinations, above the account block', async ({
     page,
   }) => {
-    await openApp(page);
+    await openApp(page)
 
     await expect
       .poll(() =>
-        page.locator('nav a').evaluateAll((links) => links.map((l) => l.getAttribute('href'))),
+        page.locator('nav a').evaluateAll((links) => links.map((l) => l.getAttribute('href')))
       )
       .toEqual([
         '/overview',
@@ -148,151 +148,146 @@ test.describe('Navigation & shell', () => {
         '/timeoff',
         '/team',
         '/settings',
-      ]);
+      ])
 
     // The one-company footer keeps Help directly above Account.
-    await expect(page.getByRole('button', { name: 'Switch company' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Help', exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Switch company' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Help', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible()
     const footerHrefs = await page
       .getByTestId('app-sidebar')
       .locator('a')
-      .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
-    expect(footerHrefs.slice(-2)).toEqual(['/help', '/account']);
-    await expect(page.getByTestId('nav-sign-out')).toHaveCount(0);
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href')))
+    expect(footerHrefs.slice(-2)).toEqual(['/help', '/account'])
+    await expect(page.getByTestId('nav-sign-out')).toHaveCount(0)
 
-    await expect(page.getByTestId('export-data')).toHaveCount(0);
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Import and export' })).toBeVisible();
-    await page.getByRole('button', { name: 'Import and export', exact: true }).click();
-    await expect(page.getByTestId('export-data')).toBeVisible();
-    await expect(page.getByTestId('import-data')).toBeVisible();
-  });
+    await expect(page.getByTestId('export-data')).toHaveCount(0)
+    await page.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Import and export' })).toBeVisible()
+    await page.getByRole('button', { name: 'Import and export', exact: true }).click()
+    await expect(page.getByTestId('export-data')).toBeVisible()
+    await expect(page.getByTestId('import-data')).toBeVisible()
+  })
   test('settings toggles the colour theme', async ({ page }) => {
-    await openApp(page, '/settings');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    await expect(page.getByRole('radio', { name: 'Light' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await openApp(page, '/settings')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    await expect(page.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true')
 
-    await page.getByRole('radio', { name: 'Dark' }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.getByRole('radio', { name: 'Dark' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
-    await page.getByRole('radio', { name: 'Light' }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  });
+    await page.getByRole('radio', { name: 'Light' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  })
   // WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
   // derived from the same nav labels, so the tab/history/bookmark differs per page rather than the
   // static "CapacityLens" index.html sets. Assert a couple of routes are distinct and descriptive.
   test('each route sets a descriptive, distinct document.title', async ({ page }) => {
-    await openApp(page);
-    await expect(page).toHaveTitle('Schedule · CapacityLens');
+    await openApp(page)
+    await expect(page).toHaveTitle('Schedule · CapacityLens')
 
-    await page.getByRole('link', { name: 'Resources', exact: true }).click();
-    await expect(page).toHaveTitle('Resources · CapacityLens');
+    await page.getByRole('link', { name: 'Resources', exact: true }).click()
+    await expect(page).toHaveTitle('Resources · CapacityLens')
 
-    await page.getByRole('link', { name: 'Team & access', exact: true }).click();
-    await expect(page).toHaveTitle('Team & access · CapacityLens');
+    await page.getByRole('link', { name: 'Team & access', exact: true }).click()
+    await expect(page).toHaveTitle('Team & access · CapacityLens')
 
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await expect(page).toHaveTitle('Settings · CapacityLens');
+    await page.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page).toHaveTitle('Settings · CapacityLens')
 
-    await page.getByRole('link', { name: 'Help', exact: true }).click();
-    await expect(page).toHaveTitle('Help · CapacityLens');
+    await page.getByRole('link', { name: 'Help', exact: true }).click()
+    await expect(page).toHaveTitle('Help · CapacityLens')
 
-    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-    await expect(page).toHaveTitle('Schedule · CapacityLens');
-    await expect(page).not.toHaveTitle('CapacityLens');
-  });
+    await page.getByRole('link', { name: 'Schedule', exact: true }).click()
+    await expect(page).toHaveTitle('Schedule · CapacityLens')
+    await expect(page).not.toHaveTitle('CapacityLens')
+  })
   test('the active section is marked aria-current', async ({ page }) => {
-    await openApp(page);
-    await page.getByRole('link', { name: 'Resources' }).click();
+    await openApp(page)
+    await page.getByRole('link', { name: 'Resources' }).click()
     await expect(page.getByRole('link', { name: 'Resources' })).toHaveAttribute(
       'aria-current',
-      'page',
-    );
+      'page'
+    )
     await expect(page.getByRole('link', { name: 'Clients' })).not.toHaveAttribute(
       'aria-current',
-      'page',
-    );
-  });
+      'page'
+    )
+  })
   test('uses blue identity and green positive actions while hiding maintenance sections', async ({
     page,
   }) => {
-    await openApp(page);
+    await openApp(page)
 
     await expect(page.getByText('CapacityLens', { exact: true }).first()).toHaveAttribute(
       'data-visual-intent',
-      'brand',
-    );
+      'brand'
+    )
 
-    await page.getByRole('link', { name: 'Clients', exact: true }).click();
-    await page.getByRole('button', { name: 'Add client' }).click();
-    const clientDialog = page.getByRole('dialog', { name: 'Add client' });
+    await page.getByRole('link', { name: 'Clients', exact: true }).click()
+    await page.getByRole('button', { name: 'Add client' }).click()
+    const clientDialog = page.getByRole('dialog', { name: 'Add client' })
     await expect(clientDialog.getByRole('button', { name: 'Save' })).toHaveAttribute(
       'data-variant',
-      'default',
-    );
-    await clientDialog.getByRole('button', { name: 'Cancel' }).click();
+      'default'
+    )
+    await clientDialog.getByRole('button', { name: 'Cancel' }).click()
 
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0);
-  });
+    await page.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0)
+  })
   test('renders in dark mode', { tag: '@engine' }, async ({ page }) => {
     // Seed the explicit preference before first paint because light is the default.
-    await setTheme(page, 'dark');
-    await openApp(page);
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
-    await expect(page.getByText('Bruce Wayne', { exact: true }).first()).toBeVisible();
-  });
+    await setTheme(page, 'dark')
+    await openApp(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+    await expect(page.getByText('Bruce Wayne', { exact: true }).first()).toBeVisible()
+  })
   // The sidebar rail uses a Radix tooltip; cross-browser coverage must exercise real hover behaviour.
   test(
     'the collapse toggle reveals its shadcn Tooltip on hover',
     { tag: '@engine' },
     async ({ page }) => {
-      await openApp(page);
+      await openApp(page)
       // Desktop default = sidebar open, so the focusable toggle reads "Collapse menu" and
       // keeps that aria-label as its accessible name (the tooltip is supplementary).
-      const toggle = page.getByRole('button', { name: 'Collapse menu' });
-      await expect(toggle).toBeVisible();
-      await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toHaveCount(0);
-      await toggle.hover();
-      await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toBeVisible();
-    },
-  );
+      const toggle = page.getByRole('button', { name: 'Collapse menu' })
+      await expect(toggle).toBeVisible()
+      await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toHaveCount(0)
+      await toggle.hover()
+      await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toBeVisible()
+    }
+  )
   test('Diagnostics is reached from Help and keeps the Help row active', async ({ page }) => {
-    await openApp(page, '/help');
-    await expect(page.getByRole('link', { name: 'Diagnostics', exact: true })).toHaveCount(1);
-    await page.getByRole('main').getByRole('link', { name: 'Diagnostics', exact: true }).click();
-    await expect(page.getByTestId('diagnostics-report-text')).toBeVisible();
+    await openApp(page, '/help')
+    await expect(page.getByRole('link', { name: 'Diagnostics', exact: true })).toHaveCount(1)
+    await page.getByRole('main').getByRole('link', { name: 'Diagnostics', exact: true }).click()
+    await expect(page.getByTestId('diagnostics-report-text')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Help', exact: true })).toHaveAttribute(
       'data-active',
-      'true',
-    );
-  });
+      'true'
+    )
+  })
   test('the sidebar offers no theme toggle', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByRole('button', { name: /^Switch to (dark|light) mode$/ })).toHaveCount(
-      0,
-    );
-  });
-});
+    await openApp(page)
+    await expect(page.getByRole('button', { name: /^Switch to (dark|light) mode$/ })).toHaveCount(0)
+  })
+})
 
 test.describe('single-company reload entry', { tag: '@engine' }, () => {
   test('opens and resumes a deep route without a company picker', async ({ page }) => {
-    await page.goto('/clients');
-    await waitForAppLanding(page, page.locator('#main'));
-    await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0);
-    const reload = await page.reload();
-    expect([200, 304]).toContain(reload?.status());
-    await expect(page).toHaveURL(/\/clients$/);
-    await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0);
-  });
-});
+    await page.goto('/clients')
+    await waitForAppLanding(page, page.locator('#main'))
+    await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0)
+    const reload = await page.reload()
+    expect([200, 304]).toContain(reload?.status())
+    await expect(page).toHaveURL(/\/clients$/)
+    await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0)
+  })
+})

@@ -1,6 +1,6 @@
-import factory from '@adonisjs/lucid/factories';
-import Project from '#models/project';
-import { DateTime } from 'luxon';
+import factory from '@adonisjs/lucid/factories'
+import Project from '#models/project'
+import { DateTime } from 'luxon'
 
 /** Projects rows are company-scoped: merge `companyId` and the parent ids the test needs. */
 export const ProjectFactory = factory
@@ -11,4 +11,4 @@ export const ProjectFactory = factory
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   }))
-  .build();
+  .build()

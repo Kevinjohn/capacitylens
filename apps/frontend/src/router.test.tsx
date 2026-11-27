@@ -1,116 +1,116 @@
-import { describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
-import { MemoryRouter, Outlet, Route, RouterProvider, Routes } from 'react-router-dom';
-import { ActivityList } from './components/activities/ActivityList';
-import { CapacityOverviewRoute, DiagnosticsRoute, RouteLoading, router } from './router';
-import { PermissionContext } from './auth/permissionContext';
-import { resetStoreWithCompany } from './test/fixtures';
-import { useStore } from './store/useStore';
-import { permissionValue } from '@/test/permissionGrants';
+import { describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { MemoryRouter, Outlet, Route, RouterProvider, Routes } from 'react-router-dom'
+import { ActivityList } from './components/activities/ActivityList'
+import { CapacityOverviewRoute, DiagnosticsRoute, RouteLoading, router } from './router'
+import { PermissionContext } from './auth/permissionContext'
+import { resetStoreWithCompany } from './test/fixtures'
+import { useStore } from './store/useStore'
+import { permissionValue } from '@/test/permissionGrants'
 
-vi.mock('./components/AppShell', () => ({ AppShell: Outlet }));
+vi.mock('./components/AppShell', () => ({ AppShell: Outlet }))
 vi.mock('./components/activities/ActivityList', () => ({
   ActivityList: vi.fn(() => <div data-testid="activity-list-route" />),
-}));
+}))
 vi.mock('./components/diagnostics/DiagnosticsView', () => ({
   DiagnosticsView: () => <div>Diagnostics content</div>,
-}));
+}))
 vi.mock('./components/scheduler/SchedulerView', () => ({
   SchedulerView: () => <div>Wayne schedule</div>,
-}));
+}))
 vi.mock('./components/clients/ClientList', () => ({
   ClientList: () => <div>Wayne clients</div>,
-}));
+}))
 vi.mock('./components/capacity-overview/CapacityOverviewView', () => ({
   CapacityOverviewView: () => <div>Overview content</div>,
-}));
+}))
 
 describe('router loading fallback', () => {
   it('keeps top-level lazy routes inside a visible main landmark', () => {
-    render(<RouteLoading />);
+    render(<RouteLoading />)
 
-    expect(screen.getByRole('main')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
-  });
-});
+    expect(screen.getByRole('main')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
+  })
+})
 
 describe('activity route selection', () => {
   it.each(['/activities', '/activities#activity=%E0%A4%A'])(
     'omits selectedActivityId for %s',
     async (path) => {
       await act(async () => {
-        await router.navigate(path);
-      });
+        await router.navigate(path)
+      })
 
-      render(<RouterProvider router={router} />);
-      await screen.findByTestId('activity-list-route');
+      render(<RouterProvider router={router} />)
+      await screen.findByTestId('activity-list-route')
 
-      const props = vi.mocked(ActivityList).mock.lastCall?.[0];
-      expect(props).toBeDefined();
-      expect(Object.hasOwn(props ?? {}, 'selectedActivityId')).toBe(false);
-    },
-  );
+      const props = vi.mocked(ActivityList).mock.lastCall?.[0]
+      expect(props).toBeDefined()
+      expect(Object.hasOwn(props ?? {}, 'selectedActivityId')).toBe(false)
+    }
+  )
 
   it('passes the decoded activity selection for a valid hash', async () => {
     await act(async () => {
-      await router.navigate('/activities#activity=planning%2Freview');
-    });
+      await router.navigate('/activities#activity=planning%2Freview')
+    })
 
-    render(<RouterProvider router={router} />);
-    await screen.findByTestId('activity-list-route');
+    render(<RouterProvider router={router} />)
+    await screen.findByTestId('activity-list-route')
 
     expect(vi.mocked(ActivityList).mock.lastCall?.[0]).toEqual({
       selectedActivityId: 'planning/review',
-    });
-  });
-});
+    })
+  })
+})
 
 describe('company date routes', () => {
   it('holds the routed view behind the loader until a read brings the company date', async () => {
-    await resetStoreWithCompany();
-    useStore.setState((state) => ({ planning: { ...state.planning, today: null } }));
+    await resetStoreWithCompany()
+    useStore.setState((state) => ({ planning: { ...state.planning, today: null } }))
     await act(async () => {
-      await router.navigate('/');
-    });
+      await router.navigate('/')
+    })
 
-    render(<RouterProvider router={router} />);
+    render(<RouterProvider router={router} />)
 
-    expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
+    expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
 
-    await act(() => useStore.getState().refreshPlanning({ fresh: true }));
-    expect(useStore.getState().planning.today).not.toBeNull();
-    expect(screen.getByText('Wayne schedule')).toBeInTheDocument();
-  });
+    await act(() => useStore.getState().refreshPlanning({ fresh: true }))
+    expect(useStore.getState().planning.today).not.toBeNull()
+    expect(screen.getByText('Wayne schedule')).toBeInTheDocument()
+  })
 
   it('keeps date-independent routes open after a failed read and leaves the alert to the shell', async () => {
-    await resetStoreWithCompany();
+    await resetStoreWithCompany()
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
         today: null,
         phase: { kind: 'failed', error: new Error('Read failed'), lastWrite: null },
       },
-    }));
+    }))
     await act(async () => {
-      await router.navigate('/clients');
-    });
+      await router.navigate('/clients')
+    })
 
-    render(<RouterProvider router={router} />);
-    expect(await screen.findByText('Wayne clients')).toBeInTheDocument();
+    render(<RouterProvider router={router} />)
+    expect(await screen.findByText('Wayne clients')).toBeInTheDocument()
 
     await act(async () => {
-      await router.navigate('/');
-    });
-    expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument();
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-  });
-});
+      await router.navigate('/')
+    })
+    expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})
 
 describe('Overview route access', () => {
   function renderRoute(
     role: 'owner' | 'admin' | 'editor' | 'viewer',
-    status: 'pending' | 'resolved' | 'unavailable',
+    status: 'pending' | 'resolved' | 'unavailable'
   ) {
     return render(
       <PermissionContext.Provider value={permissionValue(role, status)}>
@@ -120,39 +120,39 @@ describe('Overview route access', () => {
             <Route path="/overview" element={<CapacityOverviewRoute />} />
           </Routes>
         </MemoryRouter>
-      </PermissionContext.Provider>,
-    );
+      </PermissionContext.Provider>
+    )
   }
 
   it('allows a viewer when the company setting allows everyone', async () => {
-    await resetStoreWithCompany();
-    const companyId = useStore.getState().activeCompanyId;
-    if (!companyId) throw new Error('Expected an active company');
-    await useStore.getState().updateCompany(companyId, { capacityOverviewAccess: 'everyone' });
-    renderRoute('viewer', 'resolved');
+    await resetStoreWithCompany()
+    const companyId = useStore.getState().activeCompanyId
+    if (!companyId) throw new Error('Expected an active company')
+    await useStore.getState().updateCompany(companyId, { capacityOverviewAccess: 'everyone' })
+    renderRoute('viewer', 'resolved')
 
-    expect(await screen.findByText('Overview content')).toBeInTheDocument();
-  });
+    expect(await screen.findByText('Overview content')).toBeInTheDocument()
+  })
 
   it('redirects a viewer under the default access setting', async () => {
-    await resetStoreWithCompany();
-    renderRoute('viewer', 'resolved');
+    await resetStoreWithCompany()
+    renderRoute('viewer', 'resolved')
 
-    expect(screen.getByText('Schedule content')).toBeInTheDocument();
-  });
+    expect(screen.getByText('Schedule content')).toBeInTheDocument()
+  })
 
   it('waits for role resolution before deciding', async () => {
-    await resetStoreWithCompany();
-    renderRoute('viewer', 'pending');
+    await resetStoreWithCompany()
+    renderRoute('viewer', 'pending')
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
-  });
-});
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
+  })
+})
 
 describe('Diagnostics route access', () => {
   function renderRoute(
     role: 'owner' | 'admin' | 'editor' | 'viewer' | null,
-    status: 'pending' | 'resolved',
+    status: 'pending' | 'resolved'
   ) {
     return render(
       <PermissionContext.Provider
@@ -164,49 +164,49 @@ describe('Diagnostics route access', () => {
             <Route path="/diagnostics" element={<DiagnosticsRoute />} />
           </Routes>
         </MemoryRouter>
-      </PermissionContext.Provider>,
-    );
+      </PermissionContext.Provider>
+    )
   }
 
   it.each(['owner', 'admin'] as const)('opens for an %s', async (role) => {
-    renderRoute(role, 'resolved');
+    renderRoute(role, 'resolved')
 
-    expect(await screen.findByText('Diagnostics content')).toBeInTheDocument();
-  });
+    expect(await screen.findByText('Diagnostics content')).toBeInTheDocument()
+  })
 
   it('keeps Diagnostics closed without a resolved membership role', () => {
-    renderRoute(null, 'resolved');
+    renderRoute(null, 'resolved')
 
-    expect(screen.getByText('Schedule content')).toBeInTheDocument();
-    expect(screen.queryByText('Diagnostics content')).not.toBeInTheDocument();
-  });
+    expect(screen.getByText('Schedule content')).toBeInTheDocument()
+    expect(screen.queryByText('Diagnostics content')).not.toBeInTheDocument()
+  })
 
   it.each(['editor', 'viewer'] as const)('redirects an %s to the schedule', (role) => {
-    renderRoute(role, 'resolved');
+    renderRoute(role, 'resolved')
 
-    expect(screen.getByText('Schedule content')).toBeInTheDocument();
-    expect(screen.queryByText('Diagnostics content')).not.toBeInTheDocument();
-  });
+    expect(screen.getByText('Schedule content')).toBeInTheDocument()
+    expect(screen.queryByText('Diagnostics content')).not.toBeInTheDocument()
+  })
 
   it('waits for role resolution before deciding', () => {
-    renderRoute('viewer', 'pending');
+    renderRoute('viewer', 'pending')
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
-  });
-});
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
+  })
+})
 
 describe('router not-found recovery', () => {
   it('renders the branded recovery screen for an unmatched URL', async () => {
-    document.title = 'CapacityLens';
+    document.title = 'CapacityLens'
     await act(async () => {
-      await router.navigate('/stale-bookmark-that-does-not-exist');
-    });
+      await router.navigate('/stale-bookmark-that-does-not-exist')
+    })
 
-    render(<RouterProvider router={router} />);
+    render(<RouterProvider router={router} />)
 
-    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.getByText('That page does not exist or may have moved.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to schedule' })).toHaveAttribute('href', '/');
-    expect(document.title).toBe('Page not found · CapacityLens');
-  });
-});
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+    expect(screen.getByText('That page does not exist or may have moved.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Go to schedule' })).toHaveAttribute('href', '/')
+    expect(document.title).toBe('Page not found · CapacityLens')
+  })
+})

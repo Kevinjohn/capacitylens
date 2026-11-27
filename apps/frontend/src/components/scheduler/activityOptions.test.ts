@@ -1,9 +1,9 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { expect, it, vi } from 'vitest';
-import type { Activity, Phase, Project } from '@capacitylens/shared/types/entities';
-import { buildActivityOptions, sortGroupedOptions } from './activityOptions';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { expect, it, vi } from 'vitest'
+import type { Activity, Phase, Project } from '@capacitylens/shared/types/entities'
+import { buildActivityOptions, sortGroupedOptions } from './activityOptions'
 
-const row = { companyId: 'company', createdAt: 't', updatedAt: 't' } as const;
+const row = { companyId: 'company', createdAt: 't', updatedAt: 't' } as const
 
 it('resolves and numbers a large duplicate set without rescanning metadata arrays', () => {
   const project: Project = {
@@ -13,13 +13,13 @@ it('resolves and numbers a large duplicate set without rescanning metadata array
     clientId: 'client',
     name: 'Launch',
     color: '#123456',
-  };
+  }
   const phases: Phase[] = Array.from({ length: 200 }, (_, index) => ({
     ...row,
     id: `phase-${index}`,
     projectId: project.id,
     name: index < 2 ? 'Discovery' : `Phase ${index}`,
-  }));
+  }))
   const activities: Activity[] = phases.map((phase, index) => ({
     ...NULLABLE_FIELDS.activities,
     ...row,
@@ -28,10 +28,10 @@ it('resolves and numbers a large duplicate set without rescanning metadata array
     projectId: project.id,
     phaseId: phase.id,
     name: 'Workshop',
-  }));
-  const phaseFind = vi.spyOn(phases, 'find');
-  const projects = [project];
-  const projectFind = vi.spyOn(projects, 'find');
+  }))
+  const phaseFind = vi.spyOn(phases, 'find')
+  const projects = [project]
+  const projectFind = vi.spyOn(projects, 'find')
 
   const options = buildActivityOptions({
     activities,
@@ -39,9 +39,9 @@ it('resolves and numbers a large duplicate set without rescanning metadata array
     projects,
     kind: 'project',
     projectId: project.id,
-  });
+  })
 
-  expect(options).toHaveLength(200);
+  expect(options).toHaveLength(200)
   expect(options.slice(0, 2)).toEqual([
     {
       value: 'activity-0',
@@ -55,10 +55,10 @@ it('resolves and numbers a large duplicate set without rescanning metadata array
       groupKey: 'project',
       groupLabel: 'Project-specific',
     },
-  ]);
-  expect(phaseFind).not.toHaveBeenCalled();
-  expect(projectFind).not.toHaveBeenCalled();
-});
+  ])
+  expect(phaseFind).not.toHaveBeenCalled()
+  expect(projectFind).not.toHaveBeenCalled()
+})
 
 it('filters by exact activity kind and sorts labels alphabetically', () => {
   const activities: Activity[] = [
@@ -86,18 +86,18 @@ it('filters by exact activity kind and sorts labels alphabetically', () => {
       kind: 'project',
       projectId: 'project',
     },
-  ];
+  ]
 
   expect(buildActivityOptions({ activities, phases: [], projects: [], kind: 'internal' })).toEqual([
     { value: 'internal-a', label: 'Admin' },
     { value: 'internal-z', label: 'Support' },
-  ]);
+  ])
   expect(
-    buildActivityOptions({ activities, phases: [], projects: [], kind: 'allProjects' }),
+    buildActivityOptions({ activities, phases: [], projects: [], kind: 'allProjects' })
   ).toEqual([
     { value: 'repeat-a', label: 'Retrospective' },
     { value: 'repeat-z', label: 'Strategy' },
-  ]);
+  ])
   expect(
     buildActivityOptions({
       activities,
@@ -105,7 +105,7 @@ it('filters by exact activity kind and sorts labels alphabetically', () => {
       projects: [],
       kind: 'project',
       projectId: 'project',
-    }),
+    })
   ).toEqual([
     {
       value: 'repeat-a',
@@ -115,8 +115,8 @@ it('filters by exact activity kind and sorts labels alphabetically', () => {
     },
     { value: 'repeat-z', label: 'Strategy', groupKey: 'all-projects', groupLabel: 'All projects' },
     { value: 'project', label: 'Briefing', groupKey: 'project', groupLabel: 'Project-specific' },
-  ]);
-});
+  ])
+})
 
 it('excludes project activities belonging to another project', () => {
   const activities: Activity[] = [
@@ -136,7 +136,7 @@ it('excludes project activities belonging to another project', () => {
       kind: 'project',
       projectId: 'stark-project',
     },
-  ];
+  ]
 
   expect(
     buildActivityOptions({
@@ -145,11 +145,11 @@ it('excludes project activities belonging to another project', () => {
       projects: [],
       kind: 'project',
       projectId: 'wayne-project',
-    }),
+    })
   ).toEqual([
     { value: 'wayne', label: 'Briefing', groupKey: 'project', groupLabel: 'Project-specific' },
-  ]);
-});
+  ])
+})
 
 it('does not apply the project id filter to non-project activities', () => {
   const malformed = {
@@ -158,7 +158,7 @@ it('does not apply the project id filter to non-project activities', () => {
     name: 'Support',
     kind: 'internal',
     projectId: 'legacy-project',
-  } as Activity;
+  } as Activity
 
   expect(
     buildActivityOptions({
@@ -167,9 +167,9 @@ it('does not apply the project id filter to non-project activities', () => {
       projects: [],
       kind: 'internal',
       projectId: 'another-project',
-    }),
-  ).toEqual([{ value: malformed.id, label: 'Support' }]);
-});
+    })
+  ).toEqual([{ value: malformed.id, label: 'Support' }])
+})
 
 it.each([
   ['internal', 'Internal'],
@@ -180,14 +180,14 @@ it.each([
     const activities: Activity[] = [
       { ...NULLABLE_FIELDS.activities, ...row, id: `${kind}-b`, name: 'Planning', kind },
       { ...NULLABLE_FIELDS.activities, ...row, id: `${kind}-a`, name: 'Planning', kind },
-    ];
+    ]
 
     expect(buildActivityOptions({ activities, phases: [], projects: [], kind })).toEqual([
       { value: `${kind}-a`, label: `Planning / ${context} (1)` },
       { value: `${kind}-b`, label: `Planning / ${context} (2)` },
-    ]);
-  },
-);
+    ])
+  }
+)
 it('prefers phase context and falls back through project name', () => {
   const project: Project = {
     ...NULLABLE_FIELDS.projects,
@@ -196,8 +196,8 @@ it('prefers phase context and falls back through project name', () => {
     clientId: 'client',
     name: 'Website',
     color: '#123456',
-  };
-  const phase: Phase = { ...row, id: 'phase', projectId: project.id, name: 'Discovery' };
+  }
+  const phase: Phase = { ...row, id: 'phase', projectId: project.id, name: 'Discovery' }
   const activities: Activity[] = [
     {
       ...NULLABLE_FIELDS.activities,
@@ -224,7 +224,7 @@ it('prefers phase context and falls back through project name', () => {
       kind: 'project',
       projectId: project.id,
     },
-  ];
+  ]
 
   expect(
     buildActivityOptions({
@@ -233,7 +233,7 @@ it('prefers phase context and falls back through project name', () => {
       projects: [project],
       kind: 'project',
       projectId: project.id,
-    }),
+    })
   ).toEqual([
     {
       value: 'with-phase',
@@ -253,8 +253,8 @@ it('prefers phase context and falls back through project name', () => {
       groupKey: 'project',
       groupLabel: 'Project-specific',
     },
-  ]);
-});
+  ])
+})
 
 it('falls back to the generic project label when metadata is unavailable', () => {
   const activities = [
@@ -268,7 +268,7 @@ it('falls back to the generic project label when metadata is unavailable', () =>
     },
     { ...row, id: 'with-project', name: 'Workshop', kind: 'project', projectId: 'project' },
     { ...row, id: 'without-metadata', name: 'Workshop', kind: 'project', projectId: 'project' },
-  ] as Activity[];
+  ] as Activity[]
 
   expect(
     buildActivityOptions({
@@ -277,7 +277,7 @@ it('falls back to the generic project label when metadata is unavailable', () =>
       projects: [],
       kind: 'project',
       projectId: 'project',
-    }),
+    })
   ).toEqual([
     {
       value: 'with-phase',
@@ -297,8 +297,8 @@ it('falls back to the generic project label when metadata is unavailable', () =>
       groupKey: 'project',
       groupLabel: 'Project-specific',
     },
-  ]);
-});
+  ])
+})
 it('groups All-projects activities first and disambiguates names across the combined project scope', () => {
   const project: Project = {
     ...NULLABLE_FIELDS.projects,
@@ -307,7 +307,7 @@ it('groups All-projects activities first and disambiguates names across the comb
     clientId: 'client',
     name: 'Website',
     color: '#123456',
-  };
+  }
   const activities: Activity[] = [
     {
       ...NULLABLE_FIELDS.activities,
@@ -339,7 +339,7 @@ it('groups All-projects activities first and disambiguates names across the comb
       kind: 'project',
       projectId: project.id,
     },
-  ];
+  ]
 
   expect(
     buildActivityOptions({
@@ -348,7 +348,7 @@ it('groups All-projects activities first and disambiguates names across the comb
       projects: [project],
       kind: 'project',
       projectId: project.id,
-    }),
+    })
   ).toEqual([
     { value: 'repeat-admin', label: 'Admin', groupKey: 'all-projects', groupLabel: 'All projects' },
     {
@@ -364,46 +364,46 @@ it('groups All-projects activities first and disambiguates names across the comb
       groupKey: 'project',
       groupLabel: 'Project-specific',
     },
-  ]);
-});
+  ])
+})
 
 it('uses the generic context when duplicate project activities have no project id', () => {
   const activities = [
     { ...row, id: 'project-a', name: 'Workshop', kind: 'project' },
     { ...row, id: 'project-b', name: 'Workshop', kind: 'project' },
-  ] as Activity[];
+  ] as Activity[]
 
   expect(buildActivityOptions({ activities, phases: [], projects: [], kind: 'project' })).toEqual([
     { value: 'project-a', label: 'Workshop / Project (1)' },
     { value: 'project-b', label: 'Workshop / Project (2)' },
-  ]);
-});
+  ])
+})
 
 it('sorts labels case-insensitively and breaks equal-label ties by id', () => {
   const activities: Activity[] = [
     { ...NULLABLE_FIELDS.activities, ...row, id: 'z', name: 'alpha', kind: 'internal' },
     { ...NULLABLE_FIELDS.activities, ...row, id: 'b', name: 'Alpha', kind: 'internal' },
     { ...NULLABLE_FIELDS.activities, ...row, id: 'a', name: 'Alpha', kind: 'internal' },
-  ];
+  ]
 
   expect(buildActivityOptions({ activities, phases: [], projects: [], kind: 'internal' })).toEqual([
     { value: 'z', label: 'alpha' },
     { value: 'a', label: 'Alpha / Internal (1)' },
     { value: 'b', label: 'Alpha / Internal (2)' },
-  ]);
-});
+  ])
+})
 
 it('treats accent-only label differences as equal before applying the id tie-break', () => {
   const activities: Activity[] = [
     { ...NULLABLE_FIELDS.activities, ...row, id: 'z', name: 'resume', kind: 'internal' },
     { ...NULLABLE_FIELDS.activities, ...row, id: 'a', name: 'Résumé', kind: 'internal' },
-  ];
+  ]
 
   expect(buildActivityOptions({ activities, phases: [], projects: [], kind: 'internal' })).toEqual([
     { value: 'a', label: 'Résumé' },
     { value: 'z', label: 'resume' },
-  ]);
-});
+  ])
+})
 
 it('uses semantic group identity and numeric-aware pinned-locale ordering', () => {
   expect(
@@ -421,7 +421,7 @@ it('uses semantic group identity and numeric-aware pinned-locale ordering', () =
         groupKey: 'all-projects',
         groupLabel: 'Translated',
       },
-    ]),
+    ])
   ).toEqual([
     { value: 'repeat-2', label: 'Workshop 2', groupKey: 'all-projects', groupLabel: 'Translated' },
     {
@@ -431,8 +431,8 @@ it('uses semantic group identity and numeric-aware pinned-locale ordering', () =
       groupLabel: 'Translated',
     },
     { value: 'project-2', label: 'Workshop 2', groupKey: 'project', groupLabel: 'All projects' },
-  ]);
-});
+  ])
+})
 
 it('reserves literal labels before allocating duplicate suffixes', () => {
   const activities: Activity[] = ['Workshop', 'Workshop', 'Workshop / Internal (1)'].map(
@@ -442,20 +442,20 @@ it('reserves literal labels before allocating duplicate suffixes', () => {
       id: `a-${index}`,
       kind: 'internal',
       name,
-    }),
-  );
-  const options = buildActivityOptions({ activities, phases: [], projects: [], kind: 'internal' });
+    })
+  )
+  const options = buildActivityOptions({ activities, phases: [], projects: [], kind: 'internal' })
   expect(options.map((option) => option.label)).toEqual([
     'Workshop / Internal (1)',
     'Workshop / Internal (2)',
     'Workshop / Internal (3)',
-  ]);
+  ])
   expect(
     buildActivityOptions({
       activities: activities.toReversed(),
       phases: [],
       projects: [],
       kind: 'internal',
-    }),
-  ).toEqual(options);
-});
+    })
+  ).toEqual(options)
+})

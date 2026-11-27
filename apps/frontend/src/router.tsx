@@ -1,20 +1,20 @@
 /* eslint-disable react-refresh/only-export-components -- route config, not a component module */
-import { lazy, Suspense } from 'react';
-import type { ReactNode } from 'react';
-import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
-import { PUBLIC_AUTH_ENTRY_PATHS } from './auth/authEntryRoute';
-import { AppShell } from './components/AppShell';
-import { SchedulerView } from './components/scheduler/SchedulerView';
-import { RouteError } from './components/common/ErrorBoundary';
-import { NotFound } from './components/common/NotFound';
-import { useStore } from './store/useStore';
-import { hasDisciplinesEnabled } from './store/selectors';
-import { m } from '@/i18n';
-import { usePermissionStatus, useRole } from './auth/permissionContext';
-import { resolveCapacityOverviewAccessDecision } from './auth/capacityOverviewAccess';
-import { resolveCapacityOverviewAccess } from './store/selectors';
-import { useDiagnosticsAccessDecision } from './components/diagnostics/useDiagnosticsAccessDecision';
-import { ROUTE_HELP } from './lib/tourAnchors';
+import { lazy, Suspense } from 'react'
+import type { ReactNode } from 'react'
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
+import { PUBLIC_AUTH_ENTRY_PATHS } from './auth/authEntryRoute'
+import { AppShell } from './components/AppShell'
+import { SchedulerView } from './components/scheduler/SchedulerView'
+import { RouteError } from './components/common/ErrorBoundary'
+import { NotFound } from './components/common/NotFound'
+import { useStore } from './store/useStore'
+import { hasDisciplinesEnabled } from './store/selectors'
+import { m } from '@/i18n'
+import { usePermissionStatus, useRole } from './auth/permissionContext'
+import { resolveCapacityOverviewAccessDecision } from './auth/capacityOverviewAccess'
+import { resolveCapacityOverviewAccess } from './store/selectors'
+import { useDiagnosticsAccessDecision } from './components/diagnostics/useDiagnosticsAccessDecision'
+import { ROUTE_HELP } from './lib/tourAnchors'
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
 // pages are split out, not needed until navigated to, which trims the initial
@@ -22,66 +22,66 @@ import { ROUTE_HELP } from './lib/tourAnchors';
 const ResourceList = lazy(() =>
   import('./components/resources/ResourceList').then((resource) => ({
     default: resource.ResourceList,
-  })),
-);
+  }))
+)
 const CapacityOverviewView = lazy(() =>
   import('./components/capacity-overview/CapacityOverviewView').then((module) => ({
     default: module.CapacityOverviewView,
-  })),
-);
+  }))
+)
 const DisciplineList = lazy(() =>
   import('./components/disciplines/DisciplineList').then((discipline) => ({
     default: discipline.DisciplineList,
-  })),
-);
+  }))
+)
 const ClientList = lazy(() =>
-  import('./components/clients/ClientList').then((client) => ({ default: client.ClientList })),
-);
+  import('./components/clients/ClientList').then((client) => ({ default: client.ClientList }))
+)
 const ProjectList = lazy(() =>
-  import('./components/projects/ProjectList').then((project) => ({ default: project.ProjectList })),
-);
+  import('./components/projects/ProjectList').then((project) => ({ default: project.ProjectList }))
+)
 const ActivityList = lazy(() =>
   import('./components/activities/ActivityList').then((activity) => ({
     default: activity.ActivityList,
-  })),
-);
+  }))
+)
 const TimeOffList = lazy(() =>
   import('./components/time-off/TimeOffList').then((timeOffEntry) => ({
     default: timeOffEntry.TimeOffList,
-  })),
-);
+  }))
+)
 const TeamAccessView = lazy(() =>
-  import('./components/team/TeamAccessView').then((module) => ({ default: module.TeamAccessView })),
-);
+  import('./components/team/TeamAccessView').then((module) => ({ default: module.TeamAccessView }))
+)
 const SettingsView = lazy(() =>
-  import('./components/settings/SettingsView').then((module) => ({ default: module.SettingsView })),
-);
+  import('./components/settings/SettingsView').then((module) => ({ default: module.SettingsView }))
+)
 const DiagnosticsView = lazy(() =>
   import('./components/diagnostics/DiagnosticsView').then((module) => ({
     default: module.DiagnosticsView,
-  })),
-);
+  }))
+)
 const AccountView = lazy(() =>
-  import('./components/account/AccountView').then((module) => ({ default: module.AccountView })),
-);
+  import('./components/account/AccountView').then((module) => ({ default: module.AccountView }))
+)
 const HelpView = lazy(() =>
-  import('./components/HelpView').then((module) => ({ default: module.HelpView })),
-);
+  import('./components/HelpView').then((module) => ({ default: module.HelpView }))
+)
 // Keep invite acceptance outside the company gate so a new identity can inspect and
 // accept an invitation before selecting a company. Load its route only when opened.
 const InviteAccept = lazy(() =>
   import('./components/invitations/InviteAccept').then((module) => ({
     default: module.InviteAccept,
-  })),
-);
+  }))
+)
 const VerifyEmail = lazy(() =>
-  import('./auth/VerifyEmail').then((module) => ({ default: module.VerifyEmail })),
-);
+  import('./auth/VerifyEmail').then((module) => ({ default: module.VerifyEmail }))
+)
 // Keep password reset outside company and sign-in gates so a visitor without a session
 // can redeem a reset link.
 const ResetPassword = lazy(() =>
-  import('./auth/ResetPassword').then((module) => ({ default: module.ResetPassword })),
-);
+  import('./auth/ResetPassword').then((module) => ({ default: module.ResetPassword }))
+)
 
 /** Shows a localized loading status while route access is unresolved. */
 export function RouteLoading() {
@@ -91,7 +91,7 @@ export function RouteLoading() {
         {m.app_loading()}
       </p>
     </main>
-  );
+  )
 }
 
 /**
@@ -99,38 +99,38 @@ export function RouteLoading() {
  * it shows the loader, or nothing after a failed read, because the shell's alert names the failure.
  */
 export function CompanyDateRoute({ children }: { children: ReactNode }) {
-  const today = useStore((state) => state.planning.today);
-  const failed = useStore((state) => state.planning.phase.kind === 'failed');
-  if (today !== null) return children;
-  if (failed) return null;
+  const today = useStore((state) => state.planning.today)
+  const failed = useStore((state) => state.planning.phase.kind === 'failed')
+  if (today !== null) return children
+  if (failed) return null
   return (
     <p role="status" className="p-6 text-sm text-muted-foreground">
       {m.app_loading()}
     </p>
-  );
+  )
 }
 
 // Disciplines is an optional feature (company.disciplinesEnabled). When off, the nav
 // entry is hidden, gate the route too so a direct URL / bookmark can't reach the page.
 function DisciplineRoute() {
-  const enabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeCompanyId));
-  return enabled ? <DisciplineList /> : <Navigate to="/" replace />;
+  const enabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeCompanyId))
+  return enabled ? <DisciplineList /> : <Navigate to="/" replace />
 }
 
 /** Renders the capacity overview only when company access is allowed. */
 export function CapacityOverviewRoute() {
-  const role = useRole();
-  const status = usePermissionStatus();
+  const role = useRole()
+  const status = usePermissionStatus()
   const access = useStore((state) =>
-    resolveCapacityOverviewAccess(state.data, state.activeCompanyId),
-  );
-  const decision = resolveCapacityOverviewAccessDecision({ role, status, access });
+    resolveCapacityOverviewAccess(state.data, state.activeCompanyId)
+  )
+  const decision = resolveCapacityOverviewAccessDecision({ role, status, access })
   if (decision === 'pending') {
     return (
       <p role="status" className="p-6 text-sm text-muted-foreground">
         {m.app_loading()}
       </p>
-    );
+    )
   }
   return decision === 'allowed' ? (
     <CompanyDateRoute>
@@ -138,32 +138,32 @@ export function CapacityOverviewRoute() {
     </CompanyDateRoute>
   ) : (
     <Navigate to="/" replace />
-  );
+  )
 }
 
 /** Renders diagnostics only for authorised Owners or Admins. */
 export function DiagnosticsRoute() {
-  const decision = useDiagnosticsAccessDecision();
+  const decision = useDiagnosticsAccessDecision()
   if (decision === 'pending') {
     return (
       <p role="status" className="p-6 text-sm text-muted-foreground">
         {m.app_loading()}
       </p>
-    );
+    )
   }
-  return decision === 'allowed' ? <DiagnosticsView /> : <Navigate to="/" replace />;
+  return decision === 'allowed' ? <DiagnosticsView /> : <Navigate to="/" replace />
 }
 
 function ActivityRoute() {
-  const { hash } = useLocation();
-  const encodedId = hash.startsWith('#activity=') ? hash.slice('#activity='.length) : '';
-  let selectedActivityId: string | undefined;
+  const { hash } = useLocation()
+  const encodedId = hash.startsWith('#activity=') ? hash.slice('#activity='.length) : ''
+  let selectedActivityId: string | undefined
   try {
-    selectedActivityId = encodedId ? decodeURIComponent(encodedId) : undefined;
+    selectedActivityId = encodedId ? decodeURIComponent(encodedId) : undefined
   } catch {
     // A malformed bookmark still opens the complete list without selecting an arbitrary row.
   }
-  return <ActivityList {...(selectedActivityId === undefined ? {} : { selectedActivityId })} />;
+  return <ActivityList {...(selectedActivityId === undefined ? {} : { selectedActivityId })} />
 }
 
 /** Defines the application routes and their authentication and error boundaries. */
@@ -242,4 +242,4 @@ export const router = createBrowserRouter([
     element: <NotFound />,
     errorElement: <RouteError />,
   },
-]);
+])

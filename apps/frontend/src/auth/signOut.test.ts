@@ -1,31 +1,31 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { queryClient } from '@/api/queryClient';
-import { useStore } from '@/store/useStore';
-import { authApi } from './authApi';
-import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from './signOut';
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { queryClient } from '@/api/queryClient'
+import { useStore } from '@/store/useStore'
+import { authApi } from './authApi'
+import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from './signOut'
 
 afterEach(() => {
-  queryClient.clear();
-  useStore.getState().clearPlanning();
-  localStorage.removeItem(AUTH_INVALIDATION_STORAGE_KEY);
-  vi.restoreAllMocks();
-});
+  queryClient.clear()
+  useStore.getState().clearPlanning()
+  localStorage.removeItem(AUTH_INVALIDATION_STORAGE_KEY)
+  vi.restoreAllMocks()
+})
 
 describe('signOutAndReload', () => {
   it('clears private data and notifies sibling tabs before reloading after success', async () => {
-    queryClient.setQueryData(['private-account'], 'sensitive data');
-    useStore.setState({ activeCompanyId: 'gotham' });
+    queryClient.setQueryData(['private-account'], 'sensitive data')
+    useStore.setState({ activeCompanyId: 'gotham' })
     const reload = vi.fn(() => {
-      expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
-      expect(useStore.getState().activeCompanyId).toBeNull();
-      expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
-    });
+      expect(queryClient.getQueryData(['private-account'])).toBeUndefined()
+      expect(useStore.getState().activeCompanyId).toBeNull()
+      expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i)
+    })
 
-    vi.spyOn(authApi, 'signOut').mockResolvedValue({ data: null, error: null });
-    await signOutAndReload({ reload });
+    vi.spyOn(authApi, 'signOut').mockResolvedValue({ data: null, error: null })
+    await signOutAndReload({ reload })
 
-    expect(reload).toHaveBeenCalledOnce();
-  });
+    expect(reload).toHaveBeenCalledOnce()
+  })
 
   it.each([
     ['a rejected request', () => Promise.reject(new Error('Connection lost.')), 'Connection lost.'],
@@ -37,16 +37,16 @@ describe('signOutAndReload', () => {
   ] as const)(
     'reports %s and leaves the current session in place',
     async (_, requestSignOut, message) => {
-      queryClient.setQueryData(['private-account'], 'sensitive data');
-      useStore.setState({ activeCompanyId: 'gotham' });
-      const reload = vi.fn();
+      queryClient.setQueryData(['private-account'], 'sensitive data')
+      useStore.setState({ activeCompanyId: 'gotham' })
+      const reload = vi.fn()
 
-      vi.spyOn(authApi, 'signOut').mockImplementation(requestSignOut);
-      await expect(signOutAndReload({ reload })).rejects.toThrow(message);
-      expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toBeNull();
-      expect(reload).not.toHaveBeenCalled();
-      expect(useStore.getState().activeCompanyId).toBe('gotham');
-      expect(queryClient.getQueryData(['private-account'])).toBe('sensitive data');
-    },
-  );
-});
+      vi.spyOn(authApi, 'signOut').mockImplementation(requestSignOut)
+      await expect(signOutAndReload({ reload })).rejects.toThrow(message)
+      expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toBeNull()
+      expect(reload).not.toHaveBeenCalled()
+      expect(useStore.getState().activeCompanyId).toBe('gotham')
+      expect(queryClient.getQueryData(['private-account'])).toBe('sensitive data')
+    }
+  )
+})

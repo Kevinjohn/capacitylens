@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import type { StoreState } from '@/store/useStore';
+import { useEffect, useRef, useState } from 'react'
+import type { StoreState } from '@/store/useStore'
 
 interface UseToolbarSearchInput {
-  filters: StoreState['ui']['filters'];
-  activeCompanyId: StoreState['activeCompanyId'];
-  setFilters: StoreState['setFilters'];
-  clearFilters: StoreState['clearFilters'];
+  filters: StoreState['ui']['filters']
+  activeCompanyId: StoreState['activeCompanyId']
+  setFilters: StoreState['setFilters']
+  clearFilters: StoreState['clearFilters']
 }
 
 /** Debounces schedule search and cancels stale text after external filter changes. */
@@ -18,36 +18,36 @@ export function useToolbarSearch({
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
   // Keep the input snappy locally; push to filters after a short pause.
-  const [searchInput, setSearchInput] = useState(filters.search);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState(filters.search)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // Reconcile pending text on filter-object or company changes, because an external replacement may keep the committed search string unchanged.
-  const [seen, setSeen] = useState({ filters, companyId: activeCompanyId });
+  const [seen, setSeen] = useState({ filters, companyId: activeCompanyId })
   if (filters !== seen.filters || activeCompanyId !== seen.companyId) {
-    setSeen({ filters, companyId: activeCompanyId });
-    setSearchInput(filters.search);
+    setSeen({ filters, companyId: activeCompanyId })
+    setSearchInput(filters.search)
   }
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelSearchTimer = () => {
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = null;
-  };
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = null
+  }
   // Cancel pending search when its owning filter object is replaced so an old timer cannot overwrite a newer filter choice.
-  useEffect(() => cancelSearchTimer, [filters, activeCompanyId]);
+  useEffect(() => cancelSearchTimer, [filters, activeCompanyId])
   const changeSearch = (value: string) => {
-    setSearchInput(value);
-    cancelSearchTimer();
-    searchTimer.current = setTimeout(() => setFilters({ search: value }), 180);
-  };
+    setSearchInput(value)
+    cancelSearchTimer()
+    searchTimer.current = setTimeout(() => setFilters({ search: value }), 180)
+  }
   const setToolbarFilters = (patch: Parameters<typeof setFilters>[0]) => {
-    cancelSearchTimer();
-    setFilters({ ...patch, search: searchInput });
-  };
+    cancelSearchTimer()
+    setFilters({ ...patch, search: searchInput })
+  }
   // Clear must cancel its pending timer as well as reset local text so stale input cannot return after the debounce.
   const clearSearch = () => {
-    cancelSearchTimer();
-    setSearchInput('');
-    clearFilters();
-  };
+    cancelSearchTimer()
+    setSearchInput('')
+    clearFilters()
+  }
 
   return {
     searchInput,
@@ -56,5 +56,5 @@ export function useToolbarSearch({
     filtersOpen,
     setFiltersOpen,
     setToolbarFilters,
-  };
+  }
 }

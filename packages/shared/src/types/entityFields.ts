@@ -1,4 +1,4 @@
-import type { AppData } from './entityTypes.js';
+import type { AppData } from './entityTypes.js'
 import {
   ACTIVITY_KINDS,
   ALLOCATION_STATUSES,
@@ -9,9 +9,9 @@ import {
   RESOURCE_KINDS,
   SCHEDULING_MODES,
   TIME_OFF_TYPES,
-} from './entityTypes.js';
-import { APP_DATA_KEYS } from './entityKeys.js';
-import type { AppDataKey } from './entityKeys.js';
+} from './entityTypes.js'
+import { APP_DATA_KEYS } from './entityKeys.js'
+import type { AppDataKey } from './entityKeys.js'
 
 /** The value rule a stored field follows. */
 export type FieldKind =
@@ -27,41 +27,41 @@ export type FieldKind =
   | 'avatar'
   | 'timezone'
   | 'weekStart'
-  | 'choice';
+  | 'choice'
 
 /** One stored field of an entity: its rule, and whether it is required, nullable or server-owned. */
 export interface FieldSpec {
-  kind: FieldKind;
+  kind: FieldKind
   /** A complete row must carry the field. */
-  required?: true;
+  required?: true
   /** The field accepts `null`. */
-  nullable?: true;
+  nullable?: true
   /** The accepted values of a `choice` field. */
-  choices?: readonly (string | number)[];
+  choices?: readonly (string | number)[]
   /** Set by the server, never by a planning change. */
-  system?: true;
+  system?: true
 }
 
 const base = {
   id: { kind: 'identifier', system: true },
   createdAt: { kind: 'timestamp', system: true },
   updatedAt: { kind: 'timestamp', system: true },
-} as const;
+} as const
 const scoped = {
   ...base,
   companyId: { kind: 'identifier', required: true, system: true },
-} as const;
+} as const
 const lifecycle = {
   archivedAt: { kind: 'timestamp', nullable: true, system: true },
-} as const;
+} as const
 const privateName = {
   isPrivate: { kind: 'boolean', nullable: true },
   codeName: { kind: 'text', nullable: true },
-} as const;
+} as const
 const dates = {
   startDate: { kind: 'date', required: true },
   endDate: { kind: 'date', required: true },
-} as const;
+} as const
 
 /**
  * Every stored field of every entity. The `satisfies` clause makes the table and the entity
@@ -166,51 +166,51 @@ export const ENTITY_FIELDS = {
   },
   closures: { ...scoped, ...dates, name: { kind: 'text', required: true } },
 } as const satisfies {
-  [K in AppDataKey]: Record<Exclude<keyof AppData[K][number], 'displayName'>, FieldSpec>;
-};
+  [K in AppDataKey]: Record<Exclude<keyof AppData[K][number], 'displayName'>, FieldSpec>
+}
 
-type Fields<K extends AppDataKey> = (typeof ENTITY_FIELDS)[K];
+type Fields<K extends AppDataKey> = (typeof ENTITY_FIELDS)[K]
 
 // Spread entries escape the excess-property check, so check the reverse direction explicitly.
 type UndeclaredField = {
-  [K in AppDataKey]: Exclude<keyof Fields<K>, keyof AppData[K][number]>;
-}[AppDataKey];
-const tableFieldsAreDeclared: UndeclaredField extends never ? true : never = true;
-void tableFieldsAreDeclared;
+  [K in AppDataKey]: Exclude<keyof Fields<K>, keyof AppData[K][number]>
+}[AppDataKey]
+const tableFieldsAreDeclared: UndeclaredField extends never ? true : never = true
+void tableFieldsAreDeclared
 
 /** The fields of an entity a planning change may write: every field that is not `system`. */
 export type WritableField<K extends AppDataKey> = {
-  [F in keyof Fields<K>]: Fields<K>[F] extends { system: true } ? never : F;
-}[keyof Fields<K>];
+  [F in keyof Fields<K>]: Fields<K>[F] extends { system: true } ? never : F
+}[keyof Fields<K>]
 
 /** The present empty value of every nullable field of an entity. */
 export type NullableFieldValues<K extends AppDataKey> = {
-  [F in keyof Fields<K> as Fields<K>[F] extends { nullable: true } ? F : never]: null;
-};
+  [F in keyof Fields<K> as Fields<K>[F] extends { nullable: true } ? F : never]: null
+}
 
 function fieldsWhere<K extends AppDataKey>(table: K, test: (spec: FieldSpec) => boolean) {
-  const specs: Record<string, FieldSpec> = ENTITY_FIELDS[table];
+  const specs: Record<string, FieldSpec> = ENTITY_FIELDS[table]
   return Object.entries(specs)
     .filter(([, spec]) => test(spec))
-    .map(([field]) => field);
+    .map(([field]) => field)
 }
 
 function buildRequiredFields() {
-  const required: Partial<Record<AppDataKey, readonly string[]>> = {};
+  const required: Partial<Record<AppDataKey, readonly string[]>> = {}
   for (const table of APP_DATA_KEYS) {
-    required[table] = fieldsWhere(table, (spec) => spec.required === true);
+    required[table] = fieldsWhere(table, (spec) => spec.required === true)
   }
   // The loop above fills every key of APP_DATA_KEYS.
-  return required as Record<AppDataKey, readonly string[]>;
+  return required as Record<AppDataKey, readonly string[]>
 }
 
 /** The fields a complete row of each entity must carry. */
-export const requiredFields = buildRequiredFields();
+export const requiredFields = buildRequiredFields()
 
 /** The fields of an entity a planning change may write. */
 export function writableFields<K extends AppDataKey>(table: K): readonly WritableField<K>[] {
   // The filter keeps exactly the keys the mapped type keeps.
-  return fieldsWhere(table, (spec) => spec.system !== true) as WritableField<K>[];
+  return fieldsWhere(table, (spec) => spec.system !== true) as WritableField<K>[]
 }
 
 /** The present empty value of every nullable field, for every entity. */
@@ -220,8 +220,8 @@ export function buildNullableFields(): { [K in AppDataKey]: NullableFieldValues<
     APP_DATA_KEYS.map((table) => [
       table,
       Object.fromEntries(
-        fieldsWhere(table, (spec) => spec.nullable === true).map((field) => [field, null]),
+        fieldsWhere(table, (spec) => spec.nullable === true).map((field) => [field, null])
       ),
-    ]),
-  ) as { [K in AppDataKey]: NullableFieldValues<K> };
+    ])
+  ) as { [K in AppDataKey]: NullableFieldValues<K> }
 }

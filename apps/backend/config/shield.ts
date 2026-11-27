@@ -1,7 +1,7 @@
 // Shield sets HSTS, nosniff, frame protection and the CSP on routed responses; security_headers_middleware repeats them for static files and server-stack refusals.
 
-import { publicOrigin } from '#config/public_origin';
-import { defineConfig } from '@adonisjs/shield';
+import { publicOrigin } from '#config/public_origin'
+import { defineConfig } from '@adonisjs/shield'
 
 /**
  * One policy for API responses, the SPA document and static assets. The SPA sets layout
@@ -19,7 +19,7 @@ const contentSecurityPolicyDirectives = {
   objectSrc: ["'none'"],
   baseUri: ["'none'"],
   formAction: ["'self'"],
-};
+}
 
 /** The CSP header value Shield sends, repeated by the security headers middleware outside the router. */
 export const contentSecurityPolicy = Object.entries(contentSecurityPolicyDirectives)
@@ -27,7 +27,7 @@ export const contentSecurityPolicy = Object.entries(contentSecurityPolicyDirecti
     ([name, values]) =>
       `${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)} ${values.join(' ')}`
   )
-  .join(';');
+  .join(';')
 
 const shieldConfig = defineConfig({
   csp: {
@@ -61,6 +61,6 @@ const shieldConfig = defineConfig({
   contentTypeSniffing: {
     enabled: true,
   },
-});
+})
 
-export default shieldConfig;
+export default shieldConfig

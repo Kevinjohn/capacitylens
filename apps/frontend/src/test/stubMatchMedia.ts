@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi } from 'vitest'
 
 /** Replace `window.matchMedia` with a static stub whose `matches` is decided per query. */
 export function stubMatchMedia(matches: (query: string) => boolean): void {
@@ -15,7 +15,7 @@ export function stubMatchMedia(matches: (query: string) => boolean): void {
           addEventListener: vi.fn(),
           removeEventListener: vi.fn(),
           dispatchEvent: vi.fn(() => true),
-        }) satisfies MediaQueryList,
-    ),
-  );
+        }) satisfies MediaQueryList
+    )
+  )
 }

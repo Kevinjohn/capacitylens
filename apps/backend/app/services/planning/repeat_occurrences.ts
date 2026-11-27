@@ -1,32 +1,32 @@
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays'
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek'
 import {
   generateRepeatingStartDates,
   type RepeatPattern,
-} from '@capacitylens/shared/lib/repeatingDates';
+} from '@capacitylens/shared/lib/repeatingDates'
 import {
   buildRepeatedAllocationDrafts,
   buildRepeatedTimeOffDrafts,
-} from '@capacitylens/shared/lib/repeatingOccurrences';
-import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
-import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
-import { requireExistingRow } from '#services/planning/writer';
-import ValidationRefusalException from '#exceptions/validation_refusal_exception';
+} from '@capacitylens/shared/lib/repeatingOccurrences'
+import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays'
+import type { AppData, ISODate } from '@capacitylens/shared/types/entities'
+import { requireExistingRow } from '#services/planning/writer'
+import ValidationRefusalException from '#exceptions/validation_refusal_exception'
 
 // The server's expansion of a repeat pattern into dated occurrences, using the shared rules.
 
 /** A repeat's pattern and its inclusive last start date. */
 export interface RepeatRange {
-  pattern: RepeatPattern;
-  until: ISODate;
+  pattern: RepeatPattern
+  until: ISODate
 }
 
 /** The first occurrence's fields that decide where later occurrences fall. */
 interface FirstAllocation {
-  resourceId: string;
-  startDate: ISODate;
-  endDate: ISODate;
-  ignoreWorkingDays?: boolean | null;
+  resourceId: string
+  startDate: ISODate
+  endDate: ISODate
+  ignoreWorkingDays?: boolean | null
 }
 
 /**
@@ -42,29 +42,29 @@ export function buildAllocationOccurrences(
   first: FirstAllocation,
   repeat: RepeatRange
 ): Array<{ startDate: ISODate; endDate: ISODate }> {
-  const company = requireExistingRow(data, 'companies', companyId);
-  const resource = requireExistingRow(data, 'resources', first.resourceId);
+  const company = requireExistingRow(data, 'companies', companyId)
+  const resource = requireExistingRow(data, 'resources', first.resourceId)
   const effectiveWeek = resolveEffectiveWorkingWeek(
     resource,
     normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1)
-  );
+  )
   const spanOptions = {
     ...(effectiveWeek.kind === 'days' ? { workingDays: effectiveWeek.days } : {}),
     ignoreWorkingDays: first.ignoreWorkingDays,
-  };
+  }
   return refuseInvalidRepeat(() => {
     const { startDates } = generateRepeatingStartDates(
       first.startDate,
       repeat.until,
       repeat.pattern
-    );
+    )
     return buildRepeatedAllocationDrafts(first, startDates, {
       schedulingMode: company.schedulingMode ?? 'hourly',
       daysOver: countSpanDays(first.startDate, first.endDate, spanOptions),
       resource,
       effectiveWeek,
-    }).map(({ startDate, endDate }) => ({ startDate, endDate }));
-  });
+    }).map(({ startDate, endDate }) => ({ startDate, endDate }))
+  })
 }
 
 /**
@@ -81,17 +81,17 @@ export function buildTimeOffOccurrences(
     buildRepeatedTimeOffDrafts(first, repeat.until, repeat.pattern).drafts.map(
       ({ startDate, endDate }) => ({ startDate, endDate })
     )
-  );
+  )
 }
 
 function refuseInvalidRepeat<T>(expand: () => T): T {
   try {
-    return expand();
+    return expand()
   } catch (error) {
     // RepeatingDateError is a RangeError; both describe input the repeat cannot produce.
     if (error instanceof RangeError) {
-      throw new ValidationRefusalException(error.message);
+      throw new ValidationRefusalException(error.message)
     }
-    throw error;
+    throw error
   }
 }

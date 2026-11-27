@@ -10,17 +10,17 @@
 |
 */
 
-const { assertSupportedNodeVersion } = await import('#bin/node_version');
-assertSupportedNodeVersion();
-const { failUnsettledStart } = await import('#bin/unsettled_start');
+const { assertSupportedNodeVersion } = await import('#bin/node_version')
+assertSupportedNodeVersion()
+const { failUnsettledStart } = await import('#bin/unsettled_start')
 
-process.env.NODE_ENV = 'test';
+process.env.NODE_ENV = 'test'
 
-import { fileURLToPath } from 'node:url';
-import { ports } from '@capacitylens/tooling/ports';
+import { fileURLToPath } from 'node:url'
+import { ports } from '@capacitylens/tooling/ports'
 
-const testHttpPort = ports().testHttp;
-const testDatabase = fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url));
+const testHttpPort = ports().testHttp
+const testDatabase = fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url))
 // Fixed values are in .env.test. A shell value would win over that file, so these are dropped: a
 // date pinned in the developer's shell, for one, must not leak into tests that read the real clock.
 for (const key of [
@@ -28,7 +28,7 @@ for (const key of [
   'CAPACITYLENS_ALLOW_RESET',
   'CAPACITYLENS_FIXED_TODAY',
 ])
-  delete process.env[key];
+  delete process.env[key]
 // What stays here is computed from the port lane.
 Object.assign(process.env, {
   PORT: String(testHttpPort),
@@ -36,17 +36,17 @@ Object.assign(process.env, {
   CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_TEST_HTTP_PORT: String(testHttpPort),
   CAPACITYLENS_DB: testDatabase,
-});
+})
 
-import 'reflect-metadata';
-import { Ignitor, prettyPrintError } from '@adonisjs/core/ignitor';
-import { configure, processCLIArgs, run } from '@japa/runner';
+import 'reflect-metadata'
+import { Ignitor, prettyPrintError } from '@adonisjs/core/ignitor'
+import { configure, processCLIArgs, run } from '@japa/runner'
 
 /**
  * URL to the application root. AdonisJS need it to resolve
  * paths to file and directories for scaffolding commands
  */
-const APP_ROOT = new URL('../', import.meta.url);
+const APP_ROOT = new URL('../', import.meta.url)
 
 /**
  * The importer is used to import files in context of the
@@ -54,51 +54,51 @@ const APP_ROOT = new URL('../', import.meta.url);
  */
 const IMPORTER = (filePath: string) => {
   if (filePath.startsWith('./') || filePath.startsWith('../')) {
-    return import(new URL(filePath, APP_ROOT).href);
+    return import(new URL(filePath, APP_ROOT).href)
   }
-  return import(filePath);
-};
+  return import(filePath)
+}
 
-const ignitor = new Ignitor(APP_ROOT, { importer: IMPORTER });
+const ignitor = new Ignitor(APP_ROOT, { importer: IMPORTER })
 const start = ignitor
   .tap((app) => {
     app.booting(async () => {
-      await import('#start/env');
-    });
+      await import('#start/env')
+    })
     // No SIGTERM listener: terminating the application would not stop Japa, and the tests still
     // to run would fail against a closed database. The default action ends the run at once.
-    app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate());
+    app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate())
   })
   .testRunner()
   .configure(async (app) => {
-    const { runnerHooks, ...config } = await import('../tests/bootstrap.js');
+    const { runnerHooks, ...config } = await import('../tests/bootstrap.js')
 
-    processCLIArgs(process.argv.splice(2));
+    processCLIArgs(process.argv.splice(2))
     configure({
       ...app.rcFile.tests,
       ...config,
       ...{ setup: runnerHooks.setup, teardown: runnerHooks.teardown },
-    });
+    })
   })
   .run(async (app) => {
-    await run();
+    await run()
     // Terminating after `run()` lets Japa print the summary and set the exit code first. A failed test
     // can leave the pooled connection held, and termination then never finishes.
-    await app.terminate();
+    await app.terminate()
   })
   .catch(async (error) => {
-    process.exitCode = 1;
-    await prettyPrintError(error);
+    process.exitCode = 1
+    await prettyPrintError(error)
     if (error instanceof Error && error.message.startsWith('Database schema drift')) {
-      console.error(`The test database is stale. Delete ${testDatabase} and run the tests again.`);
+      console.error(`The test database is stale. Delete ${testDatabase} and run the tests again.`)
     }
     // A failed start never reaches the runner teardown, and the open database pool would keep the
     // process alive.
-    await ignitor.terminate();
+    await ignitor.terminate()
   })
   // The run is over, but work that outlived its test can query the database after the application
   // has terminated; that reopens the pool, whose timer keeps the process alive. Both output streams
   // are flushed first, because a pipe is written asynchronously on some platforms and exiting at
   // once would cut the summary short.
-  .finally(() => process.stdout.write('', () => process.stderr.write('', () => process.exit())));
-void failUnsettledStart(start, 'The test run');
+  .finally(() => process.stdout.write('', () => process.stderr.write('', () => process.exit())))
+void failUnsettledStart(start, 'The test run')

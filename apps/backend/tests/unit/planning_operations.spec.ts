@@ -1,20 +1,17 @@
-import { test } from '@japa/runner';
+import { test } from '@japa/runner'
 import {
   buildExternalCapacityDefaults,
   buildPlaceholderCapacityDefaults,
-} from '@capacitylens/shared/types/entities';
-import type {
-  PlanningMutationInput,
-  PlanningMutationSuccess,
-} from '#validators/planning/contracts';
-import { operationOf, validateMutation } from '#tests/helpers/unit/planning_operations';
-import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception';
-import { PlanningRevisionService } from '#services/planning_revision_service';
+} from '@capacitylens/shared/types/entities'
+import type { PlanningMutationInput, PlanningMutationSuccess } from '#validators/planning/contracts'
+import { operationOf, validateMutation } from '#tests/helpers/unit/planning_operations'
+import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception'
+import { PlanningRevisionService } from '#services/planning_revision_service'
 
-const planningRevisions = new PlanningRevisionService();
+const planningRevisions = new PlanningRevisionService()
 
-const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
-const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';
+const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3'
+const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5'
 
 test.group('planning operation contracts', () => {
   test('validates allocation creation and strips server-owned and unknown fields', async ({
@@ -39,7 +36,7 @@ test.group('planning operation contracts', () => {
           clientOnlyField: 'ignored',
         },
       },
-    });
+    })
 
     assert.deepEqual(input.intent, {
       operation: 'allocation.create',
@@ -52,8 +49,8 @@ test.group('planning operation contracts', () => {
         hoursPerDay: 7.5,
         status: 'confirmed',
       },
-    });
-  });
+    })
+  })
 
   test('rejects malformed UUIDs, revisions and calendar dates', async ({ assert }) => {
     const base: PlanningMutationInput = {
@@ -71,7 +68,7 @@ test.group('planning operation contracts', () => {
           status: 'confirmed',
         },
       },
-    };
+    }
     const validInput = {
       mutationId: uuid,
       baseRevision: 0,
@@ -87,11 +84,11 @@ test.group('planning operation contracts', () => {
           status: 'confirmed',
         },
       },
-    } as const;
-    await assert.rejects(() => validateMutation(base));
-    await assert.rejects(() => validateMutation({ ...validInput, baseRevision: -1 }));
-    await assert.rejects(() => validateMutation({ ...validInput, baseRevision: '0' }));
-    await assert.rejects(() => validateMutation({ ...validInput, mutationId: 'not-a-uuid' }));
+    } as const
+    await assert.rejects(() => validateMutation(base))
+    await assert.rejects(() => validateMutation({ ...validInput, baseRevision: -1 }))
+    await assert.rejects(() => validateMutation({ ...validInput, baseRevision: '0' }))
+    await assert.rejects(() => validateMutation({ ...validInput, mutationId: 'not-a-uuid' }))
     await assert.rejects(() =>
       validateMutation({
         ...validInput,
@@ -100,7 +97,7 @@ test.group('planning operation contracts', () => {
           allocation: { ...validInput.intent.allocation, hoursPerDay: '7.5' },
         },
       })
-    );
+    )
     await assert.rejects(() =>
       validateMutation({
         ...validInput,
@@ -109,7 +106,7 @@ test.group('planning operation contracts', () => {
           allocation: { ...validInput.intent.allocation, ignoreWorkingDays: 'true' },
         },
       })
-    );
+    )
     await assert.rejects(() =>
       validateMutation({
         ...base,
@@ -126,8 +123,8 @@ test.group('planning operation contracts', () => {
           },
         },
       })
-    );
-  });
+    )
+  })
 
   test('accepts only a canonical timestamp as the expected row timestamp', async ({ assert }) => {
     const edit = {
@@ -137,20 +134,20 @@ test.group('planning operation contracts', () => {
         operation: 'catalogue.update',
         entity: { entity: 'clients', id: otherUuid, changes: { name: 'Wayne Enterprises' } },
       },
-    } as const;
+    } as const
     const accepted = await validateMutation({
       ...edit,
       expectedUpdatedAt: '2026-03-02T09:00:00.000Z',
-    });
-    assert.equal(accepted.expectedUpdatedAt, '2026-03-02T09:00:00.000Z');
+    })
+    assert.equal(accepted.expectedUpdatedAt, '2026-03-02T09:00:00.000Z')
     for (const expectedUpdatedAt of [
       'yesterday',
       '2026-03-02T09:00:00Z',
       '2026-03-02T10:00:00.000+01:00',
     ]) {
-      await assert.rejects(() => validateMutation({ ...edit, expectedUpdatedAt }));
+      await assert.rejects(() => validateMutation({ ...edit, expectedUpdatedAt }))
     }
-  });
+  })
 
   test('requires a writable update and preserves omission separately from null', async ({
     assert,
@@ -161,7 +158,7 @@ test.group('planning operation contracts', () => {
         baseRevision: 3,
         intent: { operation: 'allocation.update', id: uuid, changes: { unknown: true } },
       })
-    );
+    )
 
     const omitted = await validateMutation({
       mutationId: uuid,
@@ -171,7 +168,7 @@ test.group('planning operation contracts', () => {
         id: uuid,
         changes: { status: 'tentative' },
       },
-    });
+    })
     const cleared = await validateMutation({
       mutationId: otherUuid,
       baseRevision: 3,
@@ -180,19 +177,19 @@ test.group('planning operation contracts', () => {
         id: uuid,
         changes: { note: null },
       },
-    });
+    })
 
     assert.deepEqual(omitted.intent, {
       operation: 'allocation.update',
       id: uuid,
       changes: { status: 'tentative' },
-    });
+    })
     assert.deepEqual(cleared.intent, {
       operation: 'allocation.update',
       id: uuid,
       changes: { note: null },
-    });
-  });
+    })
+  })
 
   test('requires a duplicate id distinct from its source and refuses the removed repeat', async ({
     assert,
@@ -209,8 +206,8 @@ test.group('planning operation contracts', () => {
           endDate: '2026-10-30',
         },
       },
-    });
-    assert.equal(duplicate.intent.operation, 'allocation.duplicate');
+    })
+    assert.equal(duplicate.intent.operation, 'allocation.duplicate')
 
     await assert.rejects(() =>
       validateMutation({
@@ -222,7 +219,7 @@ test.group('planning operation contracts', () => {
           occurrence: { id: uuid, startDate: '2026-10-26', endDate: '2026-10-30' },
         },
       })
-    );
+    )
 
     // A repeat is created as one allocation group; the source-copying repeat operation is gone.
     await assert.rejects(() =>
@@ -235,8 +232,8 @@ test.group('planning operation contracts', () => {
           occurrences: [{ id: otherUuid, startDate: '2026-10-26', endDate: '2026-10-30' }],
         },
       })
-    );
-  });
+    )
+  })
 
   test('validates named catalogue, resource, time-off, closure and settings operations', async ({
     assert,
@@ -250,7 +247,7 @@ test.group('planning operation contracts', () => {
         })
       ),
       'catalogue.delete'
-    );
+    )
     assert.equal(
       await operationOf(
         validateMutation({
@@ -260,7 +257,7 @@ test.group('planning operation contracts', () => {
         })
       ),
       'resource.update'
-    );
+    )
     assert.equal(
       await operationOf(
         validateMutation({
@@ -270,7 +267,7 @@ test.group('planning operation contracts', () => {
         })
       ),
       'timeOff.delete'
-    );
+    )
     assert.equal(
       await operationOf(
         validateMutation({
@@ -280,7 +277,7 @@ test.group('planning operation contracts', () => {
         })
       ),
       'closure.delete'
-    );
+    )
     assert.equal(
       await operationOf(
         validateMutation({
@@ -290,7 +287,7 @@ test.group('planning operation contracts', () => {
         })
       ),
       'settings.update'
-    );
+    )
     assert.equal(
       await operationOf(
         validateMutation({
@@ -300,7 +297,7 @@ test.group('planning operation contracts', () => {
         })
       ),
       'allocation.delete'
-    );
+    )
 
     const catalogue = await validateMutation({
       mutationId: uuid,
@@ -319,12 +316,12 @@ test.group('planning operation contracts', () => {
           },
         },
       },
-    });
+    })
     const catalogueDelete = await validateMutation({
       mutationId: 'f6498a84-8ed9-4a25-901a-f7e5ca435c39',
       baseRevision: 8,
       intent: { operation: 'catalogue.delete', entity: { entity: 'phases', id: uuid } },
-    });
+    })
     const resource = await validateMutation({
       mutationId: otherUuid,
       baseRevision: 8,
@@ -333,7 +330,7 @@ test.group('planning operation contracts', () => {
         id: uuid,
         changes: { workingDays: [1, 2, 3, 4, 5], kind: 'external', archivedAt: '2026-10-20' },
       },
-    });
+    })
     const timeOff = await validateMutation({
       mutationId: 'f0b7fcba-0566-4170-b018-c300c10e3ea1',
       baseRevision: 8,
@@ -349,7 +346,7 @@ test.group('planning operation contracts', () => {
         repeat: { pattern: { kind: 'monthly-last-weekday' }, until: '2026-11-30' },
         occurrenceIds: ['afc8a820-43fd-4a84-b98c-d42a8a46eb41'],
       },
-    });
+    })
     const closure = await validateMutation({
       mutationId: '0066854a-9ec8-4854-8fe4-4d29c7210a32',
       baseRevision: 8,
@@ -358,7 +355,7 @@ test.group('planning operation contracts', () => {
         id: '1ffb7b6e-4a16-44e1-9fa5-796869d8c1a5',
         fields: { name: 'Studio closed', startDate: '2026-12-25', endDate: '2026-12-25' },
       },
-    });
+    })
     const settings = await validateMutation({
       mutationId: '3790048c-8926-47b1-ac3f-88722ee43bb6',
       baseRevision: 8,
@@ -371,18 +368,18 @@ test.group('planning operation contracts', () => {
           createdAt: '2026-10-20T00:00:00.000Z',
         },
       },
-    });
+    })
 
-    assert.equal(catalogue.intent.operation, 'catalogue.create');
-    assert.equal(catalogueDelete.intent.operation, 'catalogue.delete');
+    assert.equal(catalogue.intent.operation, 'catalogue.create')
+    assert.equal(catalogueDelete.intent.operation, 'catalogue.delete')
     if (resource.intent.operation === 'resource.update') {
-      assert.deepEqual(resource.intent.changes, { workingDays: [1, 2, 3, 4, 5] });
+      assert.deepEqual(resource.intent.changes, { workingDays: [1, 2, 3, 4, 5] })
     }
     if (timeOff.intent.operation === 'timeOff.repeat') {
-      assert.deepEqual(timeOff.intent.repeat.pattern, { kind: 'monthly-last-weekday' });
-      assert.lengthOf(timeOff.intent.occurrenceIds, 1);
+      assert.deepEqual(timeOff.intent.repeat.pattern, { kind: 'monthly-last-weekday' })
+      assert.lengthOf(timeOff.intent.occurrenceIds, 1)
     }
-    assert.equal(closure.intent.operation, 'closure.create');
+    assert.equal(closure.intent.operation, 'closure.create')
     await assert.rejects(() =>
       validateMutation({
         mutationId: otherUuid,
@@ -393,15 +390,15 @@ test.group('planning operation contracts', () => {
           fields: { name: '   ', startDate: '2026-12-25', endDate: '2026-12-25' },
         },
       })
-    );
+    )
     if (settings.intent.operation === 'settings.update') {
       assert.deepEqual(settings.intent.changes, {
         dateStyle: 'day-month',
         timezone: 'Etc/GMT',
         weekStartsOn: 0,
-      });
+      })
     }
-  });
+  })
 
   test('uses a fresh mutation ID and captured revision for each Undo and Redo execution', async ({
     assert,
@@ -421,32 +418,32 @@ test.group('planning operation contracts', () => {
           status: 'confirmed',
         },
       },
-    });
+    })
     const undo = await validateMutation({
       mutationId: 'f0b7fcba-0566-4170-b018-c300c10e3ea1',
       baseRevision: 11,
       intent: { operation: 'allocation.delete', id: otherUuid },
-    });
+    })
     const redo = await validateMutation({
       mutationId: '97710863-4328-4a8f-b2b1-dae930003cdb',
       baseRevision: 12,
       intent: { operation: 'planning.restoreGroup', restorationGroupId: uuid },
-    });
+    })
     const undoAgain = await validateMutation({
       mutationId: 'afc8a820-43fd-4a84-b98c-d42a8a46eb41',
       baseRevision: 13,
       intent: { operation: 'allocation.delete', id: otherUuid },
-    });
+    })
 
     assert.equal(
       new Set([create.mutationId, undo.mutationId, redo.mutationId, undoAgain.mutationId]).size,
       4
-    );
+    )
     assert.deepEqual(
       [create.baseRevision, undo.baseRevision, redo.baseRevision, undoAgain.baseRevision],
       [10, 11, 12, 13]
-    );
-  });
+    )
+  })
 
   test('types delete-created restore handles', ({ assert }) => {
     const deletion: PlanningMutationSuccess = {
@@ -456,23 +453,23 @@ test.group('planning operation contracts', () => {
       restoration: { consumedGroupId: null, replacementGroupId: otherUuid },
       changes: { upserts: [], removed: [] },
       history: { canUndo: true, canRedo: false },
-    };
+    }
     const restoration: PlanningMutationSuccess = {
       ...deletion,
       mutationId: otherUuid,
       revision: 19,
       restoration: { consumedGroupId: otherUuid, replacementGroupId: null },
-    };
+    }
 
     assert.deepEqual(deletion.restoration, {
       consumedGroupId: null,
       replacementGroupId: otherUuid,
-    });
+    })
     assert.deepEqual(restoration.restoration, {
       consumedGroupId: otherUuid,
       replacementGroupId: null,
-    });
-  });
+    })
+  })
 
   test('malformed repeat ids fail as validation errors, not rule exceptions', async ({
     assert,
@@ -481,19 +478,19 @@ test.group('planning operation contracts', () => {
       { operation: 'timeOff.repeat', occurrenceIds: [null] },
       { operation: 'timeOff.repeat', timeOff: null, occurrenceIds: [uuid] },
     ]) {
-      let error: unknown;
+      let error: unknown
       try {
         await validateMutation({
           mutationId: otherUuid,
           baseRevision: 0,
           intent,
-        });
+        })
       } catch (caught) {
-        error = caught;
+        error = caught
       }
-      assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR');
+      assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR')
     }
-  });
+  })
 
   test('retains resource-kind defaults and scalar validity', async ({ assert }) => {
     const external = {
@@ -508,13 +505,13 @@ test.group('planning operation contracts', () => {
       isFavourite: false,
       firstAvailableDate: null,
       lastAvailableDate: null,
-    };
+    }
     const valid = await validateMutation({
       mutationId: uuid,
       baseRevision: 1,
       intent: { operation: 'resource.create', id: otherUuid, fields: external },
-    });
-    assert.equal(valid.intent.operation, 'resource.create');
+    })
+    assert.equal(valid.intent.operation, 'resource.create')
 
     for (const fields of [
       { ...external, color: '#f5bcbc' },
@@ -529,9 +526,9 @@ test.group('planning operation contracts', () => {
           baseRevision: 1,
           intent: { operation: 'resource.create', id: otherUuid, fields },
         })
-      );
+      )
     }
-  });
+  })
 
   test('accepts placeholder defaults and rejects invalid person and partial weekday sets', async ({
     assert,
@@ -551,13 +548,13 @@ test.group('planning operation contracts', () => {
       isFavourite: false,
       firstAvailableDate: null,
       lastAvailableDate: null,
-    };
+    }
     const validPlaceholder = await validateMutation({
       mutationId: uuid,
       baseRevision: 1,
       intent: { operation: 'resource.create', id: otherUuid, fields: placeholder },
-    });
-    assert.equal(validPlaceholder.intent.operation, 'resource.create');
+    })
+    assert.equal(validPlaceholder.intent.operation, 'resource.create')
 
     const person = {
       ...placeholder,
@@ -568,7 +565,7 @@ test.group('planning operation contracts', () => {
       workingDays: [1, 2],
       halfDays: [2],
       projectId: null,
-    };
+    }
     await assert.rejects(() =>
       validateMutation({
         mutationId: uuid,
@@ -579,7 +576,7 @@ test.group('planning operation contracts', () => {
           fields: { ...person, workingDays: [] },
         },
       })
-    );
+    )
     await assert.rejects(() =>
       validateMutation({
         mutationId: uuid,
@@ -590,28 +587,28 @@ test.group('planning operation contracts', () => {
           changes: { workingDays: [1], halfDays: [2] },
         },
       })
-    );
+    )
     await assert.rejects(() =>
       validateMutation({
         mutationId: uuid,
         baseRevision: 1,
         intent: { operation: 'resource.update', id: otherUuid, changes: { workingDays: [] } },
       })
-    );
-  });
+    )
+  })
 
   test('returns a typed stale-revision conflict without implying transactional enforcement', ({
     assert,
   }) => {
-    let conflict: unknown;
+    let conflict: unknown
     try {
-      planningRevisions.assertPlanningBaseRevision(4, 5, uuid);
+      planningRevisions.assertPlanningBaseRevision(4, 5, uuid)
     } catch (error) {
-      conflict = error;
+      conflict = error
     }
-    assert.instanceOf(conflict, StalePlanningRevisionException);
-    assert.equal((conflict as StalePlanningRevisionException).status, 409);
-    assert.equal((conflict as StalePlanningRevisionException).code, 'STALE_REVISION');
-    assert.doesNotThrow(() => planningRevisions.assertPlanningBaseRevision(5, 5, uuid));
-  });
-});
+    assert.instanceOf(conflict, StalePlanningRevisionException)
+    assert.equal((conflict as StalePlanningRevisionException).status, 409)
+    assert.equal((conflict as StalePlanningRevisionException).code, 'STALE_REVISION')
+    assert.doesNotThrow(() => planningRevisions.assertPlanningBaseRevision(5, 5, uuid))
+  })
+})

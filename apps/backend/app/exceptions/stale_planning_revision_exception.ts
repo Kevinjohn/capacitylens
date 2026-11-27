@@ -1,15 +1,15 @@
-import ProductException from '#exceptions/product_exception';
+import ProductException from '#exceptions/product_exception'
 
 /** A stale-revision conflict; the authoritative comparison occurs under the write transaction. */
 export default class StalePlanningRevisionException extends ProductException {
-  static status = 409;
-  static code = 'STALE_REVISION';
+  static status = 409
+  static code = 'STALE_REVISION'
 
   constructor(
     readonly mutationId: string,
     readonly baseRevision: number,
     readonly currentRevision: number
   ) {
-    super('The planning revision changed before this mutation was applied.');
+    super('The planning revision changed before this mutation was applied.')
   }
 }

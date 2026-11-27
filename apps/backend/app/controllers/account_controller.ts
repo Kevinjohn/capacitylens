@@ -1,18 +1,18 @@
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+import type { HttpContext } from '@adonisjs/core/http'
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
+import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main'
 import {
   E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED,
   isCommittedFailure,
-} from '@kevinjohn/adonisjs-account-kit/errors';
-import { deleteAccountValidator } from '#validators/credentials';
+} from '@kevinjohn/adonisjs-account-kit/errors'
+import { deleteAccountValidator } from '#validators/credentials'
 
 const deletionCommitted = {
   error: 'Your account was deleted, but a follow-up step failed. You are signed out.',
   code: 'ACCOUNT_DELETION_COMMITTED',
   committed: true,
-} satisfies ProductHttpErrorBody;
+} satisfies ProductHttpErrorBody
 
 /** The signed-in identity's own account. */
 export default class AccountController {
@@ -27,37 +27,37 @@ export default class AccountController {
   async destroy({ auth, request, response, serialize }: HttpContext) {
     const body = await request.validateUsing(deleteAccountValidator, {
       data: request.body(),
-    });
-    const input = await auth.use('web').current();
-    const confirmation = { action: 'delete-account', scope: String(input.userId), intent: {} };
+    })
+    const input = await auth.use('web').current()
+    const confirmation = { action: 'delete-account', scope: String(input.userId), intent: {} }
     const { confirmationId } = await passwordConfirmations.confirmPassword(input, {
       ...confirmation,
       password: body.currentPassword,
-    });
+    })
     await passwordConfirmations.withConfirmation(
       input,
       { ...confirmation, confirmationId },
       async () => {}
-    );
-    let outcome: 'deleted' | 'committed' = 'deleted';
+    )
+    let outcome: 'deleted' | 'committed' = 'deleted'
     try {
       await accountKit.accountData.delete({
         actorId: input.userId,
         currentPassword: body.currentPassword,
-      });
+      })
     } catch (error) {
       // Does work: a committed deletion is recorded before the session ends.
       if (error instanceof E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED) {
         return response.forbidden({
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
-        });
+        })
       }
-      if (!isCommittedFailure(error)) throw error;
-      outcome = 'committed';
+      if (!isCommittedFailure(error)) throw error
+      outcome = 'committed'
     }
-    await auth.use('web').forRequest().terminate();
-    if (outcome === 'committed') return response.serviceUnavailable(deletionCommitted);
-    return serialize({ ok: true, signedOut: true });
+    await auth.use('web').forRequest().terminate()
+    if (outcome === 'committed') return response.serviceUnavailable(deletionCommitted)
+    return serialize({ ok: true, signedOut: true })
   }
 }

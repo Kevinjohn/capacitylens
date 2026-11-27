@@ -1,37 +1,37 @@
-import { Fragment } from 'react';
-import { Link } from 'react-router-dom';
-import type { ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
-import { useArchiveRecovery } from '@/hooks/useArchiveRecovery';
-import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
-import { useExclusiveOperation } from '@/hooks/useExclusiveOperation';
-import { Button } from '@/components/ui/button';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { useStore } from '@/store/useStore';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { m } from '@/i18n';
+import { Fragment } from 'react'
+import { Link } from 'react-router-dom'
+import type { ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle'
+import { useArchiveRecovery } from '@/hooks/useArchiveRecovery'
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations'
+import { useExclusiveOperation } from '@/hooks/useExclusiveOperation'
+import { Button } from '@/components/ui/button'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { useStore } from '@/store/useStore'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { m } from '@/i18n'
 
 const headings = {
   resources: () => m.list_resources_archived_heading(),
   clients: () => m.list_clients_archived_heading(),
   projects: () => m.list_projects_archived_heading(),
   activities: () => m.list_activities_archived_heading(),
-};
+}
 const groups = {
   studio: () => m.list_resources_archived_studio_heading(),
   supplementary: () => m.list_resources_archived_supplementary_heading(),
   external: () => m.list_resources_archived_external_heading(),
   placeholders: () => m.list_resources_archived_placeholders_heading(),
-};
+}
 
 /** Shows only identity labels and existing typed restore actions, without inactive details. */
 export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow['entity'] }) {
-  const { data, error } = useArchiveRecovery();
-  const actions = useLifecycleOperations();
-  const { busy, run } = useExclusiveOperation();
-  const setNotice = useStore((state) => state.setNotice);
-  const rows = data?.rows.filter((row) => row.entity === entity) ?? [];
-  if (error) return <p role="alert">{error}</p>;
-  if (!rows.length) return null;
+  const { data, error } = useArchiveRecovery()
+  const actions = useLifecycleOperations()
+  const { busy, run } = useExclusiveOperation()
+  const setNotice = useStore((state) => state.setNotice)
+  const rows = data?.rows.filter((row) => row.entity === entity) ?? []
+  if (error) return <p role="alert">{error}</p>
+  if (!rows.length) return null
   const renderRows = (selected: ArchiveRecoveryRow[]) => (
     <ItemGroup className="rounded-md border bg-card">
       {selected.map((row, index) => (
@@ -68,7 +68,7 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
                   onClick={() =>
                     run(
                       () => actions.restore(entity, row.id),
-                      (failure) => setNotice(resolveErrorMessage(failure), 'error'),
+                      (failure) => setNotice(resolveErrorMessage(failure), 'error')
                     )
                   }
                 >
@@ -87,12 +87,12 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
         </Fragment>
       ))}
     </ItemGroup>
-  );
+  )
   return (
     <section className="mt-8 space-y-3" data-testid={`archived-${entity}-section`}>
       {entity === 'resources' ? (
         (Object.keys(groups) as (keyof typeof groups)[]).map((group) => {
-          const selected = rows.filter((row) => row.entity === 'resources' && row.group === group);
+          const selected = rows.filter((row) => row.entity === 'resources' && row.group === group)
           return selected.length ? (
             <section
               key={group}
@@ -104,7 +104,7 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
               </h2>
               {renderRows(selected)}
             </section>
-          ) : null;
+          ) : null
         })
       ) : (
         <>
@@ -115,5 +115,5 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
         </>
       )}
     </section>
-  );
+  )
 }

@@ -1,44 +1,44 @@
-import type { ComponentProps } from 'react';
-import { Plus } from 'lucide-react';
-import { m } from '@/i18n';
-import { formatUtilisationPercent } from '@/lib/formatUtilisationPercent';
-import { UTILISATION_WINDOW_DAYS } from '@/lib/schedulerConfig';
-import { resolveResourceDisplayName } from '@/lib/metadata';
-import { LAYOUT } from './layout';
-import { ResourceLane } from './ResourceLane';
-import { buildRowScreenReaderSummary } from './buildRowScreenReaderSummary';
-import type { GroupModel, RowModel } from './schedulerModel';
-import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
-import { Button } from '@/components/ui/button';
-import { PersonScheduleTrigger } from '@/components/person-schedule/PersonScheduleTrigger';
-import { resolveResourceAvatarUrl } from '@/account/resolveResourceAvatarUrl';
-import { useStore } from '@/store/useStore';
-import { useCanEdit } from '@/auth/permissionContext';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { resolvePersonScheduleIdentity } from '@/components/person-schedule/usePersonSchedule';
-import { useSchedulerGridActions } from './schedulerGridActions';
+import type { ComponentProps } from 'react'
+import { Plus } from 'lucide-react'
+import { m } from '@/i18n'
+import { formatUtilisationPercent } from '@/lib/formatUtilisationPercent'
+import { UTILISATION_WINDOW_DAYS } from '@/lib/schedulerConfig'
+import { resolveResourceDisplayName } from '@/lib/metadata'
+import { LAYOUT } from './layout'
+import { ResourceLane } from './ResourceLane'
+import { buildRowScreenReaderSummary } from './buildRowScreenReaderSummary'
+import type { GroupModel, RowModel } from './schedulerModel'
+import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
+import { Button } from '@/components/ui/button'
+import { PersonScheduleTrigger } from '@/components/person-schedule/PersonScheduleTrigger'
+import { resolveResourceAvatarUrl } from '@/account/resolveResourceAvatarUrl'
+import { useStore } from '@/store/useStore'
+import { useCanEdit } from '@/auth/permissionContext'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { resolvePersonScheduleIdentity } from '@/components/person-schedule/usePersonSchedule'
+import { useSchedulerGridActions } from './schedulerGridActions'
 
-type LaneProps = ComponentProps<typeof ResourceLane>;
+type LaneProps = ComponentProps<typeof ResourceLane>
 /** Props passed to the scheduler grid row component. */
 export interface SchedulerGridRowProps {
-  group: GroupModel;
-  row: RowModel;
-  rowIndex: number;
-  visibleWeeksLabel: string;
-  days: LaneProps['days'];
-  todayX: LaneProps['todayX'];
-  geom: LaneProps['geom'];
-  calendarWeekStartsOn: LaneProps['weekStartsOn'];
-  onEdit: LaneProps['onEdit'];
-  onDraw: LaneProps['onDraw'];
+  group: GroupModel
+  row: RowModel
+  rowIndex: number
+  visibleWeeksLabel: string
+  days: LaneProps['days']
+  todayX: LaneProps['todayX']
+  geom: LaneProps['geom']
+  calendarWeekStartsOn: LaneProps['weekStartsOn']
+  onEdit: LaneProps['onEdit']
+  onDraw: LaneProps['onDraw']
 }
 
 function ResourceIdentity({ group, row }: Pick<SchedulerGridRowProps, 'group' | 'row'>) {
-  const { resource } = row;
-  const data = useActiveScopedData();
-  const { onViewSchedule } = useSchedulerGridActions();
-  const scheduleTitle = resolvePersonScheduleIdentity(resource, data);
-  const imageUrl = resolveResourceAvatarUrl(resource);
+  const { resource } = row
+  const data = useActiveScopedData()
+  const { onViewSchedule } = useSchedulerGridActions()
+  const scheduleTitle = resolvePersonScheduleIdentity(resource, data)
+  const imageUrl = resolveResourceAvatarUrl(resource)
   // A placeholder in a discipline band takes the discipline colour; one without a discipline keeps
   // its own colour instead of the neutral Unassigned band colour. The capacity overview differs on
   // purpose: it gathers every placeholder into the uncoloured Unassigned demand band, so there a
@@ -46,7 +46,7 @@ function ResourceIdentity({ group, row }: Pick<SchedulerGridRowProps, 'group' | 
   const avatarColor =
     resource.kind === 'placeholder' && !resource.disciplineId
       ? resource.color
-      : (group.color ?? resource.color);
+      : (group.color ?? resource.color)
   return (
     <div
       className="flex min-w-0 flex-1 items-center gap-2"
@@ -70,7 +70,7 @@ function ResourceIdentity({ group, row }: Pick<SchedulerGridRowProps, 'group' | 
         <span className="block truncate text-xs text-muted-foreground">{resource.jobTitle}</span>
       </div>
     </div>
-  );
+  )
 }
 
 function UtilisationCell({
@@ -80,7 +80,7 @@ function UtilisationCell({
 }: Pick<RowModel, 'utilisation' | 'overSoon'> & { visibleWeeksLabel: string }) {
   const title = overSoon
     ? m.scheduler_util_title_oversoon({ days: UTILISATION_WINDOW_DAYS, span: visibleWeeksLabel })
-    : m.scheduler_util_title({ span: visibleWeeksLabel });
+    : m.scheduler_util_title({ span: visibleWeeksLabel })
   return (
     <span
       data-testid="utilisation"
@@ -91,20 +91,20 @@ function UtilisationCell({
     >
       {formatUtilisationPercent(utilisation)}%
     </span>
-  );
+  )
 }
 
 function ResourceActions({
   row,
   visibleWeeksLabel,
 }: Pick<SchedulerGridRowProps, 'row' | 'visibleWeeksLabel'>) {
-  const drawMode = useStore((state) => state.ui.drawMode);
-  const utilisationPrefs = useStore((state) => state.utilisationPrefs);
-  const canEdit = useCanEdit();
-  const { visibleStartDate, setDialog } = useSchedulerGridActions();
-  const { resource, utilisation, overSoon } = row;
-  const canCreate = canEdit && (drawMode !== 'timeOff' || !isExternalResource(resource));
-  const showUtilisation = utilisationPrefs.showPersonal && isCapacityTracked(resource);
+  const drawMode = useStore((state) => state.ui.drawMode)
+  const utilisationPrefs = useStore((state) => state.utilisationPrefs)
+  const canEdit = useCanEdit()
+  const { visibleStartDate, setDialog } = useSchedulerGridActions()
+  const { resource, utilisation, overSoon } = row
+  const canCreate = canEdit && (drawMode !== 'timeOff' || !isExternalResource(resource))
+  const showUtilisation = utilisationPrefs.showPersonal && isCapacityTracked(resource)
   return (
     <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
       {canCreate && (
@@ -112,13 +112,13 @@ function ResourceActions({
           variant="ghost"
           size="icon"
           onClick={() => {
-            const day = visibleStartDate();
+            const day = visibleStartDate()
             setDialog({
               kind: drawMode === 'timeOff' ? 'timeOff' : 'create',
               resourceId: resource.id,
               startDate: day,
               endDate: day,
-            });
+            })
           }}
           aria-label={
             drawMode === 'timeOff'
@@ -139,7 +139,7 @@ function ResourceActions({
         />
       )}
     </div>
-  );
+  )
 }
 
 function SchedulerGridRowHeader({
@@ -147,9 +147,9 @@ function SchedulerGridRowHeader({
   group,
   visibleWeeksLabel,
 }: Pick<SchedulerGridRowProps, 'group' | 'row' | 'visibleWeeksLabel'>) {
-  const drawMode = useStore((state) => state.ui.drawMode);
-  const showPersonalUtilisation = useStore((state) => state.utilisationPrefs.showPersonal);
-  const { resource } = row;
+  const drawMode = useStore((state) => state.ui.drawMode)
+  const showPersonalUtilisation = useStore((state) => state.utilisationPrefs.showPersonal)
+  const { resource } = row
   return (
     <div
       role="rowheader"
@@ -169,14 +169,14 @@ function SchedulerGridRowHeader({
       <ResourceIdentity group={group} row={row} />
       <ResourceActions row={row} visibleWeeksLabel={visibleWeeksLabel} />
     </div>
-  );
+  )
 }
 
 /** Renders one resource row in the scheduler grid. */
 export function SchedulerGridRow(props: SchedulerGridRowProps) {
-  const { row, rowIndex, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } = props;
-  const canEdit = useCanEdit();
-  const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
+  const { row, rowIndex, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } = props
+  const canEdit = useCanEdit()
+  const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row
   return (
     /* One scheduler-row surface on the whole row (not just the sticky header) keeps the divider
          on one background, without it the border crosses the frozen left column
@@ -213,5 +213,5 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         {...(canEdit && onDraw ? { onDraw } : {})}
       />
     </div>
-  );
+  )
 }

@@ -1,5 +1,5 @@
-import { NULLABLE_FIELDS } from '../types/nullableFields.js';
-import { describe, it, expect } from 'vitest';
+import { NULLABLE_FIELDS } from '../types/nullableFields.js'
+import { describe, it, expect } from 'vitest'
 import {
   resolveLifecycleStatus,
   canArchive,
@@ -10,9 +10,9 @@ import {
   isLifecycleEntityKey,
   LifecycleTransitionError,
   LIFECYCLE_ENTITY_KEYS,
-} from '@capacitylens/shared/domain/lifecycle';
-import type { LifecycleState, LifecycleFields } from '@capacitylens/shared/domain/lifecycle';
-import type { Resource } from '../types/entities.js';
+} from '@capacitylens/shared/domain/lifecycle'
+import type { LifecycleState, LifecycleFields } from '@capacitylens/shared/domain/lifecycle'
+import type { Resource } from '../types/entities.js'
 
 // These tests are an independent oracle of the lifecycle state machine: the expected states /
 // booleans below are hand-derived from the contract (archive needs active;
@@ -20,79 +20,79 @@ import type { Resource } from '../types/entities.js';
 // implementation. If lifecycle.ts and these tables disagree, that's the test doing its job.
 
 // Fixed ISO consts so every assertion is deterministic (no ambient clock anywhere in the machine).
-const T_ARCH = '2026-01-01T00:00:00.000Z';
+const T_ARCH = '2026-01-01T00:00:00.000Z'
 
 describe('lifecycle vocabulary', () => {
   it('is immutable and keeps the narrowing guard closed', () => {
-    expect(Object.isFrozen(LIFECYCLE_ENTITY_KEYS)).toBe(true);
-    expect(() => (LIFECYCLE_ENTITY_KEYS as unknown as string[]).push('allocations')).toThrow();
-    expect(isLifecycleEntityKey('activities')).toBe(true);
-    expect(isLifecycleEntityKey('allocations')).toBe(false);
-  });
-});
+    expect(Object.isFrozen(LIFECYCLE_ENTITY_KEYS)).toBe(true)
+    expect(() => (LIFECYCLE_ENTITY_KEYS as unknown as string[]).push('allocations')).toThrow()
+    expect(isLifecycleEntityKey('activities')).toBe(true)
+    expect(isLifecycleEntityKey('allocations')).toBe(false)
+  })
+})
 // An arbitrary "now" used for archive/softDelete timestamps.
-const NOW = '2026-06-01T00:00:00.000Z';
+const NOW = '2026-06-01T00:00:00.000Z'
 
 // The three canonical sample entities, each carrying an extra `{ id, name }` payload so the
 // immutability/preservation assertions have something concrete to check survives a transition.
-type Sample = LifecycleFields & { id: string; name: string };
-const makeActive = (): Sample => ({ id: 'r1', name: 'x' });
-const makeArchived = (): Sample => ({ id: 'r1', name: 'x', archivedAt: T_ARCH });
+type Sample = LifecycleFields & { id: string; name: string }
+const makeActive = (): Sample => ({ id: 'r1', name: 'x' })
+const makeArchived = (): Sample => ({ id: 'r1', name: 'x', archivedAt: T_ARCH })
 
 const expectLifecycleError = (
   operation: () => unknown,
   code: LifecycleTransitionError['code'],
-  message: RegExp,
+  message: RegExp
 ): void => {
-  let caught: unknown;
+  let caught: unknown
   try {
-    operation();
+    operation()
     // Capture the failure so the test can assert its typed lifecycle classification.
   } catch (error: unknown) {
-    caught = error;
+    caught = error
   }
-  expect(caught).toBeInstanceOf(LifecycleTransitionError);
+  expect(caught).toBeInstanceOf(LifecycleTransitionError)
   if (caught instanceof LifecycleTransitionError) {
-    expect(caught.name).toBe('LifecycleTransitionError');
-    expect(caught.code).toBe(code);
-    expect(caught.message).toMatch(message);
+    expect(caught.name).toBe('LifecycleTransitionError')
+    expect(caught.code).toBe(code)
+    expect(caught.message).toMatch(message)
   }
-};
+}
 
 describe('resolveLifecycleStatus — derive state from the archive tombstone', () => {
   it("active ({}) → 'active'", () => {
-    expect(resolveLifecycleStatus(makeActive())).toBe<LifecycleState>('active');
-  });
+    expect(resolveLifecycleStatus(makeActive())).toBe<LifecycleState>('active')
+  })
   it("archived ({archivedAt}) → 'archived'", () => {
-    expect(resolveLifecycleStatus(makeArchived())).toBe<LifecycleState>('archived');
-  });
+    expect(resolveLifecycleStatus(makeArchived())).toBe<LifecycleState>('archived')
+  })
   it('treats a null tombstone as absent (SQLite/JSON round-trip)', () => {
     expect(
       resolveLifecycleStatus({
         archivedAt: null as unknown as string,
-      }),
-    ).toBe('active');
-  });
+      })
+    ).toBe('active')
+  })
   it('derives the nearest valid state from a malformed legacy tombstone', () => {
-    expect(resolveLifecycleStatus({ archivedAt: '' })).toBe('active');
-  });
-});
+    expect(resolveLifecycleStatus({ archivedAt: '' })).toBe('active')
+  })
+})
 
 describe('canArchive — public archive affordance over active/archived', () => {
   const EXPECTED = {
     active: true,
     archived: false,
-  } as const;
+  } as const
   const samples: Record<keyof typeof EXPECTED, Sample> = {
     active: makeActive(),
     archived: makeArchived(),
-  };
+  }
   for (const state of ['active', 'archived'] as const) {
     it(`canArchive(${state}) === ${EXPECTED[state]}`, () => {
-      expect(canArchive(samples[state])).toBe(EXPECTED[state]);
-    });
+      expect(canArchive(samples[state])).toBe(EXPECTED[state])
+    })
   }
-});
+})
 
 describe.each([['canRestore', canRestore]] as const)(
   '%s — public archived-state affordance',
@@ -101,80 +101,76 @@ describe.each([['canRestore', canRestore]] as const)(
       ['active', makeActive(), false],
       ['archived', makeArchived(), true],
     ] as const)('returns the documented result for %s', (_state, sample, expected) => {
-      expect(predicate(sample)).toBe(expected);
-    });
-  },
-);
+      expect(predicate(sample)).toBe(expected)
+    })
+  }
+)
 
 describe('archive — active → archived (immutable, fail-loud)', () => {
   it('from active: sets archivedAt to nowISO, status archived, other fields preserved', () => {
-    const input = makeActive();
-    const result = archive(input, NOW);
-    expect(result.archivedAt).toBe(NOW);
-    expect(resolveLifecycleStatus(result)).toBe('archived');
-    expect(result.id).toBe('r1');
-    expect(result.name).toBe('x');
-  });
+    const input = makeActive()
+    const result = archive(input, NOW)
+    expect(result.archivedAt).toBe(NOW)
+    expect(resolveLifecycleStatus(result)).toBe('archived')
+    expect(result.id).toBe('r1')
+    expect(result.name).toBe('x')
+  })
   it('does NOT mutate the input (immutability)', () => {
-    const input = makeActive();
-    archive(input, NOW);
-    expect(input.archivedAt).toBeUndefined();
-    expect(resolveLifecycleStatus(input)).toBe('active');
-  });
+    const input = makeActive()
+    archive(input, NOW)
+    expect(input.archivedAt).toBeUndefined()
+    expect(resolveLifecycleStatus(input)).toBe('active')
+  })
   it('replaces a malformed legacy tombstone when archiving the recovered active state', () => {
-    const result = archive({ ...makeActive(), archivedAt: '' }, NOW);
-    expect(result.archivedAt).toBe(NOW);
-    expect(resolveLifecycleStatus(result)).toBe('archived');
-  });
+    const result = archive({ ...makeActive(), archivedAt: '' }, NOW)
+    expect(result.archivedAt).toBe(NOW)
+    expect(resolveLifecycleStatus(result)).toBe('archived')
+  })
   it('from archived: throws (no re-archive)', () => {
-    expectLifecycleError(
-      () => archive(makeArchived(), NOW),
-      'already_inactive',
-      /already archived/,
-    );
-  });
+    expectLifecycleError(() => archive(makeArchived(), NOW), 'already_inactive', /already archived/)
+  })
   it('rejects an invalid archive timestamp and canonicalizes an explicit offset', () => {
-    expect(() => archive(makeActive(), 'not-a-timestamp')).toThrow(/valid ISO timestamp/);
-    expect(archive(makeActive(), '2026-06-01T01:00:00+01:00').archivedAt).toBe(NOW);
-  });
-});
+    expect(() => archive(makeActive(), 'not-a-timestamp')).toThrow(/valid ISO timestamp/)
+    expect(archive(makeActive(), '2026-06-01T01:00:00+01:00').archivedAt).toBe(NOW)
+  })
+})
 
 describe('restore — archived → active (clears archivedAt to null, immutable, fail-loud)', () => {
   it('from archived: archivedAt is null, status active', () => {
-    const input = makeArchived();
-    const result = restore(input);
-    expect(result.archivedAt).toBeNull();
-    expect(resolveLifecycleStatus(result)).toBe('active');
-    expect(result.id).toBe('r1');
-    expect(result.name).toBe('x');
-  });
+    const input = makeArchived()
+    const result = restore(input)
+    expect(result.archivedAt).toBeNull()
+    expect(resolveLifecycleStatus(result)).toBe('active')
+    expect(result.id).toBe('r1')
+    expect(result.name).toBe('x')
+  })
   it('does NOT mutate the input (immutability)', () => {
-    const input = makeArchived();
-    restore(input);
-    expect(input.archivedAt).toBe(T_ARCH);
-    expect(resolveLifecycleStatus(input)).toBe('archived');
-  });
+    const input = makeArchived()
+    restore(input)
+    expect(input.archivedAt).toBe(T_ARCH)
+    expect(resolveLifecycleStatus(input)).toBe('archived')
+  })
   it('from active: throws', () => {
-    expect(() => restore(makeActive())).toThrow(/not archived/);
-  });
-});
+    expect(() => restore(makeActive())).toThrow(/not archived/)
+  })
+})
 
 describe('isLifecycleEntityKey — narrowing guard for the tombstone-carrying tables', () => {
   it('is TRUE for exactly resources/clients/projects/activities', () => {
-    expect(isLifecycleEntityKey('resources')).toBe(true);
-    expect(isLifecycleEntityKey('clients')).toBe(true);
-    expect(isLifecycleEntityKey('projects')).toBe(true);
-    expect(isLifecycleEntityKey('activities')).toBe(true);
-  });
+    expect(isLifecycleEntityKey('resources')).toBe(true)
+    expect(isLifecycleEntityKey('clients')).toBe(true)
+    expect(isLifecycleEntityKey('projects')).toBe(true)
+    expect(isLifecycleEntityKey('activities')).toBe(true)
+  })
   it('is FALSE for every non-lifecycle table (they carry no archivedAt)', () => {
-    expect(isLifecycleEntityKey('phases')).toBe(false);
-    expect(isLifecycleEntityKey('allocations')).toBe(false);
-    expect(isLifecycleEntityKey('timeOff')).toBe(false);
-    expect(isLifecycleEntityKey('disciplines')).toBe(false);
-    expect(isLifecycleEntityKey('companies')).toBe(false);
-    expect(isLifecycleEntityKey('nonsense')).toBe(false);
-  });
-});
+    expect(isLifecycleEntityKey('phases')).toBe(false)
+    expect(isLifecycleEntityKey('allocations')).toBe(false)
+    expect(isLifecycleEntityKey('timeOff')).toBe(false)
+    expect(isLifecycleEntityKey('disciplines')).toBe(false)
+    expect(isLifecycleEntityKey('companies')).toBe(false)
+    expect(isLifecycleEntityKey('nonsense')).toBe(false)
+  })
+})
 
 // A full, valid sample Resource so the preservation assertions check the real field set. The
 // id's leading hex ('a1b2') is the source of the deterministic token tag. Each call returns a
@@ -196,102 +192,102 @@ const RESOURCE_BASE: Resource = {
   updatedAt: '2026-02-01T00:00:00.000Z',
   archivedAt: T_ARCH,
   halfDays: [],
-};
+}
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
   ...RESOURCE_BASE,
   workingDays: [...RESOURCE_BASE.workingDays],
   ...(over.projectId === undefined ? {} : { projectId: over.projectId }),
   ...over,
   halfDays: over.halfDays ?? [],
-});
+})
 
 describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, immutable)", () => {
   it("scrubs a named person's name → 'Removed person #…', original name gone", () => {
-    const result = obfuscateResource(makeResource());
-    expect(result.name?.startsWith('Removed person #')).toBe(true);
-    expect(result.name).not.toContain('Barbara Gordon');
-    expect(result.name).not.toContain('Barbara');
-  });
+    const result = obfuscateResource(makeResource())
+    expect(result.name?.startsWith('Removed person #')).toBe(true)
+    expect(result.name).not.toContain('Barbara Gordon')
+    expect(result.name).not.toContain('Barbara')
+  })
 
   it('scrubs both free-text display fields and preserves non-PII fields', () => {
-    const input = makeResource();
-    const result = obfuscateResource(input);
-    expect(result.id).toBe(input.id);
-    expect(result.companyId).toBe(input.companyId);
-    expect(result.kind).toBe(input.kind);
-    expect(result.jobTitle).toBe('Removed resource');
-    expect(result.disciplineId).toBe(input.disciplineId);
-    expect(result.employmentType).toBe(input.employmentType);
-    expect(result.engagement).toBe(input.engagement);
-    expect(result.workingHoursPerDay).toBe(input.workingHoursPerDay);
-    expect(result.workingDays).toEqual(input.workingDays);
-    expect(result.halfDays).toEqual(input.halfDays);
-    expect(result.projectId).toBe(input.projectId);
-    expect(result.color).toBe(input.color);
-    expect(result.createdAt).toBe(input.createdAt);
-    expect(result.updatedAt).toBe(input.updatedAt);
-    expect(result.archivedAt).toBe(input.archivedAt);
-  });
+    const input = makeResource()
+    const result = obfuscateResource(input)
+    expect(result.id).toBe(input.id)
+    expect(result.companyId).toBe(input.companyId)
+    expect(result.kind).toBe(input.kind)
+    expect(result.jobTitle).toBe('Removed resource')
+    expect(result.disciplineId).toBe(input.disciplineId)
+    expect(result.employmentType).toBe(input.employmentType)
+    expect(result.engagement).toBe(input.engagement)
+    expect(result.workingHoursPerDay).toBe(input.workingHoursPerDay)
+    expect(result.workingDays).toEqual(input.workingDays)
+    expect(result.halfDays).toEqual(input.halfDays)
+    expect(result.projectId).toBe(input.projectId)
+    expect(result.color).toBe(input.color)
+    expect(result.createdAt).toBe(input.createdAt)
+    expect(result.updatedAt).toBe(input.updatedAt)
+    expect(result.archivedAt).toBe(input.archivedAt)
+  })
 
   it('does NOT mutate the input and returns a NEW reference (immutability)', () => {
-    const input = makeResource();
-    const snapshot = structuredClone(input);
-    const result = obfuscateResource(input);
-    expect(input).toEqual(snapshot);
-    expect(input.name).toBe('Barbara Gordon');
-    expect(result).not.toBe(input);
-  });
+    const input = makeResource()
+    const snapshot = structuredClone(input)
+    const result = obfuscateResource(input)
+    expect(input).toEqual(snapshot)
+    expect(input.name).toBe('Barbara Gordon')
+    expect(result).not.toBe(input)
+  })
 
   it('is DETERMINISTIC: same id ⇒ identical token across two calls', () => {
-    const a = obfuscateResource(makeResource());
-    const b = obfuscateResource(makeResource());
-    expect(a.name).toBe(b.name);
-  });
+    const a = obfuscateResource(makeResource())
+    const b = obfuscateResource(makeResource())
+    expect(a.name).toBe(b.name)
+  })
 
   it('different ids ⇒ different tokens', () => {
-    const a = obfuscateResource(makeResource({ id: 'a1b2c3d4-0000-4000-8000-000000000000' }));
-    const b = obfuscateResource(makeResource({ id: 'ffff0000-0000-4000-8000-000000000000' }));
-    expect(a.name).not.toBe(b.name);
-  });
+    const a = obfuscateResource(makeResource({ id: 'a1b2c3d4-0000-4000-8000-000000000000' }))
+    const b = obfuscateResource(makeResource({ id: 'ffff0000-0000-4000-8000-000000000000' }))
+    expect(a.name).not.toBe(b.name)
+  })
 
   it('distinguishes UUIDs that share the first four hexadecimal characters', () => {
-    const a = obfuscateResource(makeResource({ id: 'abcd1111-0000-4000-8000-000000000000' }));
-    const b = obfuscateResource(makeResource({ id: 'abcd2222-0000-4000-8000-000000000000' }));
-    expect(a.name).toBe('Removed person #abcd11110000');
-    expect(b.name).toBe('Removed person #abcd22220000');
-    expect(a.name).not.toBe(b.name);
-  });
+    const a = obfuscateResource(makeResource({ id: 'abcd1111-0000-4000-8000-000000000000' }))
+    const b = obfuscateResource(makeResource({ id: 'abcd2222-0000-4000-8000-000000000000' }))
+    expect(a.name).toBe('Removed person #abcd11110000')
+    expect(b.name).toBe('Removed person #abcd22220000')
+    expect(a.name).not.toBe(b.name)
+  })
 
   it('handles a NAMELESS placeholder (name undefined) → token set, non-empty', () => {
-    const nameless = makeResource({ kind: 'placeholder' });
-    nameless.name = null;
-    const result = obfuscateResource(nameless);
-    expect(result.name).toBeDefined();
-    expect(result.name?.startsWith('Removed person #')).toBe(true);
-    expect(result.name).not.toBe('Removed person #');
-  });
+    const nameless = makeResource({ kind: 'placeholder' })
+    nameless.name = null
+    const result = obfuscateResource(nameless)
+    expect(result.name).toBeDefined()
+    expect(result.name?.startsWith('Removed person #')).toBe(true)
+    expect(result.name).not.toBe('Removed person #')
+  })
 
   it('handles an EXTERNAL resource: the COMPANY name is gone, replaced by the token', () => {
-    const result = obfuscateResource(makeResource({ kind: 'external', name: 'Ferris Print Co' }));
-    expect(result.name).not.toContain('Ferris');
-    expect(result.name?.startsWith('Removed person #')).toBe(true);
-  });
+    const result = obfuscateResource(makeResource({ kind: 'external', name: 'Ferris Print Co' }))
+    expect(result.name).not.toContain('Ferris')
+    expect(result.name?.startsWith('Removed person #')).toBe(true)
+  })
 
   it("never leaves a bare 'Removed person #' — the tag is non-empty for a normal UUID id", () => {
-    const result = obfuscateResource(makeResource());
-    const tag = result.name?.replace('Removed person #', '');
-    expect(tag).toBe('a1b2c3d40000');
-    expect(tag?.length).toBeGreaterThan(0);
-  });
+    const result = obfuscateResource(makeResource())
+    const tag = result.name?.replace('Removed person #', '')
+    expect(tag).toBe('a1b2c3d40000')
+    expect(tag?.length).toBeGreaterThan(0)
+  })
 
   // SHORT_ID_FALLBACK_TAG branch of buildShortIdTag(id): when the id yields no alphanumerics to
   // derive a tag from, the token falls back to the documented '0000' rather than leaving a bare
   // 'Removed person #'. Both an empty id and an all-punctuation id must hit that same fallback.
   it("empty id ⇒ fallback tag '0000' (no alphanumerics to derive from)", () => {
-    expect(obfuscateResource(makeResource({ id: '' })).name).toBe('Removed person #0000');
-  });
+    expect(obfuscateResource(makeResource({ id: '' })).name).toBe('Removed person #0000')
+  })
 
   it("id with only non-alphanumerics ('----') ⇒ fallback tag '0000'", () => {
-    expect(obfuscateResource(makeResource({ id: '----' })).name).toBe('Removed person #0000');
-  });
-});
+    expect(obfuscateResource(makeResource({ id: '----' })).name).toBe('Removed person #0000')
+  })
+})

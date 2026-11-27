@@ -1,26 +1,26 @@
-import { defineConfig, devices } from '@playwright/test';
-import type { ReporterDescription } from '@playwright/test';
-import { parseReportPhaseName } from './scripts/e2e/playwrightServerScope';
-import { resolvePlaywrightRunMode } from './scripts/e2e/playwrightRunMode.mjs';
-import { configurationWorkerCount } from './scripts/e2e/playwrightWorkers.mjs';
-import { ports } from './tooling/ports.mjs';
+import { defineConfig, devices } from '@playwright/test'
+import type { ReporterDescription } from '@playwright/test'
+import { parseReportPhaseName } from './scripts/e2e/playwrightServerScope'
+import { resolvePlaywrightRunMode } from './scripts/e2e/playwrightRunMode.mjs'
+import { configurationWorkerCount } from './scripts/e2e/playwrightWorkers.mjs'
+import { ports } from './tooling/ports.mjs'
 
-const portLanePorts = ports();
-const runMode = resolvePlaywrightRunMode(process.env);
-const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
-const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
+const portLanePorts = ports()
+const runMode = resolvePlaywrightRunMode(process.env)
+const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name)
+const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE)
 const reporters: ReporterDescription[] = process.env.CI
   ? [
       ['github'],
       ['html', { outputFolder: `playwright-report/${reportPhase}`, open: 'never' }],
       ['junit', { outputFile: `test-results/${reportPhase}.xml` }],
     ]
-  : [['list']];
-const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
-const dbSpec = new RegExp(String.raw`\.db\.spec\.${specExtension}$`, 'i');
-const authSpec = new RegExp(String.raw`\.auth\.spec\.${specExtension}$`, 'i');
+  : [['list']]
+const specExtension = String.raw`(?:ts|tsx|mts|cts)`
+const dbSpec = new RegExp(String.raw`\.db\.spec\.${specExtension}$`, 'i')
+const authSpec = new RegExp(String.raw`\.auth\.spec\.${specExtension}$`, 'i')
 // WebKit and Firefox run only the tests whose result can differ between engines; Chromium runs all.
-const engineSensitive = /@engine/;
+const engineSensitive = /@engine/
 
 const authApiServer = {
   command: 'pnpm run start:auth-e2e',
@@ -28,14 +28,14 @@ const authApiServer = {
   url: `http://127.0.0.1:${portLanePorts.authApi}/health/ready`,
   reuseExistingServer: false,
   timeout: 120_000,
-};
+}
 const authWebServer = {
   command: 'pnpm run dev:auth',
   url: `http://127.0.0.1:${portLanePorts.authWeb}/health/ready`,
   reuseExistingServer: false,
   timeout: 120_000,
   env: { CAPACITYLENS_DEV_API_PORT: String(portLanePorts.authApi) },
-};
+}
 
 /** Each `*.db.spec.ts` project owns one real SQLite-backed worker server. */
 export default defineConfig({
@@ -97,4 +97,4 @@ export default defineConfig({
   ...(runMode.serverProfile === 'standard' && projectEnabled('auth-backed')
     ? { webServer: [authApiServer, authWebServer] }
     : {}),
-});
+})

@@ -1,7 +1,7 @@
-import { isPrivatePeer } from '@kevinjohn/adonisjs-origin-guard';
-import { publicOrigin } from '#config/public_origin';
-import env from '#start/env';
-import { defineConfig } from '@adonisjs/core/http';
+import { isPrivatePeer } from '@kevinjohn/adonisjs-origin-guard'
+import { publicOrigin } from '#config/public_origin'
+import env from '#start/env'
+import { defineConfig } from '@adonisjs/core/http'
 
 export const http = defineConfig({
   requestTimeout: 30_000,
@@ -37,4 +37,4 @@ export const http = defineConfig({
     secure: publicOrigin.secure,
     sameSite: 'lax',
   },
-});
+})

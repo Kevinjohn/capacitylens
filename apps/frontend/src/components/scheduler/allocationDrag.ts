@@ -1,22 +1,22 @@
-import { applyGesture } from '@/lib/gestureMath';
-import type { DateRange, DragMode, GestureOptions } from '@/lib/gestureMath';
-import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
-import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import { applyGesture } from '@/lib/gestureMath'
+import type { DateRange, DragMode, GestureOptions } from '@/lib/gestureMath'
+import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays'
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
 
 interface ResolveVolumePreservingHoursInput {
-  previousDate: DateRange;
-  next: DateRange;
-  options: GestureOptions;
-  hoursPerDay: number;
+  previousDate: DateRange
+  next: DateRange
+  options: GestureOptions
+  hoursPerDay: number
 }
 
 interface ResolveGestureInput {
-  mode: DragMode;
-  current: DateRange;
-  deltaDays: number;
-  options: GestureOptions;
-  hoursPerDay: number;
-  isDays: boolean;
+  mode: DragMode
+  current: DateRange
+  deltaDays: number
+  options: GestureOptions
+  hoursPerDay: number
+  isDays: boolean
 }
 
 // Pure date and hours rules belong here; DOM hit testing and store commits remain at the gesture boundary. Unexpected computation errors must propagate rather than be swallowed.
@@ -28,13 +28,13 @@ export function resolveVolumePreservingHours({
   options,
   hoursPerDay,
 }: ResolveVolumePreservingHoursInput): { hours: number; clamped: boolean } {
-  const oldSpan = countSpanDays(previousDate.startDate, previousDate.endDate, options);
-  const newSpan = countSpanDays(next.startDate, next.endDate, options);
+  const oldSpan = countSpanDays(previousDate.startDate, previousDate.endDate, options)
+  const newSpan = countSpanDays(next.startDate, next.endDate, options)
   // A source span with no effective work duration must keep its stored hours so resizing cannot silently erase a booking.
-  let raw = hoursPerDay;
-  if (oldSpan !== 0 && newSpan > 0) raw = (hoursPerDay * oldSpan) / newSpan;
+  let raw = hoursPerDay
+  if (oldSpan !== 0 && newSpan > 0) raw = (hoursPerDay * oldSpan) / newSpan
   // Cap derived daily load because shrinking a volume-preserving span can exceed a real day's limit.
-  return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY };
+  return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY }
 }
 
 /** Resolves a gesture into its dates and daily load. Moves preserve stored load; a non-zero days-mode resize preserves total volume and reports cap truncation. */
@@ -46,24 +46,24 @@ export function resolveGesture({
   hoursPerDay,
   isDays,
 }: ResolveGestureInput): {
-  dates: DateRange;
-  hours: number;
-  clamped: boolean;
+  dates: DateRange
+  hours: number
+  clamped: boolean
 } {
   // A zero-column move can still be a cross-row reassign. Run move math so the unchanged start is
   // reinterpreted against the target resource's working week; resize no-ops keep their reference.
   const dates =
     deltaDays !== 0 || mode === 'move'
       ? applyGesture({ mode, range: current, deltaDays, options })
-      : current;
+      : current
   if (isDays && mode !== 'move' && deltaDays !== 0) {
     const { hours, clamped } = resolveVolumePreservingHours({
       previousDate: current,
       next: dates,
       options,
       hoursPerDay,
-    });
-    return { dates, hours, clamped };
+    })
+    return { dates, hours, clamped }
   }
-  return { dates, hours: hoursPerDay, clamped: false };
+  return { dates, hours: hoursPerDay, clamped: false }
 }

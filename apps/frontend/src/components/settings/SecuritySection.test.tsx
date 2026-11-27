@@ -1,81 +1,81 @@
-import { beforeEach, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
-import { AuthContext } from '@/auth/authContext';
-import type { AuthContextValue } from '@/auth/authContext';
-import { m } from '@/i18n';
-import { SecuritySection } from './SecuritySection';
+import { beforeEach, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
+import { AuthContext } from '@/auth/authContext'
+import type { AuthContextValue } from '@/auth/authContext'
+import { m } from '@/i18n'
+import { SecuritySection } from './SecuritySection'
 
-const changePassword = vi.fn();
-const deleteAccount = vi.fn();
+const changePassword = vi.fn()
+const deleteAccount = vi.fn()
 vi.mock('@/auth/authApi', () => ({
   authApi: {
     changePassword: (...args: unknown[]) => changePassword(...args),
     deleteAccount: (...args: unknown[]) => deleteAccount(...args),
   },
-}));
+}))
 beforeEach(() => {
-  changePassword.mockReset();
-  deleteAccount.mockReset();
-});
+  changePassword.mockReset()
+  deleteAccount.mockReset()
+})
 
 const passwordAuth: AuthContextValue = {
   user: { id: 'u1', email: 'diana@example.test' },
   refreshAuth: async () => {},
   signOut: async () => {},
-};
+}
 
 type RenderSecurityOptions = {
-  overrides?: Partial<AuthContextValue>;
-  passwordOpen?: boolean;
-  deleteOpen?: boolean;
-};
+  overrides?: Partial<AuthContextValue>
+  passwordOpen?: boolean
+  deleteOpen?: boolean
+}
 function renderSecurity({
   overrides = {},
   passwordOpen = false,
   deleteOpen = false,
 }: RenderSecurityOptions = {}) {
-  const auth: AuthContextValue = { ...passwordAuth, ...overrides };
+  const auth: AuthContextValue = { ...passwordAuth, ...overrides }
   return render(
     <AuthContext.Provider value={auth}>
       <SecuritySection passwordOpen={passwordOpen} deleteOpen={deleteOpen} />
-    </AuthContext.Provider>,
-  );
+    </AuthContext.Provider>
+  )
 }
 
 it('keeps password controls hidden until the password dialog is opened', () => {
-  renderSecurity({});
-  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
-});
+  renderSecurity({})
+  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument()
+})
 
 it('changes a password through the dialog and returns to sign-in', async () => {
-  const assign = vi.fn();
-  vi.stubGlobal('location', { ...window.location, assign });
-  changePassword.mockResolvedValue({ data: { ok: true, signedOut: true }, error: null });
-  renderSecurity({ overrides: {}, passwordOpen: true });
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
+  changePassword.mockResolvedValue({ data: { ok: true, signedOut: true }, error: null })
+  renderSecurity({ overrides: {}, passwordOpen: true })
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: 'a-strong-new-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: 'a-strong-new-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
   await waitFor(() =>
     expect(changePassword).toHaveBeenCalledWith({
       currentPassword: 'current-password',
       newPassword: 'a-strong-new-password',
-    }),
-  );
+    })
+  )
   expect(await screen.findByRole('status')).toHaveTextContent(
-    m.settings_security_password_changed(),
-  );
-  expect(assign).toHaveBeenCalledWith('/');
-  vi.unstubAllGlobals();
-});
+    m.settings_security_password_changed()
+  )
+  expect(assign).toHaveBeenCalledWith('/')
+  vi.unstubAllGlobals()
+})
 
 it('clears obsolete inputs and reports a committed password change when follow-up cleanup fails', async () => {
   changePassword.mockResolvedValue({
@@ -85,187 +85,187 @@ it('clears obsolete inputs and reports a committed password change when follow-u
       message: 'Credential update completed, but a follow-up failed.',
       status: 503,
     },
-  });
-  renderSecurity({ passwordOpen: true });
+  })
+  renderSecurity({ passwordOpen: true })
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: 'a-strong-new-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: 'a-strong-new-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
 
   expect(await screen.findByRole('status')).toHaveTextContent(
-    m.settings_security_password_changed_warning(),
-  );
-  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
-  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue('');
-  expect(screen.getByLabelText(m.settings_security_confirm_password())).toHaveValue('');
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-});
+    m.settings_security_password_changed_warning()
+  )
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('')
+  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue('')
+  expect(screen.getByLabelText(m.settings_security_confirm_password())).toHaveValue('')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
 
 it('keeps an unconfirmed transport outcome explicit and does not call it a password change', async () => {
-  changePassword.mockRejectedValue(new TypeError('fetch failed'));
-  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-  renderSecurity({ passwordOpen: true });
+  changePassword.mockRejectedValue(new TypeError('fetch failed'))
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  renderSecurity({ passwordOpen: true })
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: 'a-strong-new-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: 'a-strong-new-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    m.settings_security_err_password_outcome_unknown(),
-  );
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    m.settings_security_err_password_outcome_unknown()
+  )
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
   expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue(
-    'a-strong-new-password',
-  );
-  error.mockRestore();
-});
+    'a-strong-new-password'
+  )
+  error.mockRestore()
+})
 
 it.each(['p'.repeat(257), '𠀀'.repeat(129)])(
   'rejects an oversized current password without altering or sending it',
   async (value) => {
-    renderSecurity({ passwordOpen: true });
-    const current = screen.getByLabelText(m.settings_security_current_password());
-    fireEvent.change(current, { target: { value } });
-    expect(current).toHaveValue(value);
+    renderSecurity({ passwordOpen: true })
+    const current = screen.getByLabelText(m.settings_security_current_password())
+    fireEvent.change(current, { target: { value } })
+    expect(current).toHaveValue(value)
     fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
       target: { value: 'a-strong-new-password' },
-    });
+    })
     fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
       target: { value: 'a-strong-new-password' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(m.sign_in_password_input_too_long());
-    expect(changePassword).not.toHaveBeenCalled();
-  },
-);
+    })
+    fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.sign_in_password_input_too_long())
+    expect(changePassword).not.toHaveBeenCalled()
+  }
+)
 
 it('accepts an exact 128-code-point astral new password without changing its bytes', async () => {
-  changePassword.mockResolvedValue({ data: { status: true }, error: null });
-  renderSecurity({ passwordOpen: true });
-  const next = '𠀀'.repeat(128);
+  changePassword.mockResolvedValue({ data: { status: true }, error: null })
+  renderSecurity({ passwordOpen: true })
+  const next = '𠀀'.repeat(128)
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: next },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: next },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
   await waitFor(() =>
-    expect(changePassword).toHaveBeenCalledWith(expect.objectContaining({ newPassword: next })),
-  );
-});
+    expect(changePassword).toHaveBeenCalledWith(expect.objectContaining({ newPassword: next }))
+  )
+})
 
 it('keeps password mismatch validation in the dialog', async () => {
-  renderSecurity({ overrides: {}, passwordOpen: true });
+  renderSecurity({ overrides: {}, passwordOpen: true })
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: 'a-strong-new-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: 'different-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    m.settings_security_err_password_mismatch(),
-  );
-  expect(changePassword).not.toHaveBeenCalled();
-});
+    m.settings_security_err_password_mismatch()
+  )
+  expect(changePassword).not.toHaveBeenCalled()
+})
 
 it('clears password values and errors when the dialog closes', async () => {
   function Harness() {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(true)
     return (
       <>
         <button onClick={() => setOpen(true)}>Open password dialog</button>
         <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
       </>
-    );
+    )
   }
   render(
     <AuthContext.Provider value={passwordAuth}>
       <Harness />
-    </AuthContext.Provider>,
-  );
+    </AuthContext.Provider>
+  )
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: 'a-strong-new-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: 'different-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    m.settings_security_err_password_mismatch(),
-  );
-  fireEvent.click(screen.getByRole('button', { name: m.form_cancel() }));
-  fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }));
-  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
-  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue('');
-  expect(screen.getByLabelText(m.settings_security_confirm_password())).toHaveValue('');
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-});
+    m.settings_security_err_password_mismatch()
+  )
+  fireEvent.click(screen.getByRole('button', { name: m.form_cancel() }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }))
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('')
+  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue('')
+  expect(screen.getByLabelText(m.settings_security_confirm_password())).toHaveValue('')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
 
 it('does not restore stale values or feedback after a pending password request finishes', async () => {
-  let finish: ((value: unknown) => void) | undefined;
+  let finish: ((value: unknown) => void) | undefined
   changePassword.mockImplementation(
     () =>
       new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
+        finish = resolve
+      })
+  )
   function Harness() {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(true)
     return (
       <>
         <button onClick={() => setOpen(true)}>Open password dialog</button>
         <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
       </>
-    );
+    )
   }
   render(
     <AuthContext.Provider value={passwordAuth}>
       <Harness />
-    </AuthContext.Provider>,
-  );
+    </AuthContext.Provider>
+  )
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: 'a-strong-new-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: 'a-strong-new-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
-  await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
-  fireEvent.click(screen.getByRole('button', { name: m.form_cancel() }));
-  fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }));
-  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
-  const finishRequest = finish;
-  if (!finishRequest) throw new Error('Password request was not started');
-  await act(async () => finishRequest({ data: { status: true }, error: null }));
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
-  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
-});
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
+  await waitFor(() => expect(changePassword).toHaveBeenCalledOnce())
+  fireEvent.click(screen.getByRole('button', { name: m.form_cancel() }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }))
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('')
+  const finishRequest = finish
+  if (!finishRequest) throw new Error('Password request was not started')
+  await act(async () => finishRequest({ data: { status: true }, error: null }))
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('')
+})
 
 it.each([
   ['normal success', { data: { status: true }, error: null }],
@@ -277,154 +277,152 @@ it.each([
     },
   ],
 ])('navigates after %s even when its dialog was dismissed', async (_label, response) => {
-  const assign = vi.fn();
-  vi.stubGlobal('location', { ...window.location, assign });
-  let finish: ((value: unknown) => void) | undefined;
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
+  let finish: ((value: unknown) => void) | undefined
   changePassword.mockImplementation(
     () =>
       new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
+        finish = resolve
+      })
+  )
   function Harness() {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(true)
     return (
       <>
         <button onClick={() => setOpen(true)}>Open password dialog</button>
         <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
       </>
-    );
+    )
   }
   render(
     <AuthContext.Provider value={passwordAuth}>
       <Harness />
-    </AuthContext.Provider>,
-  );
+    </AuthContext.Provider>
+  )
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: 'a-strong-new-password' },
-  });
+  })
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
     target: { value: 'a-strong-new-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
-  await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
-  fireEvent.click(screen.getByRole('button', { name: m.form_cancel() }));
-  fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }));
-  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
-  const finishRequest = finish;
-  if (!finishRequest) throw new Error('Password request was not started');
-  await act(async () => finishRequest(response));
-  expect(assign).toHaveBeenCalledTimes(1);
-  expect(assign).toHaveBeenCalledWith('/');
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
-  vi.unstubAllGlobals();
-});
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
+  await waitFor(() => expect(changePassword).toHaveBeenCalledOnce())
+  fireEvent.click(screen.getByRole('button', { name: m.form_cancel() }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }))
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('')
+  const finishRequest = finish
+  if (!finishRequest) throw new Error('Password request was not started')
+  await act(async () => finishRequest(response))
+  expect(assign).toHaveBeenCalledTimes(1)
+  expect(assign).toHaveBeenCalledWith('/')
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  vi.unstubAllGlobals()
+})
 
 it.each(['Escape', 'backdrop'] as const)(
   'navigates after committed password completion dismissed by %s',
   async (gesture) => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { ...window.location, assign });
-    let finish: ((value: unknown) => void) | undefined;
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, assign })
+    let finish: ((value: unknown) => void) | undefined
     changePassword.mockImplementation(
       () =>
         new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
+          finish = resolve
+        })
+    )
     function Harness() {
-      const [open, setOpen] = useState(true);
+      const [open, setOpen] = useState(true)
       return (
         <>
           <button onClick={() => setOpen(true)}>Open password dialog</button>
           <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
         </>
-      );
+      )
     }
     render(
       <AuthContext.Provider value={passwordAuth}>
         <Harness />
-      </AuthContext.Provider>,
-    );
+      </AuthContext.Provider>
+    )
     fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
       target: { value: 'current-password' },
-    });
+    })
     fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
       target: { value: 'a-strong-new-password' },
-    });
+    })
     fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
       target: { value: 'a-strong-new-password' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
-    await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
+    })
+    fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }))
+    await waitFor(() => expect(changePassword).toHaveBeenCalledOnce())
     if (gesture === 'Escape') {
-      fireEvent.keyDown(document, { key: 'Escape' });
+      fireEvent.keyDown(document, { key: 'Escape' })
     } else {
-      const overlay = document.querySelector('[data-slot="dialog-overlay"]');
-      if (!overlay) throw new Error('Password dialog backdrop was not rendered');
-      await userEvent.setup().click(overlay);
+      const overlay = document.querySelector('[data-slot="dialog-overlay"]')
+      if (!overlay) throw new Error('Password dialog backdrop was not rendered')
+      await userEvent.setup().click(overlay)
     }
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }));
-    expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
-    const finishRequest = finish;
-    if (!finishRequest) throw new Error('Password request was not started');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }))
+    expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('')
+    const finishRequest = finish
+    if (!finishRequest) throw new Error('Password request was not started')
     await act(async () =>
       finishRequest({
         data: null,
         error: { code: 'CREDENTIAL_UPDATE_COMMITTED', message: 'Cleanup failed.', status: 503 },
-      }),
-    );
-    expect(assign).toHaveBeenCalledTimes(1);
-    expect(assign).toHaveBeenCalledWith('/');
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    vi.unstubAllGlobals();
-  },
-);
+      })
+    )
+    expect(assign).toHaveBeenCalledTimes(1)
+    expect(assign).toHaveBeenCalledWith('/')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    vi.unstubAllGlobals()
+  }
+)
 
 it('deletes the account through its dialog and returns to sign-in', async () => {
-  const assign = vi.fn();
-  vi.stubGlobal('location', { ...window.location, assign });
-  deleteAccount.mockResolvedValue({ data: { ok: true, signedOut: true }, error: null });
-  renderSecurity({ deleteOpen: true });
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
+  deleteAccount.mockResolvedValue({ data: { ok: true, signedOut: true }, error: null })
+  renderSecurity({ deleteOpen: true })
   expect(screen.getByRole('dialog')).toHaveTextContent(
-    m.settings_security_delete_account_description(),
-  );
-  const submit = screen.getByRole('button', { name: m.settings_security_delete_account() });
-  expect(submit).toBeDisabled();
+    m.settings_security_delete_account_description()
+  )
+  const submit = screen.getByRole('button', { name: m.settings_security_delete_account() })
+  expect(submit).toBeDisabled()
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
-  fireEvent.click(submit);
+  })
+  fireEvent.click(submit)
   await waitFor(() =>
-    expect(deleteAccount).toHaveBeenCalledWith({ currentPassword: 'current-password' }),
-  );
-  await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
-  expect(changePassword).not.toHaveBeenCalled();
-  vi.unstubAllGlobals();
-});
+    expect(deleteAccount).toHaveBeenCalledWith({ currentPassword: 'current-password' })
+  )
+  await waitFor(() => expect(assign).toHaveBeenCalledWith('/'))
+  expect(changePassword).not.toHaveBeenCalled()
+  vi.unstubAllGlobals()
+})
 
 it('keeps an Owner signed in and explains the ownership transfer', async () => {
-  const assign = vi.fn();
-  vi.stubGlobal('location', { ...window.location, assign });
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
   deleteAccount.mockResolvedValue({
     data: null,
     error: { code: 'LAST_OWNER', message: 'Transfer ownership first.', status: 409 },
-  });
-  renderSecurity({ deleteOpen: true });
+  })
+  renderSecurity({ deleteOpen: true })
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
-  expect(await screen.findByRole('alert')).toHaveTextContent(
-    m.settings_security_err_delete_owner(),
-  );
-  expect(assign).not.toHaveBeenCalled();
-  vi.unstubAllGlobals();
-});
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(m.settings_security_err_delete_owner())
+  expect(assign).not.toHaveBeenCalled()
+  vi.unstubAllGlobals()
+})
 
 it('shows a wrong deletion password against the field and sends nothing else', async () => {
   deleteAccount.mockResolvedValue({
@@ -434,19 +432,19 @@ it('shows a wrong deletion password against the field and sends nothing else', a
       message: 'Current password is incorrect.',
       status: 403,
     },
-  });
-  renderSecurity({ deleteOpen: true });
-  const current = screen.getByLabelText(m.settings_security_current_password());
-  fireEvent.change(current, { target: { value: 'wrong-password' } });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect.');
-  expect(current).toHaveAttribute('aria-invalid', 'true');
-  expect(deleteAccount).toHaveBeenCalledOnce();
-});
+  })
+  renderSecurity({ deleteOpen: true })
+  const current = screen.getByLabelText(m.settings_security_current_password())
+  fireEvent.change(current, { target: { value: 'wrong-password' } })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect.')
+  expect(current).toHaveAttribute('aria-invalid', 'true')
+  expect(deleteAccount).toHaveBeenCalledOnce()
+})
 
 it('returns to sign-in after a committed deletion whose follow-up failed', async () => {
-  const assign = vi.fn();
-  vi.stubGlobal('location', { ...window.location, assign });
+  const assign = vi.fn()
+  vi.stubGlobal('location', { ...window.location, assign })
   deleteAccount.mockResolvedValue({
     data: null,
     error: {
@@ -454,13 +452,13 @@ it('returns to sign-in after a committed deletion whose follow-up failed', async
       message: 'Your account was deleted, but a follow-up step failed.',
       status: 503,
     },
-  });
-  renderSecurity({ deleteOpen: true });
+  })
+  renderSecurity({ deleteOpen: true })
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: 'current-password' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
-  await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  vi.unstubAllGlobals();
-});
+  })
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }))
+  await waitFor(() => expect(assign).toHaveBeenCalledWith('/'))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  vi.unstubAllGlobals()
+})

@@ -1,6 +1,6 @@
-import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import type { AppData } from '../../types/entities.js';
-import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
+import { NULLABLE_FIELDS } from '../../types/nullableFields.js'
+import type { AppData } from '../../types/entities.js'
+import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js'
 
 const ACTIVITIES: AppData['activities'] = [
   {
@@ -85,9 +85,9 @@ const ACTIVITIES: AppData['activities'] = [
     kind: 'project',
     projectId: 'p-loft-app',
   },
-];
+]
 
 /** Fresh copies of the seed activities. */
 export function createActivities(): AppData['activities'] {
-  return ACTIVITIES.map((activity) => ({ ...activity }));
+  return ACTIVITIES.map((activity) => ({ ...activity }))
 }

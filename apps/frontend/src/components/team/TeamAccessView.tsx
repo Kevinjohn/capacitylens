@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
-import { useAuth } from '@/auth/authContext';
-import { useAccessGrant, useCan, usePermissionStatus, useRole } from '@/auth/permissionContext';
-import { resolveAccessLabel, resolveAccessSummary } from '@/lib/accessCopy';
-import { MembersSection } from './MembersSection';
-import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';
-import { useStore } from '@/store/useStore';
-import { OwnershipTransferCard } from './OwnershipTransferCard';
-import { Badge } from '@/components/ui/badge';
-import { Check, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { useState } from 'react'
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access'
+import type { AccessGrant, Role } from '@capacitylens/shared/domain/access'
+import { useAuth } from '@/auth/authContext'
+import { useAccessGrant, useCan, usePermissionStatus, useRole } from '@/auth/permissionContext'
+import { resolveAccessLabel, resolveAccessSummary } from '@/lib/accessCopy'
+import { MembersSection } from './MembersSection'
+import { AdmissionRequestsPanel } from './AdmissionRequestsPanel'
+import { useStore } from '@/store/useStore'
+import { OwnershipTransferCard } from './OwnershipTransferCard'
+import { Badge } from '@/components/ui/badge'
+import { Check, ChevronDown, ChevronRight, X } from 'lucide-react'
 import {
   Card,
   CardAction,
@@ -17,31 +17,30 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { m } from '@/i18n';
+} from '@/components/ui/card'
+import { m } from '@/i18n'
 
 interface PermissionRow {
-  label: string;
-  allowed: boolean;
+  label: string
+  allowed: boolean
 }
 
 interface CurrentAccessCardProps {
-  accessLabel: string;
-  accessSummary: string;
-  effectiveRole: Role | null;
-  grant: AccessGrant;
+  accessLabel: string
+  accessSummary: string
+  effectiveRole: Role | null
+  grant: AccessGrant
 }
 
 interface AccessManagementProps {
-  masqueradeActive: boolean;
-  mayManage: boolean;
-  permissionStatus: ReturnType<typeof usePermissionStatus>;
+  masqueradeActive: boolean
+  mayManage: boolean
+  permissionStatus: ReturnType<typeof usePermissionStatus>
 }
 
 // Rendered from the server's grant, so a view-as lists only what the read-only view allows.
 function listPermissions(grant: AccessGrant): PermissionRow[] {
-  const hasPermission = (key: AccessGrant['permissions'][number]) =>
-    grant.permissions.includes(key);
+  const hasPermission = (key: AccessGrant['permissions'][number]) => grant.permissions.includes(key)
   return [
     { label: m.access_cap_view_schedule(), allowed: hasPermission('planning:read') },
     { label: m.access_cap_edit_schedule(), allowed: hasPermission('planning:write') },
@@ -49,7 +48,7 @@ function listPermissions(grant: AccessGrant): PermissionRow[] {
     { label: m.access_cap_time_off_notes(), allowed: grant.canSeeTimeOffNote },
     { label: m.access_cap_private_names(), allowed: grant.canSeePrivateNames },
     { label: m.access_cap_transfer_owner(), allowed: hasPermission('ownership:transfer') },
-  ];
+  ]
 }
 
 function PermissionList({ grant }: { grant: AccessGrant }) {
@@ -75,7 +74,7 @@ function PermissionList({ grant }: { grant: AccessGrant }) {
         </li>
       ))}
     </ul>
-  );
+  )
 }
 
 function CurrentAccessCard({
@@ -84,8 +83,8 @@ function CurrentAccessCard({
   effectiveRole,
   grant,
 }: CurrentAccessCardProps) {
-  const [permissionsOpen, setPermissionsOpen] = useState(false);
-  let accessDetails = null;
+  const [permissionsOpen, setPermissionsOpen] = useState(false)
+  let accessDetails = null
 
   if (effectiveRole) {
     // Collapse the permission reference by default so member administration remains easy to reach.
@@ -108,10 +107,10 @@ function CurrentAccessCard({
         </button>
         {permissionsOpen && <PermissionList grant={grant} />}
       </>
-    );
+    )
   }
 
-  const badgeVariant = effectiveRole === 'viewer' || !effectiveRole ? 'outline' : 'default';
+  const badgeVariant = effectiveRole === 'viewer' || !effectiveRole ? 'outline' : 'default'
   return (
     <Card data-testid="current-access">
       <CardHeader>
@@ -125,7 +124,7 @@ function CurrentAccessCard({
       </CardHeader>
       <CardContent>{accessDetails}</CardContent>
     </Card>
-  );
+  )
 }
 
 function AccessManagement({
@@ -133,8 +132,8 @@ function AccessManagement({
   mayManage,
   permissionStatus,
 }: AccessManagementProps) {
-  if (mayManage) return <MembersSection />;
-  if (permissionStatus !== 'resolved') return null;
+  if (mayManage) return <MembersSection />
+  if (permissionStatus !== 'resolved') return null
 
   return (
     <Card>
@@ -147,30 +146,30 @@ function AccessManagement({
         </CardDescription>
       </CardHeader>
     </Card>
-  );
+  )
 }
 
 /** Coordinates member management, invitations, admission approval, and ownership. */
 export function TeamAccessView() {
-  const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const { user } = useAuth();
-  const role = useRole();
-  const permissionStatus = usePermissionStatus();
-  const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
-  const resolvedRole = permissionStatus === 'resolved' ? role : null;
-  const effectiveRole: Role | null = resolvedRole;
-  const grant = useAccessGrant();
-  const mayManage = useCan('members:manage');
-  const mayTransferOwnership = useCan('ownership:transfer');
+  const activeCompanyId = useStore((state) => state.activeCompanyId)
+  const { user } = useAuth()
+  const role = useRole()
+  const permissionStatus = usePermissionStatus()
+  const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive')
+  const resolvedRole = permissionStatus === 'resolved' ? role : null
+  const effectiveRole: Role | null = resolvedRole
+  const grant = useAccessGrant()
+  const mayManage = useCan('members:manage')
+  const mayTransferOwnership = useCan('ownership:transfer')
   const accessCopyInput = {
     permissionStatus,
     role: resolvedRole,
-  };
-  const accessLabel = resolveAccessLabel(accessCopyInput);
+  }
+  const accessLabel = resolveAccessLabel(accessCopyInput)
   // A view-as is read-only whatever the viewed member's role, so the role summary would overclaim.
   const accessSummary = masqueradeActive
     ? m.notice_masquerade_read_only()
-    : resolveAccessSummary(accessCopyInput);
+    : resolveAccessSummary(accessCopyInput)
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
@@ -200,5 +199,5 @@ export function TeamAccessView() {
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
       {!masqueradeActive && mayTransferOwnership && <OwnershipTransferCard />}
     </div>
-  );
+  )
 }

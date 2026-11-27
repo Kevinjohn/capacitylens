@@ -1,11 +1,11 @@
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
-import type { RowRuleContext } from '@capacitylens/shared/types/entityFieldRules';
-import { buildRowValidator } from '#validators/planning';
+import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
+import type { RowRuleContext } from '@capacitylens/shared/types/entityFieldRules'
+import { buildRowValidator } from '#validators/planning'
 
 /** Validates complete stored rows against their table's field specs. */
 export class RowValidationService {
   /** One compiled validator per table and row-fact combination, shared by every instance. */
-  static #validators = new Map<string, ReturnType<typeof buildRowValidator>>();
+  static #validators = new Map<string, ReturnType<typeof buildRowValidator>>()
 
   /**
    * Checks one complete stored row against its table's field specs without coercing supplied scalar
@@ -21,15 +21,15 @@ export class RowValidationService {
     const context: RowRuleContext = {
       externalResource: table === 'resources' && row.kind === 'external',
       builtinClient: table === 'clients' && row.builtin === true,
-    };
-    const cacheKey = `${table}:${context.externalResource}:${context.builtinClient}`;
-    let validator = RowValidationService.#validators.get(cacheKey);
+    }
+    const cacheKey = `${table}:${context.externalResource}:${context.builtinClient}`
+    let validator = RowValidationService.#validators.get(cacheKey)
     if (!validator) {
-      validator = buildRowValidator(table, context);
-      RowValidationService.#validators.set(cacheKey, validator);
+      validator = buildRowValidator(table, context)
+      RowValidationService.#validators.set(cacheKey, validator)
     }
     // The row was just validated against this table's field specs, which the compiler holds equal
     // to the entity interface, so it is a row of this table.
-    return (await validator.validate(row)) as AppData[K][number];
+    return (await validator.validate(row)) as AppData[K][number]
   }
 }

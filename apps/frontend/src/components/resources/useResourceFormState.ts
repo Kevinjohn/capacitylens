@@ -1,19 +1,19 @@
-import { useState } from 'react';
-import type { Resource, ResourceEngagement, Weekday } from '@capacitylens/shared/types/entities';
+import { useState } from 'react'
+import type { Resource, ResourceEngagement, Weekday } from '@capacitylens/shared/types/entities'
 
 /** Tracks editable resource fields and their validation state. */
 export function useResourceFormState(resource?: Resource) {
-  const text = buildInitialTextState(resource);
-  const capacity = buildInitialCapacityState(resource);
-  const [name, setName] = useState(text.name);
-  const [jobTitle, setJobTitle] = useState(text.jobTitle);
-  const [disciplineId, setDisciplineId] = useState(text.disciplineId);
-  const [projectId, setProjectId] = useState(text.projectId);
-  const [engagement, setEngagement] = useState<ResourceEngagement>(capacity.engagement);
-  const [workingDays, setWorkingDays] = useState<Weekday[]>(capacity.workingDays);
-  const [halfDays, setHalfDays] = useState<Weekday[]>(capacity.halfDays);
-  const [firstAvailableDate, setFirstAvailableDate] = useState(capacity.firstAvailableDate);
-  const [lastAvailableDate, setLastAvailableDate] = useState(capacity.lastAvailableDate);
+  const text = buildInitialTextState(resource)
+  const capacity = buildInitialCapacityState(resource)
+  const [name, setName] = useState(text.name)
+  const [jobTitle, setJobTitle] = useState(text.jobTitle)
+  const [disciplineId, setDisciplineId] = useState(text.disciplineId)
+  const [projectId, setProjectId] = useState(text.projectId)
+  const [engagement, setEngagement] = useState<ResourceEngagement>(capacity.engagement)
+  const [workingDays, setWorkingDays] = useState<Weekday[]>(capacity.workingDays)
+  const [halfDays, setHalfDays] = useState<Weekday[]>(capacity.halfDays)
+  const [firstAvailableDate, setFirstAvailableDate] = useState(capacity.firstAvailableDate)
+  const [lastAvailableDate, setLastAvailableDate] = useState(capacity.lastAvailableDate)
   return {
     name,
     setName,
@@ -33,7 +33,7 @@ export function useResourceFormState(resource?: Resource) {
     setLastAvailableDate,
     projectId,
     setProjectId,
-  };
+  }
 }
 
 function buildInitialTextState(resource?: Resource) {
@@ -42,7 +42,7 @@ function buildInitialTextState(resource?: Resource) {
     jobTitle: resource?.jobTitle ?? '',
     disciplineId: resource?.disciplineId ?? '',
     projectId: resource?.projectId ?? '',
-  };
+  }
 }
 
 function buildInitialCapacityState(resource?: Resource) {
@@ -52,8 +52,8 @@ function buildInitialCapacityState(resource?: Resource) {
     halfDays: resource?.halfDays ?? [],
     firstAvailableDate: resource?.firstAvailableDate ?? '',
     lastAvailableDate: resource?.lastAvailableDate ?? '',
-  };
+  }
 }
 
 /** State and handlers returned for a resource form. */
-export type ResourceFormState = ReturnType<typeof useResourceFormState>;
+export type ResourceFormState = ReturnType<typeof useResourceFormState>

@@ -1,150 +1,150 @@
-import { archiveForTest } from '@/test/fixtures';
-import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { archiveForTest } from '@/test/fixtures'
+import { requireCreated } from '@/test/requireCreated'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   render as renderTestingLibrary,
   screen,
   waitFor,
   fireEvent,
   within,
-} from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { PermissionContext } from '@/auth/permissionContext';
-import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { PlanningCacheError } from '@/data/planning/planningErrors';
-import { SchedulerToolbar } from './SchedulerToolbar';
-import { buildEmptyFilters, useStore } from '@/store/useStore';
+} from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { PermissionContext } from '@/auth/permissionContext'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { PlanningCacheError } from '@/data/planning/planningErrors'
+import { SchedulerToolbar } from './SchedulerToolbar'
+import { buildEmptyFilters, useStore } from '@/store/useStore'
 import {
   DEFAULT_COMPANY_ID,
   makeResourceDraft,
   resetStoreWithCompany,
   resetStoreWithData,
-} from '@/test/fixtures';
-import { chooseOption } from '@/test/schedulerTestKit';
-import { m } from '@/i18n';
-import { OwnerPermissions } from '@/test/ownerPermissions';
-import { permissionValue } from '@/test/permissionGrants';
+} from '@/test/fixtures'
+import { chooseOption } from '@/test/schedulerTestKit'
+import { m } from '@/i18n'
+import { OwnerPermissions } from '@/test/ownerPermissions'
+import { permissionValue } from '@/test/permissionGrants'
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
-  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions })
 
 function showFilters() {
-  fireEvent.click(screen.getByRole('button', { name: 'Show filters' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show filters' }))
 }
 
 beforeEach(async () => {
-  await resetStoreWithCompany();
-  useStore.getState().clearFilters();
-  useStore.getState().setZoom(4);
-});
+  await resetStoreWithCompany()
+  useStore.getState().clearFilters()
+  useStore.getState().setZoom(4)
+})
 
 describe('SchedulerToolbar weeks dropdown', () => {
   it('offers every zoom level in words and selects the current one', () => {
-    render(<SchedulerToolbar />);
+    render(<SchedulerToolbar />)
 
-    const trigger = screen.getByRole('combobox', { name: /Weeks visible/ });
-    expect(trigger).toHaveTextContent('4 weeks');
+    const trigger = screen.getByRole('combobox', { name: /Weeks visible/ })
+    expect(trigger).toHaveTextContent('4 weeks')
     // The visible text must live inside the accessible name (WCAG 2.5.3 Label in Name), so speech
     // input can act on what the user reads: "Weeks visible" alone would not contain "4 weeks".
-    expect(trigger).toHaveAccessibleName('Weeks visible, 4 weeks');
+    expect(trigger).toHaveAccessibleName('Weeks visible, 4 weeks')
 
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
 
-    expect(screen.getByRole('option', { name: '1 week' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '1 week' })).toBeInTheDocument()
     for (const weeks of [2, 4, 6, 8]) {
-      expect(screen.getByRole('option', { name: `${weeks} weeks` })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: `${weeks} weeks` })).toBeInTheDocument()
     }
-    expect(screen.queryByRole('radio', { name: '4w' })).not.toBeInTheDocument();
-  });
-});
+    expect(screen.queryByRole('radio', { name: '4w' })).not.toBeInTheDocument()
+  })
+})
 
 describe('SchedulerToolbar date navigation', () => {
   it.each([
     ['Prev', -7],
     ['Next', 7],
   ] as const)('%s pans the window by a week', async (name, days) => {
-    const user = userEvent.setup();
-    const panDays = vi.fn();
-    useStore.setState({ panDays });
-    render(<SchedulerToolbar />);
+    const user = userEvent.setup()
+    const panDays = vi.fn()
+    useStore.setState({ panDays })
+    render(<SchedulerToolbar />)
 
-    await user.click(screen.getByRole('button', { name }));
-    expect(panDays).toHaveBeenCalledWith(days);
-  });
-});
+    await user.click(screen.getByRole('button', { name }))
+    expect(panDays).toHaveBeenCalledWith(days)
+  })
+})
 
 describe('SchedulerToolbar search filter', () => {
   it('rejects an overlong paste without shortening the query and clears feedback after correction', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerToolbar />);
-    showFilters();
-    const input = screen.getByLabelText('Search people');
-    const query = 'x'.repeat(256);
+    const user = userEvent.setup()
+    render(<SchedulerToolbar />)
+    showFilters()
+    const input = screen.getByLabelText('Search people')
+    const query = 'x'.repeat(256)
 
-    await user.click(input);
-    await user.paste(query);
-    expect(input).toHaveValue(query);
-    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe(query));
+    await user.click(input)
+    await user.paste(query)
+    expect(input).toHaveValue(query)
+    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe(query))
 
-    await user.paste('y');
-    expect(input).toHaveValue(query);
-    expect(screen.getByRole('alert')).toHaveTextContent(m.validation_text_too_long());
+    await user.paste('y')
+    expect(input).toHaveValue(query)
+    expect(screen.getByRole('alert')).toHaveTextContent(m.validation_text_too_long())
 
-    await user.keyboard('{Backspace}');
-    expect(input).toHaveValue(query.slice(0, -1));
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe(query.slice(0, -1)));
-  });
-});
+    await user.keyboard('{Backspace}')
+    expect(input).toHaveValue(query.slice(0, -1))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe(query.slice(0, -1)))
+  })
+})
 
 describe('SchedulerToolbar filter panel', () => {
   it('starts collapsed and toggles the filters and draw mode below the primary toolbar', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerToolbar />);
+    const user = userEvent.setup()
+    render(<SchedulerToolbar />)
 
-    const show = screen.getByRole('button', { name: 'Show filters' });
-    expect(show).toHaveAttribute('aria-expanded', 'false');
-    expect(show.querySelector('svg')).not.toBeNull();
-    expect(screen.queryByLabelText('Search people')).not.toBeInTheDocument();
-    expect(screen.queryByRole('radiogroup', { name: 'Draw mode' })).not.toBeInTheDocument();
+    const show = screen.getByRole('button', { name: 'Show filters' })
+    expect(show).toHaveAttribute('aria-expanded', 'false')
+    expect(show.querySelector('svg')).not.toBeNull()
+    expect(screen.queryByLabelText('Search people')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'Draw mode' })).not.toBeInTheDocument()
 
-    await user.click(show);
-    const hide = screen.getByRole('button', { name: 'Hide filters' });
-    expect(hide).toHaveAttribute('aria-expanded', 'true');
-    expect(hide).toHaveAttribute('aria-controls', 'scheduler-filters');
-    expect(screen.getByLabelText('Search people')).toBeInTheDocument();
-    expect(screen.getByRole('radiogroup', { name: 'Draw mode' })).toBeInTheDocument();
-    expect(document.getElementById('scheduler-filters')).toHaveClass('flex-wrap');
+    await user.click(show)
+    const hide = screen.getByRole('button', { name: 'Hide filters' })
+    expect(hide).toHaveAttribute('aria-expanded', 'true')
+    expect(hide).toHaveAttribute('aria-controls', 'scheduler-filters')
+    expect(screen.getByLabelText('Search people')).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Draw mode' })).toBeInTheDocument()
+    expect(document.getElementById('scheduler-filters')).toHaveClass('flex-wrap')
 
-    await user.click(hide);
+    await user.click(hide)
     expect(screen.getByRole('button', { name: 'Show filters' })).toHaveAttribute(
       'aria-expanded',
-      'false',
-    );
-    expect(screen.queryByLabelText('Search people')).not.toBeInTheDocument();
-  });
+      'false'
+    )
+    expect(screen.queryByLabelText('Search people')).not.toBeInTheDocument()
+  })
 
   it('keeps the filter toggle in the right-hand action area for viewers', () => {
     render(
       <PermissionContext.Provider value={permissionValue('viewer')}>
         <SchedulerToolbar />
-      </PermissionContext.Provider>,
-    );
+      </PermissionContext.Provider>
+    )
 
-    const actions = screen.getByTestId('scheduler-toolbar-actions');
-    const show = within(actions).getByRole('button', { name: 'Show filters' });
+    const actions = screen.getByTestId('scheduler-toolbar-actions')
+    const show = within(actions).getByRole('button', { name: 'Show filters' })
 
-    expect(within(actions).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
-    expect(within(actions).queryByRole('button', { name: 'Redo' })).not.toBeInTheDocument();
-    expect(actions.children).toHaveLength(2);
-    expect(actions.children[0]).toHaveAttribute('data-slot', 'separator');
-    expect(actions.children[1]).toBe(show);
-  });
-});
+    expect(within(actions).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+    expect(within(actions).queryByRole('button', { name: 'Redo' })).not.toBeInTheDocument()
+    expect(actions.children).toHaveLength(2)
+    expect(actions.children[0]).toHaveAttribute('data-slot', 'separator')
+    expect(actions.children[1]).toBe(show)
+  })
+})
 
 function optionNames(label: string) {
-  fireEvent.keyDown(screen.getByRole('combobox', { name: label }), { key: 'ArrowDown' });
-  return screen.getAllByRole('option').map((option) => option.textContent);
+  fireEvent.keyDown(screen.getByRole('combobox', { name: label }), { key: 'ArrowDown' })
+  return screen.getAllByRole('option').map((option) => option.textContent)
 }
 
 describe('SchedulerToolbar discipline filter visibility', () => {
@@ -153,97 +153,93 @@ describe('SchedulerToolbar discipline filter visibility', () => {
       data: {
         ...state.data,
         companies: state.data.companies.map((company) =>
-          company.id === state.activeCompanyId ? { ...company, disciplinesEnabled: true } : company,
+          company.id === state.activeCompanyId ? { ...company, disciplinesEnabled: true } : company
         ),
         disciplines: [],
       },
-    }));
-    render(<SchedulerToolbar />);
-    showFilters();
+    }))
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    expect(
-      screen.queryByRole('combobox', { name: 'Filter by discipline' }),
-    ).not.toBeInTheDocument();
-  });
-});
+    expect(screen.queryByRole('combobox', { name: 'Filter by discipline' })).not.toBeInTheDocument()
+  })
+})
 
 describe('SchedulerToolbar discipline and client ordering', () => {
   it('orders disciplines by sortOrder, not by name or insertion order', async () => {
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#111' });
+    await useStore.getState().addDiscipline({ name: 'Design', color: '#111' })
     const accountManagement = await useStore
       .getState()
-      .addDiscipline({ name: 'Account Management', color: '#222' });
-    await useStore.getState().addDiscipline({ name: 'Development', color: '#333' });
+      .addDiscipline({ name: 'Account Management', color: '#222' })
+    await useStore.getState().addDiscipline({ name: 'Development', color: '#333' })
     if (accountManagement.kind !== 'created') {
-      throw new Error('Expected the discipline to be created.');
+      throw new Error('Expected the discipline to be created.')
     }
-    await useStore.getState().updateDiscipline(accountManagement.value.id, { sortOrder: 5 });
-    render(<SchedulerToolbar />);
-    showFilters();
+    await useStore.getState().updateDiscipline(accountManagement.value.id, { sortOrder: 5 })
+    render(<SchedulerToolbar />)
+    showFilters()
 
     expect(optionNames('Filter by discipline')).toEqual([
       'All disciplines',
       'Design',
       'Development',
       'Account Management',
-    ]);
-  });
+    ])
+  })
 
   it('pins Internal before alphabetically ordered clients', async () => {
-    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z');
+    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z')
     await resetStoreWithData(
       { ...useStore.getState().data, clients: [internal] },
-      DEFAULT_COMPANY_ID,
-    );
-    await useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' });
-    await useStore.getState().addClient({ name: 'LexCorp', color: '#222' });
-    render(<SchedulerToolbar />);
-    showFilters();
+      DEFAULT_COMPANY_ID
+    )
+    await useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' })
+    await useStore.getState().addClient({ name: 'LexCorp', color: '#222' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
     expect(optionNames('Filter by client')).toEqual([
       'All clients',
       'Internal',
       'LexCorp',
       'Queen Consolidated',
-    ]);
-  });
-});
+    ])
+  })
+})
 
 describe('SchedulerToolbar project and activity ordering', () => {
   it('orders projects by effective client name, then effective project name', async () => {
-    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z');
+    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z')
     await resetStoreWithData(
       { ...useStore.getState().data, clients: [internal] },
-      DEFAULT_COMPANY_ID,
-    );
+      DEFAULT_COMPANY_ID
+    )
     const queen = await requireCreated(
       useStore.getState().addClient({
         name: 'Queen Consolidated',
         color: '#111',
         isPrivate: true,
         codeName: 'Xavier',
-      }),
-    );
+      })
+    )
     const lex = await requireCreated(
-      useStore.getState().addClient({ name: 'LexCorp', color: '#222' }),
-    );
+      useStore.getState().addClient({ name: 'LexCorp', color: '#222' })
+    )
     await useStore.getState().addProject({
       name: 'Project Watchtower',
       clientId: queen.id,
       color: '#333',
       isPrivate: true,
       codeName: 'Alpha',
-    });
+    })
     await useStore
       .getState()
-      .addProject({ name: 'Metropolis Rebrand', clientId: lex.id, color: '#444' });
-    await useStore
-      .getState()
-      .addProject({ name: 'Annual report', clientId: lex.id, color: '#777' });
-    await useStore.getState().addProject({ name: 'Website', clientId: internal.id, color: '#555' });
-    await useStore.getState().addProject({ name: 'Admin', clientId: internal.id, color: '#666' });
-    render(<SchedulerToolbar />);
-    showFilters();
+      .addProject({ name: 'Metropolis Rebrand', clientId: lex.id, color: '#444' })
+    await useStore.getState().addProject({ name: 'Annual report', clientId: lex.id, color: '#777' })
+    await useStore.getState().addProject({ name: 'Website', clientId: internal.id, color: '#555' })
+    await useStore.getState().addProject({ name: 'Admin', clientId: internal.id, color: '#666' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
     expect(optionNames('Filter by project')).toEqual([
       'All projects',
@@ -252,151 +248,151 @@ describe('SchedulerToolbar project and activity ordering', () => {
       'LexCorp / Annual report',
       'LexCorp / Metropolis Rebrand',
       'Queen Consolidated / Project Watchtower',
-    ]);
-  });
-});
+    ])
+  })
+})
 
 describe('SchedulerToolbar project client filtering', () => {
   it('narrows projects to the selected client while keeping All projects available', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const queen = await requireCreated(
-      useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' }),
-    );
+      useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' })
+    )
     const lex = await requireCreated(
-      useStore.getState().addClient({ name: 'LexCorp', color: '#222' }),
-    );
-    await useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#333' });
+      useStore.getState().addClient({ name: 'LexCorp', color: '#222' })
+    )
+    await useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#333' })
     await useStore
       .getState()
-      .addProject({ name: 'Gotham Initiative', clientId: queen.id, color: '#444' });
+      .addProject({ name: 'Gotham Initiative', clientId: queen.id, color: '#444' })
     await useStore
       .getState()
-      .addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#444' });
+      .addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#444' })
     await useStore
       .getState()
-      .addProject({ name: 'Metropolis Rebrand', clientId: lex.id, color: '#555' });
+      .addProject({ name: 'Metropolis Rebrand', clientId: lex.id, color: '#555' })
     const archived = await requireCreated(
-      useStore.getState().addProject({ name: 'Archived work', clientId: lex.id, color: '#666' }),
-    );
-    await archiveForTest('projects', archived.id);
+      useStore.getState().addProject({ name: 'Archived work', clientId: lex.id, color: '#666' })
+    )
+    await archiveForTest('projects', archived.id)
 
-    render(<SchedulerToolbar />);
-    showFilters();
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    await chooseOption(user, 'Filter by client', 'Queen Consolidated');
+    await chooseOption(user, 'Filter by client', 'Queen Consolidated')
     expect(optionNames('Filter by project')).toEqual([
       'All projects',
       'Queen Consolidated / Gotham Initiative',
       'Queen Consolidated / Project Watchtower',
-    ]);
-    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+    ])
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' })
 
-    await chooseOption(user, 'Filter by client', 'Wayne Enterprises');
-    expect(optionNames('Filter by project')).toEqual(['All projects']);
-    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+    await chooseOption(user, 'Filter by client', 'Wayne Enterprises')
+    expect(optionNames('Filter by project')).toEqual(['All projects'])
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' })
 
-    await chooseOption(user, 'Filter by client', 'All clients');
+    await chooseOption(user, 'Filter by client', 'All clients')
     expect(optionNames('Filter by project')).toEqual([
       'All projects',
       'LexCorp / Metropolis Rebrand',
       'Queen Consolidated / Gotham Initiative',
       'Queen Consolidated / Project Watchtower',
-    ]);
-  });
+    ])
+  })
 
   it('resets an incompatible project when switching clients and preserves a compatible one', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const queen = await requireCreated(
-      useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' }),
-    );
+      useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' })
+    )
     const lex = await requireCreated(
-      useStore.getState().addClient({ name: 'LexCorp', color: '#222' }),
-    );
+      useStore.getState().addClient({ name: 'LexCorp', color: '#222' })
+    )
     const queenProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#333' }),
-    );
+        .addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#333' })
+    )
     await useStore
       .getState()
-      .addProject({ name: 'Metropolis Rebrand', clientId: lex.id, color: '#444' });
-    useStore.getState().setFilters({ projectId: queenProject.id });
+      .addProject({ name: 'Metropolis Rebrand', clientId: lex.id, color: '#444' })
+    useStore.getState().setFilters({ projectId: queenProject.id })
 
-    render(<SchedulerToolbar />);
-    showFilters();
-    await chooseOption(user, 'Filter by client', 'Queen Consolidated');
-    expect(useStore.getState().ui.filters.projectId).toBe(queenProject.id);
+    render(<SchedulerToolbar />)
+    showFilters()
+    await chooseOption(user, 'Filter by client', 'Queen Consolidated')
+    expect(useStore.getState().ui.filters.projectId).toBe(queenProject.id)
 
-    await chooseOption(user, 'Filter by client', 'LexCorp');
-    expect(useStore.getState().ui.filters.projectId).toBeNull();
+    await chooseOption(user, 'Filter by client', 'LexCorp')
+    expect(useStore.getState().ui.filters.projectId).toBeNull()
     expect(screen.getByRole('combobox', { name: 'Filter by project' })).toHaveTextContent(
-      'All projects',
-    );
-  });
-});
+      'All projects'
+    )
+  })
+})
 
 describe('SchedulerToolbar stale project selection', () => {
   it('keeps a selected project visible after it moves to another client', async () => {
     const queen = await requireCreated(
-      useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' }),
-    );
+      useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' })
+    )
     const lex = await requireCreated(
-      useStore.getState().addClient({ name: 'LexCorp', color: '#222' }),
-    );
+      useStore.getState().addClient({ name: 'LexCorp', color: '#222' })
+    )
     const project = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#333' }),
-    );
-    useStore.getState().setFilters({ clientId: queen.id, projectId: project.id });
-    await useStore.getState().updateProject(project.id, { clientId: lex.id });
+        .addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#333' })
+    )
+    useStore.getState().setFilters({ clientId: queen.id, projectId: project.id })
+    await useStore.getState().updateProject(project.id, { clientId: lex.id })
 
-    render(<SchedulerToolbar />);
-    showFilters();
+    render(<SchedulerToolbar />)
+    showFilters()
 
     expect(screen.getByRole('combobox', { name: 'Filter by project' })).toHaveTextContent(
-      'LexCorp / Project Watchtower',
-    );
+      'LexCorp / Project Watchtower'
+    )
     expect(optionNames('Filter by project')).toEqual([
       'All projects',
       'LexCorp / Project Watchtower',
-    ]);
-  });
-});
+    ])
+  })
+})
 
 describe('SchedulerToolbar project option presentation', () => {
   it('mutes client context while preserving the complete accessible label and keyboard selection', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'LexCorp', color: '#111' }),
-    );
+      useStore.getState().addClient({ name: 'LexCorp', color: '#111' })
+    )
     const project = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Metropolis Rebrand', clientId: client.id, color: '#222' }),
-    );
-    render(<SchedulerToolbar />);
-    showFilters();
+        .addProject({ name: 'Metropolis Rebrand', clientId: client.id, color: '#222' })
+    )
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    const trigger = screen.getByRole('combobox', { name: 'Filter by project' });
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
-    const option = screen.getByRole('option', { name: 'LexCorp / Metropolis Rebrand' });
+    const trigger = screen.getByRole('combobox', { name: 'Filter by project' })
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const option = screen.getByRole('option', { name: 'LexCorp / Metropolis Rebrand' })
     expect(option.querySelector('[data-slot="project-option-client"]')).toHaveClass(
-      'text-muted-foreground',
-    );
-    expect(option.querySelector('[data-slot="project-option-name"]')).toHaveClass('text-current');
+      'text-muted-foreground'
+    )
+    expect(option.querySelector('[data-slot="project-option-name"]')).toHaveClass('text-current')
 
-    await user.keyboard('{ArrowDown}{Enter}');
-    expect(useStore.getState().ui.filters.projectId).toBe(project.id);
-  });
+    await user.keyboard('{ArrowDown}{Enter}')
+    expect(useStore.getState().ui.filters.projectId).toBe(project.id)
+  })
 
   it('alphabetises activities within the existing Internal and All projects groups', async () => {
-    await useStore.getState().addActivity({ name: 'Studio meeting', kind: 'internal' });
-    await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' });
-    await useStore.getState().addActivity({ name: 'Workshop', kind: 'allProjects' });
-    await useStore.getState().addActivity({ name: 'Design', kind: 'allProjects' });
-    render(<SchedulerToolbar />);
-    showFilters();
+    await useStore.getState().addActivity({ name: 'Studio meeting', kind: 'internal' })
+    await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' })
+    await useStore.getState().addActivity({ name: 'Workshop', kind: 'allProjects' })
+    await useStore.getState().addActivity({ name: 'Design', kind: 'allProjects' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
     expect(optionNames('Filter by activity')).toEqual([
       'All activities',
@@ -406,9 +402,9 @@ describe('SchedulerToolbar project option presentation', () => {
       'All projects — All',
       'Design',
       'Workshop',
-    ]);
-  });
-});
+    ])
+  })
+})
 
 describe('SchedulerToolbar history errors', () => {
   it.each([
@@ -417,11 +413,11 @@ describe('SchedulerToolbar history errors', () => {
   ] as const)(
     'surfaces a rejected %s action as a persistent error notice',
     async (buttonName, action) => {
-      const user = userEvent.setup();
-      const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
+      const user = userEvent.setup()
+      const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()))
       const activity = await requireCreated(
-        useStore.getState().addActivity({ name: 'Operations', kind: 'internal' }),
-      );
+        useStore.getState().addActivity({ name: 'Operations', kind: 'internal' })
+      )
       // A real typed write gives the toolbar acknowledged planning history to act on.
       requireCreated(
         await useStore.getState().addAllocation({
@@ -431,34 +427,34 @@ describe('SchedulerToolbar history errors', () => {
           endDate: '2026-06-01',
           hoursPerDay: 8,
           status: 'confirmed',
-        }),
-      );
-      if (action === 'redoPlanning') await useStore.getState().undoPlanning();
-      const original = useStore.getState()[action];
-      useStore.setState({ [action]: () => Promise.reject(new Error('History is corrupt')) });
+        })
+      )
+      if (action === 'redoPlanning') await useStore.getState().undoPlanning()
+      const original = useStore.getState()[action]
+      useStore.setState({ [action]: () => Promise.reject(new Error('History is corrupt')) })
 
       try {
-        render(<SchedulerToolbar />);
-        await user.click(screen.getByRole('button', { name: buttonName }));
+        render(<SchedulerToolbar />)
+        await user.click(screen.getByRole('button', { name: buttonName }))
 
         await waitFor(() =>
           expect(useStore.getState().notice).toEqual({
             message: 'History is corrupt',
             tone: 'error',
-          }),
-        );
+          })
+        )
       } finally {
-        useStore.setState({ [action]: original });
+        useStore.setState({ [action]: original })
       }
-    },
-  );
+    }
+  )
 
   it('does not toast a stale-revision Undo because the refetched schedule already shows it', async () => {
-    const user = userEvent.setup();
-    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
+    const user = userEvent.setup()
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()))
     const activity = await requireCreated(
-      useStore.getState().addActivity({ name: 'Operations', kind: 'internal' }),
-    );
+      useStore.getState().addActivity({ name: 'Operations', kind: 'internal' })
+    )
     requireCreated(
       await useStore.getState().addAllocation({
         resourceId: resource.id,
@@ -467,28 +463,28 @@ describe('SchedulerToolbar history errors', () => {
         endDate: '2026-06-01',
         hoursPerDay: 8,
         status: 'confirmed',
-      }),
-    );
+      })
+    )
     const undo = vi.fn(() =>
-      Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
-    );
-    const original = useStore.getState().undoPlanning;
-    useStore.setState({ undoPlanning: undo });
+      Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409))
+    )
+    const original = useStore.getState().undoPlanning
+    useStore.setState({ undoPlanning: undo })
     try {
-      render(<SchedulerToolbar />);
-      await user.click(screen.getByRole('button', { name: 'Undo' }));
-      await waitFor(() => expect(undo).toHaveBeenCalledOnce());
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(useStore.getState().notice).toBeNull();
+      render(<SchedulerToolbar />)
+      await user.click(screen.getByRole('button', { name: 'Undo' }))
+      await waitFor(() => expect(undo).toHaveBeenCalledOnce())
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(useStore.getState().notice).toBeNull()
     } finally {
-      useStore.setState({ undoPlanning: original });
+      useStore.setState({ undoPlanning: original })
     }
-  });
-});
+  })
+})
 
 describe('SchedulerToolbar Clear filter presentation', () => {
   it('clicking Clear Filters resets every filter field and returns the button to its quiet state', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     useStore.setState((state) => ({
       ui: {
         ...state.ui,
@@ -503,194 +499,194 @@ describe('SchedulerToolbar Clear filter presentation', () => {
           showUnmatched: true,
         },
       },
-    }));
-    render(<SchedulerToolbar />);
-    showFilters();
+    }))
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    const clear = screen.getByRole('button', { name: 'Clear Filters' });
-    await user.click(clear);
+    const clear = screen.getByRole('button', { name: 'Clear Filters' })
+    await user.click(clear)
 
-    expect(useStore.getState().ui.filters).toEqual(buildEmptyFilters());
-    expect(clear).toBeDisabled();
-    expect(clear).toHaveAttribute('data-variant', 'outline');
-    expect(clear.querySelector('svg')).toBeNull();
-  });
-});
+    expect(useStore.getState().ui.filters).toEqual(buildEmptyFilters())
+    expect(clear).toBeDisabled()
+    expect(clear).toHaveAttribute('data-variant', 'outline')
+    expect(clear.querySelector('svg')).toBeNull()
+  })
+})
 
 describe('SchedulerToolbar Clear filter concurrency', () => {
   it('Clear cancels a pending search debounce so a cleared term cannot reappear', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
 
-    useStore.getState().setFilters({ disciplineId: 'd1' });
-    render(<SchedulerToolbar />);
-    showFilters();
+    useStore.getState().setFilters({ disciplineId: 'd1' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    await user.type(screen.getByLabelText('Search people'), 'jo');
+    await user.type(screen.getByLabelText('Search people'), 'jo')
 
-    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+    await user.click(screen.getByRole('button', { name: 'Clear Filters' }))
 
-    await new Promise((r) => setTimeout(r, 250));
-    expect(useStore.getState().ui.filters.search).toBe('');
-    expect((screen.getByLabelText('Search people') as HTMLInputElement).value).toBe('');
-  });
+    await new Promise((r) => setTimeout(r, 250))
+    expect(useStore.getState().ui.filters.search).toBe('')
+    expect((screen.getByLabelText('Search people') as HTMLInputElement).value).toBe('')
+  })
 
   it('an EXTERNAL filters.search reset (e.g. company switch) cancels a pending search debounce', async () => {
-    useStore.getState().setFilters({ search: 'alice' });
-    render(<SchedulerToolbar />);
-    showFilters();
+    useStore.getState().setFilters({ search: 'alice' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    const box = screen.getByLabelText('Search people') as HTMLInputElement;
+    const box = screen.getByLabelText('Search people') as HTMLInputElement
 
-    fireEvent.change(box, { target: { value: 'bob' } });
+    fireEvent.change(box, { target: { value: 'bob' } })
 
-    useStore.getState().setFilters({ search: '' });
+    useStore.getState().setFilters({ search: '' })
 
-    await new Promise((r) => setTimeout(r, 250));
-    expect(useStore.getState().ui.filters.search).toBe('');
-  });
+    await new Promise((r) => setTimeout(r, 250))
+    expect(useStore.getState().ui.filters.search).toBe('')
+  })
 
   it('a filters REPLACEMENT that leaves search unchanged (palette selection) still kills a pending debounce', async () => {
-    render(<SchedulerToolbar />);
-    showFilters();
-    const box = screen.getByLabelText('Search people') as HTMLInputElement;
+    render(<SchedulerToolbar />)
+    showFilters()
+    const box = screen.getByLabelText('Search people') as HTMLInputElement
 
     // Key pending-search cancellation on filter-object replacement because an external replacement may leave filters.search unchanged.
-    fireEvent.change(box, { target: { value: 'zzz-nobody-matches-zzz' } });
+    fireEvent.change(box, { target: { value: 'zzz-nobody-matches-zzz' } })
 
-    useStore.getState().setFilters({ ...buildEmptyFilters(), projectId: 'p1' });
+    useStore.getState().setFilters({ ...buildEmptyFilters(), projectId: 'p1' })
 
-    await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, 250))
 
-    expect(useStore.getState().ui.filters.search).toBe('');
+    expect(useStore.getState().ui.filters.search).toBe('')
 
-    expect(useStore.getState().ui.filters.projectId).toBe('p1');
+    expect(useStore.getState().ui.filters.projectId).toBe('p1')
 
-    expect(box.value).toBe('');
-  });
+    expect(box.value).toBe('')
+  })
 
   it('commits pending search text when another toolbar filter changes', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
-    );
-    render(<SchedulerToolbar />);
-    showFilters();
-    const box = screen.getByLabelText('Search people') as HTMLInputElement;
+      useStore.getState().addClient({ name: 'Ferris', color: '#111' })
+    )
+    render(<SchedulerToolbar />)
+    showFilters()
+    const box = screen.getByLabelText('Search people') as HTMLInputElement
 
-    fireEvent.change(box, { target: { value: 'ali' } });
-    await chooseOption(userEvent.setup(), 'Filter by client', 'Ferris');
+    fireEvent.change(box, { target: { value: 'ali' } })
+    await chooseOption(userEvent.setup(), 'Filter by client', 'Ferris')
 
-    expect(box.value).toBe('ali');
+    expect(box.value).toBe('ali')
     expect(useStore.getState().ui.filters).toMatchObject({
       search: 'ali',
       clientId: client.id,
-    });
-  });
-});
+    })
+  })
+})
 
 const createLensActivities = async () => ({
   internal: await requireCreated(
-    useStore.getState().addActivity({ name: 'Admin', kind: 'internal' }),
+    useStore.getState().addActivity({ name: 'Admin', kind: 'internal' })
   ),
   allProjects: await requireCreated(
-    useStore.getState().addActivity({ name: 'Design', kind: 'allProjects' }),
+    useStore.getState().addActivity({ name: 'Design', kind: 'allProjects' })
   ),
-});
+})
 
 describe('SchedulerToolbar Activities filter (standalone lens)', () => {
   it('is absent when the company has no project-less activities', () => {
-    render(<SchedulerToolbar />);
-    showFilters();
-    expect(screen.queryByLabelText('Filter by activity')).not.toBeInTheDocument();
-  });
+    render(<SchedulerToolbar />)
+    showFilters()
+    expect(screen.queryByLabelText('Filter by activity')).not.toBeInTheDocument()
+  })
 
   it('shows and clears a selected archived activity when no activities remain', async () => {
-    const user = userEvent.setup();
-    useStore.getState().setFilters({ activityId: 'archived-activity' });
-    render(<SchedulerToolbar />);
-    showFilters();
+    const user = userEvent.setup()
+    useStore.getState().setFilters({ activityId: 'archived-activity' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    const select = screen.getByRole('combobox', { name: 'Filter by activity' });
-    expect(select).toHaveTextContent('Unavailable activity');
-    await chooseOption(user, 'Filter by activity', 'All activities');
+    const select = screen.getByRole('combobox', { name: 'Filter by activity' })
+    expect(select).toHaveTextContent('Unavailable activity')
+    await chooseOption(user, 'Filter by activity', 'All activities')
 
-    expect(useStore.getState().ui.filters.activityId).toBeNull();
-    expect(useStore.getState().ui.filters.activityKind).toBeNull();
-  });
+    expect(useStore.getState().ui.filters.activityId).toBeNull()
+    expect(useStore.getState().ui.filters.activityKind).toBeNull()
+  })
 
   it('selecting a specific activity sets activityId and clears the client/project lens', async () => {
-    const user = userEvent.setup();
-    const { allProjects } = await createLensActivities();
+    const user = userEvent.setup()
+    const { allProjects } = await createLensActivities()
 
-    useStore.getState().setFilters({ projectId: 'p1' });
-    render(<SchedulerToolbar />);
-    showFilters();
+    useStore.getState().setFilters({ projectId: 'p1' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    await chooseOption(user, 'Filter by activity', 'Design');
+    await chooseOption(user, 'Filter by activity', 'Design')
 
-    expect(useStore.getState().ui.filters.activityId).toBe(allProjects.id);
-    expect(useStore.getState().ui.filters.activityKind).toBeNull();
+    expect(useStore.getState().ui.filters.activityId).toBe(allProjects.id)
+    expect(useStore.getState().ui.filters.activityKind).toBeNull()
 
-    expect(useStore.getState().ui.filters.projectId).toBeNull();
-  });
+    expect(useStore.getState().ui.filters.projectId).toBeNull()
+  })
 
   it('selecting "Internal — All" sets activityKind and clears the client/project lens', async () => {
-    const user = userEvent.setup();
-    await createLensActivities();
-    useStore.getState().setFilters({ clientId: 'c1' });
-    render(<SchedulerToolbar />);
-    showFilters();
+    const user = userEvent.setup()
+    await createLensActivities()
+    useStore.getState().setFilters({ clientId: 'c1' })
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    await chooseOption(user, 'Filter by activity', 'Internal — All');
+    await chooseOption(user, 'Filter by activity', 'Internal — All')
 
-    expect(useStore.getState().ui.filters.activityKind).toBe('internal');
-    expect(useStore.getState().ui.filters.activityId).toBeNull();
-    expect(useStore.getState().ui.filters.clientId).toBeNull();
-  });
-});
+    expect(useStore.getState().ui.filters.activityKind).toBe('internal')
+    expect(useStore.getState().ui.filters.activityId).toBeNull()
+    expect(useStore.getState().ui.filters.clientId).toBeNull()
+  })
+})
 
 describe('SchedulerToolbar activity and project lens interaction', () => {
   it('selecting a project clears an active activity lens (mutual exclusion both ways)', async () => {
-    const user = userEvent.setup();
-    const { allProjects } = await createLensActivities();
+    const user = userEvent.setup()
+    const { allProjects } = await createLensActivities()
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
-    );
+      useStore.getState().addClient({ name: 'Ferris', color: '#111' })
+    )
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
-    );
-    useStore.getState().setFilters({ activityId: allProjects.id });
-    render(<SchedulerToolbar />);
-    showFilters();
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
+    )
+    useStore.getState().setFilters({ activityId: allProjects.id })
+    render(<SchedulerToolbar />)
+    showFilters()
 
-    await chooseOption(user, 'Filter by project', 'Ferris / Lightning');
+    await chooseOption(user, 'Filter by project', 'Ferris / Lightning')
 
-    expect(useStore.getState().ui.filters.projectId).toBe(project.id);
-    expect(useStore.getState().ui.filters.activityId).toBeNull();
-    expect(useStore.getState().ui.filters.activityKind).toBeNull();
-  });
+    expect(useStore.getState().ui.filters.projectId).toBe(project.id)
+    expect(useStore.getState().ui.filters.activityId).toBeNull()
+    expect(useStore.getState().ui.filters.activityKind).toBeNull()
+  })
 
   it('qualifies same-named projects with their client names', async () => {
     const firstClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
-    );
+      useStore.getState().addClient({ name: 'Ferris', color: '#111' })
+    )
     const secondClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Globex', color: '#222' }),
-    );
+      useStore.getState().addClient({ name: 'Globex', color: '#222' })
+    )
     await useStore
       .getState()
-      .addProject({ name: 'Website', clientId: firstClient.id, color: '#333' });
+      .addProject({ name: 'Website', clientId: firstClient.id, color: '#333' })
     await useStore.getState().addProject({
       name: 'Website',
       clientId: secondClient.id,
       color: '#444',
-    });
-    render(<SchedulerToolbar />);
-    showFilters();
+    })
+    render(<SchedulerToolbar />)
+    showFilters()
 
     fireEvent.keyDown(screen.getByRole('combobox', { name: 'Filter by project' }), {
       key: 'ArrowDown',
-    });
-    expect(screen.getByRole('option', { name: 'Ferris / Website' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Globex / Website' })).toBeInTheDocument();
-  });
-});
+    })
+    expect(screen.getByRole('option', { name: 'Ferris / Website' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Globex / Website' })).toBeInTheDocument()
+  })
+})

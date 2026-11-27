@@ -1,25 +1,25 @@
-import { countDaysInclusive } from './dateMath.js';
-import { MAX_SPAN_DAYS } from './schedulingDays.js';
-import type { DomainErrorCode } from '../domain/errors.js';
-import type { Activity, Allocation, ID, ISODate, Resource } from '../types/entities.js';
-import { isValidISODate } from './isoDates.js';
+import { countDaysInclusive } from './dateMath.js'
+import { MAX_SPAN_DAYS } from './schedulingDays.js'
+import type { DomainErrorCode } from '../domain/errors.js'
+import type { Activity, Allocation, ID, ISODate, Resource } from '../types/entities.js'
+import { isValidISODate } from './isoDates.js'
 
 // Keep referential-integrity validation pure. Calendar parsing lives in isoDates.
 
 /** Outcome of a validation: `ok`, display-safe `errors`, and their stable `codes`. */
 export interface ValidationResult {
-  ok: boolean;
-  errors: string[];
-  codes: DomainErrorCode[];
+  ok: boolean
+  errors: string[]
+  codes: DomainErrorCode[]
 }
 
-type ValidationIssue = { code: DomainErrorCode; message: string };
+type ValidationIssue = { code: DomainErrorCode; message: string }
 
 const buildValidationResult = (issues: ValidationIssue[]): ValidationResult => ({
   ok: issues.length === 0,
   errors: issues.map((issue) => issue.message),
   codes: issues.map((issue) => issue.code),
-});
+})
 
 /** A project must belong to a client. */
 export function validateProjectClient(clientId: ID | undefined | null): ValidationResult {
@@ -31,8 +31,8 @@ export function validateProjectClient(clientId: ID | undefined | null): Validati
             code: 'project_client_required',
             message: 'A project must belong to a client.',
           },
-        ],
-  );
+        ]
+  )
 }
 
 /**
@@ -48,12 +48,12 @@ export function validateProjectClient(clientId: ID | undefined | null): Validati
  */
 export function validateDateRange(
   startDate?: ISODate | null,
-  endDate?: ISODate | null,
+  endDate?: ISODate | null
 ): ValidationResult {
   if (!startDate || !endDate) {
     return buildValidationResult([
       { code: 'date_required', message: 'Start and end dates are required.' },
-    ]);
+    ])
   }
   if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
     return buildValidationResult([
@@ -61,7 +61,7 @@ export function validateDateRange(
         code: 'date_invalid',
         message: 'Dates must be valid calendar dates (YYYY-MM-DD).',
       },
-    ]);
+    ])
   }
   if (endDate < startDate) {
     return buildValidationResult([
@@ -69,7 +69,7 @@ export function validateDateRange(
         code: 'date_reversed',
         message: 'End date cannot be before the start date.',
       },
-    ]);
+    ])
   }
   // Enforce the span bound before callers can allocate one entry per day.
   if (countDaysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
@@ -78,23 +78,23 @@ export function validateDateRange(
         code: 'date_span_too_long',
         message: `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString('en-GB')} calendar days.`,
       },
-    ]);
+    ])
   }
-  return buildValidationResult([]);
+  return buildValidationResult([])
 }
 
 /** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
  * activity's project because all-projects activities are project-less and attribute each booking. */
 export function resolveEffectiveProjectId(
   allocation: Partial<Pick<Allocation, 'projectId'>>,
-  activity: Partial<Pick<Activity, 'projectId'>>,
+  activity: Partial<Pick<Activity, 'projectId'>>
 ): ID | undefined {
-  return allocation.projectId ?? activity.projectId ?? undefined;
+  return allocation.projectId ?? activity.projectId ?? undefined
 }
 
 /** Allocation-level project attribution belongs only to all-projects activities. */
 export function isAllocationAttributionAllowed(kind: unknown): boolean {
-  return kind === 'allProjects';
+  return kind === 'allProjects'
 }
 
 type WithoutAllocationAttribution<T> = {
@@ -102,8 +102,8 @@ type WithoutAllocationAttribution<T> = {
     ? null
     : Key extends 'updatedAt'
       ? Allocation['updatedAt']
-      : T[Key];
-};
+      : T[Key]
+}
 
 /**
  * Returns a fresh row with allocation-level attribution removed and, when supplied, restamped.
@@ -111,23 +111,23 @@ type WithoutAllocationAttribution<T> = {
  */
 export function removeAllocationAttribution<T extends Pick<Allocation, 'projectId' | 'updatedAt'>>(
   row: T,
-  updatedAt?: Allocation['updatedAt'],
+  updatedAt?: Allocation['updatedAt']
 ): WithoutAllocationAttribution<T> {
   // The spread preserves each union variant's other fields; only these two fields are replaced.
   return {
     ...row,
     projectId: null,
     updatedAt: updatedAt ?? row.updatedAt,
-  } as WithoutAllocationAttribution<T>;
+  } as WithoutAllocationAttribution<T>
 }
 
 /** Check that a project-attributed placeholder allocation matches its bound project.
  * Unattributed work is assignable to any resource; people and externals are unrestricted by this rule. Pure. */
 export function validateAllocationAssignment(
   resource: Resource,
-  projectId: ID | undefined,
+  projectId: ID | undefined
 ): ValidationResult {
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationIssue[] = []
   // Only placeholders are project-restricted. `person` and `external` are intentionally
   // unrestricted (an external party can be assigned any activity), don't add a guard here.
   if (resource.kind === 'placeholder' && projectId !== undefined) {
@@ -135,13 +135,13 @@ export function validateAllocationAssignment(
       issues.push({
         code: 'placeholder_project_missing',
         message: 'This placeholder is not bound to a project yet.',
-      });
+      })
     } else if (resource.projectId !== projectId) {
       issues.push({
         code: 'placeholder_project_mismatch',
         message: 'A placeholder can only be assigned to activities from its bound project.',
-      });
+      })
     }
   }
-  return buildValidationResult(issues);
+  return buildValidationResult(issues)
 }

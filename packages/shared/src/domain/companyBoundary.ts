@@ -1,4 +1,4 @@
-import type { ID, ScopedEntity } from '../types/entities.js';
+import type { ID, ScopedEntity } from '../types/entities.js'
 
 // The company boundary, in one place. Company isolation is the app's core invariant: every scoped row
 // belongs to exactly one company, every read is narrowed to the active company, and every write
@@ -11,11 +11,11 @@ import type { ID, ScopedEntity } from '../types/entities.js';
  * is defined in terms of this, and the write-boundary guard (getOwned) and the FK-coherence
  * checks (assertScopedRefs) use it directly on one row. */
 export const isInCompany = (scopedEntity: ScopedEntity, companyId: ID): boolean =>
-  scopedEntity.companyId === companyId;
+  scopedEntity.companyId === companyId
 
 /** Curried positive predicate for `.filter(...)`: keep only the rows in `companyId`. The read-side
  * seam (useScopedData, scopeData) narrows each table with this. */
 export const byCompany =
   (companyId: ID) =>
   (scopedEntity: ScopedEntity): boolean =>
-    isInCompany(scopedEntity, companyId);
+    isInCompany(scopedEntity, companyId)

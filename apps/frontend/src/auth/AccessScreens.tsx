@@ -1,21 +1,21 @@
-import { SignOutButton } from './SignOutButton';
-import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
-import { APP_NAME } from '@capacitylens/shared/brand';
-import { m } from '@/i18n';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { AuthUser } from './authContext';
-import { authApi } from './authApi';
-import type { AccessGate, AdmissionSummary } from './authStatus';
+import { SignOutButton } from './SignOutButton'
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
+import { APP_NAME } from '@capacitylens/shared/brand'
+import { m } from '@/i18n'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { AuthUser } from './authContext'
+import { authApi } from './authApi'
+import type { AccessGate, AdmissionSummary } from './authStatus'
 
 type AccessScreenProps = {
-  gate: AccessGate;
-  user: AuthUser | null;
-  admission?: AdmissionSummary;
-  onSignOut: () => Promise<void> | void;
-  onRefresh: () => Promise<void>;
-};
+  gate: AccessGate
+  user: AuthUser | null
+  admission?: AdmissionSummary
+  onSignOut: () => Promise<void> | void
+  onRefresh: () => Promise<void>
+}
 
 /**
  * The limited surface for a signed-in identity that may not reach company data yet. It offers
@@ -24,8 +24,8 @@ type AccessScreenProps = {
  */
 export function AccessScreen(props: AccessScreenProps) {
   useEffect(() => {
-    document.title = `${m.limited_title()} · ${APP_NAME}`;
-  }, []);
+    document.title = `${m.limited_title()} · ${APP_NAME}`
+  }, [])
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-md" data-testid={`access-${props.gate}`}>
@@ -50,51 +50,51 @@ export function AccessScreen(props: AccessScreenProps) {
         </Card>
       </main>
     </div>
-  );
+  )
 }
 
 function getGateHeading(gate: AccessGate) {
-  if (gate === 'verify-email') return m.limited_verify_heading();
-  if (gate === 'admission') return m.limited_admission_heading();
-  return m.limited_membership_heading();
+  if (gate === 'verify-email') return m.limited_verify_heading()
+  if (gate === 'admission') return m.limited_admission_heading()
+  return m.limited_membership_heading()
 }
 
 function GateContent(props: AccessScreenProps) {
-  if (props.gate === 'verify-email') return <VerifyEmailStep />;
+  if (props.gate === 'verify-email') return <VerifyEmailStep />
   if (props.gate === 'admission') {
-    return <AdmissionStep admission={props.admission} onRefresh={props.onRefresh} />;
+    return <AdmissionStep admission={props.admission} onRefresh={props.onRefresh} />
   }
-  return <MembershipStep onRefresh={props.onRefresh} />;
+  return <MembershipStep onRefresh={props.onRefresh} />
 }
 
 /** Runs one request at a time and keeps its outcome message. */
 function useStep() {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const run = async (action: () => Promise<void>) => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    setNotice(null);
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    setNotice(null)
     try {
-      await action();
+      await action()
     } catch (failure) {
-      console.warn('AccessScreen: request failed', failure);
-      setError(m.sign_in_network_error());
+      console.warn('AccessScreen: request failed', failure)
+      setError(m.sign_in_network_error())
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
-  };
-  return { busy, error, setError, notice, setNotice, run };
+  }
+  return { busy, error, setError, notice, setNotice, run }
 }
 
 function StepMessages({
   error,
   notice,
 }: {
-  error: string | null;
-  notice: string | null;
+  error: string | null
+  notice: string | null
 }): ReactNode {
   return (
     <>
@@ -109,11 +109,11 @@ function StepMessages({
         </p>
       )}
     </>
-  );
+  )
 }
 
 function VerifyEmailStep() {
-  const step = useStep();
+  const step = useStep()
   return (
     <>
       <p className="text-sm">{m.limited_verify_body()}</p>
@@ -123,12 +123,12 @@ function VerifyEmailStep() {
         disabled={step.busy}
         onClick={() =>
           void step.run(async () => {
-            const { error } = await authApi.sendEmailVerification();
+            const { error } = await authApi.sendEmailVerification()
             if (error) {
               step.setError(
-                error.code === 'MAIL_UNAVAILABLE' ? m.limited_mail_unavailable() : error.message,
-              );
-            } else step.setNotice(m.limited_verify_sent());
+                error.code === 'MAIL_UNAVAILABLE' ? m.limited_mail_unavailable() : error.message
+              )
+            } else step.setNotice(m.limited_verify_sent())
           })
         }
       >
@@ -136,25 +136,25 @@ function VerifyEmailStep() {
       </Button>
       <StepMessages error={step.error} notice={step.notice} />
     </>
-  );
+  )
 }
 
 function AdmissionStep({
   admission,
   onRefresh,
 }: {
-  admission: AdmissionSummary | undefined;
-  onRefresh: () => Promise<void>;
+  admission: AdmissionSummary | undefined
+  onRefresh: () => Promise<void>
 }) {
-  const step = useStep();
+  const step = useStep()
   // Approval cannot admit someone who lacks invitation evidence or an allowed address.
-  if (admission?.domainRefused) return <p className="text-sm">{m.limited_admission_domain()}</p>;
+  if (admission?.domainRefused) return <p className="text-sm">{m.limited_admission_domain()}</p>
   if (admission?.invitationMissing) {
-    return <p className="text-sm">{m.limited_admission_invitation()}</p>;
+    return <p className="text-sm">{m.limited_admission_invitation()}</p>
   }
   const refused =
-    admission?.approvalStatus === 'rejected' || admission?.approvalStatus === 'revoked';
-  if (refused) return <p className="text-sm">{m.limited_admission_refused()}</p>;
+    admission?.approvalStatus === 'rejected' || admission?.approvalStatus === 'revoked'
+  if (refused) return <p className="text-sm">{m.limited_admission_refused()}</p>
   return (
     <>
       <p className="text-sm">
@@ -167,9 +167,9 @@ function AdmissionStep({
           disabled={step.busy}
           onClick={() =>
             void step.run(async () => {
-              const { error } = await authApi.requestAdmission();
-              if (error) step.setError(error.message);
-              else await onRefresh();
+              const { error } = await authApi.requestAdmission()
+              if (error) step.setError(error.message)
+              else await onRefresh()
             })
           }
         >
@@ -186,11 +186,11 @@ function AdmissionStep({
       </Button>
       <StepMessages error={step.error} notice={step.notice} />
     </>
-  );
+  )
 }
 
 function MembershipStep({ onRefresh }: { onRefresh: () => Promise<void> }) {
-  const step = useStep();
+  const step = useStep()
   return (
     <>
       <p className="text-sm">{m.limited_membership_body()}</p>
@@ -200,9 +200,9 @@ function MembershipStep({ onRefresh }: { onRefresh: () => Promise<void> }) {
         disabled={step.busy}
         onClick={() =>
           void step.run(async () => {
-            const { error } = await authApi.completeMembership();
-            if (error) step.setError(error.message);
-            else await onRefresh();
+            const { error } = await authApi.completeMembership()
+            if (error) step.setError(error.message)
+            else await onRefresh()
           })
         }
       >
@@ -210,5 +210,5 @@ function MembershipStep({ onRefresh }: { onRefresh: () => Promise<void> }) {
       </Button>
       <StepMessages error={step.error} notice={step.notice} />
     </>
-  );
+  )
 }

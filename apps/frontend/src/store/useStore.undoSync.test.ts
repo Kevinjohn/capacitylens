@@ -1,6 +1,6 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useStore } from './useStore';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useStore } from './useStore'
 import {
   DEFAULT_COMPANY_ID,
   makeAppData,
@@ -8,17 +8,17 @@ import {
   requireValue,
   resetStoreWithCompany,
   resetStoreWithData,
-} from '@/test/fixtures';
-import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
-import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+} from '@/test/fixtures'
+import { getPlanningTransportHandle } from '@/test/planningTransportHandle'
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch'
 
-const T = '2026-01-01T00:00:00.000Z';
-const meta = { companyId: DEFAULT_COMPANY_ID, createdAt: T, updatedAt: T };
+const T = '2026-01-01T00:00:00.000Z'
+const meta = { companyId: DEFAULT_COMPANY_ID, createdAt: T, updatedAt: T }
 
-beforeEach(() => resetStoreWithCompany());
+beforeEach(() => resetStoreWithCompany())
 afterEach(() => {
-  vi.restoreAllMocks();
-});
+  vi.restoreAllMocks()
+})
 
 describe('typed undo restores cascade bindings', () => {
   it('uses the row timestamp the server returns for an undo in the next edit', async () => {
@@ -28,34 +28,34 @@ describe('typed undo restores cascade bindings', () => {
       id: 'c1',
       name: 'Client',
       color: '#111111',
-    };
-    const saved = { ...original, name: 'Changed', updatedAt: '2026-02-01T09:00:00.000Z' };
-    const restoredAt = '2026-02-01T09:00:00.001Z';
-    await resetStoreWithData(makeAppData({ clients: [original] }), DEFAULT_COMPANY_ID);
-    queuePlanningPatch(() => ({ upserts: [{ entity: 'clients', row: saved }], removed: [] }));
-    await useStore.getState().updateClient(original.id, { name: saved.name });
-    expect(useStore.getState().data.clients[0]?.updatedAt).toBe(saved.updatedAt);
+    }
+    const saved = { ...original, name: 'Changed', updatedAt: '2026-02-01T09:00:00.000Z' }
+    const restoredAt = '2026-02-01T09:00:00.001Z'
+    await resetStoreWithData(makeAppData({ clients: [original] }), DEFAULT_COMPANY_ID)
+    queuePlanningPatch(() => ({ upserts: [{ entity: 'clients', row: saved }], removed: [] }))
+    await useStore.getState().updateClient(original.id, { name: saved.name })
+    expect(useStore.getState().data.clients[0]?.updatedAt).toBe(saved.updatedAt)
 
-    const transport = getPlanningTransportHandle();
-    const undo = transport.undo;
+    const transport = getPlanningTransportHandle()
+    const undo = transport.undo
     vi.spyOn(transport, 'undo').mockImplementationOnce(async (...args) => {
-      const receipt = await undo(...args);
+      const receipt = await undo(...args)
       return {
         ...receipt,
         changes: {
           upserts: [{ entity: 'clients', row: { ...original, updatedAt: restoredAt } }],
           removed: [],
         },
-      };
-    });
-    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
-    const row = requireValue(useStore.getState().data.clients[0], 'restored client');
-    expect(row).toMatchObject({ name: original.name, updatedAt: restoredAt });
+      }
+    })
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true)
+    const row = requireValue(useStore.getState().data.clients[0], 'restored client')
+    expect(row).toMatchObject({ name: original.name, updatedAt: restoredAt })
 
-    const send = vi.spyOn(transport, 'execute');
-    await useStore.getState().updateClient(row.id, { name: 'Next edit' }, row.updatedAt);
-    expect(send.mock.calls[0]?.[1]).toMatchObject({ expectedUpdatedAt: restoredAt });
-  });
+    const send = vi.spyOn(transport, 'execute')
+    await useStore.getState().updateClient(row.id, { name: 'Next edit' }, row.updatedAt)
+    expect(send.mock.calls[0]?.[1]).toMatchObject({ expectedUpdatedAt: restoredAt })
+  })
 
   it('undoes a creation in a large company without losing its existing rows', async () => {
     const clients = Array.from({ length: 75_000 }, (_, index) => ({
@@ -64,18 +64,18 @@ describe('typed undo restores cascade bindings', () => {
       id: `client-${index}`,
       name: `Client ${index}`,
       color: '#111111',
-    }));
-    await resetStoreWithData(makeAppData({ clients }), DEFAULT_COMPANY_ID);
-    await useStore.getState().addClient({ name: 'Last client', color: '#222222' });
-    const addedClient = requireValue(useStore.getState().data.clients.at(-1), 'last client');
+    }))
+    await resetStoreWithData(makeAppData({ clients }), DEFAULT_COMPANY_ID)
+    await useStore.getState().addClient({ name: 'Last client', color: '#222222' })
+    const addedClient = requireValue(useStore.getState().data.clients.at(-1), 'last client')
 
-    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
-    const clientsAfterUndo = useStore.getState().data.clients;
-    expect(clientsAfterUndo.filter((client) => !client.archivedAt)).toHaveLength(75_000);
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true)
+    const clientsAfterUndo = useStore.getState().data.clients
+    expect(clientsAfterUndo.filter((client) => !client.archivedAt)).toHaveLength(75_000)
     expect(
-      clientsAfterUndo.some((client) => client.id === addedClient.id && !client.archivedAt),
-    ).toBe(false);
-  });
+      clientsAfterUndo.some((client) => client.id === addedClient.id && !client.archivedAt)
+    ).toBe(false)
+  })
   it('restores an activity phaseId after a phase delete', async () => {
     await resetStoreWithData(
       makeAppData({
@@ -105,14 +105,14 @@ describe('typed undo restores cascade bindings', () => {
           },
         ],
       }),
-      DEFAULT_COMPANY_ID,
-    );
-    const deletedActivity = requireValue(useStore.getState().data.activities[0], 'activity');
-    const phaseHandle = 'restore-phase-delete';
+      DEFAULT_COMPANY_ID
+    )
+    const deletedActivity = requireValue(useStore.getState().data.activities[0], 'activity')
+    const phaseHandle = 'restore-phase-delete'
     queuePlanningPatch(
       (execution) => {
         if (execution.intent.operation !== 'catalogue.delete') {
-          throw new Error(`Expected catalogue.delete, received ${execution.intent.operation}.`);
+          throw new Error(`Expected catalogue.delete, received ${execution.intent.operation}.`)
         }
         return {
           removed: [{ entity: 'phases', id: 'ph1' }],
@@ -122,17 +122,17 @@ describe('typed undo restores cascade bindings', () => {
               row: { ...deletedActivity, phaseId: null, updatedAt: new Date().toISOString() },
             },
           ],
-        };
+        }
       },
-      { replacementGroupId: phaseHandle },
-    );
-    await useStore.getState().deletePhase('ph1');
-    const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.activities[0], 'activity')).toHaveProperty('phaseId', null);
-    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
-    expect(useStore.getState().data.phases.map((phase) => phase.id)).toEqual(['ph1']);
-    expect(useStore.getState().data.activities[0]?.phaseId).toBe('ph1');
-  });
+      { replacementGroupId: phaseHandle }
+    )
+    await useStore.getState().deletePhase('ph1')
+    const afterDelete = useStore.getState().data
+    expect(requireValue(afterDelete.activities[0], 'activity')).toHaveProperty('phaseId', null)
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true)
+    expect(useStore.getState().data.phases.map((phase) => phase.id)).toEqual(['ph1'])
+    expect(useStore.getState().data.activities[0]?.phaseId).toBe('ph1')
+  })
 
   it('restores a resource disciplineId after a discipline delete', async () => {
     await resetStoreWithData(
@@ -144,14 +144,14 @@ describe('typed undo restores cascade bindings', () => {
           makeResource({ ...meta, id: 'r1', name: 'Person', disciplineId: 'd1', color: '#333333' }),
         ],
       }),
-      DEFAULT_COMPANY_ID,
-    );
-    const deletedResource = requireValue(useStore.getState().data.resources[0], 'resource');
-    const disciplineHandle = 'restore-discipline-delete';
+      DEFAULT_COMPANY_ID
+    )
+    const deletedResource = requireValue(useStore.getState().data.resources[0], 'resource')
+    const disciplineHandle = 'restore-discipline-delete'
     queuePlanningPatch(
       (execution) => {
         if (execution.intent.operation !== 'catalogue.delete') {
-          throw new Error(`Expected catalogue.delete, received ${execution.intent.operation}.`);
+          throw new Error(`Expected catalogue.delete, received ${execution.intent.operation}.`)
         }
         return {
           removed: [{ entity: 'disciplines', id: 'd1' }],
@@ -161,15 +161,15 @@ describe('typed undo restores cascade bindings', () => {
               row: { ...deletedResource, disciplineId: null, updatedAt: new Date().toISOString() },
             },
           ],
-        };
+        }
       },
-      { replacementGroupId: disciplineHandle },
-    );
-    await useStore.getState().deleteDiscipline('d1');
-    const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.resources[0], 'resource')).toHaveProperty('disciplineId', null);
-    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
-    expect(useStore.getState().data.disciplines.map((row) => row.id)).toEqual(['d1']);
-    expect(useStore.getState().data.resources[0]?.disciplineId).toBe('d1');
-  });
-});
+      { replacementGroupId: disciplineHandle }
+    )
+    await useStore.getState().deleteDiscipline('d1')
+    const afterDelete = useStore.getState().data
+    expect(requireValue(afterDelete.resources[0], 'resource')).toHaveProperty('disciplineId', null)
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true)
+    expect(useStore.getState().data.disciplines.map((row) => row.id)).toEqual(['d1'])
+    expect(useStore.getState().data.resources[0]?.disciplineId).toBe('d1')
+  })
+})

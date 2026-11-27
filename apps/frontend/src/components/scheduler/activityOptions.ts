@@ -1,45 +1,43 @@
-import type { Activity, Phase, Project } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import type { Option } from '@/components/common/ui';
-import { compareDisplayNames } from '@/lib/displayOrder';
+import type { Activity, Phase, Project } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import type { Option } from '@/components/common/ui'
+import { compareDisplayNames } from '@/lib/displayOrder'
 
 interface BuildActivityOptionsInput {
-  activities: readonly Activity[];
-  phases: readonly Phase[];
-  projects: readonly Project[];
-  kind: Activity['kind'];
-  projectId?: string | undefined;
+  activities: readonly Activity[]
+  phases: readonly Phase[]
+  projects: readonly Project[]
+  kind: Activity['kind']
+  projectId?: string | undefined
 }
 
 /** Activity groups separate all-project work from project-specific work. */
-export type ActivityGroupKey = 'all-projects' | 'project';
+export type ActivityGroupKey = 'all-projects' | 'project'
 
 /** Maps an activity kind to its toolbar option group. */
 export function resolveGroupKeyForKind(kind: Activity['kind']): ActivityGroupKey {
-  return kind === 'allProjects' ? 'all-projects' : 'project';
+  return kind === 'allProjects' ? 'all-projects' : 'project'
 }
 
 /** Uses the current locale for the toolbar option group label. */
 export function resolveGroupLabelForKind(kind: Activity['kind']): string {
-  return kind === 'allProjects'
-    ? m.scheduler_filter_all_projects()
-    : m.form_activity_kind_project();
+  return kind === 'allProjects' ? m.scheduler_filter_all_projects() : m.form_activity_kind_project()
 }
 
 function resolveGroupOrder(groupKey: Option['groupKey']): number {
-  return groupKey === 'all-projects' ? 0 : 1;
+  return groupKey === 'all-projects' ? 0 : 1
 }
 
 function resolveDuplicateContext(
   activity: Activity,
   phaseById: ReadonlyMap<string, string>,
-  projectNamesById: ReadonlyMap<string, string>,
+  projectNamesById: ReadonlyMap<string, string>
 ): string {
-  const phaseName = activity.phaseId ? phaseById.get(activity.phaseId) : undefined;
-  if (phaseName !== undefined) return phaseName;
-  if (activity.kind === 'internal') return m.form_activity_kind_internal();
-  if (activity.kind === 'allProjects') return m.form_activity_kind_all_projects();
-  return projectNamesById.get(activity.projectId ?? '') ?? 'Project';
+  const phaseName = activity.phaseId ? phaseById.get(activity.phaseId) : undefined
+  if (phaseName !== undefined) return phaseName
+  if (activity.kind === 'internal') return m.form_activity_kind_internal()
+  if (activity.kind === 'allProjects') return m.form_activity_kind_all_projects()
+  return projectNamesById.get(activity.projectId ?? '') ?? 'Project'
 }
 
 /** Sorts activity options consistently within their displayed groups. */
@@ -53,8 +51,8 @@ export function sortGroupedOptions(options: readonly Option[]): Option[] {
         rightName: right.label,
         rightId: right.value,
       })
-    );
-  });
+    )
+  })
 }
 
 /** Build alphabetized, distinct activity labels from pre-indexed project and phase metadata. */
@@ -65,33 +63,33 @@ export function buildActivityOptions({
   kind,
   projectId,
 }: BuildActivityOptionsInput): Option[] {
-  const groupedProjectScope = kind === 'project' && projectId != null;
+  const groupedProjectScope = kind === 'project' && projectId != null
   const eligible = activities.filter((activity) =>
     groupedProjectScope
       ? activity.kind === 'allProjects' ||
         (activity.kind === 'project' && activity.projectId === projectId)
-      : activity.kind === kind && (kind !== 'project' || activity.projectId === projectId),
-  );
-  const phaseById = new Map(phases.map((phase) => [phase.id, phase.name]));
-  const projectNamesById = new Map(projects.map((project) => [project.id, project.name]));
-  const nameCountsByName = new Map<string, number>();
+      : activity.kind === kind && (kind !== 'project' || activity.projectId === projectId)
+  )
+  const phaseById = new Map(phases.map((phase) => [phase.id, phase.name]))
+  const projectNamesById = new Map(projects.map((project) => [project.id, project.name]))
+  const nameCountsByName = new Map<string, number>()
   for (const activity of eligible) {
-    nameCountsByName.set(activity.name, (nameCountsByName.get(activity.name) ?? 0) + 1);
+    nameCountsByName.set(activity.name, (nameCountsByName.get(activity.name) ?? 0) + 1)
   }
 
   const resolved = eligible.map((activity) => {
     if (nameCountsByName.get(activity.name) === 1) {
-      return { activity, kind: activity.kind, baseLabel: activity.name };
+      return { activity, kind: activity.kind, baseLabel: activity.name }
     }
-    const context = resolveDuplicateContext(activity, phaseById, projectNamesById);
-    return { activity, kind: activity.kind, baseLabel: `${activity.name} / ${context}` };
-  });
+    const context = resolveDuplicateContext(activity, phaseById, projectNamesById)
+    return { activity, kind: activity.kind, baseLabel: `${activity.name} / ${context}` }
+  })
 
-  const labelCountsByLabel = new Map<string, number>();
+  const labelCountsByLabel = new Map<string, number>()
   for (const { baseLabel } of resolved) {
-    labelCountsByLabel.set(baseLabel, (labelCountsByLabel.get(baseLabel) ?? 0) + 1);
+    labelCountsByLabel.set(baseLabel, (labelCountsByLabel.get(baseLabel) ?? 0) + 1)
   }
-  const occurrenceCountsByLabel = new Map<string, number>();
+  const occurrenceCountsByLabel = new Map<string, number>()
   resolved.sort(
     (left, right) =>
       (groupedProjectScope
@@ -103,20 +101,20 @@ export function buildActivityOptions({
         leftId: left.activity.id,
         rightName: right.baseLabel,
         rightId: right.activity.id,
-      }),
-  );
-  const emittedLabels = new Set<string>();
+      })
+  )
+  const emittedLabels = new Set<string>()
   const options = resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {
-    let occurrence = occurrenceCountsByLabel.get(baseLabel) ?? 0;
-    let label = baseLabel;
+    let occurrence = occurrenceCountsByLabel.get(baseLabel) ?? 0
+    let label = baseLabel
     if ((labelCountsByLabel.get(baseLabel) ?? 0) > 1) {
       do {
-        occurrence += 1;
-        label = `${baseLabel} (${occurrence})`;
-      } while (labelCountsByLabel.has(label) || emittedLabels.has(label));
+        occurrence += 1
+        label = `${baseLabel} (${occurrence})`
+      } while (labelCountsByLabel.has(label) || emittedLabels.has(label))
     }
-    occurrenceCountsByLabel.set(baseLabel, occurrence);
-    emittedLabels.add(label);
+    occurrenceCountsByLabel.set(baseLabel, occurrence)
+    emittedLabels.add(label)
     return {
       value: activity.id,
       label,
@@ -126,7 +124,7 @@ export function buildActivityOptions({
             groupLabel: resolveGroupLabelForKind(resolvedKind),
           }
         : {}),
-    };
-  });
-  return sortGroupedOptions(options);
+    }
+  })
+  return sortGroupedOptions(options)
 }

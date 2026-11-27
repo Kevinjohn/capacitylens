@@ -1,6 +1,6 @@
-import { useRef } from 'react';
-import { m } from '@/i18n';
-import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
+import { useRef } from 'react'
+import { m } from '@/i18n'
+import { buildUndoShortcut } from '@/lib/keyboardShortcuts'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +10,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog'
 
 /** Requires a choice between deleting one entry and its repeated group. */
 export function RepeatedAllocationDeleteDialog({
@@ -18,21 +18,21 @@ export function RepeatedAllocationDeleteDialog({
   onDeleteFuture,
   onCancel,
 }: {
-  onDeleteOne: () => void;
-  onDeleteFuture: () => void;
-  onCancel: () => void;
+  onDeleteOne: () => void
+  onDeleteFuture: () => void
+  onCancel: () => void
 }) {
-  const confirmingRef = useRef(false);
+  const confirmingRef = useRef(false)
   const confirm = (action: () => void) => {
-    confirmingRef.current = true;
-    action();
-  };
+    confirmingRef.current = true
+    action()
+  }
 
   return (
     <AlertDialog
       open
       onOpenChange={(open) => {
-        if (!open && !confirmingRef.current) onCancel();
+        if (!open && !confirmingRef.current) onCancel()
       }}
     >
       <AlertDialogContent>
@@ -53,5 +53,5 @@ export function RepeatedAllocationDeleteDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }

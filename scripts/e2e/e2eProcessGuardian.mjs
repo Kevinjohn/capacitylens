@@ -1,79 +1,79 @@
-import { spawn } from 'node:child_process';
+import { spawn } from 'node:child_process'
 
-const graceMs = 2_000;
-let started = false;
-let stopping = false;
-let service;
-let stopTimer;
+const graceMs = 2_000
+let started = false
+let stopping = false
+let service
+let stopTimer
 
 function terminateGroup(signal) {
   try {
-    process.kill(-process.pid, signal);
+    process.kill(-process.pid, signal)
   } catch (error) {
-    if (error.code !== 'ESRCH') throw error;
+    if (error.code !== 'ESRCH') throw error
   }
 }
 
 function stop() {
-  if (stopping) return;
-  stopping = true;
+  if (stopping) return
+  stopping = true
   if (!service) {
-    process.exit(0);
-    return;
+    process.exit(0)
+    return
   }
   if (service.exitCode === null && service.signalCode === null) {
     try {
-      service.kill('SIGTERM');
+      service.kill('SIGTERM')
     } catch (error) {
-      if (error.code !== 'ESRCH') process.stderr.write(`${error.stack ?? error.message}\n`);
+      if (error.code !== 'ESRCH') process.stderr.write(`${error.stack ?? error.message}\n`)
     }
   }
   try {
-    terminateGroup('SIGTERM');
+    terminateGroup('SIGTERM')
   } catch (error) {
-    process.stderr.write(`${error.stack ?? error.message}\n`);
+    process.stderr.write(`${error.stack ?? error.message}\n`)
   }
   stopTimer = setTimeout(() => {
     try {
-      terminateGroup('SIGKILL');
+      terminateGroup('SIGKILL')
     } catch (error) {
-      process.stderr.write(`${error.stack ?? error.message}\n`);
-      process.exitCode = 1;
-      process.exit();
+      process.stderr.write(`${error.stack ?? error.message}\n`)
+      process.exitCode = 1
+      process.exit()
     }
-  }, graceMs);
+  }, graceMs)
 }
 
 // stop() is idempotent, so the TERM sent to the whole group leaves the guardian
 // alive through escalation while a direct TERM also initiates cleanup.
-process.on('SIGTERM', stop);
-process.on('SIGINT', stop);
-process.on('disconnect', stop);
+process.on('SIGTERM', stop)
+process.on('SIGINT', stop)
+process.on('disconnect', stop)
 process.on('message', (message) => {
-  if (message?.type === 'STOP') return stop();
-  if (message?.type !== 'START' || started || stopping) return;
-  started = true;
+  if (message?.type === 'STOP') return stop()
+  if (message?.type !== 'START' || started || stopping) return
+  started = true
   try {
-    const { command, args, options } = message;
+    const { command, args, options } = message
     const spawnOptions = {
       ...options,
       detached: false,
       stdio: 'inherit',
-    };
-    service = spawn(command, args, spawnOptions);
+    }
+    service = spawn(command, args, spawnOptions)
   } catch (error) {
-    process.stderr.write(`${error.stack ?? error.message}\n`);
-    stop();
-    return;
+    process.stderr.write(`${error.stack ?? error.message}\n`)
+    stop()
+    return
   }
   service.once('error', (error) => {
-    process.stderr.write(`${error.stack ?? error.message}\n`);
-    process.exitCode = 1;
-    stop();
-  });
+    process.stderr.write(`${error.stack ?? error.message}\n`)
+    process.exitCode = 1
+    stop()
+  })
   service.once('exit', () => {
-    if (!stopping) stop();
-  });
-});
+    if (!stopping) stop()
+  })
+})
 
-process.on('exit', () => clearTimeout(stopTimer));
+process.on('exit', () => clearTimeout(stopTimer))

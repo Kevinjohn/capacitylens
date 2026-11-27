@@ -1,45 +1,45 @@
-import { randomUUID } from 'node:crypto';
-import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client';
-import db from '@adonisjs/lucid/services/db';
-import { seed } from '@capacitylens/shared/data/seed';
-import { companyId, session } from '#tests/functional/planning/helpers';
-import { readPlanningRevision } from '#tests/helpers/data/planning_revision';
+import { randomUUID } from 'node:crypto'
+import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client'
+import db from '@adonisjs/lucid/services/db'
+import { seed } from '@capacitylens/shared/data/seed'
+import { companyId, session } from '#tests/functional/planning/helpers'
+import { readPlanningRevision } from '#tests/helpers/data/planning_revision'
 
 // Every named route is classified by whether its reply can carry a restricted value. Routes that can
 // are called for every test user, and the raw reply must not contain a value that user's
 // effective role may not see. A new route fails the classification test until it is reviewed in `replies`.
 
-const MARKER_CLIENT = 'MARKER_CLIENT_KANE';
-const MARKER_ARCHIVED_CLIENT = 'MARKER_ARCHIVED_FALCONE';
-const MARKER_PROJECT = 'MARKER_PROJECT_MONARCH';
-const MARKER_NOTE = 'MARKER_NOTE_ARKHAM';
+const MARKER_CLIENT = 'MARKER_CLIENT_KANE'
+const MARKER_ARCHIVED_CLIENT = 'MARKER_ARCHIVED_FALCONE'
+const MARKER_PROJECT = 'MARKER_PROJECT_MONARCH'
+const MARKER_NOTE = 'MARKER_NOTE_ARKHAM'
 /** The code name each private name marker carries; a reader who may not see the name gets it quoted. */
 export const codeNamesByMarker: Record<string, string> = {
   [MARKER_CLIENT]: 'Nightwing',
   [MARKER_ARCHIVED_CLIENT]: 'Oracle',
   [MARKER_PROJECT]: 'Aurora',
-};
+}
 
-type Role = 'owner' | 'admin' | 'editor' | 'viewer';
+type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
 interface TestUser {
-  label: string;
-  effective: Role;
-  masquerade: boolean;
+  label: string
+  effective: Role
+  masquerade: boolean
   /** The signed-in role behind a view-as test user; Owner when absent. */
-  actor?: Role;
+  actor?: Role
   /** A view-as target the server must refuse; the test user then reads as itself. */
-  refusedTarget?: Role;
+  refusedTarget?: Role
 }
 
 export interface Fixture {
-  client: ApiClient;
-  ownerCookie: string;
-  cookie: string;
-  clientId: string;
-  projectId: string;
-  timeOffId: string;
-  resourceId: string;
+  client: ApiClient
+  ownerCookie: string
+  cookie: string
+  clientId: string
+  projectId: string
+  timeOffId: string
+  resourceId: string
 }
 
 export const testUsers: TestUser[] = [
@@ -59,44 +59,44 @@ export const testUsers: TestUser[] = [
     masquerade: false,
     refusedTarget: 'owner',
   },
-];
+]
 
 /** Names are visible to an effective Owner only; the time-off note to an effective Owner or Admin. */
 export function listHiddenMarkers(role: Role) {
-  const hidden: string[] = [];
-  if (role !== 'owner') hidden.push(MARKER_CLIENT, MARKER_ARCHIVED_CLIENT, MARKER_PROJECT);
-  if (role !== 'owner' && role !== 'admin') hidden.push(MARKER_NOTE);
-  return hidden;
+  const hidden: string[] = []
+  if (role !== 'owner') hidden.push(MARKER_CLIENT, MARKER_ARCHIVED_CLIENT, MARKER_PROJECT)
+  if (role !== 'owner' && role !== 'admin') hidden.push(MARKER_NOTE)
+  return hidden
 }
 
 /** Only an effective Owner or Admin gets archived rows from the state and export routes. */
 function canReadInactive(role: Role) {
-  return role === 'owner' || role === 'admin';
+  return role === 'owner' || role === 'admin'
 }
 
-const IDENTITY = 'identity or account reply with no client, project or time-off rows';
-const COUNTS = 'counts, ids or no body';
+const IDENTITY = 'identity or account reply with no client, project or time-off rows'
+const COUNTS = 'counts, ids or no body'
 const PREVIEW =
-  "Owner only, refused while viewing as: the caller document's name and counts, the revision and a changed flag";
+  "Owner only, refused while viewing as: the caller document's name and counts, the revision and a changed flag"
 
 async function send<T extends ApiRequest>(request: T, cookie: string, intent: object) {
   return session(request, cookie)
     .json({ mutationId: randomUUID(), baseRevision: await readPlanningRevision(companyId), intent })
-    .send();
+    .send()
 }
 
 /** A preset colour used by a seeded client that differs from the row's own, so the update is a real
  * change. */
 async function pickOtherColor(table: 'clients' | 'projects', id: string) {
   // Both tables store `color` as a non-null preset string.
-  const own = (await db.from(table).where('id', id).first()) as { color: string };
+  const own = (await db.from(table).where('id', id).first()) as { color: string }
   const presets = (await db
     .from('clients')
     .where('company_id', companyId)
-    .select('color')) as Array<{ color: string }>;
-  const other = presets.find((row) => row.color !== own.color);
-  if (!other) throw new Error('The seed needs two client colours');
-  return other.color;
+    .select('color')) as Array<{ color: string }>
+  const other = presets.find((row) => row.color !== own.color)
+  if (!other) throw new Error('The seed needs two client colours')
+  return other.color
 }
 
 async function archiveAsOwner(fixture: Fixture, intent: object) {
@@ -104,8 +104,8 @@ async function archiveAsOwner(fixture: Fixture, intent: object) {
     fixture.client.visit('api.planning_mutations.store', { companyId }),
     fixture.ownerCookie,
     intent
-  );
-  archived.assertStatus(200);
+  )
+  archived.assertStatus(200)
 }
 
 /** Recolours the marked client under a history, a change every writer may make and undo. */
@@ -127,7 +127,7 @@ async function recolourClient(fixture: Fixture, historyId: string) {
         },
       },
     })
-    .send();
+    .send()
 }
 
 async function stepHistory(fixture: Fixture, step: 'undo' | 'redo', historyId: string) {
@@ -142,17 +142,17 @@ async function stepHistory(fixture: Fixture, step: 'undo' | 'redo', historyId: s
       baseRevision: await readPlanningRevision(companyId),
       historyId,
     })
-    .send();
+    .send()
 }
 
 type Exposure =
   | {
-      call: (fixture: Fixture, testUser: TestUser) => Promise<ApiResponse>;
-      write: boolean;
+      call: (fixture: Fixture, testUser: TestUser) => Promise<ApiResponse>
+      write: boolean
       /** Markers the reply carries for a reader allowed to see them. */
-      carries: string[] | ((testUser: TestUser) => string[]);
+      carries: string[] | ((testUser: TestUser) => string[])
     }
-  | { none: string };
+  | { none: string }
 
 export const replies: Record<string, Exposure> = {
   'api.planning.show': {
@@ -193,13 +193,13 @@ export const replies: Record<string, Exposure> = {
       ...(canReadInactive(testUser.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
     ],
     call: (fixture, testUser) => {
-      const inactive = canReadInactive(testUser.effective);
+      const inactive = canReadInactive(testUser.effective)
       return session(
         fixture.client
           .visit('api.company_state.show')
           .qs({ companyId, ...(inactive ? { includeInactive: '1' as const } : {}) }),
         fixture.cookie
-      ).send();
+      ).send()
     },
   },
   'api.planning_mutations.store#catalogue.update clients': {
@@ -219,11 +219,11 @@ export const replies: Record<string, Exposure> = {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
-      const entity = { entity: 'clients', id: fixture.clientId };
+      const entity = { entity: 'clients', id: fixture.clientId }
       await archiveAsOwner(fixture, {
         operation: 'catalogue.archive',
         entity,
-      });
+      })
       return send(
         fixture.client.visit('api.planning_mutations.store', { companyId }),
         fixture.cookie,
@@ -231,7 +231,7 @@ export const replies: Record<string, Exposure> = {
           operation: 'catalogue.restore',
           entity,
         }
-      );
+      )
     },
   },
   'api.planning_mutations.store#catalogue.update projects': {
@@ -251,11 +251,11 @@ export const replies: Record<string, Exposure> = {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) => {
-      const entity = { entity: 'projects', id: fixture.projectId };
+      const entity = { entity: 'projects', id: fixture.projectId }
       await archiveAsOwner(fixture, {
         operation: 'catalogue.archive',
         entity,
-      });
+      })
       return send(
         fixture.client.visit('api.planning_mutations.store', { companyId }),
         fixture.cookie,
@@ -263,15 +263,15 @@ export const replies: Record<string, Exposure> = {
           operation: 'catalogue.restore',
           entity,
         }
-      );
+      )
     },
   },
   'api.planning_mutations.store#timeOff.update': {
     write: true,
     carries: [MARKER_NOTE],
     call: async (fixture) => {
-      const row = await db.from('time_off').where('id', fixture.timeOffId).first();
-      const type = row?.type === 'holiday' ? 'sick' : 'holiday';
+      const row = await db.from('time_off').where('id', fixture.timeOffId).first()
+      const type = row?.type === 'holiday' ? 'sick' : 'holiday'
       return send(
         fixture.client.visit('api.planning_mutations.store', { companyId }),
         fixture.cookie,
@@ -280,7 +280,7 @@ export const replies: Record<string, Exposure> = {
           id: fixture.timeOffId,
           changes: { type },
         }
-      );
+      )
     },
   },
   'api.planning_mutations.store#resource.restore': {
@@ -290,7 +290,7 @@ export const replies: Record<string, Exposure> = {
       await archiveAsOwner(fixture, {
         operation: 'resource.archive',
         id: fixture.resourceId,
-      });
+      })
       return send(
         fixture.client.visit('api.planning_mutations.store', { companyId }),
         fixture.cookie,
@@ -298,7 +298,7 @@ export const replies: Record<string, Exposure> = {
           operation: 'resource.restore',
           id: fixture.resourceId,
         }
-      );
+      )
     },
   },
   'api.planning_mutations.store#planning.restoreGroup': {
@@ -312,13 +312,13 @@ export const replies: Record<string, Exposure> = {
           operation: 'timeOff.delete',
           id: fixture.timeOffId,
         }
-      );
+      )
       const groupId =
         deleted.status() === 200
           ? // A committed delete reply always carries its replacement restoration group.
             (deleted.body() as { data: { restoration: { replacementGroupId: string } } }).data
               .restoration.replacementGroupId
-          : randomUUID();
+          : randomUUID()
       return send(
         fixture.client.visit('api.planning_mutations.store', { companyId }),
         fixture.cookie,
@@ -326,26 +326,26 @@ export const replies: Record<string, Exposure> = {
           operation: 'planning.restoreGroup',
           restorationGroupId: groupId,
         }
-      );
+      )
     },
   },
   'api.planning_undo.store': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
-      const historyId = randomUUID();
-      await recolourClient(fixture, historyId);
-      return stepHistory(fixture, 'undo', historyId);
+      const historyId = randomUUID()
+      await recolourClient(fixture, historyId)
+      return stepHistory(fixture, 'undo', historyId)
     },
   },
   'api.planning_redo.store': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
-      const historyId = randomUUID();
-      await recolourClient(fixture, historyId);
-      await stepHistory(fixture, 'undo', historyId);
-      return stepHistory(fixture, 'redo', historyId);
+      const historyId = randomUUID()
+      await recolourClient(fixture, historyId)
+      await stepHistory(fixture, 'undo', historyId)
+      return stepHistory(fixture, 'redo', historyId)
     },
   },
   'api.company_anonymisations.store': { none: COUNTS },
@@ -398,27 +398,27 @@ export const replies: Record<string, Exposure> = {
   'api.resource_anonymisations.store': { none: COUNTS },
   'api.imports.store': { none: COUNTS },
   'api.import_previews.store': { none: PREVIEW },
-};
+}
 
 /** Marks one client, project and time-off note, and adds an archived private client. */
 export async function prepareMarkers(client: ApiClient, ownerCookie: string) {
-  const fixture = seed();
-  const clientRow = fixture.clients.find((row) => row.companyId === companyId && !row.builtin);
-  const projectRow = fixture.projects.find((row) => row.clientId === clientRow?.id);
-  const timeOffRow = fixture.timeOff.find((row) => row.companyId === companyId);
-  if (!clientRow || !projectRow || !timeOffRow) throw new Error('Seed data lacks the marker rows');
+  const fixture = seed()
+  const clientRow = fixture.clients.find((row) => row.companyId === companyId && !row.builtin)
+  const projectRow = fixture.projects.find((row) => row.clientId === clientRow?.id)
+  const timeOffRow = fixture.timeOff.find((row) => row.companyId === companyId)
+  if (!clientRow || !projectRow || !timeOffRow) throw new Error('Seed data lacks the marker rows')
   await db.from('clients').where({ id: clientRow.id }).update({
     name: MARKER_CLIENT,
     is_private: true,
     code_name: codeNamesByMarker[MARKER_CLIENT],
-  });
+  })
   await db.from('projects').where({ id: projectRow.id }).update({
     name: MARKER_PROJECT,
     is_private: true,
     code_name: codeNamesByMarker[MARKER_PROJECT],
-  });
-  await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE });
-  const archivedId = randomUUID();
+  })
+  await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE })
+  const archivedId = randomUUID()
   const created = await send(
     client.visit('api.planning_mutations.store', { companyId }),
     ownerCookie,
@@ -435,8 +435,8 @@ export async function prepareMarkers(client: ApiClient, ownerCookie: string) {
         },
       },
     }
-  );
-  created.assertStatus(200);
+  )
+  created.assertStatus(200)
   const archived = await send(
     client.visit('api.planning_mutations.store', { companyId }),
     ownerCookie,
@@ -444,21 +444,21 @@ export async function prepareMarkers(client: ApiClient, ownerCookie: string) {
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: archivedId },
     }
-  );
-  archived.assertStatus(200);
+  )
+  archived.assertStatus(200)
   return {
     clientId: clientRow.id,
     projectId: projectRow.id,
     timeOffId: timeOffRow.id,
     resourceId: timeOffRow.resourceId,
-  };
+  }
 }
 
 export async function readContextToken(client: ApiClient, cookie: string) {
-  const status = await session(client.visit('api.masquerade.show'), cookie).send();
-  status.assertStatus(200);
+  const status = await session(client.visit('api.masquerade.show'), cookie).send()
+  status.assertStatus(200)
   // The status reply is checked by String(); a missing token fails the masquerade start.
-  return String((status.body()!.data as { masqueradeToken: unknown }).masqueradeToken);
+  return String((status.body()!.data as { masqueradeToken: unknown }).masqueradeToken)
 }
 
 export async function startMasqueradeAs(
@@ -473,5 +473,5 @@ export async function startMasqueradeAs(
     viewerCookie
   )
     .json({ targetUserId })
-    .send();
+    .send()
 }

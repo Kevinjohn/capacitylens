@@ -1,12 +1,12 @@
-import { closeSync, openSync, unlinkSync, writeFileSync } from 'node:fs';
-import net from 'node:net';
+import { closeSync, openSync, unlinkSync, writeFileSync } from 'node:fs'
+import net from 'node:net'
 
 /** Refuses unsupported Node versions by reporting the supplied message and exiting with status 1. */
 export function requireNode24(message) {
-  const major = Number(process.versions.node.split('.')[0]);
-  if (Number.isInteger(major) && major >= 24) return;
-  console.error(message(process.versions.node));
-  process.exit(1);
+  const major = Number(process.versions.node.split('.')[0])
+  if (Number.isInteger(major) && major >= 24) return
+  console.error(message(process.versions.node))
+  process.exit(1)
 }
 
 /** Probes the IPv4 loopback port, returning false for connection errors or a one-second timeout. */
@@ -14,79 +14,79 @@ export function portInUse(port) {
   return new Promise((resolve) => {
     const socket = net
       .connect({ host: '127.0.0.1', port }, () => {
-        socket.destroy();
-        resolve(true);
+        socket.destroy()
+        resolve(true)
       })
       .on('error', () => {
-        socket.destroy();
-        resolve(false);
-      });
+        socket.destroy()
+        resolve(false)
+      })
     socket.setTimeout(1000, () => {
-      socket.destroy();
-      resolve(false);
-    });
-  });
+      socket.destroy()
+      resolve(false)
+    })
+  })
 }
 
 function processTreeRunning(child) {
-  return child.exitCode === null && child.signalCode === null;
+  return child.exitCode === null && child.signalCode === null
 }
 
 function processGroupRunning(child, options) {
-  if (options.kill !== undefined && options.kill !== process.kill) return processTreeRunning(child);
+  if (options.kill !== undefined && options.kill !== process.kill) return processTreeRunning(child)
   try {
-    process.kill(-child.pid, 0);
-    return true;
+    process.kill(-child.pid, 0)
+    return true
   } catch (error) {
-    if (error.code === 'ESRCH') return false;
-    if (error.code === 'EPERM') return true;
-    throw error;
+    if (error.code === 'ESRCH') return false
+    if (error.code === 'EPERM') return true
+    throw error
   }
 }
 
 function signalProcessTree(child, signal, { kill = process.kill } = {}) {
-  if (!processGroupRunning(child, { kill })) return;
+  if (!processGroupRunning(child, { kill })) return
   try {
-    kill(-child.pid, signal);
+    kill(-child.pid, signal)
   } catch (error) {
     // The process may exit after the liveness check and before it receives the signal.
-    if (error.code !== 'ESRCH') throw error;
+    if (error.code !== 'ESRCH') throw error
   }
 }
 
 function waitForExit(child, timeoutMs) {
-  if (!processTreeRunning(child)) return Promise.resolve(true);
+  if (!processTreeRunning(child)) return Promise.resolve(true)
   return new Promise((resolve) => {
-    const onExit = () => finish(true);
-    const timer = setTimeout(() => finish(false), timeoutMs);
+    const onExit = () => finish(true)
+    const timer = setTimeout(() => finish(false), timeoutMs)
     const finish = (exited) => {
-      clearTimeout(timer);
-      child.off('exit', onExit);
-      resolve(exited);
-    };
-    child.once('exit', onExit);
-  });
+      clearTimeout(timer)
+      child.off('exit', onExit)
+      resolve(exited)
+    }
+    child.once('exit', onExit)
+  })
 }
 
 function waitForProcessTreeExit(child, timeoutMs, options) {
   if (options.kill !== undefined && options.kill !== process.kill)
-    return waitForExit(child, timeoutMs);
+    return waitForExit(child, timeoutMs)
   return new Promise((resolve) => {
-    const deadline = Date.now() + timeoutMs;
+    const deadline = Date.now() + timeoutMs
     const check = () => {
-      if (!processGroupRunning(child, options)) return resolve(true);
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) return resolve(false);
-      setTimeout(check, Math.min(25, remaining));
-    };
-    check();
-  });
+      if (!processGroupRunning(child, options)) return resolve(true)
+      const remaining = deadline - Date.now()
+      if (remaining <= 0) return resolve(false)
+      setTimeout(check, Math.min(25, remaining))
+    }
+    check()
+  })
 }
 
 /** Check the owned POSIX process group. */
 export function isProcessTreeRunning(child, options = {}) {
-  if (!Number.isInteger(child.pid) || child.pid <= 0) return false;
-  return processGroupRunning(child, options);
+  if (!Number.isInteger(child.pid) || child.pid <= 0) return false
+  return processGroupRunning(child, options)
 }
 
 /**
@@ -95,14 +95,14 @@ export function isProcessTreeRunning(child, options = {}) {
  * @throws When a non-racing signal failure occurs.
  */
 export async function terminateProcessTree(child, options = {}) {
-  if (!Number.isInteger(child.pid) || child.pid <= 0) return;
-  if (!processGroupRunning(child, options)) return;
-  const graceMs = options.graceMs ?? 2_000;
-  const forceMs = options.forceMs ?? 1_000;
-  signalProcessTree(child, 'SIGTERM', options);
-  if (await waitForProcessTreeExit(child, graceMs, options)) return;
-  signalProcessTree(child, 'SIGKILL', options);
-  await waitForProcessTreeExit(child, forceMs, options);
+  if (!Number.isInteger(child.pid) || child.pid <= 0) return
+  if (!processGroupRunning(child, options)) return
+  const graceMs = options.graceMs ?? 2_000
+  const forceMs = options.forceMs ?? 1_000
+  signalProcessTree(child, 'SIGTERM', options)
+  if (await waitForProcessTreeExit(child, graceMs, options)) return
+  signalProcessTree(child, 'SIGKILL', options)
+  await waitForProcessTreeExit(child, forceMs, options)
 }
 
 /**
@@ -110,7 +110,7 @@ export async function terminateProcessTree(child, options = {}) {
  * @throws When any child termination rejects.
  */
 export function terminateProcessTrees(children, options) {
-  return Promise.all(children.map((child) => terminateProcessTree(child, options)));
+  return Promise.all(children.map((child) => terminateProcessTree(child, options)))
 }
 
 /**
@@ -118,27 +118,27 @@ export function terminateProcessTrees(children, options) {
  * @throws When the file already exists or ownership-file I/O fails.
  */
 export function acquireExclusiveFile(path) {
-  const descriptor = openSync(path, 'wx', 0o600);
+  const descriptor = openSync(path, 'wx', 0o600)
   try {
-    writeFileSync(descriptor, `${process.pid}\n`);
+    writeFileSync(descriptor, `${process.pid}\n`)
   } catch (error) {
     // Remove the incomplete ownership file and rethrow so a failed publisher cannot leave a false live lock.
-    closeSync(descriptor);
-    unlinkSync(path);
-    throw error;
+    closeSync(descriptor)
+    unlinkSync(path)
+    throw error
   }
-  let released = false;
+  let released = false
   return () => {
-    if (released) return;
-    released = true;
-    closeSync(descriptor);
+    if (released) return
+    released = true
+    closeSync(descriptor)
     try {
-      unlinkSync(path);
+      unlinkSync(path)
     } catch (error) {
       // Another cleanup may already have removed the lock; every other unlink failure must surface.
-      if (error.code !== 'ENOENT') throw error;
+      if (error.code !== 'ENOENT') throw error
     }
-  };
+  }
 }
 
 /**
@@ -148,19 +148,19 @@ export function acquireExclusiveFile(path) {
  * `release` runs before either exit.
  */
 export function mirrorChildExit(child, { label, release = () => {} }) {
-  let interrupted = false;
+  let interrupted = false
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'])
     process.on(signal, () => {
-      interrupted = true;
-      child.kill(signal);
-    });
+      interrupted = true
+      child.kill(signal)
+    })
   child.on('error', (error) => {
-    release();
-    console.error(`${label}: could not start: ${error.message}`);
-    process.exit(2);
-  });
+    release()
+    console.error(`${label}: could not start: ${error.message}`)
+    process.exit(2)
+  })
   child.on('exit', (code, signal) => {
-    release();
-    process.exit(interrupted || signal ? 1 : (code ?? 1));
-  });
+    release()
+    process.exit(interrupted || signal ? 1 : (code ?? 1))
+  })
 }

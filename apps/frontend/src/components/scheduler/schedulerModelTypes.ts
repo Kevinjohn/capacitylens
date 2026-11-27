@@ -1,7 +1,7 @@
-import type { CapacitySection, DayCapacity } from '@capacitylens/shared/lib/capacity';
-import type { DisciplineGroup } from '@/store/selectors';
-import type { ColumnGeometry } from './columnGeometry';
-import type { Filters } from '@/store/useStore';
+import type { CapacitySection, DayCapacity } from '@capacitylens/shared/lib/capacity'
+import type { DisciplineGroup } from '@/store/selectors'
+import type { ColumnGeometry } from './columnGeometry'
+import type { Filters } from '@/store/useStore'
 import type {
   Allocation,
   AppData,
@@ -10,124 +10,124 @@ import type {
   Resource,
   TimeOff,
   Weekday,
-} from '@capacitylens/shared/types/entities';
+} from '@capacitylens/shared/types/entities'
 
 /** A positioned allocation bar. */
 export interface BarLayout {
-  allocation: Allocation;
-  x: number;
-  width: number;
-  top: number;
-  color: string;
-  label: string;
-  project?: string;
-  client?: string;
+  allocation: Allocation
+  x: number
+  width: number
+  top: number
+  color: string
+  label: string
+  project?: string
+  client?: string
   /** Last surviving end date in a linked repeat series; absent for one-offs and unlinked batches. */
-  seriesEnd?: ISODate;
+  seriesEnd?: ISODate
   /** True when the assignee is an external-party resource, the bar hides its hours. */
-  external: boolean;
+  external: boolean
 }
 
 /** Per-day capacity state for a lane background cell. */
 export interface DayState {
-  over: boolean;
+  over: boolean
   /** Capacity-relevant work or a Block placement overlaps this resource's time off. Kept separate
    * from hourly `over` so Blocks can show the conflict while retaining zero capacity consumption. */
-  timeOffConflict: boolean;
-  unavailable: boolean;
+  timeOffConflict: boolean
+  unavailable: boolean
   /** This resource has a saved half-day working pattern on this date. Suppressed when another
    * rule makes the whole date unavailable, so the view never paints contradictory backgrounds. */
-  partialCapacity: boolean;
-  creationBlocked: boolean;
+  partialCapacity: boolean
+  creationBlocked: boolean
   /** This resource is on time off on this date. Decided here, in date space, so the lane cannot
    * reach a different answer by re-testing its time-off blocks in pixel space (narrowed weekend
    * columns make the two disagree). Always false for a capacity-starved (external) row. */
-  hasTimeOff: boolean;
+  hasTimeOff: boolean
 }
 
 /** A positioned time-off block. */
 export interface TimeOffBlock {
-  id: ID;
-  x: number;
-  width: number;
-  label: string;
-  note?: string;
+  id: ID
+  x: number
+  width: number
+  label: string
+  note?: string
 }
 
 /** A scheduler row with its resource, height, and rendered bar layout. */
 export interface RowModel {
-  resource: Resource;
-  rowHeight: number;
-  bars: BarLayout[];
-  dayStates: DayState[];
+  resource: Resource
+  rowHeight: number
+  bars: BarLayout[]
+  dayStates: DayState[]
   /** Conflict count across the materialized timeline, combining hourly overload and block/time-off conflicts. Precompute it with day states so vertical scrolling does not rescan the row. */
-  conflictDayCount: number;
+  conflictDayCount: number
   /** Half-day count across the materialized timeline, precomputed with day states. */
-  partialCapacityDayCount: number;
-  timeOff: TimeOffBlock[];
+  partialCapacityDayCount: number
+  timeOff: TimeOffBlock[]
   // This ratio includes only available days in the current visible window.
-  utilisation: number;
+  utilisation: number
   // This flag uses the fixed forward window and requires allocation above availability.
-  overSoon: boolean;
+  overSoon: boolean
 
-  dimmed: boolean;
+  dimmed: boolean
 }
 
 /** A scheduler group key with its display title and optional color. */
 export interface GroupModel {
-  key: string;
-  title: string;
-  color?: string;
+  key: string
+  title: string
+  color?: string
   /** True for the external-party band. The view reads this (not the key string) to suppress
    * its utilisation average. */
-  external: boolean;
-  rows: RowModel[];
+  external: boolean
+  rows: RowModel[]
 }
 
 /** Data and column geometry used to build a scheduler model. */
 export interface SchedulerModelOptions {
-  data: AppData;
+  data: AppData
   // The geometry origin must match days[0] and ui.originDate so date headers, bars and narrowed weekend columns share one alignment.
-  geom: ColumnGeometry;
-  days: ISODate[];
+  geom: ColumnGeometry
+  days: ISODate[]
   // Visible utilisation follows the zoom/pan window; per-day conflict markers cover the materialized
   // timeline. Omitted when a visible projection replaces the utilisation, which is then left at 0.
-  visibleWindow?: { start: ISODate; end: ISODate };
+  visibleWindow?: { start: ISODate; end: ISODate }
   /** The server's capacity figures from the last planning read; null before the first read. */
-  capacity: CapacitySection | null;
-  filters: Filters;
+  capacity: CapacitySection | null
+  filters: Filters
   preferences: {
     // When false (company.disciplinesEnabled === false), discipline bands disappear and the
     // discipline filter is ignored. Capacity-tracked rows instead use the engagement fallback
     // bands, derived from the data (see hasSupplementaryResources in store/selectors.ts).
-    disciplinesEnabled: boolean;
+    disciplinesEnabled: boolean
     // When disabled, placeholders remain persisted but are omitted from rows and utilisation aggregates. The setting defaults off.
-    placeholdersEnabled: boolean;
+    placeholdersEnabled: boolean
     // When disabled, external data remains persisted but neither its rows nor an empty group header appear. The setting defaults off.
-    externalEnabled: boolean;
+    externalEnabled: boolean
     /** Company-wide hard boundary for the start of a schedule creation gesture. */
-    companyWorkingDays?: Weekday[];
-  };
+    companyWorkingDays?: Weekday[]
+  }
 }
 
 /** Capacity projection for one row. External rows can hold scheduled allocations but carry no utilisation, overload or personal time-off capacity cues. tracked distinguishes their zero-capacity projection from unavailable tracked resources. */
 export interface CapacitySource {
-  tracked: boolean;
+  tracked: boolean
   /** The row's applicable personal time off covering one date. */
-  listTimeOffOn: (date: ISODate) => TimeOff[];
+  listTimeOffOn: (date: ISODate) => TimeOff[]
   /** The server's figures for one date; undefined when the read did not cover it. */
-  resolveCapacityOnDay: (date: ISODate) => DayCapacity | undefined;
-  countTimeOffOn: (date: ISODate) => number;
+  resolveCapacityOnDay: (date: ISODate) => DayCapacity | undefined
+  countTimeOffOn: (date: ISODate) => number
   /** The server's flag for time off or a closure on an over-capacity day, or in Blocks mode on any
    * booked day; false when the read did not cover the date. */
-  hasTimeOffConflictOn: (date: ISODate) => boolean;
-  resolveUtilisationOver: (dates: ISODate[]) => number;
+  hasTimeOffConflictOn: (date: ISODate) => boolean
+  resolveUtilisationOver: (dates: ISODate[]) => number
   /** The server's flag for an over-capacity day from today to today + 13. */
-  overSoon: boolean;
+  overSoon: boolean
 }
 /** A discipline group with scheduler-specific display fields. */
 export interface SchedulerResourceGroup extends DisciplineGroup {
-  key: string;
-  title: string;
-  color?: string;
+  key: string
+  title: string
+  color?: string
 }

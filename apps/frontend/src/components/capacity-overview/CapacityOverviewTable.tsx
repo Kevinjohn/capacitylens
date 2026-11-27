@@ -1,38 +1,38 @@
-import type { AppData } from '@capacitylens/shared/types/entities';
-import { useRef } from 'react';
-import type { RefObject } from 'react';
-import { m } from '@/i18n';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet';
-import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonScheduleDrawer';
-import { CapacityTable } from './CapacityOverviewTableGrid';
-import { OverviewLegend } from './OverviewLegend';
-import { OverviewToolbar } from './OverviewToolbar';
-import type { OverviewToolbarProps } from './OverviewToolbar';
-import type { PersonScheduleTriggerHandlers } from './CapacityOverviewTableGrid';
-import type { CapacityOverviewModel } from './capacityOverviewModel';
+import type { AppData } from '@capacitylens/shared/types/entities'
+import { useRef } from 'react'
+import type { RefObject } from 'react'
+import { m } from '@/i18n'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet'
+import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonScheduleDrawer'
+import { CapacityTable } from './CapacityOverviewTableGrid'
+import { OverviewLegend } from './OverviewLegend'
+import { OverviewToolbar } from './OverviewToolbar'
+import type { OverviewToolbarProps } from './OverviewToolbar'
+import type { PersonScheduleTriggerHandlers } from './CapacityOverviewTableGrid'
+import type { CapacityOverviewModel } from './capacityOverviewModel'
 
 /** The prepared capacity model and schedule actions consumed by the table. */
 export interface CapacityOverviewTableProps extends OverviewToolbarProps {
-  model: CapacityOverviewModel;
+  model: CapacityOverviewModel
 }
 
 interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTableProps {
   /** Scoped company data used to resolve person schedule titles. */
-  data: AppData;
+  data: AppData
   /** Restores focus to a stable element when the drawer's opener has been removed from the DOM. */
-  fallbackRef?: RefObject<HTMLDivElement | null>;
+  fallbackRef?: RefObject<HTMLDivElement | null>
 }
 
 /** Presents period capacity alongside person schedule entry points. */
 export function CapacityOverviewTable(props: CapacityOverviewTableWithScheduleProps) {
-  const internalFallbackRef = useRef<HTMLDivElement>(null);
-  const fallbackRef = props.fallbackRef ?? internalFallbackRef;
-  const personScheduleDrawer = usePersonScheduleDrawer({ data: props.data, fallbackRef });
+  const internalFallbackRef = useRef<HTMLDivElement>(null)
+  const fallbackRef = props.fallbackRef ?? internalFallbackRef
+  const personScheduleDrawer = usePersonScheduleDrawer({ data: props.data, fallbackRef })
   const triggerHandlers: PersonScheduleTriggerHandlers = {
     personScheduleTitlesByResourceId: personScheduleDrawer.titlesByResourceId,
     onViewSchedule: personScheduleDrawer.viewSchedule,
-  };
+  }
   return (
     <div ref={fallbackRef} tabIndex={-1} className="flex h-full min-h-0 flex-col">
       <OverviewToolbar
@@ -74,5 +74,5 @@ export function CapacityOverviewTable(props: CapacityOverviewTableWithSchedulePr
         onRestoreFocus={personScheduleDrawer.restoreFocus}
       />
     </div>
-  );
+  )
 }

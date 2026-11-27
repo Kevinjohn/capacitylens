@@ -35,23 +35,23 @@ export const DOMAIN_ERROR_CODES = [
   'time_off_company_wide_type',
   'closure_name_required',
   'project_client_required',
-] as const;
+] as const
 
 /** A domain rule violation code; see {@link DOMAIN_ERROR_CODES}. */
-export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];
+export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number]
 
 /** A display-safe domain refusal with a stable identity independent from its fallback wording. */
 export class DomainError extends Error {
-  readonly code: DomainErrorCode;
+  readonly code: DomainErrorCode
 
   constructor(code: DomainErrorCode, message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = 'DomainError';
-    this.code = code;
+    super(message, options)
+    this.name = 'DomainError'
+    this.code = code
   }
 }
 
 /** Throw a `DomainError` with a stable code and a display-safe message. */
 export function throwDomainError(code: DomainErrorCode, message: string): never {
-  throw new DomainError(code, message);
+  throw new DomainError(code, message)
 }

@@ -1,11 +1,11 @@
-import { test } from '@japa/runner';
-import db from '@adonisjs/lucid/services/db';
-import User from '#models/user';
-import limiter from '@adonisjs/limiter/services/main';
-import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture';
-import { clearIdentities, signIn, expectStatus } from '#tests/helpers/identities';
+import { test } from '@japa/runner'
+import db from '@adonisjs/lucid/services/db'
+import User from '#models/user'
+import limiter from '@adonisjs/limiter/services/main'
+import { resetState } from '#tests/helpers/state_fixture'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
+import { clearIdentities, signIn, expectStatus } from '#tests/helpers/identities'
 import {
   companyId,
   owner,
@@ -15,104 +15,104 @@ import {
   company,
   editorMember,
   rowsFor,
-} from '#tests/helpers/auth/account_deletion';
+} from '#tests/helpers/auth/account_deletion'
 
 test.group('account deletion', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await resetState(false);
-    await clearIdentities();
-    await limiter.clear();
-  });
+    await resetState(false)
+    await clearIdentities()
+    await limiter.clear()
+  })
 
   test('a member deletes their account with their memberships and member link', async ({
     client,
     assert,
   }) => {
-    await company();
-    const userId = await editorMember();
-    const { cookie } = await signIn(client, editor.email, editor.password);
-    const before = await rowsFor(userId);
-    assert.lengthOf(before.memberships, 1);
-    assert.lengthOf(before.links, 1);
-    assert.lengthOf(before.admissions, 1);
-    assert.lengthOf(before.sessions, 1);
+    await company()
+    const userId = await editorMember()
+    const { cookie } = await signIn(client, editor.email, editor.password)
+    const before = await rowsFor(userId)
+    assert.lengthOf(before.memberships, 1)
+    assert.lengthOf(before.links, 1)
+    assert.lengthOf(before.admissions, 1)
+    assert.lengthOf(before.sessions, 1)
 
-    const deleted = await deleteAccount(client, cookie, editor.password);
-    deleted.assertStatus(200);
-    deleted.assertBodyContains({ data: { ok: true, signedOut: true } });
+    const deleted = await deleteAccount(client, cookie, editor.password)
+    deleted.assertStatus(200)
+    deleted.assertBodyContains({ data: { ok: true, signedOut: true } })
 
-    const after = await rowsFor(userId);
-    assert.lengthOf(after.users, 0);
-    assert.lengthOf(after.memberships, 0);
-    assert.lengthOf(after.links, 0);
-    assert.lengthOf(after.admissions, 0);
-    assert.lengthOf(after.sessions, 0);
-    await expectStatus(companies(client, cookie), 401);
+    const after = await rowsFor(userId)
+    assert.lengthOf(after.users, 0)
+    assert.lengthOf(after.memberships, 0)
+    assert.lengthOf(after.links, 0)
+    assert.lengthOf(after.admissions, 0)
+    assert.lengthOf(after.sessions, 0)
+    await expectStatus(companies(client, cookie), 401)
     const audit = await db
       .from('audit_entries')
-      .where({ company_id: companyId, action: 'identity.deleted', actor_id: userId });
-    assert.lengthOf(audit, 1);
+      .where({ company_id: companyId, action: 'identity.deleted', actor_id: userId })
+    assert.lengthOf(audit, 1)
     // The company and its Owner are untouched.
-    assert.lengthOf(await db.from('memberships').where('scope_id', companyId), 1);
+    assert.lengthOf(await db.from('memberships').where('scope_id', companyId), 1)
     // Invitations the person sent stay acceptable without naming them.
-    const invitations = await db.from('account_invitations').select('inviter_id');
-    assert.lengthOf(invitations, 1);
-    assert.isNull(invitations[0].inviter_id);
-  });
+    const invitations = await db.from('account_invitations').select('inviter_id')
+    assert.lengthOf(invitations, 1)
+    assert.isNull(invitations[0].inviter_id)
+  })
 
   test('an Owner is refused until ownership is transferred', async ({ client, assert }) => {
-    const ownerId = await company();
-    const { cookie } = await signIn(client, owner.email, owner.password);
+    const ownerId = await company()
+    const { cookie } = await signIn(client, owner.email, owner.password)
 
-    const refused = await deleteAccount(client, cookie, owner.password);
-    refused.assertStatus(409);
-    refused.assertBodyContains({ code: 'LAST_OWNER' });
+    const refused = await deleteAccount(client, cookie, owner.password)
+    refused.assertStatus(409)
+    refused.assertBodyContains({ code: 'LAST_OWNER' })
     // The password was confirmed and the confirmation spent before Account Kit refused.
     const spent = await db
       .from('password_confirmations')
       .where({ user_id: ownerId, action: 'delete-account' })
-      .whereNotNull('consumed_at');
-    assert.lengthOf(spent, 1);
+      .whereNotNull('consumed_at')
+    assert.lengthOf(spent, 1)
 
-    const after = await rowsFor(ownerId);
-    assert.lengthOf(after.users, 1);
-    assert.lengthOf(after.memberships, 1);
-    assert.lengthOf(after.admissions, 1);
-    await expectStatus(companies(client, cookie), 200);
-  });
+    const after = await rowsFor(ownerId)
+    assert.lengthOf(after.users, 1)
+    assert.lengthOf(after.memberships, 1)
+    assert.lengthOf(after.admissions, 1)
+    await expectStatus(companies(client, cookie), 200)
+  })
 
   test('a wrong password or malformed body changes nothing', async ({ client, assert }) => {
-    await company();
-    const userId = await editorMember();
-    const { cookie } = await signIn(client, editor.email, editor.password);
+    await company()
+    const userId = await editorMember()
+    const { cookie } = await signIn(client, editor.email, editor.password)
 
-    const wrong = await deleteAccount(client, cookie, 'not-the-password-2026');
-    wrong.assertStatus(403);
-    wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
+    const wrong = await deleteAccount(client, cookie, 'not-the-password-2026')
+    wrong.assertStatus(403)
+    wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' })
     const malformed = await asLoggedInDataOwner(
       client.visit('api.account.destroy'),
       await User.findOrFail(userId)
     )
       // Deliberately outside the generated body type, to reach the server's refusal.
       .json({ currentPassword: editor.password, extra: true } as never)
-      .send();
-    malformed.assertStatus(422);
+      .send()
+    malformed.assertStatus(422)
 
-    const after = await rowsFor(userId);
-    assert.lengthOf(after.users, 1);
-    assert.lengthOf(after.memberships, 1);
-    assert.lengthOf(after.links, 1);
-    await expectStatus(companies(client, cookie), 200);
-  });
+    const after = await rowsFor(userId)
+    assert.lengthOf(after.users, 1)
+    assert.lengthOf(after.memberships, 1)
+    assert.lengthOf(after.links, 1)
+    await expectStatus(companies(client, cookie), 200)
+  })
 
   test('a signed-out request is refused', async ({ client }) => {
-    await company();
+    await company()
     const response = await client
       .visit('api.account.destroy')
       .header('sec-fetch-site', 'same-origin')
       .json({ currentPassword: owner.password })
-      .send();
-    response.assertStatus(401);
-  });
-});
+      .send()
+    response.assertStatus(401)
+  })
+})

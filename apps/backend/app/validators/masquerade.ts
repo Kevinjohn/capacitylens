@@ -1,14 +1,14 @@
-import vine from '@vinejs/vine';
-import { REQUEST_CONTEXT_FIELDS, allowedFields, companyIdParam } from '#validators/request_rules';
+import vine from '@vinejs/vine'
+import { REQUEST_CONTEXT_FIELDS, allowedFields, companyIdParam } from '#validators/request_rules'
 
 /** The caller's current view-as context token; the action answers its absence. */
 const masqueradeContextHeaders = () =>
-  vine.object({ 'x-masquerade-context': vine.string().optional() });
+  vine.object({ 'x-masquerade-context': vine.string().optional() })
 
 /** The view-as status query: the company the page is in, when it is in one. Other fields are ignored. */
 export const showMasqueradeValidator = vine.create(
   vine.object({ companyId: vine.string().minLength(1).optional() })
-);
+)
 
 export const startMasqueradeValidator = vine.create(
   vine
@@ -18,7 +18,7 @@ export const startMasqueradeValidator = vine.create(
       headers: masqueradeContextHeaders(),
     })
     .use(allowedFields({ fields: ['targetUserId', ...REQUEST_CONTEXT_FIELDS] }))
-);
+)
 
 export const endMasqueradeValidator = vine.create(
   vine
@@ -28,4 +28,4 @@ export const endMasqueradeValidator = vine.create(
       headers: masqueradeContextHeaders(),
     })
     .use(allowedFields({ fields: ['token', 'reason', ...REQUEST_CONTEXT_FIELDS] }))
-);
+)

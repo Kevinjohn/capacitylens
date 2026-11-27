@@ -1,13 +1,13 @@
-import { Kernel } from '@adonisjs/core/ace';
-import type { ApplicationService } from '@adonisjs/core/types';
-import db from '@adonisjs/lucid/services/db';
-import { pruneReceipts } from '@kevinjohn/adonisjs-duplicate-request-guard';
+import { Kernel } from '@adonisjs/core/ace'
+import type { ApplicationService } from '@adonisjs/core/types'
+import db from '@adonisjs/lucid/services/db'
+import { pruneReceipts } from '@kevinjohn/adonisjs-duplicate-request-guard'
 
 /** Completed request receipts are kept this long; a client retries an operation within seconds. */
-export const REQUEST_RECEIPT_RETENTION_MS = 24 * 60 * 60_000;
+export const REQUEST_RECEIPT_RETENTION_MS = 24 * 60 * 60_000
 
 /** One named maintenance task; `report` receives its failure. */
-export type MaintenanceTask = readonly [name: string, run: () => Promise<unknown>];
+export type MaintenanceTask = readonly [name: string, run: () => Promise<unknown>]
 
 /** Background upkeep: receipt and view-as pruning, and the task runner that schedules them. */
 export class StorageMaintenanceService {
@@ -18,7 +18,7 @@ export class StorageMaintenanceService {
   pruneRequestReceipts(now = new Date()): Promise<number> {
     return pruneReceipts(db.connection(), {
       olderThan: new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS),
-    });
+    })
   }
 
   /**
@@ -28,10 +28,10 @@ export class StorageMaintenanceService {
    * @throws the command's error when the pass fails.
    */
   async pruneExpiredMasquerades(app: ApplicationService): Promise<void> {
-    const kernel = new Kernel(app);
-    kernel.addLoader(() => import('@kevinjohn/adonisjs-masquerade/commands'));
-    const command = await kernel.exec('masquerade:prune', []);
-    if (command.exitCode) throw command.error ?? new Error('masquerade:prune failed');
+    const kernel = new Kernel(app)
+    kernel.addLoader(() => import('@kevinjohn/adonisjs-masquerade/commands'))
+    const command = await kernel.exec('masquerade:prune', [])
+    if (command.exitCode) throw command.error ?? new Error('masquerade:prune failed')
   }
 
   /**
@@ -43,24 +43,24 @@ export class StorageMaintenanceService {
     tasks: readonly MaintenanceTask[],
     report: (task: string, error: unknown) => void
   ) {
-    let stopping = false;
-    let running: Promise<void> = Promise.resolve();
+    let stopping = false
+    let running: Promise<void> = Promise.resolve()
     const pass = async () => {
       for (const [name, run] of tasks) {
-        if (stopping) return;
-        await run().catch((error: unknown) => report(name, error));
+        if (stopping) return
+        await run().catch((error: unknown) => report(name, error))
       }
-    };
+    }
     return {
       /** Starts one pass after any pass still in flight. */
       run(): Promise<void> {
-        running = running.then(pass);
-        return running;
+        running = running.then(pass)
+        return running
       },
       async stop(): Promise<void> {
-        stopping = true;
-        await running;
+        stopping = true
+        await running
       },
-    };
+    }
   }
 }

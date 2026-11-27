@@ -1,23 +1,23 @@
 // Keep generated message paths behind one seam so missing keys fail during compilation
 // and company locale changes have one owner.
 
-import { m } from '@/paraglide/messages.js';
-import { baseLocale, getLocale, isLocale, setLocale } from '@/paraglide/runtime.js';
-import type { Locale } from '@/paraglide/runtime.js';
-import { enGB } from 'date-fns/locale/en-GB';
-import type { Locale as DateFnsLocale } from 'date-fns';
+import { m } from '@/paraglide/messages.js'
+import { baseLocale, getLocale, isLocale, setLocale } from '@/paraglide/runtime.js'
+import type { Locale } from '@/paraglide/runtime.js'
+import { enGB } from 'date-fns/locale/en-GB'
+import type { Locale as DateFnsLocale } from 'date-fns'
 
 /** Compiled, type-checked message functions exposed through the application i18n seam. */
-export { m };
+export { m }
 
 const DATE_FNS_LOCALES: Record<Locale, DateFnsLocale> = {
   en: enGB,
-};
+}
 
 /** Resolve date-fns presentation rules from the active Paraglide locale.
  * The exhaustive map makes a new generated locale require one central date-locale mapping. */
 export function readActiveDateLocale(): DateFnsLocale {
-  return DATE_FNS_LOCALES[getLocale()];
+  return DATE_FNS_LOCALES[getLocale()]
 }
 
 /**
@@ -36,7 +36,7 @@ export function readActiveDateLocale(): DateFnsLocale {
  * @param language - The active Company's `language` field (e.g. `'en'`); `undefined` ⇒ baseLocale.
  */
 export function syncLocaleFromCompany(language: string | undefined): void {
-  const resolved: Locale = language !== undefined && isLocale(language) ? language : baseLocale;
+  const resolved: Locale = language !== undefined && isLocale(language) ? language : baseLocale
   // Configured locale strategies are synchronous, so switching needs no awaited promise.
-  void setLocale(resolved, { reload: false });
+  void setLocale(resolved, { reload: false })
 }

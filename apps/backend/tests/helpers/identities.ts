@@ -1,32 +1,32 @@
-import type { ApiClient, ApiResponse } from '@japa/api-client';
-import app from '@adonisjs/core/services/app';
-import db from '@adonisjs/lucid/services/db';
-import hash from '@adonisjs/core/services/hash';
-import { randomUUID } from 'node:crypto';
-import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import mail from '@adonisjs/mail/services/main';
-import env from '#start/env';
-import { DateTime } from 'luxon';
-import { UserFactory } from '#database/factories/user_factory';
-import type User from '#models/user';
+import type { ApiClient, ApiResponse } from '@japa/api-client'
+import app from '@adonisjs/core/services/app'
+import db from '@adonisjs/lucid/services/db'
+import hash from '@adonisjs/core/services/hash'
+import { randomUUID } from 'node:crypto'
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
+import mail from '@adonisjs/mail/services/main'
+import env from '#start/env'
+import { DateTime } from 'luxon'
+import { UserFactory } from '#database/factories/user_factory'
+import type User from '#models/user'
 
-export const fixturePassword = 'fixture-password-2026';
-const sessionCookieHeaders = new Map<string, string>();
+export const fixturePassword = 'fixture-password-2026'
+const sessionCookieHeaders = new Map<string, string>()
 
 /** Returns the exact session cookie header captured from a sign-in response. */
 export function sessionCookieHeader(cookie: string) {
-  return sessionCookieHeaders.get(cookie) ?? `adonis-session=${cookie}`;
+  return sessionCookieHeaders.get(cookie) ?? `adonis-session=${cookie}`
 }
 
 export function rememberSessionCookie(response: ApiResponse) {
-  const cookie = response.cookie('adonis-session')?.value;
-  const setCookies = response.header('set-cookie');
+  const cookie = response.cookie('adonis-session')?.value
+  const setCookies = response.header('set-cookie')
   const cookieHeader = (Array.isArray(setCookies) ? setCookies : [setCookies])
     .find(
       (value): value is string => typeof value === 'string' && value.startsWith('adonis-session=')
     )
-    ?.split(';', 1)[0];
-  if (cookie && cookieHeader) sessionCookieHeaders.set(cookie, cookieHeader);
+    ?.split(';', 1)[0]
+  if (cookie && cookieHeader) sessionCookieHeaders.set(cookie, cookieHeader)
 }
 
 /**
@@ -35,9 +35,9 @@ export function rememberSessionCookie(response: ApiResponse) {
  * identities directly, so the hook's admission rule is not what they test.
  */
 async function storeIdentity(attributes: Partial<User>) {
-  const now = new Date().toISOString();
-  const user = await UserFactory.merge({ createdAt: now, updatedAt: now, ...attributes }).make();
-  await user.saveQuietly();
+  const now = new Date().toISOString()
+  const user = await UserFactory.merge({ createdAt: now, updatedAt: now, ...attributes }).make()
+  await user.saveQuietly()
 }
 
 /**
@@ -48,8 +48,8 @@ export async function createIdentity(
   email: string,
   options: { name?: string; password?: string; verified?: boolean; admitted?: boolean } = {}
 ) {
-  const id = randomUUID();
-  const verified = options.verified ?? true;
+  const id = randomUUID()
+  const verified = options.verified ?? true
   await storeIdentity({
     id,
     email,
@@ -57,13 +57,13 @@ export async function createIdentity(
     password: await hash.make(options.password ?? fixturePassword),
     emailVerifiedAt: verified ? DateTime.now() : null,
     unverifiedEmail: verified ? null : email,
-  });
+  })
   if (options.admitted ?? true) {
-    const admission = await app.container.make(AccountAdmission);
-    await admission.operator.grantInvitation({ email, role: 'viewer' });
-    await admission.operator.approve({ email });
+    const admission = await app.container.make(AccountAdmission)
+    await admission.operator.grantInvitation({ email, role: 'viewer' })
+    await admission.operator.approve({ email })
   }
-  return id;
+  return id
 }
 
 /** Signs in through the public route and returns the session cookie and its raw header. */
@@ -72,28 +72,28 @@ export async function signIn(client: ApiClient, email: string, password = fixtur
     .visit('api.session.store')
     .header('sec-fetch-site', 'same-origin')
     .json({ email, password })
-    .send();
-  response.assertStatus(200);
-  const cookie = response.cookie('adonis-session')?.value;
-  const setCookies = response.header('set-cookie');
+    .send()
+  response.assertStatus(200)
+  const cookie = response.cookie('adonis-session')?.value
+  const setCookies = response.header('set-cookie')
   const cookieHeader = (Array.isArray(setCookies) ? setCookies : [setCookies])
     .find(
       (value): value is string => typeof value === 'string' && value.startsWith('adonis-session=')
     )
-    ?.split(';', 1)[0];
-  if (!cookie || !cookieHeader) throw new Error('Sign-in did not create a session.');
-  sessionCookieHeaders.set(cookie, cookieHeader);
-  const userId = String((response.body().data as { user: { id: string } }).user.id);
-  return { cookie, cookieHeader, userId };
+    ?.split(';', 1)[0]
+  if (!cookie || !cookieHeader) throw new Error('Sign-in did not create a session.')
+  sessionCookieHeaders.set(cookie, cookieHeader)
+  const userId = String((response.body().data as { user: { id: string } }).user.id)
+  return { cookie, cookieHeader, userId }
 }
 
 /** Removes every identity; sign-ins, tokens and memberships cascade with their users. */
 export async function clearIdentities() {
-  await db.from('account_admissions').delete();
-  await db.from('account_invitations').delete();
-  await db.from('adonis_sessions').delete();
-  await db.from('memberships').delete();
-  await db.from('users').delete();
+  await db.from('account_admissions').delete()
+  await db.from('account_invitations').delete()
+  await db.from('adonis_sessions').delete()
+  await db.from('memberships').delete()
+  await db.from('users').delete()
 }
 
 /** Creates a confirmed, admitted identity and returns the response of its first sign-in. */
@@ -101,14 +101,14 @@ export async function signUpAndIn(
   client: ApiClient,
   details: { email: string; password: string; name: string }
 ) {
-  await createIdentity(details.email, { name: details.name, password: details.password });
+  await createIdentity(details.email, { name: details.name, password: details.password })
   const response = await client
     .visit('api.session.store')
     .header('sec-fetch-site', 'same-origin')
     .json({ email: details.email, password: details.password })
-    .send();
-  rememberSessionCookie(response);
-  return response;
+    .send()
+  rememberSessionCookie(response)
+  return response
 }
 
 /** Records an Account Kit sign-in row for `userId`, creating that identity when it is absent. */
@@ -120,59 +120,57 @@ export async function fixtureSession(userId: string, expiresAt = '2999-01-01T00:
       displayName: userId,
       password: null,
       emailVerifiedAt: DateTime.now(),
-    });
+    })
   }
-  const now = new Date().toISOString();
+  const now = new Date().toISOString()
   const [id] = await db.table('account_sessions').insert({
     user_id: userId,
     handle_hash: randomUUID().replaceAll('-', '').padEnd(64, '0'),
     created_at: now,
     last_seen_at: now,
     expires_at: expiresAt,
-  });
-  return Number(id);
+  })
+  return Number(id)
 }
 
 /** The proof token in an Account Kit action link: its `token` query value, else its last segment. */
 export function linkToken(url: string) {
-  const parsed = new URL(url);
-  return parsed.searchParams.get('token') ?? parsed.pathname.split('/').filter(Boolean).at(-1)!;
+  const parsed = new URL(url)
+  return parsed.searchParams.get('token') ?? parsed.pathname.split('/').filter(Boolean).at(-1)!
 }
 
 /** Issues the operator bootstrap invitation and returns its token, as the install command does. */
 export async function bootstrapInvitation(email: string) {
-  const admission = await app.container.make(AccountAdmission);
-  const { url } = await admission.operator.bootstrap({ email, role: 'viewer' });
-  if (!url) throw new Error('Bootstrap did not print a link.');
-  return linkToken(url);
+  const admission = await app.container.make(AccountAdmission)
+  const { url } = await admission.operator.bootstrap({ email, role: 'viewer' })
+  if (!url) throw new Error('Bootstrap did not print a link.')
+  return linkToken(url)
 }
 
 /** Stubs mail delivery with AdonisJS `mail.fake()` and reads the links the Kit sends. */
 export function captureMail(cleanup: (callback: () => void) => void) {
-  const fake = mail.fake();
-  const host = env.get('CAPACITYLENS_MAIL_HOST');
-  env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example');
+  const fake = mail.fake()
+  const host = env.get('CAPACITYLENS_MAIL_HOST')
+  env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example')
   cleanup(() => {
-    mail.restore();
-    env.set('CAPACITYLENS_MAIL_HOST', host ?? '');
-  });
+    mail.restore()
+    env.set('CAPACITYLENS_MAIL_HOST', host ?? '')
+  })
   const to = (address: string) =>
-    [...fake.messages.sent(), ...fake.messages.queued()].filter((message) =>
-      message.hasTo(address)
-    );
+    [...fake.messages.sent(), ...fake.messages.queued()].filter((message) => message.hasTo(address))
   return {
     /** The fake mailer itself; `mail.restore()` discards it, with anything a test set on it. */
     mailer: fake,
     count: (address: string) => to(address).length,
     tokenFor(address: string) {
-      const message = to(address).at(-1);
-      if (!message) throw new Error(`No mail was sent to ${address}.`);
-      const { text, html } = message.toJSON().message as { text?: string; html?: string };
-      const url = /https?:\/\/[^\s"'<>]+/.exec(text ?? html ?? '')?.[0];
-      if (!url) throw new Error(`The mail to ${address} carries no link.`);
-      return linkToken(url.replaceAll('&amp;', '&'));
+      const message = to(address).at(-1)
+      if (!message) throw new Error(`No mail was sent to ${address}.`)
+      const { text, html } = message.toJSON().message as { text?: string; html?: string }
+      const url = /https?:\/\/[^\s"'<>]+/.exec(text ?? html ?? '')?.[0]
+      if (!url) throw new Error(`The mail to ${address} carries no link.`)
+      return linkToken(url.replaceAll('&amp;', '&'))
     },
-  };
+  }
 }
 
 /** Awaits a request and asserts its status. */
@@ -180,6 +178,6 @@ export async function expectStatus(
   request: Promise<{ assertStatus(status: number): void }>,
   status: number
 ) {
-  const response = await request;
-  response.assertStatus(status);
+  const response = await request
+  response.assertStatus(status)
 }

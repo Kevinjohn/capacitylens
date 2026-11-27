@@ -1,4 +1,4 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
 import type {
   Company,
   Activity,
@@ -11,31 +11,31 @@ import type {
   Resource,
   TimeOff,
   Weekday,
-} from '@capacitylens/shared/types/entities';
-import type { Draft } from '@/store/useStore';
-import type { LifecycleEntity } from '@/lib/entityDrafts';
-import type { PlanningMutationSuccess } from '@/api/planningContracts';
-import type { FullPlanningSnapshot, PlanningSnapshot } from '@/data/planning/planningCacheTypes';
-import { useStore } from '@/store/useStore';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
+} from '@capacitylens/shared/types/entities'
+import type { Draft } from '@/store/useStore'
+import type { LifecycleEntity } from '@/lib/entityDrafts'
+import type { PlanningMutationSuccess } from '@/api/planningContracts'
+import type { FullPlanningSnapshot, PlanningSnapshot } from '@/data/planning/planningCacheTypes'
+import { useStore } from '@/store/useStore'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
 import {
   getStubPlanningTransport,
   resetPlanningTransport,
   updatePlanningFixtureSource as updatePlanningFixtureSourceHandle,
-} from '@/test/planningTransportHandle';
-import type { BarLayout } from '@/components/scheduler/schedulerModel';
-import type { PlanningAccess } from '@/data/planning/planningCacheTypes';
-import { makePlanningAccess } from './planning/planningAccessFixtures';
+} from '@/test/planningTransportHandle'
+import type { BarLayout } from '@/components/scheduler/schedulerModel'
+import type { PlanningAccess } from '@/data/planning/planningCacheTypes'
+import { makePlanningAccess } from './planning/planningAccessFixtures'
 
 // Shared fixtures establish an active company so scoped store mutations have a valid company.
 
 /** Mon–Fri, typed as Weekday[] so call sites don't need the `as Weekday[]` cast. */
-export const WORKDAYS: Weekday[] = [1, 2, 3, 4, 5];
+export const WORKDAYS: Weekday[] = [1, 2, 3, 4, 5]
 
 /** The company every fixture/entity is filed under unless overridden. */
-export const DEFAULT_COMPANY_ID = 'acct-test';
+export const DEFAULT_COMPANY_ID = 'acct-test'
 
-const TS = '2026-05-01T00:00:00.000Z';
+const TS = '2026-05-01T00:00:00.000Z'
 
 /** A complete Company; override any field per test. */
 export function makeCompany(overrides: Partial<Company> = {}): Company {
@@ -48,12 +48,12 @@ export function makeCompany(overrides: Partial<Company> = {}): Company {
     color: '#2d75da',
     workingDays: [...WORKDAYS],
     ...overrides,
-  };
+  }
 }
 
 /** Empty AppData that already contains the default test company. */
 export function makeAppData(overrides: Partial<AppData> = {}): AppData {
-  return { ...createEmptyAppData(), companies: [makeCompany()], ...overrides };
+  return { ...createEmptyAppData(), companies: [makeCompany()], ...overrides }
 }
 
 /** A valid person Draft<Resource>; override any field per test. */
@@ -70,7 +70,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
     isFavourite: false,
     ...overrides,
     halfDays: overrides.halfDays ?? [],
-  };
+  }
 }
 
 /** A complete person Resource, the stored counterpart of {@link makeResourceDraft}, for specs that
@@ -92,7 +92,7 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
     halfDays: [],
     color: '#2d75da',
     ...overrides,
-  };
+  }
 }
 
 /** A complete Client; override any field per test. */
@@ -106,7 +106,7 @@ export function makeClient(overrides: Partial<Client> = {}): Client {
     name: 'Ferris',
     color: '#222',
     ...overrides,
-  };
+  }
 }
 
 /** A complete Project; override any field per test. */
@@ -121,7 +121,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     clientId: 'c1',
     color: '#ec4899',
     ...overrides,
-  };
+  }
 }
 
 /** A complete project-kind Activity; override any field per test. */
@@ -136,7 +136,7 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     kind: 'project',
     projectId: overrides.kind && overrides.kind !== 'project' ? null : 'p1',
     ...overrides,
-  };
+  }
 }
 
 /** A complete confirmed Allocation; override any field per test. */
@@ -154,7 +154,7 @@ export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation 
     hoursPerDay: 8,
     status: 'confirmed',
     ...overrides,
-  };
+  }
 }
 
 /** A complete holiday TimeOff record; override any field per test. */
@@ -170,7 +170,7 @@ export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
     endDate: '2026-06-02',
     type: 'holiday',
     ...overrides,
-  };
+  }
 }
 
 /** A complete company Closure; override any field per test. */
@@ -184,7 +184,7 @@ export function makeClosure(overrides: Partial<Closure> = {}): Closure {
     startDate: '2026-12-24',
     endDate: '2026-12-27',
     ...overrides,
-  };
+  }
 }
 
 /** A positioned {@link BarLayout}, the scheduler model's per-allocation render bar. Wraps
@@ -200,109 +200,109 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
     label: 'Wireframes',
     external: false,
     ...overrides,
-  };
+  }
 }
 
 /** Load test rows explicitly into both the response stub and the frontend cache. */
 export function loadPlanningData(data: AppData): void {
-  const companyId = useStore.getState().activeCompanyId ?? data.companies[0]?.id ?? 'unit-fixture';
-  resetPlanningTransport(companyId, data, useStore);
-  const today = getStubPlanningTransport().todayFor(companyId);
+  const companyId = useStore.getState().activeCompanyId ?? data.companies[0]?.id ?? 'unit-fixture'
+  resetPlanningTransport(companyId, data, useStore)
+  const today = getStubPlanningTransport().todayFor(companyId)
   useStore.setState((state) => ({
     data: structuredClone(data),
     planning: { ...state.planning, today },
-  }));
+  }))
 }
 
 /** Publish a planning access as the last accepted read's, and have later reads return it. */
 export function setPlanningAccess(overrides: Partial<PlanningAccess>): void {
-  getStubPlanningTransport().setAccess(overrides);
+  getStubPlanningTransport().setAccess(overrides)
   useStore.setState((state) => ({
     planning: { ...state.planning, access: makePlanningAccess(overrides) },
-  }));
+  }))
 }
 
 /** Reset test data and access, then wait for the selected canonical company snapshot. */
 export function resetStoreWithData(
   data: AppData,
-  companyId: ID = data.companies[0]?.id ?? DEFAULT_COMPANY_ID,
+  companyId: ID = data.companies[0]?.id ?? DEFAULT_COMPANY_ID
 ): Promise<boolean> {
-  const company = data.companies.find(({ id }) => id === companyId);
-  if (!company) throw new Error(`The fixture data must contain company ${companyId}.`);
-  useStore.getState().clearPlanning();
-  resetPlanningTransport(companyId, data, useStore);
+  const company = data.companies.find(({ id }) => id === companyId)
+  if (!company) throw new Error(`The fixture data must contain company ${companyId}.`)
+  useStore.getState().clearPlanning()
+  resetPlanningTransport(companyId, data, useStore)
   useStore.getState().setCompanySummaries({
     list: [{ id: companyId, name: company.name, role: 'owner' }],
-  });
-  useStore.getState().setNotice(null);
-  useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
-  useStore.getState().setActiveCompany(companyId);
-  return useStore.getState().refreshPlanning({ fresh: true });
+  })
+  useStore.getState().setNotice(null)
+  useStore.setState({ srAnnouncement: null, membershipRevision: 0 })
+  useStore.getState().setActiveCompany(companyId)
+  return useStore.getState().refreshPlanning({ fresh: true })
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
 export function archiveForTest(
   entity: LifecycleEntity,
-  id: ID,
+  id: ID
 ): Promise<PlanningMutationSuccess | undefined> {
   const intent =
     entity === 'resources'
       ? { operation: 'resource.archive' as const, id }
-      : { operation: 'catalogue.archive' as const, entity: { entity, id } };
-  return useStore.getState().sendPlanningIntent({ intent });
+      : { operation: 'catalogue.archive' as const, entity: { entity, id } }
+  return useStore.getState().sendPlanningIntent({ intent })
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
 export function restoreForTest(
   entity: LifecycleEntity,
-  id: ID,
+  id: ID
 ): Promise<PlanningMutationSuccess | undefined> {
   const intent =
     entity === 'resources'
       ? { operation: 'resource.restore' as const, id }
-      : { operation: 'catalogue.restore' as const, entity: { entity, id } };
-  return useStore.getState().sendPlanningIntent({ intent });
+      : { operation: 'catalogue.restore' as const, entity: { entity, id } }
+  return useStore.getState().sendPlanningIntent({ intent })
 }
 
 /** Reset the store to a clean single-company state with that company active.
  * Use in beforeEach so `add*` (which requires an active company) works. The returned promise
  * settles once the planning cache has read the company, so allocation writes can begin. */
 export function resetStoreWithCompany(companyId: ID = DEFAULT_COMPANY_ID): Promise<boolean> {
-  const company = makeCompany({ id: companyId });
-  return resetStoreWithData(makeAppData({ companies: [company] }), companyId);
+  const company = makeCompany({ id: companyId })
+  return resetStoreWithData(makeAppData({ companies: [company] }), companyId)
 }
 
 /** Change test-only canonical rows while preserving the store's planning revision and history. */
 export function updatePlanningFixtureSource(data: AppData): void {
-  updatePlanningFixtureSourceHandle(data, useStore);
+  updatePlanningFixtureSourceHandle(data, useStore)
 }
 
 /** Replace test fixture rows and synchronize the next canonical read source. */
 export function replaceFixtureData(data: AppData): void {
-  const state = useStore.getState();
-  useStore.setState({ data: structuredClone(data) });
-  updatePlanningFixtureSource(data);
+  const state = useStore.getState()
+  useStore.setState({ data: structuredClone(data) })
+  updatePlanningFixtureSource(data)
   if (state.activeCompanyId && !data.companies.some(({ id }) => id === state.activeCompanyId)) {
-    useStore.getState().setActiveCompany(null);
+    useStore.getState().setActiveCompany(null)
   }
 }
 
-type SetPlaceholdersEnabledOptions = { on: boolean; companyId?: ID };
+type SetPlaceholdersEnabledOptions = { on: boolean; companyId?: ID }
 /** Set the test company placeholder setting. */
 export async function setPlaceholdersEnabled({
   on,
   companyId = DEFAULT_COMPANY_ID,
 }: SetPlaceholdersEnabledOptions): Promise<void> {
-  await useStore.getState().updateCompany(companyId, { placeholdersEnabled: on });
+  await useStore.getState().updateCompany(companyId, { placeholdersEnabled: on })
 }
 
-type SetExternalEnabledOptions = { on: boolean; companyId?: ID };
+type SetExternalEnabledOptions = { on: boolean; companyId?: ID }
 /** Set the test company external resource setting. */
 export async function setExternalEnabled({
   on,
   companyId = DEFAULT_COMPANY_ID,
 }: SetExternalEnabledOptions): Promise<void> {
-  await useStore.getState().updateCompany(companyId, { externalEnabled: on });
+  await useStore.getState().updateCompany(companyId, { externalEnabled: on })
 }
 
 /** Creates a fresh JSON Response for one mocked request. Bodies are single-use, so
@@ -314,17 +314,17 @@ export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
-  });
+  })
 }
 
 /** A read that sent no `ifRevision` carries the complete set; narrow it to one that does. */
 export function requireFullSnapshot(snapshot: PlanningSnapshot): FullPlanningSnapshot {
-  if (snapshot.content === 'unchanged') throw new Error('Expected a full planning read');
-  return snapshot;
+  if (snapshot.content === 'unchanged') throw new Error('Expected a full planning read')
+  return snapshot
 }
 
 /** Establish an indexed-fixture precondition without weakening the assertion that consumes it. */
 export function requireValue<T>(value: T | undefined, context = 'fixture value'): T {
-  if (value === undefined) throw new Error(`Expected ${context}`);
-  return value;
+  if (value === undefined) throw new Error(`Expected ${context}`)
+  return value
 }

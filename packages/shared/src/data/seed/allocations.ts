@@ -1,6 +1,6 @@
-import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import type { AppData } from '../../types/entities.js';
-import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
+import { NULLABLE_FIELDS } from '../../types/nullableFields.js'
+import type { AppData } from '../../types/entities.js'
+import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js'
 
 const ALLOCATIONS: AppData['allocations'] = [
   // Bruce: two overlapping bars on 06-03/06-04 -> stacks + over-allocated (8 + 4 > 8).
@@ -125,9 +125,9 @@ const ALLOCATIONS: AppData['allocations'] = [
     hoursPerDay: 8,
     status: 'confirmed',
   },
-];
+]
 
 /** Fresh copies of the seed allocations. */
 export function createAllocations(): AppData['allocations'] {
-  return ALLOCATIONS.map((allocation) => ({ ...allocation }));
+  return ALLOCATIONS.map((allocation) => ({ ...allocation }))
 }

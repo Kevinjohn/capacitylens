@@ -1,39 +1,39 @@
-import { useAuth } from '@/auth/authContext';
-import { m } from '@/i18n';
-import { useStore } from '@/store/useStore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { FieldError } from '@/components/ui/field';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { InviteMemberPanel } from './InviteMemberPanel';
-import { MemberConfirmations } from './MemberConfirmations';
-import { MemberRow } from './MemberRow';
-import { useMembersOrchestration } from './useMembersOrchestration';
-import type { TeamMember } from '@/account/teamAccessApi';
+import { useAuth } from '@/auth/authContext'
+import { m } from '@/i18n'
+import { useStore } from '@/store/useStore'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { InviteMemberPanel } from './InviteMemberPanel'
+import { MemberConfirmations } from './MemberConfirmations'
+import { MemberRow } from './MemberRow'
+import { useMembersOrchestration } from './useMembersOrchestration'
+import type { TeamMember } from '@/account/teamAccessApi'
 
 // Member controls require an authoritative Owner/Admin directory read, while server authorization remains independent. Fresh invitation secrets are displayed once and never read back.
 
 /** Shows member administration only after the members read authorizes the authenticated user. Ordinary controls exclude ownership changes, which use the transfer ceremony. */
 export function MembersSection() {
-  const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const { user } = useAuth();
+  const activeCompanyId = useStore((state) => state.activeCompanyId)
+  const { user } = useAuth()
   const generation = useStore((state) =>
-    state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
-  );
-  const scope = JSON.stringify([user?.id ?? null, activeCompanyId, generation]);
-  return <CompanyMembersSection key={scope} activeCompanyId={activeCompanyId} />;
+    state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation
+  )
+  const scope = JSON.stringify([user?.id ?? null, activeCompanyId, generation])
+  return <CompanyMembersSection key={scope} activeCompanyId={activeCompanyId} />
 }
 
 // Member intent belongs to one user, company and projection lifetime.
 function CompanyMembersSection({ activeCompanyId }: { activeCompanyId: string | null }) {
-  const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeCompanyId);
+  const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeCompanyId)
 
-  if (!orchestration.enabled) return null;
+  if (!orchestration.enabled) return null
   // Privileged controls stay fail-closed until the current company's members read authorizes this
   // section. A 403 remains hidden, and a switch cannot briefly expose the next company's form while
   // its authorization request is still pending.
   if (orchestration.directory.kind === 'loading' || orchestration.directory.kind === 'hidden') {
-    return null;
+    return null
   }
   if (orchestration.directory.kind === 'error') {
     return (
@@ -42,9 +42,9 @@ function CompanyMembersSection({ activeCompanyId }: { activeCompanyId: string | 
         error={orchestration.error}
         reload={orchestration.reload}
       />
-    );
+    )
   }
-  const { invites } = orchestration.directory.snapshot;
+  const { invites } = orchestration.directory.snapshot
   return (
     <>
       {orchestration.mayManageInvites && (
@@ -84,13 +84,13 @@ function CompanyMembersSection({ activeCompanyId }: { activeCompanyId: string | 
         changeRole={orchestration.changeRole}
       />
     </>
-  );
+  )
 }
 
 type MembersOrchestration = Omit<
   ReturnType<typeof useMembersOrchestration>,
   'setActionStatusElement'
->;
+>
 type MemberTableDependencies = Pick<
   MembersOrchestration,
   | 'myRole'
@@ -105,23 +105,23 @@ type MemberTableDependencies = Pick<
   | 'error'
   | 'errorField'
   | 'errorId'
->;
+>
 type DirectoryDependencies = MemberTableDependencies &
   Pick<
     MembersOrchestration,
     'activeMembers' | 'inactiveMembers' | 'inactiveOpen' | 'setInactiveOpen'
-  >;
+  >
 type MembersDirectoryDependencies = DirectoryDependencies &
-  Pick<MembersOrchestration, 'directory' | 'mayManageSignInTracking' | 'changeSignInTracking'>;
+  Pick<MembersOrchestration, 'directory' | 'mayManageSignInTracking' | 'changeSignInTracking'>
 
 function MembersErrorCard({
   errorId,
   error,
   reload,
 }: {
-  errorId: string;
-  error: string | null;
-  reload(): void;
+  errorId: string
+  error: string | null
+  reload(): void
 }) {
   return (
     <Card data-testid="members-section">
@@ -137,7 +137,7 @@ function MembersErrorCard({
         </Button>
       </CardContent>
     </Card>
-  );
+  )
 }
 
 function MembersTable({
@@ -146,16 +146,16 @@ function MembersTable({
   memberActions,
   allMembers,
 }: {
-  rows: TeamMember[];
-  testId: string;
-  memberActions: MemberTableDependencies;
-  allMembers: TeamMember[];
+  rows: TeamMember[]
+  testId: string
+  memberActions: MemberTableDependencies
+  allMembers: TeamMember[]
 }) {
   const linkedResourceIds = new Set(
     allMembers.flatMap((candidate) =>
-      candidate.resourceLink ? [candidate.resourceLink.resourceId] : [],
-    ),
-  );
+      candidate.resourceLink ? [candidate.resourceLink.resourceId] : []
+    )
+  )
   return (
     <div className="overflow-x-auto rounded-md border bg-card">
       <table className="w-full text-sm" data-testid={testId}>
@@ -198,21 +198,21 @@ function MembersTable({
         </tbody>
       </table>
     </div>
-  );
+  )
 }
 
 function MemberDirectory({
   directory,
   members,
 }: {
-  directory: DirectoryDependencies;
-  members: TeamMember[];
+  directory: DirectoryDependencies
+  members: TeamMember[]
 }) {
-  let activeContent = null;
+  let activeContent = null
   if (members.length === 0) {
     activeContent = (
       <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
-    );
+    )
   } else if (directory.activeMembers) {
     activeContent = (
       <MembersTable
@@ -221,10 +221,10 @@ function MemberDirectory({
         memberActions={directory}
         allMembers={members}
       />
-    );
+    )
   }
-  let disclosureIcon = <ChevronRight data-icon="inline-start" />;
-  if (directory.inactiveOpen) disclosureIcon = <ChevronDown data-icon="inline-start" />;
+  let disclosureIcon = <ChevronRight data-icon="inline-start" />
+  if (directory.inactiveOpen) disclosureIcon = <ChevronDown data-icon="inline-start" />
   return (
     <>
       {activeContent}
@@ -254,18 +254,18 @@ function MemberDirectory({
         </section>
       )}
     </>
-  );
+  )
 }
 
 function MembersDirectorySection({
   members,
   setActionStatusElement,
 }: {
-  members: MembersDirectoryDependencies;
-  setActionStatusElement(element: HTMLParagraphElement | null): void;
+  members: MembersDirectoryDependencies
+  setActionStatusElement(element: HTMLParagraphElement | null): void
 }) {
-  if (members.directory.kind !== 'ready') return null;
-  const { members: memberRows } = members.directory.snapshot;
+  if (members.directory.kind !== 'ready') return null
+  const { members: memberRows } = members.directory.snapshot
   return (
     <section
       data-testid="members-section"
@@ -291,5 +291,5 @@ function MembersDirectorySection({
         <MemberDirectory directory={members} members={memberRows} />
       </div>
     </section>
-  );
+  )
 }

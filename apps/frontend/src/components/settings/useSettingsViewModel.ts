@@ -1,8 +1,8 @@
-import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { useId } from 'react';
-import { useCanEdit, useRole } from '@/auth/permissionContext';
-import { resolveErrorMessage } from '@/lib/errorMessage';
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access'
+import { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays'
+import { useId } from 'react'
+import { useCanEdit, useRole } from '@/auth/permissionContext'
+import { resolveErrorMessage } from '@/lib/errorMessage'
 import {
   canCreateInlineActivity,
   hasVisibleTaskFieldInSchedule,
@@ -15,8 +15,8 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from '@/store/selectors';
-import { useStore } from '@/store/useStore';
+} from '@/store/selectors'
+import { useStore } from '@/store/useStore'
 
 function useDisplayPreferences() {
   return {
@@ -28,14 +28,14 @@ function useDisplayPreferences() {
     setBarLabelPref: useStore((state) => state.setBarLabelPref),
     minimiseWeekends: useStore((state) => state.minimiseWeekends),
     setMinimiseWeekends: useStore((state) => state.setMinimiseWeekends),
-  };
+  }
 }
 
 function readSchedulingSettings(
   data: ReturnType<(typeof useStore)['getState']>['data'],
-  companyId: string | null,
+  companyId: string | null
 ) {
-  const weekStartsOn = resolveWeekStart(data, companyId);
+  const weekStartsOn = resolveWeekStart(data, companyId)
   return {
     schedulingMode: resolveSchedulingMode(data, companyId),
     weekStartsOn,
@@ -49,30 +49,30 @@ function readSchedulingSettings(
     showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(data, companyId),
     capacityOverviewAccess: resolveCapacityOverviewAccess(data, companyId),
     dateStyle: resolveDateStyle(data, companyId),
-  };
+  }
 }
 
 /** Combines current permissions, company preferences, and section actions for settings. */
 export function useSettingsViewModel() {
-  const workingDaysMinimumId = useId();
-  const canEdit = useCanEdit();
-  const role = useRole();
-  const data = useStore((state) => state.data);
-  const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const activeCompany = data.companies.find((company) => company.id === activeCompanyId) ?? null;
-  const updateCompany = useStore((state) => state.updateCompany);
-  const setNotice = useStore((state) => state.setNotice);
-  const display = useDisplayPreferences();
-  const scheduling = readSchedulingSettings(data, activeCompanyId);
+  const workingDaysMinimumId = useId()
+  const canEdit = useCanEdit()
+  const role = useRole()
+  const data = useStore((state) => state.data)
+  const activeCompanyId = useStore((state) => state.activeCompanyId)
+  const activeCompany = data.companies.find((company) => company.id === activeCompanyId) ?? null
+  const updateCompany = useStore((state) => state.updateCompany)
+  const setNotice = useStore((state) => state.setNotice)
+  const display = useDisplayPreferences()
+  const scheduling = readSchedulingSettings(data, activeCompanyId)
   const updateSetting = async (patch: Parameters<typeof updateCompany>[1]) => {
-    if (!activeCompany) return;
+    if (!activeCompany) return
     try {
-      await updateCompany(activeCompany.id, patch);
+      await updateCompany(activeCompany.id, patch)
     } catch (error) {
       // Surface the rejected settings write so controls cannot imply a saved value.
-      setNotice(resolveErrorMessage(error), 'error');
+      setNotice(resolveErrorMessage(error), 'error')
     }
-  };
+  }
 
   return {
     activeCompany,
@@ -82,5 +82,5 @@ export function useSettingsViewModel() {
     canEdit,
     canManageCapacityOverviewAccess: isOwnerOrAdmin(role),
     updateSetting,
-  };
+  }
 }

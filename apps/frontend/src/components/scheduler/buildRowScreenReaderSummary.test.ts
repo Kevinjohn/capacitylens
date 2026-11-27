@@ -1,8 +1,8 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, expect, it } from 'vitest';
-import { buildRowScreenReaderSummary } from './buildRowScreenReaderSummary';
-import type { RowModel } from './schedulerModel';
-import type { Resource } from '@capacitylens/shared/types/entities';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, expect, it } from 'vitest'
+import { buildRowScreenReaderSummary } from './buildRowScreenReaderSummary'
+import type { RowModel } from './schedulerModel'
+import type { Resource } from '@capacitylens/shared/types/entities'
 
 const person: Resource = {
   ...NULLABLE_FIELDS.resources,
@@ -19,7 +19,7 @@ const person: Resource = {
   color: '#2d75da',
   createdAt: 't',
   updatedAt: 't',
-};
+}
 
 const row = (over: Partial<RowModel> = {}): RowModel => ({
   resource: person,
@@ -33,18 +33,18 @@ const row = (over: Partial<RowModel> = {}): RowModel => ({
   overSoon: false,
   dimmed: false,
   ...over,
-});
+})
 
 const ctx = {
   showPersonalUtilisation: false,
   visibleSpanLabel: '4 weeks',
   drawMode: 'work' as const,
-};
+}
 
 describe('rowScreenReaderSummary', () => {
   it('announces only the allocation count for a quiet row', () => {
-    expect(buildRowScreenReaderSummary(row(), ctx)).toBe('0 allocations.');
-  });
+    expect(buildRowScreenReaderSummary(row(), ctx)).toBe('0 allocations.')
+  })
 
   it('names every colour-only cue, singular and plural', () => {
     const summary = buildRowScreenReaderSummary(
@@ -55,28 +55,28 @@ describe('rowScreenReaderSummary', () => {
         timeOff: [{ id: 't1', x: 0, width: 10, label: 'Holiday' }],
         bars: [{} as RowModel['bars'][number]],
       }),
-      ctx,
-    );
+      ctx
+    )
     expect(summary).toBe(
-      'Overbooked in the next two weeks. Over capacity on 1 day. 3 half working days. 1 time-off period. 1 allocation.',
-    );
-  });
+      'Overbooked in the next two weeks. Over capacity on 1 day. 3 half working days. 1 time-off period. 1 allocation.'
+    )
+  })
 
   it('folds in the visible-window utilisation only when the pref is on and the row has capacity', () => {
-    const busy = row({ utilisation: 0.634 });
+    const busy = row({ utilisation: 0.634 })
     expect(buildRowScreenReaderSummary(busy, { ...ctx, showPersonalUtilisation: true })).toBe(
-      '63% utilisation over the visible 4 weeks. 0 allocations.',
-    );
+      '63% utilisation over the visible 4 weeks. 0 allocations.'
+    )
 
-    const external = row({ resource: { ...person, kind: 'external' }, utilisation: 0 });
+    const external = row({ resource: { ...person, kind: 'external' }, utilisation: 0 })
     expect(buildRowScreenReaderSummary(external, { ...ctx, showPersonalUtilisation: true })).toBe(
-      '0 allocations.',
-    );
-  });
+      '0 allocations.'
+    )
+  })
 
   it('drops the allocation count in time-off draw mode', () => {
     expect(
-      buildRowScreenReaderSummary(row({ conflictDayCount: 2 }), { ...ctx, drawMode: 'timeOff' }),
-    ).toBe('Over capacity on 2 days. ');
-  });
-});
+      buildRowScreenReaderSummary(row({ conflictDayCount: 2 }), { ...ctx, drawMode: 'timeOff' })
+    ).toBe('Over capacity on 2 days. ')
+  })
+})

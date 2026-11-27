@@ -1,31 +1,31 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render as renderTestingLibrary, screen, within, fireEvent } from '@testing-library/react';
-import { resetStoreWithCompany, makeResource } from '@/test/fixtures';
-import { ExternalResourceSection } from './ExternalResourceSection';
-import { OwnerPermissions } from '@/test/ownerPermissions';
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render as renderTestingLibrary, screen, within, fireEvent } from '@testing-library/react'
+import { resetStoreWithCompany, makeResource } from '@/test/fixtures'
+import { ExternalResourceSection } from './ExternalResourceSection'
+import { OwnerPermissions } from '@/test/ownerPermissions'
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
-  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions })
 
-beforeEach(() => resetStoreWithCompany());
+beforeEach(() => resetStoreWithCompany())
 
 const acme = makeResource({
   id: 'ext-acme',
   kind: 'external',
   name: 'Ferris Studio',
   jobTitle: 'Partner',
-});
+})
 const zed = makeResource({
   id: 'ext-zed',
   kind: 'external',
   name: 'Zed Films',
   jobTitle: 'Partner',
-});
+})
 
 function renderSection(externals = [acme]) {
-  const onAdd = vi.fn();
-  const onEdit = vi.fn();
-  const onRequestArchive = vi.fn();
+  const onAdd = vi.fn()
+  const onEdit = vi.fn()
+  const onRequestArchive = vi.fn()
 
   render(
     <ExternalResourceSection
@@ -33,56 +33,56 @@ function renderSection(externals = [acme]) {
       onAdd={onAdd}
       onEdit={onEdit}
       onRequestArchive={onRequestArchive}
-    />,
-  );
+    />
+  )
 
-  return { onAdd, onEdit, onRequestArchive };
+  return { onAdd, onEdit, onRequestArchive }
 }
 
 describe('ExternalResourceSection', () => {
   it('calls onAdd from both add actions when the section is empty', () => {
-    const { onAdd } = renderSection([]);
+    const { onAdd } = renderSection([])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add external party' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add an external party' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add external party' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add an external party' }))
 
-    expect(onAdd).toHaveBeenCalledTimes(2);
-  });
+    expect(onAdd).toHaveBeenCalledTimes(2)
+  })
 
   it('renders external rows in the provided order', () => {
-    renderSection([acme, zed]);
+    renderSection([acme, zed])
 
-    const rows = screen.getAllByTestId('external-row');
-    expect(rows).toHaveLength(2);
-    const firstRow = rows[0];
-    expect(firstRow).toBeDefined();
-    expect(within(firstRow as HTMLElement).getByText('Ferris Studio')).toBeInTheDocument();
-  });
+    const rows = screen.getAllByTestId('external-row')
+    expect(rows).toHaveLength(2)
+    const firstRow = rows[0]
+    expect(firstRow).toBeDefined()
+    expect(within(firstRow as HTMLElement).getByText('Ferris Studio')).toBeInTheDocument()
+  })
 
   it('passes the selected external to onEdit', () => {
-    const { onEdit } = renderSection();
+    const { onEdit } = renderSection()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Ferris Studio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Ferris Studio' }))
 
-    expect(onEdit).toHaveBeenCalledWith(acme);
-  });
+    expect(onEdit).toHaveBeenCalledWith(acme)
+  })
 
   it('requests archive without calling the add or edit handlers', () => {
-    const { onAdd, onEdit, onRequestArchive } = renderSection();
+    const { onAdd, onEdit, onRequestArchive } = renderSection()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Archive Ferris Studio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Ferris Studio' }))
 
-    expect(onRequestArchive).toHaveBeenCalledWith(acme);
-    expect(onEdit).not.toHaveBeenCalled();
-    expect(onAdd).not.toHaveBeenCalled();
-  });
+    expect(onRequestArchive).toHaveBeenCalledWith(acme)
+    expect(onEdit).not.toHaveBeenCalled()
+    expect(onAdd).not.toHaveBeenCalled()
+  })
 
   it('labels the section with the External heading', () => {
-    renderSection();
+    renderSection()
 
     expect(screen.getByRole('heading', { name: 'External' })).toHaveAttribute(
       'id',
-      'external-heading',
-    );
-  });
-});
+      'external-heading'
+    )
+  })
+})

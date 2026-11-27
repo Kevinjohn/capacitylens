@@ -1,25 +1,25 @@
-import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 
 // Drives a running `docker compose` stack through the public web port: the operator bootstrap link
 // creates the first identity, that identity sets up the company, and the company survives an API
 // container recreation. Run it only against a disposable stack.
 
-const baseUrl = process.env.CAPACITYLENS_SMOKE_URL ?? 'http://127.0.0.1:8080';
-const credentials = { email: 'bruce@wayne.example', password: 'docker-smoke-password-2026' };
-const json = { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' };
+const baseUrl = process.env.CAPACITYLENS_SMOKE_URL ?? 'http://127.0.0.1:8080'
+const credentials = { email: 'bruce@wayne.example', password: 'docker-smoke-password-2026' }
+const json = { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' }
 
 function compose(...args) {
-  const result = spawnSync('docker', ['compose', ...args], { encoding: 'utf8' });
-  if (result.error) throw result.error;
-  return { status: result.status, output: `${result.stdout}\n${result.stderr}` };
+  const result = spawnSync('docker', ['compose', ...args], { encoding: 'utf8' })
+  if (result.error) throw result.error
+  return { status: result.status, output: `${result.stdout}\n${result.stderr}` }
 }
 
 function cookiesOf(response) {
   return response.headers
     .getSetCookie()
     .map((value) => value.split(';', 1)[0])
-    .join('; ');
+    .join('; ')
 }
 
 async function signIn() {
@@ -27,9 +27,9 @@ async function signIn() {
     method: 'POST',
     headers: json,
     body: JSON.stringify(credentials),
-  });
-  assert.equal(response.status, 200, 'Sign-in through the web container failed');
-  return cookiesOf(response);
+  })
+  assert.equal(response.status, 200, 'Sign-in through the web container failed')
+  return cookiesOf(response)
 }
 
 const bootstrap = compose(
@@ -40,33 +40,33 @@ const bootstrap = compose(
   'ace.js',
   'account-kit:admission:bootstrap',
   credentials.email,
-  '--role=viewer',
-);
+  '--role=viewer'
+)
 // A failed run may still have printed the one-time link; never copy it into CI logs.
-assert.equal(bootstrap.status, 0, bootstrap.output.replace(/https?:\/\/\S+/g, '<redacted link>'));
-const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
-assert.ok(setupLink, 'The bootstrap command printed no setup link.');
-const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
+assert.equal(bootstrap.status, 0, bootstrap.output.replace(/https?:\/\/\S+/g, '<redacted link>'))
+const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1]
+assert.ok(setupLink, 'The bootstrap command printed no setup link.')
+const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1)
 
 const signUp = await fetch(`${baseUrl}/api/v1/invitations/${setupToken}/sign-up`, {
   method: 'POST',
   headers: json,
   body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
-});
-assert.equal(signUp.status, 201, 'First-identity setup failed');
+})
+assert.equal(signUp.status, 201, 'First-identity setup failed')
 
-let cookie = await signIn();
-const mode = await fetch(`${baseUrl}/api/v1/masquerade`, { headers: { cookie } });
-assert.equal(mode.status, 200, 'Session context lookup failed');
-const { masqueradeToken } = (await mode.json()).data;
-assert.equal(typeof masqueradeToken, 'string', 'Session masquerade token is missing');
-assert.ok(masqueradeToken, 'Session masquerade token is empty');
+let cookie = await signIn()
+const mode = await fetch(`${baseUrl}/api/v1/masquerade`, { headers: { cookie } })
+assert.equal(mode.status, 200, 'Session context lookup failed')
+const { masqueradeToken } = (await mode.json()).data
+assert.equal(typeof masqueradeToken, 'string', 'Session masquerade token is missing')
+assert.ok(masqueradeToken, 'Session masquerade token is empty')
 const company = await fetch(`${baseUrl}/api/v1/installation/company`, {
   method: 'POST',
   headers: { ...json, cookie, 'X-Masquerade-Context': masqueradeToken },
   body: JSON.stringify({ name: 'Wayne Enterprises' }),
-});
-assert.equal(company.status, 201, 'Company setup failed');
+})
+assert.equal(company.status, 201, 'Company setup failed')
 
 const recreated = compose(
   'up',
@@ -76,34 +76,34 @@ const recreated = compose(
   '--wait',
   '--wait-timeout',
   '120',
-  'api',
-);
-assert.equal(recreated.status, 0, recreated.output);
+  'api'
+)
+assert.equal(recreated.status, 0, recreated.output)
 
-cookie = await signIn();
-const companiesResponse = await fetch(`${baseUrl}/api/v1/companies`, { headers: { cookie } });
-assert.equal(companiesResponse.status, 200);
-const companies = (await companiesResponse.json()).data;
+cookie = await signIn()
+const companiesResponse = await fetch(`${baseUrl}/api/v1/companies`, { headers: { cookie } })
+assert.equal(companiesResponse.status, 200)
+const companies = (await companiesResponse.json()).data
 assert.ok(
   companies.some((row) => row.name === 'Wayne Enterprises' && row.role === 'owner'),
-  'The company did not survive API recreation',
-);
+  'The company did not survive API recreation'
+)
 // Each forwarded client keeps its own sign-in budget behind the packaged nginx.
 const failedSignIn = (client, email) =>
   fetch(`${baseUrl}/api/v1/auth/sign-in`, {
     method: 'POST',
     headers: { ...json, 'x-forwarded-for': client },
     body: JSON.stringify({ email, password: 'wrong-docker-smoke-password' }),
-  }).then((response) => response.status);
-let limited = false;
+  }).then((response) => response.status)
+let limited = false
 for (let attempt = 0; attempt < 20 && !limited; attempt += 1)
-  limited = (await failedSignIn('203.0.113.10', `limit-${attempt}@wayne.example`)) === 429;
-assert.ok(limited, 'Repeated failed sign-ins from one client were never limited');
+  limited = (await failedSignIn('203.0.113.10', `limit-${attempt}@wayne.example`)) === 429
+assert.ok(limited, 'Repeated failed sign-ins from one client were never limited')
 assert.notEqual(
   await failedSignIn('198.51.100.20', 'other-client@wayne.example'),
   429,
-  "A second client shared the first client's sign-in budget",
-);
+  "A second client shared the first client's sign-in budget"
+)
 console.log(
-  'Docker smoke: first identity, company setup, persistence and per-client limits passed.',
-);
+  'Docker smoke: first identity, company setup, persistence and per-client limits passed.'
+)

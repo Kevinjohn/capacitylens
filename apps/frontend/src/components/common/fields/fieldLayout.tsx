@@ -1,5 +1,5 @@
-import { FieldLabel } from '@/components/ui/field';
-import { m } from '@/i18n';
+import { FieldLabel } from '@/components/ui/field'
+import { m } from '@/i18n'
 
 /** Marks a required field label while preserving its accessible name. */
 export function RequiredFieldLabel({
@@ -7,9 +7,9 @@ export function RequiredFieldLabel({
   required,
   htmlFor,
 }: {
-  label: string;
-  required?: boolean;
-  htmlFor: string;
+  label: string
+  required?: boolean
+  htmlFor: string
 }) {
   return (
     <div className="flex items-center gap-1">
@@ -20,7 +20,7 @@ export function RequiredFieldLabel({
         </span>
       )}
     </div>
-  );
+  )
 }
 
 /** Place at the bottom of a form to explain the asterisk + red accent convention. */
@@ -29,5 +29,5 @@ export function RequiredLegend() {
     <p className="text-xs text-muted-foreground">
       <span className="font-medium text-danger">*</span> {m.field_required_legend()}
     </p>
-  );
+  )
 }

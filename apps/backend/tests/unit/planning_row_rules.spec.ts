@@ -1,11 +1,11 @@
-import { test } from '@japa/runner';
-import type { AppDataKey } from '@capacitylens/shared/types/entities';
-import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient';
-import { NEUTRAL_COLOR, PRESET_COLORS } from '@capacitylens/shared/lib/color';
-import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings';
-import { rowOutcome } from '#tests/helpers/unit/planning_operations';
+import { test } from '@japa/runner'
+import type { AppDataKey } from '@capacitylens/shared/types/entities'
+import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient'
+import { NEUTRAL_COLOR, PRESET_COLORS } from '@capacitylens/shared/lib/color'
+import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
+import { rowOutcome } from '#tests/helpers/unit/planning_operations'
 
-const swatch = PRESET_COLORS[0]!;
+const swatch = PRESET_COLORS[0]!
 
 /**
  * One row and the outcome the merged-row check gave it before the rules were shared: `accepted`,
@@ -224,15 +224,15 @@ const cases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
     'entityField: status cannot be null.',
   ],
   ['unknown field', 'allocations', { colour: 'red' }, 'accepted'],
-];
+]
 
 test.group('merged-row field rules', () => {
   for (const [name, table, row, expected] of cases) {
     test(name, async ({ assert }) => {
-      assert.equal(await rowOutcome(table, row), expected);
-    });
+      assert.equal(await rowOutcome(table, row), expected)
+    })
   }
-});
+})
 
 /** The rules the row check shares with the company import: the one id rule and the timestamp rule. */
 const sharedRuleCases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
@@ -275,12 +275,12 @@ const sharedRuleCases: Array<[string, AppDataKey, Record<string, unknown>, strin
     'entityField: updatedAt must be a UTC timestamp with milliseconds.',
   ],
   ['null archive timestamp', 'clients', { archivedAt: null }, 'accepted'],
-];
+]
 
 test.group('row rules shared with the company import', () => {
   for (const [name, table, row, expected] of sharedRuleCases) {
     test(name, async ({ assert }) => {
-      assert.equal(await rowOutcome(table, row), expected);
-    });
+      assert.equal(await rowOutcome(table, row), expected)
+    })
   }
-});
+})

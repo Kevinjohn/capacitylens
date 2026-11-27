@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { applyCapacityMode } from '../capacity.js';
-import { addDaysISO } from '../dateMath.js';
-import { MAX_SPAN_DAYS } from '../schedulingDays.js';
+import { describe, it, expect } from 'vitest'
+import { applyCapacityMode } from '../capacity.js'
+import { addDaysISO } from '../dateMath.js'
+import { MAX_SPAN_DAYS } from '../schedulingDays.js'
 
 import {
   requireValueAt,
@@ -11,13 +11,13 @@ import {
   makeTimeOff,
   makeClosure,
   makeProposal,
-} from './capacityTestKit.js';
+} from './capacityTestKit.js'
 
 describe('capacityAdvisory', () => {
-  const r = makeResource();
-  const proposal = makeProposal(r);
+  const r = makeResource()
+  const proposal = makeProposal(r)
   it('counts working days the proposed hours push over capacity', () => {
-    const others = [makeAlloc({ hoursPerDay: 4 })];
+    const others = [makeAlloc({ hoursPerDay: 4 })]
     const { overDays, timeOffDays } = capacityAdvisory({
       resource: r,
       proposal: proposal({
@@ -28,13 +28,13 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: others,
       timeOff: [],
-    });
-    expect(overDays).toBe(5);
-    expect(timeOffDays).toBe(0);
-  });
+    })
+    expect(overDays).toBe(5)
+    expect(timeOffDays).toBe(0)
+  })
 
   it("reports retained load outside the person's availability as over capacity", () => {
-    const bounded = makeResource({ firstAvailableDate: '2026-06-03' });
+    const bounded = makeResource({ firstAvailableDate: '2026-06-03' })
     const { overDays } = capacityAdvisory({
       resource: bounded,
       proposal: makeProposal(bounded)({
@@ -45,13 +45,13 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: [],
       timeOff: [],
-    });
+    })
 
-    expect(overDays).toBe(2);
-  });
+    expect(overDays).toBe(2)
+  })
   it('counts time-off days and excludes them from over (availability is 0 there)', () => {
-    const others = [makeAlloc({ hoursPerDay: 4 })];
-    const timeOff = [makeTimeOff({ startDate: '2026-06-03', endDate: '2026-06-03' })];
+    const others = [makeAlloc({ hoursPerDay: 4 })]
+    const timeOff = [makeTimeOff({ startDate: '2026-06-03', endDate: '2026-06-03' })]
     const { overDays, timeOffDays } = capacityAdvisory({
       resource: r,
       proposal: proposal({
@@ -62,13 +62,13 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: others,
       timeOff,
-    });
-    expect(timeOffDays).toBe(1);
-    expect(overDays).toBe(4);
-  });
+    })
+    expect(timeOffDays).toBe(1)
+    expect(overDays).toBe(4)
+  })
 
   it('counts closure dates in the same advisory category', () => {
-    const closures = [makeClosure({ startDate: '2026-06-03', endDate: '2026-06-03' })];
+    const closures = [makeClosure({ startDate: '2026-06-03', endDate: '2026-06-03' })]
 
     expect(
       capacityAdvisory({
@@ -83,15 +83,15 @@ describe('capacityAdvisory', () => {
         timeOff: [],
         companyWorkingDays: undefined,
         closures,
-      }),
+      })
     ).toEqual({
       overDays: 0,
       timeOffDays: 1,
-    });
-  });
+    })
+  })
 
   it('does not count time off on non-working days (a weekend holiday costs no capacity)', () => {
-    const timeOff = [makeTimeOff({ startDate: '2026-06-06', endDate: '2026-06-07' })];
+    const timeOff = [makeTimeOff({ startDate: '2026-06-06', endDate: '2026-06-07' })]
     const { timeOffDays } = capacityAdvisory({
       resource: r,
       proposal: proposal({
@@ -102,9 +102,9 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: [],
       timeOff,
-    });
-    expect(timeOffDays).toBe(0);
-  });
+    })
+    expect(timeOffDays).toBe(0)
+  })
 
   it('is clean when the proposal fits within availability', () => {
     expect(
@@ -118,15 +118,15 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-      }),
+      })
     ).toEqual({
       overDays: 0,
       timeOffDays: 0,
-    });
-  });
+    })
+  })
 
   it('treats exactly four hours as fitting a half day and anything above as over', () => {
-    const resource = makeResource({ halfDays: [2] });
+    const resource = makeResource({ halfDays: [2] })
     expect(
       capacityAdvisory({
         resource,
@@ -138,8 +138,8 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-      }).overDays,
-    ).toBe(0);
+      }).overDays
+    ).toBe(0)
     expect(
       capacityAdvisory({
         resource,
@@ -151,16 +151,16 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-      }).overDays,
-    ).toBe(1);
-  });
+      }).overDays
+    ).toBe(1)
+  })
 
   it('does not advise over-capacity for an exact fractional days-mode split', () => {
-    const resource = makeResource({ workingHoursPerDay: 7.5 });
-    const fractional = [2, 5, 2].map((days) => (8 * days) / 9);
+    const resource = makeResource({ workingHoursPerDay: 7.5 })
+    const fractional = [2, 5, 2].map((days) => (8 * days) / 9)
     const others = fractional
       .slice(0, 2)
-      .map((hoursPerDay, index) => makeAlloc({ id: `existing-fraction-${index}`, hoursPerDay }));
+      .map((hoursPerDay, index) => makeAlloc({ id: `existing-fraction-${index}`, hoursPerDay }))
 
     expect(
       capacityAdvisory({
@@ -173,8 +173,8 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: others,
         timeOff: [],
-      }).overDays,
-    ).toBe(0);
+      }).overDays
+    ).toBe(0)
     expect(
       capacityAdvisory({
         resource,
@@ -186,9 +186,9 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: others,
         timeOff: [],
-      }).overDays,
-    ).toBe(1);
-  });
+      }).overDays
+    ).toBe(1)
+  })
 
   it('mirrors the over-marker for an ignoreWorkingDays weekend; weekend-aware does not', () => {
     // Fri–Sun: a weekend-aware proposal leaves Sat/Sun uncounted, but opting into weekends flags
@@ -204,8 +204,8 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-      }).overDays,
-    ).toBe(0);
+      }).overDays
+    ).toBe(0)
     expect(
       capacityAdvisory({
         resource: r,
@@ -217,9 +217,9 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-      }).overDays,
-    ).toBe(2);
-  });
+      }).overDays
+    ).toBe(2)
+  })
 
   it('returns the zeroed advisory when the window is empty (start after end)', () => {
     expect(
@@ -233,15 +233,15 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-      }),
+      })
     ).toEqual({
       overDays: 0,
       timeOffDays: 0,
-    });
-  });
+    })
+  })
 
   it('returns before expanding a proposed window beyond the shared calendar-span bound', () => {
-    const start = '2026-01-01';
+    const start = '2026-01-01'
     expect(
       capacityAdvisory({
         resource: r,
@@ -253,12 +253,12 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-      }),
+      })
     ).toEqual({
       overDays: 0,
       timeOffDays: 0,
-    });
-  });
+    })
+  })
 
   it('clamps an existing allocation to the window start (does not count its hours before start)', () => {
     const others = [
@@ -267,7 +267,7 @@ describe('capacityAdvisory', () => {
         endDate: '2026-06-03',
         hoursPerDay: 4,
       }),
-    ];
+    ]
     const { overDays } = capacityAdvisory({
       resource: r,
       proposal: proposal({
@@ -278,9 +278,9 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: others,
       timeOff: [],
-    });
-    expect(overDays).toBe(1);
-  });
+    })
+    expect(overDays).toBe(1)
+  })
 
   it('clamps an existing allocation to the window end (does not count its hours after it ends)', () => {
     const others = [
@@ -289,7 +289,7 @@ describe('capacityAdvisory', () => {
         endDate: '2026-06-01',
         hoursPerDay: 4,
       }),
-    ];
+    ]
     const { overDays } = capacityAdvisory({
       resource: r,
       proposal: proposal({
@@ -300,9 +300,9 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: others,
       timeOff: [],
-    });
-    expect(overDays).toBe(1);
-  });
+    })
+    expect(overDays).toBe(1)
+  })
 
   it('ignores allocations belonging to another resource (callers need not pre-filter)', () => {
     // The advisory's per-day mirror (resolveAllocationLoadForWeekday) scopes by resource; this must too, so a
@@ -310,7 +310,7 @@ describe('capacityAdvisory', () => {
     const others = [
       makeAlloc({ id: 'someone-else', resourceId: 'r2', hoursPerDay: 8 }),
       makeAlloc({ id: 'ours', hoursPerDay: 4 }),
-    ];
+    ]
     const { overDays } = capacityAdvisory({
       resource: r,
       proposal: proposal({
@@ -321,12 +321,12 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: others,
       timeOff: [],
-    });
-    expect(overDays).toBe(0);
-  });
+    })
+    expect(overDays).toBe(0)
+  })
 
   it('reads a blocks-mode projection of legacy hourly allocations as zero load', () => {
-    const legacy = [makeAlloc({ hoursPerDay: 8 })];
+    const legacy = [makeAlloc({ hoursPerDay: 8 })]
     expect(
       capacityAdvisory({
         resource: r,
@@ -338,8 +338,8 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: legacy,
         timeOff: [],
-      }).overDays,
-    ).toBe(0);
+      }).overDays
+    ).toBe(0)
 
     expect(
       capacityAdvisory({
@@ -352,9 +352,9 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: legacy,
         timeOff: [],
-      }).overDays,
-    ).toBe(5);
-    const projected = applyCapacityMode({ allocations: legacy, blocksMode: true });
+      }).overDays
+    ).toBe(5)
+    const projected = applyCapacityMode({ allocations: legacy, blocksMode: true })
     expect(
       capacityAdvisory({
         resource: r,
@@ -366,9 +366,9 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: projected,
         timeOff: [],
-      }).overDays,
-    ).toBe(0);
-  });
+      }).overDays
+    ).toBe(0)
+  })
 
   it('does not count an existing weekend-aware allocation on a weekend day it merely spans', () => {
     // The other allocation spans Fri-Mon but (weekend-aware, no ignoreWorkingDays) does no work on
@@ -380,7 +380,7 @@ describe('capacityAdvisory', () => {
         endDate: '2026-06-08',
         hoursPerDay: 8,
       }),
-    ];
+    ]
     const { overDays } = capacityAdvisory({
       resource: r,
       proposal: proposal({
@@ -391,7 +391,7 @@ describe('capacityAdvisory', () => {
       }),
       otherAllocations: others,
       timeOff: [],
-    });
-    expect(overDays).toBe(0);
-  });
-});
+    })
+    expect(overDays).toBe(0)
+  })
+})

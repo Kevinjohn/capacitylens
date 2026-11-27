@@ -1,12 +1,12 @@
-import { m } from '@/i18n';
-import { readBuildStamp, readFeedbackMailto } from '@/data/buildInfo';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { m } from '@/i18n'
+import { readBuildStamp, readFeedbackMailto } from '@/data/buildInfo'
+import { SettingsSection } from '@/components/settings/SettingsSection'
 
 /** Shows build provenance when the deployment provides a stamp or feedback address. */
 export function DiagnosticsBuildDetails() {
-  const stamp = readBuildStamp();
-  const feedback = readFeedbackMailto();
-  if (!stamp && !feedback) return null;
+  const stamp = readBuildStamp()
+  const feedback = readFeedbackMailto()
+  if (!stamp && !feedback) return null
 
   return (
     <SettingsSection
@@ -29,5 +29,5 @@ export function DiagnosticsBuildDetails() {
         )}
       </p>
     </SettingsSection>
-  );
+  )
 }

@@ -1,16 +1,16 @@
-import { loadPlanningData } from '@/test/fixtures';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { SegmentedField, SwitchField, CheckboxField } from '@/components/common/ui';
-import { useStore } from '@/store/useStore';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
+import { loadPlanningData } from '@/test/fixtures'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { SegmentedField, SwitchField, CheckboxField } from '@/components/common/ui'
+import { useStore } from '@/store/useStore'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
 
 beforeEach(() => {
-  loadPlanningData(createEmptyAppData());
-  useStore.getState().clearFilters();
-  useStore.getState().setDirtyForm(false);
-});
+  loadPlanningData(createEmptyAppData())
+  useStore.getState().clearFilters()
+  useStore.getState().setDirtyForm(false)
+})
 
 describe('compact product fields', () => {
   it('lays out a privacy switch with the shared responsive label-control contract', () => {
@@ -21,37 +21,37 @@ describe('compact product fields', () => {
         checked={false}
         onChange={vi.fn()}
         layout="label-control"
-      />,
-    );
-    const control = screen.getByRole('switch', { name: 'Use code name' });
-    const field = control.closest('[data-slot="field"]');
-    const description = screen.getByText('Hide the real name');
-    expect(field).toHaveAttribute('data-product-layout', 'label-control');
-    expect(field?.firstElementChild).toContainElement(description);
-    expect(control.parentElement).not.toContainElement(description);
-    expect(control.parentElement).toHaveClass('min-h-9');
-  });
+      />
+    )
+    const control = screen.getByRole('switch', { name: 'Use code name' })
+    const field = control.closest('[data-slot="field"]')
+    const description = screen.getByText('Hide the real name')
+    expect(field).toHaveAttribute('data-product-layout', 'label-control')
+    expect(field?.firstElementChild).toContainElement(description)
+    expect(control.parentElement).not.toContainElement(description)
+    expect(control.parentElement).toHaveClass('min-h-9')
+  })
 
   it('lays out a checkbox with the shared responsive label-control contract', async () => {
-    const onChange = vi.fn();
-    const user = userEvent.setup();
+    const onChange = vi.fn()
+    const user = userEvent.setup()
     render(
       <CheckboxField
         label="Ignore working days"
         checked={false}
         onChange={onChange}
         layout="label-control"
-      />,
-    );
-    const control = screen.getByRole('checkbox', { name: 'Ignore working days' });
+      />
+    )
+    const control = screen.getByRole('checkbox', { name: 'Ignore working days' })
     expect(control.closest('[data-slot="field"]')).toHaveAttribute(
       'data-product-layout',
-      'label-control',
-    );
-    expect(control.parentElement).toHaveClass('min-h-9');
-    await user.click(control);
-    expect(onChange).toHaveBeenCalledWith(true);
-  });
+      'label-control'
+    )
+    expect(control.parentElement).toHaveClass('min-h-9')
+    await user.click(control)
+    expect(onChange).toHaveBeenCalledWith(true)
+  })
 
   it('labels a segmented field and applies the shared responsive row', () => {
     render(
@@ -65,13 +65,13 @@ describe('compact product fields', () => {
           { value: 'internal', label: 'Internal' },
         ]}
         layout="label-control"
-      />,
-    );
-    const group = screen.getByRole('radiogroup', { name: 'Kind' });
+      />
+    )
+    const group = screen.getByRole('radiogroup', { name: 'Kind' })
     expect(group.closest('[data-slot="field"]')).toHaveAttribute(
       'data-product-layout',
-      'label-control',
-    );
-    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
-  });
-});
+      'label-control'
+    )
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled()
+  })
+})

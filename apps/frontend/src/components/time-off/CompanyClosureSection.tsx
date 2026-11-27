@@ -1,21 +1,21 @@
-import { Fragment, useMemo } from 'react';
-import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import { CalendarOff } from 'lucide-react';
-import type { Closure } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { useEntityListState } from '@/hooks/useEntityListState';
-import { useConfirmDelete } from '@/hooks/useConfirmDelete';
-import { formatShortDateRange } from '@/lib/dateDisplay';
-import { resolveWeekStart } from '@/store/selectors';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { useStore } from '@/store/useStore';
+import { Fragment, useMemo } from 'react'
+import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath'
+import { CalendarOff } from 'lucide-react'
+import type { Closure } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { useEntityListState } from '@/hooks/useEntityListState'
+import { useConfirmDelete } from '@/hooks/useConfirmDelete'
+import { formatShortDateRange } from '@/lib/dateDisplay'
+import { resolveWeekStart } from '@/store/selectors'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { useStore } from '@/store/useStore'
 import {
   AddButton,
   ConfirmDialog,
   DeleteButton,
   EditButton,
   EmptyState,
-} from '@/components/common/ui';
+} from '@/components/common/ui'
 import {
   Item,
   ItemActions,
@@ -24,15 +24,15 @@ import {
   ItemGroup,
   ItemSeparator,
   ItemTitle,
-} from '@/components/ui/item';
-import { ClosureForm } from './ClosureForm';
-import { useCompanyToday } from '@/hooks/useCompanyToday';
-import { buildClosureList } from './timeOffView';
+} from '@/components/ui/item'
+import { ClosureForm } from './ClosureForm'
+import { useCompanyToday } from '@/hooks/useCompanyToday'
+import { buildClosureList } from './timeOffView'
 
 interface ClosureItemsProps {
-  closures: Closure[];
-  onEdit: (closure: Closure) => void;
-  onDelete: (closure: Closure) => void;
+  closures: Closure[]
+  onEdit: (closure: Closure) => void
+  onDelete: (closure: Closure) => void
 }
 
 function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
@@ -40,8 +40,8 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
     <ItemGroup className="rounded-md border bg-card">
       {closures.map((closure, index) => {
         // Include the row's visible date range in each action's accessible name so voice input identifies the correct closure.
-        const range = formatShortDateRange(closure.startDate, closure.endDate);
-        const labelContext = { name: closure.name, range };
+        const range = formatShortDateRange(closure.startDate, closure.endDate)
+        const labelContext = { name: closure.name, range }
         return (
           <Fragment key={closure.id}>
             {index > 0 && <ItemSeparator />}
@@ -67,28 +67,28 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
               </ItemActions>
             </Item>
           </Fragment>
-        );
+        )
       })}
     </ItemGroup>
-  );
+  )
 }
 
 /** Lists company closures available to the active company. */
 export function CompanyClosureSection() {
-  const data = useActiveScopedData();
+  const data = useActiveScopedData()
   const calendarWeekStartsOn = useStore((state) =>
-    resolveWeekStart(state.data, state.activeCompanyId),
-  );
-  const deleteEntity = useStore((state) => state.deleteClosure);
+    resolveWeekStart(state.data, state.activeCompanyId)
+  )
+  const deleteEntity = useStore((state) => state.deleteClosure)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
-    useEntityListState<Closure>();
-  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
-  const today = useCompanyToday();
-  const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
+    useEntityListState<Closure>()
+  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null))
+  const today = useCompanyToday()
+  const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn)
   const closures = useMemo(
     () => buildClosureList(data.closures, currentWeekStart),
-    [currentWeekStart, data.closures],
-  );
+    [currentWeekStart, data.closures]
+  )
 
   return (
     <section aria-labelledby="company-closures-heading" data-testid="company-closures-section">
@@ -116,11 +116,11 @@ export function CompanyClosureSection() {
           title={m.list_closures_delete_title()}
           message={m.list_closures_delete_message()}
           onConfirm={() => {
-            void confirmDelete(confirming.id);
+            void confirmDelete(confirming.id)
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
     </section>
-  );
+  )
 }

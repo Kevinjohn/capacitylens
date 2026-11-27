@@ -1,10 +1,10 @@
-import { NULLABLE_FIELDS } from '../types/nullableFields.js';
+import { NULLABLE_FIELDS } from '../types/nullableFields.js'
 // Fixtures use present, non-default optional values so server round-trip tests prove those values survive persistence.
 import {
   buildExternalCapacityDefaults,
   buildPlaceholderCapacityDefaults,
-} from '../types/entities.js';
-import { NEUTRAL_COLOR } from '../lib/color.js';
+} from '../types/entities.js'
+import { NEUTRAL_COLOR } from '../lib/color.js'
 import type {
   Company,
   Allocation,
@@ -16,10 +16,10 @@ import type {
   Resource,
   Activity,
   TimeOff,
-} from '../types/entities.js';
+} from '../types/entities.js'
 
-const TS1 = '2026-01-01T00:00:00.000Z';
-const TS2 = '2026-06-01T12:00:00.000Z';
+const TS1 = '2026-01-01T00:00:00.000Z'
+const TS2 = '2026-06-01T12:00:00.000Z'
 
 /** Complete company fixture with every optional field set. */
 export const FIXTURE_COMPANY: Company = {
@@ -44,7 +44,7 @@ export const FIXTURE_COMPANY: Company = {
   dateStyle: 'month-day',
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete client fixture owned by {@link FIXTURE_COMPANY}. */
 export const FIXTURE_CLIENT: Client = {
@@ -61,7 +61,7 @@ export const FIXTURE_CLIENT: Client = {
   archivedAt: TS1,
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete discipline fixture owned by {@link FIXTURE_COMPANY}. */
 export const FIXTURE_DISCIPLINE: Discipline = {
@@ -72,7 +72,7 @@ export const FIXTURE_DISCIPLINE: Discipline = {
   sortOrder: 7,
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete project fixture for {@link FIXTURE_CLIENT}. */
 export const FIXTURE_PROJECT: Project = {
@@ -87,7 +87,7 @@ export const FIXTURE_PROJECT: Project = {
   archivedAt: TS1,
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete phase fixture for {@link FIXTURE_PROJECT}. */
 export const FIXTURE_PHASE: Phase = {
@@ -97,7 +97,7 @@ export const FIXTURE_PHASE: Phase = {
   projectId: 'fix-p1',
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete placeholder resource fixture. */
 export const FIXTURE_RESOURCE: Resource = {
@@ -119,7 +119,7 @@ export const FIXTURE_RESOURCE: Resource = {
   archivedAt: TS1,
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** A fully-populated person fixture, including both optional availability boundaries. Keep the
  * placeholder fixture above for resource-kind coverage; this row exercises the person-only fields
@@ -145,7 +145,7 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
   archivedAt: TS1,
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** The external-party kind: a company name + optional descriptor, and no discipline or
  * project binding (externals carry unused silent-default working hours/days). Proves `kind`
@@ -161,7 +161,7 @@ export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
   color: NEUTRAL_COLOR,
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete project activity fixture. */
 export const FIXTURE_ACTIVITY: Activity = {
@@ -174,7 +174,7 @@ export const FIXTURE_ACTIVITY: Activity = {
   phaseId: 'fix-ph1',
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** The internal & all-projects kinds: project-less by definition, so they omit projectId /
  * phaseId entirely (not null, absent). Prove all three ActivityKind values round-trip through
@@ -187,7 +187,7 @@ export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   kind: 'internal',
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete all-projects activity fixture. */
 export const FIXTURE_ACTIVITY_ALL_PROJECTS: Activity = {
@@ -198,7 +198,7 @@ export const FIXTURE_ACTIVITY_ALL_PROJECTS: Activity = {
   kind: 'allProjects',
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete allocation fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_ALLOCATION: Allocation = {
@@ -217,7 +217,7 @@ export const FIXTURE_ALLOCATION: Allocation = {
   ignoreWorkingDays: true,
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Allocation fixture on the all-projects activity, attributed to a project. */
 export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
@@ -225,7 +225,7 @@ export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
   id: 'fix-al2',
   activityId: FIXTURE_ACTIVITY_ALL_PROJECTS.id,
   projectId: 'fix-p1',
-};
+}
 
 /** Complete time-off fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_TIME_OFF: TimeOff = {
@@ -238,7 +238,7 @@ export const FIXTURE_TIME_OFF: TimeOff = {
   note: 'Fixture sick note',
   createdAt: TS1,
   updatedAt: TS2,
-};
+}
 
 /** Complete company-closure fixture. */
 export const FIXTURE_CLOSURE: Closure = {
@@ -249,4 +249,4 @@ export const FIXTURE_CLOSURE: Closure = {
   endDate: '2026-12-27',
   createdAt: TS1,
   updatedAt: TS2,
-};
+}

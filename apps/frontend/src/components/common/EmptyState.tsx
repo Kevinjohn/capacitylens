@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { useCanEdit } from '@/auth/permissionContext';
-import { Button } from '@/components/ui/button';
+import type { ReactNode } from 'react'
+import type { LucideIcon } from 'lucide-react'
+import { useCanEdit } from '@/auth/permissionContext'
+import { Button } from '@/components/ui/button'
 import {
   Empty,
   EmptyContent,
@@ -9,7 +9,7 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '@/components/ui/empty'
 
 /** Displays guidance when a list has no visible records. */
 export function EmptyState({
@@ -18,15 +18,15 @@ export function EmptyState({
   description,
   action,
 }: {
-  children: ReactNode;
-  icon?: LucideIcon;
-  description?: ReactNode;
-  action?: { label: string; onClick: () => void; icon?: LucideIcon; requiresEdit?: boolean };
+  children: ReactNode
+  icon?: LucideIcon
+  description?: ReactNode
+  action?: { label: string; onClick: () => void; icon?: LucideIcon; requiresEdit?: boolean }
 }) {
-  const canEdit = useCanEdit();
-  const showAction = action && (canEdit || !action.requiresEdit);
-  const EmptyIcon = icon;
-  const ActionIcon = action?.icon;
+  const canEdit = useCanEdit()
+  const showAction = action && (canEdit || !action.requiresEdit)
+  const EmptyIcon = icon
+  const ActionIcon = action?.icon
   return (
     <Empty className="border">
       <EmptyHeader>
@@ -47,5 +47,5 @@ export function EmptyState({
         </EmptyContent>
       )}
     </Empty>
-  );
+  )
 }

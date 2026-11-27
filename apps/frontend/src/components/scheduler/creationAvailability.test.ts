@@ -1,16 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest'
 import {
   resolveCreationBlockReason,
   resolveEffectiveWorkingDays,
   isAllocationMoveStartBlocked,
   isCreationStartBlocked,
-} from './creationAvailability';
-import type { Closure, Resource } from '@capacitylens/shared/types/entities';
-import { makeResource, makeTimeOff } from '@/test/fixtures';
+} from './creationAvailability'
+import type { Closure, Resource } from '@capacitylens/shared/types/entities'
+import { makeResource, makeTimeOff } from '@/test/fixtures'
 
-const person = makeResource({ name: 'Bruce Wayne' });
+const person = makeResource({ name: 'Bruce Wayne' })
 
-const holiday = makeTimeOff({ startDate: '2026-06-03', endDate: '2026-06-04' });
+const holiday = makeTimeOff({ startDate: '2026-06-03', endDate: '2026-06-04' })
 const companyClosure: Closure = {
   id: 'closure',
   companyId: 'a1',
@@ -19,17 +19,17 @@ const companyClosure: Closure = {
   name: 'Company shutdown',
   startDate: '2026-06-03',
   endDate: '2026-06-04',
-};
+}
 
 describe('creation start availability', () => {
   it('intersects the company and personal calendars for allocation gestures', () => {
     expect(
-      resolveEffectiveWorkingDays({ ...person, workingDays: [1, 2, 4, 5] }, [1, 2, 3, 4]),
-    ).toEqual([1, 2, 4]);
-  });
+      resolveEffectiveWorkingDays({ ...person, workingDays: [1, 2, 4, 5] }, [1, 2, 3, 4])
+    ).toEqual([1, 2, 4])
+  })
 
   it('rejects either working-day closure on move unless the allocation ignores working days', () => {
-    const personalTuesdayThursday = { ...person, workingDays: [2, 4] as Resource['workingDays'] };
+    const personalTuesdayThursday = { ...person, workingDays: [2, 4] as Resource['workingDays'] }
 
     expect(
       isAllocationMoveStartBlocked({
@@ -37,25 +37,25 @@ describe('creation start availability', () => {
         date: '2026-06-01',
         companyWorkingDays: [1, 2, 3, 4, 5],
         ignoreWorkingDays: false,
-      }),
-    ).toBe(true);
+      })
+    ).toBe(true)
     expect(
       isAllocationMoveStartBlocked({
         resource: personalTuesdayThursday,
         date: '2026-06-04',
         companyWorkingDays: [1, 2, 3],
         ignoreWorkingDays: false,
-      }),
-    ).toBe(true);
+      })
+    ).toBe(true)
     expect(
       isAllocationMoveStartBlocked({
         resource: personalTuesdayThursday,
         date: '2026-06-04',
         companyWorkingDays: [1, 2, 3],
         ignoreWorkingDays: true,
-      }),
-    ).toBe(false);
-  });
+      })
+    ).toBe(false)
+  })
   it('blocks global non-working, personal non-working and time-off dates', () => {
     expect(
       isCreationStartBlocked({
@@ -64,8 +64,8 @@ describe('creation start availability', () => {
         timeOff: [],
         companyWorkingDays: [2, 3, 4, 5],
         closures: [],
-      }),
-    ).toBe(true);
+      })
+    ).toBe(true)
     expect(
       isCreationStartBlocked({
         resource: person,
@@ -73,8 +73,8 @@ describe('creation start availability', () => {
         timeOff: [],
         companyWorkingDays: [0, 1, 2, 3, 4, 5, 6],
         closures: [],
-      }),
-    ).toBe(true);
+      })
+    ).toBe(true)
     expect(
       isCreationStartBlocked({
         resource: person,
@@ -82,8 +82,8 @@ describe('creation start availability', () => {
         timeOff: [holiday],
         companyWorkingDays: [1, 2, 3, 4, 5],
         closures: [],
-      }),
-    ).toBe(true);
+      })
+    ).toBe(true)
     expect(
       isCreationStartBlocked({
         resource: person,
@@ -91,12 +91,12 @@ describe('creation start availability', () => {
         timeOff: [holiday],
         companyWorkingDays: [1, 2, 3, 4, 5],
         closures: [],
-      }),
-    ).toBe(false);
-  });
+      })
+    ).toBe(false)
+  })
   it('applies the company boundary to externals without inventing personal capacity', () => {
-    const external: Resource = { ...person, kind: 'external', workingDays: [] };
-    expect(resolveEffectiveWorkingDays(external, [2, 3, 4, 5])).toEqual([2, 3, 4, 5]);
+    const external: Resource = { ...person, kind: 'external', workingDays: [] }
+    expect(resolveEffectiveWorkingDays(external, [2, 3, 4, 5])).toEqual([2, 3, 4, 5])
     expect(
       isCreationStartBlocked({
         resource: external,
@@ -104,8 +104,8 @@ describe('creation start availability', () => {
         timeOff: [],
         companyWorkingDays: [2, 3, 4, 5],
         closures: [],
-      }),
-    ).toBe(true);
+      })
+    ).toBe(true)
     expect(
       isCreationStartBlocked({
         resource: external,
@@ -113,8 +113,8 @@ describe('creation start availability', () => {
         timeOff: [],
         companyWorkingDays: [1, 2, 3, 4, 5],
         closures: [],
-      }),
-    ).toBe(false);
+      })
+    ).toBe(false)
 
     expect(
       isCreationStartBlocked({
@@ -123,11 +123,11 @@ describe('creation start availability', () => {
         timeOff: [holiday],
         companyWorkingDays: [1, 2, 3, 4, 5],
         closures: [],
-      }),
-    ).toBe(false);
-  });
+      })
+    ).toBe(false)
+  })
   it('does not apply company closures to external resources', () => {
-    const external: Resource = { ...person, kind: 'external', workingDays: [] };
+    const external: Resource = { ...person, kind: 'external', workingDays: [] }
 
     expect(
       isCreationStartBlocked({
@@ -136,8 +136,8 @@ describe('creation start availability', () => {
         timeOff: [],
         companyWorkingDays: [1, 2, 3, 4, 5],
         closures: [companyClosure],
-      }),
-    ).toBe(false);
+      })
+    ).toBe(false)
     expect(
       resolveCreationBlockReason({
         resource: external,
@@ -146,9 +146,9 @@ describe('creation start availability', () => {
         companyWorkingDays: [1, 2, 3, 4, 5],
         ignoreWorkingDays: true,
         closures: [companyClosure],
-      }),
-    ).toBe(null);
-  });
+      })
+    ).toBe(null)
+  })
   it('names which rule blocked the start, and scopes time off to the resource asked about', () => {
     expect(
       resolveCreationBlockReason({
@@ -158,8 +158,8 @@ describe('creation start availability', () => {
         companyWorkingDays: [2, 3, 4, 5],
         ignoreWorkingDays: undefined,
         closures: [],
-      }),
-    ).toBe('non-working');
+      })
+    ).toBe('non-working')
     expect(
       resolveCreationBlockReason({
         resource: person,
@@ -168,8 +168,8 @@ describe('creation start availability', () => {
         companyWorkingDays: [1, 2, 3, 4, 5],
         ignoreWorkingDays: undefined,
         closures: [],
-      }),
-    ).toBe('time-off');
+      })
+    ).toBe('time-off')
     expect(
       resolveCreationBlockReason({
         resource: person,
@@ -178,8 +178,8 @@ describe('creation start availability', () => {
         companyWorkingDays: [1, 2, 3, 4, 5],
         ignoreWorkingDays: undefined,
         closures: [],
-      }),
-    ).toBe(null);
+      })
+    ).toBe(null)
 
     expect(
       resolveCreationBlockReason({
@@ -189,8 +189,8 @@ describe('creation start availability', () => {
         companyWorkingDays: [1, 2, 3, 4, 5],
         ignoreWorkingDays: undefined,
         closures: [],
-      }),
-    ).toBe(null);
+      })
+    ).toBe(null)
 
     expect(
       resolveCreationBlockReason({
@@ -200,14 +200,14 @@ describe('creation start availability', () => {
         companyWorkingDays: [1, 2, 3, 4, 5],
         ignoreWorkingDays: true,
         closures: [],
-      }),
-    ).toBe('time-off');
-  });
-});
+      })
+    ).toBe('time-off')
+  })
+})
 
 describe('#257 characterization: creation and move check boundaries', () => {
   it('keeps a creation start blocked where the existing-allocation move override is allowed', () => {
-    const companyMondayToThursday = [1, 2, 3, 4] as Resource['workingDays'];
+    const companyMondayToThursday = [1, 2, 3, 4] as Resource['workingDays']
 
     expect(
       resolveCreationBlockReason({
@@ -217,8 +217,8 @@ describe('#257 characterization: creation and move check boundaries', () => {
         companyWorkingDays: companyMondayToThursday,
         ignoreWorkingDays: true,
         closures: [],
-      }),
-    ).toBe(null);
+      })
+    ).toBe(null)
     expect(
       isCreationStartBlocked({
         resource: person,
@@ -226,12 +226,12 @@ describe('#257 characterization: creation and move check boundaries', () => {
         timeOff: [],
         companyWorkingDays: companyMondayToThursday,
         closures: [],
-      }),
-    ).toBe(true);
-  });
+      })
+    ).toBe(true)
+  })
 
   it('returns time-off when the override bypasses both working-day calendars', () => {
-    const fridayHoliday = makeTimeOff({ startDate: '2026-06-05', endDate: '2026-06-05' });
+    const fridayHoliday = makeTimeOff({ startDate: '2026-06-05', endDate: '2026-06-05' })
 
     expect(
       resolveCreationBlockReason({
@@ -241,9 +241,9 @@ describe('#257 characterization: creation and move check boundaries', () => {
         companyWorkingDays: [1, 2, 3, 4],
         ignoreWorkingDays: true,
         closures: [],
-      }),
-    ).toBe('time-off');
-  });
+      })
+    ).toBe('time-off')
+  })
 
   it('never lets the override bypass a company closure', () => {
     expect(
@@ -254,7 +254,7 @@ describe('#257 characterization: creation and move check boundaries', () => {
         companyWorkingDays: [1, 2],
         ignoreWorkingDays: true,
         closures: [companyClosure],
-      }),
-    ).toBe('time-off');
-  });
-});
+      })
+    ).toBe('time-off')
+  })
+})

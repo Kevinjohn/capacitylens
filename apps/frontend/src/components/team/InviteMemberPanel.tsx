@@ -1,35 +1,35 @@
-import { m } from '@/i18n';
-import { APP_NAME } from '@capacitylens/shared/brand';
-import type { InvitationRole } from '@capacitylens/shared/account/types';
-import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamInvitation } from '@/account/teamAccessApi';
-import { formatInviteExpiryDate } from '@/components/invitations/inviteExpiry';
-import { resolveRoleLabel, resolveRoleSummary } from '@/lib/accessCopy';
-import { FormDialog, SelectField, TextField } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { FieldError, FieldSet } from '@/components/ui/field';
-import { sortInvitationsForPresentation } from './buildMemberDirectoryPresentation';
+import { m } from '@/i18n'
+import { APP_NAME } from '@capacitylens/shared/brand'
+import type { InvitationRole } from '@capacitylens/shared/account/types'
+import type { Role } from '@capacitylens/shared/domain/access'
+import type { TeamInvitation } from '@/account/teamAccessApi'
+import { formatInviteExpiryDate } from '@/components/invitations/inviteExpiry'
+import { resolveRoleLabel, resolveRoleSummary } from '@/lib/accessCopy'
+import { FormDialog, SelectField, TextField } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { FieldError, FieldSet } from '@/components/ui/field'
+import { sortInvitationsForPresentation } from './buildMemberDirectoryPresentation'
 
 type InviteMemberPanelProps = {
-  busy: boolean;
-  inviteRole: InvitationRole;
-  setInviteRole(role: InvitationRole): void;
-  invitationPreauthorizedEmail: string;
-  setInvitationPreauthorizedEmail(value: string): void;
-  error: string | null;
-  errorField: string | null;
-  errorId: string;
-  clear(): void;
-  inviteDialogOpen: boolean;
-  openInviteDialog(): void;
-  closeInviteDialog(): void;
-  submitInvite(): Promise<void>;
-  invites: readonly TeamInvitation[];
-  renderedAt: number;
-  revokeInvite(id: string): Promise<void>;
-  resendInvite(invitation: TeamInvitation): Promise<void>;
-  roleOptions: { value: Role; label: string }[];
-};
+  busy: boolean
+  inviteRole: InvitationRole
+  setInviteRole(role: InvitationRole): void
+  invitationPreauthorizedEmail: string
+  setInvitationPreauthorizedEmail(value: string): void
+  error: string | null
+  errorField: string | null
+  errorId: string
+  clear(): void
+  inviteDialogOpen: boolean
+  openInviteDialog(): void
+  closeInviteDialog(): void
+  submitInvite(): Promise<void>
+  invites: readonly TeamInvitation[]
+  renderedAt: number
+  revokeInvite(id: string): Promise<void>
+  resendInvite(invitation: TeamInvitation): Promise<void>
+  roleOptions: { value: Role; label: string }[]
+}
 
 /** Emails an account invitation with a permitted role, and lists the pending ones. */
 export function InviteMemberPanel(props: InviteMemberPanelProps) {
@@ -63,7 +63,7 @@ export function InviteMemberPanel(props: InviteMemberPanelProps) {
       )}
       <OutstandingInvites {...props} />
     </section>
-  );
+  )
 }
 
 function InviteHeader({ onOpen }: { onOpen: () => void }) {
@@ -76,7 +76,7 @@ function InviteHeader({ onOpen }: { onOpen: () => void }) {
         {m.settings_invite_open()}
       </Button>
     </header>
-  );
+  )
 }
 
 function InviteForm(
@@ -92,9 +92,9 @@ function InviteForm(
     | 'errorId'
     | 'clear'
     | 'roleOptions'
-  >,
+  >
 ) {
-  const { busy, inviteRole, setInviteRole, error, errorField, errorId, clear } = props;
+  const { busy, inviteRole, setInviteRole, error, errorField, errorId, clear } = props
   return (
     <FieldSet className="gap-3">
       <SelectField
@@ -122,8 +122,8 @@ function InviteForm(
         type="email"
         value={props.invitationPreauthorizedEmail}
         onChange={(next) => {
-          props.setInvitationPreauthorizedEmail(next);
-          if (errorField === 'invite') clear();
+          props.setInvitationPreauthorizedEmail(next)
+          if (errorField === 'invite') clear()
         }}
         disabled={busy}
         invalid={errorField === 'invite'}
@@ -135,14 +135,14 @@ function InviteForm(
       />
       <FieldError id={errorId}>{errorField === 'invite' ? error : null}</FieldError>
     </FieldSet>
-  );
+  )
 }
 
 function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): string {
-  if (expired) return m.settings_invite_suffix_expired();
+  if (expired) return m.settings_invite_suffix_expired()
   // Invite validity spans several days, so keep this compact row date-only while rendering the
   // date on the viewer's local calendar rather than slicing UTC.
-  return m.settings_invite_suffix_expires({ date: formatInviteExpiryDate(invitation.expiresAt) });
+  return m.settings_invite_suffix_expires({ date: formatInviteExpiryDate(invitation.expiresAt) })
 }
 
 function OutstandingInvites({
@@ -155,7 +155,7 @@ function OutstandingInvites({
   InviteMemberPanelProps,
   'invites' | 'renderedAt' | 'busy' | 'revokeInvite' | 'resendInvite'
 >) {
-  if (invites.length === 0) return null;
+  if (invites.length === 0) return null
   return (
     <section data-testid="outstanding-invites" className="flex flex-col gap-2">
       <h3 className="text-sm font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
@@ -176,7 +176,7 @@ function OutstandingInvites({
           </thead>
           <tbody>
             {sortInvitationsForPresentation(invites).map((invitation) => {
-              const expired = Date.parse(invitation.expiresAt) <= renderedAt;
+              const expired = Date.parse(invitation.expiresAt) <= renderedAt
               return (
                 <tr
                   key={invitation.id}
@@ -220,11 +220,11 @@ function OutstandingInvites({
                     </div>
                   </td>
                 </tr>
-              );
+              )
             })}
           </tbody>
         </table>
       </div>
     </section>
-  );
+  )
 }

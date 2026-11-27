@@ -1,19 +1,19 @@
 // Sessions use the kit's database-backed session registry with the idle expiry from
 // `SESSION_IDLE_EXPIRY`.
 
-import { publicOrigin } from '#config/public_origin';
-import app from '@adonisjs/core/services/app';
-import env from '#start/env';
+import { publicOrigin } from '#config/public_origin'
+import app from '@adonisjs/core/services/app'
+import env from '#start/env'
 import {
   createActionUrls,
   createMailNotifications,
   defineConfig,
-} from '@kevinjohn/adonisjs-account-kit';
+} from '@kevinjohn/adonisjs-account-kit'
 import {
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_INPUT_CODE_UNITS,
-} from '@capacitylens/shared/domain/password';
-import { SESSION_IDLE_EXPIRY } from '#config/session';
+} from '@capacitylens/shared/domain/password'
+import { SESSION_IDLE_EXPIRY } from '#config/session'
 
 export default defineConfig({
   enabled: [
@@ -56,4 +56,4 @@ export default defineConfig({
     brandName: 'CapacityLens',
   }),
   delivery: 'best-effort',
-});
+})

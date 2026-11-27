@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
-import type { ISODate } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { DateField } from '@/components/common/ui';
+import type { ReactNode } from 'react'
+import type { ISODate } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { DateField } from '@/components/common/ui'
 
 /** Keeps compound controls and their supporting text inside the shared 75% control column. */
 export function AllocationControlColumn({ children }: { children: ReactNode }) {
@@ -13,7 +13,7 @@ export function AllocationControlColumn({ children }: { children: ReactNode }) {
       <span aria-hidden="true" className="hidden sm:block" />
       <div className="flex min-w-0 flex-col gap-1.5">{children}</div>
     </div>
-  );
+  )
 }
 
 /** The scheduling controls are the one deliberate exception to the dialog's 25/75 rows. */
@@ -22,9 +22,9 @@ export function AllocationSpanRow({
   hint,
   columns,
 }: {
-  children: ReactNode;
-  hint?: ReactNode;
-  columns: 2 | 3;
+  children: ReactNode
+  hint?: ReactNode
+  columns: 2 | 3
 }) {
   return (
     <div data-allocation-span-row className="flex min-w-0 flex-col gap-1.5">
@@ -36,7 +36,7 @@ export function AllocationSpanRow({
       </div>
       {hint}
     </div>
-  );
+  )
 }
 
 /** Renders the literal date range and associates both endpoints with the same range-validation error. */
@@ -48,12 +48,12 @@ export function DateRangeFields({
   invalid,
   describedById,
 }: {
-  startDate: ISODate;
-  endDate: ISODate;
-  onStartChange: (value: ISODate) => void;
-  onEndChange: (value: ISODate) => void;
-  invalid: boolean;
-  describedById?: string;
+  startDate: ISODate
+  endDate: ISODate
+  onStartChange: (value: ISODate) => void
+  onEndChange: (value: ISODate) => void
+  invalid: boolean
+  describedById?: string
 }) {
   return (
     <>
@@ -74,5 +74,5 @@ export function DateRangeFields({
         {...(describedById ? { describedById } : {})}
       />
     </>
-  );
+  )
 }

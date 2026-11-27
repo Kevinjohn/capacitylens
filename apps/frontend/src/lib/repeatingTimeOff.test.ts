@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { resolveTimeOffRepeatPattern } from './repeatingTimeOff';
+import { describe, expect, it } from 'vitest'
+import { resolveTimeOffRepeatPattern } from './repeatingTimeOff'
 
 describe('resolveTimeOffRepeatPattern', () => {
   it('maps every visible cadence to a shared calendar rule', () => {
@@ -17,6 +17,6 @@ describe('resolveTimeOffRepeatPattern', () => {
       { kind: 'weeks', interval: 4 },
       { kind: 'monthly-date' },
       { kind: 'monthly-last-weekday' },
-    ]);
-  });
-});
+    ])
+  })
+})

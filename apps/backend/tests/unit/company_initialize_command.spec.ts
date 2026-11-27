@@ -1,132 +1,132 @@
-import { test } from '@japa/runner';
+import { test } from '@japa/runner'
 import {
   assertSafeFailure,
   operatorFixture,
   withOperatorServer,
-} from '#tests/helpers/operator_command_helpers';
-import { writeSmokeSchedule } from '@capacitylens/tooling/smokeSchedule';
-import { initializeArgs, insertAdmittedUser } from '#tests/helpers/unit/operator_databases';
+} from '#tests/helpers/operator_command_helpers'
+import { writeSmokeSchedule } from '@capacitylens/tooling/smokeSchedule'
+import { initializeArgs, insertAdmittedUser } from '#tests/helpers/unit/operator_databases'
 
 test.group('company initialize command', () => {
   test('company initialization creates canonical defaults and refuses a second setup without changes', ({
     assert,
     test: t,
   }) => {
-    t.timeout(90000);
-    const f = operatorFixture();
+    t.timeout(90000)
+    const f = operatorFixture()
     try {
-      assert.equal(f.command(['app:upgrade']).status, 0);
-      const database = f.inspect();
-      insertAdmittedUser(database);
-      database.close();
-      const result = f.command(initializeArgs);
-      assert.equal(result.status, 0, result.output);
-      const { companyId } = JSON.parse(result.stdout.trim());
-      const inspect = f.inspect();
-      const company = inspect.prepare('SELECT * FROM companies').get()!;
-      assert.equal(company.id, companyId);
-      assert.equal(company.name, 'Wayne Enterprises');
-      assert.equal(company.week_starts_on, '1');
-      assert.equal(company.working_days, '[1,2,3,4,5]');
-      assert.equal(company.timezone, 'Etc/GMT');
-      assert.equal(inspect.prepare('SELECT builtin FROM clients').get()!.builtin, 1);
+      assert.equal(f.command(['app:upgrade']).status, 0)
+      const database = f.inspect()
+      insertAdmittedUser(database)
+      database.close()
+      const result = f.command(initializeArgs)
+      assert.equal(result.status, 0, result.output)
+      const { companyId } = JSON.parse(result.stdout.trim())
+      const inspect = f.inspect()
+      const company = inspect.prepare('SELECT * FROM companies').get()!
+      assert.equal(company.id, companyId)
+      assert.equal(company.name, 'Wayne Enterprises')
+      assert.equal(company.week_starts_on, '1')
+      assert.equal(company.working_days, '[1,2,3,4,5]')
+      assert.equal(company.timezone, 'Etc/GMT')
+      assert.equal(inspect.prepare('SELECT builtin FROM clients').get()!.builtin, 1)
       assert.deepInclude(inspect.prepare('SELECT * FROM memberships').get()!, {
         user_id: 'bruce',
         role: 'owner',
         status: 'active',
-      });
+      })
       assert.equal(
         inspect.prepare('SELECT revision FROM company_planning_revisions').get()!.revision,
         1
-      );
-      const before = inspect.prepare('SELECT * FROM companies').all();
-      inspect.close();
-      assert.notEqual(f.command(initializeArgs).status, 0);
-      const after = f.inspect();
-      assert.deepEqual(after.prepare('SELECT * FROM companies').all(), before);
-      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
+      )
+      const before = inspect.prepare('SELECT * FROM companies').all()
+      inspect.close()
+      assert.notEqual(f.command(initializeArgs).status, 0)
+      const after = f.inspect()
+      assert.deepEqual(after.prepare('SELECT * FROM companies').all(), before)
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1)
       assert.equal(
         after.prepare('SELECT password FROM users').get()!.password,
         'existing-credential'
-      );
-      after.close();
+      )
+      after.close()
     } finally {
-      f.cleanup();
+      f.cleanup()
     }
-  });
+  })
 
   test('company initialization refuses missing intent, missing user and concurrent writer', ({
     assert,
     test: t,
   }) => {
-    t.timeout(90000);
-    const f = operatorFixture();
+    t.timeout(90000)
+    const f = operatorFixture()
     try {
-      assert.equal(f.command(['app:upgrade']).status, 0);
-      assert.notEqual(f.command(initializeArgs.slice(0, -1)).status, 0);
-      assert.notEqual(f.command(initializeArgs).status, 0);
-      const database = f.inspect();
-      insertAdmittedUser(database);
-      database.exec('BEGIN IMMEDIATE');
-      const locked = f.command(initializeArgs);
-      assertSafeFailure(assert, locked, /Another process holds/);
-      database.exec('ROLLBACK');
-      assert.equal(database.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0);
-      database.close();
+      assert.equal(f.command(['app:upgrade']).status, 0)
+      assert.notEqual(f.command(initializeArgs.slice(0, -1)).status, 0)
+      assert.notEqual(f.command(initializeArgs).status, 0)
+      const database = f.inspect()
+      insertAdmittedUser(database)
+      database.exec('BEGIN IMMEDIATE')
+      const locked = f.command(initializeArgs)
+      assertSafeFailure(assert, locked, /Another process holds/)
+      database.exec('ROLLBACK')
+      assert.equal(database.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0)
+      database.close()
     } finally {
-      f.cleanup();
+      f.cleanup()
     }
-  });
+  })
 
   test('company initialization runs through the Account Kit transaction runner', ({
     assert,
     test: t,
   }) => {
-    t.timeout(90000);
-    const f = operatorFixture();
+    t.timeout(90000)
+    const f = operatorFixture()
     try {
-      assert.equal(f.command(['app:upgrade']).status, 0);
-      const database = f.inspect();
-      insertAdmittedUser(database);
+      assert.equal(f.command(['app:upgrade']).status, 0)
+      const database = f.inspect()
+      insertAdmittedUser(database)
       // Only the Kit runner touches the singleton lock row, so its absence is the one difference
       // between the refused run and the successful one. The command redacts the runner's message.
-      database.prepare('DELETE FROM account_transaction_lock').run();
-      database.close();
-      const refused = f.command(initializeArgs);
-      assert.notEqual(refused.status, 0, refused.output);
-      const after = f.inspect();
+      database.prepare('DELETE FROM account_transaction_lock').run()
+      database.close()
+      const refused = f.command(initializeArgs)
+      assert.notEqual(refused.status, 0, refused.output)
+      const after = f.inspect()
       for (const table of ['companies', 'memberships', 'audit_entries'])
-        assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
-      after.prepare('INSERT INTO account_transaction_lock (id, version) VALUES (1, 0)').run();
-      after.close();
-      const initialized = f.command(initializeArgs);
-      assert.equal(initialized.status, 0, initialized.output);
-      const created = f.inspect();
-      assert.equal(created.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
-      created.close();
+        assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0)
+      after.prepare('INSERT INTO account_transaction_lock (id, version) VALUES (1, 0)').run()
+      after.close()
+      const initialized = f.command(initializeArgs)
+      assert.equal(initialized.status, 0, initialized.output)
+      const created = f.inspect()
+      assert.equal(created.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1)
+      created.close()
     } finally {
-      f.cleanup();
+      f.cleanup()
     }
-  });
+  })
 
   test('company initialization rolls back every row if its audit cannot be recorded', ({
     assert,
     test: t,
   }) => {
-    t.timeout(90000);
-    const f = operatorFixture();
+    t.timeout(90000)
+    const f = operatorFixture()
     try {
-      assert.equal(f.command(['app:upgrade']).status, 0);
-      const database = f.inspect();
-      insertAdmittedUser(database);
+      assert.equal(f.command(['app:upgrade']).status, 0)
+      const database = f.inspect()
+      insertAdmittedUser(database)
       database.exec(
         "CREATE TRIGGER fail_company_audit BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'private database detail'); END"
-      );
-      database.close();
-      const result = f.command(initializeArgs);
-      assert.notEqual(result.status, 0);
-      assert.notInclude(result.output, 'private database detail');
-      const inspect = f.inspect();
+      )
+      database.close()
+      const result = f.command(initializeArgs)
+      assert.notEqual(result.status, 0)
+      assert.notInclude(result.output, 'private database detail')
+      const inspect = f.inspect()
       for (const table of [
         'companies',
         'clients',
@@ -134,24 +134,24 @@ test.group('company initialize command', () => {
         'company_planning_revisions',
         'audit_entries',
       ])
-        assert.equal(inspect.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
-      inspect.close();
+        assert.equal(inspect.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0)
+      inspect.close()
     } finally {
-      f.cleanup();
+      f.cleanup()
     }
-  });
+  })
 
   test('company initialization rejects invalid input and unconfirmed or unadmitted identities', ({
     assert,
     test: t,
   }) => {
-    t.timeout(90000);
-    const f = operatorFixture();
+    t.timeout(90000)
+    const f = operatorFixture()
     try {
-      assert.equal(f.command(['app:upgrade']).status, 0);
-      const database = f.inspect();
-      insertAdmittedUser(database);
-      database.close();
+      assert.equal(f.command(['app:upgrade']).status, 0)
+      const database = f.inspect()
+      insertAdmittedUser(database)
+      database.close()
       assert.notEqual(
         f.command([
           'company:initialize',
@@ -160,92 +160,92 @@ test.group('company initialize command', () => {
           '--confirm-server-stopped',
         ]).status,
         0
-      );
+      )
       assert.notEqual(
         f.command(['company:initialize', 'bruce@wayne.example', ' ', '--confirm-server-stopped'])
           .status,
         0
-      );
+      )
       for (const name of ['Wayne😀', 'W'.repeat(101)]) {
         const refusedName = f.command([
           'company:initialize',
           'bruce@wayne.example',
           name,
           '--confirm-server-stopped',
-        ]);
-        assert.notEqual(refusedName.status, 0);
+        ])
+        assert.notEqual(refusedName.status, 0)
       }
-      const inspect = f.inspect();
-      inspect.prepare('UPDATE users SET password = NULL').run();
-      inspect.close();
-      const noFactor = f.command(initializeArgs);
-      assert.notEqual(noFactor.status, 0);
-      assert.match(noFactor.output, /no enabled sign-in method/);
-      const unconfirmed = f.inspect();
+      const inspect = f.inspect()
+      inspect.prepare('UPDATE users SET password = NULL').run()
+      inspect.close()
+      const noFactor = f.command(initializeArgs)
+      assert.notEqual(noFactor.status, 0)
+      assert.match(noFactor.output, /no enabled sign-in method/)
+      const unconfirmed = f.inspect()
       unconfirmed
         .prepare("UPDATE users SET password = 'credential', unverified_email = email")
-        .run();
-      unconfirmed.close();
-      const pending = f.command(initializeArgs);
-      assert.notEqual(pending.status, 0);
-      assert.match(pending.output, /has not confirmed its email/);
-      const unadmitted = f.inspect();
-      unadmitted.prepare('UPDATE users SET unverified_email = NULL').run();
-      unadmitted.prepare('DELETE FROM account_admissions').run();
-      unadmitted.close();
-      const refused = f.command(initializeArgs);
-      assert.notEqual(refused.status, 0);
-      assert.match(refused.output, /is not admitted/);
-      const after = f.inspect();
-      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0);
-      after.close();
+        .run()
+      unconfirmed.close()
+      const pending = f.command(initializeArgs)
+      assert.notEqual(pending.status, 0)
+      assert.match(pending.output, /has not confirmed its email/)
+      const unadmitted = f.inspect()
+      unadmitted.prepare('UPDATE users SET unverified_email = NULL').run()
+      unadmitted.prepare('DELETE FROM account_admissions').run()
+      unadmitted.close()
+      const refused = f.command(initializeArgs)
+      assert.notEqual(refused.status, 0)
+      assert.match(refused.output, /is not admitted/)
+      const after = f.inspect()
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0)
+      after.close()
     } finally {
-      f.cleanup();
+      f.cleanup()
     }
-  });
+  })
 
   test('the bootstrap invitation then stopped-server initialization opens one Owner company', async ({
     assert,
     test: t,
   }) => {
-    t.timeout(90000);
-    const f = operatorFixture();
-    const credentials = { email: 'bruce@wayne.example', password: 'native-first-owner-2026' };
+    t.timeout(90000)
+    const f = operatorFixture()
+    const credentials = { email: 'bruce@wayne.example', password: 'native-first-owner-2026' }
     try {
-      assert.equal(f.command(['app:upgrade']).status, 0);
+      assert.equal(f.command(['app:upgrade']).status, 0)
       const bootstrap = f.command([
         'account-kit:admission:bootstrap',
         credentials.email,
         '--role=viewer',
-      ]);
-      assert.equal(bootstrap.status, 0, bootstrap.output);
-      const { url } = JSON.parse(bootstrap.stdout.trim()) as { url: string };
-      const token = new URL(url).pathname.split('/').at(-1)!;
+      ])
+      assert.equal(bootstrap.status, 0, bootstrap.output)
+      const { url } = JSON.parse(bootstrap.stdout.trim()) as { url: string }
+      const token = new URL(url).pathname.split('/').at(-1)!
       await withOperatorServer(f, async (origin) => {
         const accepted = await fetch(`${origin}/api/v1/invitations/${token}/sign-up`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({ password: credentials.password, name: 'Bruce Wayne' }),
-        });
-        assert.equal(accepted.status, 201, await accepted.text());
-      });
-      const initialized = f.command(initializeArgs);
-      assert.equal(initialized.status, 0, initialized.output);
-      const { companyId } = JSON.parse(initialized.stdout.trim());
+        })
+        assert.equal(accepted.status, 201, await accepted.text())
+      })
+      const initialized = f.command(initializeArgs)
+      assert.equal(initialized.status, 0, initialized.output)
+      const { companyId } = JSON.parse(initialized.stdout.trim())
       await withOperatorServer(f, async (origin) => {
         const signin = await fetch(`${origin}/api/v1/auth/sign-in`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify(credentials),
-        });
-        assert.equal(signin.status, 200, await signin.text());
+        })
+        assert.equal(signin.status, 200, await signin.text())
         const cookie = signin.headers
           .getSetCookie()
           .map((value) => value.split(';', 1)[0])
-          .join('; ');
-        const me = await fetch(`${origin}/api/v1/auth/me`, { headers: { cookie } });
-        assert.equal(me.status, 200);
-        const companies = await fetch(`${origin}/api/v1/companies`, { headers: { cookie } });
+          .join('; ')
+        const me = await fetch(`${origin}/api/v1/auth/me`, { headers: { cookie } })
+        assert.equal(me.status, 200)
+        const companies = await fetch(`${origin}/api/v1/companies`, { headers: { cookie } })
         assert.deepEqual(((await companies.json()) as { data: unknown }).data, [
           {
             id: companyId,
@@ -267,73 +267,73 @@ test.group('company initialize command', () => {
             canSeePrivateNames: true,
             canSeeTimeOffNote: true,
           },
-        ]);
+        ])
         const state = await fetch(
           `${origin}/api/v1/state?companyId=${encodeURIComponent(companyId)}`,
           {
             headers: { cookie },
           }
-        );
-        assert.equal(state.status, 200);
+        )
+        assert.equal(state.status, 200)
         const { data } = (await state.json()) as {
           data: {
-            clients: { builtin: boolean }[];
-            companies: { weekStartsOn: number; workingDays: number[] }[];
-          };
-        };
-        assert.deepEqual(data.companies[0]!.workingDays, [1, 2, 3, 4, 5]);
-        assert.equal(data.companies[0]!.weekStartsOn, 1);
-        assert.lengthOf(data.clients, 1);
-        assert.equal(data.clients[0]!.builtin, true);
-        const modeResponse = await fetch(`${origin}/api/v1/masquerade`, { headers: { cookie } });
-        const modeBody = await modeResponse.text();
-        assert.equal(modeResponse.status, 200, modeBody);
-        const { data: mode } = JSON.parse(modeBody) as { data: { masqueradeToken?: unknown } };
-        assert.isString(mode.masqueradeToken);
-        const { seed } = await import('@capacitylens/shared/data/seed');
+            clients: { builtin: boolean }[]
+            companies: { weekStartsOn: number; workingDays: number[] }[]
+          }
+        }
+        assert.deepEqual(data.companies[0]!.workingDays, [1, 2, 3, 4, 5])
+        assert.equal(data.companies[0]!.weekStartsOn, 1)
+        assert.lengthOf(data.clients, 1)
+        assert.equal(data.clients[0]!.builtin, true)
+        const modeResponse = await fetch(`${origin}/api/v1/masquerade`, { headers: { cookie } })
+        const modeBody = await modeResponse.text()
+        assert.equal(modeResponse.status, 200, modeBody)
+        const { data: mode } = JSON.parse(modeBody) as { data: { masqueradeToken?: unknown } }
+        assert.isString(mode.masqueradeToken)
+        const { seed } = await import('@capacitylens/shared/data/seed')
         const { allocation } = await writeSmokeSchedule(
           origin,
           cookie,
           companyId,
           seed(),
           mode.masqueradeToken as string
-        );
-        const persisted = f.inspect();
+        )
+        const persisted = f.inspect()
         assert.equal(
           persisted
             .prepare('SELECT hours_per_day FROM allocations WHERE id = ?')
             .get(allocation.id)!.hours_per_day,
           7.5
-        );
-        persisted.close();
-      });
-      assert.notEqual(f.command(initializeArgs).status, 0);
-      const after = f.inspect();
-      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 1);
-      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
-      after.close();
+        )
+        persisted.close()
+      })
+      assert.notEqual(f.command(initializeArgs).status, 0)
+      const after = f.inspect()
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 1)
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1)
+      after.close()
     } finally {
-      f.cleanup();
+      f.cleanup()
     }
-  }).timeout(90000);
+  }).timeout(90000)
 
   test('company initialization refuses a database missing a shipped migration record', ({
     assert,
     test: t,
   }) => {
-    t.timeout(90000);
-    const f = operatorFixture();
+    t.timeout(90000)
+    const f = operatorFixture()
     try {
-      assert.equal(f.command(['app:upgrade']).status, 0);
-      const database = f.inspect();
-      insertAdmittedUser(database);
-      const users = database.prepare('SELECT * FROM users').all();
-      database.exec('DELETE FROM adonis_schema');
-      database.close();
-      const refused = f.command(initializeArgs);
-      assertSafeFailure(assert, refused, /Database schema is not current/);
-      const after = f.inspect();
-      assert.deepEqual(after.prepare('SELECT * FROM users').all(), users);
+      assert.equal(f.command(['app:upgrade']).status, 0)
+      const database = f.inspect()
+      insertAdmittedUser(database)
+      const users = database.prepare('SELECT * FROM users').all()
+      database.exec('DELETE FROM adonis_schema')
+      database.close()
+      const refused = f.command(initializeArgs)
+      assertSafeFailure(assert, refused, /Database schema is not current/)
+      const after = f.inspect()
+      assert.deepEqual(after.prepare('SELECT * FROM users').all(), users)
       for (const table of [
         'companies',
         'clients',
@@ -341,10 +341,10 @@ test.group('company initialize command', () => {
         'audit_entries',
         'company_planning_revisions',
       ])
-        assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
-      after.close();
+        assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0)
+      after.close()
     } finally {
-      f.cleanup();
+      f.cleanup()
     }
-  });
-});
+  })
+})

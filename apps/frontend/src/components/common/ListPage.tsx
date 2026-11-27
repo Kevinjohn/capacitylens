@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { m } from '@/i18n';
-import { AddButton } from './crudButtons';
+import type { ReactNode } from 'react'
+import { m } from '@/i18n'
+import { AddButton } from './crudButtons'
 
 /** Provides the shared title, actions, and content layout for list views. */
 export function ListPage({
@@ -10,11 +10,11 @@ export function ListPage({
   wide = false,
   children,
 }: {
-  title: string;
-  addLabel?: string;
-  onAdd?: () => void;
-  wide?: boolean;
-  children?: ReactNode;
+  title: string
+  addLabel?: string
+  onAdd?: () => void
+  wide?: boolean
+  children?: ReactNode
 }) {
   return (
     <div className={wide ? 'mx-auto max-w-4xl p-6' : 'mx-auto max-w-3xl p-6'}>
@@ -24,5 +24,5 @@ export function ListPage({
       </div>
       {children}
     </div>
-  );
+  )
 }

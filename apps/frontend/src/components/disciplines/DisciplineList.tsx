@@ -1,6 +1,6 @@
-import { useStore } from '@/store/useStore';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { useEntityListState } from '@/hooks/useEntityListState';
+import { useStore } from '@/store/useStore'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { useEntityListState } from '@/hooks/useEntityListState'
 import {
   ColorSwatch,
   ConfirmDialog,
@@ -8,27 +8,27 @@ import {
   EditButton,
   EmptyState,
   ListPage,
-} from '@/components/common/ui';
-import { NEUTRAL_COLOR } from '@/lib/palette';
-import { DisciplineForm } from './DisciplineForm';
-import type { Discipline } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { Fragment, useMemo } from 'react';
-import { Plus, Tag } from 'lucide-react';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { byName } from '@/lib/displayOrder';
-import { useConfirmDelete } from '@/hooks/useConfirmDelete';
+} from '@/components/common/ui'
+import { NEUTRAL_COLOR } from '@/lib/palette'
+import { DisciplineForm } from './DisciplineForm'
+import type { Discipline } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { Fragment, useMemo } from 'react'
+import { Plus, Tag } from 'lucide-react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { byName } from '@/lib/displayOrder'
+import { useConfirmDelete } from '@/hooks/useConfirmDelete'
 
 /** Lists scoped disciplines and their available management actions. */
 export function DisciplineList() {
-  const disciplines = useActiveScopedData().disciplines;
-  const deleteEntity = useStore((state) => state.deleteDiscipline);
+  const disciplines = useActiveScopedData().disciplines
+  const deleteEntity = useStore((state) => state.deleteDiscipline)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
-    useEntityListState<Discipline>();
-  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
+    useEntityListState<Discipline>()
+  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null))
 
   // Management is alphabetical for scanning; the scheduler deliberately keeps discipline sortOrder.
-  const sorted = useMemo(() => [...disciplines].sort(byName), [disciplines]);
+  const sorted = useMemo(() => [...disciplines].sort(byName), [disciplines])
 
   return (
     <ListPage
@@ -82,11 +82,11 @@ export function DisciplineList() {
           title={m.list_disciplines_delete_title()}
           message={m.list_disciplines_delete_message({ name: confirming.name })}
           onConfirm={() => {
-            void confirmDelete(confirming.id);
+            void confirmDelete(confirming.id)
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
     </ListPage>
-  );
+  )
 }

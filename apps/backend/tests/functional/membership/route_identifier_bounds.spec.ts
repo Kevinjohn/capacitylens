@@ -1,32 +1,32 @@
-import { test } from '@japa/runner';
-import User from '#models/user';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { resetState } from '#tests/helpers/state_fixture';
+import { test } from '@japa/runner'
+import User from '#models/user'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { resetState } from '#tests/helpers/state_fixture'
 import {
   asLoggedInDataOwner,
   createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import { clearIdentities, createIdentity } from '#tests/helpers/identities';
+} from '#tests/helpers/authenticated_data_fixture'
+import { clearIdentities, createIdentity } from '#tests/helpers/identities'
 
 const owner = {
   email: 'bruce.wayne@wayne.example',
   password: 'batman-secret-2026',
   name: 'Bruce Wayne',
-};
+}
 
 test.group('company route identifier bounds', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await resetState(false);
-    await clearIdentities();
-  });
+    await resetState(false)
+    await clearIdentities()
+  })
 
   test('identifiers longer than their route bound match no route', async ({ client }) => {
     const user = await User.findOrFail(
       await createIdentity(owner.email, { name: owner.name, password: owner.password })
-    );
-    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
-    const tooLong = 'a'.repeat(255);
+    )
+    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio')
+    const tooLong = 'a'.repeat(255)
     const refused = [
       client.visit('api.members.index', { companyId: tooLong }),
       client
@@ -42,17 +42,17 @@ test.group('company route identifier bounds', (group) => {
         .visit('api.invitation_deliveries.store', { companyId: 'a-studio', id: '1'.repeat(129) })
         .json({}),
       client.visit('api.invitations.destroy', { companyId: 'a-studio', id: '1'.repeat(129) }),
-    ];
+    ]
     for (const request of refused) {
-      const response = await asLoggedInDataOwner(request, user).send();
-      response.assertStatus(404);
+      const response = await asLoggedInDataOwner(request, user).send()
+      response.assertStatus(404)
     }
     const listed = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
       user
-    ).send();
-    listed.assertStatus(200);
-  });
+    ).send()
+    listed.assertStatus(200)
+  })
 
   test('a malformed route identifier answers the framework validation failure', async ({
     client,
@@ -60,8 +60,8 @@ test.group('company route identifier bounds', (group) => {
   }) => {
     const user = await User.findOrFail(
       await createIdentity(owner.email, { name: owner.name, password: owner.password })
-    );
-    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
+    )
+    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio')
     const refused = [
       [
         client
@@ -93,14 +93,14 @@ test.group('company route identifier bounds', (group) => {
           .json({}),
         'id',
       ],
-    ] as const;
+    ] as const
     for (const [request, param] of refused) {
-      const response = await asLoggedInDataOwner(request, user).send();
-      response.assertStatus(422);
-      const { errors } = response.body() as { errors: Array<{ field: string }> };
-      assert.equal(errors[0].field, `params.${param}`);
+      const response = await asLoggedInDataOwner(request, user).send()
+      response.assertStatus(422)
+      const { errors } = response.body() as { errors: Array<{ field: string }> }
+      assert.equal(errors[0].field, `params.${param}`)
     }
-  });
+  })
 
   test('a body that names params itself is refused, not overwritten', async ({
     client,
@@ -108,18 +108,18 @@ test.group('company route identifier bounds', (group) => {
   }) => {
     const user = await User.findOrFail(
       await createIdentity(owner.email, { name: owner.name, password: owner.password })
-    );
-    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio');
+    )
+    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio')
     const response = await asLoggedInDataOwner(
       client
         .visit('api.getting_started.update', { companyId: 'a-studio' })
         // Deliberately outside the generated body type, to reach the server's refusal.
         .json({ dismissed: true, params: { companyId: 'a-studio' } } as never),
       user
-    ).send();
-    response.assertStatus(422);
+    ).send()
+    response.assertStatus(422)
     assert.deepEqual((response.body() as unknown as { errors: unknown }).errors, [
       { message: 'Unsupported field.', rule: 'unknownField', field: 'params' },
-    ]);
-  });
-});
+    ])
+  })
+})

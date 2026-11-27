@@ -1,21 +1,21 @@
-import type { PlanningTransport } from '@/data/planning/planningCacheTypes';
-import { StubPlanningTransport } from './planning/stubPlanningTransport';
-import { setPlanningTransportHandle } from './planningTransportHandle';
+import type { PlanningTransport } from '@/data/planning/planningCacheTypes'
+import { StubPlanningTransport } from './planning/stubPlanningTransport'
+import { setPlanningTransportHandle } from './planningTransportHandle'
 
 /** Register the controlled transport returned to the fixture store, including custom response wrappers. */
 export function createTestPlanningTransport(
-  wrap: (transport: PlanningTransport) => PlanningTransport = (transport) => transport,
+  wrap: (transport: PlanningTransport) => PlanningTransport = (transport) => transport
 ): PlanningTransport {
-  const stub = new StubPlanningTransport();
+  const stub = new StubPlanningTransport()
   const transport = wrap({
     read: stub.read.bind(stub),
     execute: stub.execute.bind(stub),
     undo: stub.undo.bind(stub),
     redo: stub.redo.bind(stub),
-  });
+  })
   setPlanningTransportHandle({
     transport,
     stub,
-  });
-  return transport;
+  })
+  return transport
 }

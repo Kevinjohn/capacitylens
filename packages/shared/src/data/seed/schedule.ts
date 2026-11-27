@@ -1,5 +1,5 @@
-import type { AppData } from '../../types/entities.js';
-import { SEED_TIMESTAMP, STUDIO } from './constants.js';
+import type { AppData } from '../../types/entities.js'
+import { SEED_TIMESTAMP, STUDIO } from './constants.js'
 
 /** The seed time off and company closures. */
 export function createSchedule(): Pick<AppData, 'timeOff' | 'closures'> {
@@ -18,5 +18,5 @@ export function createSchedule(): Pick<AppData, 'timeOff' | 'closures'> {
       },
     ],
     closures: [],
-  };
+  }
 }

@@ -1,13 +1,13 @@
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
-import type { Assert } from '@japa/assert';
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+import type { Assert } from '@japa/assert'
 
 export function operatorFixture() {
-  const root = mkdtempSync(join(tmpdir(), 'capacitylens-operator-'));
-  const databasePath = join(root, 'source.db');
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-operator-'))
+  const databasePath = join(root, 'source.db')
   const environment = {
     ...process.env,
     NODE_ENV: 'test',
@@ -19,7 +19,7 @@ export function operatorFixture() {
     APP_KEY: 'capacitylens-test-key-0123456789abcdef',
     APP_URL: 'http://localhost:8787',
     LOG_LEVEL: 'fatal',
-  };
+  }
   return {
     root,
     databasePath,
@@ -34,22 +34,22 @@ export function operatorFixture() {
         encoding: 'utf8',
         timeout: 30000,
         env: { ...environment, ...overrides },
-      });
-      if (child.error) throw child.error;
+      })
+      if (child.error) throw child.error
       return {
         status: child.status,
         stdout: child.stdout,
         stderr: child.stderr,
         output: `${child.stdout}\n${child.stderr}`,
-      };
+      }
     },
     inspect() {
-      return new DatabaseSync(databasePath);
+      return new DatabaseSync(databasePath)
     },
     cleanup() {
-      rmSync(root, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true })
     },
-  };
+  }
 }
 
 /**
@@ -61,29 +61,29 @@ export function assertSafeFailure(
   result: { status: number | null; stderr: string; output: string },
   message: RegExp
 ) {
-  assert.equal(result.status, 1, result.output);
-  const lines = result.stderr.split('\n').filter((line) => line.trim() !== '');
-  assert.lengthOf(lines, 1, result.output);
-  assert.match(lines[0]!, message);
+  assert.equal(result.status, 1, result.output)
+  const lines = result.stderr.split('\n').filter((line) => line.trim() !== '')
+  assert.lengthOf(lines, 1, result.output)
+  assert.match(lines[0]!, message)
   // Ace and Youch indent stack frames, Youch behind a `⁃` marker.
-  assert.notMatch(result.output, /^[\s⁃]*at \S/m, result.output);
+  assert.notMatch(result.output, /^[\s⁃]*at \S/m, result.output)
 }
 
 export function insertOwner(database: DatabaseSync) {
-  const now = new Date().toISOString();
+  const now = new Date().toISOString()
   database
     .prepare('INSERT INTO companies (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
-    .run('a-studio', 'Wayne Enterprises', '#6366f1', now, now);
+    .run('a-studio', 'Wayne Enterprises', '#6366f1', now, now)
   database
     .prepare(
       'INSERT INTO users (id,email,email_verified_at,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
     )
-    .run('bruce', 'bruce@wayne.example', now, 'Bruce Wayne', 'old-credential', now, now);
+    .run('bruce', 'bruce@wayne.example', now, 'Bruce Wayne', 'old-credential', now, now)
   database
     .prepare(
       'INSERT INTO memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
     )
-    .run('a-studio', 'bruce', 'owner', 'active', now, now);
+    .run('a-studio', 'bruce', 'owner', 'active', now, now)
 }
 
 /** Runs `run` against a real server on the fixture database and resolves with the server's stderr. */
@@ -92,15 +92,15 @@ export async function withOperatorServer(
   run: (origin: string) => Promise<void>,
   options: { nodeArgs?: string[]; environment?: Record<string, string> } = {}
 ) {
-  const { createServer } = await import('node:net');
-  const { spawn } = await import('node:child_process');
-  const { once } = await import('node:events');
-  const server = createServer().listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const port = (server.address() as { port: number }).port;
+  const { createServer } = await import('node:net')
+  const { spawn } = await import('node:child_process')
+  const { once } = await import('node:events')
+  const server = createServer().listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const port = (server.address() as { port: number }).port
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve()))
-  );
+  )
   const child = spawn(
     process.execPath,
     [...(options.nodeArgs ?? []), '--import=@poppinss/ts-exec', 'bin/server.ts'],
@@ -114,34 +114,34 @@ export async function withOperatorServer(
       },
       stdio: ['ignore', 'ignore', 'pipe'],
     }
-  );
-  let stderr = '';
-  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
-  const exited = once(child, 'exit');
+  )
+  let stderr = ''
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk))
+  const exited = once(child, 'exit')
   try {
-    const origin = `http://127.0.0.1:${port}`;
+    const origin = `http://127.0.0.1:${port}`
     for (let attempt = 0; ; attempt++) {
       if (child.exitCode !== null || attempt >= 100)
-        throw new Error('Operator fixture server did not become ready');
+        throw new Error('Operator fixture server did not become ready')
       try {
-        const ready = await fetch(`${origin}/health/ready`);
-        if (ready.ok) break;
+        const ready = await fetch(`${origin}/health/ready`)
+        if (ready.ok) break
       } catch {
         /* Poll only the disposable fixture. */
       }
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50))
     }
-    await run(origin);
+    await run(origin)
   } finally {
-    child.kill('SIGTERM');
-    const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
+    child.kill('SIGTERM')
+    const timer = setTimeout(() => child.kill('SIGKILL'), 5000)
     try {
-      await exited;
+      await exited
     } finally {
-      clearTimeout(timer);
+      clearTimeout(timer)
     }
   }
-  return stderr;
+  return stderr
 }
 
 /**
@@ -154,5 +154,5 @@ export function scratchBackendFilter(path: string) {
     !path.endsWith('/node_modules') &&
     !path.endsWith('/build') &&
     path !== join(process.cwd(), 'tmp')
-  );
+  )
 }

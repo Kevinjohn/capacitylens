@@ -1,14 +1,14 @@
-import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password';
-import { m } from '@/i18n';
-import { FormButtons, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { FieldError } from '@/components/ui/field';
-import { useSecurityViewModel } from './useSecurityViewModel';
+import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import { m } from '@/i18n'
+import { FormButtons, FormDialog, RequiredLegend, TextField } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field'
+import { useSecurityViewModel } from './useSecurityViewModel'
 
-type ViewModel = ReturnType<typeof useSecurityViewModel>;
+type ViewModel = ReturnType<typeof useSecurityViewModel>
 
 function PasswordForm({ viewModel }: { viewModel: ViewModel }) {
-  const { fieldError, password } = viewModel;
+  const { fieldError, password } = viewModel
   return (
     <>
       <TextField
@@ -57,7 +57,7 @@ function PasswordForm({ viewModel }: { viewModel: ViewModel }) {
       )}
       <RequiredLegend />
     </>
-  );
+  )
 }
 
 function PasswordDialog({
@@ -65,12 +65,12 @@ function PasswordDialog({
   onOpenChange,
   viewModel,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  viewModel: ViewModel;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  viewModel: ViewModel
 }) {
-  const close = () => onOpenChange(false);
-  const password = viewModel.password;
+  const close = () => onOpenChange(false)
+  const password = viewModel.password
   return (
     open && (
       <FormDialog
@@ -94,7 +94,7 @@ function PasswordDialog({
         <PasswordForm viewModel={viewModel} />
       </FormDialog>
     )
-  );
+  )
 }
 
 function DeleteAccountDialog({
@@ -102,12 +102,12 @@ function DeleteAccountDialog({
   onOpenChange,
   viewModel,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  viewModel: ViewModel;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  viewModel: ViewModel
 }) {
-  const close = () => onOpenChange(false);
-  const { deletion, fieldError } = viewModel;
+  const close = () => onOpenChange(false)
+  const { deletion, fieldError } = viewModel
   return (
     open && (
       <FormDialog
@@ -149,7 +149,7 @@ function DeleteAccountDialog({
         <RequiredLegend />
       </FormDialog>
     )
-  );
+  )
 }
 
 /** Presents the signed-in identity's password change and account deletion dialogs. */
@@ -159,20 +159,20 @@ export function SecuritySection({
   deleteOpen = false,
   onDeleteOpenChange = () => {},
 }: {
-  passwordOpen?: boolean;
-  onPasswordOpenChange?: (open: boolean) => void;
-  deleteOpen?: boolean;
-  onDeleteOpenChange?: (open: boolean) => void;
+  passwordOpen?: boolean
+  onPasswordOpenChange?: (open: boolean) => void
+  deleteOpen?: boolean
+  onDeleteOpenChange?: (open: boolean) => void
 }) {
-  const viewModel = useSecurityViewModel();
+  const viewModel = useSecurityViewModel()
   const changePasswordOpen = (open: boolean) => {
-    if (!open) viewModel.password.reset();
-    onPasswordOpenChange(open);
-  };
+    if (!open) viewModel.password.reset()
+    onPasswordOpenChange(open)
+  }
   const changeDeleteOpen = (open: boolean) => {
-    if (!open) viewModel.deletion.reset();
-    onDeleteOpenChange(open);
-  };
+    if (!open) viewModel.deletion.reset()
+    onDeleteOpenChange(open)
+  }
   return (
     <>
       <PasswordDialog open={passwordOpen} onOpenChange={changePasswordOpen} viewModel={viewModel} />
@@ -182,5 +182,5 @@ export function SecuritySection({
         viewModel={viewModel}
       />
     </>
-  );
+  )
 }

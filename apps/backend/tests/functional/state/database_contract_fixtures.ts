@@ -1,14 +1,14 @@
-import { ActivityFactory } from '#database/factories/activity_factory';
-import { AllocationFactory } from '#database/factories/allocation_factory';
-import { ClientFactory } from '#database/factories/client_factory';
-import { ClosureFactory } from '#database/factories/closure_factory';
-import { DisciplineFactory } from '#database/factories/discipline_factory';
-import { PhaseFactory } from '#database/factories/phase_factory';
-import { ProjectFactory } from '#database/factories/project_factory';
-import { ResourceFactory } from '#database/factories/resource_factory';
-import { TimeOffFactory } from '#database/factories/time_off_factory';
+import { ActivityFactory } from '#database/factories/activity_factory'
+import { AllocationFactory } from '#database/factories/allocation_factory'
+import { ClientFactory } from '#database/factories/client_factory'
+import { ClosureFactory } from '#database/factories/closure_factory'
+import { DisciplineFactory } from '#database/factories/discipline_factory'
+import { PhaseFactory } from '#database/factories/phase_factory'
+import { ProjectFactory } from '#database/factories/project_factory'
+import { ResourceFactory } from '#database/factories/resource_factory'
+import { TimeOffFactory } from '#database/factories/time_off_factory'
 
-const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
+const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const
 
 export async function insertTwoCompanyFixture() {
   await ClientFactory.merge([
@@ -30,7 +30,7 @@ export async function insertTwoCompanyFixture() {
       name: 'Gotham Gazette',
       color: '#333333',
     },
-  ]).createMany(3);
+  ]).createMany(3)
   await DisciplineFactory.merge([
     {
       id: 'm1-dc-discipline',
@@ -44,7 +44,7 @@ export async function insertTwoCompanyFixture() {
       name: 'Avengers',
       sortOrder: 1,
     },
-  ]).createMany(2);
+  ]).createMany(2)
   await ProjectFactory.merge([
     {
       id: 'm1-dc-project',
@@ -67,7 +67,7 @@ export async function insertTwoCompanyFixture() {
       name: 'Stark Tower',
       color: '#222222',
     },
-  ]).createMany(3);
+  ]).createMany(3)
   await PhaseFactory.merge([
     {
       id: 'm1-dc-phase',
@@ -87,7 +87,7 @@ export async function insertTwoCompanyFixture() {
       projectId: 'm1-marvel-project',
       name: 'Research',
     },
-  ]).createMany(3);
+  ]).createMany(3)
   await ResourceFactory.merge([
     {
       id: 'm1-dc-resource',
@@ -134,7 +134,7 @@ export async function insertTwoCompanyFixture() {
       projectId: 'm1-marvel-project',
       color: '#222222',
     },
-  ]).createMany(3);
+  ]).createMany(3)
   await ActivityFactory.merge([
     {
       id: 'm1-dc-activity',
@@ -175,7 +175,7 @@ export async function insertTwoCompanyFixture() {
       projectId: 'm1-marvel-project',
       phaseId: 'm1-marvel-phase',
     },
-  ]).createMany(5);
+  ]).createMany(5)
   await AllocationFactory.merge([
     {
       id: 'm1-dc-allocation',
@@ -210,7 +210,7 @@ export async function insertTwoCompanyFixture() {
       hoursPerDay: 4,
       status: 'confirmed',
     },
-  ]).createMany(3);
+  ]).createMany(3)
   await TimeOffFactory.merge([
     {
       id: 'm1-dc-time-off',
@@ -228,19 +228,19 @@ export async function insertTwoCompanyFixture() {
       endDate: '2026-10-13',
       type: 'holiday',
     },
-  ]).createMany(2);
+  ]).createMany(2)
   await ClosureFactory.merge({
     id: 'm1-dc-closure',
     companyId: companyIds.dc,
     name: 'Gotham Founders Day',
     startDate: '2026-10-12',
     endDate: '2026-10-12',
-  }).create();
+  }).create()
   await ClosureFactory.merge({
     id: 'm1-marvel-closure',
     companyId: companyIds.marvel,
     name: 'Stark Expo',
     startDate: '2026-10-12',
     endDate: '2026-10-12',
-  }).create();
+  }).create()
 }

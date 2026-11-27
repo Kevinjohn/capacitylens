@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
-import { teamAccessApi } from '@/account/teamAccessApi';
-import type { AdmissionRequest } from '@/account/teamAccessApi';
-import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { renderWithQueryClient as render } from '@/test/renderWithQueryClient'
+import { teamAccessApi } from '@/account/teamAccessApi'
+import type { AdmissionRequest } from '@/account/teamAccessApi'
+import { AdmissionRequestsPanel } from './AdmissionRequestsPanel'
 
 const pendingRequest: AdmissionRequest = {
   userId: 'u1',
@@ -11,159 +11,159 @@ const pendingRequest: AdmissionRequest = {
   requestedAt: null,
   invitedRole: 'viewer',
   approval: 'pending',
-};
+}
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks())
 
 describe('AdmissionRequestsPanel read and refusal states', () => {
   it('shows loading until the read finishes, then allows a failed read to be retried', async () => {
-    type ListResult = Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>;
-    let finishRead!: (value: ListResult) => void;
+    type ListResult = Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>
+    let finishRead!: (value: ListResult) => void
     const firstRead = new Promise<ListResult>((resolve) => {
-      finishRead = resolve;
-    });
-    let finishRetry!: (value: ListResult) => void;
+      finishRead = resolve
+    })
+    let finishRetry!: (value: ListResult) => void
     const retryRead = new Promise<ListResult>((resolve) => {
-      finishRetry = resolve;
-    });
+      finishRetry = resolve
+    })
     const list = vi
       .spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockReturnValueOnce(firstRead)
-      .mockReturnValueOnce(retryRead);
+      .mockReturnValueOnce(retryRead)
 
-    render(<AdmissionRequestsPanel />);
-    expect(screen.getByRole('status')).toHaveTextContent('Loading');
-    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true');
+    render(<AdmissionRequestsPanel />)
+    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true')
 
-    finishRead({ kind: 'rejected', status: 503, message: 'Unavailable' });
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load');
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    finishRead({ kind: 'rejected', status: 503, message: 'Unavailable' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load')
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Loading');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true')
 
-    finishRetry({ kind: 'ok', status: 200, value: [pendingRequest] });
-    expect(await screen.findByTestId('admission-request')).toHaveTextContent(pendingRequest.email);
-    expect(list).toHaveBeenCalledTimes(2);
-    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'false');
-  });
+    finishRetry({ kind: 'ok', status: 200, value: [pendingRequest] })
+    expect(await screen.findByTestId('admission-request')).toHaveTextContent(pendingRequest.email)
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'false')
+  })
 
   it('shows loading while retrying a refresh that failed after a listing', async () => {
-    type ListResult = Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>;
-    let finishRetry!: (value: ListResult) => void;
+    type ListResult = Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>
+    let finishRetry!: (value: ListResult) => void
     const retryRead = new Promise<ListResult>((resolve) => {
-      finishRetry = resolve;
-    });
+      finishRetry = resolve
+    })
     vi.spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] })
       .mockResolvedValueOnce({ kind: 'rejected', status: 503, message: 'Unavailable' })
-      .mockReturnValueOnce(retryRead);
+      .mockReturnValueOnce(retryRead)
     vi.spyOn(teamAccessApi, 'decideAdmission').mockResolvedValue({
       kind: 'ok',
       status: 204,
       value: true,
-    });
+    })
 
-    render(<AdmissionRequestsPanel />);
-    await screen.findByTestId('admission-request');
-    fireEvent.click(screen.getByTestId('admission-approve'));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load');
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    render(<AdmissionRequestsPanel />)
+    await screen.findByTestId('admission-request')
+    fireEvent.click(screen.getByTestId('admission-approve'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load')
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Loading');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'true')
 
-    finishRetry({ kind: 'ok', status: 200, value: [] });
-    expect(await screen.findByText('Nobody is waiting for approval.')).toBeInTheDocument();
-  });
+    finishRetry({ kind: 'ok', status: 200, value: [] })
+    expect(await screen.findByText('Nobody is waiting for approval.')).toBeInTheDocument()
+  })
 
   it('explains approval only while at least one request is listed', async () => {
     const list = vi
       .spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [] })
-      .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] });
+      .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] })
 
-    const first = render(<AdmissionRequestsPanel />);
-    expect(await screen.findByText('Nobody is waiting for approval.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();
-    expect(screen.queryByText(/People who signed in and asked for access/)).not.toBeInTheDocument();
-    first.unmount();
+    const first = render(<AdmissionRequestsPanel />)
+    expect(await screen.findByText('Nobody is waiting for approval.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument()
+    expect(screen.queryByText(/People who signed in and asked for access/)).not.toBeInTheDocument()
+    first.unmount()
 
-    render(<AdmissionRequestsPanel />);
-    await screen.findByTestId('admission-request');
-    expect(screen.getByText(/People who signed in and asked for access/)).toBeInTheDocument();
-    expect(list).toHaveBeenCalledTimes(2);
-  });
+    render(<AdmissionRequestsPanel />)
+    await screen.findByTestId('admission-request')
+    expect(screen.getByText(/People who signed in and asked for access/)).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(2)
+  })
 
   it('shows a decision refusal and keeps the request available', async () => {
     const list = vi
       .spyOn(teamAccessApi, 'listAdmissionRequests')
-      .mockResolvedValue({ kind: 'ok', status: 200, value: [pendingRequest] });
+      .mockResolvedValue({ kind: 'ok', status: 200, value: [pendingRequest] })
     const decide = vi
       .spyOn(teamAccessApi, 'decideAdmission')
-      .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
+      .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' })
 
-    render(<AdmissionRequestsPanel />);
-    await screen.findByTestId('admission-request');
-    fireEvent.click(screen.getByTestId('admission-approve'));
+    render(<AdmissionRequestsPanel />)
+    await screen.findByTestId('admission-request')
+    fireEvent.click(screen.getByTestId('admission-approve'))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Approval is unavailable.');
-    expect(screen.getByTestId('admission-request')).toHaveTextContent(pendingRequest.email);
-    await waitFor(() => expect(screen.getByTestId('admission-approve')).toBeEnabled());
-    expect(decide).toHaveBeenCalledWith('u1', 'approve');
-    expect(list).toHaveBeenCalledTimes(2);
-  });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Approval is unavailable.')
+    expect(screen.getByTestId('admission-request')).toHaveTextContent(pendingRequest.email)
+    await waitFor(() => expect(screen.getByTestId('admission-approve')).toBeEnabled())
+    expect(decide).toHaveBeenCalledWith('u1', 'approve')
+    expect(list).toHaveBeenCalledTimes(2)
+  })
 
   it('does not refresh after a pending decision settles after unmount', async () => {
-    let finishDecision!: (value: Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>) => void;
+    let finishDecision!: (value: Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>) => void
     const decision = new Promise<Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>>(
       (resolve) => {
-        finishDecision = resolve;
-      },
-    );
+        finishDecision = resolve
+      }
+    )
     const list = vi
       .spyOn(teamAccessApi, 'listAdmissionRequests')
-      .mockResolvedValue({ kind: 'ok', status: 200, value: [pendingRequest] });
-    vi.spyOn(teamAccessApi, 'decideAdmission').mockReturnValueOnce(decision);
+      .mockResolvedValue({ kind: 'ok', status: 200, value: [pendingRequest] })
+    vi.spyOn(teamAccessApi, 'decideAdmission').mockReturnValueOnce(decision)
 
-    const view = render(<AdmissionRequestsPanel />);
-    await screen.findByTestId('admission-request');
-    fireEvent.click(screen.getByTestId('admission-approve'));
-    view.unmount();
+    const view = render(<AdmissionRequestsPanel />)
+    await screen.findByTestId('admission-request')
+    fireEvent.click(screen.getByTestId('admission-approve'))
+    view.unmount()
 
     await act(async () => {
-      finishDecision({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
-    });
+      finishDecision({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' })
+    })
 
-    expect(list).toHaveBeenCalledTimes(1);
-  });
+    expect(list).toHaveBeenCalledTimes(1)
+  })
 
   it('aborts an in-flight refresh and stops the actual paginated client before its next page', async () => {
-    let resolveRefreshPage!: (response: Response) => void;
-    let markRefreshStarted!: () => void;
+    let resolveRefreshPage!: (response: Response) => void
+    let markRefreshStarted!: () => void
     const refreshStarted = new Promise<void>((resolve) => {
-      markRefreshStarted = resolve;
-    });
+      markRefreshStarted = resolve
+    })
     const refreshPage = new Promise<Response>((resolve) => {
-      resolveRefreshPage = resolve;
-    });
-    const calls: { status: string; cursor: string | null; signal: AbortSignal | null }[] = [];
+      resolveRefreshPage = resolve
+    })
+    const calls: { status: string; cursor: string | null; signal: AbortSignal | null }[] = []
     const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      const url = new URL(input instanceof Request ? input.url : String(input), 'http://api.test');
-      if (init?.method === 'POST') return new Response(null, { status: 204 });
+      const url = new URL(input instanceof Request ? input.url : String(input), 'http://api.test')
+      if (init?.method === 'POST') return new Response(null, { status: 204 })
 
-      const status = url.searchParams.get('status') ?? '';
-      const cursor = url.searchParams.get('cursor');
-      calls.push({ status, cursor, signal: init?.signal as AbortSignal | null });
+      const status = url.searchParams.get('status') ?? ''
+      const cursor = url.searchParams.get('cursor')
+      calls.push({ status, cursor, signal: init?.signal as AbortSignal | null })
       if (
         status === 'pending' &&
         cursor === null &&
         calls.filter((call) => call.status === 'pending').length === 2
       ) {
-        markRefreshStarted();
-        return refreshPage;
+        markRefreshStarted()
+        return refreshPage
       }
       if (status === 'pending') {
         return Response.json({
@@ -178,27 +178,27 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
             ],
             nextCursor: null,
           },
-        });
+        })
       }
-      return Response.json({ data: { items: [], nextCursor: null } });
-    });
+      return Response.json({ data: { items: [], nextCursor: null } })
+    })
 
-    const view = render(<AdmissionRequestsPanel />);
-    await screen.findByTestId('admission-request');
-    fireEvent.click(screen.getByTestId('admission-approve'));
-    await refreshStarted;
-    const refreshSignal = calls.at(-1)?.signal;
-    expect(refreshSignal).toBeTruthy();
+    const view = render(<AdmissionRequestsPanel />)
+    await screen.findByTestId('admission-request')
+    fireEvent.click(screen.getByTestId('admission-approve'))
+    await refreshStarted
+    const refreshSignal = calls.at(-1)?.signal
+    expect(refreshSignal).toBeTruthy()
 
-    view.unmount();
-    expect(refreshSignal?.aborted).toBe(true);
+    view.unmount()
+    expect(refreshSignal?.aborted).toBe(true)
 
     await act(async () => {
-      resolveRefreshPage(Response.json({ data: { items: [], nextCursor: 'next-page' } }));
-      await refreshPage;
-    });
+      resolveRefreshPage(Response.json({ data: { items: [], nextCursor: 'next-page' } }))
+      await refreshPage
+    })
 
-    expect(calls.some((call) => call.cursor === 'next-page')).toBe(false);
-    expect(fetch).toHaveBeenCalledTimes(5);
-  });
-});
+    expect(calls.some((call) => call.cursor === 'next-page')).toBe(false)
+    expect(fetch).toHaveBeenCalledTimes(5)
+  })
+})

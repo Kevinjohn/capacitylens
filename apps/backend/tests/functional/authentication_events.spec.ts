@@ -1,46 +1,46 @@
-import { test } from '@japa/runner';
-import { captureAuthenticationLogs } from '#tests/helpers/data/log_capture';
-import env from '#start/env';
-import db from '@adonisjs/lucid/services/db';
-import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import type { AccountUser } from '@kevinjohn/adonisjs-account-kit/types';
-import { DateTime } from 'luxon';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { createIdentity, clearIdentities } from '#tests/helpers/identities';
-import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
-import limiter from '@adonisjs/limiter/services/main';
-import { resetState } from '#tests/helpers/state_fixture';
+import { test } from '@japa/runner'
+import { captureAuthenticationLogs } from '#tests/helpers/data/log_capture'
+import env from '#start/env'
+import db from '@adonisjs/lucid/services/db'
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
+import type { AccountUser } from '@kevinjohn/adonisjs-account-kit/types'
+import { DateTime } from 'luxon'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { createIdentity, clearIdentities } from '#tests/helpers/identities'
+import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture'
+import limiter from '@adonisjs/limiter/services/main'
+import { resetState } from '#tests/helpers/state_fixture'
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const email = 'bruce.wayne@wayne.example';
-const password = 'batman-secret-2026';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const email = 'bruce.wayne@wayne.example'
+const password = 'batman-secret-2026'
 
 test.group('authentication outcome events', (group) => {
-  const originalLogging = env.get('CAPACITYLENS_LOG');
+  const originalLogging = env.get('CAPACITYLENS_LOG')
 
-  group.setup(() => freshDatabase());
-  group.setup(() => env.set('CAPACITYLENS_LOG', '1'));
+  group.setup(() => freshDatabase())
+  group.setup(() => env.set('CAPACITYLENS_LOG', '1'))
   group.each.setup(async () => {
-    await resetState(false);
-    await clearIdentities();
-    await limiter.clear();
-  });
+    await resetState(false)
+    await clearIdentities()
+    await limiter.clear()
+  })
   group.teardown(() => {
-    env.set('CAPACITYLENS_LOG', originalLogging ?? '');
-    if (originalLogging === undefined) delete process.env.CAPACITYLENS_LOG;
-  });
+    env.set('CAPACITYLENS_LOG', originalLogging ?? '')
+    if (originalLogging === undefined) delete process.env.CAPACITYLENS_LOG
+  })
 
   test('records successful and rejected sign-in outcomes without credentials or identifiers', async ({
     client,
     assert,
   }) => {
-    await createIdentity(email, { name: 'Bruce Wayne', password });
+    await createIdentity(email, { name: 'Bruce Wayne', password })
     const sentinels = {
       password,
       email,
       userAgent: 'private-agent-sentinel/1',
       ip: '198.51.100.77',
-    };
+    }
     const { lines } = await captureAuthenticationLogs(async () => {
       const success = await client
         .visit('api.session.store')
@@ -48,31 +48,31 @@ test.group('authentication outcome events', (group) => {
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
         .json({ email, password })
-        .send();
-      success.assertStatus(200);
+        .send()
+      success.assertStatus(200)
       const failure = await client
         .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
         .json({ email, password: 'incorrect-private-password' })
-        .send();
-      failure.assertStatus(401);
-    });
+        .send()
+      failure.assertStatus(401)
+    })
 
-    const output = lines.join('\n');
-    const entries = lines.map((line) => JSON.parse(line));
-    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in');
-    assert.deepEqual(authEvents.map((entry) => entry.outcome).sort(), ['failure', 'success']);
+    const output = lines.join('\n')
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in')
+    assert.deepEqual(authEvents.map((entry) => entry.outcome).sort(), ['failure', 'success'])
     for (const event of authEvents) {
-      assert.match(event.request_id, UUID);
+      assert.match(event.request_id, UUID)
       assert.isTrue(
         entries.some(
           (entry) =>
             entry.event === 'http.request.completed' && entry.request_id === event.request_id
         ),
         'sign-in event shares the request id of its completion record'
-      );
+      )
     }
     for (const secret of [
       sentinels.password,
@@ -81,9 +81,9 @@ test.group('authentication outcome events', (group) => {
       sentinels.ip,
       'incorrect-private-password',
     ]) {
-      assert.notInclude(output, secret);
+      assert.notInclude(output, secret)
     }
-  });
+  })
 
   test('records throttled sign-in outcomes without changing the refusal', async ({
     client,
@@ -94,22 +94,22 @@ test.group('authentication outcome events', (group) => {
         .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email: 'private-throttle@example.test', password: 'never-store-this-password' })
-        .send();
+        .send()
     const { lines, result } = await captureAuthenticationLogs(async () => {
-      for (let attempt = 0; attempt < 5; attempt++) await request();
-      return request();
-    });
+      for (let attempt = 0; attempt < 5; attempt++) await request()
+      return request()
+    })
 
-    assert.equal(result.status(), 429);
-    const entries = lines.map((line) => JSON.parse(line));
-    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in');
-    assert.lengthOf(authEvents, 6);
+    assert.equal(result.status(), 429)
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in')
+    assert.lengthOf(authEvents, 6)
     assert.deepEqual(
       authEvents.map((entry) => entry.outcome),
       ['failure', 'failure', 'failure', 'failure', 'failure', 'throttled']
-    );
-    const throttled = authEvents[5];
-    assert.match(throttled.request_id, UUID);
+    )
+    const throttled = authEvents[5]
+    assert.match(throttled.request_id, UUID)
     assert.isTrue(
       entries.some(
         (entry) =>
@@ -118,10 +118,10 @@ test.group('authentication outcome events', (group) => {
           entry.status === 429
       ),
       'throttle event shares the request id of its 429 completion record'
-    );
-    assert.notInclude(lines.join('\n'), 'private-throttle@example.test');
-    assert.notInclude(lines.join('\n'), 'never-store-this-password');
-  });
+    )
+    assert.notInclude(lines.join('\n'), 'private-throttle@example.test')
+    assert.notInclude(lines.join('\n'), 'never-store-this-password')
+  })
 
   test('records the sign-in event for automatic sign-in after sign-up', async ({
     client,
@@ -131,14 +131,14 @@ test.group('authentication outcome events', (group) => {
     const ownerId = await createIdentity('bruce.wayne@wayne.example', {
       name: 'Bruce Wayne',
       password,
-    });
-    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
-    const signUpEmail = 'clark.kent@wayne.example';
-    await createIdentity(signUpEmail, { name: 'Clark Kent', password });
+    })
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
+    const signUpEmail = 'clark.kent@wayne.example'
+    await createIdentity(signUpEmail, { name: 'Clark Kent', password })
 
-    const previousSignUp = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
-    const originalRegister = accountKit.registration.register;
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
+    const previousSignUp = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP')
+    const originalRegister = accountKit.registration.register
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true)
     accountKit.registration.register = async () =>
       ({
         id: 'test-registration',
@@ -146,11 +146,11 @@ test.group('authentication outcome events', (group) => {
         unverifiedEmail: null,
         hasPassword: true,
         emailVerifiedAt: DateTime.now(),
-      }) satisfies AccountUser;
+      }) satisfies AccountUser
     cleanup(() => {
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', previousSignUp);
-      accountKit.registration.register = originalRegister;
-    });
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', previousSignUp)
+      accountKit.registration.register = originalRegister
+    })
 
     const { lines, result } = await captureAuthenticationLogs(async () =>
       client
@@ -158,14 +158,14 @@ test.group('authentication outcome events', (group) => {
         .header('sec-fetch-site', 'same-origin')
         .json({ email: signUpEmail, password, name: 'Clark Kent' })
         .send()
-    );
+    )
 
-    result.assertStatus(201);
-    const entries = lines.map((line) => JSON.parse(line));
-    const authEvent = entries.find((entry) => entry.event === 'auth.sign_in');
-    assert.isDefined(authEvent);
-    assert.equal(authEvent.outcome, 'success');
-    assert.match(authEvent.request_id, UUID);
+    result.assertStatus(201)
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvent = entries.find((entry) => entry.event === 'auth.sign_in')
+    assert.isDefined(authEvent)
+    assert.equal(authEvent.outcome, 'success')
+    assert.match(authEvent.request_id, UUID)
     assert.isTrue(
       entries.some(
         (entry) =>
@@ -173,16 +173,16 @@ test.group('authentication outcome events', (group) => {
           entry.request_id === authEvent.request_id &&
           entry.status === 201
       )
-    );
-    assert.notInclude(lines.join('\n'), signUpEmail);
-    assert.notInclude(lines.join('\n'), password);
-  });
+    )
+    assert.notInclude(lines.join('\n'), signUpEmail)
+    assert.notInclude(lines.join('\n'), password)
+  })
 
   test('logs a fixed-field fallback line when the outcome line fails, keeping the refusal', async ({
     client,
     assert,
   }) => {
-    await createIdentity(email, { name: 'Bruce Wayne', password });
+    await createIdentity(email, { name: 'Bruce Wayne', password })
     const { lines, result } = await captureAuthenticationLogs(
       () =>
         client
@@ -191,26 +191,26 @@ test.group('authentication outcome events', (group) => {
           .json({ email, password: 'incorrect-private-password' })
           .send(),
       { failOutcomeLine: true }
-    );
+    )
 
-    result.assertStatus(401);
-    const entries = lines.map((line) => JSON.parse(line));
-    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in');
-    assert.lengthOf(authEvents, 1);
-    assert.equal(authEvents[0].errorType, 'logging_failure');
-    assert.equal(authEvents[0].msg, 'Authentication outcome logging failed');
-    assert.notInclude(lines.join('\n'), email);
-    assert.notInclude(lines.join('\n'), 'incorrect-private-password');
-  });
+    result.assertStatus(401)
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in')
+    assert.lengthOf(authEvents, 1)
+    assert.equal(authEvents[0].errorType, 'logging_failure')
+    assert.equal(authEvents[0].msg, 'Authentication outcome logging failed')
+    assert.notInclude(lines.join('\n'), email)
+    assert.notInclude(lines.join('\n'), 'incorrect-private-password')
+  })
 
   test('keeps the successful sign-in event when post-sign-in tracking fails', async ({
     client,
     assert,
     cleanup,
   }) => {
-    const userId = await createIdentity(email, { name: 'Bruce Wayne', password });
-    await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio');
-    const now = new Date().toISOString();
+    const userId = await createIdentity(email, { name: 'Bruce Wayne', password })
+    await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio')
+    const now = new Date().toISOString()
     await db.table('company_settings').insert({
       id: 'test-sign-in-tracking',
       company_id: 'a-studio',
@@ -218,14 +218,14 @@ test.group('authentication outcome events', (group) => {
       value: JSON.stringify(true),
       created_at: now,
       updated_at: now,
-    });
+    })
     await db.rawQuery(`
       CREATE TRIGGER fail_sign_in_tracking
       BEFORE INSERT ON company_settings
       WHEN NEW.key LIKE 'member-sign-in:%'
       BEGIN SELECT RAISE(ABORT, 'sign-in tracking failure'); END
-    `);
-    cleanup(() => db.rawQuery('DROP TRIGGER IF EXISTS fail_sign_in_tracking'));
+    `)
+    cleanup(() => db.rawQuery('DROP TRIGGER IF EXISTS fail_sign_in_tracking'))
 
     const { lines, result } = await captureAuthenticationLogs(() =>
       client
@@ -233,14 +233,14 @@ test.group('authentication outcome events', (group) => {
         .header('sec-fetch-site', 'same-origin')
         .json({ email, password })
         .send()
-    );
+    )
 
-    result.assertStatus(500);
-    const entries = lines.map((line) => JSON.parse(line));
-    const authEvent = entries.find((entry) => entry.event === 'auth.sign_in');
-    assert.isDefined(authEvent);
-    assert.equal(authEvent.outcome, 'success');
-    assert.match(authEvent.request_id, UUID);
+    result.assertStatus(500)
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvent = entries.find((entry) => entry.event === 'auth.sign_in')
+    assert.isDefined(authEvent)
+    assert.equal(authEvent.outcome, 'success')
+    assert.match(authEvent.request_id, UUID)
     assert.isTrue(
       entries.some(
         (entry) =>
@@ -248,8 +248,8 @@ test.group('authentication outcome events', (group) => {
           entry.request_id === authEvent.request_id &&
           entry.status === 500
       )
-    );
-    assert.notInclude(lines.join('\n'), email);
-    assert.notInclude(lines.join('\n'), password);
-  });
-});
+    )
+    assert.notInclude(lines.join('\n'), email)
+    assert.notInclude(lines.join('\n'), password)
+  })
+})

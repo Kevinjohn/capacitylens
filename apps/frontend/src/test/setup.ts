@@ -1,38 +1,38 @@
-import { afterEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
-import { getMasqueradeToken } from '@/api/masqueradeToken';
-import { setMasqueradeTokenReader } from '@/data/requestTimeout';
+import { afterEach, vi } from 'vitest'
+import { cleanup } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { getMasqueradeToken } from '@/api/masqueradeToken'
+import { setMasqueradeTokenReader } from '@/data/requestTimeout'
 
 // The app registers this reader when the masquerade model is wired; tests that never load that
 // module still send the current context proof, as the running app does.
-setMasqueradeTokenReader(getMasqueradeToken);
+setMasqueradeTokenReader(getMasqueradeToken)
 
 // Store tests own their transport and reset source without changing the production demo.
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const { createTestPlanningTransport } = await import('./createTestPlanningTransport');
-  return { createStorePlanningTransport: createTestPlanningTransport };
-});
+  const { createTestPlanningTransport } = await import('./createTestPlanningTransport')
+  return { createStorePlanningTransport: createTestPlanningTransport }
+})
 
 class MemoryStorage implements Storage {
-  readonly #values = new Map<string, string>();
+  readonly #values = new Map<string, string>()
   get length(): number {
-    return this.#values.size;
+    return this.#values.size
   }
   clear(): void {
-    this.#values.clear();
+    this.#values.clear()
   }
   getItem(key: string): string | null {
-    return this.#values.get(String(key)) ?? null;
+    return this.#values.get(String(key)) ?? null
   }
   key(index: number): string | null {
-    return [...this.#values.keys()][index] ?? null;
+    return [...this.#values.keys()][index] ?? null
   }
   removeItem(key: string): void {
-    this.#values.delete(String(key));
+    this.#values.delete(String(key))
   }
   setItem(key: string, value: string): void {
-    this.#values.set(String(key), String(value));
+    this.#values.set(String(key), String(value))
   }
 }
 
@@ -41,43 +41,43 @@ class MemoryStorage implements Storage {
 // itself comes through as undefined, so the value captured here must never be trusted blindly.
 function readBrowserStorage(getter: () => Storage): Storage | undefined {
   try {
-    return getter();
+    return getter()
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'SecurityError') return undefined;
-    throw error;
+    if (error instanceof DOMException && error.name === 'SecurityError') return undefined
+    throw error
   }
 }
 
 // Node 26 can expose Storage globals whose instances do not share Storage.prototype with jsdom.
 // Use independent memory stores in that case so prototype spies observe both browser boundaries.
-const storagePrototype = typeof Storage === 'function' ? Storage.prototype : undefined;
+const storagePrototype = typeof Storage === 'function' ? Storage.prototype : undefined
 const candidateLocalStorage =
-  typeof window === 'undefined' ? undefined : readBrowserStorage(() => window.localStorage);
+  typeof window === 'undefined' ? undefined : readBrowserStorage(() => window.localStorage)
 const candidateSessionStorage =
-  typeof window === 'undefined' ? undefined : readBrowserStorage(() => window.sessionStorage);
+  typeof window === 'undefined' ? undefined : readBrowserStorage(() => window.sessionStorage)
 const useMemoryStorage = [candidateLocalStorage, candidateSessionStorage].some(
   (candidate) =>
     !candidate ||
     typeof candidate.getItem !== 'function' ||
-    Object.getPrototypeOf(candidate) !== storagePrototype,
-);
+    Object.getPrototypeOf(candidate) !== storagePrototype
+)
 if (useMemoryStorage) {
-  const memoryStorageDescriptor = { configurable: true, value: MemoryStorage };
-  Object.defineProperty(globalThis, 'Storage', memoryStorageDescriptor);
+  const memoryStorageDescriptor = { configurable: true, value: MemoryStorage }
+  Object.defineProperty(globalThis, 'Storage', memoryStorageDescriptor)
   if (typeof window !== 'undefined' && window !== globalThis) {
-    Object.defineProperty(window, 'Storage', memoryStorageDescriptor);
+    Object.defineProperty(window, 'Storage', memoryStorageDescriptor)
   }
 }
-const localStorageValue = useMemoryStorage ? new MemoryStorage() : candidateLocalStorage;
-const sessionStorageValue = useMemoryStorage ? new MemoryStorage() : candidateSessionStorage;
+const localStorageValue = useMemoryStorage ? new MemoryStorage() : candidateLocalStorage
+const sessionStorageValue = useMemoryStorage ? new MemoryStorage() : candidateSessionStorage
 const storageDescriptors = {
   localStorage: { configurable: true, value: localStorageValue },
   sessionStorage: { configurable: true, value: sessionStorageValue },
-};
+}
 
-Object.defineProperties(globalThis, storageDescriptors);
+Object.defineProperties(globalThis, storageDescriptors)
 if (useMemoryStorage && typeof window !== 'undefined' && window !== globalThis) {
-  Object.defineProperties(window, storageDescriptors);
+  Object.defineProperties(window, storageDescriptors)
 }
 
 // Provide inert ResizeObserver and scroll stubs so component fixtures can mount
@@ -87,43 +87,43 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
     observe() {}
     unobserve() {}
     disconnect() {}
-  };
+  }
 }
 const browserGlobals = globalThis as unknown as {
-  Element?: typeof Element;
-  HTMLElement?: typeof HTMLElement;
-};
-const elementPrototype = browserGlobals.Element?.prototype;
+  Element?: typeof Element
+  HTMLElement?: typeof HTMLElement
+}
+const elementPrototype = browserGlobals.Element?.prototype
 if (elementPrototype && !Reflect.has(elementPrototype, 'scrollIntoView')) {
-  elementPrototype.scrollIntoView = () => {};
+  elementPrototype.scrollIntoView = () => {}
 }
 const pointerCapturePrototype = browserGlobals.HTMLElement?.prototype as
   | Partial<Pick<HTMLElement, 'setPointerCapture' | 'hasPointerCapture' | 'releasePointerCapture'>>
-  | undefined;
+  | undefined
 if (pointerCapturePrototype && typeof pointerCapturePrototype.setPointerCapture !== 'function') {
-  const capturedPointers = new WeakMap<HTMLElement, Set<number>>();
+  const capturedPointers = new WeakMap<HTMLElement, Set<number>>()
   pointerCapturePrototype.setPointerCapture = function (this: HTMLElement, pointerId) {
-    const pointers = capturedPointers.get(this) ?? new Set<number>();
-    pointers.add(pointerId);
-    capturedPointers.set(this, pointers);
-  };
+    const pointers = capturedPointers.get(this) ?? new Set<number>()
+    pointers.add(pointerId)
+    capturedPointers.set(this, pointers)
+  }
   pointerCapturePrototype.hasPointerCapture = function (this: HTMLElement, pointerId) {
-    return capturedPointers.get(this)?.has(pointerId) ?? false;
-  };
+    return capturedPointers.get(this)?.has(pointerId) ?? false
+  }
   pointerCapturePrototype.releasePointerCapture = function (this: HTMLElement, pointerId) {
-    capturedPointers.get(this)?.delete(pointerId);
-  };
+    capturedPointers.get(this)?.delete(pointerId)
+  }
 }
 
 // Captured before any test installs fake timers, so the teardown below always waits on a real one.
-const realSetTimeout = globalThis.setTimeout;
+const realSetTimeout = globalThis.setTimeout
 
 afterEach(async () => {
-  cleanup();
+  cleanup()
   // Unmounting a Radix focus scope schedules its focus return on a zero-delay timer. Left pending,
   // it can fire after the file's jsdom environment is removed, where `CustomEvent` is Node's own
   // and jsdom rejects it as an unhandled error. A later zero-delay timer runs after it.
   await new Promise<void>((resolve) => {
-    realSetTimeout(resolve, 0);
-  });
-});
+    realSetTimeout(resolve, 0)
+  })
+})

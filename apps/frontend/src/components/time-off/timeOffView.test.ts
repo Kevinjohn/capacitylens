@@ -1,16 +1,16 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, expect, it } from 'vitest';
-import type { Closure, Resource, TimeOff } from '@capacitylens/shared/types/entities';
-import { buildClosureList, buildTimeOffGroups } from './timeOffView';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, expect, it } from 'vitest'
+import type { Closure, Resource, TimeOff } from '@capacitylens/shared/types/entities'
+import { buildClosureList, buildTimeOffGroups } from './timeOffView'
 
 interface EntryInput {
-  id: string;
-  resourceId: string;
-  startDate: string;
-  endDate: string;
+  id: string
+  resourceId: string
+  startDate: string
+  endDate: string
 }
 
-const timestamp = '2026-05-01T00:00:00.000Z';
+const timestamp = '2026-05-01T00:00:00.000Z'
 
 function resource(id: string, name: string, kind: Resource['kind'] = 'person'): Resource {
   return {
@@ -28,7 +28,7 @@ function resource(id: string, name: string, kind: Resource['kind'] = 'person'): 
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
     color: '#2d75da',
-  };
+  }
 }
 
 function entry({ id, resourceId, startDate, endDate }: EntryInput): TimeOff {
@@ -42,13 +42,13 @@ function entry({ id, resourceId, startDate, endDate }: EntryInput): TimeOff {
     endDate,
     type: 'holiday',
     note: null,
-  };
+  }
 }
 
 describe('buildTimeOffGroups', () => {
   it('keeps overlapping entries, drops completed past entries and sorts groups and rows', () => {
-    const bruce = resource('r-bruce', 'Bruce Wayne');
-    const clark = resource('r-clark', 'Clark Kent');
+    const bruce = resource('r-bruce', 'Bruce Wayne')
+    const clark = resource('r-clark', 'Clark Kent')
     const groups = buildTimeOffGroups({
       timeOff: [
         entry({
@@ -86,15 +86,15 @@ describe('buildTimeOffGroups', () => {
       resources: [clark, bruce],
       weekStart: '2026-06-08',
       placeholdersEnabled: true,
-    });
+    })
 
-    expect(groups.map((group) => group.name)).toEqual(['Bruce Wayne', 'Clark Kent']);
-    expect(groups[0]?.entries.map(({ id }) => id)).toEqual(['boundary', 'tie-a', 'tie-b', 'later']);
-    expect(groups[1]?.entries.map(({ id }) => id)).toEqual(['clark']);
-  });
+    expect(groups.map((group) => group.name)).toEqual(['Bruce Wayne', 'Clark Kent'])
+    expect(groups[0]?.entries.map(({ id }) => id)).toEqual(['boundary', 'tie-a', 'tie-b', 'later'])
+    expect(groups[1]?.entries.map(({ id }) => id)).toEqual(['clark'])
+  })
 
   it('applies placeholder visibility before grouping', () => {
-    const placeholder = resource('r-slot', 'Unfilled role', 'placeholder');
+    const placeholder = resource('r-slot', 'Unfilled role', 'placeholder')
     const timeOff = [
       entry({
         id: 'slot-leave',
@@ -102,7 +102,7 @@ describe('buildTimeOffGroups', () => {
         startDate: '2026-06-10',
         endDate: '2026-06-11',
       }),
-    ];
+    ]
 
     expect(
       buildTimeOffGroups({
@@ -110,20 +110,20 @@ describe('buildTimeOffGroups', () => {
         resources: [placeholder],
         weekStart: '2026-06-08',
         placeholdersEnabled: false,
-      }),
-    ).toEqual([]);
+      })
+    ).toEqual([])
     expect(
       buildTimeOffGroups({
         timeOff,
         resources: [placeholder],
         weekStart: '2026-06-08',
         placeholdersEnabled: true,
-      })[0]?.name,
-    ).toBe('Placeholder');
-  });
+      })[0]?.name
+    ).toBe('Placeholder')
+  })
 
   it('collects dangling references in one date-sorted final unknown group', () => {
-    const clark = resource('r-clark', 'Clark Kent');
+    const clark = resource('r-clark', 'Clark Kent')
     const groups = buildTimeOffGroups({
       timeOff: [
         entry({
@@ -148,12 +148,12 @@ describe('buildTimeOffGroups', () => {
       resources: [clark],
       weekStart: '2026-06-08',
       placeholdersEnabled: true,
-    });
+    })
 
-    expect(groups.map((group) => group.name)).toEqual(['Clark Kent', '(unknown)']);
-    expect(groups[1]?.entries.map(({ id }) => id)).toEqual(['unknown-earlier', 'unknown-later']);
-  });
-});
+    expect(groups.map((group) => group.name)).toEqual(['Clark Kent', '(unknown)'])
+    expect(groups[1]?.entries.map(({ id }) => id)).toEqual(['unknown-earlier', 'unknown-later'])
+  })
+})
 
 describe('buildClosureList', () => {
   const closure = (id: string, startDate: string, endDate: string): Closure => ({
@@ -164,7 +164,7 @@ describe('buildClosureList', () => {
     name: id,
     startDate,
     endDate,
-  });
+  })
 
   it('keeps overlapping and future closures while sorting their literal spans', () => {
     expect(
@@ -174,8 +174,8 @@ describe('buildClosureList', () => {
           closure('past', '2026-06-01', '2026-06-07'),
           closure('boundary', '2026-06-06', '2026-06-08'),
         ],
-        '2026-06-08',
-      ).map(({ id }) => id),
-    ).toEqual(['boundary', 'later']);
-  });
-});
+        '2026-06-08'
+      ).map(({ id }) => id)
+    ).toEqual(['boundary', 'later'])
+  })
+})

@@ -1,22 +1,22 @@
-import { NULLABLE_FIELDS } from '../types/nullableFields.js';
-import { describe, it, expect } from 'vitest';
+import { NULLABLE_FIELDS } from '../types/nullableFields.js'
+import { describe, it, expect } from 'vitest'
 import {
   buildActiveData,
   archiveImpact,
   inspectLifecycleAncestry,
   resolveLifecycleStatus,
-} from '@capacitylens/shared/domain/lifecycle';
+} from '@capacitylens/shared/domain/lifecycle'
 import type {
   LifecycleAncestryLookup,
   LifecycleAncestryRow,
   LifecycleFields,
-} from '@capacitylens/shared/domain/lifecycle';
-import { createEmptyAppData } from '../types/entities.js';
-import type { AppData, Weekday } from '../types/entities.js';
+} from '@capacitylens/shared/domain/lifecycle'
+import { createEmptyAppData } from '../types/entities.js'
+import type { AppData, Weekday } from '../types/entities.js'
 
-const T_ARCH = '2026-01-01T00:00:00.000Z';
+const T_ARCH = '2026-01-01T00:00:00.000Z'
 
-const ACTIVE_ONLY_COMPANY = 'acct-1';
+const ACTIVE_ONLY_COMPANY = 'acct-1'
 
 const makeActiveOnlyResource = (id: string, name: string, tombstones: LifecycleFields = {}) => ({
   ...NULLABLE_FIELDS.resources,
@@ -34,12 +34,12 @@ const makeActiveOnlyResource = (id: string, name: string, tombstones: LifecycleF
   createdAt: T_ARCH,
   updatedAt: T_ARCH,
   ...tombstones,
-});
+})
 const makeActiveOnlyPlaceholder = (id: string, name: string, projectId: string | null) => ({
   ...makeActiveOnlyResource(id, name),
   kind: 'placeholder' as const,
   projectId,
-});
+})
 const makeActiveOnlyClient = (id: string, name: string, tombstones: LifecycleFields = {}) => ({
   ...NULLABLE_FIELDS.clients,
   id,
@@ -49,17 +49,17 @@ const makeActiveOnlyClient = (id: string, name: string, tombstones: LifecycleFie
   createdAt: T_ARCH,
   updatedAt: T_ARCH,
   ...tombstones,
-});
+})
 const makeActiveOnlyProject = ({
   id,
   name,
   clientId,
   tombstones = {},
 }: {
-  id: string;
-  name: string;
-  clientId: string;
-  tombstones?: LifecycleFields;
+  id: string
+  name: string
+  clientId: string
+  tombstones?: LifecycleFields
 }) => ({
   ...NULLABLE_FIELDS.projects,
   id,
@@ -70,7 +70,7 @@ const makeActiveOnlyProject = ({
   createdAt: T_ARCH,
   updatedAt: T_ARCH,
   ...tombstones,
-});
+})
 const ACTIVE_ONLY_DATA: AppData = {
   ...createEmptyAppData(),
   companies: [
@@ -234,18 +234,18 @@ const ACTIVE_ONLY_DATA: AppData = {
       updatedAt: T_ARCH,
     },
   ],
-};
-const makeActiveOnlyData = (): AppData => structuredClone(ACTIVE_ONLY_DATA);
+}
+const makeActiveOnlyData = (): AppData => structuredClone(ACTIVE_ONLY_DATA)
 
 describe('buildActiveData — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)', () => {
   it('DROPS archived resources/clients/projects; KEEPS the active ones', () => {
-    const out = buildActiveData(makeActiveOnlyData());
-    expect(out.resources.map((r) => r.id)).toEqual(['r-active']);
-    expect(out.clients.map((c) => c.id)).toEqual(['c-active']);
-    expect(out.projects.map((p) => p.id)).toEqual(['p-active']);
-  });
+    const out = buildActiveData(makeActiveOnlyData())
+    expect(out.resources.map((r) => r.id)).toEqual(['r-active'])
+    expect(out.clients.map((c) => c.id)).toEqual(['c-active'])
+    expect(out.projects.map((p) => p.id)).toEqual(['p-active'])
+  })
   it('hides bound placeholders whose project ancestry is inactive and retains unresolved or cross-company bindings', () => {
-    const input = makeActiveOnlyData();
+    const input = makeActiveOnlyData()
     input.projects = [
       ...input.projects,
       {
@@ -256,7 +256,7 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
         }),
         companyId: 'acct-2',
       },
-    ];
+    ]
     input.resources = [
       ...input.resources,
       makeActiveOnlyPlaceholder('r-bound-active', 'Bound active', 'p-active'),
@@ -265,17 +265,17 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
       makeActiveOnlyPlaceholder(
         'r-bound-missing-project',
         'Bound missing project',
-        'missing-project',
+        'missing-project'
       ),
       makeActiveOnlyPlaceholder(
         'r-bound-cross-company',
         'Bound cross-company project',
-        'p-other-company',
+        'p-other-company'
       ),
       makeActiveOnlyPlaceholder('r-unbound', 'Unbound placeholder', null),
-    ];
+    ]
 
-    const out = buildActiveData(input);
+    const out = buildActiveData(input)
 
     expect(out.resources.map(({ id }) => id)).toEqual([
       'r-active',
@@ -283,22 +283,22 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
       'r-bound-missing-project',
       'r-bound-cross-company',
       'r-unbound',
-    ]);
-    expect(input.resources.map(({ id }) => id)).toContain('r-bound-hidden-client');
-  });
+    ])
+    expect(input.resources.map(({ id }) => id)).toContain('r-bound-hidden-client')
+  })
   it('closure-prunes descendants of hidden parents/resources while preserving top-level metadata', () => {
-    const input = makeActiveOnlyData();
-    const out = buildActiveData(input);
-    expect(out.phases.map((row) => row.id)).toEqual(['ph1']);
-    expect(out.activities.map((row) => row.id)).toEqual(['act1']);
-    expect(out.allocations.map((row) => row.id)).toEqual(['al1']);
-    expect(out.timeOff.map((row) => row.id)).toEqual(['to1']);
-    expect(out.disciplines).toBe(input.disciplines);
-    expect(out.companies).toBe(input.companies);
+    const input = makeActiveOnlyData()
+    const out = buildActiveData(input)
+    expect(out.phases.map((row) => row.id)).toEqual(['ph1'])
+    expect(out.activities.map((row) => row.id)).toEqual(['act1'])
+    expect(out.allocations.map((row) => row.id)).toEqual(['al1'])
+    expect(out.timeOff.map((row) => row.id)).toEqual(['to1'])
+    expect(out.disciplines).toBe(input.disciplines)
+    expect(out.companies).toBe(input.companies)
     expect(
-      resolveLifecycleStatus(input.activities.find((row) => row.id === 'act-hidden') ?? {}),
-    ).toBe('active');
-  });
+      resolveLifecycleStatus(input.activities.find((row) => row.id === 'act-hidden') ?? {})
+    ).toBe('active')
+  })
   it('retains active rows with unresolved parents instead of inventing hidden lifecycle state', () => {
     const input = {
       ...createEmptyAppData(),
@@ -322,14 +322,12 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
           updatedAt: T_ARCH,
         } as AppData['projects'][number],
       ],
-    };
+    }
 
-    const out = buildActiveData(input);
-    expect(out.projects.map(({ id }) => id)).toEqual(['p-dangling', 'p-missing-field']);
-    expect(out.projects.every((project) => resolveLifecycleStatus(project) === 'active')).toBe(
-      true,
-    );
-  });
+    const out = buildActiveData(input)
+    expect(out.projects.map(({ id }) => id)).toEqual(['p-dangling', 'p-missing-field'])
+    expect(out.projects.every((project) => resolveLifecycleStatus(project) === 'active')).toBe(true)
+  })
   it('treats null optional activity parents as absent and retains their allocations', () => {
     const input = {
       ...createEmptyAppData(),
@@ -360,12 +358,12 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
           updatedAt: T_ARCH,
         },
       ],
-    };
+    }
 
-    const out = buildActiveData(input);
-    expect(out.activities.map(({ id }) => id)).toEqual(['activity-with-null-parents']);
-    expect(out.allocations.map(({ id }) => id)).toEqual(['allocation-1']);
-  });
+    const out = buildActiveData(input)
+    expect(out.activities.map(({ id }) => id)).toEqual(['activity-with-null-parents'])
+    expect(out.allocations.map(({ id }) => id)).toEqual(['allocation-1'])
+  })
   it('hides a all-projects allocation attributed to an inactive project', () => {
     const input: AppData = {
       ...createEmptyAppData(),
@@ -398,19 +396,19 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
           updatedAt: T_ARCH,
         },
       ],
-    };
+    }
 
-    expect(buildActiveData(input).allocations).toEqual([]);
-  });
+    expect(buildActiveData(input).allocations).toEqual([])
+  })
   it('identifies the exact inactive ancestor inherited through every projection edge', () => {
-    const input = makeActiveOnlyData();
+    const input = makeActiveOnlyData()
     const lookup: LifecycleAncestryLookup = (table, id) =>
-      (input[table] as unknown as LifecycleAncestryRow[]).find((row) => row.id === id);
+      (input[table] as unknown as LifecycleAncestryRow[]).find((row) => row.id === id)
     const inspect = (table: Parameters<typeof inspectLifecycleAncestry>[0], id: string) => {
-      const row = lookup(table, id);
-      if (!row) throw new Error(`Missing lifecycle test row ${table}.${id}`);
-      return inspectLifecycleAncestry(table, row, lookup);
-    };
+      const row = lookup(table, id)
+      if (!row) throw new Error(`Missing lifecycle test row ${table}.${id}`)
+      return inspectLifecycleAncestry(table, row, lookup)
+    }
     for (const [table, id, ancestorTable, ancestorId] of [
       ['projects', 'p-hidden-parent', 'clients', 'c-archived'],
       ['phases', 'ph-hidden', 'clients', 'c-archived'],
@@ -422,40 +420,40 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
       expect(inspect(table, id)).toEqual({
         kind: 'hidden',
         inactiveAncestor: { table: ancestorTable, id: ancestorId, state: 'archived' },
-      });
+      })
     }
-    expect(inspect('allocations', 'al1')).toEqual({ kind: 'visible' });
-  });
+    expect(inspect('allocations', 'al1')).toEqual({ kind: 'visible' })
+  })
   it('does NOT mutate the input (deep-equal the original) and returns a NEW object', () => {
-    const input = makeActiveOnlyData();
-    const snapshot = structuredClone(input);
-    const out = buildActiveData(input);
-    expect(input).toEqual(snapshot);
-    expect(input.resources).toHaveLength(2);
-    expect(input.clients).toHaveLength(2);
-    expect(input.projects).toHaveLength(3);
-    expect(out).not.toBe(input);
-  });
+    const input = makeActiveOnlyData()
+    const snapshot = structuredClone(input)
+    const out = buildActiveData(input)
+    expect(input).toEqual(snapshot)
+    expect(input.resources).toHaveLength(2)
+    expect(input.clients).toHaveLength(2)
+    expect(input.projects).toHaveLength(3)
+    expect(out).not.toBe(input)
+  })
   it('an all-active dataset is preserved (every row kept, every table present)', () => {
-    const input = makeActiveOnlyData();
-    input.resources = input.resources.filter((r) => r.id === 'r-active');
-    input.clients = input.clients.filter((c) => c.id === 'c-active');
-    input.projects = input.projects.filter((p) => p.id === 'p-active');
-    const out = buildActiveData(input);
-    expect(out.resources).toHaveLength(1);
-    expect(out.clients).toHaveLength(1);
-    expect(out.projects).toHaveLength(1);
-    expect(Object.keys(out).sort()).toEqual(Object.keys(createEmptyAppData()).sort());
-  });
+    const input = makeActiveOnlyData()
+    input.resources = input.resources.filter((r) => r.id === 'r-active')
+    input.clients = input.clients.filter((c) => c.id === 'c-active')
+    input.projects = input.projects.filter((p) => p.id === 'p-active')
+    const out = buildActiveData(input)
+    expect(out.resources).toHaveLength(1)
+    expect(out.clients).toHaveLength(1)
+    expect(out.projects).toHaveLength(1)
+    expect(Object.keys(out).sort()).toEqual(Object.keys(createEmptyAppData()).sort())
+  })
   it('an empty dataset projects to an empty dataset (no throw)', () => {
-    const out = buildActiveData(createEmptyAppData());
-    expect(out.resources).toEqual([]);
-    expect(out.clients).toEqual([]);
-    expect(out.projects).toEqual([]);
-  });
-});
+    const out = buildActiveData(createEmptyAppData())
+    expect(out.resources).toEqual([])
+    expect(out.clients).toEqual([])
+    expect(out.projects).toEqual([])
+  })
+})
 
-const ARCHIVE_IMPACT_COMPANY = 'acct-1';
+const ARCHIVE_IMPACT_COMPANY = 'acct-1'
 
 const ARCHIVE_IMPACT_DATA: AppData = {
   ...createEmptyAppData(),
@@ -591,21 +589,21 @@ const ARCHIVE_IMPACT_DATA: AppData = {
       updatedAt: T_ARCH,
     },
   ],
-};
-const makeArchiveImpactData = (): AppData => structuredClone(ARCHIVE_IMPACT_DATA);
+}
+const makeArchiveImpactData = (): AppData => structuredClone(ARCHIVE_IMPACT_DATA)
 
 describe('archiveImpact — Activity root', () => {
   it('counts allocations hidden by archiving an activity while leaving the activity count at zero', () => {
-    const input = makeArchiveImpactData();
+    const input = makeArchiveImpactData()
     expect(archiveImpact(input, 'activities', 'a1')).toEqual({
       projects: 0,
       phases: 0,
       activities: 0,
       allocations: 1,
       timeOff: 0,
-    });
-  });
-});
+    })
+  })
+})
 
 describe('archiveImpact', () => {
   it('counts a client’s active descendants: its projects + their project-activities + allocations', () => {
@@ -616,8 +614,8 @@ describe('archiveImpact', () => {
       activities: 1,
       allocations: 1,
       timeOff: 0,
-    });
-  });
+    })
+  })
 
   it('reports zero descendants for an empty client', () => {
     expect(archiveImpact(makeArchiveImpactData(), 'clients', 'c-empty')).toEqual({
@@ -626,25 +624,25 @@ describe('archiveImpact', () => {
       activities: 0,
       allocations: 0,
       timeOff: 0,
-    });
-  });
+    })
+  })
 
   it.each([
     ['archived', { archivedAt: T_ARCH }, 'already_inactive'],
     ['missing', null, 'invalid_transition'],
   ] as const)('fails loudly when the impact target is %s', (_state, tombstones, code) => {
-    const input = makeArchiveImpactData();
+    const input = makeArchiveImpactData()
     if (tombstones) {
       input.clients = input.clients.map((client) =>
-        client.id === 'c1' ? { ...client, ...tombstones } : client,
-      );
+        client.id === 'c1' ? { ...client, ...tombstones } : client
+      )
     }
-    const id = tombstones ? 'c1' : 'not-there';
+    const id = tombstones ? 'c1' : 'not-there'
 
     expect(() => archiveImpact(input, 'clients', id)).toThrow(
-      expect.objectContaining({ name: 'LifecycleTransitionError', code }),
-    );
-  });
+      expect.objectContaining({ name: 'LifecycleTransitionError', code })
+    )
+  })
 
   it('for a project: activities + allocations, and NEVER a self project count', () => {
     expect(archiveImpact(makeArchiveImpactData(), 'projects', 'p1')).toEqual({
@@ -653,8 +651,8 @@ describe('archiveImpact', () => {
       activities: 1,
       allocations: 1,
       timeOff: 0,
-    });
-  });
+    })
+  })
 
   it('for a resource: all its allocations (incl. the internal-activity one) + its time off', () => {
     expect(archiveImpact(makeArchiveImpactData(), 'resources', 'r1')).toEqual({
@@ -663,13 +661,13 @@ describe('archiveImpact', () => {
       activities: 0,
       allocations: 2,
       timeOff: 1,
-    });
-  });
+    })
+  })
 
   it('does NOT mutate the input', () => {
-    const input = makeArchiveImpactData();
-    const snapshot = structuredClone(input);
-    archiveImpact(input, 'clients', 'c1');
-    expect(input).toEqual(snapshot);
-  });
-});
+    const input = makeArchiveImpactData()
+    const snapshot = structuredClone(input)
+    archiveImpact(input, 'clients', 'c1')
+    expect(input).toEqual(snapshot)
+  })
+})

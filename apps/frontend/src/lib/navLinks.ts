@@ -12,9 +12,9 @@ import {
   TagIcon,
   UsersIcon,
   UserRoundIcon,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { m } from '@/i18n';
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { m } from '@/i18n'
 import {
   ROUTE_ACTIVITIES,
   ROUTE_ACCOUNT,
@@ -29,34 +29,34 @@ import {
   ROUTE_SETTINGS,
   ROUTE_TEAM,
   ROUTE_TIME_OFF,
-} from './tourAnchors';
+} from './tourAnchors'
 
 /** A route, deferred label getter, and icon used by sidebar navigation. Labels resolve at render time so switching company locale does not retain import-time text. */
-export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
+export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon }
 
 /**
  * Which routes a member is shown in navigation. Route gates and the server decide access
  * independently; hiding a route here never authorizes or refuses anything.
  */
-export type RouteVisibilityRule = 'everyone' | 'disciplines' | 'capacity-overview' | 'diagnostics';
+export type RouteVisibilityRule = 'everyone' | 'disciplines' | 'capacity-overview' | 'diagnostics'
 
 /**
  * Where the sidebar places a route: the primary group, the administration group pinned to the
  * bottom, the session footer (Help and Account), or nowhere (reached from Help and the palette).
  */
-export type RouteSidebarPlacement = 'primary' | 'admin' | 'footer' | 'none';
+export type RouteSidebarPlacement = 'primary' | 'admin' | 'footer' | 'none'
 
 /** One application route with its navigation label, sidebar placement and visibility rule. */
 export type AppRouteDefinition = NavigationLinkDefinition & {
-  sidebar: RouteSidebarPlacement;
-  visibility: RouteVisibilityRule;
-};
+  sidebar: RouteSidebarPlacement
+  visibility: RouteVisibilityRule
+}
 
 /** The facts each {@link RouteVisibilityRule} is decided by for the current member. */
 export interface RouteVisibilityFacts {
-  disciplinesEnabled: boolean;
-  capacityOverviewAllowed: boolean;
-  diagnosticsAllowed: boolean;
+  disciplinesEnabled: boolean
+  capacityOverviewAllowed: boolean
+  diagnosticsAllowed: boolean
 }
 
 /** The shared Help destination rendered immediately above the personal Account footer row. */
@@ -66,7 +66,7 @@ export const HELP_LINK: AppRouteDefinition = {
   icon: CircleHelpIcon,
   sidebar: 'footer',
   visibility: 'everyone',
-};
+}
 
 /** The personal account destination rendered in the sidebar session footer. */
 export const ACCOUNT_LINK: AppRouteDefinition = {
@@ -75,7 +75,7 @@ export const ACCOUNT_LINK: AppRouteDefinition = {
   icon: UserRoundIcon,
   sidebar: 'footer',
   visibility: 'everyone',
-};
+}
 
 // Share route constants with tour anchors so navigation and spotlight targets cannot drift.
 /**
@@ -167,23 +167,23 @@ export const APP_ROUTES: readonly AppRouteDefinition[] = [
   },
   HELP_LINK,
   ACCOUNT_LINK,
-];
+]
 
 /** Reports whether a route's visibility rule shows it in the given facts. */
 export function isRouteVisible(route: AppRouteDefinition, facts: RouteVisibilityFacts) {
   switch (route.visibility) {
     case 'everyone':
-      return true;
+      return true
     case 'disciplines':
-      return facts.disciplinesEnabled;
+      return facts.disciplinesEnabled
     case 'capacity-overview':
-      return facts.capacityOverviewAllowed;
+      return facts.capacityOverviewAllowed
     case 'diagnostics':
-      return facts.diagnosticsAllowed;
+      return facts.diagnosticsAllowed
   }
 }
 
 /** Lists the routes from {@link APP_ROUTES} whose visibility rule shows them, in table order. */
 export function listVisibleRoutes(facts: RouteVisibilityFacts): AppRouteDefinition[] {
-  return APP_ROUTES.filter((route) => isRouteVisible(route, facts));
+  return APP_ROUTES.filter((route) => isRouteVisible(route, facts))
 }

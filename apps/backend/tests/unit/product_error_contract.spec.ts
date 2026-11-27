@@ -1,17 +1,17 @@
-import { errors as vineErrors } from '@vinejs/vine';
-import { test } from '@japa/runner';
-import { errors as httpServerErrors } from '@adonisjs/core/http';
+import { errors as vineErrors } from '@vinejs/vine'
+import { test } from '@japa/runner'
+import { errors as httpServerErrors } from '@adonisjs/core/http'
 import {
   E_ACCOUNT_KIT_THROTTLED,
   E_ACCOUNT_KIT_POST_COMMIT,
   accountErrorResponse,
-} from '@kevinjohn/adonisjs-account-kit';
-import { E_ACCOUNT_KIT_ADMISSION_REQUIRED } from '@kevinjohn/adonisjs-account-kit/admission';
-import HttpExceptionHandler from '#exceptions/handler';
-import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
-import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
-import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
-import { errors as limiterErrors, LimiterResponse } from '@adonisjs/limiter';
+} from '@kevinjohn/adonisjs-account-kit'
+import { E_ACCOUNT_KIT_ADMISSION_REQUIRED } from '@kevinjohn/adonisjs-account-kit/admission'
+import HttpExceptionHandler from '#exceptions/handler'
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade'
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception'
+import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control'
+import { errors as limiterErrors, LimiterResponse } from '@adonisjs/limiter'
 import {
   PasswordConfirmationRequiredException,
   PasswordConfirmationStaleException,
@@ -19,50 +19,47 @@ import {
   PasswordConfirmationDeniedException,
   PasswordConfirmationThrottledException,
   InvalidPasswordConfirmationRequestException,
-} from '@kevinjohn/adonisjs-confirm-action-with-password';
-import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
-import PasswordConfirmationException from '#exceptions/password_confirmation_exception';
-import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception';
-import { refuseConflictingAdmission, refuseMissingAdmission } from '#exceptions/admission_errors';
+} from '@kevinjohn/adonisjs-confirm-action-with-password'
+import FirstCompanyPendingException from '#exceptions/first_company_pending_exception'
+import PasswordConfirmationException from '#exceptions/password_confirmation_exception'
+import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception'
+import { refuseConflictingAdmission, refuseMissingAdmission } from '#exceptions/admission_errors'
 import {
   credentialUpdateCommitted,
   emailInUseAnswer,
   invalidLinkAnswer,
-} from '#exceptions/credential_answers';
-import { signUpValidator } from '#validators/auth_requests';
-import {
-  acceptInvitationSignUpValidator,
-  createInvitationValidator,
-} from '#validators/invitations';
-import { inspectResetValidator } from '#validators/credentials';
-import MembershipLostException from '#exceptions/membership_lost_exception';
-import MutationIdReusedException from '#exceptions/mutation_id_reused_exception';
-import NoChangeException from '#exceptions/no_change_exception';
-import PlanningAuthorizationException from '#exceptions/planning_authorization_exception';
-import RecordChangedException from '#exceptions/record_changed_exception';
-import PlanningConflictException from '#exceptions/planning_conflict_exception';
-import EmptyHistoryException from '#exceptions/empty_history_exception';
-import ActivityPhaseProjectMismatchException from '#exceptions/activity_phase_project_mismatch_exception';
-import { toDomainRuleException } from '#services/planning/domain_rule_exceptions';
-import EntityNotFoundException from '#exceptions/entity_not_found_exception';
-import EntityWriteException from '#exceptions/entity_write_exception';
-import ExampleDataCompanyNotEmptyException from '#exceptions/example_data_company_not_empty_exception';
-import FrozenCompanyFieldException from '#exceptions/frozen_company_field_exception';
-import ImportIdCollisionException from '#exceptions/import_id_collision_exception';
-import ImportSnapshotStaleException from '#exceptions/import_snapshot_stale_exception';
-import ResourceAvatarUrlForbiddenException from '#exceptions/resource_avatar_url_forbidden_exception';
-import ResourceAvatarUrlInvalidException from '#exceptions/resource_avatar_url_invalid_exception';
-import ResourceKindImmutableException from '#exceptions/resource_kind_immutable_exception';
-import ConflictException from '#exceptions/conflict_exception';
-import ForbiddenException from '#exceptions/forbidden_exception';
-import NotFoundException from '#exceptions/not_found_exception';
-import CompanySetupRequiredException from '#exceptions/company_setup_required_exception';
-import MultipleCompaniesException from '#exceptions/multiple_companies_exception';
-import OwnerTransferRequiredException from '#exceptions/owner_transfer_required_exception';
-import IdempotencyConflictException from '#exceptions/idempotency_conflict_exception';
-import { DOMAIN_ERROR_CODES, DomainError } from '@capacitylens/shared/domain/errors';
-import RestorationConfirmationRequiredException from '#exceptions/restoration_confirmation_required_exception';
-import RestorationConfirmationStaleException from '#exceptions/restoration_confirmation_stale_exception';
+} from '#exceptions/credential_answers'
+import { signUpValidator } from '#validators/auth_requests'
+import { acceptInvitationSignUpValidator, createInvitationValidator } from '#validators/invitations'
+import { inspectResetValidator } from '#validators/credentials'
+import MembershipLostException from '#exceptions/membership_lost_exception'
+import MutationIdReusedException from '#exceptions/mutation_id_reused_exception'
+import NoChangeException from '#exceptions/no_change_exception'
+import PlanningAuthorizationException from '#exceptions/planning_authorization_exception'
+import RecordChangedException from '#exceptions/record_changed_exception'
+import PlanningConflictException from '#exceptions/planning_conflict_exception'
+import EmptyHistoryException from '#exceptions/empty_history_exception'
+import ActivityPhaseProjectMismatchException from '#exceptions/activity_phase_project_mismatch_exception'
+import { toDomainRuleException } from '#services/planning/domain_rule_exceptions'
+import EntityNotFoundException from '#exceptions/entity_not_found_exception'
+import EntityWriteException from '#exceptions/entity_write_exception'
+import ExampleDataCompanyNotEmptyException from '#exceptions/example_data_company_not_empty_exception'
+import FrozenCompanyFieldException from '#exceptions/frozen_company_field_exception'
+import ImportIdCollisionException from '#exceptions/import_id_collision_exception'
+import ImportSnapshotStaleException from '#exceptions/import_snapshot_stale_exception'
+import ResourceAvatarUrlForbiddenException from '#exceptions/resource_avatar_url_forbidden_exception'
+import ResourceAvatarUrlInvalidException from '#exceptions/resource_avatar_url_invalid_exception'
+import ResourceKindImmutableException from '#exceptions/resource_kind_immutable_exception'
+import ConflictException from '#exceptions/conflict_exception'
+import ForbiddenException from '#exceptions/forbidden_exception'
+import NotFoundException from '#exceptions/not_found_exception'
+import CompanySetupRequiredException from '#exceptions/company_setup_required_exception'
+import MultipleCompaniesException from '#exceptions/multiple_companies_exception'
+import OwnerTransferRequiredException from '#exceptions/owner_transfer_required_exception'
+import IdempotencyConflictException from '#exceptions/idempotency_conflict_exception'
+import { DOMAIN_ERROR_CODES, DomainError } from '@capacitylens/shared/domain/errors'
+import RestorationConfirmationRequiredException from '#exceptions/restoration_confirmation_required_exception'
+import RestorationConfirmationStaleException from '#exceptions/restoration_confirmation_stale_exception'
 import {
   answered,
   answeredThrown,
@@ -70,17 +67,17 @@ import {
   context,
   routeValidationAnswer,
   serializeErr,
-} from '#tests/helpers/unit/error_answers';
+} from '#tests/helpers/unit/error_answers'
 
 const signUp = {
   email: 'diana.prince@themyscira.example',
   password: 'lasso-of-truth-26',
   name: 'Diana',
   headers: {},
-};
+}
 
 /** The route parameter and headers `requestData` places beside an invitation sign-up body. */
-const invitationRequest = { params: { token: 'invitation-token' }, headers: {} };
+const invitationRequest = { params: { token: 'invitation-token' }, headers: {} }
 
 /**
  * One row per refusal sentence the backend fixes in one place, with the status and code it is
@@ -538,66 +535,66 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     429,
     { error: 'Rate limit exceeded.' },
   ],
-];
+]
 
 test.group('product error adapters', () => {
   test('each domain rule answers 400 with its own code and sentence', async ({ assert }) => {
     for (const code of DOMAIN_ERROR_CODES) {
       const { status, body } = await answered(
         toDomainRuleException(new DomainError(code, 'Refused.'))
-      );
-      assert.equal(status, 400, code);
-      assert.deepEqual(body, { error: 'Refused.', code }, code);
+      )
+      assert.equal(status, 400, code)
+      assert.deepEqual(body, { error: 'Refused.', code }, code)
     }
-  });
+  })
 
   for (const adapter of ['global', 'planning'] as const) {
     test(`${adapter} preserves kit codes, status, headers and committed metadata`, async ({
       assert,
     }) => {
       for (const error of [new E_ACCOUNT_KIT_THROTTLED(37), new E_ACCOUNT_KIT_POST_COMMIT()]) {
-        const { ctx, result } = context(error);
-        if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
-        else Object.assign(result, await answerOnPlanning(error));
-        const expected = accountErrorResponse(error)!;
-        const [kitError] = expected.body.errors;
-        assert.equal(result.status, expected.status);
-        assert.deepEqual(result.headers, expected.headers);
+        const { ctx, result } = context(error)
+        if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx)
+        else Object.assign(result, await answerOnPlanning(error))
+        const expected = accountErrorResponse(error)!
+        const [kitError] = expected.body.errors
+        assert.equal(result.status, expected.status)
+        assert.deepEqual(result.headers, expected.headers)
         assert.deepEqual(result.body, {
           error: kitError!.message,
           code: kitError!.code,
           ...(kitError!.committed ? { committed: true } : {}),
-        });
+        })
       }
-    });
+    })
     test(`${adapter} preserves admission decisions`, async ({ assert }) => {
-      const decision = { admitted: false, requirements: { invitation: { met: false } } };
-      const error = new E_ACCOUNT_KIT_ADMISSION_REQUIRED(decision);
-      const { ctx, result } = context(error);
-      if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
-      else Object.assign(result, await answerOnPlanning(error));
-      assert.equal(result.status, 403);
-      assert.properties(result.body as object, ['error', 'code', 'decision']);
-      assert.deepEqual((result.body as { decision: unknown }).decision, decision);
-      assert.equal((result.body as { code: string }).code, 'ADMISSION_REQUIRED');
-    });
+      const decision = { admitted: false, requirements: { invitation: { met: false } } }
+      const error = new E_ACCOUNT_KIT_ADMISSION_REQUIRED(decision)
+      const { ctx, result } = context(error)
+      if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx)
+      else Object.assign(result, await answerOnPlanning(error))
+      assert.equal(result.status, 403)
+      assert.properties(result.body as object, ['error', 'code', 'decision'])
+      assert.deepEqual((result.body as { decision: unknown }).decision, decision)
+      assert.equal((result.body as { code: string }).code, 'ADMISSION_REQUIRED')
+    })
   }
   const routeNames = [
     'api.companies.index',
     'api.planning.show',
     'api.member_resource_links.update',
     'api.company_exports.show',
-  ];
+  ]
   /** Answers `error` on every route name and returns the one status and body they share. */
   async function answerOnEveryRoute(error: () => unknown) {
-    const answers = [];
+    const answers = []
     for (const name of routeNames) {
-      const thrown = error();
-      const { ctx, result } = context(thrown, name);
-      await new HttpExceptionHandler().handle(thrown, ctx);
-      answers.push({ status: result.status, body: result.body });
+      const thrown = error()
+      const { ctx, result } = context(thrown, name)
+      await new HttpExceptionHandler().handle(thrown, ctx)
+      answers.push({ status: result.status, body: result.body })
     }
-    return answers;
+    return answers
   }
   test('IdentityAuthorizationException answers 403 with its own message and code on every route', async ({
     assert,
@@ -608,13 +605,13 @@ test.group('product error adapters', () => {
       assert.deepEqual(answer, {
         status: 403,
         body: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
-      });
+      })
     }
-  });
+  })
   test('E_ACCOUNT_KIT_ADMISSION_REQUIRED answers 403 with one sentence and the decision on every route', async ({
     assert,
   }) => {
-    const decision = { admitted: false, requirements: { invitation: { met: false } } };
+    const decision = { admitted: false, requirements: { invitation: { met: false } } }
     for (const answer of await answerOnEveryRoute(
       () => new E_ACCOUNT_KIT_ADMISSION_REQUIRED(decision)
     )) {
@@ -625,16 +622,16 @@ test.group('product error adapters', () => {
           code: 'ADMISSION_REQUIRED',
           decision,
         },
-      });
+      })
     }
-  });
+  })
   test('a Vine failure without a message takes the framework answer on every route', async ({
     assert,
   }) => {
     for (const answer of await answerOnEveryRoute(() => new vineErrors.E_VALIDATION_ERROR([]))) {
-      assert.deepEqual(answer, { status: 422, body: { errors: [] } });
+      assert.deepEqual(answer, { status: 422, body: { errors: [] } })
     }
-  });
+  })
   test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {
     for (const error of [
       new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED(),
@@ -646,119 +643,119 @@ test.group('product error adapters', () => {
       new IdentityAuthorizationException('Invalid membership role.'),
       new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing']),
     ]) {
-      const { ctx, diagnostics } = context(error);
-      await new HttpExceptionHandler().report(error, ctx);
-      assert.lengthOf(diagnostics, 0, String((error as { code?: string }).code));
+      const { ctx, diagnostics } = context(error)
+      await new HttpExceptionHandler().report(error, ctx)
+      assert.lengthOf(diagnostics, 0, String((error as { code?: string }).code))
     }
-    const unexpected = context(new Error('SENTINEL'));
-    await new HttpExceptionHandler().report(new Error('SENTINEL'), unexpected.ctx);
-    assert.lengthOf(unexpected.diagnostics, 1);
+    const unexpected = context(new Error('SENTINEL'))
+    await new HttpExceptionHandler().report(new Error('SENTINEL'), unexpected.ctx)
+    assert.lengthOf(unexpected.diagnostics, 1)
     assert.include(serializeErr(unexpected.diagnostics[0]!.fields.err), {
       errorType: 'unexpected',
       status: 500,
-    });
-  });
+    })
+  })
   test('a failed report falls back to one fixed logger line and never throws', async ({
     assert,
   }) => {
-    const error = new Error('SENTINEL');
-    const { ctx } = context(error);
-    const fallback: unknown[] = [];
+    const error = new Error('SENTINEL')
+    const { ctx } = context(error)
+    const fallback: unknown[] = []
     Object.assign(ctx.logger, {
       log() {
-        throw new Error('logger down');
+        throw new Error('logger down')
       },
       error(fields: unknown, message: string) {
-        fallback.push({ fields, message });
+        fallback.push({ fields, message })
       },
-    });
-    await new HttpExceptionHandler().report(error, ctx);
+    })
+    await new HttpExceptionHandler().report(error, ctx)
     assert.deepEqual(fallback, [
       {
         fields: { event: 'http.request.report_failed', errorType: 'logging_failure' },
         message: 'Private diagnostic logger failed',
       },
-    ]);
+    ])
     Object.assign(ctx.logger, {
       error() {
-        throw new Error('fallback down');
+        throw new Error('fallback down')
       },
-    });
-    await new HttpExceptionHandler().report(error, ctx);
-  });
+    })
+    await new HttpExceptionHandler().report(error, ctx)
+  })
   test('a package server fault is logged under its own category and status', async ({ assert }) => {
     for (const [error, expected] of [
       [new E_ACCOUNT_KIT_POST_COMMIT(), { errorType: 'account_kit_failure', status: 500 }],
       [new masqueradeErrors.E_MASQUERADE_UNAVAILABLE(), { errorType: 'unexpected', status: 503 }],
     ] as const) {
-      const { ctx, diagnostics } = context(error);
-      await new HttpExceptionHandler().report(error, ctx);
-      assert.lengthOf(diagnostics, 1);
-      assert.include(serializeErr(diagnostics[0]!.fields.err), expected);
+      const { ctx, diagnostics } = context(error)
+      await new HttpExceptionHandler().report(error, ctx)
+      assert.lengthOf(diagnostics, 1)
+      assert.include(serializeErr(diagnostics[0]!.fields.err), expected)
     }
-  });
+  })
   test('a constraint failure is a server fault: 500 answered and logged', async ({ assert }) => {
     const error = Object.assign(new Error('SENTINEL_SQL_TEXT SENTINEL_PAYLOAD'), {
       code: 'SQLITE_CONSTRAINT_FOREIGNKEY',
       sql: 'SENTINEL_SQL_TEXT',
       payload: 'SENTINEL_PAYLOAD',
-    });
-    const { ctx, result, diagnostics } = context(error);
-    await new HttpExceptionHandler().handle(error, ctx);
-    await new HttpExceptionHandler().report(error, ctx);
-    assert.equal(result.status, 500);
-    assert.deepEqual(result.body, { error: 'Internal server error.' });
-    assert.lengthOf(diagnostics, 1);
-    const { err, ...fields } = diagnostics[0]!.fields;
+    })
+    const { ctx, result, diagnostics } = context(error)
+    await new HttpExceptionHandler().handle(error, ctx)
+    await new HttpExceptionHandler().report(error, ctx)
+    assert.equal(result.status, 500)
+    assert.deepEqual(result.body, { error: 'Internal server error.' })
+    assert.lengthOf(diagnostics, 1)
+    const { err, ...fields } = diagnostics[0]!.fields
     assert.deepEqual(fields, {
       event: 'http.request.error',
       method: 'POST',
       path: '/api/v1/companies/:companyId/resources',
-    });
-    assert.include(serializeErr(err), { errorType: 'database_constraint', status: 500 });
-    const serialized = JSON.stringify([diagnostics[0]!.message, fields, serializeErr(err)]);
-    assert.notInclude(serialized, 'SENTINEL_SQL_TEXT');
-    assert.notInclude(serialized, 'SENTINEL_PAYLOAD');
-    assert.notInclude(serialized, error.message);
-  });
+    })
+    assert.include(serializeErr(err), { errorType: 'database_constraint', status: 500 })
+    const serialized = JSON.stringify([diagnostics[0]!.message, fields, serializeErr(err)])
+    assert.notInclude(serialized, 'SENTINEL_SQL_TEXT')
+    assert.notInclude(serialized, 'SENTINEL_PAYLOAD')
+    assert.notInclude(serialized, error.message)
+  })
   test('Vine validation takes the framework answer: 422 with its errors', async ({ assert }) => {
-    const messages = [{ message: 'Email is required.', field: 'email', rule: 'required' }];
-    const error = new vineErrors.E_VALIDATION_ERROR(messages);
-    const { ctx, result } = context(error);
-    await new HttpExceptionHandler().handle(error, ctx);
-    assert.equal(result.status, 422);
-    assert.deepEqual(result.body, { errors: messages });
-  });
+    const messages = [{ message: 'Email is required.', field: 'email', rule: 'required' }]
+    const error = new vineErrors.E_VALIDATION_ERROR(messages)
+    const { ctx, result } = context(error)
+    await new HttpExceptionHandler().handle(error, ctx)
+    assert.equal(result.status, 422)
+    assert.deepEqual(result.body, { errors: messages })
+  })
   test('planning operation refusals send the status and code their class states', async ({
     assert,
   }) => {
-    const conflict = await answerOnPlanning(new PlanningConflictException('The record is in use.'));
-    assert.equal(conflict.status, 409);
-    assert.deepEqual(conflict.body, { error: 'The record is in use.' });
+    const conflict = await answerOnPlanning(new PlanningConflictException('The record is in use.'))
+    assert.equal(conflict.status, 409)
+    assert.deepEqual(conflict.body, { error: 'The record is in use.' })
 
-    const stale = await answerOnPlanning(new RecordChangedException('Reload first.'));
-    assert.equal(stale.status, 409);
-    assert.deepEqual(stale.body, { error: 'Reload first.', code: 'STALE_REVISION' });
-  });
+    const stale = await answerOnPlanning(new RecordChangedException('Reload first.'))
+    assert.equal(stale.status, 409)
+    assert.deepEqual(stale.body, { error: 'Reload first.', code: 'STALE_REVISION' })
+  })
   test('planning restoration failures retain both typed count-bearing variants', async ({
     assert,
   }) => {
     for (const stale of [false, true]) {
       const error = stale
         ? new RestorationConfirmationStaleException(3)
-        : new RestorationConfirmationRequiredException(3);
-      const result = await answerOnPlanning(error);
-      assert.equal(result.status, 409);
+        : new RestorationConfirmationRequiredException(3)
+      const result = await answerOnPlanning(error)
+      assert.equal(result.status, 409)
       assert.deepEqual(result.body, {
         error: error.message,
         code: stale ? 'RESTORATION_CONFIRMATION_STALE' : 'RESTORATION_CONFIRMATION_REQUIRED',
         restorableItemCount: 3,
-      });
+      })
     }
-  });
+  })
   test('each fixed refusal sentence is sent with one status and code', async ({ assert }) => {
     for (const [name, produce, status, body] of refusals) {
-      assert.deepEqual(await produce(), { status, body }, name);
+      assert.deepEqual(await produce(), { status, body }, name)
     }
-  });
-});
+  })
+})

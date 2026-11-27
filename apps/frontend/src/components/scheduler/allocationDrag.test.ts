@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { resolveVolumePreservingHours, resolveGesture } from './allocationDrag';
-import type { DateRange } from '@/lib/gestureMath';
-import type { Weekday } from '@capacitylens/shared/types/entities';
+import { describe, it, expect } from 'vitest'
+import { resolveVolumePreservingHours, resolveGesture } from './allocationDrag'
+import type { DateRange } from '@/lib/gestureMath'
+import type { Weekday } from '@capacitylens/shared/types/entities'
 
 // The pure gesture suite covers invalid spans, clamping, no-op moves, and working-calendar placement independently of pointer events.
 
-const IGNORE = { ignoreWorkingDays: true };
-const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate });
+const IGNORE = { ignoreWorkingDays: true }
+const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate })
 
 describe('volumePreservingHoursClamped', () => {
   it('rescales hours inversely with the span (volume held constant)', () => {
@@ -16,9 +16,9 @@ describe('volumePreservingHoursClamped', () => {
         next: range('2026-06-01', '2026-06-02'),
         options: IGNORE,
         hoursPerDay: 6,
-      }).hours,
-    ).toBe(12);
-  });
+      }).hours
+    ).toBe(12)
+  })
 
   it('clamps the result to MAX_HOURS_PER_DAY (24)', () => {
     expect(
@@ -27,9 +27,9 @@ describe('volumePreservingHoursClamped', () => {
         next: range('2026-06-01', '2026-06-01'),
         options: IGNORE,
         hoursPerDay: 6,
-      }).hours,
-    ).toBe(24);
-  });
+      }).hours
+    ).toBe(24)
+  })
 
   it('returns the original hours when the new span is zero (divide-by-zero guard)', () => {
     expect(
@@ -38,9 +38,9 @@ describe('volumePreservingHoursClamped', () => {
         next: range('2026-06-02', '2026-06-01'),
         options: IGNORE,
         hoursPerDay: 6,
-      }).hours,
-    ).toBe(6);
-  });
+      }).hours
+    ).toBe(6)
+  })
 
   // Report clamped only when the hours cap truncates work volume so gesture callers can surface a persistent warning.
   it('flags clamped=true when the raw derived hours exceed MAX_HOURS_PER_DAY (24)', () => {
@@ -50,10 +50,10 @@ describe('volumePreservingHoursClamped', () => {
         next: range('2026-06-01', '2026-06-01'),
         options: IGNORE,
         hoursPerDay: 6,
-      }),
-    ).toEqual({ hours: 24, clamped: true });
-  });
-});
+      })
+    ).toEqual({ hours: 24, clamped: true })
+  })
+})
 
 describe('volumePreservingHoursClamped edge cases', () => {
   it('reports clamped=false for an in-range resize (no truncation)', () => {
@@ -63,9 +63,9 @@ describe('volumePreservingHoursClamped edge cases', () => {
         next: range('2026-06-01', '2026-06-02'),
         options: IGNORE,
         hoursPerDay: 6,
-      }),
-    ).toEqual({ hours: 12, clamped: false });
-  });
+      })
+    ).toEqual({ hours: 12, clamped: false })
+  })
 
   it('reports clamped=false at exactly the cap (24 is allowed, only > caps)', () => {
     expect(
@@ -74,9 +74,9 @@ describe('volumePreservingHoursClamped edge cases', () => {
         next: range('2026-06-01', '2026-06-01'),
         options: IGNORE,
         hoursPerDay: 6,
-      }),
-    ).toEqual({ hours: 24, clamped: false });
-  });
+      })
+    ).toEqual({ hours: 24, clamped: false })
+  })
 
   it('reports clamped=false through the divide-by-zero guard (original hours, no clamp)', () => {
     expect(
@@ -85,12 +85,12 @@ describe('volumePreservingHoursClamped edge cases', () => {
         next: range('2026-06-02', '2026-06-01'),
         options: IGNORE,
         hoursPerDay: 6,
-      }),
-    ).toEqual({ hours: 6, clamped: false });
-  });
+      })
+    ).toEqual({ hours: 6, clamped: false })
+  })
 
   // A source span with no effective working days has no measurable work volume, so resizing must preserve its stored hours rather than derive zero.
-  const WEEKDAYS_ONLY = { workingDays: [1, 2, 3, 4, 5] as Weekday[] };
+  const WEEKDAYS_ONLY = { workingDays: [1, 2, 3, 4, 5] as Weekday[] }
 
   it('preserves hoursPerDay verbatim when the OLD span has zero working days (weekend-only allocation)', () => {
     expect(
@@ -99,9 +99,9 @@ describe('volumePreservingHoursClamped edge cases', () => {
         next: range('2026-06-01', '2026-06-04'),
         options: WEEKDAYS_ONLY,
         hoursPerDay: 6,
-      }),
-    ).toEqual({ hours: 6, clamped: false });
-  });
+      })
+    ).toEqual({ hours: 6, clamped: false })
+  })
 
   it('does not zero hours when a zero-working-day old span is resized onto weekdays', () => {
     // Resize-end drags a Sat-only allocation forward onto a full working week, the derived hours
@@ -112,14 +112,14 @@ describe('volumePreservingHoursClamped edge cases', () => {
       next: range('2026-06-06', '2026-06-12'),
       options: WEEKDAYS_ONLY,
       hoursPerDay: 8,
-    });
-    expect(hours).toBe(8);
-    expect(clamped).toBe(false);
-  });
-});
+    })
+    expect(hours).toBe(8)
+    expect(clamped).toBe(false)
+  })
+})
 
 describe('computeGesture', () => {
-  const current = range('2026-06-01', '2026-06-04');
+  const current = range('2026-06-01', '2026-06-04')
 
   it('returns equivalent dates and unchanged hours for a zero-delta calendar move', () => {
     const { dates, hours } = resolveGesture({
@@ -129,10 +129,10 @@ describe('computeGesture', () => {
       options: IGNORE,
       hoursPerDay: 6,
       isDays: true,
-    });
-    expect(dates).toEqual(current);
-    expect(hours).toBe(6);
-  });
+    })
+    expect(dates).toEqual(current)
+    expect(hours).toBe(6)
+  })
 
   it('normalises a zero-horizontal move against the target working week', () => {
     const { dates, hours } = resolveGesture({
@@ -142,11 +142,11 @@ describe('computeGesture', () => {
       options: { workingDays: [1, 2, 3, 4, 5] },
       hoursPerDay: 8,
       isDays: false,
-    });
+    })
 
-    expect(dates).toEqual(range('2026-06-05', '2026-06-05'));
-    expect(hours).toBe(8);
-  });
+    expect(dates).toEqual(range('2026-06-05', '2026-06-05'))
+    expect(hours).toBe(8)
+  })
 
   it("carries the origin's working-day duration into the target week on a reassign", () => {
     const { dates, hours } = resolveGesture({
@@ -156,12 +156,12 @@ describe('computeGesture', () => {
       options: { workingDays: [1, 2, 3, 4, 5], sourceWorkingDays: [2, 3, 4] },
       hoursPerDay: 8,
       isDays: true,
-    });
+    })
 
-    expect(dates).toEqual(range('2026-08-13', '2026-08-14'));
+    expect(dates).toEqual(range('2026-08-13', '2026-08-14'))
 
-    expect(hours).toBe(8);
-  });
+    expect(hours).toBe(8)
+  })
 
   it('keeps hours unchanged for a move (only a resize rescales)', () => {
     const { dates, hours } = resolveGesture({
@@ -171,10 +171,10 @@ describe('computeGesture', () => {
       options: IGNORE,
       hoursPerDay: 6,
       isDays: true,
-    });
-    expect(hours).toBe(6);
-    expect(dates).toEqual(range('2026-06-03', '2026-06-06'));
-  });
+    })
+    expect(hours).toBe(6)
+    expect(dates).toEqual(range('2026-06-03', '2026-06-06'))
+  })
 
   it('rescales hours for a days-mode resize that changes the span', () => {
     const { dates, hours, clamped } = resolveGesture({
@@ -184,15 +184,15 @@ describe('computeGesture', () => {
       options: IGNORE,
       hoursPerDay: 6,
       isDays: true,
-    });
-    expect(dates).toEqual(range('2026-06-01', '2026-06-02'));
-    expect(hours).toBe(12);
-    expect(clamped).toBe(false);
-  });
-});
+    })
+    expect(dates).toEqual(range('2026-06-01', '2026-06-02'))
+    expect(hours).toBe(12)
+    expect(clamped).toBe(false)
+  })
+})
 
 describe('computeGesture rescaling guards', () => {
-  const current = range('2026-06-01', '2026-06-04');
+  const current = range('2026-06-01', '2026-06-04')
 
   it('does NOT rescale hours when not in days mode (hourly/blocks)', () => {
     const { hours, clamped } = resolveGesture({
@@ -202,10 +202,10 @@ describe('computeGesture rescaling guards', () => {
       options: IGNORE,
       hoursPerDay: 6,
       isDays: false,
-    });
-    expect(hours).toBe(6);
-    expect(clamped).toBe(false);
-  });
+    })
+    expect(hours).toBe(6)
+    expect(clamped).toBe(false)
+  })
 
   it('flags clamped on a days-mode resize that drives hours past the cap', () => {
     const { hours, clamped } = resolveGesture({
@@ -215,10 +215,10 @@ describe('computeGesture rescaling guards', () => {
       options: IGNORE,
       hoursPerDay: 12,
       isDays: true,
-    });
-    expect(hours).toBe(24);
-    expect(clamped).toBe(true);
-  });
+    })
+    expect(hours).toBe(24)
+    expect(clamped).toBe(true)
+  })
 
   it('never flags clamped for a move (only a volume-preserving resize can clamp)', () => {
     expect(
@@ -229,9 +229,9 @@ describe('computeGesture rescaling guards', () => {
         options: IGNORE,
         hoursPerDay: 24,
         isDays: true,
-      }).clamped,
-    ).toBe(false);
-  });
+      }).clamped
+    ).toBe(false)
+  })
 
   // Use an over-cap value to distinguish a move that preserves stored hours from an accidentally entered resize/clamp path even when spans are equal.
   it('a move never enters the volume-preserving path, even with an out-of-range hoursPerDay', () => {
@@ -242,10 +242,10 @@ describe('computeGesture rescaling guards', () => {
       options: IGNORE,
       hoursPerDay: 30,
       isDays: true,
-    });
-    expect(hours).toBe(30);
-    expect(clamped).toBe(false);
-  });
+    })
+    expect(hours).toBe(30)
+    expect(clamped).toBe(false)
+  })
 
   // An over-cap fixture distinguishes a zero-delta no-op from accidentally entering the resize/clamp path.
   it('deltaDays === 0 skips the rescale entirely, even with an out-of-range hoursPerDay', () => {
@@ -256,8 +256,8 @@ describe('computeGesture rescaling guards', () => {
       options: IGNORE,
       hoursPerDay: 30,
       isDays: true,
-    });
-    expect(hours).toBe(30);
-    expect(clamped).toBe(false);
-  });
-});
+    })
+    expect(hours).toBe(30)
+    expect(clamped).toBe(false)
+  })
+})

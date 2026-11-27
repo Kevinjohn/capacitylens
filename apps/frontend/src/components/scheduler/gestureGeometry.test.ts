@@ -1,22 +1,22 @@
-import { describe, it, expect } from 'vitest';
-import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
-import type { Weekday } from '@capacitylens/shared/types/entities';
-import type { DragMode } from '@/lib/gestureMath';
-import { makeAllocation, makeBar } from '@/test/fixtures';
-import { buildColumnGeometry } from './columnGeometry';
-import type { ColumnGeometry } from './columnGeometry';
-import { buildGesturePreviewDates, buildGesturePreviewGeometry } from './gestureGeometry';
+import { describe, it, expect } from 'vitest'
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath'
+import type { Weekday } from '@capacitylens/shared/types/entities'
+import type { DragMode } from '@/lib/gestureMath'
+import { makeAllocation, makeBar } from '@/test/fixtures'
+import { buildColumnGeometry } from './columnGeometry'
+import type { ColumnGeometry } from './columnGeometry'
+import { buildGesturePreviewDates, buildGesturePreviewGeometry } from './gestureGeometry'
 
-const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5];
+const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5]
 
 interface PreviewInput {
-  startDate: string;
-  endDate: string;
-  ignoreWorkingDays: boolean;
-  mode: DragMode;
-  deltaDays: number;
-  previewDays: Weekday[] | undefined;
-  geometry: ColumnGeometry;
+  startDate: string
+  endDate: string
+  ignoreWorkingDays: boolean
+  mode: DragMode
+  deltaDays: number
+  previewDays: Weekday[] | undefined
+  geometry: ColumnGeometry
 }
 
 // Runs the same date-then-pixel steps the gesture view model uses for one preview frame.
@@ -25,29 +25,29 @@ function previewPixels(input: PreviewInput): { left: number; width: number } {
     startDate: input.startDate,
     endDate: input.endDate,
     ignoreWorkingDays: input.ignoreWorkingDays,
-  });
+  })
   const result = buildGesturePreviewDates({
     allocation,
     mode: input.mode,
     deltaDays: input.deltaDays,
     previewDays: input.previewDays,
     isReassignment: false,
-  });
-  if (result.kind !== 'ready') throw new Error(`Expected a ready preview, got ${result.kind}`);
+  })
+  if (result.kind !== 'ready') throw new Error(`Expected a ready preview, got ${result.kind}`)
   const { left, width } = buildGesturePreviewGeometry(makeBar({ allocation }), input.geometry, {
     mode: input.mode,
     deltaDays: input.deltaDays,
     deltaY: 0,
     dates: result.dates,
-  });
-  return { left, width };
+  })
+  return { left, width }
 }
 
 describe('gesture preview geometry', () => {
   const geom = buildColumnGeometry(listDaysISO('2026-06-01', '2026-06-30'), 20, {
     minimiseWeekends: false,
     weekendWidth: 12,
-  });
+  })
 
   it('places a calendar-day move at the snapped start and keeps its width', () => {
     expect(
@@ -59,9 +59,9 @@ describe('gesture preview geometry', () => {
         deltaDays: 2,
         previewDays: undefined,
         geometry: geom,
-      }),
-    ).toEqual({ left: 2 * 20, width: 4 * 20 });
-  });
+      })
+    ).toEqual({ left: 2 * 20, width: 4 * 20 })
+  })
 
   it('applies the working week, so a weekend-aware move differs from a calendar-day move', () => {
     // Snapped geometry must honour working-calendar options so previews match committed ranges across a weekend.
@@ -72,24 +72,24 @@ describe('gesture preview geometry', () => {
       deltaDays: 1,
       previewDays: WEEKDAYS,
       geometry: geom,
-    };
-    const naive = previewPixels({ ...move, ignoreWorkingDays: true });
-    const weekendAware = previewPixels({ ...move, ignoreWorkingDays: false });
+    }
+    const naive = previewPixels({ ...move, ignoreWorkingDays: true })
+    const weekendAware = previewPixels({ ...move, ignoreWorkingDays: false })
 
-    expect(naive).toEqual({ left: 4 * 20, width: 2 * 20 });
-    expect(weekendAware).not.toEqual(naive);
-  });
+    expect(naive).toEqual({ left: 4 * 20, width: 2 * 20 })
+    expect(weekendAware).not.toEqual(naive)
+  })
 
   it('keeps the preview pixel-identical to the committed range across a narrow weekend', () => {
     // Narrow-weekend geometry must measure each real column so a range crossing the weekend cannot use uniform day widths.
     const narrow = buildColumnGeometry(listDaysISO('2026-06-01', '2026-06-30'), 20, {
       minimiseWeekends: true,
       weekendWidth: 8,
-    });
+    })
     const committed = {
       left: narrow.getDateX('2026-06-05'),
       width: narrow.getDatesWidth('2026-06-05', '2026-06-08'),
-    };
+    }
 
     const preview = previewPixels({
       startDate: '2026-06-05',
@@ -99,9 +99,9 @@ describe('gesture preview geometry', () => {
       deltaDays: 1,
       previewDays: WEEKDAYS,
       geometry: narrow,
-    });
+    })
 
-    expect(preview).toEqual(committed);
-    expect(preview.width).toBe(56);
-  });
-});
+    expect(preview).toEqual(committed)
+    expect(preview.width).toBe(56)
+  })
+})

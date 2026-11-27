@@ -1,26 +1,26 @@
 /** A display-safe validation failure with a stable path into the beta document. */
 export class CompanyExportError extends Error {
-  readonly path: string;
+  readonly path: string
   constructor(path: string, message: string, options?: ErrorOptions) {
-    super(`${path}: ${message}`, options);
-    this.name = 'CompanyExportError';
-    this.path = path;
+    super(`${path}: ${message}`, options)
+    this.name = 'CompanyExportError'
+    this.path = path
   }
 }
 
 /** Throw a display-safe validation error for one field path. */
 export function fail(path: string, message: string): never {
-  throw new CompanyExportError(path, message);
+  throw new CompanyExportError(path, message)
 }
 
 /** Assert an untrusted value satisfies a validation condition. */
 export function assert(condition: unknown, path: string, message: string): asserts condition {
-  if (!condition) fail(path, message);
+  if (!condition) fail(path, message)
 }
 
 /** Return whether a plain object has its own property with this key. */
 export const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
+  Object.prototype.hasOwnProperty.call(value, key)
 
 /** Return whether a value exactly matches one of the supplied choices. */
-export const isOneOf = (value: unknown, choices: readonly unknown[]) => choices.includes(value);
+export const isOneOf = (value: unknown, choices: readonly unknown[]) => choices.includes(value)

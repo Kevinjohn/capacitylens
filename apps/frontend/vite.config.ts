@@ -1,42 +1,42 @@
-import { defineConfig } from 'vitest/config';
-import { loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import { fileURLToPath } from 'node:url';
-import { parsePort } from '../../scripts/dev/parsePort.mjs';
-import { ports, testShare } from '../../tooling/ports.mjs';
-import { ENTRY_RAW_LIMIT_KB } from '../../scripts/build/bundleBudget.mjs';
-import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
+import { defineConfig } from 'vitest/config'
+import { loadEnv } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+import { paraglideVitePlugin } from '@inlang/paraglide-js'
+import { fileURLToPath } from 'node:url'
+import { parsePort } from '../../scripts/dev/parsePort.mjs'
+import { ports, testShare } from '../../tooling/ports.mjs'
+import { ENTRY_RAW_LIMIT_KB } from '../../scripts/build/bundleBudget.mjs'
+import { isAccountEmail } from '../../packages/shared/src/account/validation.ts'
 
 // Port lane-derived ports keep concurrent worktrees on disjoint service endpoints.
-const portLanePorts = ports();
+const portLanePorts = ports()
 const devApiPort = parsePort(
   process.env.CAPACITYLENS_DEV_API_PORT,
   portLanePorts.dbApi,
-  'CAPACITYLENS_DEV_API_PORT',
-);
+  'CAPACITYLENS_DEV_API_PORT'
+)
 // One Vite config serves several dev servers on different ports (the core app, and the db/auth
 // flavours Playwright boots). The service name selects which port lane port this invocation binds,
 // so no script has to pass a literal `--port`.
-const viteService = process.env.CAPACITYLENS_VITE_SERVICE ?? 'web';
+const viteService = process.env.CAPACITYLENS_VITE_SERVICE ?? 'web'
 if (!Object.hasOwn(portLanePorts, viteService)) {
   throw new Error(
-    `CAPACITYLENS_VITE_SERVICE must name a port lane port; received ${JSON.stringify(viteService)}.`,
-  );
+    `CAPACITYLENS_VITE_SERVICE must name a port lane port; received ${JSON.stringify(viteService)}.`
+  )
 }
-const servicePort = portLanePorts[viteService as keyof typeof portLanePorts];
+const servicePort = portLanePorts[viteService as keyof typeof portLanePorts]
 
 /** Configures application builds and port-lane-local development, refusing invalid client deployment settings. */
 export default defineConfig(({ mode }) => {
   // Scripts load this config from the repository root, so resolve frontend paths from the config file.
-  const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
-  const fileEnv = loadEnv(mode, frontendRoot, 'VITE_CAPACITYLENS_');
+  const frontendRoot = fileURLToPath(new URL('.', import.meta.url))
+  const fileEnv = loadEnv(mode, frontendRoot, 'VITE_CAPACITYLENS_')
   const clientEnv = (name: 'VITE_CAPACITYLENS_FEEDBACK_MAILTO') =>
-    process.env[name] ?? fileEnv[name] ?? '';
-  const feedbackAddress = clientEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO').trim();
+    process.env[name] ?? fileEnv[name] ?? ''
+  const feedbackAddress = clientEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO').trim()
   if (feedbackAddress !== '' && !isAccountEmail(feedbackAddress)) {
-    throw new Error('VITE_CAPACITYLENS_FEEDBACK_MAILTO must be one valid email address.');
+    throw new Error('VITE_CAPACITYLENS_FEEDBACK_MAILTO must be one valid email address.')
   }
 
   return {
@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@capacitylens/shared': fileURLToPath(
-          new URL('../../packages/shared/src', import.meta.url),
+          new URL('../../packages/shared/src', import.meta.url)
         ),
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
@@ -129,5 +129,5 @@ export default defineConfig(({ mode }) => {
         ],
       },
     },
-  };
-});
+  }
+})

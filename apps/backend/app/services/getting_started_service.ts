@@ -1,23 +1,23 @@
-import { inject } from '@adonisjs/core';
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
-import { buildGettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
-import { StateRepositoryService } from '#services/state_repository_service';
+import { inject } from '@adonisjs/core'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle'
+import { buildGettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted'
+import { StateRepositoryService } from '#services/state_repository_service'
 
 /** The company's getting-started milestones and their dismissal. */
 @inject()
 export class GettingStartedService {
-  #stateRepository: StateRepositoryService;
+  #stateRepository: StateRepositoryService
 
   constructor(stateRepository: StateRepositoryService) {
-    this.#stateRepository = stateRepository;
+    this.#stateRepository = stateRepository
   }
 
   /** The company's getting-started milestones, from the same active projection the planning read uses. */
   async readGettingStartedSteps(trx: TransactionClientContract, companyId: string) {
     return buildGettingStartedSteps(
       buildActiveData(await this.#stateRepository.readStateWithClient(trx, companyId, true))
-    );
+    )
   }
 
   /** Whether the company has dismissed its getting-started panel. */
@@ -25,8 +25,8 @@ export class GettingStartedService {
     const row = await trx
       .from('company_getting_started_dismissals')
       .where('company_id', companyId)
-      .first();
-    return Boolean(row);
+      .first()
+    return Boolean(row)
   }
 
   /** Records the company's dismissal once; a repeat is ignored. */
@@ -40,6 +40,6 @@ export class GettingStartedService {
         updated_at: now,
       })
       .onConflict('company_id')
-      .ignore();
+      .ignore()
   }
 }

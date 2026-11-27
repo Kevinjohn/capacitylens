@@ -1,7 +1,7 @@
-import vine from '@vinejs/vine';
-import { writableFields } from '@capacitylens/shared/types/entityFields';
-import { TIME_OFF_TYPES } from '@capacitylens/shared/types/entities';
-import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates';
+import vine from '@vinejs/vine'
+import { writableFields } from '@capacitylens/shared/types/entityFields'
+import { TIME_OFF_TYPES } from '@capacitylens/shared/types/entities'
+import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates'
 import {
   calendarDate,
   dateRange,
@@ -13,7 +13,7 @@ import {
   requireChanges,
   uniqueArrayIds,
   uuid,
-} from '#validators/planning/fields';
+} from '#validators/planning/fields'
 
 const timeOffCreate = vine
   .object({
@@ -24,7 +24,7 @@ const timeOffCreate = vine
     type: vine.enum(TIME_OFF_TYPES),
     note: nullableUserText(true).optional(),
   })
-  .use(dateRange());
+  .use(dateRange())
 
 export const timeOffChanges = vine
   .object({
@@ -35,7 +35,7 @@ export const timeOffChanges = vine
     note: nullableUserText(true).optional(),
   })
   .use(requireChanges(writableFields('timeOff')))
-  .use(dateRange());
+  .use(dateRange())
 
 export const timeOffIntent = vine.union([
   vine.union.if(
@@ -75,4 +75,4 @@ export const timeOffIntent = vine.union([
     })
   ),
   vine.union.else(vine.object({ operation: vine.literal('timeOff.delete'), id: entityId() })),
-]);
+])

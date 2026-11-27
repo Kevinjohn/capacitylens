@@ -1,28 +1,28 @@
-import type { Dispatch, SetStateAction } from 'react';
-import { m } from '@/i18n';
-import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessApi';
-import { buildMemberConfirmationCopy, resolveMemberLabel } from './memberConfirmationCopy';
-import type { MemberConfirmation } from './memberConfirmationCopy';
+import type { Dispatch, SetStateAction } from 'react'
+import { m } from '@/i18n'
+import type { Role } from '@capacitylens/shared/domain/access'
+import type { TeamMember } from '@/account/teamAccessApi'
+import { buildMemberConfirmationCopy, resolveMemberLabel } from './memberConfirmationCopy'
+import type { MemberConfirmation } from './memberConfirmationCopy'
 
-export type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy';
-import { resolveRoleSummary } from '@/lib/accessCopy';
-import { ConfirmDialog, FormDialog, SelectField } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
+export type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy'
+import { resolveRoleSummary } from '@/lib/accessCopy'
+import { ConfirmDialog, FormDialog, SelectField } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
 
 /** A pending role change for one team member. */
-export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
+export type MemberRoleEdit = { member: TeamMember; nextRole: Role }
 
 type MemberConfirmationsProps = {
-  memberConfirmation: MemberConfirmation | null;
-  setMemberConfirmation: Dispatch<SetStateAction<MemberConfirmation | null>>;
-  confirmedMemberAction(): void;
-  roleEdit: MemberRoleEdit | null;
-  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
-  roleOptions: { value: Role; label: string }[];
-  busy: boolean;
-  changeRole(member: TeamMember, role: Role): Promise<void>;
-};
+  memberConfirmation: MemberConfirmation | null
+  setMemberConfirmation: Dispatch<SetStateAction<MemberConfirmation | null>>
+  confirmedMemberAction(): void
+  roleEdit: MemberRoleEdit | null
+  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>
+  roleOptions: { value: Role; label: string }[]
+  busy: boolean
+  changeRole(member: TeamMember, role: Role): Promise<void>
+}
 
 function MemberRoleEditDialog({
   roleEdit,
@@ -31,11 +31,11 @@ function MemberRoleEditDialog({
   busy,
   changeRole,
 }: {
-  roleEdit: MemberRoleEdit;
-  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
-  roleOptions: { value: Role; label: string }[];
-  busy: boolean;
-  changeRole(member: TeamMember, role: Role): Promise<void>;
+  roleEdit: MemberRoleEdit
+  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>
+  roleOptions: { value: Role; label: string }[]
+  busy: boolean
+  changeRole(member: TeamMember, role: Role): Promise<void>
 }) {
   return (
     <FormDialog
@@ -43,8 +43,8 @@ function MemberRoleEditDialog({
       description={resolveMemberLabel(roleEdit.member)}
       onClose={() => setRoleEdit(null)}
       onSubmit={() => {
-        setRoleEdit(null);
-        void changeRole(roleEdit.member, roleEdit.nextRole);
+        setRoleEdit(null)
+        void changeRole(roleEdit.member, roleEdit.nextRole)
       }}
       footer={
         <>
@@ -80,7 +80,7 @@ function MemberRoleEditDialog({
         </p>
       </div>
     </FormDialog>
-  );
+  )
 }
 
 /** Requires explicit confirmation before member access changes proceed. */
@@ -94,7 +94,7 @@ export function MemberConfirmations({
   busy,
   changeRole,
 }: MemberConfirmationsProps) {
-  const copy = memberConfirmation ? buildMemberConfirmationCopy(memberConfirmation) : null;
+  const copy = memberConfirmation ? buildMemberConfirmationCopy(memberConfirmation) : null
   return (
     <>
       {memberConfirmation && copy && (
@@ -118,5 +118,5 @@ export function MemberConfirmations({
         />
       )}
     </>
-  );
+  )
 }

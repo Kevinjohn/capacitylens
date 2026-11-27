@@ -1,9 +1,9 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, expect, it } from 'vitest';
-import { buildEmptyFilters } from '@/store/useStore';
-import { requireValue } from '@/test/fixtures';
-import { capacityOver } from '@/test/capacityFixtures';
-import { buildSchedulerModel } from './schedulerModel';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, expect, it } from 'vitest'
+import { buildEmptyFilters } from '@/store/useStore'
+import { requireValue } from '@/test/fixtures'
+import { capacityOver } from '@/test/capacityFixtures'
+import { buildSchedulerModel } from './schedulerModel'
 import {
   makeDataset,
   days,
@@ -11,11 +11,11 @@ import {
   geom,
   start,
   makeDatasetWithExternal,
-} from './schedulerModelTestKit';
+} from './schedulerModelTestKit'
 
 describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('positions overlapping bars on the SAME resource at DIFFERENT lane tops (laneById is a real Map, not empty)', () => {
-    const d = makeDataset();
+    const d = makeDataset()
 
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
@@ -29,7 +29,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       endDate: '2026-06-02',
       hoursPerDay: 8,
       status: 'confirmed',
-    });
+    })
     const model = buildSchedulerModel({
       data: d,
       geom,
@@ -42,20 +42,20 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
+    })
     const r1bars = requireValue(
       model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
-      'r1 scheduler row',
-    ).bars;
+      'r1 scheduler row'
+    ).bars
     const tops = new Set(
       r1bars
         .filter((b) => b.allocation.id === 'a1' || b.allocation.id === 'a-overlap')
-        .map((b) => b.top),
-    );
-    expect(tops.size).toBe(2);
-  });
+        .map((b) => b.top)
+    )
+    expect(tops.size).toBe(2)
+  })
   it('overSoon truly SKIPS external resources — even one with real over-capacity hours', () => {
-    const d = makeDatasetWithExternal();
+    const d = makeDatasetWithExternal()
     // Book the external above normal person capacity so missing capacity exclusion changes the result.
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
@@ -69,7 +69,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       endDate: '2026-06-01',
       hoursPerDay: 20,
       status: 'confirmed',
-    });
+    })
     // Even a capacity entry for the external partner draws no overSoon.
     const model = buildSchedulerModel({
       data: d,
@@ -83,8 +83,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
-    const externalGroup = requireValue(model.at(-1), 'external group');
-    expect(requireValue(externalGroup.rows[0], 'external group row').overSoon).toBe(false);
-  });
-});
+    })
+    const externalGroup = requireValue(model.at(-1), 'external group')
+    expect(requireValue(externalGroup.rows[0], 'external group row').overSoon).toBe(false)
+  })
+})

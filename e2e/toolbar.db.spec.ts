@@ -1,4 +1,4 @@
-import { test, expect } from './dbFixtures';
+import { test, expect } from './dbFixtures'
 import {
   boundingBoxOrThrow as box,
   expectEditableBar,
@@ -6,233 +6,229 @@ import {
   resetSchedulerScroll,
   setZoom,
   showScheduleFilters,
-} from './browserTestKit';
+} from './browserTestKit'
 
 test.describe('Toolbar', () => {
   // Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
   // covers the remaining US-TBR-08 navigation paths.
   test('zooms the timeline and tracks the active level', async ({ page }) => {
-    await openApp(page);
-    const weeks = page.getByRole('combobox', { name: 'Weeks visible' });
-    await setZoom(page, 6);
-    await expect(weeks).toHaveText('6 weeks');
-    await expect(page.getByText('Utilisation · 6w')).toBeVisible();
+    await openApp(page)
+    const weeks = page.getByRole('combobox', { name: 'Weeks visible' })
+    await setZoom(page, 6)
+    await expect(weeks).toHaveText('6 weeks')
+    await expect(page.getByText('Utilisation · 6w')).toBeVisible()
 
-    await setZoom(page, 8);
-    await expect(weeks).toHaveText('8 weeks');
+    await setZoom(page, 8)
+    await expect(weeks).toHaveText('8 weeks')
 
-    await setZoom(page, 1);
-    await expect(weeks).toHaveText('1 week');
-  });
+    await setZoom(page, 1)
+    await expect(weeks).toHaveText('1 week')
+  })
   test('shows every zoom level when the dropdown opens', { tag: '@engine' }, async ({ page }) => {
-    await openApp(page);
-    const weeks = page.getByRole('combobox', { name: 'Weeks visible' });
-    await weeks.click();
+    await openApp(page)
+    const weeks = page.getByRole('combobox', { name: 'Weeks visible' })
+    await weeks.click()
 
-    const popup = page.locator('[data-slot="select-content"][data-state="open"]');
-    const popupBox = await box(popup);
-    const firstOptionBox = await box(popup.getByRole('option', { name: '1 week' }));
-    const lastOptionBox = await box(popup.getByRole('option', { name: '8 weeks' }));
+    const popup = page.locator('[data-slot="select-content"][data-state="open"]')
+    const popupBox = await box(popup)
+    const firstOptionBox = await box(popup.getByRole('option', { name: '1 week' }))
+    const lastOptionBox = await box(popup.getByRole('option', { name: '8 weeks' }))
 
-    expect(firstOptionBox.y).toBeGreaterThanOrEqual(popupBox.y);
-    expect(lastOptionBox.y + lastOptionBox.height).toBeLessThanOrEqual(
-      popupBox.y + popupBox.height,
-    );
-  });
+    expect(firstOptionBox.y).toBeGreaterThanOrEqual(popupBox.y)
+    expect(lastOptionBox.y + lastOptionBox.height).toBeLessThanOrEqual(popupBox.y + popupBox.height)
+  })
   test('pans the window a week with Prev and Next', { tag: '@engine' }, async ({ page }) => {
-    await openApp(page);
-    await setZoom(page, 4);
-    await resetSchedulerScroll(page);
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
-    const b0 = await box(bar);
+    await openApp(page)
+    await setZoom(page, 4)
+    await resetSchedulerScroll(page)
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
+    const b0 = await box(bar)
 
-    await page.getByRole('button', { name: 'Next' }).click();
-    const b1 = await box(bar);
-    expect(b1.x).toBeLessThan(b0.x);
+    await page.getByRole('button', { name: 'Next' }).click()
+    const b1 = await box(bar)
+    expect(b1.x).toBeLessThan(b0.x)
 
-    await page.getByRole('button', { name: 'Prev' }).click();
-    const b2 = await box(bar);
-    expect(b2.x).toBeGreaterThan(b1.x);
-  });
+    await page.getByRole('button', { name: 'Prev' }).click()
+    const b2 = await box(bar)
+    expect(b2.x).toBeGreaterThan(b1.x)
+  })
   test('re-centres on Today after scrolling away', { tag: '@engine' }, async ({ page }) => {
-    await openApp(page);
-    const grid = page.getByTestId('scheduler-grid');
+    await openApp(page)
+    const grid = page.getByTestId('scheduler-grid')
     await grid.evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 5000;
-    });
-    await page.getByRole('button', { name: 'Today', exact: true }).click();
+      ;(el as HTMLElement).scrollLeft = 5000
+    })
+    await page.getByRole('button', { name: 'Today', exact: true }).click()
     await expect
       .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
-      .toBeLessThan(4000);
-  });
+      .toBeLessThan(4000)
+  })
   test(
     'shows a responsive filter row with search left and the remaining controls grouped right',
     { tag: '@engine' },
     async ({ page }) => {
-      await page.setViewportSize({ width: 1920, height: 1080 });
-      await openApp(page);
-      const show = page.getByRole('button', { name: 'Show filters' });
-      const actions = page.getByTestId('scheduler-toolbar-actions');
-      const redo = page.getByTestId('redo-button');
+      await page.setViewportSize({ width: 1920, height: 1080 })
+      await openApp(page)
+      const show = page.getByRole('button', { name: 'Show filters' })
+      const actions = page.getByTestId('scheduler-toolbar-actions')
+      const redo = page.getByTestId('redo-button')
 
-      await expect(show).toHaveAttribute('aria-expanded', 'false');
-      await expect(show.locator('svg')).toHaveCount(1);
-      await expect(actions.locator('[data-slot="separator"]')).toHaveCount(2);
-      const [redoBox, showBox] = await Promise.all([redo.boundingBox(), show.boundingBox()]);
-      expect(redoBox).not.toBeNull();
-      expect(showBox).not.toBeNull();
-      expect(showBox!.x).toBeGreaterThan(redoBox!.x);
-      await expect(page.getByLabel('Search people')).toHaveCount(0);
-      await show.click();
+      await expect(show).toHaveAttribute('aria-expanded', 'false')
+      await expect(show.locator('svg')).toHaveCount(1)
+      await expect(actions.locator('[data-slot="separator"]')).toHaveCount(2)
+      const [redoBox, showBox] = await Promise.all([redo.boundingBox(), show.boundingBox()])
+      expect(redoBox).not.toBeNull()
+      expect(showBox).not.toBeNull()
+      expect(showBox!.x).toBeGreaterThan(redoBox!.x)
+      await expect(page.getByLabel('Search people')).toHaveCount(0)
+      await show.click()
 
-      const hide = page.getByRole('button', { name: 'Hide filters' });
-      await expect(hide).toHaveAttribute('aria-expanded', 'true');
-      const filterbar = page.locator('#scheduler-filters');
-      const search = page.getByLabel('Search people');
-      const controls = page.getByTestId('scheduler-filter-controls');
-      const clear = page.getByRole('button', { name: 'Clear Filters' });
-      await expect(search).toBeVisible();
-      await expect(page.getByRole('radiogroup', { name: 'Draw mode' })).toBeVisible();
-      await search.fill('Clark');
-      await expect(clear).toBeEnabled();
+      const hide = page.getByRole('button', { name: 'Hide filters' })
+      await expect(hide).toHaveAttribute('aria-expanded', 'true')
+      const filterbar = page.locator('#scheduler-filters')
+      const search = page.getByLabel('Search people')
+      const controls = page.getByTestId('scheduler-filter-controls')
+      const clear = page.getByRole('button', { name: 'Clear Filters' })
+      await expect(search).toBeVisible()
+      await expect(page.getByRole('radiogroup', { name: 'Draw mode' })).toBeVisible()
+      await search.fill('Clark')
+      await expect(clear).toBeEnabled()
 
       const [filterbarBox, searchBox, controlsBox, clearBox] = await Promise.all([
         box(filterbar),
         box(search),
         box(controls),
         box(clear),
-      ]);
-      expect(searchBox.x).toBeLessThanOrEqual(filterbarBox.x + 17);
-      expect(controlsBox.x).toBeGreaterThan(searchBox.x + searchBox.width);
-      expect(clearBox.x + clearBox.width).toBeLessThanOrEqual(
-        controlsBox.x + controlsBox.width + 1,
-      );
+      ])
+      expect(searchBox.x).toBeLessThanOrEqual(filterbarBox.x + 17)
+      expect(controlsBox.x).toBeGreaterThan(searchBox.x + searchBox.width)
+      expect(clearBox.x + clearBox.width).toBeLessThanOrEqual(controlsBox.x + controlsBox.width + 1)
       expect(controlsBox.x + controlsBox.width).toBeLessThanOrEqual(
-        filterbarBox.x + filterbarBox.width,
-      );
+        filterbarBox.x + filterbarBox.width
+      )
 
-      await page.setViewportSize({ width: 800, height: 900 });
+      await page.setViewportSize({ width: 800, height: 900 })
       await expect
         .poll(() => filterbar.evaluate((element) => element.scrollWidth - element.clientWidth))
-        .toBeLessThanOrEqual(0);
+        .toBeLessThanOrEqual(0)
       const narrowLayout = await filterbar.evaluate((element) => ({
         controlsBottom: element.children[1]?.getBoundingClientRect().bottom,
         filterbarBottom: element.getBoundingClientRect().bottom,
-      }));
-      expect(narrowLayout.controlsBottom).toBeLessThanOrEqual(narrowLayout.filterbarBottom);
+      }))
+      expect(narrowLayout.controlsBottom).toBeLessThanOrEqual(narrowLayout.filterbarBottom)
 
-      await hide.click();
-      await expect(page.getByLabel('Search people')).toHaveCount(0);
-    },
-  );
+      await hide.click()
+      await expect(page.getByLabel('Search people')).toHaveCount(0)
+    }
+  )
   test('switches draw mode between Work and Time off', { tag: '@engine' }, async ({ page }) => {
-    await openApp(page);
-    await showScheduleFilters(page);
-    const work = page.getByRole('radio', { name: 'Work', exact: true });
-    const timeOffRadio = page.getByRole('radio', { name: 'Time off', exact: true });
-    await expect(work).toHaveAttribute('aria-checked', 'true');
-    await timeOffRadio.click();
-    await expect(timeOffRadio).toHaveAttribute('aria-checked', 'true');
-    await expect(work).toHaveAttribute('aria-checked', 'false');
+    await openApp(page)
+    await showScheduleFilters(page)
+    const work = page.getByRole('radio', { name: 'Work', exact: true })
+    const timeOffRadio = page.getByRole('radio', { name: 'Time off', exact: true })
+    await expect(work).toHaveAttribute('aria-checked', 'true')
+    await timeOffRadio.click()
+    await expect(timeOffRadio).toHaveAttribute('aria-checked', 'true')
+    await expect(work).toHaveAttribute('aria-checked', 'false')
 
     // The work bars go inert via a single ancestor layer (ResourceLane's BarsLayer), not a
     // per-bar attribute, so the bar carries no `inert` of its own, but its nearest [inert]
     // ancestor makes it non-interactive, off the tab order, and removed from the a11y tree.
     // Prove the semantics hold through the ancestor: every bar is matched by `[inert] <bar>`,
     // and an attempt to focus one is refused (inert subtrees can't take focus).
-    await resetSchedulerScroll(page);
-    const bar = page.getByTestId('allocation-bar').first();
-    await expect(bar).toBeVisible();
-    await expect(page.locator('[inert] [data-testid="allocation-bar"]').first()).toBeVisible();
-    await expect(page.locator('[data-testid="allocation-bar"]:not([inert] *)')).toHaveCount(0);
+    await resetSchedulerScroll(page)
+    const bar = page.getByTestId('allocation-bar').first()
+    await expect(bar).toBeVisible()
+    await expect(page.locator('[inert] [data-testid="allocation-bar"]').first()).toBeVisible()
+    await expect(page.locator('[data-testid="allocation-bar"]:not([inert] *)')).toHaveCount(0)
     expect(
       await bar.evaluate((el) => {
-        el.focus();
-        return document.activeElement === el;
-      }),
-    ).toBe(false);
+        el.focus()
+        return document.activeElement === el
+      })
+    ).toBe(false)
 
-    await work.click();
-    await expect(page.locator('[inert] [data-testid="allocation-bar"]')).toHaveCount(0);
+    await work.click()
+    await expect(page.locator('[inert] [data-testid="allocation-bar"]')).toHaveCount(0)
     expect(
       await bar.evaluate((el) => {
-        el.focus();
-        return document.activeElement === el;
-      }),
-    ).toBe(true);
-  });
+        el.focus()
+        return document.activeElement === el
+      })
+    ).toBe(true)
+  })
   // Button coverage and keyboard coverage must both exercise undo/redo; shortcuts must ignore editable fields.
   test('undoes and redoes with the toolbar buttons, disabled when the stack is empty', async ({
     page,
   }) => {
-    await openApp(page);
-    const undoBtn = page.getByTestId('undo-button');
-    const redoBtn = page.getByTestId('redo-button');
-    await expect(undoBtn).toBeDisabled();
-    await expect(redoBtn).toBeDisabled();
+    await openApp(page)
+    const undoBtn = page.getByTestId('undo-button')
+    const redoBtn = page.getByTestId('redo-button')
+    await expect(undoBtn).toBeDisabled()
+    await expect(redoBtn).toBeDisabled()
 
-    await setZoom(page, 4);
-    await resetSchedulerScroll(page);
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
-    const before = await page.getByTestId('allocation-bar').count();
-    await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
+    await setZoom(page, 4)
+    await resetSchedulerScroll(page)
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(6)
+    const before = await page.getByTestId('allocation-bar').count()
+    await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
     await page
       .getByRole('dialog', { name: 'Edit allocation' })
       .getByRole('button', { name: 'Delete' })
-      .click();
+      .click()
     await page
       .getByRole('alertdialog', { name: 'Delete allocation?' })
       .getByRole('button', { name: 'Delete' })
-      .click();
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
-    await expect(undoBtn).toBeEnabled();
+      .click()
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
+    await expect(undoBtn).toBeEnabled()
 
-    await undoBtn.click();
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before);
-    await expect(redoBtn).toBeEnabled();
+    await undoBtn.click()
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before)
+    await expect(redoBtn).toBeEnabled()
 
-    await redoBtn.click();
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
-  });
+    await redoBtn.click()
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
+  })
   test(
     'undoes/redoes with the keyboard and ignores the shortcut while typing',
     { tag: '@engine' },
     async ({ page }) => {
-      await openApp(page);
-      await showScheduleFilters(page);
-      await setZoom(page, 4);
-      await resetSchedulerScroll(page);
-      await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
-      const undoBtn = page.getByTestId('undo-button');
-      const redoBtn = page.getByTestId('redo-button');
-      const before = await page.getByTestId('allocation-bar').count();
+      await openApp(page)
+      await showScheduleFilters(page)
+      await setZoom(page, 4)
+      await resetSchedulerScroll(page)
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(6)
+      const undoBtn = page.getByTestId('undo-button')
+      const redoBtn = page.getByTestId('redo-button')
+      const before = await page.getByTestId('allocation-bar').count()
       await expectEditableBar(
-        page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }),
-      );
-      await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
+        page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
+      )
+      await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
       await page
         .getByRole('dialog', { name: 'Edit allocation' })
         .getByRole('button', { name: 'Delete' })
-        .click();
+        .click()
       await page
         .getByRole('alertdialog', { name: 'Delete allocation?' })
         .getByRole('button', { name: 'Delete' })
-        .click();
-      await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
-      await expect(undoBtn).toBeEnabled();
+        .click()
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
+      await expect(undoBtn).toBeEnabled()
 
-      await page.getByLabel('Search people').click();
-      await page.keyboard.press('Meta+z');
-      await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
+      await page.getByLabel('Search people').click()
+      await page.keyboard.press('Meta+z')
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
 
-      await page.getByTestId('scheduler-grid').click({ position: { x: 5, y: 5 } });
-      await page.keyboard.press('Meta+z');
-      await expect(page.getByTestId('allocation-bar')).toHaveCount(before);
+      await page.getByTestId('scheduler-grid').click({ position: { x: 5, y: 5 } })
+      await page.keyboard.press('Meta+z')
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(before)
       // Restored rows can repaint before the planning cache unlocks Redo.
-      await expect(redoBtn).toBeEnabled();
-      await page.keyboard.press('Meta+Shift+z');
-      await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
-      await expect(undoBtn).toBeEnabled();
-    },
-  );
-});
+      await expect(redoBtn).toBeEnabled()
+      await page.keyboard.press('Meta+Shift+z')
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
+      await expect(undoBtn).toBeEnabled()
+    }
+  )
+})

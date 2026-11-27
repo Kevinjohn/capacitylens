@@ -1,26 +1,26 @@
-import { requestApiResponse } from '@/api/queryClient';
-import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
-import { clearMemberResourceLink, setMemberResourceLink } from './memberResourceApi';
+import { requestApiResponse } from '@/api/queryClient'
+import type { MembershipStatus, Role } from '@capacitylens/shared/account/types'
+import { clearMemberResourceLink, setMemberResourceLink } from './memberResourceApi'
 
 interface ChangeMemberRoleInput {
-  companyId: string;
-  userId: string;
-  role: Role;
+  companyId: string
+  userId: string
+  role: Role
 }
 
 interface TransferOwnershipInput {
-  companyId: string;
-  targetUserId: string;
-  confirmationId: string;
+  companyId: string
+  targetUserId: string
+  confirmationId: string
 }
 
 interface ChangeMemberStatusInput {
-  companyId: string;
-  userId: string;
-  status: MembershipStatus;
+  companyId: string
+  userId: string
+  status: MembershipStatus
 }
 
-type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
+type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean }
 
 /**
  * Member and ownership requests. Their typed readers are `teamAccessApi` and
@@ -31,7 +31,7 @@ export const memberRequests = {
     return requestApiResponse('api.members.index', {
       params: { companyId },
       ...(signal ? { signal } : {}),
-    });
+    })
   },
 
   setMemberResourceLink,
@@ -45,21 +45,21 @@ export const memberRequests = {
     return requestApiResponse('api.member_sign_in_tracking.update', {
       params: { companyId },
       body: { enabled },
-    });
+    })
   },
 
   changeMemberRole({ companyId, userId, role }: ChangeMemberRoleInput): Promise<Response> {
     return requestApiResponse('api.members.update', {
       params: { companyId, userId },
       body: { role },
-    });
+    })
   },
 
   changeMemberStatus({ companyId, userId, status }: ChangeMemberStatusInput): Promise<Response> {
     return requestApiResponse('api.member_status.update', {
       params: { companyId, userId },
       body: { status },
-    });
+    })
   },
 
   transferOwnership({
@@ -70,6 +70,6 @@ export const memberRequests = {
     return requestApiResponse('api.ownership_transfers.store', {
       params: { companyId },
       body: { toUserId: targetUserId, confirmationId },
-    });
+    })
   },
-};
+}

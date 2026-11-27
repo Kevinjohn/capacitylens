@@ -1,31 +1,31 @@
-import { countDaysInclusive, getWeekday } from '../dateMath.js';
-import { isStartOnNonEffectiveWeekday } from '../effectiveWorkingWeek.js';
-import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
-import { MAX_SPAN_DAYS } from '../schedulingDays.js';
-import { isCapacityTracked } from '../../types/entities.js';
-import type { Closure, ISODate, Resource, TimeOff } from '../../types/entities.js';
+import { countDaysInclusive, getWeekday } from '../dateMath.js'
+import { isStartOnNonEffectiveWeekday } from '../effectiveWorkingWeek.js'
+import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js'
+import { MAX_SPAN_DAYS } from '../schedulingDays.js'
+import { isCapacityTracked } from '../../types/entities.js'
+import type { Closure, ISODate, Resource, TimeOff } from '../../types/entities.js'
 import {
   addCapacityLoad,
   bucketCapacityLoad,
   buildCapacityAdvisory,
   buildCapacityAdvisoryFromLoad,
-} from '../capacity.js';
-import type { CapacityAllocationInput } from '../capacity.js';
+} from '../capacity.js'
+import type { CapacityAllocationInput } from '../capacity.js'
 
 interface BuildRepeatingAllocationAdvisoryInput {
-  resource: Resource;
-  existingLoad: readonly CapacityAllocationInput[];
-  timeOff: TimeOff[];
-  proposedDrafts: readonly CapacityAllocationInput[];
-  effectiveWeek: EffectiveWorkingWeek;
-  closures: Closure[];
+  resource: Resource
+  existingLoad: readonly CapacityAllocationInput[]
+  timeOff: TimeOff[]
+  proposedDrafts: readonly CapacityAllocationInput[]
+  effectiveWeek: EffectiveWorkingWeek
+  closures: Closure[]
 }
 
 /** Number of generated allocations with each non-blocking advisory category. */
 export interface RepeatingAllocationAdvisory {
-  overCapacityAllocations: number;
-  timeOffAllocations: number;
-  nonEffectiveStartAllocations: number;
+  overCapacityAllocations: number
+  timeOffAllocations: number
+  nonEffectiveStartAllocations: number
 }
 
 /**
@@ -42,7 +42,7 @@ export function buildRepeatingAllocationAdvisory({
   closures,
 }: BuildRepeatingAllocationAdvisoryInput): RepeatingAllocationAdvisory {
   if (!isCapacityTracked(resource)) {
-    return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };
+    return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 }
   }
   // Share one load bucket across repeated drafts to keep day work linear in generated
   // occurrences. Add existing rows and drafts in stable order because floating-point
@@ -54,14 +54,14 @@ export function buildRepeatingAllocationAdvisory({
     effectiveWeek,
     timeOff,
     closures,
-  });
+  })
   // Only reachable from an absurd (~100-year) span, where the batch is wider than one
   // materialisable window: keep the original per-draft rebuild rather than trade a slow answer for
   // a thrown range error.
-  const rebuiltLoad: CapacityAllocationInput[] = shared ? [] : [...existingLoad];
-  let overCapacityAllocations = 0;
-  let timeOffAllocations = 0;
-  let nonEffectiveStartAllocations = 0;
+  const rebuiltLoad: CapacityAllocationInput[] = shared ? [] : [...existingLoad]
+  let overCapacityAllocations = 0
+  let timeOffAllocations = 0
+  let nonEffectiveStartAllocations = 0
   for (const draft of proposedDrafts) {
     const result = shared
       ? buildCapacityAdvisoryFromLoad({
@@ -79,17 +79,17 @@ export function buildRepeatingAllocationAdvisory({
           timeOff,
           effectiveWeek,
           closures,
-        });
-    if (result.overDays > 0) overCapacityAllocations += 1;
-    if (result.timeOffDays > 0) timeOffAllocations += 1;
+        })
+    if (result.overDays > 0) overCapacityAllocations += 1
+    if (result.timeOffDays > 0) timeOffAllocations += 1
     if (
       isStartOnNonEffectiveWeekday(
         effectiveWeek,
         draft.ignoreWorkingDays ?? undefined,
-        getWeekday(draft.startDate),
+        getWeekday(draft.startDate)
       )
     ) {
-      nonEffectiveStartAllocations += 1;
+      nonEffectiveStartAllocations += 1
     }
     if (shared) {
       addCapacityLoad({
@@ -99,10 +99,10 @@ export function buildRepeatingAllocationAdvisory({
         start: shared.window.start,
         end: shared.window.end,
         effectiveWeek,
-      });
-    } else rebuiltLoad.push(draft);
+      })
+    } else rebuiltLoad.push(draft)
   }
-  return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations };
+  return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations }
 }
 
 function createSharedLoad({
@@ -111,8 +111,8 @@ function createSharedLoad({
   proposedDrafts,
   effectiveWeek,
 }: BuildRepeatingAllocationAdvisoryInput) {
-  const window = resolveSharedLoadWindow(proposedDrafts);
-  if (!window) return null;
+  const window = resolveSharedLoadWindow(proposedDrafts)
+  if (!window) return null
   return {
     window,
     load: bucketCapacityLoad({
@@ -122,21 +122,21 @@ function createSharedLoad({
       end: window.end,
       effectiveWeek,
     }),
-  };
+  }
 }
 
 function resolveSharedLoadWindow(
-  drafts: readonly CapacityAllocationInput[],
+  drafts: readonly CapacityAllocationInput[]
 ): { start: ISODate; end: ISODate } | null {
-  const first = drafts[0];
-  if (!first) return null;
+  const first = drafts[0]
+  if (!first) return null
   // Zero-padded ISO dates compare lexicographically, so plain min/max is chronological.
-  let start = first.startDate;
-  let end = first.endDate;
+  let start = first.startDate
+  let end = first.endDate
   for (const draft of drafts) {
-    if (draft.startDate < start) start = draft.startDate;
-    if (draft.endDate > end) end = draft.endDate;
+    if (draft.startDate < start) start = draft.startDate
+    if (draft.endDate > end) end = draft.endDate
   }
-  const span = countDaysInclusive(start, end);
-  return span >= 1 && span <= MAX_SPAN_DAYS ? { start, end } : null;
+  const span = countDaysInclusive(start, end)
+  return span >= 1 && span <= MAX_SPAN_DAYS ? { start, end } : null
 }

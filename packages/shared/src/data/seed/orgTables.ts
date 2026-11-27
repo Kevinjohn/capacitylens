@@ -1,10 +1,10 @@
-import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import type { AppData } from '../../types/entities.js';
-import { buildDefaultCompanyWorkingDays } from '../../lib/companyWorkingDays.js';
-import { buildInternalClient } from '../internalClient.js';
-import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
+import { NULLABLE_FIELDS } from '../../types/nullableFields.js'
+import type { AppData } from '../../types/entities.js'
+import { buildDefaultCompanyWorkingDays } from '../../lib/companyWorkingDays.js'
+import { buildInternalClient } from '../internalClient.js'
+import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js'
 
-type OrgTables = Pick<AppData, 'companies' | 'disciplines' | 'clients' | 'projects' | 'phases'>;
+type OrgTables = Pick<AppData, 'companies' | 'disciplines' | 'clients' | 'projects' | 'phases'>
 
 const ORG_TABLES: OrgTables = {
   companies: [
@@ -149,7 +149,7 @@ const ORG_TABLES: OrgTables = {
       projectId: 'p-acme',
     },
   ],
-};
+}
 
 /** Fresh copies of the seed companies, disciplines, clients, projects and phases. */
 export function createOrgTables(): OrgTables {
@@ -162,5 +162,5 @@ export function createOrgTables(): OrgTables {
     clients: ORG_TABLES.clients.map((client) => ({ ...client })),
     projects: ORG_TABLES.projects.map((project) => ({ ...project })),
     phases: ORG_TABLES.phases.map((phase) => ({ ...phase })),
-  };
+  }
 }

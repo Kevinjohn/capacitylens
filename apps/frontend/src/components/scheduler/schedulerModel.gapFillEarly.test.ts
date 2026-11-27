@@ -1,13 +1,13 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, expect, it } from 'vitest';
-import { buildEmptyFilters } from '@/store/useStore';
-import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
-import { capacityOver } from '@/test/capacityFixtures';
-import { buildSchedulerModel } from './schedulerModel';
-import { listAllBars, build, makeDataset, days, end, geom, start } from './schedulerModelTestKit';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, expect, it } from 'vitest'
+import { buildEmptyFilters } from '@/store/useStore'
+import { makeAllocation, makeResource, requireValue } from '@/test/fixtures'
+import { capacityOver } from '@/test/capacityFixtures'
+import { buildSchedulerModel } from './schedulerModel'
+import { listAllBars, build, makeDataset, days, end, geom, start } from './schedulerModelTestKit'
 
 function buildBlockTimeOffRows() {
-  const d = makeDataset();
+  const d = makeDataset()
   d.allocations = [
     {
       ...requireValue(d.allocations[0], 'a1 allocation'),
@@ -15,7 +15,7 @@ function buildBlockTimeOffRows() {
       endDate: '2026-06-07',
       hoursPerDay: 8,
     },
-  ];
+  ]
   d.timeOff = [
     {
       id: 'to-r1-tuesday',
@@ -39,7 +39,7 @@ function buildBlockTimeOffRows() {
       type: 'holiday',
       note: null,
     },
-  ];
+  ]
 
   const model = buildSchedulerModel({
     data: d,
@@ -49,7 +49,7 @@ function buildBlockTimeOffRows() {
     // The server flags Tuesday's block over r1's holiday as a time-off conflict.
     capacity: capacityOver(
       { from: start, to: end },
-      { r1: { byDate: { '2026-06-02': { timeOffConflict: true } } }, r2: {} },
+      { r1: { byDate: { '2026-06-02': { timeOffConflict: true } } }, r2: {} }
     ),
     filters: buildEmptyFilters(),
     preferences: {
@@ -59,23 +59,23 @@ function buildBlockTimeOffRows() {
 
       companyWorkingDays: [1, 2, 3, 4],
     },
-  });
-  const rows = model.flatMap((group) => group.rows);
+  })
+  const rows = model.flatMap((group) => group.rows)
   const r1 = requireValue(
     rows.find((row) => row.resource.id === 'r1'),
-    'r1 scheduler row',
-  );
+    'r1 scheduler row'
+  )
   const r2 = requireValue(
     rows.find((row) => row.resource.id === 'r2'),
-    'r2 scheduler row',
-  );
+    'r2 scheduler row'
+  )
 
-  return { r1, r2 };
+  return { r1, r2 }
 }
 
 describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('search is TRIMMED before matching (leading/trailing whitespace is not part of the term)', () => {
-    const d = makeDataset();
+    const d = makeDataset()
     // Use a single-occurrence search term so a duplicate name or role cannot accidentally rescue an untrimmed query.
     d.resources.push(
       makeResource({
@@ -85,8 +85,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         jobTitle: 'Zed',
         disciplineId: 'd-design',
         color: '#a',
-      }),
-    );
+      })
+    )
     const model = buildSchedulerModel({
       data: d,
       geom,
@@ -99,18 +99,18 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
-    const ids = model.flatMap((g) => g.rows).map((r) => r.resource.id);
-    expect(ids).toContain('r-zed');
-  });
+    })
+    const ids = model.flatMap((g) => g.rows).map((r) => r.resource.id)
+    expect(ids).toContain('r-zed')
+  })
   it('search falls back to an EMPTY string (not a literal placeholder) when resource.name is undefined', () => {
-    const d = makeDataset();
-    const firstResource = d.resources[0];
-    expect(firstResource).toBeDefined();
-    if (!firstResource) throw new Error('Expected the base scheduler resource.');
-    const resourceWithoutName = { ...firstResource };
-    resourceWithoutName.name = null;
-    d.resources[0] = resourceWithoutName;
+    const d = makeDataset()
+    const firstResource = d.resources[0]
+    expect(firstResource).toBeDefined()
+    if (!firstResource) throw new Error('Expected the base scheduler resource.')
+    const resourceWithoutName = { ...firstResource }
+    resourceWithoutName.name = null
+    d.resources[0] = resourceWithoutName
 
     const model = buildSchedulerModel({
       data: d,
@@ -124,11 +124,11 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
-    expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).not.toContain('r1');
-  });
+    })
+    expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).not.toContain('r1')
+  })
   it('a placeholder IS searchable by its own (unusual, but allowed) `name` field', () => {
-    const d = makeDataset();
+    const d = makeDataset()
     d.resources.push(
       makeResource({
         id: 'ph-named',
@@ -138,8 +138,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         jobTitle: 'Designer',
         disciplineId: 'd-design',
         color: '#b',
-      }),
-    );
+      })
+    )
     const model = buildSchedulerModel({
       data: d,
       geom,
@@ -152,20 +152,20 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
-    expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).toContain('ph-named');
-  });
+    })
+    expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).toContain('ph-named')
+  })
   it('bar.project / bar.client resolve through the projectById / clientById maps (real lookups, not empty maps)', () => {
-    const model = build();
+    const model = build()
     const a1 = requireValue(
       listAllBars(model).find((b) => b.allocation.id === 'a1'),
-      'a1 bar',
-    );
-    expect(a1.project).toBe('P1');
-    expect(a1.client).toBe('Ferris');
-  });
+      'a1 bar'
+    )
+    expect(a1.project).toBe('P1')
+    expect(a1.client).toBe('Ferris')
+  })
   it('an internal activity bar is always neutral grey', () => {
-    const d = makeDataset();
+    const d = makeDataset()
     d.activities.push({
       ...NULLABLE_FIELDS.activities,
       id: 't-int',
@@ -174,7 +174,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       updatedAt: 't',
       name: 'Admin',
       kind: 'internal',
-    });
+    })
     d.allocations.push(
       makeAllocation({
         id: 'a-int',
@@ -182,8 +182,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         activityId: 't-int',
         startDate: '2026-06-05',
         endDate: '2026-06-05',
-      }),
-    );
+      })
+    )
     const greyModel = buildSchedulerModel({
       data: d,
       geom,
@@ -196,15 +196,15 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
+    })
     const greyBar = requireValue(
       listAllBars(greyModel).find((b) => b.allocation.id === 'a-int'),
-      'internal bar',
-    );
-    expect(greyBar.color).toBe('#9ca3af');
-  });
+      'internal bar'
+    )
+    expect(greyBar.color).toBe('#9ca3af')
+  })
   it('does not throw when there are no clients at all (scopedCompanyId derivation is optional-chained)', () => {
-    const d = { ...makeDataset(), clients: [] };
+    const d = { ...makeDataset(), clients: [] }
     expect(() =>
       buildSchedulerModel({
         data: d,
@@ -218,11 +218,11 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
           placeholdersEnabled: true,
           externalEnabled: true,
         },
-      }),
-    ).not.toThrow();
-  });
+      })
+    ).not.toThrow()
+  })
   it('positions time-off blocks with real fields (id/x/width/label/note), and marks only its OWN days unavailable', () => {
-    const d = makeDataset();
+    const d = makeDataset()
     // Time-off indexing must accumulate all entries for a resource rather than replace earlier entries.
     d.timeOff.push(
       {
@@ -246,8 +246,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         endDate: '2026-06-02',
         type: 'sick',
         note: null,
-      },
-    );
+      }
+    )
     const model = buildSchedulerModel({
       data: d,
       geom,
@@ -260,33 +260,33 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         placeholdersEnabled: true,
         externalEnabled: true,
       },
-    });
+    })
     const r1 = requireValue(
       model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
-      'r1 scheduler row',
-    );
-    expect(r1.timeOff).toHaveLength(2);
+      'r1 scheduler row'
+    )
+    expect(r1.timeOff).toHaveLength(2)
     const t1 = requireValue(
       r1.timeOff.find((t) => t.id === 'to1'),
-      'to1 time-off block',
-    );
-    expect(t1.x).toBe(geom.getDateX('2026-06-01'));
-    expect(t1.width).toBe(geom.getDatesWidth('2026-06-01', '2026-06-01'));
-    expect(t1.note).toBe('day one');
-    expect(typeof t1.label).toBe('string');
-    expect(t1.label.length).toBeGreaterThan(0);
+      'to1 time-off block'
+    )
+    expect(t1.x).toBe(geom.getDateX('2026-06-01'))
+    expect(t1.width).toBe(geom.getDatesWidth('2026-06-01', '2026-06-01'))
+    expect(t1.note).toBe('day one')
+    expect(typeof t1.label).toBe('string')
+    expect(t1.label.length).toBeGreaterThan(0)
 
-    expect(r1.dayStates[0]?.unavailable).toBe(true);
+    expect(r1.dayStates[0]?.unavailable).toBe(true)
 
-    expect(r1.dayStates[2]?.unavailable).toBe(false);
-  });
+    expect(r1.dayStates[2]?.unavailable).toBe(false)
+  })
   it('signals saved half days only when the date retains partial capacity', () => {
-    const d = makeDataset();
+    const d = makeDataset()
     const resource = requireValue(
       d.resources.find((candidate) => candidate.id === 'r1'),
-      'r1 resource',
-    );
-    resource.halfDays = [1, 2, 5];
+      'r1 resource'
+    )
+    resource.halfDays = [1, 2, 5]
     d.timeOff.push({
       ...NULLABLE_FIELDS.timeOff,
       id: 'to-r1-monday',
@@ -298,7 +298,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       endDate: '2026-06-01',
       type: 'holiday',
       note: null,
-    });
+    })
 
     const row = requireValue(
       buildSchedulerModel({
@@ -320,7 +320,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
                 '2026-06-07': { available: 0 },
               },
             },
-          },
+          }
         ),
         filters: buildEmptyFilters(),
         preferences: {
@@ -332,8 +332,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       })
         .flatMap((group) => group.rows)
         .find((candidate) => candidate.resource.id === 'r1'),
-      'r1 scheduler row',
-    );
+      'r1 scheduler row'
+    )
 
     expect(row.dayStates.map((state) => state.partialCapacity)).toEqual([
       false,
@@ -343,17 +343,17 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       false,
       false,
       false,
-    ]);
-    expect(row.dayStates[0]).toMatchObject({ unavailable: true, partialCapacity: false });
+    ])
+    expect(row.dayStates[0]).toMatchObject({ unavailable: true, partialCapacity: false })
     expect(row.dayStates[1]).toMatchObject({
       unavailable: false,
       partialCapacity: true,
       over: true,
-    });
-    expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false });
-  });
+    })
+    expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false })
+  })
   it('marks a holiday the server flags over as a time-off conflict, and only that day', () => {
-    const d = makeDataset();
+    const d = makeDataset()
 
     d.timeOff.push(
       {
@@ -377,8 +377,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         endDate: '2026-06-03',
         type: 'holiday',
         note: null,
-      },
-    );
+      }
+    )
 
     const model = buildSchedulerModel({
       data: d,
@@ -394,20 +394,20 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
             },
           },
           r2: { byDate: { '2026-06-03': { available: 0 } } },
-        },
+        }
       ),
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
-    });
-    const rows = model.flatMap((group) => group.rows);
+    })
+    const rows = model.flatMap((group) => group.rows)
     const r1 = requireValue(
       rows.find((row) => row.resource.id === 'r1'),
-      'r1 scheduler row',
-    );
+      'r1 scheduler row'
+    )
     const r2 = requireValue(
       rows.find((row) => row.resource.id === 'r2'),
-      'r2 scheduler row',
-    );
+      'r2 scheduler row'
+    )
 
     expect(r1.dayStates.map((state) => state.over)).toEqual([
       false,
@@ -417,7 +417,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       false,
       false,
       false,
-    ]);
+    ])
     expect(r1.dayStates.map((state) => state.timeOffConflict)).toEqual([
       false,
       true,
@@ -426,16 +426,16 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       false,
       false,
       false,
-    ]);
-    expect(r1.timeOff).toHaveLength(1);
+    ])
+    expect(r1.timeOff).toHaveLength(1)
     expect(r2.dayStates[2]).toMatchObject({
       unavailable: true,
       over: false,
       timeOffConflict: false,
-    });
-  });
+    })
+  })
   it('draws the server-flagged block/time-off conflict without adding load or treating non-working days as conflicts', () => {
-    const { r1, r2 } = buildBlockTimeOffRows();
+    const { r1, r2 } = buildBlockTimeOffRows()
 
     expect(r1.dayStates.map((state) => state.over)).toEqual([
       false,
@@ -445,7 +445,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       false,
       false,
       false,
-    ]);
+    ])
     expect(r1.dayStates.map((state) => state.timeOffConflict)).toEqual([
       false,
       true,
@@ -454,15 +454,15 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       false,
       false,
       false,
-    ]);
-    expect(r1.dayStates[4]).toMatchObject({ unavailable: true, timeOffConflict: false });
-    expect(r1.dayStates[5]).toMatchObject({ unavailable: true, timeOffConflict: false });
-    expect(r1.utilisation).toBe(0);
-    expect(r1.overSoon).toBe(false);
+    ])
+    expect(r1.dayStates[4]).toMatchObject({ unavailable: true, timeOffConflict: false })
+    expect(r1.dayStates[5]).toMatchObject({ unavailable: true, timeOffConflict: false })
+    expect(r1.utilisation).toBe(0)
+    expect(r1.overSoon).toBe(false)
     expect(r2.dayStates[2]).toMatchObject({
       unavailable: true,
       over: false,
       timeOffConflict: false,
-    });
-  });
-});
+    })
+  })
+})

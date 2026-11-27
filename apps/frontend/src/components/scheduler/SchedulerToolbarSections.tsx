@@ -1,49 +1,49 @@
-import { useId, useState } from 'react';
-import { ListFilter, Redo2, Trash2, Undo2 } from 'lucide-react';
-import { m } from '@/i18n';
-import type { StoreState } from '@/store/useStore';
-import { hasLensFilter } from '@/store/useStore';
-import { buildRedoShortcut, buildUndoShortcut } from '@/lib/keyboardShortcuts';
-import { SegmentedControl, TogglePill } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Field, FieldError, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { FilterSelect } from './FilterSelect';
-import { CHROME_SPACING } from './layout';
-import type { buildFilterOptions } from './toolbarFilterOptions';
-import { ToolbarActivityFilter } from './ToolbarActivityFilter';
-import { ToolbarDateNavigation } from './ToolbarDateNavigation';
-import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput';
+import { useId, useState } from 'react'
+import { ListFilter, Redo2, Trash2, Undo2 } from 'lucide-react'
+import { m } from '@/i18n'
+import type { StoreState } from '@/store/useStore'
+import { hasLensFilter } from '@/store/useStore'
+import { buildRedoShortcut, buildUndoShortcut } from '@/lib/keyboardShortcuts'
+import { SegmentedControl, TogglePill } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { FilterSelect } from './FilterSelect'
+import { CHROME_SPACING } from './layout'
+import type { buildFilterOptions } from './toolbarFilterOptions'
+import { ToolbarActivityFilter } from './ToolbarActivityFilter'
+import { ToolbarDateNavigation } from './ToolbarDateNavigation'
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput'
 
-type Options = ReturnType<typeof buildFilterOptions>;
+type Options = ReturnType<typeof buildFilterOptions>
 interface ChromeProps {
-  zoom: StoreState['ui']['zoom'];
-  setZoom: StoreState['setZoom'];
-  panDays: StoreState['panDays'];
-  goToToday: StoreState['goToToday'];
-  canEdit: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-  undo: StoreState['undoPlanning'];
-  redo: StoreState['redoPlanning'];
-  runHistoryAction: (action: () => Promise<unknown>) => void;
-  filtersOpen: boolean;
-  setFiltersOpen: (value: boolean | ((open: boolean) => boolean)) => void;
+  zoom: StoreState['ui']['zoom']
+  setZoom: StoreState['setZoom']
+  panDays: StoreState['panDays']
+  goToToday: StoreState['goToToday']
+  canEdit: boolean
+  canUndo: boolean
+  canRedo: boolean
+  undo: StoreState['undoPlanning']
+  redo: StoreState['redoPlanning']
+  runHistoryAction: (action: () => Promise<unknown>) => void
+  filtersOpen: boolean
+  setFiltersOpen: (value: boolean | ((open: boolean) => boolean)) => void
 }
 /** Filter values, options, and callbacks used by toolbar controls. */
 export interface FiltersProps extends Options {
-  disciplinesEnabled: boolean;
-  filters: StoreState['ui']['filters'];
-  filtersActive: boolean;
-  canEdit: boolean;
-  drawMode: StoreState['ui']['drawMode'];
-  setDrawMode: StoreState['setDrawMode'];
-  searchInput: string;
-  onSearchChange: (value: string) => void;
-  onClear: () => void;
-  setToolbarFilters: StoreState['setFilters'];
+  disciplinesEnabled: boolean
+  filters: StoreState['ui']['filters']
+  filtersActive: boolean
+  canEdit: boolean
+  drawMode: StoreState['ui']['drawMode']
+  setDrawMode: StoreState['setDrawMode']
+  searchInput: string
+  onSearchChange: (value: string) => void
+  onClear: () => void
+  setToolbarFilters: StoreState['setFilters']
 }
 
 /** Lays out the visible schedule controls at the current width. */
@@ -104,7 +104,7 @@ export function SchedulerToolbarChrome(props: ChromeProps) {
         </Button>
       </div>
     </div>
-  );
+  )
 }
 
 function EntityFilters(props: FiltersProps) {
@@ -145,7 +145,7 @@ function EntityFilters(props: FiltersProps) {
         />
       )}
     </>
-  );
+  )
 }
 
 function ViewFilters(props: FiltersProps) {
@@ -202,13 +202,13 @@ function ViewFilters(props: FiltersProps) {
         {m.scheduler_clear()}
       </Button>
     </>
-  );
+  )
 }
 
 /** Edits schedule filters while preserving their dependent selections. */
 export function SchedulerToolbarFilters(props: FiltersProps) {
-  const [searchTooLong, setSearchTooLong] = useState(false);
-  const searchErrorId = useId();
+  const [searchTooLong, setSearchTooLong] = useState(false)
+  const searchErrorId = useId()
   return (
     <div
       id="scheduler-filters"
@@ -220,11 +220,11 @@ export function SchedulerToolbarFilters(props: FiltersProps) {
           maxLength={MAX_LOCAL_QUERY_CODE_UNITS}
           value={props.searchInput}
           onChange={(event) => {
-            props.onSearchChange(event.target.value);
-            if (event.target.value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setSearchTooLong(false);
+            props.onSearchChange(event.target.value)
+            if (event.target.value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setSearchTooLong(false)
           }}
           onPaste={(event) => {
-            setSearchTooLong(rejectOverlongQueryPaste(event));
+            setSearchTooLong(rejectOverlongQueryPaste(event))
           }}
           placeholder={m.scheduler_search_people_placeholder()}
           aria-label={m.scheduler_search_people_aria()}
@@ -244,5 +244,5 @@ export function SchedulerToolbarFilters(props: FiltersProps) {
         <ViewFilters {...props} />
       </div>
     </div>
-  );
+  )
 }

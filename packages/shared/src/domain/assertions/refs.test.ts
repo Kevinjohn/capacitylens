@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { createEmptyAppData } from '../../types/entities.js';
-import type { AppData, ID, ScopedEntity, ScopedEntityKey } from '../../types/entities.js';
-import type { DomainErrorCode } from '../errors.js';
-import { assertAllocationRefs, assertScopedRefs, getOwned } from './refs.js';
+import { describe, expect, it } from 'vitest'
+import { createEmptyAppData } from '../../types/entities.js'
+import type { AppData, ID, ScopedEntity, ScopedEntityKey } from '../../types/entities.js'
+import type { DomainErrorCode } from '../errors.js'
+import { assertAllocationRefs, assertScopedRefs, getOwned } from './refs.js'
 import {
   A1,
   A2,
@@ -16,8 +16,8 @@ import {
   makePhase,
   makePlaceholder,
   makeProject,
-} from './assertionTestKit.js';
-import type { Failure } from './assertionTestKit.js';
+} from './assertionTestKit.js'
+import type { Failure } from './assertionTestKit.js'
 
 // Each row pins the code a rule refuses with and the English message the wire carries. The
 // server and the client share this module, so the rows pin the rules for both callers.
@@ -67,137 +67,137 @@ function makeWorld(): AppData {
       makePerson('ext1', { kind: 'external', name: 'Kord Industries' }),
       makePerson('r-loft', { name: 'Tony Stark', companyId: A2 }),
     ],
-  };
+  }
 }
 
-const pass = undefined;
-const refusal = (code: DomainErrorCode, message: string): Failure => ({ code, message });
-const wrongCompany = (message: string) => refusal('reference_wrong_company', message);
+const pass = undefined
+const refusal = (code: DomainErrorCode, message: string): Failure => ({ code, message })
+const wrongCompany = (message: string) => refusal('reference_wrong_company', message)
 
-const projectClient = wrongCompany('Project must reference a client in this company.');
-const phaseProject = wrongCompany('Phase must reference a project in this company.');
-const activityProject = wrongCompany('Activity must reference a project in this company.');
-const discipline = wrongCompany('Resource discipline must belong to this company.');
-const placeholderProject = wrongCompany('Placeholder project must belong to this company.');
+const projectClient = wrongCompany('Project must reference a client in this company.')
+const phaseProject = wrongCompany('Phase must reference a project in this company.')
+const activityProject = wrongCompany('Activity must reference a project in this company.')
+const discipline = wrongCompany('Resource discipline must belong to this company.')
+const placeholderProject = wrongCompany('Placeholder project must belong to this company.')
 const projectRequired = refusal(
   'activity_project_required',
-  'A project-specific activity must be assigned to a project.',
-);
+  'A project-specific activity must be assigned to a project.'
+)
 const projectForbidden = refusal(
   'activity_project_forbidden',
-  'An internal or all-projects activity cannot belong to a project.',
-);
+  'An internal or all-projects activity cannot belong to a project.'
+)
 const phaseForbidden = refusal(
   'activity_phase_forbidden',
-  'An internal or all-projects activity cannot belong to a phase.',
-);
+  'An internal or all-projects activity cannot belong to a phase.'
+)
 const phaseWrongCompany = refusal(
   'activity_phase_wrong_company',
-  'Activity phase must belong to this company.',
-);
+  'Activity phase must belong to this company.'
+)
 const phaseNeedsProject = refusal(
   'activity_phase_project_required',
-  'An activity with a phase must also belong to that phase’s project.',
-);
+  'An activity with a phase must also belong to that phase’s project.'
+)
 const phaseMismatch = refusal(
   'activity_phase_project_mismatch',
-  'Activity phase must belong to the activity’s project.',
-);
+  'Activity phase must belong to the activity’s project.'
+)
 const avatarForbidden = refusal(
   'resource_avatar_url_forbidden',
-  'Only a person can have an avatar URL.',
-);
+  'Only a person can have an avatar URL.'
+)
 const avatarInvalid = refusal(
   'resource_avatar_url_invalid',
-  'Avatar URL must be a normalised HTTPS URL without credentials.',
-);
+  'Avatar URL must be a normalised HTTPS URL without credentials.'
+)
 const bindingForbidden = refusal(
   'resource_project_forbidden',
-  'Only a placeholder can be assigned to a project.',
-);
+  'Only a placeholder can be assigned to a project.'
+)
 const kindChanged = refusal(
   'resource_kind_immutable',
-  'A resource’s kind cannot change after creation.',
-);
+  'A resource’s kind cannot change after creation.'
+)
 const kindCorrupt = refusal(
   'resource_kind_immutable',
-  'The stored resource kind is invalid and must be repaired by import.',
-);
+  'The stored resource kind is invalid and must be repaired by import.'
+)
 const references = refusal(
   'allocation_references_invalid',
-  'Allocation must reference an existing resource and activity in this company.',
-);
+  'Allocation must reference an existing resource and activity in this company.'
+)
 const resourceInactive = refusal(
   'allocation_resource_inactive',
-  'Allocation must reference an active resource in this company.',
-);
+  'Allocation must reference an active resource in this company.'
+)
 const activityInactive = refusal(
   'allocation_activity_inactive',
-  'Allocation must reference an activity under an active project.',
-);
+  'Allocation must reference an activity under an active project.'
+)
 const attributionForbidden = refusal(
   'allocation_project_forbidden',
-  'Only an all-projects activity allocation can be attributed to a project.',
-);
+  'Only an all-projects activity allocation can be attributed to a project.'
+)
 const projectInactive = refusal(
   'allocation_project_inactive',
-  'Allocation must reference an activity under an active project in this company.',
-);
+  'Allocation must reference an activity under an active project in this company.'
+)
 const placeholderMismatch = refusal(
   'placeholder_project_mismatch',
-  'A placeholder can only be assigned to activities from its bound project.',
-);
+  'A placeholder can only be assigned to activities from its bound project.'
+)
 const placeholderUnbound = refusal(
   'placeholder_project_missing',
-  'This placeholder is not bound to a project yet.',
-);
+  'This placeholder is not bound to a project yet.'
+)
 const externalHours = refusal(
   'external_allocation_hours',
-  'An external party’s allocation can’t carry hours.',
-);
+  'An external party’s allocation can’t carry hours.'
+)
 
 describe('getOwned', () => {
   it.each([
     ['returns the row when it belongs to the active company', 'c1', 'c1'],
     ['returns null for an absent id (stale-id no-op contract)', 'c-gone', null],
   ])('%s', (_title, id, expected) => {
-    expect(getOwned(makeWorld(), A1, 'clients', id)?.id ?? null).toBe(expected);
-  });
+    expect(getOwned(makeWorld(), A1, 'clients', id)?.id ?? null).toBe(expected)
+  })
 
   it('refuses a row that belongs to another company', () => {
     expect(captureFailure(() => getOwned(makeWorld(), A1, 'clients', 'c-loft'))).toEqual(
-      refusal('record_wrong_company', 'That record does not belong to the active company.'),
-    );
-  });
-});
+      refusal('record_wrong_company', 'That record does not belong to the active company.')
+    )
+  })
+})
 
-type Stored = ScopedEntity | Record<string, unknown>;
+type Stored = ScopedEntity | Record<string, unknown>
 type ScopedRow = [
   title: string,
   expected: Failure | undefined,
   record: Record<string, unknown>,
   existing?: Stored,
   options?: { fullRow?: boolean },
-];
+]
 
 /** Register one test per row, each calling assertScopedRefs on a fresh world. */
 function itRefusesScoped(key: ScopedEntityKey, rows: ScopedRow[]): void {
   it.each(rows)('%s', (_title, expected, record, existing, options) => {
     expect(
-      captureFailure(() => assertScopedRefs(makeWorld(), A1, key, record, existing, options)),
-    ).toEqual(expected);
-  });
+      captureFailure(() => assertScopedRefs(makeWorld(), A1, key, record, existing, options))
+    ).toEqual(expected)
+  })
 }
 
-const storedProject = makeProject('p1');
-const storedPhase = makePhase('ph1', 'p1');
-const hiddenPhase = makePhase('ph-hidden', 'p-hidden');
-const storedPerson = makePerson('r1');
-const boundPerson = makePerson('r1', { projectId: 'p1' });
-const boundPlaceholder = makePlaceholder('r1', 'p1');
-const projectWithClient = (clientId: ID) => makeProject('p1', { clientId });
-const activityWith = (fields: { projectId?: ID; phaseId: ID }) => makeActivity('t1', fields);
-const avatar = 'https://images.example/bruce.png';
+const storedProject = makeProject('p1')
+const storedPhase = makePhase('ph1', 'p1')
+const hiddenPhase = makePhase('ph-hidden', 'p-hidden')
+const storedPerson = makePerson('r1')
+const boundPerson = makePerson('r1', { projectId: 'p1' })
+const boundPlaceholder = makePlaceholder('r1', 'p1')
+const projectWithClient = (clientId: ID) => makeProject('p1', { clientId })
+const activityWith = (fields: { projectId?: ID; phaseId: ID }) => makeActivity('t1', fields)
+const avatar = 'https://images.example/bruce.png'
 
 describe('assertScopedRefs projects', () => {
   itRefusesScoped('projects', [
@@ -236,8 +236,8 @@ describe('assertScopedRefs projects', () => {
       { clientId: 'c-loft' },
       projectWithClient('c-loft'),
     ],
-  ]);
-});
+  ])
+})
 
 describe('assertScopedRefs phases', () => {
   itRefusesScoped('phases', [
@@ -262,8 +262,8 @@ describe('assertScopedRefs phases', () => {
       { ...hiddenPhase, name: 'Renamed' },
       hiddenPhase,
     ],
-  ]);
-});
+  ])
+})
 
 describe('assertScopedRefs activities', () => {
   itRefusesScoped('activities', [
@@ -345,8 +345,8 @@ describe('assertScopedRefs activities', () => {
       { ...activityWith({ phaseId: 'ph-old' }), phaseId: 'ph-new' },
       activityWith({ phaseId: 'ph-old' }),
     ],
-  ]);
-});
+  ])
+})
 
 describe('assertScopedRefs resources', () => {
   itRefusesScoped('resources', [
@@ -462,35 +462,35 @@ describe('assertScopedRefs resources', () => {
       { name: 'Renamed', projectId: 'p-gone' },
       makePlaceholder('r1', 'p-gone'),
     ],
-  ]);
-});
+  ])
+})
 
 describe('assertScopedRefs tables without catalogue references', () => {
-  const referenceLooking = { clientId: 'c-loft', projectId: 'p-loft', kind: 'robot' };
+  const referenceLooking = { clientId: 'c-loft', projectId: 'p-loft', kind: 'robot' }
   describe.each(['clients', 'disciplines', 'allocations', 'timeOff', 'closures'] as const)(
     '%s',
     (key) => {
       itRefusesScoped(key, [
         ['ignores reference-looking fields', pass, referenceLooking],
         ['accepts an empty record', pass, {}],
-      ]);
-    },
-  );
+      ])
+    }
+  )
   itRefusesScoped('unknown' as ScopedEntityKey, [
     ['ignores an unknown table key', pass, { clientId: 'c-loft' }],
-  ]);
-});
+  ])
+})
 
 describe('assertAllocationRefs', () => {
-  type Existing = { resourceId: ID; activityId: ID; projectId?: ID | null };
+  type Existing = { resourceId: ID; activityId: ID; projectId?: ID | null }
   type AllocationRow = [
     title: string,
     expected: Failure | undefined,
     call: [resourceId: ID, activityId: ID, hoursPerDay?: number, projectId?: ID | null],
     existing?: Existing,
-  ];
+  ]
   const was = (resourceId: ID, activityId: ID, projectId?: ID): Existing =>
-    projectId === undefined ? { resourceId, activityId } : { resourceId, activityId, projectId };
+    projectId === undefined ? { resourceId, activityId } : { resourceId, activityId, projectId }
 
   const rows: AllocationRow[] = [
     ['accepts an active resource and activity', pass, ['r1', 't1']],
@@ -565,16 +565,16 @@ describe('assertAllocationRefs', () => {
     ['rejects four hours on an external resource', externalHours, ['ext1', 't1', 4]],
     ['rejects eight hours on an external resource', externalHours, ['ext1', 't1', 8]],
     ['lets a person carry four hours', pass, ['r1', 't1', 4]],
-  ];
+  ]
 
   it.each(rows)(
     '%s',
     (_title, expected, [resourceId, activityId, hours = 8, projectId], existing) => {
       expect(
         captureFailure(() =>
-          assertAllocationRefs(makeWorld(), A1, resourceId, activityId, hours, projectId, existing),
-        ),
-      ).toEqual(expected);
-    },
-  );
-});
+          assertAllocationRefs(makeWorld(), A1, resourceId, activityId, hours, projectId, existing)
+        )
+      ).toEqual(expected)
+    }
+  )
+})

@@ -1,21 +1,21 @@
-import { defineConfig } from '@adonisjs/auth';
-import type { InferAuthenticators } from '@adonisjs/auth/types';
-import { sessionUserProvider } from '@adonisjs/auth/session';
-import { accountKitSessionGuard } from '@kevinjohn/adonisjs-account-kit/auth';
-import { effectiveSessionGuard } from '@kevinjohn/adonisjs-masquerade/auth';
-import type User from '#models/user';
+import { defineConfig } from '@adonisjs/auth'
+import type { InferAuthenticators } from '@adonisjs/auth/types'
+import { sessionUserProvider } from '@adonisjs/auth/session'
+import { accountKitSessionGuard } from '@kevinjohn/adonisjs-account-kit/auth'
+import { effectiveSessionGuard } from '@kevinjohn/adonisjs-masquerade/auth'
+import type User from '#models/user'
 
 /** The raw session provider shared with the Masquerade Account Kit adapter. */
-export const sessionUsers = sessionUserProvider({ model: () => import('#models/user') });
+export const sessionUsers = sessionUserProvider({ model: () => import('#models/user') })
 
-const webGuard = accountKitSessionGuard({ provider: sessionUsers });
+const webGuard = accountKitSessionGuard({ provider: sessionUsers })
 const effectiveGuard: ReturnType<typeof effectiveSessionGuard<User>> =
-  effectiveSessionGuard(webGuard);
+  effectiveSessionGuard(webGuard)
 
 type AuthConfig = {
-  web: typeof webGuard;
-  web_effective: typeof effectiveGuard;
-};
+  web: typeof webGuard
+  web_effective: typeof effectiveGuard
+}
 
 /**
  * `web` is the signed-in person. `web_effective` is the viewed-as member while a view-as mode is
@@ -27,9 +27,9 @@ const authConfig: ReturnType<typeof defineConfig<AuthConfig>> = defineConfig({
     web: webGuard,
     web_effective: effectiveGuard,
   },
-});
+})
 
-export default authConfig;
+export default authConfig
 
 declare module '@adonisjs/auth/types' {
   export interface Authenticators extends InferAuthenticators<typeof authConfig> {}

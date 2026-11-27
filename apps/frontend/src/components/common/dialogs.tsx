@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { useStore } from '@/store/useStore';
-import { m } from '@/i18n';
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useStore } from '@/store/useStore'
+import { m } from '@/i18n'
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,16 +19,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { restoreFocus } from './focus';
-import { FormDirtyContext } from './formDirty';
+} from '@/components/ui/alert-dialog'
+import { restoreFocus } from './focus'
+import { FormDirtyContext } from './formDirty'
 
 function hasOpenNestedOverlay(): boolean {
   return (
     document.querySelector(
-      '[data-slot="popover-content"][data-state="open"], [data-slot="select-content"][data-state="open"]',
+      '[data-slot="popover-content"][data-state="open"], [data-slot="select-content"][data-state="open"]'
     ) !== null
-  );
+  )
 }
 
 /** Provides the shared dialog title, body, and dismissal behaviour. */
@@ -44,20 +44,20 @@ export function FormDialog({
   onDirtyChange,
   onEdit,
 }: {
-  title: ReactNode;
-  description?: ReactNode;
-  onClose: () => void;
+  title: ReactNode
+  description?: ReactNode
+  onClose: () => void
   /** Wraps body and footer in a form; it always suppresses implicit page navigation. */
-  onSubmit?: () => void;
-  children: ReactNode;
-  footer?: ReactNode;
+  onSubmit?: () => void
+  children: ReactNode
+  footer?: ReactNode
   /** Disable for confirmation-only dialogs whose inputs are a gate, not savable form data. */
-  warnOnDirty?: boolean;
+  warnOnDirty?: boolean
   /** Optional controlled dirty state; otherwise FormDialog owns it through form events. */
-  dirty?: boolean;
-  onDirtyChange?: (dirty: boolean) => void;
+  dirty?: boolean
+  onDirtyChange?: (dirty: boolean) => void
   /** Called for every form edit, including edits after the form is already dirty. */
-  onEdit?: () => void;
+  onEdit?: () => void
 }) {
   const { markDirty, requestClose } = useFormDialogViewModel({
     warnOnDirty,
@@ -65,15 +65,15 @@ export function FormDialog({
     onDirtyChange,
     onEdit,
     onClose,
-  });
+  })
 
-  const descriptionId = useId();
+  const descriptionId = useId()
 
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) requestClose();
+        if (!open) requestClose()
       }}
     >
       <DialogContent
@@ -82,15 +82,15 @@ export function FormDialog({
         aria-describedby={description ? descriptionId : undefined}
         className="max-h-[90dvh] max-w-md grid-cols-[minmax(0,1fr)] gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
-          event.preventDefault();
-          requestClose();
+          event.preventDefault()
+          requestClose()
         }}
         onPointerDownOutside={(event) => {
-          event.preventDefault();
-          if (hasOpenNestedOverlay()) return;
-          const pointer = event.detail.originalEvent;
-          if (pointer.button === 2 || (pointer.button === 0 && pointer.ctrlKey)) return;
-          requestClose();
+          event.preventDefault()
+          if (hasOpenNestedOverlay()) return
+          const pointer = event.detail.originalEvent
+          if (pointer.button === 2 || (pointer.button === 0 && pointer.ctrlKey)) return
+          requestClose()
         }}
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
@@ -103,7 +103,7 @@ export function FormDialog({
         </DialogForm>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 function useFormDialogViewModel({
@@ -113,54 +113,54 @@ function useFormDialogViewModel({
   onEdit,
   onClose,
 }: {
-  warnOnDirty: boolean;
-  controlledDirty: boolean | undefined;
-  onDirtyChange: ((dirty: boolean) => void) | undefined;
-  onEdit: (() => void) | undefined;
-  onClose: () => void;
+  warnOnDirty: boolean
+  controlledDirty: boolean | undefined
+  onDirtyChange: ((dirty: boolean) => void) | undefined
+  onEdit: (() => void) | undefined
+  onClose: () => void
 }) {
-  const setNotice = useStore((state) => state.setNotice);
-  const setDirtyFormSource = useStore((state) => state.setDirtyFormSource);
-  const [dirtySource] = useState(() => Symbol('dialog-dirty'));
-  const [invoker] = useState(() => document.activeElement as HTMLElement | null);
+  const setNotice = useStore((state) => state.setNotice)
+  const setDirtyFormSource = useStore((state) => state.setDirtyFormSource)
+  const [dirtySource] = useState(() => Symbol('dialog-dirty'))
+  const [invoker] = useState(() => document.activeElement as HTMLElement | null)
 
-  const [localDirty, setLocalDirty] = useState(false);
-  const dirty = controlledDirty ?? localDirty;
-  const dirtyRef = useRef(dirty);
+  const [localDirty, setLocalDirty] = useState(false)
+  const dirty = controlledDirty ?? localDirty
+  const dirtyRef = useRef(dirty)
   useEffect(() => {
-    dirtyRef.current = dirty;
-  }, [dirty]);
+    dirtyRef.current = dirty
+  }, [dirty])
   const markDirty = useCallback(() => {
-    onEdit?.();
-    if (!warnOnDirty || dirtyRef.current) return;
+    onEdit?.()
+    if (!warnOnDirty || dirtyRef.current) return
     // React can surface one native edit through both input and change capture before the controlled
     // value re-renders. Flip the live dirty warning immediately so one edit publishes one dirty transition.
-    dirtyRef.current = true;
-    setDirtyFormSource({ source: dirtySource, dirty: true });
-    if (controlledDirty === undefined) setLocalDirty(true);
-    onDirtyChange?.(true);
-  }, [controlledDirty, dirtySource, warnOnDirty, onDirtyChange, onEdit, setDirtyFormSource]);
+    dirtyRef.current = true
+    setDirtyFormSource({ source: dirtySource, dirty: true })
+    if (controlledDirty === undefined) setLocalDirty(true)
+    onDirtyChange?.(true)
+  }, [controlledDirty, dirtySource, warnOnDirty, onDirtyChange, onEdit, setDirtyFormSource])
   // Publish this FormDialog's contribution so global beforeunload and shortcut dirty warnings aggregate every open
   // owner. Cleanup releases only this token; a clean overlapping FormDialog cannot clear another form.
   useEffect(() => {
-    setDirtyFormSource({ source: dirtySource, dirty: warnOnDirty && dirty });
-  }, [dirty, dirtySource, warnOnDirty, setDirtyFormSource]);
+    setDirtyFormSource({ source: dirtySource, dirty: warnOnDirty && dirty })
+  }, [dirty, dirtySource, warnOnDirty, setDirtyFormSource])
   useEffect(
     () => () => setDirtyFormSource({ source: dirtySource, dirty: false }),
-    [dirtySource, setDirtyFormSource],
-  );
-  useEffect(() => () => restoreFocus(invoker), [invoker]);
+    [dirtySource, setDirtyFormSource]
+  )
+  useEffect(() => () => restoreFocus(invoker), [invoker])
 
   const requestClose = () => {
     // `dirtyRef` flips synchronously in markDirty, before a controlled parent has had a chance to
     // feed `dirty=true` back through props. Reading it here closes that one-render escape hatch.
     if (warnOnDirty && dirtyRef.current) {
-      setNotice(m.dialog_unsaved_changes());
-      return;
+      setNotice(m.dialog_unsaved_changes())
+      return
     }
-    onClose();
-  };
-  return { markDirty, requestClose };
+    onClose()
+  }
+  return { markDirty, requestClose }
 }
 
 function DialogForm({
@@ -169,33 +169,33 @@ function DialogForm({
   footer,
   children,
 }: {
-  onSubmit: (() => void) | undefined;
-  markDirty: () => void;
-  footer: ReactNode | undefined;
-  children: ReactNode;
+  onSubmit: (() => void) | undefined
+  markDirty: () => void
+  footer: ReactNode | undefined
+  children: ReactNode
 }) {
   return (
     <FormDirtyContext.Provider value={markDirty}>
       <form
         noValidate
         onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit?.();
+          event.preventDefault()
+          onSubmit?.()
         }}
         onInputCapture={markDirty}
         onChangeCapture={markDirty}
         onClickCapture={(event) => {
           const toggle = (event.target as HTMLElement).closest(
-            '[aria-pressed],[role="radio"],[role="switch"]',
-          );
-          if (toggle && !toggle.hasAttribute('data-form-dirty-managed')) markDirty();
+            '[aria-pressed],[role="radio"],[role="switch"]'
+          )
+          if (toggle && !toggle.hasAttribute('data-form-dirty-managed')) markDirty()
         }}
       >
         <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
         {footer && <DialogFooter className="border-t px-4 py-3">{footer}</DialogFooter>}
       </form>
     </FormDirtyContext.Provider>
-  );
+  )
 }
 
 /** Requires an explicit choice before a consequential action proceeds. */
@@ -208,20 +208,20 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: {
-  title: string;
-  message: ReactNode;
-  confirmLabel?: string;
-  confirmVariant?: 'default' | 'outline' | 'danger-soft';
-  busy?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
+  title: string
+  message: ReactNode
+  confirmLabel?: string
+  confirmVariant?: 'default' | 'outline' | 'danger-soft'
+  busy?: boolean
+  onConfirm: () => void
+  onCancel: () => void
 }) {
-  const confirmingRef = useRef(false);
+  const confirmingRef = useRef(false)
   return (
     <AlertDialog
       open
       onOpenChange={(open) => {
-        if (!open && !confirmingRef.current && !busy) onCancel();
+        if (!open && !confirmingRef.current && !busy) onCancel()
       }}
     >
       <AlertDialogContent>
@@ -237,9 +237,9 @@ export function ConfirmDialog({
             variant={confirmVariant}
             disabled={busy}
             onClick={() => {
-              if (busy) return;
-              confirmingRef.current = true;
-              onConfirm();
+              if (busy) return
+              confirmingRef.current = true
+              onConfirm()
             }}
           >
             {confirmLabel}
@@ -247,5 +247,5 @@ export function ConfirmDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }

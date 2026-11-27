@@ -3,16 +3,16 @@
  */
 export function nonColourEnvironment(
   extra?: Record<string, string | undefined>,
-  parent?: Record<string, string | undefined>,
-): Record<string, string | undefined>;
+  parent?: Record<string, string | undefined>
+): Record<string, string | undefined>
 
 /**
  * Describes exit status and failure details from a synchronous child process.
  */
 export interface SynchronousSpawnResult {
-  status: number | null;
-  error?: Error;
-  signal?: string | null;
+  status: number | null
+  error?: Error
+  signal?: string | null
 }
 
 /**
@@ -21,5 +21,5 @@ export interface SynchronousSpawnResult {
 export function reportSpawnFailureAndResolveExitStatus(
   label: string,
   result: SynchronousSpawnResult,
-  report?: (message: string) => void,
-): number;
+  report?: (message: string) => void
+): number

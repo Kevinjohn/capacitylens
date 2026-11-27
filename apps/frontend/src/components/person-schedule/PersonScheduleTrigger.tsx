@@ -1,21 +1,21 @@
-import { Eye } from 'lucide-react';
-import type { ID } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { Avatar } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { resolveAvatarInitials } from '@/lib/metadata';
+import { Eye } from 'lucide-react'
+import type { ID } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { Avatar } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { resolveAvatarInitials } from '@/lib/metadata'
 
 /** Resource identity, title, and open action for a person schedule trigger. */
 export interface PersonScheduleTriggerProps {
-  resourceId: ID;
+  resourceId: ID
   /** Resolved title used in the "View {name}'s schedule" trigger label. */
-  scheduleTitle: string;
+  scheduleTitle: string
   /** Name (or job title, for an unnamed placeholder) the avatar derives initials from. */
-  avatarName: string;
-  color: string;
-  placeholder: boolean;
-  imageUrl?: string;
-  onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
+  avatarName: string
+  color: string
+  placeholder: boolean
+  imageUrl?: string
+  onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void
 }
 
 /** Opens a person schedule through the shared avatar/eye trigger used by Schedule and Overview. */
@@ -28,8 +28,8 @@ export function PersonScheduleTrigger({
   imageUrl,
   onViewSchedule,
 }: PersonScheduleTriggerProps) {
-  const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle });
-  const visibleAvatarName = resolveAvatarInitials(avatarName, placeholder);
+  const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle })
+  const visibleAvatarName = resolveAvatarInitials(avatarName, placeholder)
   return (
     <Button
       type="button"
@@ -58,5 +58,5 @@ export function PersonScheduleTrigger({
         className="absolute opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
       />
     </Button>
-  );
+  )
 }

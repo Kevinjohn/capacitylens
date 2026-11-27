@@ -1,27 +1,27 @@
-import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import { m } from '@/i18n';
-import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
-import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessApi';
-import { useCan } from '@/auth/permissionContext';
-import { resolveRoleLabel } from '@/lib/accessCopy';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Eye, Pencil } from 'lucide-react';
-import type { MemberRoleEdit } from './MemberConfirmations';
-import { resolveMemberLabel } from './memberConfirmationCopy';
-import type { MemberConfirmationAction } from './memberConfirmationCopy';
-import { MemberResourceDialog, MemberResourceLink } from './MemberResourceLink';
-import { MemberMenuDialog } from './MemberMenuDialog';
-import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
+import { m } from '@/i18n'
+import { canMasqueradeAs } from '@capacitylens/shared/domain/access'
+import type { Role } from '@capacitylens/shared/domain/access'
+import type { TeamMember } from '@/account/teamAccessApi'
+import { useCan } from '@/auth/permissionContext'
+import { resolveRoleLabel } from '@/lib/accessCopy'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Eye, Pencil } from 'lucide-react'
+import type { MemberRoleEdit } from './MemberConfirmations'
+import { resolveMemberLabel } from './memberConfirmationCopy'
+import type { MemberConfirmationAction } from './memberConfirmationCopy'
+import { MemberResourceDialog, MemberResourceLink } from './MemberResourceLink'
+import { MemberMenuDialog } from './MemberMenuDialog'
+import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest'
 
 // The server decides `manage` with the Access Control package and authorizes each operation again.
 function buildMemberAffordances(
   canUseMasquerade: boolean,
   myRole: Role | undefined,
-  member: TeamMember,
+  member: TeamMember
 ): { mayMasquerade: boolean; mayTouch: boolean; hasMenu: boolean } {
-  const active = member.status === 'active';
+  const active = member.status === 'active'
   return {
     mayMasquerade:
       active &&
@@ -31,7 +31,7 @@ function buildMemberAffordances(
       canMasqueradeAs(myRole, member.role),
     mayTouch: active && member.manage,
     hasMenu: member.manage,
-  };
+  }
 }
 
 // Use ordinary buttons inside the dialog to avoid nesting another menu and focus model.
@@ -41,10 +41,10 @@ function MemberMenuItem({
   testId,
   onSelect,
 }: {
-  label: string;
-  ariaLabel: string;
-  testId: string;
-  onSelect: () => void;
+  label: string
+  ariaLabel: string
+  testId: string
+  onSelect: () => void
 }) {
   return (
     <Button
@@ -58,21 +58,21 @@ function MemberMenuItem({
     >
       {label}
     </Button>
-  );
+  )
 }
 
 interface MemberRowActions {
-  busy: boolean;
-  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
-  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
+  busy: boolean
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void
+  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>
 }
 
 function MemberIdentity({ member }: { member: TeamMember }) {
-  const trimmedName = member.name?.trim();
-  let name = member.userId;
-  if (trimmedName) name = trimmedName;
+  const trimmedName = member.name?.trim()
+  let name = member.userId
+  if (trimmedName) name = trimmedName
 
-  const statusLabels = member.status === 'suspended' ? [m.settings_member_status_suspended()] : [];
+  const statusLabels = member.status === 'suspended' ? [m.settings_member_status_suspended()] : []
 
   return (
     <td className="py-2 px-4">
@@ -92,7 +92,7 @@ function MemberIdentity({ member }: { member: TeamMember }) {
         </div>
       </div>
     </td>
-  );
+  )
 }
 
 function MemberPrimaryActions({
@@ -106,12 +106,12 @@ function MemberPrimaryActions({
   resourceLink,
   settingsMenu,
 }: MemberRowActions & {
-  member: TeamMember;
-  memberLabel: string;
-  mayMasquerade: boolean;
-  mayTouch: boolean;
-  resourceLink: ReactNode;
-  settingsMenu: ReactNode;
+  member: TeamMember
+  memberLabel: string
+  mayMasquerade: boolean
+  mayTouch: boolean
+  resourceLink: ReactNode
+  settingsMenu: ReactNode
 }) {
   return (
     <td className="w-auto py-2 px-4 text-right whitespace-nowrap">
@@ -146,7 +146,7 @@ function MemberPrimaryActions({
         {settingsMenu}
       </div>
     </td>
-  );
+  )
 }
 
 function MemberSettingsMenuItems({
@@ -154,9 +154,9 @@ function MemberSettingsMenuItems({
   memberLabel,
   chooseMemberAction,
 }: {
-  member: TeamMember;
-  memberLabel: string;
-  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+  member: TeamMember
+  memberLabel: string
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void
 }) {
   return member.status === 'active' ? (
     <MemberMenuItem
@@ -172,7 +172,7 @@ function MemberSettingsMenuItems({
       ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
       onSelect={() => chooseMemberAction('restore', member)}
     />
-  );
+  )
 }
 
 /** Shows one member's role, sign-in state, and permitted management actions. */
@@ -189,20 +189,20 @@ export function MemberRow({
   companyId,
   resourceLinkRequest,
 }: {
-  member: TeamMember;
-  myRole: Role | undefined;
-  busy: boolean;
-  openMenuFor: string | null;
-  setOpenMenuFor(value: string | null): void;
-  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
-  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
-  linkedResourceIds: ReadonlySet<string>;
-  resourceCandidates: readonly { resourceId: string; label: string }[];
-  companyId: string | null;
-  resourceLinkRequest: MemberResourceLinkRequest;
+  member: TeamMember
+  myRole: Role | undefined
+  busy: boolean
+  openMenuFor: string | null
+  setOpenMenuFor(value: string | null): void
+  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void
+  linkedResourceIds: ReadonlySet<string>
+  resourceCandidates: readonly { resourceId: string; label: string }[]
+  companyId: string | null
+  resourceLinkRequest: MemberResourceLinkRequest
 }) {
-  const affordances = buildMemberAffordances(useCan('masquerade:use'), myRole, member);
-  const memberLabel = resolveMemberLabel(member);
+  const affordances = buildMemberAffordances(useCan('masquerade:use'), myRole, member)
+  const memberLabel = resolveMemberLabel(member)
   return (
     <tr
       className="border-b transition-colors last:border-b-0 hover:bg-accent/30 focus-within:bg-accent/30"
@@ -258,8 +258,8 @@ export function MemberRow({
                 label={m.settings_member_edit_aria({ member: memberLabel })}
                 ariaLabel={m.settings_member_edit_aria({ member: memberLabel })}
                 onSelect={() => {
-                  setOpenMenuFor(null);
-                  setRoleEdit({ member, nextRole: member.role });
+                  setOpenMenuFor(null)
+                  setRoleEdit({ member, nextRole: member.role })
                 }}
               />
             )}
@@ -274,5 +274,5 @@ export function MemberRow({
         }
       />
     </tr>
-  );
+  )
 }

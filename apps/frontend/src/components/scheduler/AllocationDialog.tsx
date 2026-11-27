@@ -1,29 +1,29 @@
-import { m } from '@/i18n';
-import { FormDialog } from '@/components/common/ui';
-import { AllocationFooter } from './AllocationFooter';
-import { AllocationScheduleFields } from './AllocationScheduleFields';
-import { AllocationTargetFields } from './AllocationTargetFields';
-import { useAllocationDialogState } from './useAllocationDialogState';
-import type { AllocationDialogProps } from './AllocationDialogSnapshot';
+import { m } from '@/i18n'
+import { FormDialog } from '@/components/common/ui'
+import { AllocationFooter } from './AllocationFooter'
+import { AllocationScheduleFields } from './AllocationScheduleFields'
+import { AllocationTargetFields } from './AllocationTargetFields'
+import { useAllocationDialogState } from './useAllocationDialogState'
+import type { AllocationDialogProps } from './AllocationDialogSnapshot'
 
-type BuildTitleOptions = { editing: boolean; createName: string | undefined };
+type BuildTitleOptions = { editing: boolean; createName: string | undefined }
 function buildTitle({ editing, createName }: BuildTitleOptions) {
-  if (editing) return m.form_allocation_edit_title();
+  if (editing) return m.form_allocation_edit_title()
   if (createName) {
     return (
       <>
         {m.form_allocation_new_for({ name: '' })}
         <strong>{createName}</strong>
       </>
-    );
+    )
   }
-  return m.form_allocation_new_title();
+  return m.form_allocation_new_title()
 }
 
 /** Coordinates allocation creation or editing in a guarded dialog. */
 export function AllocationDialog(props: AllocationDialogProps) {
-  const state = useAllocationDialogState(props);
-  const { editing, createName, onClose, submit, clear } = state.shell;
+  const state = useAllocationDialogState(props)
+  const { editing, createName, onClose, submit, clear } = state.shell
 
   return (
     <FormDialog
@@ -36,5 +36,5 @@ export function AllocationDialog(props: AllocationDialogProps) {
       <AllocationTargetFields {...state.targetFields} />
       <AllocationScheduleFields {...state.scheduleFields} />
     </FormDialog>
-  );
+  )
 }

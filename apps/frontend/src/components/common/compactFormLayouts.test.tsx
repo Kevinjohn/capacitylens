@@ -1,106 +1,106 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render as rtlRender, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
-import { OwnerPermissions } from '@/test/ownerPermissions';
-import userEvent from '@testing-library/user-event';
-import { resetStoreWithCompany } from '@/test/fixtures';
-import { ExternalForm } from '@/components/external/ExternalForm';
-import { DisciplineForm } from '@/components/disciplines/DisciplineForm';
-import { ClientForm } from '@/components/clients/ClientForm';
-import { ProjectForm } from '@/components/projects/ProjectForm';
-import { ActivityForm } from '@/components/activities/ActivityForm';
-import { TimeOffForm } from '@/components/time-off/TimeOffForm';
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render as rtlRender, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { OwnerPermissions } from '@/test/ownerPermissions'
+import userEvent from '@testing-library/user-event'
+import { resetStoreWithCompany } from '@/test/fixtures'
+import { ExternalForm } from '@/components/external/ExternalForm'
+import { DisciplineForm } from '@/components/disciplines/DisciplineForm'
+import { ClientForm } from '@/components/clients/ClientForm'
+import { ProjectForm } from '@/components/projects/ProjectForm'
+import { ActivityForm } from '@/components/activities/ActivityForm'
+import { TimeOffForm } from '@/components/time-off/TimeOffForm'
 
 function render(ui: ReactNode) {
-  return rtlRender(ui, { wrapper: OwnerPermissions });
+  return rtlRender(ui, { wrapper: OwnerPermissions })
 }
 
-beforeEach(() => resetStoreWithCompany());
+beforeEach(() => resetStoreWithCompany())
 
 function expectCompact(control: HTMLElement) {
   expect(control.closest('[data-slot="field"]')).toHaveAttribute(
     'data-product-layout',
-    'label-control',
-  );
+    'label-control'
+  )
 }
 
 function expectCodeNameDescriptionOnOwnRow() {
-  const codeName = screen.getByLabelText('Code name');
-  const field = codeName.closest('[data-slot="field"]');
+  const codeName = screen.getByLabelText('Code name')
+  const field = codeName.closest('[data-slot="field"]')
   const description = screen.getByText(
-    'Only Owners can see real names. Everyone else sees the code name.',
-  );
-  expect(codeName.parentElement).toBe(field);
-  expect(description.parentElement).toBe(field);
-  expect(description).toHaveClass('sm:col-start-2');
+    'Only Owners can see real names. Everyone else sees the code name.'
+  )
+  expect(codeName.parentElement).toBe(field)
+  expect(description.parentElement).toBe(field)
+  expect(description).toHaveClass('sm:col-start-2')
 }
 
 describe('compact input dialog layouts', () => {
   it('uses compact rows for every External and Discipline field', () => {
-    const external = render(<ExternalForm onClose={vi.fn()} />);
-    expectCompact(screen.getByLabelText('Company'));
-    expectCompact(screen.getByLabelText('Descriptor'));
-    external.unmount();
+    const external = render(<ExternalForm onClose={vi.fn()} />)
+    expectCompact(screen.getByLabelText('Company'))
+    expectCompact(screen.getByLabelText('Descriptor'))
+    external.unmount()
 
-    render(<DisciplineForm onClose={vi.fn()} />);
-    expectCompact(screen.getByLabelText('Name'));
-    expectCompact(screen.getByRole('button', { name: /^Colour \(/ }));
-  });
+    render(<DisciplineForm onClose={vi.fn()} />)
+    expectCompact(screen.getByLabelText('Name'))
+    expectCompact(screen.getByRole('button', { name: /^Colour \(/ }))
+  })
 
   it('keeps Client and Project privacy controls in the compact field layout', async () => {
-    const user = userEvent.setup();
-    const client = render(<ClientForm onClose={vi.fn()} />);
-    expectCompact(screen.getByLabelText('Name'));
-    expectCompact(screen.getByRole('switch', { name: 'Use code name' }));
-    expectCompact(screen.getByRole('button', { name: /^Colour \(/ }));
-    await user.click(screen.getByRole('switch', { name: 'Use code name' }));
-    expectCompact(screen.getByLabelText('Code name'));
-    expectCodeNameDescriptionOnOwnRow();
-    client.unmount();
+    const user = userEvent.setup()
+    const client = render(<ClientForm onClose={vi.fn()} />)
+    expectCompact(screen.getByLabelText('Name'))
+    expectCompact(screen.getByRole('switch', { name: 'Use code name' }))
+    expectCompact(screen.getByRole('button', { name: /^Colour \(/ }))
+    await user.click(screen.getByRole('switch', { name: 'Use code name' }))
+    expectCompact(screen.getByLabelText('Code name'))
+    expectCodeNameDescriptionOnOwnRow()
+    client.unmount()
 
-    render(<ProjectForm onClose={vi.fn()} />);
-    expectCompact(screen.getByLabelText('Name'));
-    expectCompact(screen.getByRole('switch', { name: 'Use code name' }));
-    await user.click(screen.getByRole('switch', { name: 'Use code name' }));
-    expectCompact(screen.getByLabelText('Code name'));
-    expectCodeNameDescriptionOnOwnRow();
-    expectCompact(screen.getByLabelText('Client'));
-    expectCompact(screen.getByRole('button', { name: /^Colour \(/ }));
-  });
+    render(<ProjectForm onClose={vi.fn()} />)
+    expectCompact(screen.getByLabelText('Name'))
+    expectCompact(screen.getByRole('switch', { name: 'Use code name' }))
+    await user.click(screen.getByRole('switch', { name: 'Use code name' }))
+    expectCompact(screen.getByLabelText('Code name'))
+    expectCodeNameDescriptionOnOwnRow()
+    expectCompact(screen.getByLabelText('Client'))
+    expectCompact(screen.getByRole('button', { name: /^Colour \(/ }))
+  })
 
   it('uses compact rows and equal full-width segments for the Activity kind', () => {
-    render(<ActivityForm onClose={vi.fn()} />);
-    expectCompact(screen.getByLabelText('Name'));
-    const kind = screen.getByRole('radiogroup', { name: 'Activity kind' });
-    expectCompact(kind);
-    expect(kind).toHaveAttribute('data-geometry', 'gapped');
-    expect(kind).toHaveAttribute('data-density', 'compact');
-    expect(kind.children).toHaveLength(3);
+    render(<ActivityForm onClose={vi.fn()} />)
+    expectCompact(screen.getByLabelText('Name'))
+    const kind = screen.getByRole('radiogroup', { name: 'Activity kind' })
+    expectCompact(kind)
+    expect(kind).toHaveAttribute('data-geometry', 'gapped')
+    expect(kind).toHaveAttribute('data-density', 'compact')
+    expect(kind.children).toHaveLength(3)
     expect(screen.getAllByRole('radio').map((segment) => segment.textContent)).toEqual([
       'Internal',
       'All projects',
       'Project-specific',
-    ]);
-    expectCompact(screen.getByLabelText('Project'));
-  });
+    ])
+    expectCompact(screen.getByLabelText('Project'))
+  })
 
   it('keeps Time off dates in a full-width row beside its compact fields', () => {
-    render(<TimeOffForm onClose={vi.fn()} />);
-    expectCompact(screen.getByLabelText('Resource'));
-    const startField = screen.getByLabelText('Start').closest('[data-slot="field"]');
-    const endField = screen.getByLabelText('End').closest('[data-slot="field"]');
-    expect(startField).not.toHaveAttribute('data-product-layout');
-    expect(endField).not.toHaveAttribute('data-product-layout');
-    expect(startField?.parentElement).toBe(endField?.parentElement);
-    expect(startField?.parentElement).toHaveAttribute('data-time-off-date-row');
+    render(<TimeOffForm onClose={vi.fn()} />)
+    expectCompact(screen.getByLabelText('Resource'))
+    const startField = screen.getByLabelText('Start').closest('[data-slot="field"]')
+    const endField = screen.getByLabelText('End').closest('[data-slot="field"]')
+    expect(startField).not.toHaveAttribute('data-product-layout')
+    expect(endField).not.toHaveAttribute('data-product-layout')
+    expect(startField?.parentElement).toBe(endField?.parentElement)
+    expect(startField?.parentElement).toHaveAttribute('data-time-off-date-row')
     expect(startField?.parentElement).toHaveClass(
       'grid',
       'min-w-0',
       'grid-cols-1',
       'gap-2',
-      'sm:grid-cols-2',
-    );
-    expectCompact(screen.getByLabelText('Type'));
-    expectCompact(screen.getByLabelText('Note'));
-  });
-});
+      'sm:grid-cols-2'
+    )
+    expectCompact(screen.getByLabelText('Type'))
+    expectCompact(screen.getByLabelText('Note'))
+  })
+})

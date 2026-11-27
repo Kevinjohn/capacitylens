@@ -1,5 +1,5 @@
-import type { ISODate, Weekday } from '../types/entities.js';
-import { addDaysISO, countDaysInclusive, getWeekday } from './dateMath.js';
+import type { ISODate, Weekday } from '../types/entities.js'
+import { addDaysISO, countDaysInclusive, getWeekday } from './dateMath.js'
 
 // Working-week rules over the calendar arithmetic in dateMath: which days of a resource's week
 // carry work, and how many working days a date range holds.
@@ -14,14 +14,14 @@ import { addDaysISO, countDaysInclusive, getWeekday } from './dateMath.js';
  * Invalid weekday entries are ignored consistently with the other weekday calculations. */
 export function isWeekendAware(
   workingDays: Weekday[] | undefined,
-  ignoreWorkingDays: boolean | undefined,
+  ignoreWorkingDays: boolean | undefined
 ): boolean {
-  if (ignoreWorkingDays || !workingDays) return false;
-  let mask = 0;
+  if (ignoreWorkingDays || !workingDays) return false
+  let mask = 0
   for (const day of workingDays) {
-    if (day >= 0 && day <= 6) mask |= 1 << day;
+    if (day >= 0 && day <= 6) mask |= 1 << day
   }
-  return mask !== 0 && mask !== 0b1111111;
+  return mask !== 0 && mask !== 0b1111111
 }
 
 /** Does an allocation place work on a given day? A weekend-aware allocation works only the resource's
@@ -34,26 +34,26 @@ export function isWeekendAware(
 export function canAllocationWorkOnDay(
   workingDays: Weekday[] | undefined,
   ignoreWorkingDays: boolean | undefined,
-  dayIsWorkingWeekday: boolean,
+  dayIsWorkingWeekday: boolean
 ): boolean {
-  return !isWeekendAware(workingDays, ignoreWorkingDays) || dayIsWorkingWeekday;
+  return !isWeekendAware(workingDays, ignoreWorkingDays) || dayIsWorkingWeekday
 }
 
 /** Count the working days within the inclusive range [start, end], given which
  * weekdays are working. Returns 0 for a reversed/empty range. */
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
-  const span = countDaysInclusive(start, end);
-  if (span <= 0) return 0;
+  const span = countDaysInclusive(start, end)
+  if (span <= 0) return 0
   const working = new Set(
-    workingDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
-  );
-  const fullWeeks = Math.floor(span / 7);
-  let count = fullWeeks * working.size;
-  const startWeekday = getWeekday(start);
+    workingDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+  )
+  const fullWeeks = Math.floor(span / 7)
+  let count = fullWeeks * working.size
+  const startWeekday = getWeekday(start)
   for (let offset = 0; offset < span % 7; offset += 1) {
-    if (working.has(((startWeekday + offset) % 7) as Weekday)) count += 1;
+    if (working.has(((startWeekday + offset) % 7) as Weekday)) count += 1
   }
-  return count;
+  return count
 }
 
 /** The end date such that [start, end] contains exactly `count` working days,
@@ -76,33 +76,33 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
 export function endDateForWorkingDays(
   start: ISODate,
   count: number,
-  workingDays: Weekday[],
+  workingDays: Weekday[]
 ): ISODate {
-  if (!Number.isSafeInteger(count)) throw new RangeError('count must be a safe integer.');
+  if (!Number.isSafeInteger(count)) throw new RangeError('count must be a safe integer.')
   if (workingDays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
-    throw new RangeError('workingDays must contain only integer weekdays from 0 through 6.');
+    throw new RangeError('workingDays must contain only integer weekdays from 0 through 6.')
   }
-  const working = new Set(workingDays);
+  const working = new Set(workingDays)
   if (count <= 0 || working.size === 0 || working.size >= 7) {
-    return addDaysISO(start, Math.max(0, count - 1));
+    return addDaysISO(start, Math.max(0, count - 1))
   }
   // This branch runs only with between one and six distinct weekdays.
-  const workingDayCount = working.size;
-  const startWd = getWeekday(start);
-  const fullWeeks = Math.floor((count - 1) / workingDayCount);
+  const workingDayCount = working.size
+  const startWd = getWeekday(start)
+  const fullWeeks = Math.floor((count - 1) / workingDayCount)
   // The remainder is at most one working week and is found by the loop below.
-  const remaining = count - fullWeeks * workingDayCount;
-  let seen = 0;
-  let offsetInWeek = 0;
+  const remaining = count - fullWeeks * workingDayCount
+  let seen = 0
+  let offsetInWeek = 0
   for (let j = 0; j < 7; j++) {
     if (working.has(((startWd + j) % 7) as Weekday)) {
-      seen++;
+      seen++
       if (seen === remaining) {
-        offsetInWeek = j;
-        break;
+        offsetInWeek = j
+        break
       }
     }
   }
-  if (seen !== remaining) throw new Error('The working-day span could not be resolved.');
-  return addDaysISO(start, fullWeeks * 7 + offsetInWeek);
+  if (seen !== remaining) throw new Error('The working-day span could not be resolved.')
+  return addDaysISO(start, fullWeeks * 7 + offsetInWeek)
 }

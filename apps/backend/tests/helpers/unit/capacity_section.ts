@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto'
 import type {
   Company,
   Allocation,
@@ -6,12 +6,12 @@ import type {
   Closure,
   Resource,
   TimeOff,
-} from '@capacitylens/shared/types/entities';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { buildCapacitySection } from '#services/planning/capacity_section';
+} from '@capacitylens/shared/types/entities'
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { buildCapacitySection } from '#services/planning/capacity_section'
 
-const COMPANY = 'a-themyscira';
-const stamp = { companyId: COMPANY, createdAt: 't', updatedAt: 't' };
+const COMPANY = 'a-themyscira'
+const stamp = { companyId: COMPANY, createdAt: 't', updatedAt: 't' }
 
 export function companyRow(changes: Partial<Company> = {}): Company {
   return {
@@ -22,7 +22,7 @@ export function companyRow(changes: Partial<Company> = {}): Company {
     name: 'Themyscira',
     color: '#111111',
     ...changes,
-  };
+  }
 }
 
 export function resource(id: string, changes: Partial<Resource> = {}): Resource {
@@ -40,7 +40,7 @@ export function resource(id: string, changes: Partial<Resource> = {}): Resource 
     halfDays: [],
     color: '#111111',
     ...changes,
-  };
+  }
 }
 
 export function allocation(
@@ -56,7 +56,7 @@ export function allocation(
     hoursPerDay: 4,
     status: 'confirmed',
     ...changes,
-  };
+  }
 }
 
 export function timeOff(startDate: string, endDate: string): TimeOff {
@@ -68,11 +68,11 @@ export function timeOff(startDate: string, endDate: string): TimeOff {
     startDate,
     endDate,
     type: 'holiday',
-  };
+  }
 }
 
 export function closure(startDate: string, endDate: string): Closure {
-  return { ...stamp, id: `cl-${startDate}`, name: 'Founding day', startDate, endDate };
+  return { ...stamp, id: `cl-${startDate}`, name: 'Founding day', startDate, endDate }
 }
 
 export function data(rows: Partial<AppData>): AppData {
@@ -88,7 +88,7 @@ export function data(rows: Partial<AppData>): AppData {
     timeOff: [],
     closures: [],
     ...rows,
-  };
+  }
 }
 
 export function section(
@@ -100,5 +100,5 @@ export function section(
     company: options.company ?? companyRow(),
     today: options.today ?? '2026-06-03',
     window: { from: '2026-06-01', to: '2026-06-14' },
-  });
+  })
 }

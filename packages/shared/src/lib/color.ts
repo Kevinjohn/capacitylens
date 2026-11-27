@@ -1,11 +1,11 @@
-import { isExternalResource } from '../types/entities.js';
-import { resolveEffectiveProjectId } from './integrity.js';
-import type { Allocation, Client, ID, Project, Resource, Activity } from '../types/entities.js';
+import { isExternalResource } from '../types/entities.js'
+import { resolveEffectiveProjectId } from './integrity.js'
+import type { Allocation, Client, ID, Project, Resource, Activity } from '../types/entities.js'
 
 /** The single neutral grey, the bar/colour fallback and the colour of external-party
  * identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
  * src/lib/palette so both sides share one definition. */
-export const NEUTRAL_COLOR = '#9ca3af';
+export const NEUTRAL_COLOR = '#9ca3af'
 /** Canonical user-selectable colour palette. Persisted user colours must belong to this set.
  * `NEUTRAL_COLOR` (external resources) and the Internal-client colour are deliberate system
  * exceptions and are therefore not included here. */
@@ -62,119 +62,119 @@ export const PRESET_COLORS = Object.freeze([
   '#6b248f',
   '#981b64',
   '#684327',
-] as const);
-const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS);
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+] as const)
+const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS)
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 
 /** True when the value is one of the preset swatches, ignoring case and surrounding space. Pure. */
 export function isPresetColor(value: unknown): value is string {
-  return typeof value === 'string' && PRESET_COLOR_SET.has(value.trim().toLowerCase());
+  return typeof value === 'string' && PRESET_COLOR_SET.has(value.trim().toLowerCase())
 }
 
 /** Default preset colour for a newly created company. */
-export const FALLBACK_PRESET_COLOR = '#5c34d4';
+export const FALLBACK_PRESET_COLOR = '#5c34d4'
 
 /** Id→entity maps for O(1) colour resolution. The scheduler model already builds
  * these to position bars, so colour resolution reuses them instead of re-scanning
  * the raw arrays once per bar. */
 export interface BarColorMaps {
-  activities: Map<ID, Activity>;
-  projects: Map<ID, Project>;
-  clients: Map<ID, Client>;
-  resources: Map<ID, Resource>;
+  activities: Map<ID, Activity>
+  projects: Map<ID, Project>
+  clients: Map<ID, Client>
+  resources: Map<ID, Resource>
 }
 
 /** Resolve a project's displayed colour without mutating its saved palette choice. Internal-owned
  * projects always read as neutral grey; their stored colour is kept but not shown. */
 export function resolveProjectColor(project: Project, client: Client | undefined): string {
-  return client?.builtin === true ? NEUTRAL_COLOR : project.color;
+  return client?.builtin === true ? NEUTRAL_COLOR : project.color
 }
 
 interface BarAttribution {
-  activity: Activity | undefined;
-  project: Project | undefined;
-  client: Client | undefined;
+  activity: Activity | undefined
+  project: Project | undefined
+  client: Client | undefined
 }
 
 function resolveBarAttribution(allocation: Allocation, maps: BarColorMaps): BarAttribution {
-  const activity = maps.activities.get(allocation.activityId);
-  const projectId = resolveEffectiveProjectId(allocation, activity ?? {});
-  const project = projectId ? maps.projects.get(projectId) : undefined;
+  const activity = maps.activities.get(allocation.activityId)
+  const projectId = resolveEffectiveProjectId(allocation, activity ?? {})
+  const project = projectId ? maps.projects.get(projectId) : undefined
   return {
     activity,
     project,
     client: project ? maps.clients.get(project.clientId) : undefined,
-  };
+  }
 }
 
 function hasNeutralBarColor(attribution: BarAttribution): boolean {
-  return attribution.activity?.kind === 'internal' || attribution.client?.builtin === true;
+  return attribution.activity?.kind === 'internal' || attribution.client?.builtin === true
 }
 
 /** Resolve an allocation bar colour. External work is always grey, and so are `internal` activities
  * and allocations whose effective project is Internal-owned; otherwise bars use project → client →
  * resource → neutral fallback order. */
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
-  const resource = maps.resources.get(allocation.resourceId);
+  const resource = maps.resources.get(allocation.resourceId)
   // External-party work reads as a single neutral colour (an "awareness" signal),
   // overriding the usual project→client colouring so an outsourced bar never looks like one of
   // our own.
-  if (resource && isExternalResource(resource)) return NEUTRAL_COLOR;
-  const attribution = resolveBarAttribution(allocation, maps);
-  if (hasNeutralBarColor(attribution)) return NEUTRAL_COLOR;
-  if (attribution.project?.color) return attribution.project.color;
-  if (attribution.client?.color) return attribution.client.color;
+  if (resource && isExternalResource(resource)) return NEUTRAL_COLOR
+  const attribution = resolveBarAttribution(allocation, maps)
+  if (hasNeutralBarColor(attribution)) return NEUTRAL_COLOR
+  if (attribution.project?.color) return attribution.project.color
+  if (attribution.client?.color) return attribution.client.color
 
-  return resource?.color ?? NEUTRAL_COLOR;
+  return resource?.color ?? NEUTRAL_COLOR
 }
 
-const DARK_INK = '#1c2230';
-const LIGHT_INK = '#ffffff';
+const DARK_INK = '#1c2230'
+const LIGHT_INK = '#ffffff'
 
 // WCAG relative luminance: linearise each sRGB channel before weighting.
 function normalizeLinearChannel(channel: number): number {
-  const normalizedChannel = channel / 255;
+  const normalizedChannel = channel / 255
   return normalizedChannel <= 0.03928
     ? normalizedChannel / 12.92
-    : Math.pow((normalizedChannel + 0.055) / 1.055, 2.4);
+    : Math.pow((normalizedChannel + 0.055) / 1.055, 2.4)
 }
 
 interface RgbChannels {
-  red: number;
-  green: number;
-  blue: number;
+  red: number
+  green: number
+  blue: number
 }
 
 function parseRgb(hex: string): RgbChannels | null {
-  const normalized = hex.trim();
-  if (!HEX_COLOR_RE.test(normalized)) return null;
-  const body = normalized.slice(1);
+  const normalized = hex.trim()
+  if (!HEX_COLOR_RE.test(normalized)) return null
+  const body = normalized.slice(1)
   return {
     red: Number.parseInt(body.slice(0, 2), 16),
     green: Number.parseInt(body.slice(2, 4), 16),
     blue: Number.parseInt(body.slice(4, 6), 16),
-  };
+  }
 }
 
 function calculateRelativeLuminance(hex: string): number | null {
-  const channels = parseRgb(hex);
-  if (!channels) return null;
-  const { red: r, green: g, blue: b } = channels;
+  const channels = parseRgb(hex)
+  if (!channels) return null
+  const { red: r, green: g, blue: b } = channels
   return (
     0.2126 * normalizeLinearChannel(r) +
     0.7152 * normalizeLinearChannel(g) +
     0.0722 * normalizeLinearChannel(b)
-  );
+  )
 }
 
 /** WCAG contrast ratio of two hex colours; 1 when either cannot be parsed. Pure. */
 export function calculateContrastRatio(hexA: string, hexB: string): number {
-  const leftLuminance = calculateRelativeLuminance(hexA);
-  const rightLuminance = calculateRelativeLuminance(hexB);
-  if (leftLuminance === null || rightLuminance === null) return 1;
-  const higherLuminance = Math.max(leftLuminance, rightLuminance);
-  const lowerLuminance = Math.min(leftLuminance, rightLuminance);
-  return (higherLuminance + 0.05) / (lowerLuminance + 0.05);
+  const leftLuminance = calculateRelativeLuminance(hexA)
+  const rightLuminance = calculateRelativeLuminance(hexB)
+  if (leftLuminance === null || rightLuminance === null) return 1
+  const higherLuminance = Math.max(leftLuminance, rightLuminance)
+  const lowerLuminance = Math.min(leftLuminance, rightLuminance)
+  return (higherLuminance + 0.05) / (lowerLuminance + 0.05)
 }
 
 /** Pick whichever of white / dark ink has the higher WCAG contrast on `hex`. */
@@ -182,41 +182,41 @@ export function resolveReadableTextColor(hex: string): string {
   // Load-bearing guard, not redundant with calculateContrastRatio: an unparseable `hex` makes both ratios
   // below the documented "no contrast info" value of 1, which would tie and hand the answer to
   // white ink. An unreadable colour must fall back to dark ink.
-  if (calculateRelativeLuminance(hex) === null) return DARK_INK;
+  if (calculateRelativeLuminance(hex) === null) return DARK_INK
   return calculateContrastRatio(hex, LIGHT_INK) >= calculateContrastRatio(hex, DARK_INK)
     ? LIGHT_INK
-    : DARK_INK;
+    : DARK_INK
 }
 
-const AA_NORMAL = 4.5;
+const AA_NORMAL = 4.5
 
 // Quantize candidate channels exactly as output hex serialization does so the contrast test scores the emitted colour.
-const clampChannelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+const clampChannelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)))
 
 const formatHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
   '#' +
   [redChannel, greenChannel, blueChannel]
     .map((value) => clampChannelByte(value).toString(16).padStart(2, '0'))
-    .join('');
+    .join('')
 
 function calculateContrastForChannels(channels: RgbChannels, inkLuminance: number): number {
   const luminance =
     0.2126 * normalizeLinearChannel(clampChannelByte(channels.red)) +
     0.7152 * normalizeLinearChannel(clampChannelByte(channels.green)) +
-    0.0722 * normalizeLinearChannel(clampChannelByte(channels.blue));
-  return (Math.max(luminance, inkLuminance) + 0.05) / (Math.min(luminance, inkLuminance) + 0.05);
+    0.0722 * normalizeLinearChannel(clampChannelByte(channels.blue))
+  return (Math.max(luminance, inkLuminance) + 0.05) / (Math.min(luminance, inkLuminance) + 0.05)
 }
 
 function nudgeChannels(channels: RgbChannels, darken: boolean): void {
   if (darken) {
-    channels.red *= 0.92;
-    channels.green *= 0.92;
-    channels.blue *= 0.92;
-    return;
+    channels.red *= 0.92
+    channels.green *= 0.92
+    channels.blue *= 0.92
+    return
   }
-  channels.red += (255 - channels.red) * 0.12;
-  channels.green += (255 - channels.green) * 0.12;
-  channels.blue += (255 - channels.blue) * 0.12;
+  channels.red += (255 - channels.red) * 0.12
+  channels.green += (255 - channels.green) * 0.12
+  channels.blue += (255 - channels.blue) * 0.12
 }
 
 /**
@@ -226,26 +226,26 @@ function nudgeChannels(channels: RgbChannels, darken: boolean): void {
  * ink) until the label clears WCAG AA. Returns the adjusted background + its ink.
  */
 export function resolveAccessibleBarColors(hex: string): { bg: string; ink: string } {
-  const channels = parseRgb(hex);
-  const ink = resolveReadableTextColor(hex);
-  if (!channels) return { bg: NEUTRAL_COLOR, ink: resolveReadableTextColor(NEUTRAL_COLOR) };
-  const nudgedChannels = { ...channels };
-  const darken = ink === LIGHT_INK;
+  const channels = parseRgb(hex)
+  const ink = resolveReadableTextColor(hex)
+  if (!channels) return { bg: NEUTRAL_COLOR, ink: resolveReadableTextColor(NEUTRAL_COLOR) }
+  const nudgedChannels = { ...channels }
+  const darken = ink === LIGHT_INK
   // The ink is fixed through the loop, so linearize it once.
-  const inkLuminance = calculateRelativeLuminance(ink) ?? 0;
+  const inkLuminance = calculateRelativeLuminance(ink) ?? 0
   // Score quantized channels so the contrast check matches the emitted hex colour.
-  let nudged = false;
+  let nudged = false
   for (
     let i = 0;
     i < 30 && calculateContrastForChannels(nudgedChannels, inkLuminance) < AA_NORMAL;
     i++
   ) {
-    nudgeChannels(nudgedChannels, darken);
-    nudged = true;
+    nudgeChannels(nudgedChannels, darken)
+    nudged = true
   }
   // Return an already-legible input verbatim to preserve its casing and whitespace.
   return {
     bg: nudged ? formatHex(nudgedChannels.red, nudgedChannels.green, nudgedChannels.blue) : hex,
     ink,
-  };
+  }
 }

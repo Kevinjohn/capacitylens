@@ -1,17 +1,11 @@
-import { resolveEffectiveProjectId } from '@capacitylens/shared/lib/integrity';
-import type {
-  Activity,
-  Allocation,
-  Client,
-  ID,
-  Project,
-} from '@capacitylens/shared/types/entities';
+import { resolveEffectiveProjectId } from '@capacitylens/shared/lib/integrity'
+import type { Activity, Allocation, Client, ID, Project } from '@capacitylens/shared/types/entities'
 
 /** Resolved project and phase identifiers permitted for an allocation. */
 export interface AllocationAttribution {
-  projectId: ID | undefined;
-  project: Project | undefined;
-  client: Client | undefined;
+  projectId: ID | undefined
+  project: Project | undefined
+  client: Client | undefined
 }
 
 /** Derives allowed project and phase attribution from the selected activity. */
@@ -22,17 +16,17 @@ export function buildAllocationAttribution({
   clientsById,
   internalClient,
 }: {
-  allocation: Allocation;
-  activitiesById: Map<ID, Activity>;
-  projectsById: Map<ID, Project>;
-  clientsById: Map<ID, Client>;
-  internalClient: Client | undefined;
+  allocation: Allocation
+  activitiesById: Map<ID, Activity>
+  projectsById: Map<ID, Project>
+  clientsById: Map<ID, Client>
+  internalClient: Client | undefined
 }): AllocationAttribution {
-  const activity = activitiesById.get(allocation.activityId);
-  const projectId = resolveEffectiveProjectId(allocation, activity ?? {});
-  const project = projectId ? projectsById.get(projectId) : undefined;
-  let client: Client | undefined;
-  if (project) client = clientsById.get(project.clientId);
-  else if (!projectId && activity) client = internalClient;
-  return { projectId, project, client };
+  const activity = activitiesById.get(allocation.activityId)
+  const projectId = resolveEffectiveProjectId(allocation, activity ?? {})
+  const project = projectId ? projectsById.get(projectId) : undefined
+  let client: Client | undefined
+  if (project) client = clientsById.get(project.clientId)
+  else if (!projectId && activity) client = internalClient
+  return { projectId, project, client }
 }

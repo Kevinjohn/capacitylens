@@ -1,16 +1,16 @@
-import type { StateCreator } from 'zustand';
-import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import { resolveLifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
+import type { StateCreator } from 'zustand'
+import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath'
+import { resolveLifecycleStatus } from '@capacitylens/shared/domain/lifecycle'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
 import {
   DEFAULT_RANGE_DAYS,
   DEFAULT_ZOOM,
   PAST_BUFFER_DAYS,
   UNANCHORED_WEEK_START,
-} from '@/lib/schedulerConfig';
-import type { AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
-import type { Filters, SchedulerUI, StoreState } from '@/store/types';
-import { resolveWeekStart } from '@/store/selectors';
+} from '@/lib/schedulerConfig'
+import type { AppData, ID, ISODate } from '@capacitylens/shared/types/entities'
+import type { Filters, SchedulerUI, StoreState } from '@/store/types'
+import { resolveWeekStart } from '@/store/selectors'
 
 type SchedulerSliceKeys =
   | 'ui'
@@ -25,14 +25,14 @@ type SchedulerSliceKeys =
   | 'clearFilters'
   | 'toggleGroup'
   | 'jumpToResource'
-  | 'consumeResourceJump';
+  | 'consumeResourceJump'
 
-type SchedulerSlice = Pick<StoreState, SchedulerSliceKeys>;
-type SchedulerSet = Parameters<StateCreator<StoreState, [], [], SchedulerSlice>>[0];
+type SchedulerSlice = Pick<StoreState, SchedulerSliceKeys>
+type SchedulerSet = Parameters<StateCreator<StoreState, [], [], SchedulerSlice>>[0]
 
 /** The grid's origin/focus pair for a week: the buffered left edge plus the week itself. */
 export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focusDate: ISODate } {
-  return { originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS), focusDate: weekStart };
+  return { originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS), focusDate: weekStart }
 }
 
 /** The same pair for the week holding the company's date from the server, read through the
@@ -41,14 +41,14 @@ export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focu
 export function readCurrentWeekAnchor(
   data: AppData,
   companyId: ID | null,
-  today: ISODate | null,
+  today: ISODate | null
 ): { originDate: ISODate; focusDate: ISODate } | undefined {
-  if (today === null) return undefined;
-  return buildWeekAnchor(startOfWeekISO(today, resolveWeekStart(data, companyId)));
+  if (today === null) return undefined
+  return buildWeekAnchor(startOfWeekISO(today, resolveWeekStart(data, companyId)))
 }
 
 function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
-  const weekStart = UNANCHORED_WEEK_START;
+  const weekStart = UNANCHORED_WEEK_START
   return {
     zoom: DEFAULT_ZOOM,
     originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
@@ -60,7 +60,7 @@ function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
     collapsedGroups: [],
     recenterToken: 0,
     scrollToResource: null,
-  };
+  }
 }
 
 function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } {
@@ -70,74 +70,74 @@ function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } 
       ...buildWeekAnchor(weekStart),
       recenterToken: state.ui.recenterToken + 1,
     },
-  };
+  }
 }
 
 function hasSuppliedValue(value: ID | Filters['activityKind'] | undefined): boolean {
-  return value !== null && value !== undefined;
+  return value !== null && value !== undefined
 }
 
 function applyFilterPatch(
   filters: Filters,
   patch: Partial<Filters>,
-  projects: AppData['projects'],
+  projects: AppData['projects']
 ): Filters {
-  const normalizedPatch = { ...patch };
+  const normalizedPatch = { ...patch }
   // If an invalid patch supplies both lenses, the kind wins consistently with the toolbar.
   // Normalize before merging so the two branches cannot clear both requested values.
-  if (hasSuppliedValue(patch.activityKind)) normalizedPatch.activityId = null;
-  else if (hasSuppliedValue(patch.activityId)) normalizedPatch.activityKind = null;
+  if (hasSuppliedValue(patch.activityKind)) normalizedPatch.activityId = null
+  else if (hasSuppliedValue(patch.activityId)) normalizedPatch.activityKind = null
 
-  const nextFilters: Filters = { ...filters, ...normalizedPatch };
+  const nextFilters: Filters = { ...filters, ...normalizedPatch }
   // A project is always subordinate to its selected client. Property presence matters here:
   // explicitly clearing the client must clear its stale project even though null is falsy. When
   // selecting a client, retain an existing project only when it belongs to that client.
   if (patch.clientId !== undefined && patch.projectId === undefined) {
     if (patch.clientId === null) {
-      nextFilters.projectId = null;
+      nextFilters.projectId = null
     } else if (
       nextFilters.projectId !== null &&
       !projects.some(
         (project) =>
           project.id === nextFilters.projectId &&
           project.clientId === patch.clientId &&
-          resolveLifecycleStatus(project) === 'active',
+          resolveLifecycleStatus(project) === 'active'
       )
     ) {
-      nextFilters.projectId = null;
+      nextFilters.projectId = null
     }
   }
 
   const patchesActivityLens =
-    hasSuppliedValue(patch.activityId) || hasSuppliedValue(patch.activityKind);
-  const patchesProjectLens = hasSuppliedValue(patch.clientId) || hasSuppliedValue(patch.projectId);
+    hasSuppliedValue(patch.activityId) || hasSuppliedValue(patch.activityKind)
+  const patchesProjectLens = hasSuppliedValue(patch.clientId) || hasSuppliedValue(patch.projectId)
   // A malformed bulk patch spanning both lens families resolves to the activity family.
   if (patchesActivityLens) {
-    nextFilters.clientId = null;
-    nextFilters.projectId = null;
+    nextFilters.clientId = null
+    nextFilters.projectId = null
   } else if (patchesProjectLens) {
-    nextFilters.activityId = null;
-    nextFilters.activityKind = null;
+    nextFilters.activityId = null
+    nextFilters.activityKind = null
   }
-  return nextFilters;
+  return nextFilters
 }
 
 function resolveResourceGroupKey(state: StoreState, id: ID): string | null {
-  const resource = state.data.resources.find((candidate) => candidate.id === id);
-  if (!resource) return null;
-  if (isExternalResource(resource)) return 'external';
+  const resource = state.data.resources.find((candidate) => candidate.id === id)
+  if (!resource) return null
+  if (isExternalResource(resource)) return 'external'
   if (
     resource.disciplineId != null &&
     state.data.disciplines.some((discipline) => discipline.id === resource.disciplineId)
   ) {
-    return resource.disciplineId;
+    return resource.disciplineId
   }
-  return 'none';
+  return 'none'
 }
 
 function createFilterActions(
   set: SchedulerSet,
-  emptyFilters: () => Filters,
+  emptyFilters: () => Filters
 ): Pick<SchedulerSlice, 'setFilters' | 'clearFilters'> {
   return {
     setFilters: (patch) =>
@@ -148,17 +148,17 @@ function createFilterActions(
         },
       })),
     clearFilters: () => set((state) => ({ ui: { ...state.ui, filters: emptyFilters() } })),
-  };
+  }
 }
 
 function createResourceJumpActions(
   set: SchedulerSet,
-  emptyFilters: () => Filters,
+  emptyFilters: () => Filters
 ): Pick<SchedulerSlice, 'jumpToResource' | 'consumeResourceJump'> {
   return {
     jumpToResource: (id) =>
       set((state) => {
-        const groupKey = resolveResourceGroupKey(state, id);
+        const groupKey = resolveResourceGroupKey(state, id)
         return {
           ui: {
             ...state.ui,
@@ -173,20 +173,20 @@ function createResourceJumpActions(
               consumed: false,
             },
           },
-        };
+        }
       }),
     consumeResourceJump: (token) =>
       set((state) => {
-        const request = state.ui.scrollToResource;
-        if (!request || request.token !== token || request.consumed) return state;
-        return { ui: { ...state.ui, scrollToResource: { ...request, consumed: true } } };
+        const request = state.ui.scrollToResource
+        if (!request || request.token !== token || request.consumed) return state
+        return { ui: { ...state.ui, scrollToResource: { ...request, consumed: true } } }
       }),
-  };
+  }
 }
 
 /** Scheduler navigation and filter state, isolated from domain persistence mutations. */
 export function createSchedulerSlice(
-  emptyFilters: () => Filters,
+  emptyFilters: () => Filters
 ): StateCreator<StoreState, [], [], SchedulerSlice> {
   return (set) => ({
     ui: createDefaultSchedulerUi(emptyFilters),
@@ -204,16 +204,13 @@ export function createSchedulerSlice(
               state,
               startOfWeekISO(
                 state.planning.today,
-                resolveWeekStart(state.data, state.activeCompanyId),
-              ),
-            ),
+                resolveWeekStart(state.data, state.activeCompanyId)
+              )
+            )
       ),
     goToDate: (date) =>
       set((state) =>
-        recenterOn(
-          state,
-          startOfWeekISO(date, resolveWeekStart(state.data, state.activeCompanyId)),
-        ),
+        recenterOn(state, startOfWeekISO(date, resolveWeekStart(state.data, state.activeCompanyId)))
       ),
     setDrawMode: (drawMode) => set((state) => ({ ui: { ...state.ui, drawMode } })),
     selectAllocation: (selectedAllocationId) =>
@@ -229,5 +226,5 @@ export function createSchedulerSlice(
         },
       })),
     ...createResourceJumpActions(set, emptyFilters),
-  });
+  })
 }

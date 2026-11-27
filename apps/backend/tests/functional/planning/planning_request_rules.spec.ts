@@ -1,8 +1,8 @@
-import { randomUUID } from 'node:crypto';
-import { test } from '@japa/runner';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import db from '@adonisjs/lucid/services/db';
-import { readState } from '#tests/helpers/state_fixture';
+import { randomUUID } from 'node:crypto'
+import { test } from '@japa/runner'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import db from '@adonisjs/lucid/services/db'
+import { readState } from '#tests/helpers/state_fixture'
 import {
   companyId,
   configureAuth,
@@ -10,24 +10,24 @@ import {
   resetPlanningFixture,
   intentSession,
   loginAsMember,
-} from '#tests/functional/planning/helpers';
-import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations';
+} from '#tests/functional/planning/helpers'
+import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations'
 
 test.group('planning request rule boundaries', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await resetPlanningFixture();
-  });
+    await resetPlanningFixture()
+  })
 
   test('refuses private clients and projects without a usable code name atomically', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const initial = await readState(companyId, true);
-    const clientId = randomUUID();
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const initial = await readState(companyId, true)
+    const clientId = randomUUID()
     const validClient = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -47,9 +47,9 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    validClient.assertStatus(200);
-    assert.equal(replyBody(validClient).revision, 1);
+      .send()
+    validClient.assertStatus(200)
+    assert.equal(replyBody(validClient).revision, 1)
     const validProject = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -70,9 +70,9 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    validProject.assertStatus(200);
-    assert.equal(replyBody(validProject).revision, 2);
+      .send()
+    validProject.assertStatus(200)
+    assert.equal(replyBody(validProject).revision, 2)
     const paddedPreset = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -87,13 +87,13 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    paddedPreset.assertStatus(200);
-    assert.equal(replyBody(paddedPreset).revision, 3);
-    const before = await readState(companyId, true);
-    assert.equal(before.clients.find((row) => row.name === 'Padded preset')?.color, '#E02727');
-    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
-    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
+      .send()
+    paddedPreset.assertStatus(200)
+    assert.equal(replyBody(paddedPreset).revision, 3)
+    const before = await readState(companyId, true)
+    assert.equal(before.clients.find((row) => row.name === 'Padded preset')?.color, '#E02727')
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId)
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId)
 
     for (const entity of ['clients', 'projects'] as const) {
       const fields =
@@ -110,7 +110,7 @@ test.group('planning request rule boundaries', (group) => {
               clientId,
               isPrivate: true,
               codeName: '""',
-            };
+            }
       const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
@@ -121,9 +121,9 @@ test.group('planning request rule boundaries', (group) => {
             entity: { entity, id: randomUUID(), fields },
           })
         )
-        .send();
-      refused.assertStatus(422);
-      assert.isNotEmpty(validationErrors(refused));
+        .send()
+      refused.assertStatus(422)
+      assert.isNotEmpty(validationErrors(refused))
     }
 
     for (const color of ['#7cd9e4']) {
@@ -141,34 +141,34 @@ test.group('planning request rule boundaries', (group) => {
             },
           })
         )
-        .send();
-      refused.assertStatus(422);
-      assert.isNotEmpty(validationErrors(refused));
+        .send()
+      refused.assertStatus(422)
+      assert.isNotEmpty(validationErrors(refused))
     }
 
-    assert.deepEqual(await readState(companyId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), before)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
-    );
+    )
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(snapshot).revision, 3);
-  });
+    ).send()
+    assert.equal(replyBody(snapshot).revision, 3)
+  })
 
   test('rejects incoherent activity project and phase requests at the route boundary', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const initial = await readState(companyId, true);
-    const activity = initial.activities.find((row) => row.phaseId !== null)!;
-    const otherProject = initial.projects.find((row) => row.id !== activity.projectId)!;
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const initial = await readState(companyId, true)
+    const activity = initial.activities.find((row) => row.phaseId !== null)!
+    const otherProject = initial.projects.find((row) => row.id !== activity.projectId)!
     const valid = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -179,12 +179,12 @@ test.group('planning request rule boundaries', (group) => {
           entity: { entity: 'activities', id: activity.id, changes: { name: 'Survey work' } },
         })
       )
-      .send();
-    valid.assertStatus(200);
-    assert.equal(replyBody(valid).revision, 1);
-    const before = await readState(companyId, true);
-    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
-    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
+      .send()
+    valid.assertStatus(200)
+    assert.equal(replyBody(valid).revision, 1)
+    const before = await readState(companyId, true)
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId)
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId)
 
     const wrongProject = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -200,9 +200,9 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    wrongProject.assertStatus(422);
-    assert.isNotEmpty(validationErrors(wrongProject));
+      .send()
+    wrongProject.assertStatus(422)
+    assert.isNotEmpty(validationErrors(wrongProject))
 
     const unassignedProjectActivity = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -218,9 +218,9 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    unassignedProjectActivity.assertStatus(422);
-    assert.isNotEmpty(validationErrors(unassignedProjectActivity));
+      .send()
+    unassignedProjectActivity.assertStatus(422)
+    assert.isNotEmpty(validationErrors(unassignedProjectActivity))
 
     const wrongKind = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -241,37 +241,37 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    wrongKind.assertStatus(422);
-    assert.isNotEmpty(validationErrors(wrongKind));
-    assert.deepEqual(await readState(companyId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
+      .send()
+    wrongKind.assertStatus(422)
+    assert.isNotEmpty(validationErrors(wrongKind))
+    assert.deepEqual(await readState(companyId, true), before)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
-    );
+    )
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(snapshot).revision, 1);
-  });
+    ).send()
+    assert.equal(replyBody(snapshot).revision, 1)
+  })
 
   test('rejects invalid person and placeholder working patterns and placeholder engagement', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const before = await readState(companyId, true);
-    const person = before.resources.find((row) => row.kind === 'person')!;
-    const placeholder = before.resources.find((row) => row.kind === 'placeholder')!;
-    const priorUpdatedAt = '2098-01-01T00:00:00.000Z';
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const before = await readState(companyId, true)
+    const person = before.resources.find((row) => row.kind === 'person')!
+    const placeholder = before.resources.find((row) => row.kind === 'placeholder')!
+    const priorUpdatedAt = '2098-01-01T00:00:00.000Z'
     await db
       .from('resources')
       .where({ id: person.id, company_id: companyId })
-      .update({ updated_at: priorUpdatedAt });
+      .update({ updated_at: priorUpdatedAt })
     const valid = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -283,14 +283,14 @@ test.group('planning request rule boundaries', (group) => {
           changes: { jobTitle: 'Lead' },
         })
       )
-      .send();
-    valid.assertStatus(200);
-    assert.equal(replyBody(valid).revision, 1);
-    const canonicalBeforeRefusals = await readState(companyId, true);
-    const updatedPerson = canonicalBeforeRefusals.resources.find((row) => row.id === person.id)!;
-    assert.isAbove(Date.parse(updatedPerson.updatedAt), Date.parse(priorUpdatedAt));
-    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
-    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
+      .send()
+    valid.assertStatus(200)
+    assert.equal(replyBody(valid).revision, 1)
+    const canonicalBeforeRefusals = await readState(companyId, true)
+    const updatedPerson = canonicalBeforeRefusals.resources.find((row) => row.id === person.id)!
+    assert.isAbove(Date.parse(updatedPerson.updatedAt), Date.parse(priorUpdatedAt))
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId)
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId)
 
     // Request validation and the planning rules both refuse with 422.
     const invalidCases = [
@@ -300,16 +300,16 @@ test.group('planning request rule boundaries', (group) => {
       { id: person.id, changes: { workingHoursPerDay: 0 } },
       { id: placeholder.id, changes: { engagement: 'supplementary' } },
       { id: placeholder.id, changes: { workingDays: [0, 6], halfDays: [6] } },
-    ];
+    ]
     for (const { id, changes } of invalidCases) {
       const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
         .json(mutationInput(1, { operation: 'resource.update', id, changes }))
-        .send();
-      refused.assertStatus(422);
-      assert.isNotEmpty(validationErrors(refused));
+        .send()
+      refused.assertStatus(422)
+      assert.isNotEmpty(validationErrors(refused))
     }
 
     const changedKind = await intentSession(
@@ -323,31 +323,31 @@ test.group('planning request rule boundaries', (group) => {
           changes: { kind: 'placeholder' },
         })
       )
-      .send();
-    changedKind.assertStatus(422);
-    assert.isNotEmpty(validationErrors(changedKind));
+      .send()
+    changedKind.assertStatus(422)
+    assert.isNotEmpty(validationErrors(changedKind))
 
-    assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
-    );
+    )
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(snapshot).revision, 1);
-  });
+    ).send()
+    assert.equal(replyBody(snapshot).revision, 1)
+  })
 
   test('refuses converting a resource with loaded allocation or time off to external atomically', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const initial = await readState(companyId, true);
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const initial = await readState(companyId, true)
     const allocatedPerson = initial.resources.find(
       (resource) =>
         resource.kind === 'person' &&
@@ -355,10 +355,10 @@ test.group('planning request rule boundaries', (group) => {
           (allocation) => allocation.resourceId === resource.id && allocation.hoursPerDay !== 0
         ) &&
         !initial.timeOff.some((entry) => entry.resourceId === resource.id)
-    );
-    assert.isDefined(allocatedPerson);
-    const initialAudits = await db.from('audit_entries').where('company_id', companyId);
-    const initialMutations = await db.from('planning_mutations').where('company_id', companyId);
+    )
+    assert.isDefined(allocatedPerson)
+    const initialAudits = await db.from('audit_entries').where('company_id', companyId)
+    const initialMutations = await db.from('planning_mutations').where('company_id', companyId)
 
     const allocationRefusal = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -371,22 +371,22 @@ test.group('planning request rule boundaries', (group) => {
           changes: { kind: 'external' },
         })
       )
-      .send();
-    allocationRefusal.assertStatus(422);
-    assert.isNotEmpty(validationErrors(allocationRefusal));
-    assert.deepEqual(await readState(companyId, true), initial);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), initialAudits);
+      .send()
+    allocationRefusal.assertStatus(422)
+    assert.isNotEmpty(validationErrors(allocationRefusal))
+    assert.deepEqual(await readState(companyId, true), initial)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), initialAudits)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       initialMutations
-    );
+    )
     const initialSnapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(initialSnapshot).revision, 0);
+    ).send()
+    assert.equal(replyBody(initialSnapshot).revision, 0)
 
-    const timeOffOnlyPersonId = randomUUID();
+    const timeOffOnlyPersonId = randomUUID()
     const timeOffOnlyPerson = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -414,9 +414,9 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    timeOffOnlyPerson.assertStatus(200);
-    assert.equal(replyBody(timeOffOnlyPerson).revision, 1);
+      .send()
+    timeOffOnlyPerson.assertStatus(200)
+    assert.equal(replyBody(timeOffOnlyPerson).revision, 1)
     const createdTimeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -433,22 +433,22 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    createdTimeOff.assertStatus(200);
-    assert.equal(replyBody(createdTimeOff).revision, 2);
-    const beforeTimeOffRefusal = await readState(companyId, true);
+      .send()
+    createdTimeOff.assertStatus(200)
+    assert.equal(replyBody(createdTimeOff).revision, 2)
+    const beforeTimeOffRefusal = await readState(companyId, true)
     assert.equal(
       beforeTimeOffRefusal.allocations.some(
         (allocation) => allocation.resourceId === timeOffOnlyPersonId
       ),
       false
-    );
+    )
     assert.equal(
       beforeTimeOffRefusal.timeOff.some((entry) => entry.resourceId === timeOffOnlyPersonId),
       true
-    );
-    const timeOffAudits = await db.from('audit_entries').where('company_id', companyId);
-    const timeOffMutations = await db.from('planning_mutations').where('company_id', companyId);
+    )
+    const timeOffAudits = await db.from('audit_entries').where('company_id', companyId)
+    const timeOffMutations = await db.from('planning_mutations').where('company_id', companyId)
 
     const timeOffRefusal = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -461,45 +461,45 @@ test.group('planning request rule boundaries', (group) => {
           changes: { kind: 'external' },
         })
       )
-      .send();
-    timeOffRefusal.assertStatus(422);
-    assert.isNotEmpty(validationErrors(timeOffRefusal));
-    assert.deepEqual(await readState(companyId, true), beforeTimeOffRefusal);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), timeOffAudits);
+      .send()
+    timeOffRefusal.assertStatus(422)
+    assert.isNotEmpty(validationErrors(timeOffRefusal))
+    assert.deepEqual(await readState(companyId, true), beforeTimeOffRefusal)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), timeOffAudits)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       timeOffMutations
-    );
+    )
     const timeOffSnapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(timeOffSnapshot).revision, 2);
-  });
+    ).send()
+    assert.equal(replyBody(timeOffSnapshot).revision, 2)
+  })
 
   test('rejects invalid allocation hours, dates, external work and external time off atomically', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const before = await readState(companyId, true);
-    const baseAllocation = newAllocation(before);
-    const external = before.resources.find((row) => row.kind === 'external')!;
-    const placeholder = before.resources.find((row) => row.kind === 'placeholder')!;
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const before = await readState(companyId, true)
+    const baseAllocation = newAllocation(before)
+    const external = before.resources.find((row) => row.kind === 'external')!
+    const placeholder = before.resources.find((row) => row.kind === 'placeholder')!
     const otherProjectActivity = before.activities.find(
       (row) => row.kind === 'project' && row.projectId !== placeholder.projectId
-    );
-    assert.isDefined(otherProjectActivity);
+    )
+    assert.isDefined(otherProjectActivity)
     const validAllocation = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(0, { operation: 'allocation.create', allocation: baseAllocation }))
-      .send();
-    validAllocation.assertStatus(200);
-    assert.equal(replyBody(validAllocation).revision, 1);
+      .send()
+    validAllocation.assertStatus(200)
+    assert.equal(replyBody(validAllocation).revision, 1)
     const validTimeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -516,12 +516,12 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    validTimeOff.assertStatus(200);
-    assert.equal(replyBody(validTimeOff).revision, 2);
-    const canonicalBeforeRefusals = await readState(companyId, true);
-    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
-    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
+      .send()
+    validTimeOff.assertStatus(200)
+    assert.equal(replyBody(validTimeOff).revision, 2)
+    const canonicalBeforeRefusals = await readState(companyId, true)
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId)
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId)
 
     // Request validation and the planning rules both refuse a malformed allocation with 422.
     const invalidAllocations = [
@@ -532,21 +532,21 @@ test.group('planning request rule boundaries', (group) => {
       { ...baseAllocation, resourceId: randomUUID() },
       { ...baseAllocation, activityId: randomUUID() },
       { ...baseAllocation, resourceId: placeholder.id, activityId: otherProjectActivity!.id },
-    ];
+    ]
     for (const allocation of invalidAllocations) {
       const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
         .json(mutationInput(2, { operation: 'allocation.create', allocation }))
-        .send();
-      refused.assertStatus(422);
-      assert.isNotEmpty(validationErrors(refused));
+        .send()
+      refused.assertStatus(422)
+      assert.isNotEmpty(validationErrors(refused))
     }
 
     const storedAllocation = canonicalBeforeRefusals.allocations.find(
       (row) => row.id === baseAllocation.id
-    )!;
+    )!
     const excessiveUpdate = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -558,9 +558,9 @@ test.group('planning request rule boundaries', (group) => {
           changes: { hoursPerDay: 99 },
         })
       )
-      .send();
-    excessiveUpdate.assertStatus(422);
-    assert.isNotEmpty(validationErrors(excessiveUpdate));
+      .send()
+    excessiveUpdate.assertStatus(422)
+    assert.isNotEmpty(validationErrors(excessiveUpdate))
 
     const refusedUpdate = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -573,9 +573,9 @@ test.group('planning request rule boundaries', (group) => {
           changes: { endDate: '2026-11-01' },
         })
       )
-      .send();
-    refusedUpdate.assertStatus(422);
-    assert.isNotEmpty(validationErrors(refusedUpdate));
+      .send()
+    refusedUpdate.assertStatus(422)
+    assert.isNotEmpty(validationErrors(refusedUpdate))
 
     const invalidTimeOff = [
       {
@@ -599,7 +599,7 @@ test.group('planning request rule boundaries', (group) => {
         endDate: '2026-11-02',
         type: 'holiday',
       },
-    ];
+    ]
     // The reversed range is refused by request validation, the others by planning rules; all 422.
     for (const timeOff of invalidTimeOff) {
       const refused = await intentSession(
@@ -607,67 +607,67 @@ test.group('planning request rule boundaries', (group) => {
         cookie
       )
         .json(mutationInput(2, { operation: 'timeOff.create', timeOff }))
-        .send();
-      refused.assertStatus(422);
-      assert.isNotEmpty(validationErrors(refused));
+        .send()
+      refused.assertStatus(422)
+      assert.isNotEmpty(validationErrors(refused))
     }
 
-    assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
-    );
+    )
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(snapshot).revision, 2);
-  });
+    ).send()
+    assert.equal(replyBody(snapshot).revision, 2)
+  })
 
   test('refuses empty company working days without changing settings', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const before = await readState(companyId, true);
-    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
-    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const before = await readState(companyId, true)
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId)
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId)
 
-    const invalidSettings = [{ workingDays: [] }, { workingDays: [1, 9] }, { color: '#7cd9e4' }];
+    const invalidSettings = [{ workingDays: [] }, { workingDays: [1, 9] }, { color: '#7cd9e4' }]
     for (const changes of invalidSettings) {
       const refused = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
         .json(mutationInput(0, { operation: 'settings.update', changes }))
-        .send();
-      refused.assertStatus(422);
-      assert.isNotEmpty(validationErrors(refused));
+        .send()
+      refused.assertStatus(422)
+      assert.isNotEmpty(validationErrors(refused))
     }
 
-    assert.deepEqual(await readState(companyId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), before)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
-    );
+    )
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(snapshot).revision, 0);
-  });
+    ).send()
+    assert.equal(replyBody(snapshot).revision, 0)
+  })
 
   test('refuses blank closure names without changing the stored closure', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
     const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -679,12 +679,12 @@ test.group('planning request rule boundaries', (group) => {
           fields: { name: 'Winter break', startDate: '2026-12-24', endDate: '2026-12-25' },
         })
       )
-      .send();
-    created.assertStatus(200);
-    const before = await readState(companyId, true);
-    const closure = before.closures[0]!;
-    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
-    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
+      .send()
+    created.assertStatus(200)
+    const before = await readState(companyId, true)
+    const closure = before.closures[0]!
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId)
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId)
 
     const refusedUpdate = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -697,28 +697,28 @@ test.group('planning request rule boundaries', (group) => {
           changes: { name: '  ' },
         })
       )
-      .send();
-    refusedUpdate.assertStatus(422);
-    assert.isNotEmpty(validationErrors(refusedUpdate));
-    assert.deepEqual(await readState(companyId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
+      .send()
+    refusedUpdate.assertStatus(422)
+    assert.isNotEmpty(validationErrors(refusedUpdate))
+    assert.deepEqual(await readState(companyId, true), before)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
-    );
+    )
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(snapshot).revision, 1);
-  });
+    ).send()
+    assert.equal(replyBody(snapshot).revision, 1)
+  })
 
   test('ignores a display name sent on a write', async ({ client, assert, cleanup }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const initial = await readState(companyId, true);
-    const color = initial.clients.find((row) => row.companyId === companyId)!.color;
-    const id = randomUUID();
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const initial = await readState(companyId, true)
+    const color = initial.clients.find((row) => row.companyId === companyId)!.color
+    const id = randomUUID()
     const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -733,20 +733,20 @@ test.group('planning request rule boundaries', (group) => {
           },
         })
       )
-      .send();
-    created.assertStatus(200);
+      .send()
+    created.assertStatus(200)
     const read = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    read.assertStatus(200);
+    ).send()
+    read.assertStatus(200)
     const row = (
       read.body().data as { data: { clients: Array<{ id: string; displayName?: string }> } }
-    ).data.clients.find((candidate) => candidate.id === id);
-    assert.equal(row?.displayName, 'Daily Planet');
-    assert.notInclude(read.text(), 'Injected');
-    const after = await readState(companyId, true);
-    const stored = after.clients.find((candidate) => candidate.id === id);
-    assert.notProperty(stored!, 'displayName');
-  });
-});
+    ).data.clients.find((candidate) => candidate.id === id)
+    assert.equal(row?.displayName, 'Daily Planet')
+    assert.notInclude(read.text(), 'Injected')
+    const after = await readState(companyId, true)
+    const stored = after.clients.find((candidate) => candidate.id === id)
+    assert.notProperty(stored!, 'displayName')
+  })
+})

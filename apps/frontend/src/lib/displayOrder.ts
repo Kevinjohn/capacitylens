@@ -1,16 +1,16 @@
-import type { ResourceEngagement } from '@capacitylens/shared/types/entities';
+import type { ResourceEngagement } from '@capacitylens/shared/types/entities'
 
 interface CompareDisplayNamesInput {
-  leftName: string;
-  leftId: string;
-  rightName: string;
-  rightId: string;
+  leftName: string
+  leftId: string
+  rightName: string
+  rightId: string
 }
 
-type Identified = { id: string };
-type Named = Identified & { name: string };
-type DisplayNamed = Named & { displayName?: string };
-type ClientProject = DisplayNamed & { clientId: string };
+type Identified = { id: string }
+type Named = Identified & { name: string }
+type DisplayNamed = Named & { displayName?: string }
+type ClientProject = DisplayNamed & { clientId: string }
 
 // CapacityLens is currently English-only. Pinning the locale keeps management-list order independent
 // of the host/browser locale; exact spelling and id then make every collation tie deterministic.
@@ -18,12 +18,12 @@ const displayNameCollator = new Intl.Collator('en', {
   numeric: true,
   sensitivity: 'base',
   usage: 'sort',
-});
+})
 
 function compareCodeUnits(left: string, right: string): number {
-  if (left < right) return -1;
-  if (left > right) return 1;
-  return 0;
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }
 
 function compareNamesAndIds({
@@ -36,7 +36,7 @@ function compareNamesAndIds({
     displayNameCollator.compare(leftName, rightName) ||
     compareCodeUnits(leftName, rightName) ||
     compareCodeUnits(leftId, rightId)
-  );
+  )
 }
 
 /** Sorts names consistently, using stable IDs to break ties. */
@@ -46,12 +46,12 @@ export function compareDisplayNames({
   rightName,
   rightId,
 }: CompareDisplayNamesInput): number {
-  return compareNamesAndIds({ leftName, leftId, rightName, rightId });
+  return compareNamesAndIds({ leftName, leftId, rightName, rightId })
 }
 
 /** Creates a comparator that sorts items by display name and stable ID. */
 export function createDisplayNameComparator<T extends Identified>(
-  displayName: (item: T) => string,
+  displayName: (item: T) => string
 ) {
   return (left: T, right: T): number =>
     compareDisplayNames({
@@ -59,26 +59,26 @@ export function createDisplayNameComparator<T extends Identified>(
       leftId: left.id,
       rightName: displayName(right),
       rightId: right.id,
-    });
+    })
 }
 
 /** The label the server chose for this reader; rows built without it order by name. */
-const resolveOrderingName = (item: DisplayNamed) => item.displayName ?? item.name;
+const resolveOrderingName = (item: DisplayNamed) => item.displayName ?? item.name
 
 /** Shared client-first project ordering for project selectors and management views. */
 export function createClientProjectDisplayNameComparator<T extends ClientProject>(
-  clients: DisplayNamed[],
+  clients: DisplayNamed[]
 ) {
-  const clientsById = new Map(clients.map((client) => [client.id, client]));
+  const clientsById = new Map(clients.map((client) => [client.id, client]))
   return (left: T, right: T): number => {
-    const leftClient = clientsById.get(left.clientId);
-    const rightClient = clientsById.get(right.clientId);
+    const leftClient = clientsById.get(left.clientId)
+    const rightClient = clientsById.get(right.clientId)
     const clientOrder = compareDisplayNames({
       leftName: leftClient ? resolveOrderingName(leftClient) : '',
       leftId: left.clientId,
       rightName: rightClient ? resolveOrderingName(rightClient) : '',
       rightId: right.clientId,
-    });
+    })
     return (
       clientOrder ||
       compareDisplayNames({
@@ -87,18 +87,18 @@ export function createClientProjectDisplayNameComparator<T extends ClientProject
         rightName: resolveOrderingName(right),
         rightId: right.id,
       })
-    );
-  };
+    )
+  }
 }
 
 /** Creates a comparator that places favourites before other items, then sorts names. */
 export function createFavouriteDisplayNameComparator<
   T extends Identified & { isFavourite?: boolean | null },
 >(displayName: (item: T) => string) {
-  const byDisplayName = createDisplayNameComparator(displayName);
+  const byDisplayName = createDisplayNameComparator(displayName)
   return (left: T, right: T): number =>
     Number(right.isFavourite === true) - Number(left.isFavourite === true) ||
-    byDisplayName(left, right);
+    byDisplayName(left, right)
 }
 
 /** Studio before Supplementary, then favourites first and deterministic display-name order within
@@ -106,11 +106,11 @@ export function createFavouriteDisplayNameComparator<
 export function createEngagementFavouriteDisplayNameComparator<
   T extends Identified & { engagement: ResourceEngagement; isFavourite?: boolean | null },
 >(displayName: (item: T) => string) {
-  const byFavouriteDisplayName = createFavouriteDisplayNameComparator(displayName);
+  const byFavouriteDisplayName = createFavouriteDisplayNameComparator(displayName)
   return (left: T, right: T): number =>
     Number(left.engagement === 'supplementary') - Number(right.engagement === 'supplementary') ||
-    byFavouriteDisplayName(left, right);
+    byFavouriteDisplayName(left, right)
 }
 
 /** Default comparator for named items. */
-export const byName = createDisplayNameComparator<Named>((item) => item.name);
+export const byName = createDisplayNameComparator<Named>((item) => item.name)

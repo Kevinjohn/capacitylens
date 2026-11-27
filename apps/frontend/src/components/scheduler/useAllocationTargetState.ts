@@ -1,54 +1,54 @@
-import { m } from '@/i18n';
-import { resolveEffectiveProjectId } from '@capacitylens/shared/lib/integrity';
-import type { Activity, Resource } from '@capacitylens/shared/types/entities';
-import { useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
-import { resolveResourceDisplayName } from '@/lib/metadata';
-import { isResourceKindEnabled } from '@/lib/resourceGrouping';
-import { parseText } from '@/lib/validation';
-import type { useStore } from '@/store/useStore';
-import type { Option } from '@/components/common/ui';
+import { m } from '@/i18n'
+import { resolveEffectiveProjectId } from '@capacitylens/shared/lib/integrity'
+import type { Activity, Resource } from '@capacitylens/shared/types/entities'
+import { useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
+import { resolveResourceDisplayName } from '@/lib/metadata'
+import { isResourceKindEnabled } from '@/lib/resourceGrouping'
+import { parseText } from '@/lib/validation'
+import type { useStore } from '@/store/useStore'
+import type { Option } from '@/components/common/ui'
 import {
   buildActivityOptions,
   resolveGroupKeyForKind,
   resolveGroupLabelForKind,
   sortGroupedOptions,
-} from './activityOptions';
+} from './activityOptions'
 
-import type { AppData } from '@capacitylens/shared/types/entities';
-import type { FieldError } from '@/hooks/useFieldError';
-import type { AllocationDialogSeed } from './buildAllocationDialogSeed';
-import { formatProjectLabel } from '@/components/common/projectOptions';
+import type { AppData } from '@capacitylens/shared/types/entities'
+import type { FieldError } from '@/hooks/useFieldError'
+import type { AllocationDialogSeed } from './buildAllocationDialogSeed'
+import { formatProjectLabel } from '@/components/common/projectOptions'
 import {
   isActivityInProjectSelection,
   buildActivityScope,
   ANY_PROJECT_SELECTION,
   resolveAttributedProject,
   INTERNAL_PROJECT_SELECTION,
-} from './allocationDialogSelection';
+} from './allocationDialogSelection'
 
-type TargetData = Pick<AppData, 'activities' | 'clients' | 'phases' | 'projects' | 'resources'>;
+type TargetData = Pick<AppData, 'activities' | 'clients' | 'phases' | 'projects' | 'resources'>
 
 interface TargetInput {
-  data: TargetData;
-  seed: AllocationDialogSeed;
-  resourceById: Map<string, Resource>;
-  canEdit: boolean;
-  placeholdersEnabled: boolean;
-  externalEnabled: boolean;
-  inlineActivityCreateEnabled: boolean;
-  fail: FieldError['fail'];
-  clear: FieldError['clear'];
-  errorField: FieldError['errorField'];
-  errorId: string;
-  addActivity: ReturnType<typeof useStore.getState>['addActivity'];
+  data: TargetData
+  seed: AllocationDialogSeed
+  resourceById: Map<string, Resource>
+  canEdit: boolean
+  placeholdersEnabled: boolean
+  externalEnabled: boolean
+  inlineActivityCreateEnabled: boolean
+  fail: FieldError['fail']
+  clear: FieldError['clear']
+  errorField: FieldError['errorField']
+  errorId: string
+  addActivity: ReturnType<typeof useStore.getState>['addActivity']
 }
 
 function describeResource(resource: Resource): string {
-  let suffix = '';
-  if (resource.kind === 'placeholder') suffix = m.form_allocation_resource_slot_suffix();
-  if (resource.kind === 'external') suffix = m.form_allocation_resource_external_suffix();
-  return `${resolveResourceDisplayName(resource)}${suffix}`;
+  let suffix = ''
+  if (resource.kind === 'placeholder') suffix = m.form_allocation_resource_slot_suffix()
+  if (resource.kind === 'external') suffix = m.form_allocation_resource_external_suffix()
+  return `${resolveResourceDisplayName(resource)}${suffix}`
 }
 
 function buildResourceOptions({
@@ -57,39 +57,39 @@ function buildResourceOptions({
   placeholdersEnabled,
   externalEnabled,
 }: {
-  resources: Resource[];
-  selectedResourceId: string;
-  placeholdersEnabled: boolean;
-  externalEnabled: boolean;
+  resources: Resource[]
+  selectedResourceId: string
+  placeholdersEnabled: boolean
+  externalEnabled: boolean
 }): Option[] {
   return resources
     .filter(
       (resource) =>
         resource.id === selectedResourceId ||
-        isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled }),
+        isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled })
     )
-    .map((resource) => ({ value: resource.id, label: describeResource(resource) }));
+    .map((resource) => ({ value: resource.id, label: describeResource(resource) }))
 }
 
 function buildProjectOptions(
   data: Pick<TargetData, 'clients' | 'projects'>,
-  lockedProjectId: string | undefined,
+  lockedProjectId: string | undefined
 ): Option[] {
-  const clientNamesById = new Map(data.clients.map((client) => [client.id, client.name]));
+  const clientNamesById = new Map(data.clients.map((client) => [client.id, client.name]))
   const projects = data.projects
     .filter((project) => lockedProjectId === undefined || project.id === lockedProjectId)
     .toSorted((left, right) => {
       const clientOrder = (clientNamesById.get(left.clientId) ?? '').localeCompare(
         clientNamesById.get(right.clientId) ?? '',
         undefined,
-        { sensitivity: 'base' },
-      );
+        { sensitivity: 'base' }
+      )
       return (
         clientOrder ||
         left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }) ||
         left.id.localeCompare(right.id)
-      );
-    });
+      )
+    })
   return [
     {
       value: INTERNAL_PROJECT_SELECTION,
@@ -102,33 +102,33 @@ function buildProjectOptions(
       disabled: lockedProjectId !== undefined,
     },
     ...projects.map((project, index) => {
-      const clientName = clientNamesById.get(project.clientId);
+      const clientName = clientNamesById.get(project.clientId)
       return {
         value: project.id,
         label: formatProjectLabel(project.name, clientName),
         separatorBefore: index === 0,
-      };
+      }
     }),
-  ];
+  ]
 }
 
 function addInlineOption(
   baseOptions: Option[],
   inlineOption: (Option & { kind: Activity['kind']; projectId?: string }) | null,
-  projectSelection: string,
+  projectSelection: string
 ): Option[] {
   if (
     !inlineOption ||
     !isActivityInProjectSelection(inlineOption, projectSelection) ||
     baseOptions.some((option) => option.value === inlineOption.value)
   ) {
-    return baseOptions;
+    return baseOptions
   }
   if (
     projectSelection === INTERNAL_PROJECT_SELECTION ||
     projectSelection === ANY_PROJECT_SELECTION
   ) {
-    return sortGroupedOptions([...baseOptions, inlineOption]);
+    return sortGroupedOptions([...baseOptions, inlineOption])
   }
   return sortGroupedOptions([
     ...baseOptions,
@@ -137,54 +137,52 @@ function addInlineOption(
       groupKey: resolveGroupKeyForKind(inlineOption.kind),
       groupLabel: resolveGroupLabelForKind(inlineOption.kind),
     },
-  ]);
+  ])
 }
 
 function resolveSelectedEffectiveProjectId(
   selectedActivity: Activity | undefined,
-  attributedProjectId: string | undefined,
+  attributedProjectId: string | undefined
 ) {
-  if (!selectedActivity) return undefined;
+  if (!selectedActivity) return undefined
   return resolveEffectiveProjectId(
     attributedProjectId ? { projectId: attributedProjectId } : {},
-    selectedActivity,
-  );
+    selectedActivity
+  )
 }
 
 type TargetChoicesInput = Pick<TargetInput, 'data' | 'placeholdersEnabled' | 'externalEnabled'> & {
-  resourcesById: Map<string, Resource>;
-  resourceId: string;
-  projectSelection: string;
-  activityId: string;
-  inlineActivityOption: (Option & { kind: Activity['kind']; projectId?: string }) | null;
-};
+  resourcesById: Map<string, Resource>
+  resourceId: string
+  projectSelection: string
+  activityId: string
+  inlineActivityOption: (Option & { kind: Activity['kind']; projectId?: string }) | null
+}
 
 function useTargetChoices(input: TargetChoicesInput) {
   const { data, resourcesById, resourceId, projectSelection, activityId, inlineActivityOption } =
-    input;
-  const { placeholdersEnabled, externalEnabled } = input;
+    input
+  const { placeholdersEnabled, externalEnabled } = input
   const selectedActivity = useMemo(
     () => data.activities.find((activity) => activity.id === activityId),
-    [activityId, data.activities],
-  );
-  const attributedProjectId = resolveAttributedProject(selectedActivity, projectSelection);
+    [activityId, data.activities]
+  )
+  const attributedProjectId = resolveAttributedProject(selectedActivity, projectSelection)
   const selectedEffectiveProjectId = useMemo(
     () => resolveSelectedEffectiveProjectId(selectedActivity, attributedProjectId),
-    [attributedProjectId, selectedActivity],
-  );
-  const selectedResource = resourcesById.get(resourceId);
+    [attributedProjectId, selectedActivity]
+  )
+  const selectedResource = resourcesById.get(resourceId)
   const lockedProjectId =
-    selectedResource?.kind === 'placeholder'
-      ? (selectedResource.projectId ?? undefined)
-      : undefined;
+    selectedResource?.kind === 'placeholder' ? (selectedResource.projectId ?? undefined) : undefined
   const resourceOptions = buildResourceOptions({
     resources: data.resources,
     selectedResourceId: resourceId,
     placeholdersEnabled,
     externalEnabled,
-  });
-  const projectOptions = buildProjectOptions(data, lockedProjectId);
-  const activityScope = buildActivityScope(projectSelection);
+  })
+  const projectOptions = buildProjectOptions(data, lockedProjectId)
+  const activityScope = buildActivityScope(projectSelection)
   const baseActivityOptions = useMemo(
     () =>
       buildActivityOptions({
@@ -194,12 +192,12 @@ function useTargetChoices(input: TargetChoicesInput) {
         kind: activityScope.kind,
         projectId: activityScope.projectId,
       }),
-    [activityScope.kind, activityScope.projectId, data.activities, data.phases, data.projects],
-  );
+    [activityScope.kind, activityScope.projectId, data.activities, data.phases, data.projects]
+  )
   const activityOptions = useMemo(
     () => addInlineOption(baseActivityOptions, inlineActivityOption, projectSelection),
-    [baseActivityOptions, inlineActivityOption, projectSelection],
-  );
+    [baseActivityOptions, inlineActivityOption, projectSelection]
+  )
   return {
     selectedActivity,
     attributedProjectId,
@@ -210,7 +208,7 @@ function useTargetChoices(input: TargetChoicesInput) {
     projectOptions,
     activityScope,
     activityOptions,
-  };
+  }
 }
 
 function useAddInlineActivity({
@@ -224,42 +222,42 @@ function useAddInlineActivity({
   setNewActivityName,
   selectionVersion,
 }: Pick<TargetInput, 'canEdit' | 'addActivity' | 'fail'> & {
-  newActivityName: string;
-  activityScope: ReturnType<typeof buildActivityScope>;
+  newActivityName: string
+  activityScope: ReturnType<typeof buildActivityScope>
   setInlineActivityOption: React.Dispatch<
     React.SetStateAction<(Option & { kind: Activity['kind']; projectId?: string }) | null>
-  >;
-  setActivityId: React.Dispatch<React.SetStateAction<string>>;
-  setNewActivityName: React.Dispatch<React.SetStateAction<string>>;
-  selectionVersion: React.MutableRefObject<number>;
+  >
+  setActivityId: React.Dispatch<React.SetStateAction<string>>
+  setNewActivityName: React.Dispatch<React.SetStateAction<string>>
+  selectionVersion: React.MutableRefObject<number>
 }) {
   return async () => {
-    if (!canEdit) return;
+    if (!canEdit) return
     const cleanActivityName = parseText(newActivityName, fail, {
       field: 'newactivity',
       requiredMessage: m.form_allocation_err_new_activity_name(),
-    });
-    if (cleanActivityName === null) return;
-    const selectionVersionAtStart = selectionVersion.current;
+    })
+    if (cleanActivityName === null) return
+    const selectionVersionAtStart = selectionVersion.current
     try {
-      const activity = await addActivity({ name: cleanActivityName, ...activityScope });
-      if (activity.kind === 'blocked') return;
+      const activity = await addActivity({ name: cleanActivityName, ...activityScope })
+      if (activity.kind === 'blocked') return
       flushSync(() => {
         setInlineActivityOption({
           value: activity.value.id,
           label: activity.value.name,
           kind: activity.value.kind,
           ...(activity.value.projectId ? { projectId: activity.value.projectId } : {}),
-        });
-      });
-      if (selectionVersion.current === selectionVersionAtStart) setActivityId(activity.value.id);
+        })
+      })
+      if (selectionVersion.current === selectionVersionAtStart) setActivityId(activity.value.id)
       // A name typed while the request was pending belongs to the next activity, so keep it.
-      setNewActivityName((current) => (current === newActivityName ? '' : current));
+      setNewActivityName((current) => (current === newActivityName ? '' : current))
     } catch (error) {
       // Report inline-creation failure without treating the new target as successfully selected.
-      fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());
+      fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed())
     }
-  };
+  }
 }
 
 function useTargetChangeHandlers({
@@ -270,41 +268,41 @@ function useTargetChangeHandlers({
   setActivityId,
   selectionVersion,
 }: Pick<TargetInput, 'clear'> & {
-  resourcesById: Map<string, Resource>;
-  setResourceId: React.Dispatch<React.SetStateAction<string>>;
-  setProjectSelection: React.Dispatch<React.SetStateAction<string>>;
-  setActivityId: React.Dispatch<React.SetStateAction<string>>;
-  selectionVersion: React.MutableRefObject<number>;
+  resourcesById: Map<string, Resource>
+  setResourceId: React.Dispatch<React.SetStateAction<string>>
+  setProjectSelection: React.Dispatch<React.SetStateAction<string>>
+  setActivityId: React.Dispatch<React.SetStateAction<string>>
+  selectionVersion: React.MutableRefObject<number>
 }) {
   const changeAssignee = (value: string) => {
-    selectionVersion.current += 1;
-    clear();
-    setResourceId(value);
-    const resource = resourcesById.get(value);
+    selectionVersion.current += 1
+    clear()
+    setResourceId(value)
+    const resource = resourcesById.get(value)
     if (resource?.kind === 'placeholder' && resource.projectId) {
-      setProjectSelection(resource.projectId);
-      setActivityId('');
+      setProjectSelection(resource.projectId)
+      setActivityId('')
     }
-  };
+  }
   const changeProject = (value: string) => {
-    selectionVersion.current += 1;
-    clear();
-    setProjectSelection(value);
-    setActivityId('');
-  };
-  return { changeAssignee, changeProject };
+    selectionVersion.current += 1
+    clear()
+    setProjectSelection(value)
+    setActivityId('')
+  }
+  return { changeAssignee, changeProject }
 }
 
 function useTargetFieldState(seed: AllocationDialogSeed) {
-  const [resourceId, setResourceId] = useState(seed.initialResourceId);
+  const [resourceId, setResourceId] = useState(seed.initialResourceId)
   const [projectSelection, setProjectSelection] = useState(
-    seed.initialLocked ?? INTERNAL_PROJECT_SELECTION,
-  );
-  const [activityId, setActivityId] = useState(seed.editing?.activityId ?? '');
-  const [newActivityName, setNewActivityName] = useState('');
+    seed.initialLocked ?? INTERNAL_PROJECT_SELECTION
+  )
+  const [activityId, setActivityId] = useState(seed.editing?.activityId ?? '')
+  const [newActivityName, setNewActivityName] = useState('')
   const [inlineActivityOption, setInlineActivityOption] = useState<
     (Option & { kind: Activity['kind']; projectId?: string }) | null
-  >(null);
+  >(null)
   return {
     resourceId,
     setResourceId,
@@ -316,30 +314,30 @@ function useTargetFieldState(seed: AllocationDialogSeed) {
     setNewActivityName,
     inlineActivityOption,
     setInlineActivityOption,
-  };
+  }
 }
 
 /** Tracks resource and activity selections for an allocation draft. */
 export function useAllocationTargetState(input: TargetInput) {
-  const { seed, resourceById: resourcesById, canEdit } = input;
-  const { inlineActivityCreateEnabled, fail, clear, errorField, errorId, addActivity } = input;
-  const { create } = seed;
-  const fieldState = useTargetFieldState(seed);
-  const selectionVersion = useRef(0);
-  const { resourceId, projectSelection, activityId, setActivityId } = fieldState;
-  const { newActivityName, setNewActivityName, setInlineActivityOption } = fieldState;
+  const { seed, resourceById: resourcesById, canEdit } = input
+  const { inlineActivityCreateEnabled, fail, clear, errorField, errorId, addActivity } = input
+  const { create } = seed
+  const fieldState = useTargetFieldState(seed)
+  const selectionVersion = useRef(0)
+  const { resourceId, projectSelection, activityId, setActivityId } = fieldState
+  const { newActivityName, setNewActivityName, setInlineActivityOption } = fieldState
   // Keep an allocation's current assignee available during editing even when the company hides that resource kind, or saving could silently reassign the work.
-  const choices = useTargetChoices({ ...input, ...fieldState, resourcesById });
+  const choices = useTargetChoices({ ...input, ...fieldState, resourcesById })
   const { changeAssignee, changeProject } = useTargetChangeHandlers({
     ...fieldState,
     resourcesById,
     clear,
     selectionVersion,
-  });
+  })
   const changeActivity = (value: string) => {
-    selectionVersion.current += 1;
-    setActivityId(value);
-  };
+    selectionVersion.current += 1
+    setActivityId(value)
+  }
   const addInlineActivity = useAddInlineActivity({
     canEdit,
     newActivityName,
@@ -350,7 +348,7 @@ export function useAllocationTargetState(input: TargetInput) {
     setActivityId,
     setNewActivityName,
     selectionVersion,
-  });
+  })
 
   return {
     selectedResource: choices.selectedResource,
@@ -378,5 +376,5 @@ export function useAllocationTargetState(input: TargetInput) {
       errorField,
       errorId,
     },
-  };
+  }
 }

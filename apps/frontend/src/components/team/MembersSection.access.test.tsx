@@ -1,47 +1,47 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
-import { AuthContext } from '@/auth/authContext';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
+import { AuthContext } from '@/auth/authContext'
 
-import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { MembersSection } from './MembersSection';
-import { useTeamDirectory } from './useTeamDirectory';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { MembersSection } from './MembersSection'
+import { useTeamDirectory } from './useTeamDirectory'
 import {
   fakeApiFetch,
   makeAuthValue,
   mockApi,
   makeRawMember,
   renderSection,
-} from './MembersSectionTestKit';
-import { masqueradeGrantFor } from '@/test/permissionGrants';
+} from './MembersSectionTestKit'
+import { masqueradeGrantFor } from '@/test/permissionGrants'
 
 const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
-}));
+}))
 
 vi.mock('@/auth/companyTransition', () => ({
   startMasquerade: companyTransitionMocks.startMasquerade,
-}));
+}))
 
 beforeEach(async () => {
-  companyTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithCompany();
-});
+  companyTransitionMocks.startMasquerade.mockClear()
+  await resetStoreWithCompany()
+})
 afterEach(() => {
-  useStore.setState({ masquerade: { kind: 'inactive' } });
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
+  useStore.setState({ masquerade: { kind: 'inactive' } })
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('MembersSection — self-gate', () => {
   it('hides the previous company directory while the next company is authorizing', async () => {
-    const nextCompanyId = 'acc_second';
-    let resolveNextMembers: ((response: Response) => void) | undefined;
+    const nextCompanyId = 'acc_second'
+    let resolveNextMembers: ((response: Response) => void) | undefined
     const fetchMock = fakeApiFetch(async (target, request): Promise<Response> => {
-      const isRead = request.method === 'GET';
+      const isRead = request.method === 'GET'
       if (target.endsWith(`/${DEFAULT_COMPANY_ID}/members`) && isRead) {
         return jsonResponse({
           data: {
@@ -54,26 +54,26 @@ describe('MembersSection — self-gate', () => {
               }),
             ],
           },
-        });
+        })
       }
       if (target.endsWith(`/${nextCompanyId}/members`) && isRead) {
         return await new Promise<Response>((resolve) => {
-          resolveNextMembers = resolve;
-        });
+          resolveNextMembers = resolve
+        })
       }
       if (target.endsWith('/invitations') && isRead) {
-        return jsonResponse({ data: { invites: [] } });
+        return jsonResponse({ data: { invites: [] } })
       }
-      throw new Error(`Unexpected request: ${target}`);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    expect(await screen.findByText('first@example.test')).toBeInTheDocument();
+      throw new Error(`Unexpected request: ${target}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    expect(await screen.findByText('first@example.test')).toBeInTheDocument()
 
-    act(() => useStore.setState({ activeCompanyId: nextCompanyId }));
-    expect(screen.queryByText('first@example.test')).not.toBeInTheDocument();
+    act(() => useStore.setState({ activeCompanyId: nextCompanyId }))
+    expect(screen.queryByText('first@example.test')).not.toBeInTheDocument()
     // The client reaches fetch asynchronously, so wait for the held read to start.
-    await waitFor(() => expect(resolveNextMembers).toBeDefined());
+    await waitFor(() => expect(resolveNextMembers).toBeDefined())
 
     await act(async () => {
       resolveNextMembers?.(
@@ -88,70 +88,70 @@ describe('MembersSection — self-gate', () => {
               }),
             ],
           },
-        }),
-      );
-    });
-    expect(await screen.findByText('second@example.test')).toBeInTheDocument();
-  });
+        })
+      )
+    })
+    expect(await screen.findByText('second@example.test')).toBeInTheDocument()
+  })
 
   it('renders NOTHING when the members read returns 403 (viewer/editor)', async () => {
-    vi.stubGlobal('fetch', mockApi({ status: 403 }));
-    const { container } = renderSection();
+    vi.stubGlobal('fetch', mockApi({ status: 403 }))
+    const { container } = renderSection()
 
     await waitFor(() =>
-      expect(container.querySelector('[data-testid="members-section"]')).toBeNull(),
-    );
-    expect(screen.queryByRole('heading', { name: 'Members' })).not.toBeInTheDocument();
-  });
+      expect(container.querySelector('[data-testid="members-section"]')).toBeNull()
+    )
+    expect(screen.queryByRole('heading', { name: 'Members' })).not.toBeInTheDocument()
+  })
 
   it('renders nothing while auth state is still checking', () => {
-    vi.stubGlobal('fetch', mockApi([]));
+    vi.stubGlobal('fetch', mockApi([]))
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <AuthContext.Provider value={makeAuthValue({ user: null })}>
           <MembersSection />
         </AuthContext.Provider>
-      </QueryClientProvider>,
-    );
-    expect(container.firstChild).toBeNull();
-  });
+      </QueryClientProvider>
+    )
+    expect(container.firstChild).toBeNull()
+  })
 
   it('renders an empty directory message without exposing an empty ARIA list', async () => {
-    vi.stubGlobal('fetch', mockApi([]));
-    renderSection();
+    vi.stubGlobal('fetch', mockApi([]))
+    renderSection()
 
-    const section = await screen.findByTestId('members-section');
-    expect(within(section).queryByTestId('member-row')).not.toBeInTheDocument();
-    expect(within(section).queryByRole('list')).not.toBeInTheDocument();
-  });
+    const section = await screen.findByTestId('members-section')
+    expect(within(section).queryByTestId('member-row')).not.toBeInTheDocument()
+    expect(within(section).queryByRole('list')).not.toBeInTheDocument()
+  })
 
   it('surfaces a malformed member response instead of trusting it', async () => {
     // Deliberately malformed (missing required member fields), must not go through rawMember,
     // which would paper over the very thing this test is pinning.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse({ data: { members: [{ userId: 'me', role: 'owner' }] } })),
-    );
-    renderSection();
+      vi.fn(async () => jsonResponse({ data: { members: [{ userId: 'me', role: 'owner' }] } }))
+    )
+    renderSection()
 
-    expect(await screen.findByText(/invalid members response/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('member-row')).not.toBeInTheDocument();
-  });
+    expect(await screen.findByText(/invalid members response/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('member-row')).not.toBeInTheDocument()
+  })
 
   it('keeps loaded members visible and names a failed invitations read', async () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
         'GET /invitations': () => jsonResponse({}, 503),
-      }),
-    );
-    renderSection();
+      })
+    )
+    renderSection()
 
-    expect(await screen.findByText('me@x.io')).toBeInTheDocument();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load invites (503).');
-    expect(screen.queryByText('Could not load members (503).')).not.toBeInTheDocument();
-  });
-});
+    expect(await screen.findByText('me@x.io')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load invites (503).')
+    expect(screen.queryByText('Could not load members (503).')).not.toBeInTheDocument()
+  })
+})
 
 describe('MembersSection — directory error retention', () => {
   it('does not request blocked member or invitation routes during an active masquerade', async () => {
@@ -170,11 +170,11 @@ describe('MembersSection — directory error retention', () => {
           token: 'session-token',
         },
       },
-    });
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    const fail = vi.fn();
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const fail = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
     renderHook(
       () =>
@@ -189,43 +189,43 @@ describe('MembersSection — directory error retention', () => {
             <AuthContext.Provider value={makeAuthValue()}>{children}</AuthContext.Provider>
           </QueryClientProvider>
         ),
-      },
-    );
-    await act(async () => {});
+      }
+    )
+    await act(async () => {})
 
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 
   it('masks a previously authorized directory immediately when its user changes', async () => {
-    const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const;
-    let memberReads = 0;
+    const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const
+    let memberReads = 0
     vi.stubGlobal(
       'fetch',
       fakeApiFetch(async (url) => {
         if (url.endsWith('/members')) {
-          memberReads += 1;
-          if (memberReads > 1) return new Promise<Response>(() => {});
+          memberReads += 1
+          if (memberReads > 1) return new Promise<Response>(() => {})
           return jsonResponse({
             data: {
               signInTrackingEnabled: false,
               members: members.map((member) => makeRawMember(member)),
             },
-          });
+          })
         }
-        if (url.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } });
-        return new Response(null, { status: 204 });
-      }),
-    );
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const fail = vi.fn();
-    let userId = 'first-user';
+        if (url.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } })
+        return new Response(null, { status: 204 })
+      })
+    )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const fail = vi.fn()
+    let userId = 'first-user'
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider value={makeAuthValue({ user: { id: userId } })}>
           {children}
         </AuthContext.Provider>
       </QueryClientProvider>
-    );
+    )
 
     const { result, rerender } = renderHook(
       () =>
@@ -234,24 +234,24 @@ describe('MembersSection — directory error retention', () => {
           activeCompanyId: DEFAULT_COMPANY_ID,
           fail,
         }),
-      { wrapper },
-    );
-    await waitFor(() => expect(result.current.directory.kind).toBe('ready'));
+      { wrapper }
+    )
+    await waitFor(() => expect(result.current.directory.kind).toBe('ready'))
 
-    userId = 'second-user';
-    rerender();
+    userId = 'second-user'
+    rerender()
 
-    expect(result.current.directory.kind).toBe('loading');
-  });
+    expect(result.current.directory.kind).toBe('loading')
+  })
 
   it('clears the authorized directory snapshot when a same-company refresh loses access', async () => {
-    const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const;
-    let memberReads = 0;
+    const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const
+    let memberReads = 0
     vi.stubGlobal(
       'fetch',
       mockApi([...members], {
         'GET /members': () => {
-          memberReads += 1;
+          memberReads += 1
           return memberReads === 1
             ? jsonResponse({
                 data: {
@@ -259,11 +259,11 @@ describe('MembersSection — directory error retention', () => {
                   members: members.map((member) => makeRawMember(member)),
                 },
               })
-            : jsonResponse({ error: 'Forbidden' }, 403);
+            : jsonResponse({ error: 'Forbidden' }, 403)
         },
-      }),
-    );
-    const fail = vi.fn();
+      })
+    )
+    const fail = vi.fn()
 
     const { result } = renderHook(
       () =>
@@ -276,32 +276,32 @@ describe('MembersSection — directory error retention', () => {
         wrapper: ({ children }) => (
           <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
         ),
-      },
-    );
-    await waitFor(() => expect(result.current.directory.kind).toBe('ready'));
+      }
+    )
+    await waitFor(() => expect(result.current.directory.kind).toBe('ready'))
 
     act(() => {
-      result.current.reload();
-    });
+      result.current.reload()
+    })
 
-    await waitFor(() => expect(result.current.directory.kind).toBe('error'));
+    await waitFor(() => expect(result.current.directory.kind).toBe('error'))
     expect(result.current.directory).toMatchObject({
       kind: 'error',
       companyId: DEFAULT_COMPANY_ID,
       content: { kind: 'unavailable' },
-    });
-  });
-});
+    })
+  })
+})
 
 describe('MembersSection — transient directory state', () => {
   it('retains the authorized directory snapshot across a transient same-company failure', async () => {
-    const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const;
-    let memberReads = 0;
+    const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const
+    let memberReads = 0
     vi.stubGlobal(
       'fetch',
       mockApi([...members], {
         'GET /members': () => {
-          memberReads += 1;
+          memberReads += 1
           return memberReads === 1
             ? jsonResponse({
                 data: {
@@ -309,11 +309,11 @@ describe('MembersSection — transient directory state', () => {
                   members: members.map((member) => makeRawMember(member)),
                 },
               })
-            : jsonResponse({ error: 'Unavailable' }, 503);
+            : jsonResponse({ error: 'Unavailable' }, 503)
         },
-      }),
-    );
-    const fail = vi.fn();
+      })
+    )
+    const fail = vi.fn()
 
     const { result } = renderHook(
       () =>
@@ -326,23 +326,23 @@ describe('MembersSection — transient directory state', () => {
         wrapper: ({ children }) => (
           <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
         ),
-      },
-    );
-    await waitFor(() => expect(result.current.directory.kind).toBe('ready'));
-    const readyDirectory = result.current.directory;
+      }
+    )
+    await waitFor(() => expect(result.current.directory.kind).toBe('ready'))
+    const readyDirectory = result.current.directory
     if (readyDirectory.kind !== 'ready') {
-      throw new Error('Expected an authorized directory fixture.');
+      throw new Error('Expected an authorized directory fixture.')
     }
 
     act(() => {
-      result.current.reload();
-    });
+      result.current.reload()
+    })
 
-    await waitFor(() => expect(result.current.directory.kind).toBe('error'));
+    await waitFor(() => expect(result.current.directory.kind).toBe('error'))
     expect(result.current.directory).toMatchObject({
       kind: 'error',
       companyId: DEFAULT_COMPANY_ID,
       content: { kind: 'authorized', snapshot: readyDirectory.snapshot },
-    });
-  });
-});
+    })
+  })
+})

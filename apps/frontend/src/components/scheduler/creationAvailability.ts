@@ -1,63 +1,63 @@
-import { getWeekday } from '@capacitylens/shared/lib/dateMath';
+import { getWeekday } from '@capacitylens/shared/lib/dateMath'
 import {
   hasEffectiveWeekDay,
   resolveEffectiveWorkingWeek,
-} from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
-import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { isOnClosure, isOnTimeOff } from '@capacitylens/shared/lib/capacity';
-import { NO_CLOSURES, NO_TIME_OFF } from './schedulerModelIndexing';
+} from '@capacitylens/shared/lib/effectiveWorkingWeek'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek'
+import { isOnClosure, isOnTimeOff } from '@capacitylens/shared/lib/capacity'
+import { NO_CLOSURES, NO_TIME_OFF } from './schedulerModelIndexing'
 import type {
   Closure,
   ISODate,
   Resource,
   TimeOff,
   Weekday,
-} from '@capacitylens/shared/types/entities';
+} from '@capacitylens/shared/types/entities'
 
 interface ResolveCreationBlockReasonInput {
-  resource: Resource;
-  date: ISODate;
-  timeOff: TimeOff[];
-  companyWorkingDays: Weekday[];
-  ignoreWorkingDays: boolean | undefined;
-  closures: Closure[];
+  resource: Resource
+  date: ISODate
+  timeOff: TimeOff[]
+  companyWorkingDays: Weekday[]
+  ignoreWorkingDays: boolean | undefined
+  closures: Closure[]
 }
 
 interface ResolveCalendarCreationBlockReasonInput {
-  resource: Resource;
-  date: ISODate;
-  timeOff: TimeOff[];
-  calendarAllowsStart: boolean;
-  ignoreWorkingDays: boolean | undefined;
-  closures: Closure[];
+  resource: Resource
+  date: ISODate
+  timeOff: TimeOff[]
+  calendarAllowsStart: boolean
+  ignoreWorkingDays: boolean | undefined
+  closures: Closure[]
 }
 
 interface ResolveEffectiveWeekPlacementBlockReasonInput extends IsCreationStartBlockedForEffectiveWeekInput {
-  ignoreWorkingDays: boolean;
+  ignoreWorkingDays: boolean
 }
 
 interface IsCreationStartBlockedForEffectiveWeekInput {
-  resource: Resource;
-  date: ISODate;
-  timeOff: TimeOff[];
-  effectiveWeek: EffectiveWorkingWeek;
-  closures: Closure[];
+  resource: Resource
+  date: ISODate
+  timeOff: TimeOff[]
+  effectiveWeek: EffectiveWorkingWeek
+  closures: Closure[]
 }
 
 interface IsAllocationMoveStartBlockedInput {
-  resource: Resource;
-  date: ISODate;
-  companyWorkingDays: Weekday[];
-  ignoreWorkingDays: boolean | undefined;
+  resource: Resource
+  date: ISODate
+  companyWorkingDays: Weekday[]
+  ignoreWorkingDays: boolean | undefined
 }
 
 interface IsCreationStartBlockedInput {
-  resource: Resource;
-  date: ISODate;
-  timeOff: TimeOff[];
-  companyWorkingDays: Weekday[];
-  closures: Closure[];
+  resource: Resource
+  date: ISODate
+  timeOff: TimeOff[]
+  companyWorkingDays: Weekday[]
+  closures: Closure[]
 }
 
 /** Weekdays on which an allocation may start for this resource. Company closures also
@@ -65,14 +65,14 @@ interface IsCreationStartBlockedInput {
  * A week with no effective days returns an empty array, so every start date is blocked. */
 export function resolveEffectiveWorkingDays(
   resource: Resource,
-  companyWorkingDays: Weekday[],
+  companyWorkingDays: Weekday[]
 ): Weekday[] {
-  const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
-  return effectiveWeek.kind === 'days' ? effectiveWeek.days : [];
+  const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays)
+  return effectiveWeek.kind === 'days' ? effectiveWeek.days : []
 }
 
 /** Distinguishes a blocked working calendar from personal time off. An allocation override may bypass calendars, but it never bypasses time off. */
-export type CreationBlockReason = 'non-working' | 'time-off';
+export type CreationBlockReason = 'non-working' | 'time-off'
 
 /** The start-of-gesture check, shared by every surface that asks "may a bar start on this
  * resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the
@@ -91,11 +91,11 @@ export function resolveCreationBlockReason({
     date,
     timeOff,
     calendarAllowsStart: resolveEffectiveWorkingDays(resource, companyWorkingDays).includes(
-      getWeekday(date),
+      getWeekday(date)
     ),
     ignoreWorkingDays,
     closures,
-  });
+  })
 }
 
 function resolveCalendarCreationBlockReason({
@@ -107,12 +107,12 @@ function resolveCalendarCreationBlockReason({
   closures,
 }: ResolveCalendarCreationBlockReasonInput): CreationBlockReason | null {
   if (!ignoreWorkingDays && !calendarAllowsStart) {
-    return 'non-working';
+    return 'non-working'
   }
   return (!isExternalResource(resource) && isOnTimeOff(resource.id, date, timeOff)) ||
     isOnClosure(resource, date, closures)
     ? 'time-off'
-    : null;
+    : null
 }
 
 /** Checks a placement against the computed working week, personal time off and closures. */
@@ -124,7 +124,7 @@ export function resolveEffectiveWeekPlacementBlockReason({
   ignoreWorkingDays,
   closures,
 }: ResolveEffectiveWeekPlacementBlockReasonInput): CreationBlockReason | null {
-  const calendarAllowsStart = hasEffectiveWeekDay(effectiveWeek, getWeekday(date));
+  const calendarAllowsStart = hasEffectiveWeekDay(effectiveWeek, getWeekday(date))
   return resolveCalendarCreationBlockReason({
     resource,
     date,
@@ -132,7 +132,7 @@ export function resolveEffectiveWeekPlacementBlockReason({
     calendarAllowsStart,
     ignoreWorkingDays,
     closures,
-  });
+  })
 }
 
 /** The per-row scheduler variant: its caller has already resolved the effective week once and
@@ -153,7 +153,7 @@ export function isCreationStartBlockedForEffectiveWeek({
       ignoreWorkingDays: false,
       closures,
     }) !== null
-  );
+  )
 }
 
 /** Whether the company and personal working-day calendars reject an existing allocation's
@@ -174,7 +174,7 @@ export function isAllocationMoveStartBlocked({
       ignoreWorkingDays,
       closures: NO_CLOSURES,
     }) !== null
-  );
+  )
 }
 
 /** Whether a schedule gesture may begin on this date. Spans may cross later blocked dates. */
@@ -194,5 +194,5 @@ export function isCreationStartBlocked({
       ignoreWorkingDays: false,
       closures,
     }) !== null
-  );
+  )
 }

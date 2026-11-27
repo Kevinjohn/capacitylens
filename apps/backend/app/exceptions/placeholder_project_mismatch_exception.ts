@@ -1,6 +1,6 @@
-import EntityWriteException from '#exceptions/entity_write_exception';
+import EntityWriteException from '#exceptions/entity_write_exception'
 
 /** A placeholder is allocated only to its own project. */
 export default class PlaceholderProjectMismatchException extends EntityWriteException {
-  static code = 'placeholder_project_mismatch';
+  static code = 'placeholder_project_mismatch'
 }

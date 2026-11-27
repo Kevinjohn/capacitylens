@@ -1,7 +1,7 @@
-import { m } from '@/i18n';
-import { DateField, WorkingDayPicker } from '@/components/common/ui';
-import { Separator } from '@/components/ui/separator';
-import type { ResourceFormState } from './useResourceFormState';
+import { m } from '@/i18n'
+import { DateField, WorkingDayPicker } from '@/components/common/ui'
+import { Separator } from '@/components/ui/separator'
+import type { ResourceFormState } from './useResourceFormState'
 
 type ResourceAvailabilityFieldsState = Pick<
   ResourceFormState,
@@ -13,13 +13,13 @@ type ResourceAvailabilityFieldsState = Pick<
   | 'setFirstAvailableDate'
   | 'lastAvailableDate'
   | 'setLastAvailableDate'
->;
+>
 
 type ResourceAvailabilityFieldsProps = {
-  form: ResourceAvailabilityFieldsState;
-  errorField: string | null;
-  errorId: string;
-};
+  form: ResourceAvailabilityFieldsState
+  errorField: string | null
+  errorId: string
+}
 
 /** Edit a person's inclusive availability dates and normal working pattern. */
 export function ResourceAvailabilityFields({
@@ -55,12 +55,12 @@ export function ResourceAvailabilityFields({
         workingDays={form.workingDays}
         halfDays={form.halfDays}
         onChange={(workingDays, halfDays) => {
-          form.setWorkingDays(workingDays);
-          form.setHalfDays(halfDays);
+          form.setWorkingDays(workingDays)
+          form.setHalfDays(halfDays)
         }}
         invalid={errorField === 'workingDays'}
         describedById={errorId}
       />
     </>
-  );
+  )
 }

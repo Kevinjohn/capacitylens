@@ -3,28 +3,28 @@
 // on the next one. The operator can also run `masquerade:prune`, `masquerade:status` and
 // `masquerade:stop`.
 
-import type { ApplicationService } from '@adonisjs/core/types';
-import logger from '@adonisjs/core/services/logger';
-import capacitylens from '#config/capacitylens';
-import db from '@adonisjs/lucid/services/db';
-import { SchemaIntegrityService } from '#services/schema_integrity_service';
-import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { DevelopmentBootstrapService } from '#services/development_bootstrap_service';
-import { StorageMaintenanceService } from '#services/storage_maintenance_service';
+import type { ApplicationService } from '@adonisjs/core/types'
+import logger from '@adonisjs/core/services/logger'
+import capacitylens from '#config/capacitylens'
+import db from '@adonisjs/lucid/services/db'
+import { SchemaIntegrityService } from '#services/schema_integrity_service'
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
+import { DevelopmentBootstrapService } from '#services/development_bootstrap_service'
+import { StorageMaintenanceService } from '#services/storage_maintenance_service'
 
-const PRUNE_INTERVAL_MS = 60 * 60_000;
+const PRUNE_INTERVAL_MS = 60 * 60_000
 
 interface ProductionPosture {
-  allowReset?: boolean;
-  createAdmin?: boolean;
-  bootstrapPassword?: string;
-  rateLimit?: string;
-  fixedToday?: string;
+  allowReset?: boolean
+  createAdmin?: boolean
+  bootstrapPassword?: string
+  rateLimit?: string
+  fixedToday?: string
 }
 
 export function assertProductionPosture(options: ProductionPosture) {
   if (options.createAdmin || options.bootstrapPassword) {
-    throw new Error('Development bootstrap credentials are forbidden in production');
+    throw new Error('Development bootstrap credentials are forbidden in production')
   }
   if (
     options.rateLimit !== undefined &&
@@ -32,14 +32,14 @@ export function assertProductionPosture(options: ProductionPosture) {
       Number(options.rateLimit) < 1 ||
       Number(options.rateLimit) > 1_000_000)
   ) {
-    throw new Error('CAPACITYLENS_RATE_LIMIT must be an integer from 1 to 1,000,000 in production');
+    throw new Error('CAPACITYLENS_RATE_LIMIT must be an integer from 1 to 1,000,000 in production')
   }
-  if (options.allowReset) throw new Error('CAPACITYLENS_ALLOW_RESET is forbidden in production');
-  if (options.fixedToday) throw new Error('CAPACITYLENS_FIXED_TODAY is forbidden in production');
+  if (options.allowReset) throw new Error('CAPACITYLENS_ALLOW_RESET is forbidden in production')
+  if (options.fixedToday) throw new Error('CAPACITYLENS_FIXED_TODAY is forbidden in production')
 }
 
 export default class ConfigurationProvider {
-  #pruneTimer?: NodeJS.Timeout;
+  #pruneTimer?: NodeJS.Timeout
 
   constructor(protected app: ApplicationService) {}
   async boot() {
@@ -50,24 +50,24 @@ export default class ConfigurationProvider {
         bootstrapPassword: capacitylens.bootstrapAdminPassword,
         rateLimit: capacitylens.rateLimit,
         fixedToday: capacitylens.fixedToday,
-      });
+      })
     }
   }
 
   async start() {
     // Code generation warms a web app without serving requests or closing database pools.
-    if (this.app.getMode() === 'warmup') return;
+    if (this.app.getMode() === 'warmup') return
     // Console commands opt into application startup through their native startApp option.
-    if (this.app.getEnvironment() === 'console') return;
+    if (this.app.getEnvironment() === 'console') return
     const rows = await db
       .from('sqlite_master')
       .where({ type: 'table', name: 'companies' })
-      .select('name');
+      .select('name')
     if (rows.length > 0) {
-      const schemaIntegrity = await this.app.container.make(SchemaIntegrityService);
-      await schemaIntegrity.rememberSchemaIntegrity();
-      const developmentBootstrap = await this.app.container.make(DevelopmentBootstrapService);
-      await developmentBootstrap.bootstrapDevelopmentCredential();
+      const schemaIntegrity = await this.app.container.make(SchemaIntegrityService)
+      await schemaIntegrity.rememberSchemaIntegrity()
+      const developmentBootstrap = await this.app.container.make(DevelopmentBootstrapService)
+      await developmentBootstrap.bootstrapDevelopmentCredential()
     }
   }
 
@@ -77,11 +77,11 @@ export default class ConfigurationProvider {
    * completed request receipts and expired view-as modes and events.
    */
   async ready() {
-    if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
-    const storageMaintenance = await this.app.container.make(StorageMaintenanceService);
+    if (this.app.getEnvironment() !== 'web' || this.app.inTest) return
+    const storageMaintenance = await this.app.container.make(StorageMaintenanceService)
     // Shutdown can begin while an earlier provider is still getting ready; a pass started after
     // that would reopen the database once it has been closed.
-    if (this.app.isTerminating || this.app.isTerminated) return;
+    if (this.app.isTerminating || this.app.isTerminated) return
     // Each task reports its own failure, so one failing does not skip the others.
     const maintenance = storageMaintenance.createMaintenance(
       [
@@ -94,15 +94,15 @@ export default class ConfigurationProvider {
           { task, errorName: error instanceof Error ? error.name : 'unknown' },
           `${task} failed`
         )
-    );
+    )
     // A pass still in flight would reopen the database after shutdown closed it.
-    this.app.terminating(() => maintenance.stop());
-    void maintenance.run();
-    this.#pruneTimer = setInterval(() => void maintenance.run(), PRUNE_INTERVAL_MS);
-    this.#pruneTimer.unref();
+    this.app.terminating(() => maintenance.stop())
+    void maintenance.run()
+    this.#pruneTimer = setInterval(() => void maintenance.run(), PRUNE_INTERVAL_MS)
+    this.#pruneTimer.unref()
   }
 
   async shutdown() {
-    if (this.#pruneTimer) clearInterval(this.#pruneTimer);
+    if (this.#pruneTimer) clearInterval(this.#pruneTimer)
   }
 }

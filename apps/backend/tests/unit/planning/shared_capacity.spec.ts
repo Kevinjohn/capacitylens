@@ -1,8 +1,8 @@
-import { test } from '@japa/runner';
-import { buildDayCapacity } from '@capacitylens/shared/lib/capacity';
-import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type { Allocation, Resource } from '@capacitylens/shared/types/entities';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import { test } from '@japa/runner'
+import { buildDayCapacity } from '@capacitylens/shared/lib/capacity'
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek'
+import type { Allocation, Resource } from '@capacitylens/shared/types/entities'
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
 
 const resource: Resource = {
   ...NULLABLE_FIELDS.resources,
@@ -19,7 +19,7 @@ const resource: Resource = {
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
   color: '#111111',
-};
+}
 
 const allocation: Allocation = {
   ...NULLABLE_FIELDS.allocations,
@@ -33,7 +33,7 @@ const allocation: Allocation = {
   endDate: '2026-06-01',
   hoursPerDay: 9,
   status: 'confirmed',
-};
+}
 
 test.group('shared capacity under Node', () => {
   // Node has no `import.meta.env`; the development-only finite-hours check must not read through it.
@@ -48,6 +48,6 @@ test.group('shared capacity under Node', () => {
         closures: [],
       }),
       { date: '2026-06-01', allocated: 9, available: 8, over: true }
-    );
-  });
-});
+    )
+  })
+})

@@ -1,6 +1,6 @@
-import EntityWriteException from '#exceptions/entity_write_exception';
+import EntityWriteException from '#exceptions/entity_write_exception'
 
 /** An internal or all-projects activity names no project. */
 export default class ActivityProjectForbiddenException extends EntityWriteException {
-  static code = 'activity_project_forbidden';
+  static code = 'activity_project_forbidden'
 }
