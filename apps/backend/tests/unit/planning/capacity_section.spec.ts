@@ -207,9 +207,11 @@ test.group('capacity section', () => {
 
 test.group('capacity section on the example company', (group) => {
   group.setup(() => freshDatabase())
+  group.each.setup(async () => {
+    await resetPlanningFixture()
+  })
 
   test('equals the shared straight-line capacity window for every resource', async ({ assert }) => {
-    await resetPlanningFixture()
     const stored = buildActiveData(await readState('a-studio', true))
     const company = stored.companies[0]!
     const today = '2026-06-03'

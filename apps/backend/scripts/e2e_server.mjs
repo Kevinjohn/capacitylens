@@ -94,7 +94,9 @@ function bootstrapToken() {
 
 const baselineToken = flavour === 'auth' ? bootstrapToken() : undefined
 
-const child = spawn(process.execPath, ['ace.js', 'serve'], {
+// Boot bin/server.ts directly rather than `ace serve` so parallel E2E workers do not run
+// assembler init hooks (such as registry generation) concurrently against the shared workspace.
+const child = spawn(process.execPath, ['--import=@poppinss/ts-exec', 'bin/server.ts'], {
   cwd: serverDirectory,
   stdio: 'inherit',
   env,

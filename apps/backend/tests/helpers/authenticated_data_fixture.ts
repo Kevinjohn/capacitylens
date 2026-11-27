@@ -6,9 +6,30 @@ import { insertProductRows } from '#tests/helpers/product_rows'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 import { createIdentity, sessionCookieHeader, signIn } from '#tests/helpers/identities'
-import type User from '#models/user'
+import User from '#models/user'
 
 const ownerEmail = 'bruce.wayne@wayne.example'
+
+/** Resets Japa's disposable database and seeds an owner user with active company memberships. */
+export async function seedDataOwner(seed: boolean | 'single' = true): Promise<User> {
+  await resetState(seed)
+  const existing = await db.from('users').where('email', ownerEmail).select('id').first()
+  const userId = existing
+    ? String(existing.id)
+    : await createIdentity(ownerEmail, { name: 'Bruce Wayne' })
+  const companies = await db.from('companies').select('id')
+  const now = new Date().toISOString()
+  for (const company of companies)
+    await db.table('memberships').insert({
+      scope_id: company.id,
+      user_id: userId,
+      role: 'owner',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    })
+  return User.findOrFail(userId)
+}
 
 /** Resets Japa's disposable database and signs in an owner with actual company memberships. */
 export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 'single' = true) {
@@ -81,10 +102,18 @@ export function authenticatedDataClient(client: ApiClient, cookie: string): ApiC
   })
 }
 
-/** Resets disposable company data and returns a client carrying its owner's real session. */
+/** Resets disposable company data and returns a client signed in as the owner with `loginAs`. */
 export async function resetAuthenticatedClient(client: ApiClient, seed: boolean | 'single' = true) {
-  const session = await resetAuthenticatedData(client, seed)
-  return authenticatedDataClient(client, session.cookie)
+  const user = await seedDataOwner(seed)
+  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'visit'])
+  return new Proxy(client, {
+    get(target, key) {
+      const value = Reflect.get(target, key)
+      if (typeof key !== 'string' || !methods.has(key) || typeof value !== 'function')
+        return typeof value === 'function' ? value.bind(target) : value
+      return (...args: unknown[]) => asLoggedInDataOwner(value.apply(target, args), user)
+    },
+  })
 }
 
 /** Gives a fixture user explicit standing in a company inserted directly by a test. */

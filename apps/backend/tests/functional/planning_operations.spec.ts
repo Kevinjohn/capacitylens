@@ -15,9 +15,9 @@ import { executePlanningIntent, owner } from '#tests/helpers/data/planning_execu
 
 test.group('typed planning writers', (group) => {
   group.setup(() => freshDatabase())
+  group.each.setup(() => resetState('single'))
 
   test('creates and patches a closure while preserving its other fields', async ({ assert }) => {
-    await resetState('single')
     const id = randomUUID()
     await db.transaction((trx) =>
       executePlanningIntent(
@@ -52,7 +52,6 @@ test.group('typed planning writers', (group) => {
   })
 
   test('rejects an invalid reference without persisting the row', async ({ assert }) => {
-    await resetState('single')
     const id = randomUUID()
     await assert.rejects(
       () =>
@@ -80,7 +79,6 @@ test.group('typed planning writers', (group) => {
   })
 
   test('rolls back every repeat entry when a later one fails', async ({ assert }) => {
-    await resetState('single')
     const initialState = await readState('a-studio', true)
     const resourceId = initialState.resources[0]!.id
     const firstId = randomUUID()
@@ -108,7 +106,6 @@ test.group('typed planning writers', (group) => {
   })
 
   test('permits Editor settings but reserves capacity access for Admin', async ({ assert }) => {
-    await resetState('single')
     const editor: PlanningAccessGrant = {
       ...owner,
       role: 'editor',
@@ -148,7 +145,6 @@ test.group('typed planning writers', (group) => {
   })
 
   test('keeps an owner-only private name when an Editor changes its colour', async ({ assert }) => {
-    await resetState('single')
     const before = await readState('a-studio', true)
     const id = randomUUID()
     await db.transaction((trx) =>
@@ -193,7 +189,6 @@ test.group('typed planning writers', (group) => {
   test('lets an Editor create a public catalogue row without privacy controls', async ({
     assert,
   }) => {
-    await resetState('single')
     const before = await readState('a-studio', true)
     const id = randomUUID()
     const editor: PlanningAccessGrant = { ...owner, role: 'editor', canSeePrivateNames: false }
@@ -221,7 +216,6 @@ test.group('typed planning writers', (group) => {
   test('an activity kind change clears attribution only on the live allocations it names', async ({
     assert,
   }) => {
-    await resetState('single')
     const activityId = randomUUID()
     await db.transaction((trx) =>
       executePlanningIntent(
