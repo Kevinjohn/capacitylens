@@ -14,7 +14,7 @@ import HttpExceptionHandler from '#exceptions/handler';
 import { describeFailure } from '#services/logging_safety';
 import loggerConfig from '#config/logger';
 
-const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
+const required = { error: 'Confirm this action again.', code: 'E_PASSWORD_CONFIRMATION_REQUIRED' };
 test.group('password confirmation errors', () => {
   for (const [error, status, expected] of [
     [new PasswordConfirmationRequiredException(), 403, required],

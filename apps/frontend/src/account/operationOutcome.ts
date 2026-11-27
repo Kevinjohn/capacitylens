@@ -5,9 +5,9 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 // malformed code stays unknown, so the screen re-reads state instead of reporting a refusal.
 const TERMINAL_OPERATION_CONFLICT_CODES = new Set<string>([
   'INVITATION_USED',
-  'CONFLICT',
+  'E_CONFLICT',
   'AUTHORIZATION_CHANGED',
-  'IDEMPOTENCY_CONFLICT',
+  'E_IDEMPOTENCY_CONFLICT',
 ] satisfies readonly AccountErrorCode[]);
 // The server refuses an emailed operation without mail delivery before it writes anything.
 const TERMINAL_SERVER_CODES = new Set<string>(['MAIL_UNAVAILABLE']);

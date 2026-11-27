@@ -117,9 +117,9 @@ describe('planning write transitions', () => {
     // even while the write is unresolved.
     expect(h.state().planning.history.canUndo).toBe(false);
     expect(h.state().planning.phase.kind).toBe('writing');
-    const stale = new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409);
+    const stale = new PlanningCacheError('The schedule changed.', 'E_STALE_REVISION', 409);
     response.reject(stale);
-    await expect(write).rejects.toMatchObject({ code: 'STALE_REVISION' });
+    await expect(write).rejects.toMatchObject({ code: 'E_STALE_REVISION' });
     // The refetch that resolves the refusal ends it.
     expect(h.state().planning).toMatchObject({
       phase: { kind: 'ready', lastWrite: null },
@@ -132,11 +132,11 @@ describe('planning write transitions', () => {
 
   it('keeps history when a row-timestamp refusal leaves the revision where it was', async () => {
     const h = await readyWithHistory();
-    const stale = new PlanningCacheError('The record changed.', 'STALE_REVISION', 409);
+    const stale = new PlanningCacheError('The record changed.', 'E_STALE_REVISION', 409);
     h.execute.mockRejectedValueOnce(stale);
     await expect(
       h.cache.execute(h.cache.begin(), update, '2026-01-01T00:00:00.000Z'),
-    ).rejects.toMatchObject({ code: 'STALE_REVISION' });
+    ).rejects.toMatchObject({ code: 'E_STALE_REVISION' });
     expect(h.state().planning).toMatchObject({
       revision: 2,
       phase: { kind: 'ready', lastWrite: null },
@@ -206,10 +206,10 @@ describe('planning write transitions', () => {
     const h = await ready();
     const reads = h.read.mock.calls.length;
     h.execute.mockRejectedValueOnce(
-      new PlanningCacheError('Clears 3', 'RESTORATION_CONFIRMATION_REQUIRED', 409, false, 3),
+      new PlanningCacheError('Clears 3', 'E_RESTORATION_CONFIRMATION_REQUIRED', 409, false, 3),
     );
     await expect(h.cache.execute(h.cache.begin(), update)).rejects.toMatchObject({
-      code: 'RESTORATION_CONFIRMATION_REQUIRED',
+      code: 'E_RESTORATION_CONFIRMATION_REQUIRED',
     });
     expect(h.read).toHaveBeenCalledTimes(reads + 1);
     expect(h.state().planning.phase).toEqual({ kind: 'ready', lastWrite: null });

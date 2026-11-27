@@ -306,7 +306,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
     id: allocationId,
     changes: { startDate: '2026-10-28' },
   } satisfies Intent);
-  expect(stale.result).toMatchObject({ kind: 'rejected', code: 'STALE_REVISION', status: 409 });
+  expect(stale.result).toMatchObject({ kind: 'rejected', code: 'E_STALE_REVISION', status: 409 });
   expect(stale.state.phase).toBe('ready');
   expect(
     await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey),

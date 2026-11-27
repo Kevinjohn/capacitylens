@@ -141,7 +141,7 @@ describe('teamAccessApi directory validation', () => {
 describe('teamAccessApi member resource links', () => {
   it('keeps a link or unlink conflict uncertain despite a terminal-looking body', async () => {
     const conflict = () =>
-      Response.json({ code: 'CONFLICT', error: 'The member link changed.' }, { status: 409 });
+      Response.json({ code: 'E_CONFLICT', error: 'The member link changed.' }, { status: 409 });
     vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(conflict());
     vi.spyOn(memberRequests, 'clearMemberResourceLink').mockResolvedValue(conflict());
     await expect(
@@ -182,7 +182,7 @@ describe('teamAccessApi member resource links', () => {
   it('preserves a structured refusal and contains an uncertain success body', async () => {
     vi.spyOn(memberRequests, 'setMemberResourceLink')
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ code: 'FORBIDDEN', error: 'The member link changed.' }), {
+        new Response(JSON.stringify({ code: 'E_FORBIDDEN', error: 'The member link changed.' }), {
           status: 403,
         }),
       )

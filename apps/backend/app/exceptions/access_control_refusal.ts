@@ -7,28 +7,31 @@ import { errors } from '@kevinjohn/adonisjs-access-control';
 const refusals: ReadonlyArray<
   readonly [new (...args: never[]) => Error, { status: number; code: string; error: string }]
 > = [
-  [errors.E_ACCESS_CONTROL_FORBIDDEN, { status: 403, code: 'FORBIDDEN', error: 'Forbidden.' }],
+  [errors.E_ACCESS_CONTROL_FORBIDDEN, { status: 403, code: 'E_FORBIDDEN', error: 'Forbidden.' }],
   [
     errors.E_ACCESS_CONTROL_SELF_MANAGEMENT,
-    { status: 403, code: 'FORBIDDEN', error: 'Forbidden.' },
+    { status: 403, code: 'E_FORBIDDEN', error: 'Forbidden.' },
   ],
   [
     errors.E_ACCESS_CONTROL_OWNER_PROTECTED,
-    { status: 403, code: 'FORBIDDEN', error: 'Forbidden.' },
+    { status: 403, code: 'E_FORBIDDEN', error: 'Forbidden.' },
   ],
-  [errors.E_ACCESS_CONTROL_RANK_TOO_LOW, { status: 403, code: 'FORBIDDEN', error: 'Forbidden.' }],
+  [errors.E_ACCESS_CONTROL_RANK_TOO_LOW, { status: 403, code: 'E_FORBIDDEN', error: 'Forbidden.' }],
   [
     errors.E_ACCESS_CONTROL_NOT_A_MEMBER,
-    { status: 404, code: 'NOT_FOUND', error: 'Not a member of this company.' },
+    { status: 404, code: 'E_NOT_FOUND', error: 'Not a member of this company.' },
   ],
-  [errors.E_ACCESS_CONTROL_USER_NOT_FOUND, { status: 404, code: 'NOT_FOUND', error: 'Not found.' }],
+  [
+    errors.E_ACCESS_CONTROL_USER_NOT_FOUND,
+    { status: 404, code: 'E_NOT_FOUND', error: 'Not found.' },
+  ],
   [
     errors.E_ACCESS_CONTROL_SCOPE_NOT_FOUND,
-    { status: 404, code: 'NOT_FOUND', error: 'Company not found.' },
+    { status: 404, code: 'E_NOT_FOUND', error: 'Company not found.' },
   ],
   [
     errors.E_ACCESS_CONTROL_ALREADY_MEMBER,
-    { status: 409, code: 'CONFLICT', error: 'Already a member of this company.' },
+    { status: 409, code: 'E_CONFLICT', error: 'Already a member of this company.' },
   ],
   [
     errors.E_ACCESS_CONTROL_LAST_OWNER,
@@ -36,7 +39,7 @@ const refusals: ReadonlyArray<
   ],
   [
     errors.E_ACCESS_CONTROL_CONFLICT,
-    { status: 409, code: 'CONFLICT', error: 'The company changed. Try again.' },
+    { status: 409, code: 'E_CONFLICT', error: 'The company changed. Try again.' },
   ],
 ];
 

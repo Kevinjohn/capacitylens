@@ -721,7 +721,7 @@ test.group('native read-only masquerade', (group) => {
     outsider.assertStatus(403);
     assert.deepEqual(outsider.body(), {
       error: 'This action is not allowed.',
-      code: 'AUTHORIZATION_DENIED',
+      code: 'E_AUTHORIZATION_DENIED',
     });
 
     const started = await startView(client, cookie, targetId);
@@ -877,7 +877,7 @@ test.group('native read-only masquerade', (group) => {
       gate.release();
       const read = await pendingRead;
       read.assertStatus(403);
-      assert.equal((read.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
+      assert.equal((read.body() as unknown as { code: string }).code, 'E_ACCOUNT_MEMBERSHIP_LOST');
       assert.notInclude(read.text(), privateClientName);
     } finally {
       gate.release();
@@ -911,10 +911,10 @@ test.group('native read-only masquerade', (group) => {
       owner
     ).send();
     read.assertStatus(403);
-    // Only a planning read answers ACCOUNT_MEMBERSHIP_LOST; the state read keeps its own code.
+    // Only a planning read answers E_ACCOUNT_MEMBERSHIP_LOST; the state read keeps its own code.
     assert.equal(
       (read.body() as unknown as { code: string }).code,
-      'IDENTITY_AUTHORIZATION_DENIED'
+      'E_IDENTITY_AUTHORIZATION_DENIED'
     );
     assert.notInclude(read.text(), privateClientName);
   });

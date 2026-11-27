@@ -259,7 +259,7 @@ test.group('independent typed planning operations', (group) => {
       )
       .send();
     alreadyActive.assertStatus(400);
-    assert.equal(replyBody(alreadyActive).code, 'NO_CHANGE');
+    assert.equal(replyBody(alreadyActive).code, 'E_NO_CHANGE');
     assert.deepEqual(Object.keys(alreadyActive.body() as object).sort(), ['code', 'error']);
 
     const missing = await intentSession(
@@ -301,7 +301,7 @@ test.group('independent typed planning operations', (group) => {
       )
       .send();
     repeated.assertStatus(400);
-    assert.equal(replyBody(repeated).code, 'NO_CHANGE');
+    assert.equal(replyBody(repeated).code, 'E_NO_CHANGE');
     assert.deepEqual(Object.keys(repeated.body() as object).sort(), ['code', 'error']);
 
     const snapshot = await intentSession(

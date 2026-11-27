@@ -53,11 +53,11 @@ describe('browser account api', () => {
     ).resolves.toBe(false);
     await expect(
       readUnknownAccountOperationOutcome(
-        Response.json({ code: 'IDEMPOTENCY_CONFLICT' }, { status: 409 }),
+        Response.json({ code: 'E_IDEMPOTENCY_CONFLICT' }, { status: 409 }),
       ),
     ).resolves.toBe(false);
   });
-  it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORIZATION_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
+  it.each(['INVITATION_USED', 'E_CONFLICT', 'AUTHORIZATION_CHANGED', 'E_IDEMPOTENCY_CONFLICT'])(
     'classifies the known terminal 409 code %s as final',
     async (code) => {
       await expect(

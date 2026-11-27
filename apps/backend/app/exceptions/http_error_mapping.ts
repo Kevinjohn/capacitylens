@@ -34,7 +34,7 @@ export interface HttpErrorResponse {
 
 /**
  * Admission refusals carry the decision so the limited screens can explain it. Planning access
- * refusals (`ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection)
+ * refusals (`E_ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection)
  * are produced in `company_scope_middleware.ts` and the planning access check, not here.
  */
 function buildAdmissionRequiredResponse(
@@ -72,7 +72,7 @@ const masqueradeResponses: ReadonlyArray<
   ],
   [
     masqueradeErrors.E_MASQUERADE_NOT_ALLOWED,
-    { status: 403, code: 'AUTHORIZATION_DENIED', message: 'This action is not allowed.' },
+    { status: 403, code: 'E_AUTHORIZATION_DENIED', message: 'This action is not allowed.' },
   ],
   [
     masqueradeErrors.E_MASQUERADE_ALREADY_ACTIVE,
@@ -105,7 +105,7 @@ function buildConfirmationResponse(error: unknown): HttpErrorResponse | undefine
   ) {
     return {
       status: 403,
-      body: { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+      body: { error: 'Confirm this action again.', code: 'E_PASSWORD_CONFIRMATION_REQUIRED' },
     };
   }
   if (error instanceof PasswordConfirmationDeniedException) {
@@ -186,7 +186,7 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
   if (error instanceof httpServerErrors.E_ROUTE_NOT_FOUND) {
     return {
       status: 404,
-      body: { error: 'Not found.', code: 'NOT_FOUND' } satisfies ProductHttpErrorBody,
+      body: { error: 'Not found.', code: 'E_NOT_FOUND' } satisfies ProductHttpErrorBody,
     };
   }
   if (code === 'E_REQUEST_ENTITY_TOO_LARGE') {

@@ -34,7 +34,10 @@ export function getOwned<K extends ScopedEntityKey>(
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
   if (!row) return null;
   if (!isInCompany(row, companyId)) {
-    throwDomainError('record_wrong_company', 'That record does not belong to the active company.');
+    throwDomainError(
+      'E_RECORD_WRONG_COMPANY',
+      'That record does not belong to the active company.',
+    );
   }
   return row as AppData[K][number];
 }
@@ -89,7 +92,7 @@ function createScopedRefsContext(
       !isInCompany(resolved, companyId) ||
       !isEffectivelyActive({ data, table, row: resolved })
     ) {
-      throwDomainError('reference_wrong_company', message);
+      throwDomainError('E_REFERENCE_WRONG_COMPANY', message);
     }
   };
   return {
@@ -119,7 +122,7 @@ function assertRequiredRef(
     return;
   }
   if (existing === undefined || fullRow === true || context.isSupplied(field)) {
-    throwDomainError('reference_wrong_company', message);
+    throwDomainError('E_REFERENCE_WRONG_COMPANY', message);
   }
 }
 
@@ -128,20 +131,20 @@ function assertActivityKind(context: ScopedRefsContext): void {
   const { record, isPresent } = context;
   if (record.kind === 'project' && !isPresent('projectId')) {
     throwDomainError(
-      'activity_project_required',
+      'E_ACTIVITY_PROJECT_REQUIRED',
       'A project-specific activity must be assigned to a project.',
     );
   }
   if (record.kind !== 'internal' && record.kind !== 'allProjects') return;
   if (isPresent('projectId')) {
     throwDomainError(
-      'activity_project_forbidden',
+      'E_ACTIVITY_PROJECT_FORBIDDEN',
       'An internal or all-projects activity cannot belong to a project.',
     );
   }
   if (isPresent('phaseId')) {
     throwDomainError(
-      'activity_phase_forbidden',
+      'E_ACTIVITY_PHASE_FORBIDDEN',
       'An internal or all-projects activity cannot belong to a phase.',
     );
   }
@@ -159,24 +162,27 @@ function assertActivityPhase(context: ScopedRefsContext): void {
   if (isUnchanged('phaseId') && isUnchanged('projectId')) {
     if (phase && !ownedPhase) {
       throwDomainError(
-        'activity_phase_wrong_company',
+        'E_ACTIVITY_PHASE_WRONG_COMPANY',
         'Activity phase must belong to this company.',
       );
     }
     return;
   }
   if (!ownedPhase) {
-    throwDomainError('activity_phase_wrong_company', 'Activity phase must belong to this company.');
+    throwDomainError(
+      'E_ACTIVITY_PHASE_WRONG_COMPANY',
+      'Activity phase must belong to this company.',
+    );
   }
   if (!isPresent('projectId')) {
     throwDomainError(
-      'activity_phase_project_required',
+      'E_ACTIVITY_PHASE_PROJECT_REQUIRED',
       'An activity with a phase must also belong to that phase’s project.',
     );
   }
   if (ownedPhase.projectId !== record.projectId) {
     throwDomainError(
-      'activity_phase_project_mismatch',
+      'E_ACTIVITY_PHASE_PROJECT_MISMATCH',
       'Activity phase must belong to the activity’s project.',
     );
   }
@@ -200,19 +206,19 @@ function assertResourceRefs(context: ScopedRefsContext): void {
   const mergedAvatarUrl = isSupplied('avatarUrl') ? record.avatarUrl : previous?.avatarUrl;
   if (mergedAvatarUrl != null) {
     if (mergedKind !== 'person') {
-      throwDomainError('resource_avatar_url_forbidden', 'Only a person can have an avatar URL.');
+      throwDomainError('E_RESOURCE_AVATAR_URL_FORBIDDEN', 'Only a person can have an avatar URL.');
     }
     const avatarUrl = parseResourceAvatarUrl(mergedAvatarUrl);
     if (avatarUrl !== mergedAvatarUrl) {
       throwDomainError(
-        'resource_avatar_url_invalid',
+        'E_RESOURCE_AVATAR_URL_INVALID',
         'Avatar URL must be a normalised HTTPS URL without credentials.',
       );
     }
   }
   if (projectBindingChanged && hasProject && hasKind && mergedKind !== 'placeholder') {
     throwDomainError(
-      'resource_project_forbidden',
+      'E_RESOURCE_PROJECT_FORBIDDEN',
       'Only a placeholder can be assigned to a project.',
     );
   }
@@ -228,12 +234,15 @@ function assertResourceKindImmutable(
   if (previous === undefined) return;
   if (typeof previous.kind !== 'string' || !knownResourceKinds.has(previous.kind)) {
     throwDomainError(
-      'resource_kind_immutable',
+      'E_RESOURCE_KIND_IMMUTABLE',
       'The stored resource kind is invalid and must be repaired by import.',
     );
   }
   if (typeof record.kind === 'string' && previous.kind !== record.kind) {
-    throwDomainError('resource_kind_immutable', 'A resource’s kind cannot change after creation.');
+    throwDomainError(
+      'E_RESOURCE_KIND_IMMUTABLE',
+      'A resource’s kind cannot change after creation.',
+    );
   }
 }
 
@@ -321,7 +330,7 @@ function assertAllocationProject(
   const { data, companyId, projectId, existing } = context;
   if (projectId != null && !isAllocationAttributionAllowed(activity.kind)) {
     throwDomainError(
-      'allocation_project_forbidden',
+      'E_ALLOCATION_PROJECT_FORBIDDEN',
       'Only an all-projects activity allocation can be attributed to a project.',
     );
   }
@@ -345,7 +354,7 @@ function assertAllocationProject(
     !isEffectivelyActive({ data, table: 'projects', row: project });
   if (projectMissing || projectInactive) {
     throwDomainError(
-      'allocation_project_inactive',
+      'E_ALLOCATION_PROJECT_INACTIVE',
       'Allocation must reference an activity under an active project in this company.',
     );
   }
@@ -370,7 +379,7 @@ export function assertAllocationRefs(
   });
   if (!resource || !activity) {
     throwDomainError(
-      'allocation_references_invalid',
+      'E_ALLOCATION_REFERENCES_INVALID',
       'Allocation must reference an existing resource and activity in this company.',
     );
   }
@@ -379,7 +388,7 @@ export function assertAllocationRefs(
     !isEffectivelyActive({ data, table: 'resources', row: resource })
   ) {
     throwDomainError(
-      'allocation_resource_inactive',
+      'E_ALLOCATION_RESOURCE_INACTIVE',
       'Allocation must reference an active resource in this company.',
     );
   }
@@ -396,7 +405,7 @@ export function assertAllocationRefs(
     !isEffectivelyActive({ data, table: 'activities', row: activity })
   ) {
     throwDomainError(
-      'allocation_activity_inactive',
+      'E_ALLOCATION_ACTIVITY_INACTIVE',
       'Allocation must reference an activity under an active project.',
     );
   }
@@ -409,7 +418,7 @@ export function assertAllocationRefs(
   // required parameter, so no caller can opt out of the rule.
   if (hoursPerDay !== 0 && isExternalResource(resource)) {
     throwDomainError(
-      'external_allocation_hours',
+      'E_EXTERNAL_ALLOCATION_HOURS',
       'An external party’s allocation can’t carry hours.',
     );
   }

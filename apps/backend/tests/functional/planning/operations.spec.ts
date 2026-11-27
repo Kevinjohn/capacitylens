@@ -35,7 +35,7 @@ test.group('authenticated planning operations', (group) => {
       .json(mutationInput(0, { operation: 'allocation.create', allocation }))
       .send();
     viewer.assertStatus(403);
-    assert.equal(replyBody(viewer).code, 'AUTHORIZATION_DENIED');
+    assert.equal(replyBody(viewer).code, 'E_AUTHORIZATION_DENIED');
 
     const { cookie } = await loginAsMember();
 
@@ -381,7 +381,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     nameEdit.assertStatus(400);
-    assert.equal(replyBody(nameEdit).code, 'NO_CHANGE');
+    assert.equal(replyBody(nameEdit).code, 'E_NO_CHANGE');
     const colourEdit = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -1030,7 +1030,7 @@ test.group('authenticated planning operations', (group) => {
 
     const stale = await edit('2000-01-01T00:00:00.000Z');
     stale.assertStatus(409);
-    assert.equal(replyBody(stale).code, 'STALE_REVISION');
+    assert.equal(replyBody(stale).code, 'E_STALE_REVISION');
     assert.deepEqual(await readState(companyId, true), before);
     const unchanged = await intentSession(
       client.visit('api.planning.show', { companyId }),
@@ -1160,7 +1160,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     sameKindOnly.assertStatus(400);
-    assert.equal(replyBody(sameKindOnly).code, 'NO_CHANGE');
+    assert.equal(replyBody(sameKindOnly).code, 'E_NO_CHANGE');
     assert.deepEqual(await readState(companyId, true), afterKindChange);
     assert.deepEqual(
       await db.from('audit_entries').where('company_id', companyId),

@@ -410,7 +410,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const [id, other] = await createAllocations(client, cookie, 2);
     const staleDelete = await deleteOne(client, cookie, id!, 0);
     staleDelete.assertStatus(409);
-    assert.equal(staleDelete.body().code, 'STALE_REVISION');
+    assert.equal(staleDelete.body().code, 'E_STALE_REVISION');
     assert.isDefined(await stored(id!));
     assert.lengthOf(await db.from('deleted_groups'), 0);
     const deleted = await deleteOne(client, cookie, other!, 1);
@@ -419,7 +419,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const before = await readState(companyId, true);
     const staleRestore = await restore(client, cookie, groupId, 1);
     staleRestore.assertStatus(409);
-    assert.equal(staleRestore.body().code, 'STALE_REVISION');
+    assert.equal(staleRestore.body().code, 'E_STALE_REVISION');
     assert.deepEqual(await readState(companyId, true), before);
     assert.isNull(await consumedAt(groupId));
     assert.lengthOf(await markers(), 2);

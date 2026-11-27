@@ -25,28 +25,28 @@ const changedPlacements = [
     next: allocation({ resourceId: 'r2' }),
     existing: allocation(),
     resource: resource({ firstAvailableDate: '2026-06-20' }),
-    code: 'allocation_before_resource_availability',
+    code: 'E_ALLOCATION_BEFORE_RESOURCE_AVAILABILITY',
   },
   {
     field: 'start date',
     next: allocation({ startDate: '2026-06-17', endDate: '2026-06-18' }),
     existing: allocation(),
     resource: resource({ lastAvailableDate: '2026-06-16' }),
-    code: 'allocation_after_resource_availability',
+    code: 'E_ALLOCATION_AFTER_RESOURCE_AVAILABILITY',
   },
   {
     field: 'end date',
     next: allocation({ endDate: '2026-06-17' }),
     existing: allocation(),
     resource: resource({ lastAvailableDate: '2026-06-16' }),
-    code: 'allocation_after_resource_availability',
+    code: 'E_ALLOCATION_AFTER_RESOURCE_AVAILABILITY',
   },
   {
     field: 'ignore working days',
     next: allocation({ startDate: '2026-06-13', endDate: '2026-06-14', ignoreWorkingDays: true }),
     existing: allocation({ startDate: '2026-06-13', endDate: '2026-06-14' }),
     resource: resource({ firstAvailableDate: '2026-06-15' }),
-    code: 'allocation_before_resource_availability',
+    code: 'E_ALLOCATION_BEFORE_RESOURCE_AVAILABILITY',
   },
 ] as const;
 
@@ -71,7 +71,7 @@ describe('assertAllocationPlacement', () => {
       }),
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
-        code: 'allocation_before_resource_availability',
+        code: 'E_ALLOCATION_BEFORE_RESOURCE_AVAILABILITY',
       }),
     );
   });

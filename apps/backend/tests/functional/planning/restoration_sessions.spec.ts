@@ -61,7 +61,7 @@ test.group('session-bound allocation restoration', (suite) => {
     ];
     for (const refused of attempts) {
       refused.assertStatus(403);
-      assert.equal(refused.body().code, 'AUTHORIZATION_DENIED');
+      assert.equal(refused.body().code, 'E_AUTHORIZATION_DENIED');
     }
     assert.deepEqual(await readState(companyId, true), studioBefore);
     assert.deepEqual(await readState('a-loft', true), loftBefore);
@@ -100,7 +100,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const before = await readState(companyId, true);
     const refused = await restore(client, later, groupId, revision);
     refused.assertStatus(403);
-    assert.equal(refused.body().code, 'AUTHORIZATION_DENIED');
+    assert.equal(refused.body().code, 'E_AUTHORIZATION_DENIED');
     assert.deepEqual(await readState(companyId, true), before);
     assert.isUndefined(await stored(id!));
   });
@@ -120,7 +120,7 @@ test.group('session-bound allocation restoration', (suite) => {
 
     const lateDelete = await deleteOne(client, owner.cookie, id!, 1, deleteId);
     lateDelete.assertStatus(409);
-    assert.equal(lateDelete.body().code, 'MUTATION_ID_REUSED');
+    assert.equal(lateDelete.body().code, 'E_MUTATION_ID_REUSED');
     assert.lengthOf(await db.from('deleted_groups'), 1);
 
     const restoreId = randomUUID();
@@ -128,7 +128,7 @@ test.group('session-bound allocation restoration', (suite) => {
     restored.assertStatus(200);
     const lateRestore = await restore(client, owner.cookie, groupId, 2, restoreId);
     lateRestore.assertStatus(409);
-    assert.equal(lateRestore.body().code, 'MUTATION_ID_REUSED');
+    assert.equal(lateRestore.body().code, 'E_MUTATION_ID_REUSED');
     assert.lengthOf(await db.from('allocations').where('id', id!), 1);
     assert.equal(await currentRevision(client, owner.cookie), 3);
     assert.lengthOf(await markers(), 3);

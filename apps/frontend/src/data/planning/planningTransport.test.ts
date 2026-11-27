@@ -436,7 +436,7 @@ describe('generated planning transport', () => {
     'preserves flat HTTP loss/refusal semantics for %s',
     async (stage) => {
       const { transport } = harness(
-        { error: 'Membership ended', code: 'ACCOUNT_MEMBERSHIP_LOST' },
+        { error: 'Membership ended', code: 'E_ACCOUNT_MEMBERSHIP_LOST' },
         403,
       );
       const request =
@@ -449,7 +449,7 @@ describe('generated planning transport', () => {
             );
       await expect(request).rejects.toMatchObject({
         status: 403,
-        code: 'ACCOUNT_MEMBERSHIP_LOST',
+        code: 'E_ACCOUNT_MEMBERSHIP_LOST',
         message: 'Membership ended',
       });
     },
@@ -489,7 +489,7 @@ describe('generated planning transport', () => {
     const { transport } = harness(
       {
         error: 'Confirm restoration',
-        code: 'RESTORATION_CONFIRMATION_REQUIRED',
+        code: 'E_RESTORATION_CONFIRMATION_REQUIRED',
         restorableItemCount: 3,
       },
       409,
@@ -498,7 +498,7 @@ describe('generated planning transport', () => {
       transport.execute(context, execution({ operation: 'allocation.create', allocation }), signal),
     ).rejects.toMatchObject({
       status: 409,
-      code: 'RESTORATION_CONFIRMATION_REQUIRED',
+      code: 'E_RESTORATION_CONFIRMATION_REQUIRED',
       restorableItemCount: 3,
     });
   });

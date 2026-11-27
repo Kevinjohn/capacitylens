@@ -364,8 +364,7 @@ removed entry retires its number.
     whole HTTP context and pass it to the Masquerade service. The service treats the context as the
     request: it admits each request once, authenticates through its guard and reads its route
     parameters. Every other controller action destructures.
-26. Product error codes on the wire are stable identifiers and keep their spelling
-    (`FIRST_COMPANY_PENDING`). Only framework exception codes are `E_UPPER_SNAKE`.
+26. Retired. Product exception codes are E_UPPER_SNAKE (EXC-7).
 27. Retired. Every API route is under `/api/v1`; the health probes stay at `/health/live` and
     `/health/ready`.
 28. **Aligning (#2550).** Prettier keeps semicolons (`semi: true` over the AdonisJS preset).

@@ -151,7 +151,7 @@ export class MasqueradeModeService {
   /**
    * Resolves only the identity admitted before the product transaction; never substitutes on error.
    * A view whose company access changed is refused with `refuse`: planning passes its
-   * `ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection.
+   * `E_ACCOUNT_MEMBERSHIP_LOST`, which tells the browser to drop its planning projection.
    */
   async resolveEffectiveReadUser(
     trx: TransactionClientContract,

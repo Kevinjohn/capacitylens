@@ -15,7 +15,7 @@ const scope = new ScopeMiddleware();
  * `memberships.authorize` inside the product transaction, which still runs and is the only check
  * on a route that takes the company id from the body.
  *
- * A planning route answers a missing membership with `ACCOUNT_MEMBERSHIP_LOST`, which the browser
+ * A planning route answers a missing membership with `E_ACCOUNT_MEMBERSHIP_LOST`, which the browser
  * reads to drop its planning projection; `MembershipLostException` carries it.
  */
 export default class CompanyScopeMiddleware {

@@ -32,7 +32,7 @@ export const asCompanyMemberOnly = (): RouteMiddleware => [
   middleware.companyScope(),
 ];
 
-/** A planning route: a company route whose refusal is the planning `ACCOUNT_MEMBERSHIP_LOST`. */
+/** A planning route: a company route whose refusal is the planning `E_ACCOUNT_MEMBERSHIP_LOST`. */
 export const asPlanningMember = (): RouteMiddleware => [
   ...asMember(),
   middleware.companyScope({ planning: true }),

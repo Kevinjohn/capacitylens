@@ -84,7 +84,10 @@ test.group('company export download', (group) => {
     await db.from('memberships').where({ user_id: signedIn.userId, scope_id: 'a-loft' }).delete();
     const response = await client.visit('api.company_exports.show', { companyId: 'a-loft' }).send();
     response.assertStatus(403);
-    assert.equal((response.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
+    assert.equal(
+      (response.body() as unknown as { code: string }).code,
+      'E_ACCOUNT_MEMBERSHIP_LOST'
+    );
   });
 
   test('refuses an export that fails validation with its message', async ({ client, assert }) => {

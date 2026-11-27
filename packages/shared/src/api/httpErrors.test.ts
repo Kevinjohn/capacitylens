@@ -63,11 +63,11 @@ function productTypeContracts() {
   // @ts-expect-error Restoration confirmation requires its operation metadata.
   const missingCount: ProductHttpErrorBody = {
     error: 'Confirm',
-    code: 'RESTORATION_CONFIRMATION_REQUIRED',
+    code: 'E_RESTORATION_CONFIRMATION_REQUIRED',
   };
   const misplacedCount: ProductHttpErrorBody = {
     error: 'Nothing changed',
-    code: 'NO_CHANGE',
+    code: 'E_NO_CHANGE',
     // @ts-expect-error An ordinary refusal has no restoration metadata.
     restorableItemCount: 2,
   };

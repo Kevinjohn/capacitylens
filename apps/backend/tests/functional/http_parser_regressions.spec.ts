@@ -13,7 +13,7 @@ test.group('HTTP parser regressions', (group) => {
       .json({ report: 'ignored' })
       .send();
     assert.equal(response.status(), 404);
-    assert.deepEqual(response.body(), { error: 'Not found.', code: 'NOT_FOUND' });
+    assert.deepEqual(response.body(), { error: 'Not found.', code: 'E_NOT_FOUND' });
   });
 
   test('maps actual oversized form and unsupported encoding parser failures safely', async ({

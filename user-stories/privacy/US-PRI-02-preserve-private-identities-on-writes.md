@@ -32,7 +32,7 @@ flowchart TD
 flowchart TD
   edit["ClientForm or ProjectForm submits an ordinary create or edit"] --> mutate["mutatePlanning checks company write authorization"]
   mutate --> restricted["writeEntity calls assertMayWriteRestrictedFields before preparing the write"]
-  restricted -->|Non-Owner names isPrivate or codeName unless empty on create| refused["AUTHORIZATION_DENIED"]
+  restricted -->|Non-Owner names isPrivate or codeName unless empty on create| refused["E_AUTHORIZATION_DENIED"]
   restricted -->|Allowed, including empty privacy defaults on create| prepare["prepareEntityWrite preserves the stored real name on a private row for a non-Owner, even if a name was supplied"]
   prepare -->|Invalid| validation["Reject invalid values without persisting"]
   prepare -->|Valid| persist["Persist allowed changes in the planning transaction"]

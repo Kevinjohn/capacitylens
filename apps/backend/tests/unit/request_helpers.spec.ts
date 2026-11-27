@@ -25,19 +25,19 @@ test.group('request helpers', () => {
     [
       new NotFoundException('Not a member of this company.'),
       404,
-      { error: 'Not a member of this company.', code: 'NOT_FOUND' },
+      { error: 'Not a member of this company.', code: 'E_NOT_FOUND' },
     ],
     [
       new TargetIneligibleException('Choose another Admin.'),
       409,
-      { error: 'Choose another Admin.', code: 'TARGET_INELIGIBLE' },
+      { error: 'Choose another Admin.', code: 'E_TARGET_INELIGIBLE' },
     ],
     [
       new MembershipSuspendedException(),
       409,
       {
         error: 'Your membership in this company is suspended. Ask an Owner or Admin to restore it.',
-        code: 'MEMBERSHIP_SUSPENDED',
+        code: 'E_MEMBERSHIP_SUSPENDED',
       },
     ],
   ] as const) {

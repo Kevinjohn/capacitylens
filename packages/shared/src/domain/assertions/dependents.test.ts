@@ -45,31 +45,31 @@ function makeData(overrides: Partial<AppData> = {}): AppData {
 const pass = undefined;
 const refusal = (code: DomainErrorCode, message: string): Failure => ({ code, message });
 
-const dateRequired = refusal('date_required', 'Start and end dates are required.');
-const dateReversed = refusal('date_reversed', 'End date cannot be before the start date.');
-const dateSpan = refusal('date_span_too_long', 'Date span cannot exceed 36,500 calendar days.');
+const dateRequired = refusal('E_DATE_REQUIRED', 'Start and end dates are required.');
+const dateReversed = refusal('E_DATE_REVERSED', 'End date cannot be before the start date.');
+const dateSpan = refusal('E_DATE_SPAN_TOO_LONG', 'Date span cannot exceed 36,500 calendar days.');
 const resourceInvalid = refusal(
-  'time_off_resource_invalid',
+  'E_TIME_OFF_RESOURCE_INVALID',
   'Time off must reference an existing resource in this company.',
 );
 const resourceInactive = refusal(
-  'time_off_resource_inactive',
+  'E_TIME_OFF_RESOURCE_INACTIVE',
   'Time off must reference an active resource in this company.',
 );
 const externalTimeOff = refusal(
-  'time_off_external_resource',
+  'E_TIME_OFF_EXTERNAL_RESOURCE',
   'Time off can’t be recorded for an external party.',
 );
 const externalDependents = refusal(
-  'resource_external_dependents',
+  'E_RESOURCE_EXTERNAL_DEPENDENTS',
   'Reassign or remove this resource’s work and time off before making it external.',
 );
 const placeholderDependents = refusal(
-  'placeholder_project_dependents',
+  'E_PLACEHOLDER_PROJECT_DEPENDENTS',
   'Reassign or remove this placeholder’s work before changing its bound project.',
 );
 const activityDependents = refusal(
-  'activity_project_dependents',
+  'E_ACTIVITY_PROJECT_DEPENDENTS',
   'Reassign placeholder work before changing this activity’s project.',
 );
 

@@ -135,7 +135,7 @@ export function assertEntityDomain(
     );
     if (!availability.ok) {
       throw new EntityWriteException(
-        availability.codes[0] === 'date_reversed'
+        availability.codes[0] === 'E_DATE_REVERSED'
           ? 'First available date cannot be after last available date.'
           : 'Availability dates must be valid calendar dates (YYYY-MM-DD).'
       );

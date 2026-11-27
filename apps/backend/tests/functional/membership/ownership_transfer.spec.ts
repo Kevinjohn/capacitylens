@@ -40,7 +40,7 @@ test.group('atomic ownership transfer', (group) => {
     response.assertStatus(403);
     assert.deepEqual(response.body(), {
       error: 'Confirm this action again.',
-      code: 'PASSWORD_CONFIRMATION_REQUIRED',
+      code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
     });
     const owner = await db
       .from('memberships')
@@ -184,7 +184,7 @@ test.group('atomic ownership transfer', (group) => {
     missingProof.assertStatus(403);
     assert.equal(
       (missingProof.body() as unknown as { code: string }).code,
-      'PASSWORD_CONFIRMATION_REQUIRED'
+      'E_PASSWORD_CONFIRMATION_REQUIRED'
     );
     const nonOwner = await post(adminCookie, 'a-studio', ownerId);
     nonOwner.assertStatus(403);
@@ -286,7 +286,7 @@ test.group('atomic ownership transfer', (group) => {
     otherActor.assertStatus(403);
     assert.deepEqual(otherActor.body(), {
       error: 'Confirm this action again.',
-      code: 'PASSWORD_CONFIRMATION_REQUIRED',
+      code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
     });
     assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1);
     const reverseProof = await transferProof(client, adminCookie, ownerId);
