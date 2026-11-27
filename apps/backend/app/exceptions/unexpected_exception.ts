@@ -7,6 +7,7 @@ import ProductException from '#exceptions/product_exception'
  */
 export default class UnexpectedException extends ProductException {
   static status = 500
+  static code = 'E_INTERNAL_SERVER_ERROR'
   static message = 'Internal server error.'
 
   /** The log category when it is not the cause's own, such as an Account Kit server fault. */

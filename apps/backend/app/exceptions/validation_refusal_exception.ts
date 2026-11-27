@@ -12,8 +12,10 @@ export function buildValidationBody(message: string) {
  */
 export default class ValidationRefusalException extends ProductException {
   static status = 422
+  static code = 'E_VALIDATION_REFUSAL'
+  static message = 'Validation failed.'
 
-  constructor(message: string) {
+  constructor(message?: string) {
     super(message)
   }
 
