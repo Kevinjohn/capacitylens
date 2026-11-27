@@ -224,7 +224,7 @@ test.group('native authorization and role projections', (group) => {
         .update({ created_at: new Date(Date.now() - ageMinutes * 60_000).toISOString() })
       const imported = await importSeed(client, cookie)
       imported.assertStatus(403)
-      assert.equal((imported.body() as { code?: string }).code, 'PASSWORD_CONFIRMATION_REQUIRED')
+      assert.equal((imported.body() as { code?: string }).code, 'E_PASSWORD_CONFIRMATION_REQUIRED')
       await expectStatus(stateFor(client, cookie), 200)
       await expectStatus(writeDismissal(client, cookie), 200)
     }

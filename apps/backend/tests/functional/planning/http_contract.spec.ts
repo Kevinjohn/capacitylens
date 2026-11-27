@@ -68,7 +68,7 @@ test.group('authenticated typed planning transactions', (group) => {
       cookie
     ).send()
     foreign.assertStatus(403)
-    assert.equal((foreign.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST')
+    assert.equal((foreign.body() as unknown as { code: string }).code, 'E_ACCOUNT_MEMBERSHIP_LOST')
     const anonymous = await trusted(client.visit('api.planning.show', { companyId })).send()
     anonymous.assertStatus(401)
   })
@@ -342,7 +342,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .json(input as never)
       .send()
     duplicate.assertStatus(409)
-    assert.equal((duplicate.body() as unknown as { code: string }).code, 'MUTATION_ID_REUSED')
+    assert.equal((duplicate.body() as unknown as { code: string }).code, 'E_MUTATION_ID_REUSED')
     const stale = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -358,7 +358,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send()
     stale.assertStatus(409)
-    assert.equal((stale.body() as unknown as { code: string }).code, 'STALE_REVISION')
+    assert.equal((stale.body() as unknown as { code: string }).code, 'E_STALE_REVISION')
     const moved = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -629,7 +629,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .json(input as never)
       .send()
     replay.assertStatus(409)
-    assert.equal((replay.body() as unknown as { code: string }).code, 'MUTATION_ID_REUSED')
+    assert.equal((replay.body() as unknown as { code: string }).code, 'E_MUTATION_ID_REUSED')
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1)
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -789,7 +789,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send()
     response.assertStatus(400)
-    assert.equal((response.body() as unknown as { code: string }).code, 'NO_CHANGE')
+    assert.equal((response.body() as unknown as { code: string }).code, 'E_NO_CHANGE')
     assert.deepEqual(await readState(companyId, true), before)
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0)
     assert.lengthOf(

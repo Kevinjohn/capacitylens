@@ -61,7 +61,7 @@ export function setup(options: Options = {}) {
     vi.fn<PlanningTransport['undo']>(async (_context, step) => {
       if (step.baseRevision !== server.revision) {
         throw Object.assign(new Error('The planning data changed.'), {
-          code: 'STALE_REVISION',
+          code: 'E_STALE_REVISION',
           status: 409,
         })
       }

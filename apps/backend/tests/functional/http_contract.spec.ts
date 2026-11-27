@@ -216,6 +216,6 @@ test.group('HTTP response envelope', (group) => {
       .visit('api.companies.index')
       .header('sec-fetch-site', 'same-origin')
     signedOut.assertStatus(401)
-    assert.deepEqual(signedOut.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' })
+    assert.deepEqual(signedOut.body(), { error: 'Sign-in required.', code: 'E_SIGN_IN_REQUIRED' })
   })
 })

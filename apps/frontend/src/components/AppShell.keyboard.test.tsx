@@ -82,7 +82,9 @@ describe('AppShell undo/redo keyboard', () => {
       act(() =>
         useStore.setState({
           undoPlanning: () =>
-            Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
+            Promise.reject(
+              new PlanningCacheError('The schedule changed.', 'E_STALE_REVISION', 409)
+            ),
         })
       )
       await act(async () => {

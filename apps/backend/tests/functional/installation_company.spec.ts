@@ -40,7 +40,7 @@ test.group('installation company', (group) => {
     } catch (error) {
       assert.include(error, {
         status: 409,
-        code: 'MULTIPLE_COMPANIES',
+        code: 'E_MULTIPLE_COMPANIES',
         message:
           'This installation has more than one company. Accounts need a single-company database.',
       })

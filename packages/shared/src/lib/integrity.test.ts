@@ -81,7 +81,7 @@ describe('validateDateRange', () => {
     expect(validateDateRange(start, addDaysISO(start, MAX_SPAN_DAYS))).toEqual({
       ok: false,
       errors: ['Date span cannot exceed 36,500 calendar days.'],
-      codes: ['date_span_too_long'],
+      codes: ['E_DATE_SPAN_TOO_LONG'],
     })
   })
   it('rejects non-zero-padded and out-of-range dates (the invariant isWithin relies on)', () => {

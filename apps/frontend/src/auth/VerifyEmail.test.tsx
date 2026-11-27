@@ -56,7 +56,7 @@ describe('VerifyEmail outcomes', () => {
     })
     vi.spyOn(authApi, 'completeEmailVerification').mockResolvedValue({
       data: null,
-      error: { message: 'Confirmed', status: 503, code: 'VERIFICATION_COMMITTED' },
+      error: { message: 'Confirmed', status: 503, code: 'E_VERIFICATION_COMMITTED' },
     })
     renderPage()
     fireEvent.change(await screen.findByTestId('verify-password'), { target: { value: chosen } })

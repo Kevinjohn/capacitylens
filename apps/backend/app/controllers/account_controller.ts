@@ -10,7 +10,7 @@ import { deleteAccountValidator } from '#validators/credentials'
 
 const deletionCommitted = {
   error: 'Your account was deleted, but a follow-up step failed. You are signed out.',
-  code: 'ACCOUNT_DELETION_COMMITTED',
+  code: 'E_ACCOUNT_DELETION_COMMITTED',
   committed: true,
 } satisfies ProductHttpErrorBody
 
@@ -50,7 +50,7 @@ export default class AccountController {
       if (error instanceof E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED) {
         return response.forbidden({
           error: 'Current password is incorrect.',
-          code: 'CURRENT_PASSWORD_INCORRECT',
+          code: 'E_CURRENT_PASSWORD_INCORRECT',
         })
       }
       if (!isCommittedFailure(error)) throw error

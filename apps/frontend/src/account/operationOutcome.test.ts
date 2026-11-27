@@ -28,7 +28,7 @@ describe('browser account api', () => {
   })
   it('classifies server and in-progress responses as unknown without consuming the body', async () => {
     const inProgress = Response.json(
-      { code: 'COMMAND_IN_PROGRESS', error: 'Still running.' },
+      { code: 'E_COMMAND_IN_PROGRESS', error: 'Still running.' },
       { status: 409 }
     )
     await expect(readUnknownAccountOperationOutcome(inProgress)).resolves.toBe(true)
@@ -43,21 +43,21 @@ describe('browser account api', () => {
     ).resolves.toBe(true)
     await expect(
       readUnknownAccountOperationOutcome(
-        Response.json({ code: 'DEPENDENCY_UNAVAILABLE' }, { status: 503 })
+        Response.json({ code: 'E_DEPENDENCY_UNAVAILABLE' }, { status: 503 })
       )
     ).resolves.toBe(true)
     await expect(
       readUnknownAccountOperationOutcome(
-        Response.json({ code: 'MAIL_UNAVAILABLE' }, { status: 503 })
+        Response.json({ code: 'E_MAIL_UNAVAILABLE' }, { status: 503 })
       )
     ).resolves.toBe(false)
     await expect(
       readUnknownAccountOperationOutcome(
-        Response.json({ code: 'IDEMPOTENCY_CONFLICT' }, { status: 409 })
+        Response.json({ code: 'E_IDEMPOTENCY_CONFLICT' }, { status: 409 })
       )
     ).resolves.toBe(false)
   })
-  it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORIZATION_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
+  it.each(['E_INVITATION_USED', 'E_CONFLICT', 'E_AUTHORIZATION_CHANGED', 'E_IDEMPOTENCY_CONFLICT'])(
     'classifies the known terminal 409 code %s as final',
     async (code) => {
       await expect(

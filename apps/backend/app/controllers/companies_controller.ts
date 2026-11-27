@@ -47,7 +47,7 @@ export default class CompaniesController {
       return response.conflict({
         error:
           'This installation has more than one company. Contact the administrator to resolve it.',
-        code: 'MULTIPLE_COMPANIES',
+        code: 'E_MULTIPLE_COMPANIES',
       })
     }
     return serialize(CompanySummaryTransformer.transform(summaries))

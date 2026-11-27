@@ -19,7 +19,9 @@ describe('errorMessage', () => {
     expect(
       resolveErrorMessage(new PlanningCacheError('Temporary outage', undefined, 502, true))
     ).toMatch(/couldn’t confirm that your last schedule change was saved/)
-    expect(resolveErrorMessage(new PlanningCacheError('Refused', 'NO_CHANGE', 422))).toBe('Refused')
+    expect(resolveErrorMessage(new PlanningCacheError('Refused', 'E_NO_CHANGE', 422))).toBe(
+      'Refused'
+    )
   })
 
   it.each(['', '   ', new Error(''), new Error('   '), { statusText: '' }])(
@@ -73,7 +75,7 @@ describe('errorMessage', () => {
 
   it('maps a domain code through translations instead of trusting fallback prose', () => {
     expect(
-      resolveErrorMessage(new DomainError('record_wrong_company', 'obsolete server wording'))
+      resolveErrorMessage(new DomainError('E_RECORD_WRONG_COMPANY', 'obsolete server wording'))
     ).toBe('That record does not belong to the active company.')
   })
 })
@@ -81,58 +83,64 @@ describe('errorMessage', () => {
 describe('domainErrorMessage', () => {
   // Assert exact translated copy for the fixed-message cases below.
   const fixedMessageCases: Array<[DomainErrorCode, string]> = [
-    ['record_wrong_company', 'That record does not belong to the active company.'],
-    ['reference_wrong_company', 'That change references data outside the active company.'],
-    ['activity_project_required', 'A project-specific activity must be assigned to a project.'],
+    ['E_RECORD_WRONG_COMPANY', 'That record does not belong to the active company.'],
+    ['E_REFERENCE_WRONG_COMPANY', 'That change references data outside the active company.'],
+    ['E_ACTIVITY_PROJECT_REQUIRED', 'A project-specific activity must be assigned to a project.'],
     [
-      'activity_project_forbidden',
+      'E_ACTIVITY_PROJECT_FORBIDDEN',
       'An internal or all-projects activity cannot belong to a project.',
     ],
-    ['activity_phase_forbidden', 'An internal or all-projects activity cannot belong to a phase.'],
-    ['activity_phase_wrong_company', 'Activity phase must belong to this company.'],
     [
-      'activity_phase_project_required',
+      'E_ACTIVITY_PHASE_FORBIDDEN',
+      'An internal or all-projects activity cannot belong to a phase.',
+    ],
+    ['E_ACTIVITY_PHASE_WRONG_COMPANY', 'Activity phase must belong to this company.'],
+    [
+      'E_ACTIVITY_PHASE_PROJECT_REQUIRED',
       'An activity with a phase must also belong to that phase’s project.',
     ],
-    ['activity_phase_project_mismatch', 'Activity phase must belong to the activity’s project.'],
-    ['resource_project_forbidden', 'Only a placeholder can be assigned to a project.'],
+    ['E_ACTIVITY_PHASE_PROJECT_MISMATCH', 'Activity phase must belong to the activity’s project.'],
+    ['E_RESOURCE_PROJECT_FORBIDDEN', 'Only a placeholder can be assigned to a project.'],
     [
-      'allocation_references_invalid',
+      'E_ALLOCATION_REFERENCES_INVALID',
       'Allocation must reference an existing resource and activity in this company.',
     ],
     [
-      'allocation_resource_inactive',
+      'E_ALLOCATION_RESOURCE_INACTIVE',
       'Allocation must reference an active resource in this company.',
     ],
     [
-      'allocation_project_inactive',
+      'E_ALLOCATION_PROJECT_INACTIVE',
       'Allocation must reference an activity under an active project in this company.',
     ],
     [
-      'allocation_activity_inactive',
+      'E_ALLOCATION_ACTIVITY_INACTIVE',
       'Allocation must reference an activity under an active project.',
     ],
-    ['placeholder_project_missing', 'This placeholder is not bound to a project yet.'],
-    ['external_allocation_hours', 'An external party’s allocation can’t carry hours.'],
+    ['E_PLACEHOLDER_PROJECT_MISSING', 'This placeholder is not bound to a project yet.'],
+    ['E_EXTERNAL_ALLOCATION_HOURS', 'An external party’s allocation can’t carry hours.'],
     [
-      'resource_external_dependents',
+      'E_RESOURCE_EXTERNAL_DEPENDENTS',
       'Reassign or remove this resource’s work and time off before making it external.',
     ],
     [
-      'placeholder_project_dependents',
+      'E_PLACEHOLDER_PROJECT_DEPENDENTS',
       'Reassign or remove this placeholder’s work before changing its bound project.',
     ],
     [
-      'activity_project_dependents',
+      'E_ACTIVITY_PROJECT_DEPENDENTS',
       'Reassign placeholder work before changing this activity’s project.',
     ],
-    ['date_required', 'Start and end dates are required.'],
-    ['date_invalid', 'Dates must be valid calendar dates (YYYY-MM-DD).'],
-    ['date_reversed', 'End date cannot be before the start date.'],
-    ['time_off_resource_invalid', 'Time off must reference an existing resource in this company.'],
-    ['time_off_resource_inactive', 'Time off must reference an active resource in this company.'],
-    ['time_off_external_resource', 'Time off can’t be recorded for an external party.'],
-    ['closure_name_required', 'Closure name is required.'],
+    ['E_DATE_REQUIRED', 'Start and end dates are required.'],
+    ['E_DATE_INVALID', 'Dates must be valid calendar dates (YYYY-MM-DD).'],
+    ['E_DATE_REVERSED', 'End date cannot be before the start date.'],
+    [
+      'E_TIME_OFF_RESOURCE_INVALID',
+      'Time off must reference an existing resource in this company.',
+    ],
+    ['E_TIME_OFF_RESOURCE_INACTIVE', 'Time off must reference an active resource in this company.'],
+    ['E_TIME_OFF_EXTERNAL_RESOURCE', 'Time off can’t be recorded for an external party.'],
+    ['E_CLOSURE_NAME_REQUIRED', 'Closure name is required.'],
   ]
 
   it.each(fixedMessageCases)('maps %s to its exact translated message', (code, expected) => {
@@ -145,12 +153,12 @@ describe('domainErrorMessage', () => {
     expect(new Set(messages).size).toBe(messages.length)
   })
 
-  it('interpolates the formatted span limit into date_span_too_long', () => {
+  it('interpolates the formatted span limit into E_DATE_SPAN_TOO_LONG', () => {
     // Pin grouped span-cap copy so interpolation and number formatting stay consistent.
-    expect(resolveDomainErrorMessage('date_span_too_long')).toBe(
+    expect(resolveDomainErrorMessage('E_DATE_SPAN_TOO_LONG')).toBe(
       `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString('en-GB')} calendar days.`
     )
-    expect(resolveDomainErrorMessage('date_span_too_long')).toBe(
+    expect(resolveDomainErrorMessage('E_DATE_SPAN_TOO_LONG')).toBe(
       'Date span cannot exceed 36,500 calendar days.'
     )
   })

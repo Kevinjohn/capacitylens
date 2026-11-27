@@ -131,20 +131,20 @@ describe('planning cache history', () => {
     const h = await loaded({
       execute: vi
         .fn<PlanningTransport['execute']>()
-        .mockRejectedValue({ status: 400, code: 'NO_CHANGE' }),
+        .mockRejectedValue({ status: 400, code: 'E_NO_CHANGE' }),
       read: vi.fn<PlanningTransport['read']>(),
     })
     await expect(h.cache.execute(h.cache.begin(), intent)).rejects.toMatchObject({
-      code: 'NO_CHANGE',
+      code: 'E_NO_CHANGE',
     })
     expect(h.state().planning.phase).toMatchObject({
       kind: 'ready',
-      lastWrite: { kind: 'refused', code: 'NO_CHANGE' },
+      lastWrite: { kind: 'refused', code: 'E_NO_CHANGE' },
     })
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false })
   })
 
-  it.each([{ status: 422 }, { status: 403, code: 'AUTHORIZATION_DENIED' }, { status: 409 }])(
+  it.each([{ status: 422 }, { status: 403, code: 'E_AUTHORIZATION_DENIED' }, { status: 409 }])(
     'rereads after a refused Undo so the ended history shows ($status)',
     async (refusal) => {
       const undo = vi.fn<PlanningTransport['undo']>().mockRejectedValue(refusal)

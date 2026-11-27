@@ -88,7 +88,7 @@ test.group('password recovery', (group) => {
     assert.isFalse(await inspect(client, token))
     const reused = await post(client.visit('api.password_resets.update'), { token, newPassword })
     reused.assertStatus(400)
-    assert.equal((reused.body() as { code?: string }).code, 'INVALID_TOKEN')
+    assert.equal((reused.body() as { code?: string }).code, 'E_INVALID_TOKEN')
     assert.isNotNull(
       await db
         .from('audit_entries')

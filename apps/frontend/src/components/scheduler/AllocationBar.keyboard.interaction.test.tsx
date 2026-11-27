@@ -325,7 +325,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     const original = useStore.getState().updateAllocation
     useStore.setState({
       updateAllocation: () =>
-        Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
+        Promise.reject(new PlanningCacheError('The schedule changed.', 'E_STALE_REVISION', 409)),
     })
     try {
       render(

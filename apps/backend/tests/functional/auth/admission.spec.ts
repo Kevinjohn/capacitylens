@@ -39,7 +39,11 @@ test.group('admission and membership completion', (group) => {
     cleanup,
   }) => {
     captureMail(cleanup)
-    const body = { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED', passwordResetEmail: true }
+    const body = {
+      error: 'Sign-in required.',
+      code: 'E_SIGN_IN_REQUIRED',
+      passwordResetEmail: true,
+    }
     const first = await client.visit('api.session.show').send()
     first.assertStatus(401)
     assert.deepEqual(first.body(), { ...body, needsSetup: true })
@@ -170,7 +174,7 @@ test.group('admission and membership completion', (group) => {
     const { cookie } = await signIn(api, person, password)
     const refused = await as(cookie).post(api.visit('api.memberships.store'))
     refused.assertStatus(409)
-    assert.equal(refused.body().code, 'MEMBERSHIP_SUSPENDED')
+    assert.equal(refused.body().code, 'E_MEMBERSHIP_SUSPENDED')
     const membership = await db.from('memberships').where('user_id', userId).first()
     assert.equal(membership?.status, 'suspended')
   })
@@ -305,7 +309,7 @@ test.group('address confirmation', (group) => {
       password: 'confirmed-password-2026',
     })
     confirmed.assertStatus(503)
-    assert.equal(confirmed.body().code, 'VERIFICATION_COMMITTED')
+    assert.equal(confirmed.body().code, 'E_VERIFICATION_COMMITTED')
   })
 
   test('a database holding two companies refuses membership completion and the company list', async ({
@@ -317,13 +321,13 @@ test.group('address confirmation', (group) => {
     const { cookie } = await signIn(api, person, password)
     const completed = await as(cookie).post(api.visit('api.memberships.store'))
     completed.assertStatus(409)
-    assert.equal(completed.body().code, 'MULTIPLE_COMPANIES')
+    assert.equal(completed.body().code, 'E_MULTIPLE_COMPANIES')
     const companies = await as(cookie).get(api.visit('api.companies.index'))
     companies.assertStatus(409)
     assert.deepEqual(companies.body(), {
       error:
         'This installation has more than one company. Contact the administrator to resolve it.',
-      code: 'MULTIPLE_COMPANIES',
+      code: 'E_MULTIPLE_COMPANIES',
     })
   })
 })

@@ -33,8 +33,8 @@ describe('invitation sign-up client', () => {
   it.each([
     [new Response(null, { status: 202 }), { kind: 'signed-up' }],
     [new Response(null, { status: 502 }), { kind: 'uncertain' }],
-    [Response.json({ code: 'INVALID_TOKEN' }, { status: 400 }), { kind: 'invalid-token' }],
-    [Response.json({ code: 'EMAIL_IN_USE' }, { status: 409 }), { kind: 'email-in-use' }],
+    [Response.json({ code: 'E_INVALID_TOKEN' }, { status: 400 }), { kind: 'invalid-token' }],
+    [Response.json({ code: 'E_EMAIL_IN_USE' }, { status: 409 }), { kind: 'email-in-use' }],
     [
       Response.json({ error: 'Name is too long.' }, { status: 422 }),
       { kind: 'refused', message: 'Name is too long.' },

@@ -25,12 +25,12 @@ test.group('company scope middleware', (group) => {
       company.assertStatus(403)
       assert.deepEqual(company.body(), {
         error: 'Forbidden.',
-        code: 'IDENTITY_AUTHORIZATION_DENIED',
+        code: 'E_IDENTITY_AUTHORIZATION_DENIED',
       })
       planning.assertStatus(403)
       assert.deepEqual(planning.body(), {
         error: 'Company membership is unavailable.',
-        code: 'ACCOUNT_MEMBERSHIP_LOST',
+        code: 'E_ACCOUNT_MEMBERSHIP_LOST',
       })
     }
     await expectRefused()

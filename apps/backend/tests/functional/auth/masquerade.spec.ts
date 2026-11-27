@@ -51,7 +51,7 @@ test.group('native read-only masquerade', (group) => {
     missing.assertStatus(428)
     assert.equal(
       (missing.body() as unknown as { code: string }).code,
-      'MASQUERADE_CONTEXT_REQUIRED'
+      'E_MASQUERADE_CONTEXT_REQUIRED'
     )
 
     const idleToken = await masqueradeToken(client, cookie)
@@ -65,7 +65,7 @@ test.group('native read-only masquerade', (group) => {
       .json({ targetUserId: targetId })
       .send()
     stale.assertStatus(409)
-    assert.equal((stale.body() as unknown as { code: string }).code, 'MASQUERADE_CONTEXT_CHANGED')
+    assert.equal((stale.body() as unknown as { code: string }).code, 'E_MASQUERADE_CONTEXT_CHANGED')
 
     const started = await asSession(
       client
@@ -90,7 +90,7 @@ test.group('native read-only masquerade', (group) => {
     capturedIdleStart.assertStatus(409)
     assert.equal(
       (capturedIdleStart.body() as unknown as { code: string }).code,
-      'MASQUERADE_CONTEXT_CHANGED'
+      'E_MASQUERADE_CONTEXT_CHANGED'
     )
     const write = await asSession(
       client
@@ -102,7 +102,7 @@ test.group('native read-only masquerade', (group) => {
       .json({} as never)
       .send()
     write.assertStatus(403)
-    assert.equal((write.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY')
+    assert.equal((write.body() as unknown as { code: string }).code, 'E_MASQUERADE_READ_ONLY')
   })
 
   for (const { label, role, canSeeTimeOffNote } of [
@@ -166,7 +166,7 @@ test.group('native read-only masquerade', (group) => {
     staleIdleRead.assertStatus(409)
     assert.deepEqual(staleIdleRead.body(), {
       error: 'Masquerade context changed.',
-      code: 'MASQUERADE_CONTEXT_CHANGED',
+      code: 'E_MASQUERADE_CONTEXT_CHANGED',
     })
 
     const stopped = await asSession(
@@ -186,7 +186,7 @@ test.group('native read-only masquerade', (group) => {
     staleActiveRead.assertStatus(409)
     assert.deepEqual(staleActiveRead.body(), {
       error: 'Masquerade context changed.',
-      code: 'MASQUERADE_CONTEXT_CHANGED',
+      code: 'E_MASQUERADE_CONTEXT_CHANGED',
     })
   })
 
@@ -212,7 +212,7 @@ test.group('native read-only masquerade', (group) => {
       response.assertStatus(503)
       assert.deepEqual(response.body(), {
         error: 'Masquerade is unavailable.',
-        code: 'MASQUERADE_UNAVAILABLE',
+        code: 'E_MASQUERADE_UNAVAILABLE',
       })
     } finally {
       serviceWithTestFailure.resolve = originalResolve
@@ -264,7 +264,7 @@ test.group('native read-only masquerade', (group) => {
       gate.release()
       const refused = await pendingWrite
       refused.assertStatus(403)
-      assert.equal((refused.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY')
+      assert.equal((refused.body() as unknown as { code: string }).code, 'E_MASQUERADE_READ_ONLY')
       assert.isNull(
         await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
       )
@@ -385,7 +385,7 @@ test.group('native read-only masquerade', (group) => {
     foreign.assertStatus(403)
     const directory = await asSession(client.visit('api.companies.index'), owner).send()
     directory.assertStatus(403)
-    assert.equal((directory.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY')
+    assert.equal((directory.body() as unknown as { code: string }).code, 'E_MASQUERADE_READ_ONLY')
     const audit = await db
       .from('masquerade_events')
       .where({ kind: 'started', actor_id: ownerId })
@@ -413,7 +413,7 @@ test.group('native read-only masquerade', (group) => {
     capturedActiveStart.assertStatus(409)
     assert.equal(
       (capturedActiveStart.body() as unknown as { code: string }).code,
-      'MASQUERADE_CONTEXT_CHANGED'
+      'E_MASQUERADE_CONTEXT_CHANGED'
     )
     const after = await asSession(client.visit('api.companies.index'), owner).send()
     after.assertStatus(200)
@@ -480,7 +480,7 @@ test.group('native read-only masquerade', (group) => {
       const response = await request.send()
       response.assertStatus(expectedStatuses[index]!)
       if (expectedStatuses[index] === 403)
-        assert.equal((response.body() as { code: string }).code, 'MASQUERADE_READ_ONLY')
+        assert.equal((response.body() as { code: string }).code, 'E_MASQUERADE_READ_ONLY')
     }
     const malformed = await asSession(
       client
@@ -702,7 +702,7 @@ test.group('native read-only masquerade', (group) => {
     anonymousStart.assertStatus(401)
     assert.deepEqual(anonymousStart.body(), {
       error: 'Sign-in required.',
-      code: 'SIGN_IN_REQUIRED',
+      code: 'E_SIGN_IN_REQUIRED',
     })
   })
 
@@ -719,7 +719,7 @@ test.group('native read-only masquerade', (group) => {
     outsider.assertStatus(403)
     assert.deepEqual(outsider.body(), {
       error: 'This action is not allowed.',
-      code: 'AUTHORIZATION_DENIED',
+      code: 'E_AUTHORIZATION_DENIED',
     })
 
     const started = await startView(client, cookie, targetId)
@@ -728,7 +728,7 @@ test.group('native read-only masquerade', (group) => {
     again.assertStatus(409)
     assert.deepEqual(again.body(), {
       error: 'Masquerade is already active.',
-      code: 'MASQUERADE_ACTIVE',
+      code: 'E_MASQUERADE_ACTIVE',
     })
     const activeToken = await masqueradeToken(client, cookie)
     const ended = await asSession(
@@ -748,12 +748,12 @@ test.group('native read-only masquerade', (group) => {
         [
           'E_MASQUERADE_UNAUTHENTICATED',
           401,
-          { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' },
+          { error: 'Sign-in required.', code: 'E_SIGN_IN_REQUIRED' },
         ],
         [
           'E_MASQUERADE_UNAVAILABLE',
           503,
-          { error: 'Masquerade is unavailable.', code: 'MASQUERADE_UNAVAILABLE' },
+          { error: 'Masquerade is unavailable.', code: 'E_MASQUERADE_UNAVAILABLE' },
         ],
       ] as const) {
         service.start = async () => {
@@ -875,7 +875,7 @@ test.group('native read-only masquerade', (group) => {
       gate.release()
       const read = await pendingRead
       read.assertStatus(403)
-      assert.equal((read.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST')
+      assert.equal((read.body() as unknown as { code: string }).code, 'E_ACCOUNT_MEMBERSHIP_LOST')
       assert.notInclude(read.text(), privateClientName)
     } finally {
       gate.release()
@@ -909,8 +909,11 @@ test.group('native read-only masquerade', (group) => {
       owner
     ).send()
     read.assertStatus(403)
-    // Only a planning read answers ACCOUNT_MEMBERSHIP_LOST; the state read keeps its own code.
-    assert.equal((read.body() as unknown as { code: string }).code, 'IDENTITY_AUTHORIZATION_DENIED')
+    // Only a planning read answers E_ACCOUNT_MEMBERSHIP_LOST; the state read keeps its own code.
+    assert.equal(
+      (read.body() as unknown as { code: string }).code,
+      'E_IDENTITY_AUTHORIZATION_DENIED'
+    )
     assert.notInclude(read.text(), privateClientName)
   })
 

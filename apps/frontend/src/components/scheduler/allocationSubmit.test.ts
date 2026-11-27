@@ -316,7 +316,7 @@ describe('createAllocationIntents assignment', () => {
   it('reports a placeholder bound to another project on the activity', async () => {
     const input = validInput({ selectedResource: placeholder })
     await submit(input)
-    expectFailed(input, 'activity', resolveDomainErrorMessage('placeholder_project_mismatch'))
+    expectFailed(input, 'activity', resolveDomainErrorMessage('E_PLACEHOLDER_PROJECT_MISMATCH'))
     expectNothingWritten(input)
   })
 

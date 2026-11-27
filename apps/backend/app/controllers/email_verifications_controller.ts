@@ -38,7 +38,7 @@ export default class EmailVerificationsController {
       })
       return serialize({ result: 'verified' })
     } catch (error) {
-      // Keeps `INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
+      // Keeps `E_INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
       if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
         return response.badRequest(invalidLinkAnswer)
       }
@@ -46,7 +46,7 @@ export default class EmailVerificationsController {
         return response.serviceUnavailable({
           error:
             'Your address is confirmed and your password is set. Sign in with the new password.',
-          code: 'VERIFICATION_COMMITTED',
+          code: 'E_VERIFICATION_COMMITTED',
           committed: true,
         } satisfies ProductHttpErrorBody)
       }

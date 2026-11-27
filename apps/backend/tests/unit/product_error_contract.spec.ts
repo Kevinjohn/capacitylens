@@ -90,19 +90,19 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
         'E_MASQUERADE_CONTEXT_REQUIRED',
         428,
         'Masquerade context is required.',
-        'MASQUERADE_CONTEXT_REQUIRED',
+        'E_MASQUERADE_CONTEXT_REQUIRED',
       ],
       [
         'E_MASQUERADE_CONTEXT_CHANGED',
         409,
         'Masquerade context changed.',
-        'MASQUERADE_CONTEXT_CHANGED',
+        'E_MASQUERADE_CONTEXT_CHANGED',
       ],
-      ['E_MASQUERADE_ACTION_BLOCKED', 403, 'Masquerade is read-only.', 'MASQUERADE_READ_ONLY'],
-      ['E_MASQUERADE_NOT_ALLOWED', 403, 'This action is not allowed.', 'AUTHORIZATION_DENIED'],
-      ['E_MASQUERADE_ALREADY_ACTIVE', 409, 'Masquerade is already active.', 'MASQUERADE_ACTIVE'],
-      ['E_MASQUERADE_UNAUTHENTICATED', 401, 'Sign-in required.', 'SIGN_IN_REQUIRED'],
-      ['E_MASQUERADE_UNAVAILABLE', 503, 'Masquerade is unavailable.', 'MASQUERADE_UNAVAILABLE'],
+      ['E_MASQUERADE_ACTION_BLOCKED', 403, 'Masquerade is read-only.', 'E_MASQUERADE_READ_ONLY'],
+      ['E_MASQUERADE_NOT_ALLOWED', 403, 'This action is not allowed.', 'E_AUTHORIZATION_DENIED'],
+      ['E_MASQUERADE_ALREADY_ACTIVE', 409, 'Masquerade is already active.', 'E_MASQUERADE_ACTIVE'],
+      ['E_MASQUERADE_UNAUTHENTICATED', 401, 'Sign-in required.', 'E_SIGN_IN_REQUIRED'],
+      ['E_MASQUERADE_UNAVAILABLE', 503, 'Masquerade is unavailable.', 'E_MASQUERADE_UNAVAILABLE'],
     ] as const
   ).map(([code, status, error, wire]): [string, () => unknown, number, Record<string, unknown>] => [
     code,
@@ -123,16 +123,16 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   ...(
     [
-      ['E_ACCESS_CONTROL_FORBIDDEN', 403, 'Forbidden.', 'FORBIDDEN'],
-      ['E_ACCESS_CONTROL_SELF_MANAGEMENT', 403, 'Forbidden.', 'FORBIDDEN'],
-      ['E_ACCESS_CONTROL_OWNER_PROTECTED', 403, 'Forbidden.', 'FORBIDDEN'],
-      ['E_ACCESS_CONTROL_RANK_TOO_LOW', 403, 'Forbidden.', 'FORBIDDEN'],
-      ['E_ACCESS_CONTROL_NOT_A_MEMBER', 404, 'Not a member of this company.', 'NOT_FOUND'],
-      ['E_ACCESS_CONTROL_USER_NOT_FOUND', 404, 'Not found.', 'NOT_FOUND'],
-      ['E_ACCESS_CONTROL_SCOPE_NOT_FOUND', 404, 'Company not found.', 'NOT_FOUND'],
-      ['E_ACCESS_CONTROL_ALREADY_MEMBER', 409, 'Already a member of this company.', 'CONFLICT'],
-      ['E_ACCESS_CONTROL_LAST_OWNER', 409, 'Transfer ownership first.', 'LAST_OWNER'],
-      ['E_ACCESS_CONTROL_CONFLICT', 409, 'The company changed. Try again.', 'CONFLICT'],
+      ['E_ACCESS_CONTROL_FORBIDDEN', 403, 'Forbidden.', 'E_FORBIDDEN'],
+      ['E_ACCESS_CONTROL_SELF_MANAGEMENT', 403, 'Forbidden.', 'E_FORBIDDEN'],
+      ['E_ACCESS_CONTROL_OWNER_PROTECTED', 403, 'Forbidden.', 'E_FORBIDDEN'],
+      ['E_ACCESS_CONTROL_RANK_TOO_LOW', 403, 'Forbidden.', 'E_FORBIDDEN'],
+      ['E_ACCESS_CONTROL_NOT_A_MEMBER', 404, 'Not a member of this company.', 'E_NOT_FOUND'],
+      ['E_ACCESS_CONTROL_USER_NOT_FOUND', 404, 'Not found.', 'E_NOT_FOUND'],
+      ['E_ACCESS_CONTROL_SCOPE_NOT_FOUND', 404, 'Company not found.', 'E_NOT_FOUND'],
+      ['E_ACCESS_CONTROL_ALREADY_MEMBER', 409, 'Already a member of this company.', 'E_CONFLICT'],
+      ['E_ACCESS_CONTROL_LAST_OWNER', 409, 'Transfer ownership first.', 'E_LAST_OWNER'],
+      ['E_ACCESS_CONTROL_CONFLICT', 409, 'The company changed. Try again.', 'E_CONFLICT'],
     ] as const
   ).map(([code, status, error, wire]): [string, () => unknown, number, Record<string, unknown>] => [
     code,
@@ -148,13 +148,13 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     Refusal.name,
     () => answered(new Refusal()),
     403,
-    { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+    { error: 'Confirm this action again.', code: 'E_PASSWORD_CONFIRMATION_REQUIRED' },
   ]),
   [
     'PasswordConfirmationDeniedException',
     () => answered(new PasswordConfirmationDeniedException()),
     403,
-    { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
+    { error: 'Incorrect password.', code: 'E_PASSWORD_CONFIRMATION_DENIED' },
   ],
   [
     'PasswordConfirmationThrottledException',
@@ -172,7 +172,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'PasswordConfirmationException',
     () => answered(new PasswordConfirmationException()),
     403,
-    { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+    { error: 'Confirm this action again.', code: 'E_PASSWORD_CONFIRMATION_REQUIRED' },
   ],
   [
     'FirstCompanyPendingException',
@@ -180,32 +180,32 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     409,
     {
       error: 'Only the invited first Owner may join before the company exists.',
-      code: 'FIRST_COMPANY_PENDING',
+      code: 'E_FIRST_COMPANY_PENDING',
     },
   ],
   [
     'PlanningAuthorizationException',
     () => answered(new PlanningAuthorizationException()),
     403,
-    { error: 'This action is not allowed.', code: 'AUTHORIZATION_DENIED' },
+    { error: 'This action is not allowed.', code: 'E_AUTHORIZATION_DENIED' },
   ],
   [
     'RecordChangedException',
     () => answered(new RecordChangedException()),
     409,
-    { error: 'The record changed since it was opened.', code: 'STALE_REVISION' },
+    { error: 'The record changed since it was opened.', code: 'E_STALE_REVISION' },
   ],
   [
     'MutationIdReusedException',
     () => answered(new MutationIdReusedException()),
     409,
-    { error: 'This mutation identity has already committed.', code: 'MUTATION_ID_REUSED' },
+    { error: 'This mutation identity has already committed.', code: 'E_MUTATION_ID_REUSED' },
   ],
   [
     'NoChangeException',
     () => answered(new NoChangeException('No change.')),
     400,
-    { error: 'No change.', code: 'NO_CHANGE' },
+    { error: 'No change.', code: 'E_NO_CHANGE' },
   ],
   [
     'PlanningConflictException',
@@ -246,7 +246,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     409,
     {
       error: 'The import contains scheduling IDs used by another company on this server.',
-      code: 'IMPORT_ID_COLLISION',
+      code: 'E_IMPORT_ID_COLLISION',
     },
   ],
   [
@@ -255,7 +255,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     409,
     {
       error: 'The company changed. Preview the current data again.',
-      code: 'IMPORT_SNAPSHOT_STALE',
+      code: 'E_IMPORT_SNAPSHOT_STALE',
       revision: 7,
     },
   ],
@@ -266,26 +266,26 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     {
       error:
         'Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.',
-      code: 'EXAMPLE_DATA_COMPANY_NOT_EMPTY',
+      code: 'E_EXAMPLE_DATA_COMPANY_NOT_EMPTY',
     },
   ],
   [
     'ResourceAvatarUrlForbiddenException',
     () => answered(new ResourceAvatarUrlForbiddenException()),
     400,
-    { error: 'Only a person can have an avatar URL.', code: 'resource_avatar_url_forbidden' },
+    { error: 'Only a person can have an avatar URL.', code: 'E_RESOURCE_AVATAR_URL_FORBIDDEN' },
   ],
   [
     'ResourceAvatarUrlInvalidException',
     () => answered(new ResourceAvatarUrlInvalidException('Bad URL.')),
     400,
-    { error: 'Bad URL.', code: 'resource_avatar_url_invalid' },
+    { error: 'Bad URL.', code: 'E_RESOURCE_AVATAR_URL_INVALID' },
   ],
   [
     'ResourceKindImmutableException',
     () => answered(new ResourceKindImmutableException('Kind is fixed.')),
     400,
-    { error: 'Kind is fixed.', code: 'resource_kind_immutable' },
+    { error: 'Kind is fixed.', code: 'E_RESOURCE_KIND_IMMUTABLE' },
   ],
   [
     'ActivityPhaseProjectMismatchException',
@@ -293,33 +293,33 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     400,
     {
       error: 'A phase with activities cannot move to a different project.',
-      code: 'activity_phase_project_mismatch',
+      code: 'E_ACTIVITY_PHASE_PROJECT_MISMATCH',
     },
   ],
   [
     'a domain rule exception',
     () =>
-      answered(toDomainRuleException(new DomainError('record_wrong_company', 'Wrong company.'))),
+      answered(toDomainRuleException(new DomainError('E_RECORD_WRONG_COMPANY', 'Wrong company.'))),
     400,
-    { error: 'Wrong company.', code: 'record_wrong_company' },
+    { error: 'Wrong company.', code: 'E_RECORD_WRONG_COMPANY' },
   ],
   [
     'NotFoundException',
     () => answered(new NotFoundException('Member not found.')),
     404,
-    { error: 'Member not found.', code: 'NOT_FOUND' },
+    { error: 'Member not found.', code: 'E_NOT_FOUND' },
   ],
   [
     'ConflictException',
     () => answered(new ConflictException('Already used.')),
     409,
-    { error: 'Already used.', code: 'CONFLICT' },
+    { error: 'Already used.', code: 'E_CONFLICT' },
   ],
   [
     'ForbiddenException',
     () => answered(new ForbiddenException()),
     403,
-    { error: 'Forbidden.', code: 'FORBIDDEN' },
+    { error: 'Forbidden.', code: 'E_FORBIDDEN' },
   ],
   [
     'MultipleCompaniesException',
@@ -328,50 +328,50 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     {
       error:
         'This installation has more than one company. Accounts need a single-company database.',
-      code: 'MULTIPLE_COMPANIES',
+      code: 'E_MULTIPLE_COMPANIES',
     },
   ],
   [
     'CompanySetupRequiredException',
     () => answered(new CompanySetupRequiredException()),
     409,
-    { error: 'The company has not been set up yet.', code: 'COMPANY_SETUP_REQUIRED' },
+    { error: 'The company has not been set up yet.', code: 'E_COMPANY_SETUP_REQUIRED' },
   ],
   [
     'OwnerTransferRequiredException',
     () => answered(new OwnerTransferRequiredException()),
     400,
-    { error: 'Transfer ownership to assign the Owner role.', code: 'OWNER_TRANSFER_REQUIRED' },
+    { error: 'Transfer ownership to assign the Owner role.', code: 'E_OWNER_TRANSFER_REQUIRED' },
   ],
   [
     'IdempotencyConflictException',
     () => answered(new IdempotencyConflictException()),
     409,
-    { error: 'Operation id already used.', code: 'IDEMPOTENCY_CONFLICT' },
+    { error: 'Operation id already used.', code: 'E_IDEMPOTENCY_CONFLICT' },
   ],
   [
     'IdentityAuthorizationException',
     () => answered(new IdentityAuthorizationException()),
     403,
-    { error: 'Forbidden.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
+    { error: 'Forbidden.', code: 'E_IDENTITY_AUTHORIZATION_DENIED' },
   ],
   [
     'refuseMissingAdmission',
     () => answeredThrown(() => refuseMissingAdmission()),
     404,
-    { error: 'Invitation not found.', code: 'NOT_FOUND' },
+    { error: 'Invitation not found.', code: 'E_NOT_FOUND' },
   ],
   [
     'refuseConflictingAdmission',
     () => answeredThrown(() => refuseConflictingAdmission()),
     409,
-    { error: 'Invitation has already been used.', code: 'CONFLICT' },
+    { error: 'Invitation has already been used.', code: 'E_CONFLICT' },
   ],
   [
     'MembershipLostException',
     () => answered(new MembershipLostException()),
     403,
-    { error: 'Company membership is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
+    { error: 'Company membership is unavailable.', code: 'E_ACCOUNT_MEMBERSHIP_LOST' },
   ],
   [
     'StalePlanningRevisionException',
@@ -379,7 +379,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     409,
     {
       error: 'The planning revision changed before this mutation was applied.',
-      code: 'STALE_REVISION',
+      code: 'E_STALE_REVISION',
     },
   ],
   [
@@ -456,7 +456,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     400,
     {
       error: 'This link is invalid or expired.',
-      code: 'INVALID_TOKEN',
+      code: 'E_INVALID_TOKEN',
     },
   ],
   [
@@ -465,7 +465,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     409,
     {
       error: 'An account already uses this email. Sign in or reset your password.',
-      code: 'EMAIL_IN_USE',
+      code: 'E_EMAIL_IN_USE',
     },
   ],
   [
@@ -475,7 +475,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     {
       error:
         'Your password was changed, but a follow-up step failed. Sign in with the new password.',
-      code: 'CREDENTIAL_UPDATE_COMMITTED',
+      code: 'E_CREDENTIAL_UPDATE_COMMITTED',
       committed: true,
     },
   ],
@@ -483,13 +483,13 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'unsupported content encoding',
     () => answered(Object.assign(new Error('Unsupported Content-Encoding: br'), { status: 415 })),
     415,
-    { error: 'Unsupported media type.', code: 'UNSUPPORTED_MEDIA_TYPE' },
+    { error: 'Unsupported media type.', code: 'E_UNSUPPORTED_MEDIA_TYPE' },
   ],
   [
     'invalid JSON',
     () => answered(Object.assign(new SyntaxError('Unexpected end'), { status: 400, body: '{' })),
     400,
-    { error: 'Request body must be valid JSON.', code: 'INVALID_JSON' },
+    { error: 'Request body must be valid JSON.', code: 'E_INVALID_JSON' },
   ],
   [
     'JSON that is not an object or array',
@@ -498,25 +498,25 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
         Object.assign(new Error('Invalid JSON, only supports object and array'), { status: 422 })
       ),
     400,
-    { error: 'Request JSON must be an object or array.', code: 'INVALID_JSON_SHAPE' },
+    { error: 'Request JSON must be an object or array.', code: 'E_INVALID_JSON_SHAPE' },
   ],
   [
     'E_ROUTE_NOT_FOUND',
     () => answered(new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing'])),
     404,
-    { error: 'Not found.', code: 'NOT_FOUND' },
+    { error: 'Not found.', code: 'E_NOT_FOUND' },
   ],
   [
     'E_REQUEST_ENTITY_TOO_LARGE',
     () => answered(Object.assign(new Error('too large'), { code: 'E_REQUEST_ENTITY_TOO_LARGE' })),
     413,
-    { error: 'Request body is too large.', code: 'PAYLOAD_TOO_LARGE' },
+    { error: 'Request body is too large.', code: 'E_PAYLOAD_TOO_LARGE' },
   ],
   [
     'E_ENCODING_UNSUPPORTED',
     () => answered(Object.assign(new Error('encoding'), { code: 'E_ENCODING_UNSUPPORTED' })),
     415,
-    { error: 'Unsupported media type.', code: 'UNSUPPORTED_MEDIA_TYPE' },
+    { error: 'Unsupported media type.', code: 'E_UNSUPPORTED_MEDIA_TYPE' },
   ],
   [
     'database constraint',
@@ -576,7 +576,7 @@ test.group('product error adapters', () => {
       assert.equal(result.status, 403)
       assert.properties(result.body as object, ['error', 'code', 'decision'])
       assert.deepEqual((result.body as { decision: unknown }).decision, decision)
-      assert.equal((result.body as { code: string }).code, 'ADMISSION_REQUIRED')
+      assert.equal((result.body as { code: string }).code, 'E_ADMISSION_REQUIRED')
     })
   }
   const routeNames = [
@@ -604,7 +604,7 @@ test.group('product error adapters', () => {
     )) {
       assert.deepEqual(answer, {
         status: 403,
-        body: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
+        body: { error: 'Invalid membership role.', code: 'E_IDENTITY_AUTHORIZATION_DENIED' },
       })
     }
   })
@@ -619,7 +619,7 @@ test.group('product error adapters', () => {
         status: 403,
         body: {
           error: 'Your access to this company is waiting on admission.',
-          code: 'ADMISSION_REQUIRED',
+          code: 'E_ADMISSION_REQUIRED',
           decision,
         },
       })
@@ -735,7 +735,7 @@ test.group('product error adapters', () => {
 
     const stale = await answerOnPlanning(new RecordChangedException('Reload first.'))
     assert.equal(stale.status, 409)
-    assert.deepEqual(stale.body, { error: 'Reload first.', code: 'STALE_REVISION' })
+    assert.deepEqual(stale.body, { error: 'Reload first.', code: 'E_STALE_REVISION' })
   })
   test('planning restoration failures retain both typed count-bearing variants', async ({
     assert,
@@ -748,7 +748,7 @@ test.group('product error adapters', () => {
       assert.equal(result.status, 409)
       assert.deepEqual(result.body, {
         error: error.message,
-        code: stale ? 'RESTORATION_CONFIRMATION_STALE' : 'RESTORATION_CONFIRMATION_REQUIRED',
+        code: stale ? 'E_RESTORATION_CONFIRMATION_STALE' : 'E_RESTORATION_CONFIRMATION_REQUIRED',
         restorableItemCount: 3,
       })
     }

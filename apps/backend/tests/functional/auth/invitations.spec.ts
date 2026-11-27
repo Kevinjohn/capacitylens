@@ -180,7 +180,7 @@ test.group('company invitations', (group) => {
     const { cookie: ownerCookie } = await signIn(client, owner)
     const unavailable = await invite(client, ownerCookie, invitee)
     unavailable.assertStatus(503)
-    assert.equal((unavailable.body() as { code?: string }).code, 'MAIL_UNAVAILABLE')
+    assert.equal((unavailable.body() as { code?: string }).code, 'E_MAIL_UNAVAILABLE')
     captureMail(cleanup)
     await expectStatus(invite(client, ownerCookie, invitee, 'owner'), 422)
     const { cookie: editorCookie } = await signIn(client, 'barry.allen@wayne.example')
@@ -254,7 +254,7 @@ test.group('company invitations', (group) => {
     response.assertStatus(409)
     assert.deepEqual(response.body(), {
       error: 'An account already uses this email. Sign in or reset your password.',
-      code: 'EMAIL_IN_USE',
+      code: 'E_EMAIL_IN_USE',
     })
     assert.equal(response.header('cache-control'), 'no-store')
     assert.equal(response.header('referrer-policy'), 'no-referrer')
@@ -310,7 +310,7 @@ test.group('company invitations', (group) => {
       ownerUser
     ).send()
     unavailable.assertStatus(503)
-    assert.equal((unavailable.body() as { code?: string }).code, 'MAIL_UNAVAILABLE')
+    assert.equal((unavailable.body() as { code?: string }).code, 'E_MAIL_UNAVAILABLE')
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example')
     await expectStatus(client.visit('api.invitation_links.show', { token: second }).send(), 200)
     const revoked = await asLoggedInDataOwner(

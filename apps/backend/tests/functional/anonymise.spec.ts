@@ -615,7 +615,10 @@ test.group('company anonymisation', (group) => {
       })
       .send()
     wrongCompany.assertStatus(403)
-    assert.equal((wrongCompany.body() as unknown as { code: string }).code, 'AUTHORIZATION_DENIED')
+    assert.equal(
+      (wrongCompany.body() as unknown as { code: string }).code,
+      'E_AUTHORIZATION_DENIED'
+    )
 
     const otherActorId = await createIdentity('diana.prince@wayne.example', {
       password,
@@ -643,6 +646,6 @@ test.group('company anonymisation', (group) => {
       })
       .send()
     otherActor.assertStatus(403)
-    assert.equal((otherActor.body() as unknown as { code: string }).code, 'AUTHORIZATION_DENIED')
+    assert.equal((otherActor.body() as unknown as { code: string }).code, 'E_AUTHORIZATION_DENIED')
   })
 })

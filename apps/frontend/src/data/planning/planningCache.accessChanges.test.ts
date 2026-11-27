@@ -19,8 +19,8 @@ describe('planning cache', () => {
   it('keeps context and history for every 403 execute refusal, including membership loss', async () => {
     const execute = vi
       .fn()
-      .mockRejectedValueOnce({ status: 403, code: 'AUTHORIZATION_DENIED' })
-      .mockRejectedValueOnce({ status: 403, code: 'ACCOUNT_MEMBERSHIP_LOST' })
+      .mockRejectedValueOnce({ status: 403, code: 'E_AUTHORIZATION_DENIED' })
+      .mockRejectedValueOnce({ status: 403, code: 'E_ACCOUNT_MEMBERSHIP_LOST' })
     const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
@@ -35,12 +35,12 @@ describe('planning cache', () => {
     })
     const first = h.cache.begin()
     await expect(h.cache.execute(first, intent)).rejects.toMatchObject({
-      code: 'AUTHORIZATION_DENIED',
+      code: 'E_AUTHORIZATION_DENIED',
     })
     expect(h.state().planning.context).toEqual(context)
     const second = h.cache.begin()
     await expect(h.cache.execute(second, intent)).rejects.toMatchObject({
-      code: 'ACCOUNT_MEMBERSHIP_LOST',
+      code: 'E_ACCOUNT_MEMBERSHIP_LOST',
     })
     expect(h.state().planning.context).toEqual(context)
     expect(h.state().planning).toMatchObject({
@@ -123,8 +123,8 @@ describe('planning cache', () => {
         today: companyToday,
         capacity: emptyCapacity(),
       })
-      .mockRejectedValueOnce({ status: 403, code: 'AUTHORIZATION_DENIED' })
-      .mockRejectedValueOnce({ status: 403, code: 'ACCOUNT_MEMBERSHIP_LOST' })
+      .mockRejectedValueOnce({ status: 403, code: 'E_AUTHORIZATION_DENIED' })
+      .mockRejectedValueOnce({ status: 403, code: 'E_ACCOUNT_MEMBERSHIP_LOST' })
     const h = createHarness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read,

@@ -142,7 +142,7 @@ export function findFieldProblem(
       return parsed === null || parsed === undefined
         ? {
             message: 'Avatar URL must be an HTTPS URL without embedded credentials.',
-            rule: 'resource_avatar_url_invalid',
+            rule: 'E_RESOURCE_AVATAR_URL_INVALID',
           }
         : undefined
     }

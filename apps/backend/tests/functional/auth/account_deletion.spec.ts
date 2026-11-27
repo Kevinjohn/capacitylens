@@ -67,7 +67,7 @@ test.group('account deletion', (group) => {
 
     const refused = await deleteAccount(client, cookie, owner.password)
     refused.assertStatus(409)
-    refused.assertBodyContains({ code: 'LAST_OWNER' })
+    refused.assertBodyContains({ code: 'E_LAST_OWNER' })
     // The password was confirmed and the confirmation spent before Account Kit refused.
     const spent = await db
       .from('password_confirmations')
@@ -89,7 +89,7 @@ test.group('account deletion', (group) => {
 
     const wrong = await deleteAccount(client, cookie, 'not-the-password-2026')
     wrong.assertStatus(403)
-    wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' })
+    wrong.assertBodyContains({ code: 'E_PASSWORD_CONFIRMATION_DENIED' })
     const malformed = await asLoggedInDataOwner(
       client.visit('api.account.destroy'),
       await User.findOrFail(userId)

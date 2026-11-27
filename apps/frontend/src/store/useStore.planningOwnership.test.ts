@@ -114,7 +114,7 @@ describe('planning access publication', () => {
     const authLossVersion = useStore.getState().planningAuthLossVersion
     failure.execute = new PlanningCacheError(
       'You no longer belong to this company.',
-      'ACCOUNT_MEMBERSHIP_LOST',
+      'E_ACCOUNT_MEMBERSHIP_LOST',
       403
     )
 

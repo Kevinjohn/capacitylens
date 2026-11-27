@@ -524,7 +524,7 @@ test('a refused scheduler write keeps the schedule and history visible and does 
       ? route.fulfill({
           status: 403,
           contentType: 'application/json',
-          body: JSON.stringify({ error: 'Write refused', code: 'AUTHORIZATION_DENIED' }),
+          body: JSON.stringify({ error: 'Write refused', code: 'E_AUTHORIZATION_DENIED' }),
         })
       : route.fallback()
   )

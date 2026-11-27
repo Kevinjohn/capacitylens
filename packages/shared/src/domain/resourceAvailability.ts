@@ -38,13 +38,13 @@ export function assertAllocationWithinResourceAvailability({
   for (const date of scheduledDates) {
     if (first != null && date < first) {
       throwDomainError(
-        'allocation_before_resource_availability',
+        'E_ALLOCATION_BEFORE_RESOURCE_AVAILABILITY',
         'Allocation includes a scheduled working day before this person is available.'
       )
     }
     if (last != null && date > last) {
       throwDomainError(
-        'allocation_after_resource_availability',
+        'E_ALLOCATION_AFTER_RESOURCE_AVAILABILITY',
         'Allocation includes a scheduled working day after this person is available.'
       )
     }
@@ -63,7 +63,7 @@ export function validateResourceAvailabilityPair(
     return {
       ok: false,
       errors: ['Availability dates must be valid calendar dates (YYYY-MM-DD).'],
-      codes: ['date_invalid'],
+      codes: ['E_DATE_INVALID'],
     }
   }
   if (
@@ -74,7 +74,7 @@ export function validateResourceAvailabilityPair(
     return {
       ok: false,
       errors: ['First available date cannot be after last available date.'],
-      codes: ['date_reversed'],
+      codes: ['E_DATE_REVERSED'],
     }
   }
   return { ok: true, errors: [], codes: [] }

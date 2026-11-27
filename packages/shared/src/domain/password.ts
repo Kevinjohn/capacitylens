@@ -18,7 +18,7 @@ export const MIN_PASSWORD_LENGTH = 15
 /**
  * The maximum password length, in Unicode code points. Same no-drift contract as
  * {@link MIN_PASSWORD_LENGTH}: consumed by the server credential boundaries and the
- * reset-password page's pre-check + PASSWORD_TOO_LONG message (src/auth/ResetPassword.tsx), so an
+ * reset-password page's pre-check + E_PASSWORD_TOO_LONG message (src/auth/ResetPassword.tsx), so an
  * over-long passphrase gets an actionable bound instead of a generic failure, and the bound the
  * client states is always the one the server enforces.
  *

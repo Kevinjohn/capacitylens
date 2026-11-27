@@ -11,7 +11,7 @@ it('adapts real generated-client 400 failures without a phantom validation statu
       .fn<typeof fetch>()
       .mockResolvedValue(
         Response.json(
-          { error: 'Request body must be valid JSON.', code: 'INVALID_JSON' },
+          { error: 'Request body must be valid JSON.', code: 'E_INVALID_JSON' },
           { status: 400 }
         )
       )
@@ -22,14 +22,14 @@ it('adapts real generated-client 400 failures without a phantom validation statu
   const failure = readProductHttpFailure(error, 'Fallback')
   expect(failure).toEqual({
     status: 400,
-    body: { error: 'Request body must be valid JSON.', code: 'INVALID_JSON' },
+    body: { error: 'Request body must be valid JSON.', code: 'E_INVALID_JSON' },
   })
   if (!failure) throw new Error('Expected HTTP failure')
   // @ts-expect-error The HTTP adapter cannot claim a 422 validation response.
   const status: 422 = failure.status
   // @ts-expect-error Unknown wire codes do not become known product codes automatically.
-  const code: 'INVALID_JSON' = failure.body.code
-  expect([status, code]).toEqual([400, 'INVALID_JSON'])
+  const code: 'E_INVALID_JSON' = failure.body.code
+  expect([status, code]).toEqual([400, 'E_INVALID_JSON'])
 })
 
 it('keeps native transport and generated network failures distinct from HTTP', async () => {

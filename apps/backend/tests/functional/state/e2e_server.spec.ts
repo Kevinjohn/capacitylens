@@ -90,7 +90,7 @@ test('both E2E server flavours require sign-in and expose no installation reset 
           'no reset route answers an authenticated administrator'
         )
         assert.deepEqual(await memberlessReset.json(), {
-          code: 'NOT_FOUND',
+          code: 'E_NOT_FOUND',
           error: 'Not found.',
         })
       }

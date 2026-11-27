@@ -100,7 +100,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: client.id },
     })
     assert.equal(activeRestore.status, 400)
-    assert.equal(activeRestore.code, 'NO_CHANGE')
+    assert.equal(activeRestore.code, 'E_NO_CHANGE')
 
     const protectedArchive = await refusedInStudio({
       operation: 'catalogue.archive',
@@ -120,7 +120,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: client.id },
     })
     assert.equal(repeatedArchive.status, 400)
-    assert.equal(repeatedArchive.code, 'NO_CHANGE')
+    assert.equal(repeatedArchive.code, 'E_NO_CHANGE')
     const afterRepeatedArchiveState = await readState('a-studio', true)
     const afterRepeatedArchive = afterRepeatedArchiveState.clients.find(
       (row) => row.id === client.id

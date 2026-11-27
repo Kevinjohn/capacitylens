@@ -80,13 +80,13 @@ export interface PlanningMutationSuccess {
 
 /** Product planning refusal codes; Kit codes retain their own contract. */
 export const planningMutationErrorCodes = [
-  'ACCOUNT_MEMBERSHIP_LOST',
-  'AUTHORIZATION_DENIED',
-  'STALE_REVISION',
-  'MUTATION_ID_REUSED',
-  'NO_CHANGE',
-  'RESTORATION_CONFIRMATION_REQUIRED',
-  'RESTORATION_CONFIRMATION_STALE',
+  'E_ACCOUNT_MEMBERSHIP_LOST',
+  'E_AUTHORIZATION_DENIED',
+  'E_STALE_REVISION',
+  'E_MUTATION_ID_REUSED',
+  'E_NO_CHANGE',
+  'E_RESTORATION_CONFIRMATION_REQUIRED',
+  'E_RESTORATION_CONFIRMATION_STALE',
 ] as const satisfies readonly ProductErrorCode[]
 export type PlanningMutationErrorCode = (typeof planningMutationErrorCodes)[number]
 

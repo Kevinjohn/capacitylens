@@ -48,7 +48,7 @@ test.group('company member access and tracking', (group) => {
       .json({ name: 'Stark Industries' })
       .send()
     response.assertStatus(409)
-    response.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' })
+    response.assertBodyContains({ code: 'E_COMPANY_SETUP_UNAVAILABLE' })
     assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }])
   })
 
@@ -276,7 +276,7 @@ test.group('company member access and tracking', (group) => {
       .json({ name: 'Stark Industries' })
       .send()
     refusedWhileActive.assertStatus(409)
-    refusedWhileActive.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' })
+    refusedWhileActive.assertBodyContains({ code: 'E_COMPANY_SETUP_UNAVAILABLE' })
     assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }])
     const suspended = await asLoggedInDataOwner(
       client.visit('api.member_status.update', { companyId: 'a-studio', userId: adminId }),
@@ -294,7 +294,7 @@ test.group('company member access and tracking', (group) => {
       .json({ name: 'Stark Industries' })
       .send()
     refused.assertStatus(409)
-    refused.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' })
+    refused.assertBodyContains({ code: 'E_COMPANY_SETUP_UNAVAILABLE' })
     assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }])
   })
 })

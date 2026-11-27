@@ -59,12 +59,12 @@ export interface PlanningSessionScope {
 
 /**
  * The server port. Error contract: the cache reads any thrown value for `code`, `status` and
- * `message` only. On `execute`, status 401 ends the planning scope; code `MUTATION_ID_REUSED`, status
+ * `message` only. On `execute`, status 401 ends the planning scope; code `E_MUTATION_ID_REUSED`, status
  * 408, a status of 500 or more, or no status (a network failure) leaves the commit boundary unknown,
- * so the cache refetches and reports the change as unconfirmed; code `STALE_REVISION`
- * or status 409 is refused and refreshed; codes `AUTHORIZATION_DENIED` and `NO_CHANGE`, and any
+ * so the cache refetches and reports the change as unconfirmed; code `E_STALE_REVISION`
+ * or status 409 is refused and refreshed; codes `E_AUTHORIZATION_DENIED` and `E_NO_CHANGE`, and any
  * other status below 500 (a 422 validation refusal included), are refused. Only a server request to confirm cleanup
- * must be a `PlanningCacheError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
+ * must be a `PlanningCacheError`: code `E_RESTORATION_CONFIRMATION_REQUIRED` with a positive
  * `restorableItemCount`. A transport must not set `uncertain`; the cache sets it on failures it
  * has already recorded. `undo` and `redo` follow the same contract, except that the server never
  * asks them to confirm cleanup. A `read` failure ends the scope on 401 and is otherwise recorded

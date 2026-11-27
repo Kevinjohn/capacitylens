@@ -68,7 +68,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     try {
       const result = await authApi.changePassword({ currentPassword, newPassword })
       // A committed update whose follow-up failed still changed the password, so the old inputs are obsolete.
-      const committedWithWarning = result.error?.code === 'CREDENTIAL_UPDATE_COMMITTED'
+      const committedWithWarning = result.error?.code === 'E_CREDENTIAL_UPDATE_COMMITTED'
       if (result.error && !committedWithWarning) {
         if (requestGeneration === generation.current) fail('current', result.error.message)
         return
@@ -132,9 +132,9 @@ function useAccountDeletion({ fail, clear, setMessage, setBusy }: PasswordChange
     try {
       const result = await authApi.deleteAccount({ currentPassword })
       // A committed deletion whose follow-up failed still removed the account and ended the sign-in.
-      if (result.error && result.error.code !== 'ACCOUNT_DELETION_COMMITTED') {
+      if (result.error && result.error.code !== 'E_ACCOUNT_DELETION_COMMITTED') {
         if (requestGeneration !== generation.current) return
-        if (result.error.code === 'LAST_OWNER') {
+        if (result.error.code === 'E_LAST_OWNER') {
           fail(null, m.settings_security_err_delete_owner())
         } else {
           fail('current', result.error.message)

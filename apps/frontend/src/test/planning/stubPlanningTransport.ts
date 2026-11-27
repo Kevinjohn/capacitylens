@@ -263,7 +263,7 @@ export class StubPlanningTransport implements PlanningTransport {
 
   /**
    * Swaps the company's rows back to the recorded before or after state.
-   * A stale basis is refused with STALE_REVISION, an empty
+   * A stale basis is refused with E_STALE_REVISION, an empty
    * direction with a bare 409, and a queued refusal ends the history.
    */
   async #step(
@@ -282,7 +282,7 @@ export class StubPlanningTransport implements PlanningTransport {
     }
     const revision = this.#revision(companyId)
     if (step.baseRevision !== revision) {
-      throw new PlanningCacheError('The planning data changed.', 'STALE_REVISION', 409)
+      throw new PlanningCacheError('The planning data changed.', 'E_STALE_REVISION', 409)
     }
     const history = this.#history(companyId)
     const available = history.model.report(step.historyId, revision)

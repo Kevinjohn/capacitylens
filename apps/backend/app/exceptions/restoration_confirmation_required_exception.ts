@@ -3,7 +3,7 @@ import RestorationConfirmationException from '#exceptions/restoration_confirmati
 /** The change clears restorable items, so the caller must confirm it. */
 export default class RestorationConfirmationRequiredException extends RestorationConfirmationException {
   static status = 409
-  static code = 'RESTORATION_CONFIRMATION_REQUIRED'
+  static code = 'E_RESTORATION_CONFIRMATION_REQUIRED'
 
   constructor(restorableItemCount: number) {
     super(

@@ -5,7 +5,7 @@ import type { PlanningCacheMetadata, PlanningPhase } from './planningCacheTypes'
  * stale revision, and a 403 refusal stays visible as refused. Callers add no notice for either. */
 export function isShownByPlanningState(error: unknown): boolean {
   const { code, status } = getErrorDetails(error)
-  return code === 'STALE_REVISION' || status === 409 || status === 403
+  return code === 'E_STALE_REVISION' || status === 409 || status === 403
 }
 
 /** The failure the planning state shows: a failed read, a read that failed while a write waits

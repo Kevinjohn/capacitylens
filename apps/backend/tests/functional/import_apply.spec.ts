@@ -153,14 +153,14 @@ test.group('beta import apply', (group) => {
       .json({ companyId, document: foreign })
       .send()
     preview.assertStatus(409)
-    assert.deepInclude(preview.body(), { code: 'IMPORT_ID_COLLISION' })
+    assert.deepInclude(preview.body(), { code: 'E_IMPORT_ID_COLLISION' })
     const confirmationId = await proof(client, cookie, {
       baseRevision,
       document: foreign,
     })
     const result = await apply(client, cookie, foreign, baseRevision, confirmationId)
     result.assertStatus(409)
-    assert.deepInclude(result.body(), { code: 'IMPORT_ID_COLLISION' })
+    assert.deepInclude(result.body(), { code: 'E_IMPORT_ID_COLLISION' })
     assert.deepEqual(await readState(companyId, true), before)
     assert.deepEqual(await readState('a-loft', true), otherBefore)
     assert.equal(await revision(), baseRevision)
@@ -685,7 +685,7 @@ test.group('beta import apply', (group) => {
     expired.assertStatus(403)
     assert.deepEqual(expired.body(), {
       error: 'Confirm this action again.',
-      code: 'PASSWORD_CONFIRMATION_REQUIRED',
+      code: 'E_PASSWORD_CONFIRMATION_REQUIRED',
     })
     const refused = await confirmation(confirmationId).firstOrFail()
     assert.equal(refused.verified_at, issued.verified_at)

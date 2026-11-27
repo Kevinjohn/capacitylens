@@ -198,7 +198,7 @@ db.exec('COMMIT')`,
     assert.deepEqual(replies.map((reply) => reply.status()).sort(), [200, 409])
     assert.equal(
       (replies.find((reply) => reply.status() === 409)!.body() as unknown as { code: string }).code,
-      'STALE_REVISION'
+      'E_STALE_REVISION'
     )
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1)
     assert.lengthOf(
@@ -239,7 +239,7 @@ db.exec('COMMIT')`,
     assert.deepEqual(replies.map((reply) => reply.status()).sort(), [200, 409])
     assert.equal(
       (replies.find((reply) => reply.status() === 409)!.body() as unknown as { code: string }).code,
-      'MUTATION_ID_REUSED'
+      'E_MUTATION_ID_REUSED'
     )
     assert.lengthOf(
       await db.from('planning_mutations').where({ company_id: companyId, mutation_id: mutationId }),
@@ -338,7 +338,7 @@ db.exec('COMMIT')`,
         .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'suspended' })
       const lost = await capturedPlanningRead()
       assert.equal(lost.status, 409)
-      assert.equal(lost.body.code, 'MASQUERADE_CONTEXT_CHANGED')
+      assert.equal(lost.body.code, 'E_MASQUERADE_CONTEXT_CHANGED')
       assert.isUndefined(lost.body.data)
       assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0)
     })
@@ -409,7 +409,7 @@ db.exec('COMMIT')`,
         const refused = await pending
         assert.equal(refused.status, 403)
         const body = (await refused.json()) as Record<string, unknown>
-        assert.equal(body.code, 'ACCOUNT_MEMBERSHIP_LOST')
+        assert.equal(body.code, 'E_ACCOUNT_MEMBERSHIP_LOST')
         assert.isUndefined(body.data)
         assert.isUndefined(body.access)
         assert.deepEqual(await readState(companyId, true), before)

@@ -321,7 +321,7 @@ export function toEntityWriteError(error: unknown): unknown {
   if (error instanceof errors.E_VALIDATION_ERROR) {
     const first = error.messages[0]
     if (typeof first?.message === 'string') {
-      return first.rule === 'resource_avatar_url_invalid'
+      return first.rule === 'E_RESOURCE_AVATAR_URL_INVALID'
         ? new ResourceAvatarUrlInvalidException(first.message)
         : new EntityWriteException(first.message)
     }

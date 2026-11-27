@@ -45,17 +45,17 @@ describe('readApiError', () => {
 
 describe('peekApiErrorCode', () => {
   it('reads a string code without consuming the response body', async () => {
-    const response = responseWith({ code: 'SESSION_NOT_FRESH' })
+    const response = responseWith({ code: 'E_SESSION_NOT_FRESH' })
 
-    await expect(readApiErrorCode(response)).resolves.toBe('SESSION_NOT_FRESH')
-    await expect(response.json()).resolves.toEqual({ code: 'SESSION_NOT_FRESH' })
+    await expect(readApiErrorCode(response)).resolves.toBe('E_SESSION_NOT_FRESH')
+    await expect(response.json()).resolves.toEqual({ code: 'E_SESSION_NOT_FRESH' })
   })
 
   it('returns null for an unreadable or consumed response', async () => {
     await expect(readApiErrorCode(responseWith({ error: 'Denied.' }))).resolves.toBeNull()
     await expect(readApiErrorCode(new Response('invalid JSON'))).resolves.toBeNull()
 
-    const consumed = responseWith({ code: 'SESSION_NOT_FRESH' })
+    const consumed = responseWith({ code: 'E_SESSION_NOT_FRESH' })
     await consumed.json()
     await expect(readApiErrorCode(consumed)).resolves.toBeNull()
   })

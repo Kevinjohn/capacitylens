@@ -45,7 +45,7 @@ describe('resource availability boundaries', () => {
       })
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
-        code: 'allocation_before_resource_availability',
+        code: 'E_ALLOCATION_BEFORE_RESOURCE_AVAILABILITY',
       })
     )
   })
@@ -59,7 +59,7 @@ describe('resource availability boundaries', () => {
       })
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
-        code: 'allocation_after_resource_availability',
+        code: 'E_ALLOCATION_AFTER_RESOURCE_AVAILABILITY',
       })
     )
     expect(() =>
@@ -71,11 +71,11 @@ describe('resource availability boundaries', () => {
     ).not.toThrow()
     expect(validateResourceAvailabilityPair('2026-06-16', '2026-06-15')).toMatchObject({
       ok: false,
-      codes: ['date_reversed'],
+      codes: ['E_DATE_REVERSED'],
     })
     expect(validateResourceAvailabilityPair('2026-02-30')).toMatchObject({
       ok: false,
-      codes: ['date_invalid'],
+      codes: ['E_DATE_INVALID'],
     })
   })
 

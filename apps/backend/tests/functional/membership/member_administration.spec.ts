@@ -101,7 +101,7 @@ test.group('company member administration', (group) => {
     mismatch.assertStatus(409)
     assert.deepEqual(mismatch.body(), {
       error: 'Operation id already used.',
-      code: 'IDEMPOTENCY_CONFLICT',
+      code: 'E_IDEMPOTENCY_CONFLICT',
     })
     const audits = await db
       .from('audit_entries')
@@ -410,7 +410,7 @@ test.group('company member administration', (group) => {
     invalidPromotion.assertStatus(400)
     assert.equal(
       (invalidPromotion.body() as unknown as { code: string }).code,
-      'OWNER_TRANSFER_REQUIRED'
+      'E_OWNER_TRANSFER_REQUIRED'
     )
     const ownerDemotion = await asLoggedInDataOwner(
       client.visit('api.members.update', { companyId: 'a-studio', userId: ownerId }),
@@ -488,7 +488,7 @@ test.group('company member administration', (group) => {
         .json({ name: 'Stark Industries' })
         .send()
       second.assertStatus(409)
-      second.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' })
+      second.assertBodyContains({ code: 'E_COMPANY_SETUP_UNAVAILABLE' })
       assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }])
     } finally {
       Date.now = realNow

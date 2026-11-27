@@ -456,7 +456,7 @@ it('rejects a stale edit instead of overwriting a concurrent change', async () =
 
   await useStore.getState().updateTimeOff(entry.id, { type: 'sick' })
   getStubPlanningTransport().failNext(
-    new PlanningCacheError('Time off changed while you were editing.', 'STALE_REVISION', 409)
+    new PlanningCacheError('Time off changed while you were editing.', 'E_STALE_REVISION', 409)
   )
   await user.clear(screen.getByLabelText('Note'))
   await user.type(screen.getByLabelText('Note'), 'Edited note')

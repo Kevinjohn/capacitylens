@@ -20,7 +20,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
     .mockRejectedValueOnce(
       new PlanningCacheError(
         'This change clears 3 restorable items',
-        'RESTORATION_CONFIRMATION_REQUIRED',
+        'E_RESTORATION_CONFIRMATION_REQUIRED',
         409,
         false,
         3
@@ -85,22 +85,34 @@ describe('restoration cleanup confirmation', () => {
     const closed = harness()
     await closed.cache.refresh()
     await expect(closed.cache.execute(closed.cache.begin(), intent)).rejects.toMatchObject({
-      code: 'RESTORATION_CONFIRMATION_REQUIRED',
+      code: 'E_RESTORATION_CONFIRMATION_REQUIRED',
     })
     expect(closed.execute).toHaveBeenCalledTimes(1)
     const confirm = vi.fn(async () => true)
     const h = harness(confirm)
     h.execute.mockReset()
     h.execute.mockRejectedValue(
-      new PlanningCacheError('The count changed.', 'RESTORATION_CONFIRMATION_STALE', 409, false, 2)
+      new PlanningCacheError(
+        'The count changed.',
+        'E_RESTORATION_CONFIRMATION_STALE',
+        409,
+        false,
+        2
+      )
     )
     // First refusal carries the original exact count; the confirmed retry receives the changed count.
     h.execute.mockRejectedValueOnce(
-      new PlanningCacheError('Confirm cleanup.', 'RESTORATION_CONFIRMATION_REQUIRED', 409, false, 3)
+      new PlanningCacheError(
+        'Confirm cleanup.',
+        'E_RESTORATION_CONFIRMATION_REQUIRED',
+        409,
+        false,
+        3
+      )
     )
     await h.cache.refresh()
     await expect(h.cache.execute(h.cache.begin(), intent)).rejects.toMatchObject({
-      code: 'RESTORATION_CONFIRMATION_STALE',
+      code: 'E_RESTORATION_CONFIRMATION_STALE',
     })
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(h.execute).toHaveBeenCalledTimes(2)
@@ -113,7 +125,7 @@ describe('restoration cleanup confirmation', () => {
       .mockRejectedValue(
         new PlanningCacheError(
           'Invalid count.',
-          'RESTORATION_CONFIRMATION_REQUIRED',
+          'E_RESTORATION_CONFIRMATION_REQUIRED',
           409,
           false,
           -1
@@ -121,7 +133,7 @@ describe('restoration cleanup confirmation', () => {
       )
     await h.cache.refresh()
     await expect(h.cache.execute(h.cache.begin(), intent)).rejects.toMatchObject({
-      code: 'RESTORATION_CONFIRMATION_REQUIRED',
+      code: 'E_RESTORATION_CONFIRMATION_REQUIRED',
     })
     expect(confirm).not.toHaveBeenCalled()
     expect(h.execute).toHaveBeenCalledTimes(1)

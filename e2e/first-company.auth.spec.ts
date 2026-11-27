@@ -98,7 +98,7 @@ test('operator setup creates the first Owner, one company and its default client
       headers: { 'sec-fetch-site': 'same-origin' },
     })
     expect(prematureSignUp.status()).toBe(403)
-    expect((await prematureSignUp.json()).code).toBe('SIGN_UP_CLOSED')
+    expect((await prematureSignUp.json()).code).toBe('E_SIGN_UP_CLOSED')
     await page.getByRole('button', { name: 'Sign out', exact: true }).click()
     await page.getByLabel('Email', { exact: true }).fill('bruce@wayne.example')
     await page.getByLabel('Password', { exact: true }).fill('first-company-password-2026')

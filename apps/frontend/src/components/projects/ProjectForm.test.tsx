@@ -53,7 +53,7 @@ describe('ProjectForm', () => {
     getStubPlanningTransport().failNext(
       new PlanningCacheError(
         'This change clears 1 restorable item.',
-        'RESTORATION_CONFIRMATION_REQUIRED',
+        'E_RESTORATION_CONFIRMATION_REQUIRED',
         409,
         false,
         1

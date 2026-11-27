@@ -37,7 +37,7 @@ export default class NewAccountController {
     })
     const { email, name } = body
     if (!capacitylens.allowOpenSignUp || (await this.#installationCompany.hasNoCompany())) {
-      return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
+      return response.forbidden({ error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' })
     }
     try {
       await accountKit.registration.register({
@@ -46,10 +46,10 @@ export default class NewAccountController {
         registrationData: { name },
       })
     } catch (error) {
-      // Keeps the product codes `SIGN_UP_CLOSED` and `EMAIL_IN_USE`, which the Kit's own codes
+      // Keeps the product codes `E_SIGN_UP_CLOSED` and `E_EMAIL_IN_USE`, which the Kit's own codes
       // do not carry and the browser reads.
       if (error instanceof FirstCompanyPendingException) {
-        return response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
+        return response.forbidden({ error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' })
       }
       if (error instanceof E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED) {
         return response.conflict(emailInUseAnswer)

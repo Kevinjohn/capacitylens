@@ -20,7 +20,7 @@ describe('planning cache', () => {
   it('retains the draft revision through refresh and refuses the stale attempt without replay', async () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
-      .mockRejectedValue({ status: 409, code: 'STALE_REVISION' })
+      .mockRejectedValue({ status: 409, code: 'E_STALE_REVISION' })
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 4,
       access: makePlanningAccess(),
@@ -47,7 +47,7 @@ describe('planning cache', () => {
     })
     expect(draft.baseRevision).toBe(3)
     await expect(h.cache.execute(draft, intent)).rejects.toMatchObject({
-      code: 'STALE_REVISION',
+      code: 'E_STALE_REVISION',
     })
     expect(execute).toHaveBeenCalledTimes(1)
     expect(execute.mock.calls[0]?.[1].baseRevision).toBe(3)
@@ -57,7 +57,7 @@ describe('planning cache', () => {
   it('uses the final submitted intent with the revision captured when the gesture began', async () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
-      .mockRejectedValue({ status: 409, code: 'STALE_REVISION' })
+      .mockRejectedValue({ status: 409, code: 'E_STALE_REVISION' })
     const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>().mockResolvedValue({
@@ -89,7 +89,7 @@ describe('planning cache', () => {
       changes: { timezone: 'Europe/Paris' },
     } as PlanningIntent
     await expect(h.cache.execute(gesture, finalIntent)).rejects.toMatchObject({
-      code: 'STALE_REVISION',
+      code: 'E_STALE_REVISION',
     })
     expect(execute.mock.calls[0]?.[1]).toMatchObject({ baseRevision: 1, intent: finalIntent })
   })

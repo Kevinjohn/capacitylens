@@ -40,7 +40,7 @@ describe('typed planning domain refusals', () => {
     await expect(
       useStore.getState().updateClient(foreign.id, { name: 'Changed' })
     ).rejects.toMatchObject({
-      code: 'record_wrong_company',
+      code: 'E_RECORD_WRONG_COMPANY',
     })
     await expect(
       useStore.getState().updateClient('missing', { name: 'Changed' })
@@ -155,7 +155,7 @@ describe('typed planning domain refusals', () => {
         endDate: '2026-06-02',
         type: 'holiday',
       })
-    ).rejects.toMatchObject({ code: 'time_off_resource_invalid' })
+    ).rejects.toMatchObject({ code: 'E_TIME_OFF_RESOURCE_INVALID' })
     expect(useStore.getState().data.timeOff).toHaveLength(0)
   })
 

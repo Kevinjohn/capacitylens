@@ -52,7 +52,7 @@ export default class FirstCompanySetupController {
     if (!result) {
       return response.conflict({
         error: 'First company setup is unavailable for this installation.',
-        code: 'COMPANY_SETUP_UNAVAILABLE',
+        code: 'E_COMPANY_SETUP_UNAVAILABLE',
       })
     }
     return response.created(await serialize({ companyId: result.companyId }))

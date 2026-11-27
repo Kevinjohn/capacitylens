@@ -148,7 +148,7 @@ test.group('password sign-in and sessions', (group) => {
       .json({ currentPassword: 'not-the-password-2026', newPassword: 'another-batman-2026' })
       .send()
     wrong.assertStatus(403)
-    assert.equal((wrong.body() as { code?: string }).code, 'CURRENT_PASSWORD_INCORRECT')
+    assert.equal((wrong.body() as { code?: string }).code, 'E_CURRENT_PASSWORD_INCORRECT')
     await expectStatus(companies(client, phone.cookie), 200)
     const changed = await asDataOwner(client.visit('api.password.update'), laptop.cookie)
       .json({ currentPassword: password, newPassword: 'another-batman-2026' })

@@ -28,7 +28,7 @@ export function validateProjectClient(clientId: ID | undefined | null): Validati
       ? []
       : [
           {
-            code: 'project_client_required',
+            code: 'E_PROJECT_CLIENT_REQUIRED',
             message: 'A project must belong to a client.',
           },
         ]
@@ -52,13 +52,13 @@ export function validateDateRange(
 ): ValidationResult {
   if (!startDate || !endDate) {
     return buildValidationResult([
-      { code: 'date_required', message: 'Start and end dates are required.' },
+      { code: 'E_DATE_REQUIRED', message: 'Start and end dates are required.' },
     ])
   }
   if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
     return buildValidationResult([
       {
-        code: 'date_invalid',
+        code: 'E_DATE_INVALID',
         message: 'Dates must be valid calendar dates (YYYY-MM-DD).',
       },
     ])
@@ -66,7 +66,7 @@ export function validateDateRange(
   if (endDate < startDate) {
     return buildValidationResult([
       {
-        code: 'date_reversed',
+        code: 'E_DATE_REVERSED',
         message: 'End date cannot be before the start date.',
       },
     ])
@@ -75,7 +75,7 @@ export function validateDateRange(
   if (countDaysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
     return buildValidationResult([
       {
-        code: 'date_span_too_long',
+        code: 'E_DATE_SPAN_TOO_LONG',
         message: `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString('en-GB')} calendar days.`,
       },
     ])
@@ -133,12 +133,12 @@ export function validateAllocationAssignment(
   if (resource.kind === 'placeholder' && projectId !== undefined) {
     if (!resource.projectId) {
       issues.push({
-        code: 'placeholder_project_missing',
+        code: 'E_PLACEHOLDER_PROJECT_MISSING',
         message: 'This placeholder is not bound to a project yet.',
       })
     } else if (resource.projectId !== projectId) {
       issues.push({
-        code: 'placeholder_project_mismatch',
+        code: 'E_PLACEHOLDER_PROJECT_MISMATCH',
         message: 'A placeholder can only be assigned to activities from its bound project.',
       })
     }

@@ -1,5 +1,5 @@
 // Every typed planning mutation carries the `baseRevision` it was drafted against.
-// `assertPlanningBaseRevision` refuses a mismatch with 409 `STALE_REVISION`.
+// `assertPlanningBaseRevision` refuses a mismatch with 409 `E_STALE_REVISION`.
 
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception'

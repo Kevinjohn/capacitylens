@@ -105,11 +105,11 @@ test.group('account gate', (group) => {
     ]) {
       const refused = await request.send()
       refused.assertStatus(401)
-      assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' })
+      assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'E_SIGN_IN_REQUIRED' })
     }
     const unmatched = await client.get('/api/v1/no-such-route').send()
     unmatched.assertStatus(401)
-    assert.deepEqual(unmatched.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' })
+    assert.deepEqual(unmatched.body(), { error: 'Sign-in required.', code: 'E_SIGN_IN_REQUIRED' })
   })
 
   test('a signed-in person without admission is refused product routes before the handler and reaches the limited ones', async ({
@@ -130,7 +130,7 @@ test.group('account gate', (group) => {
       const refused = await get(request)
       refused.assertStatus(403)
       const body = refused.body() as { code?: string; error?: string; decision?: unknown }
-      assert.equal(body.code, 'ADMISSION_REQUIRED')
+      assert.equal(body.code, 'E_ADMISSION_REQUIRED')
       assert.equal(body.error, refusal)
       assert.isObject(body.decision)
     }
@@ -142,7 +142,7 @@ test.group('account gate', (group) => {
       .json({ unknown: true } as never)
       .send()
     write.assertStatus(403)
-    assert.equal((write.body() as { code?: string }).code, 'ADMISSION_REQUIRED')
+    assert.equal((write.body() as { code?: string }).code, 'E_ADMISSION_REQUIRED')
     assert.equal((write.body() as { error?: string }).error, refusal)
 
     for (const [request, status] of [
@@ -181,7 +181,7 @@ test.group('account gate', (group) => {
     )
     for (const response of limited) {
       assert.notEqual(response.status(), 401)
-      assert.notEqual((response.body() as { code?: string }).code, 'ADMISSION_REQUIRED')
+      assert.notEqual((response.body() as { code?: string }).code, 'E_ADMISSION_REQUIRED')
     }
   })
 
@@ -202,7 +202,7 @@ test.group('account gate', (group) => {
     ]) {
       const refused = await request.header('cookie', cookieHeader).send()
       refused.assertStatus(401)
-      assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' })
+      assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'E_SIGN_IN_REQUIRED' })
     }
   })
 })

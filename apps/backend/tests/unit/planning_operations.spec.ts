@@ -608,7 +608,7 @@ test.group('planning operation contracts', () => {
     }
     assert.instanceOf(conflict, StalePlanningRevisionException)
     assert.equal((conflict as StalePlanningRevisionException).status, 409)
-    assert.equal((conflict as StalePlanningRevisionException).code, 'STALE_REVISION')
+    assert.equal((conflict as StalePlanningRevisionException).code, 'E_STALE_REVISION')
     assert.doesNotThrow(() => planningRevisions.assertPlanningBaseRevision(5, 5, uuid))
   })
 })

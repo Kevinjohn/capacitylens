@@ -72,7 +72,7 @@ function makeWorld(): AppData {
 
 const pass = undefined
 const refusal = (code: DomainErrorCode, message: string): Failure => ({ code, message })
-const wrongCompany = (message: string) => refusal('reference_wrong_company', message)
+const wrongCompany = (message: string) => refusal('E_REFERENCE_WRONG_COMPANY', message)
 
 const projectClient = wrongCompany('Project must reference a client in this company.')
 const phaseProject = wrongCompany('Phase must reference a project in this company.')
@@ -80,79 +80,79 @@ const activityProject = wrongCompany('Activity must reference a project in this 
 const discipline = wrongCompany('Resource discipline must belong to this company.')
 const placeholderProject = wrongCompany('Placeholder project must belong to this company.')
 const projectRequired = refusal(
-  'activity_project_required',
+  'E_ACTIVITY_PROJECT_REQUIRED',
   'A project-specific activity must be assigned to a project.'
 )
 const projectForbidden = refusal(
-  'activity_project_forbidden',
+  'E_ACTIVITY_PROJECT_FORBIDDEN',
   'An internal or all-projects activity cannot belong to a project.'
 )
 const phaseForbidden = refusal(
-  'activity_phase_forbidden',
+  'E_ACTIVITY_PHASE_FORBIDDEN',
   'An internal or all-projects activity cannot belong to a phase.'
 )
 const phaseWrongCompany = refusal(
-  'activity_phase_wrong_company',
+  'E_ACTIVITY_PHASE_WRONG_COMPANY',
   'Activity phase must belong to this company.'
 )
 const phaseNeedsProject = refusal(
-  'activity_phase_project_required',
+  'E_ACTIVITY_PHASE_PROJECT_REQUIRED',
   'An activity with a phase must also belong to that phase’s project.'
 )
 const phaseMismatch = refusal(
-  'activity_phase_project_mismatch',
+  'E_ACTIVITY_PHASE_PROJECT_MISMATCH',
   'Activity phase must belong to the activity’s project.'
 )
 const avatarForbidden = refusal(
-  'resource_avatar_url_forbidden',
+  'E_RESOURCE_AVATAR_URL_FORBIDDEN',
   'Only a person can have an avatar URL.'
 )
 const avatarInvalid = refusal(
-  'resource_avatar_url_invalid',
+  'E_RESOURCE_AVATAR_URL_INVALID',
   'Avatar URL must be a normalised HTTPS URL without credentials.'
 )
 const bindingForbidden = refusal(
-  'resource_project_forbidden',
+  'E_RESOURCE_PROJECT_FORBIDDEN',
   'Only a placeholder can be assigned to a project.'
 )
 const kindChanged = refusal(
-  'resource_kind_immutable',
+  'E_RESOURCE_KIND_IMMUTABLE',
   'A resource’s kind cannot change after creation.'
 )
 const kindCorrupt = refusal(
-  'resource_kind_immutable',
+  'E_RESOURCE_KIND_IMMUTABLE',
   'The stored resource kind is invalid and must be repaired by import.'
 )
 const references = refusal(
-  'allocation_references_invalid',
+  'E_ALLOCATION_REFERENCES_INVALID',
   'Allocation must reference an existing resource and activity in this company.'
 )
 const resourceInactive = refusal(
-  'allocation_resource_inactive',
+  'E_ALLOCATION_RESOURCE_INACTIVE',
   'Allocation must reference an active resource in this company.'
 )
 const activityInactive = refusal(
-  'allocation_activity_inactive',
+  'E_ALLOCATION_ACTIVITY_INACTIVE',
   'Allocation must reference an activity under an active project.'
 )
 const attributionForbidden = refusal(
-  'allocation_project_forbidden',
+  'E_ALLOCATION_PROJECT_FORBIDDEN',
   'Only an all-projects activity allocation can be attributed to a project.'
 )
 const projectInactive = refusal(
-  'allocation_project_inactive',
+  'E_ALLOCATION_PROJECT_INACTIVE',
   'Allocation must reference an activity under an active project in this company.'
 )
 const placeholderMismatch = refusal(
-  'placeholder_project_mismatch',
+  'E_PLACEHOLDER_PROJECT_MISMATCH',
   'A placeholder can only be assigned to activities from its bound project.'
 )
 const placeholderUnbound = refusal(
-  'placeholder_project_missing',
+  'E_PLACEHOLDER_PROJECT_MISSING',
   'This placeholder is not bound to a project yet.'
 )
 const externalHours = refusal(
-  'external_allocation_hours',
+  'E_EXTERNAL_ALLOCATION_HOURS',
   'An external party’s allocation can’t carry hours.'
 )
 
@@ -166,7 +166,7 @@ describe('getOwned', () => {
 
   it('refuses a row that belongs to another company', () => {
     expect(captureFailure(() => getOwned(makeWorld(), A1, 'clients', 'c-loft'))).toEqual(
-      refusal('record_wrong_company', 'That record does not belong to the active company.')
+      refusal('E_RECORD_WRONG_COMPANY', 'That record does not belong to the active company.')
     )
   })
 })

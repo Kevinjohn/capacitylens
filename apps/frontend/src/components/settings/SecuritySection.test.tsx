@@ -81,7 +81,7 @@ it('clears obsolete inputs and reports a committed password change when follow-u
   changePassword.mockResolvedValue({
     data: null,
     error: {
-      code: 'CREDENTIAL_UPDATE_COMMITTED',
+      code: 'E_CREDENTIAL_UPDATE_COMMITTED',
       message: 'Credential update completed, but a follow-up failed.',
       status: 503,
     },
@@ -273,7 +273,7 @@ it.each([
     'committed success with a follow-up warning',
     {
       data: null,
-      error: { code: 'CREDENTIAL_UPDATE_COMMITTED', message: 'Cleanup failed.', status: 503 },
+      error: { code: 'E_CREDENTIAL_UPDATE_COMMITTED', message: 'Cleanup failed.', status: 503 },
     },
   ],
 ])('navigates after %s even when its dialog was dismissed', async (_label, response) => {
@@ -375,7 +375,7 @@ it.each(['Escape', 'backdrop'] as const)(
     await act(async () =>
       finishRequest({
         data: null,
-        error: { code: 'CREDENTIAL_UPDATE_COMMITTED', message: 'Cleanup failed.', status: 503 },
+        error: { code: 'E_CREDENTIAL_UPDATE_COMMITTED', message: 'Cleanup failed.', status: 503 },
       })
     )
     expect(assign).toHaveBeenCalledTimes(1)
@@ -412,7 +412,7 @@ it('keeps an Owner signed in and explains the ownership transfer', async () => {
   vi.stubGlobal('location', { ...window.location, assign })
   deleteAccount.mockResolvedValue({
     data: null,
-    error: { code: 'LAST_OWNER', message: 'Transfer ownership first.', status: 409 },
+    error: { code: 'E_LAST_OWNER', message: 'Transfer ownership first.', status: 409 },
   })
   renderSecurity({ deleteOpen: true })
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
@@ -428,7 +428,7 @@ it('shows a wrong deletion password against the field and sends nothing else', a
   deleteAccount.mockResolvedValue({
     data: null,
     error: {
-      code: 'CURRENT_PASSWORD_INCORRECT',
+      code: 'E_CURRENT_PASSWORD_INCORRECT',
       message: 'Current password is incorrect.',
       status: 403,
     },
@@ -448,7 +448,7 @@ it('returns to sign-in after a committed deletion whose follow-up failed', async
   deleteAccount.mockResolvedValue({
     data: null,
     error: {
-      code: 'ACCOUNT_DELETION_COMMITTED',
+      code: 'E_ACCOUNT_DELETION_COMMITTED',
       message: 'Your account was deleted, but a follow-up step failed.',
       status: 503,
     },

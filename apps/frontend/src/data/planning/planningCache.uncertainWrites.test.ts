@@ -31,7 +31,7 @@ const lostReplies: Array<{ name: string; lose: (execute: Execute) => void }> = [
   { name: 'HTTP 503', lose: (execute) => execute.mockRejectedValueOnce({ status: 503 }) },
   {
     name: 'a reused mutation id',
-    lose: (execute) => execute.mockRejectedValueOnce({ status: 409, code: 'MUTATION_ID_REUSED' }),
+    lose: (execute) => execute.mockRejectedValueOnce({ status: 409, code: 'E_MUTATION_ID_REUSED' }),
   },
 ]
 

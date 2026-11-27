@@ -89,7 +89,7 @@ function assertResourceKindAllowsDependents({
   const hasTimeOff = data.timeOff.some((timeOff) => isOwnedByResource(timeOff))
   if (hasLoadedAllocation || hasTimeOff) {
     throwDomainError(
-      'resource_external_dependents',
+      'E_RESOURCE_EXTERNAL_DEPENDENTS',
       'Reassign or remove this resource’s work and time off before making it external.'
     )
   }
@@ -124,7 +124,7 @@ function assertResourceProjectAllowsDependents({
     companyId,
     id: resourceId,
     edit: { side: 'resource', merged, ...(existing === undefined ? {} : { existing }) },
-    code: 'placeholder_project_dependents',
+    code: 'E_PLACEHOLDER_PROJECT_DEPENDENTS',
     message: 'Reassign or remove this placeholder’s work before changing its bound project.',
   })
 }
@@ -208,7 +208,7 @@ function assertActivityProjectAllowsDependents({
     companyId,
     id: activityId,
     edit: { side: 'activity', merged, ...(existing === undefined ? {} : { existing }) },
-    code: 'activity_project_dependents',
+    code: 'E_ACTIVITY_PROJECT_DEPENDENTS',
     message: 'Reassign placeholder work before changing this activity’s project.',
   })
 }
@@ -240,7 +240,7 @@ function assertResourceExists({
   })
   if (!resource) {
     throwDomainError(
-      'time_off_resource_invalid',
+      'E_TIME_OFF_RESOURCE_INVALID',
       'Time off must reference an existing resource in this company.'
     )
   }
@@ -249,13 +249,13 @@ function assertResourceExists({
     !isEffectivelyActive({ data, table: 'resources', row: resource })
   ) {
     throwDomainError(
-      'time_off_resource_inactive',
+      'E_TIME_OFF_RESOURCE_INACTIVE',
       'Time off must reference an active resource in this company.'
     )
   }
   if (isExternalResource(resource)) {
     throwDomainError(
-      'time_off_external_resource',
+      'E_TIME_OFF_EXTERNAL_RESOURCE',
       'Time off can’t be recorded for an external party.'
     )
   }
