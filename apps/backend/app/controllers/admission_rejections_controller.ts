@@ -3,7 +3,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { AdmissionDecisionService } from '#services/admission/admission_decision_service'
 import { CurrentActorService } from '#services/auth/current_actor_service'
 import { decideAdmissionValidator } from '#validators/admission_query'
-import { requestData } from '#validators/request_rules'
 
 /**
  * An Owner or Admin rejects a person's admission. The Account Kit authorises every decision; it
@@ -20,9 +19,7 @@ export default class AdmissionRejectionsController {
   }
 
   async store({ auth, request, serialize }: HttpContext) {
-    const { params } = await request.validateUsing(decideAdmissionValidator, {
-      data: requestData(request),
-    })
+    const { params } = await request.validateUsing(decideAdmissionValidator)
     const { userId } = params
     const actor = await this.#currentActor.readCurrentAccount(auth)
     return serialize(

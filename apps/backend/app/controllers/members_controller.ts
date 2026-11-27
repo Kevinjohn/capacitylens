@@ -6,7 +6,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { AuthorizationService } from '#services/auth/authorization_service'
 import { CurrentActorService } from '#services/auth/current_actor_service'
 import { changeRoleValidator, listMembersValidator } from '#validators/members'
-import { requestData } from '#validators/request_rules'
 import { AccountOperationService } from '#services/account_operation_service'
 
 /** Lists company members and applies member operations under live management permission. */
@@ -36,9 +35,7 @@ export default class MembersController {
   }
 
   async index({ auth, request, serialize }: HttpContext) {
-    const { params } = await request.validateUsing(listMembersValidator, {
-      data: requestData(request),
-    })
+    const { params } = await request.validateUsing(listMembersValidator)
     const { companyId } = params
     const directory = await this.#currentActor.withActor(auth, async (_actor, trx) => {
       const actor = await this.#authorization.assertCompanyPermission(
@@ -52,9 +49,7 @@ export default class MembersController {
   }
 
   async update({ auth, request, serialize }: HttpContext) {
-    const { role, params, headers } = await request.validateUsing(changeRoleValidator, {
-      data: requestData(request, request.body()),
-    })
+    const { role, params, headers } = await request.validateUsing(changeRoleValidator)
     const { companyId, userId } = params
     const command = this.#accountOperations.resolveAccountOperation(
       headers['x-account-operation-id'],

@@ -4,7 +4,6 @@ import { CurrentActorService } from '#services/auth/current_actor_service'
 import { PasswordConfirmationService } from '#services/auth/password_confirmation_service'
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main'
 import { anonymiseCompanyValidator } from '#validators/anonymise'
-import { requestData } from '#validators/request_rules'
 import { AnonymisationService } from '#services/anonymisation_service'
 
 /** Anonymises every person in the company after a password confirmation. */
@@ -25,9 +24,7 @@ export default class CompanyAnonymisationsController {
   }
 
   async store({ auth, request, response }: HttpContext) {
-    const body = await request.validateUsing(anonymiseCompanyValidator, {
-      data: requestData(request, request.body()),
-    })
+    const body = await request.validateUsing(anonymiseCompanyValidator)
     const { companyId } = body.params
     await this.#currentActor.withActor(auth, async (_actor, trx) => {
       const actor = await this.#passwordConfirmationRules.requirePasswordConfirmationActor(

@@ -10,13 +10,18 @@ import {
 import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password'
 import { MAX_NAME_LENGTH, countUnicodeCharacters } from '@capacitylens/shared/lib/strings'
 
+/** The keys AdonisJS `request.validateUsing` places beside request data at the root. */
+export const REQUEST_CONTEXT_FIELDS = ['params', 'headers', 'cookies']
+
 /** Refuses a body that carries a key outside `fields`. */
 export const allowedFields = vine.createRule((value, options: { fields: string[] }, field) => {
+  const allowed =
+    field.wildCardPath === '' ? [...options.fields, ...REQUEST_CONTEXT_FIELDS] : options.fields
   if (
     value &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
-    Object.keys(value).some((key) => !options.fields.includes(key))
+    Object.keys(value).some((key) => !allowed.includes(key))
   ) {
     field.report('Unsupported field.', 'unknownField', field)
   }
@@ -63,14 +68,11 @@ export const displayName = vine.createRule((value, _options, field) => {
 /** Account identity ids accepted in admission, member and ownership requests. */
 export const USER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/
 
-/** The keys `requestData` places beside the request source; list them in `allowedFields`. */
-export const REQUEST_CONTEXT_FIELDS = ['params', 'headers']
-
 /**
- * The data an action's validator reads: the one request source (departure 22), the body for a write
- * or the query string for a read, with the route parameters and headers beside it under `params`
- * and `headers`, where the framework's own `validateUsing` places them. A source that carries one
- * of those keys itself is refused rather than overwritten.
+ * The data a credential or bearer-token validator reads: the request body alone (departure 22),
+ * with route parameters and headers beside it under `params` and `headers`, so credentials are
+ * never accepted from a URL query string. A body that carries one of those keys itself is refused
+ * rather than overwritten.
  */
 export function requestData(request: HttpContext['request'], source: unknown = {}) {
   const fields = source !== null && typeof source === 'object' ? source : {}

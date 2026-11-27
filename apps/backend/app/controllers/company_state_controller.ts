@@ -29,9 +29,7 @@ export default class CompanyStateController {
   }
 
   async show({ auth, request, serialize }: HttpContext) {
-    const { companyId, includeInactive } = await request.validateUsing(exportQueryValidator, {
-      data: request.qs(),
-    })
+    const { companyId, includeInactive } = await request.validateUsing(exportQueryValidator)
     return serialize(
       await this.#currentActor.withActor(auth, async (_actor, trx) => {
         // Under view-as this also refuses unless the actor may view the named company as its member.

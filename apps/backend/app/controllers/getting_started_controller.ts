@@ -8,7 +8,6 @@ import {
   showGettingStartedValidator,
   updateGettingStartedValidator,
 } from '#validators/getting_started'
-import { requestData } from '#validators/request_rules'
 import { GettingStartedService } from '#services/getting_started_service'
 
 @inject()
@@ -28,9 +27,7 @@ export default class GettingStartedController {
   }
 
   async show({ auth, request, serialize }: HttpContext) {
-    const { params } = await request.validateUsing(showGettingStartedValidator, {
-      data: requestData(request),
-    })
+    const { params } = await request.validateUsing(showGettingStartedValidator)
     const { companyId } = params
     return serialize(
       await this.#currentActor.withActor(auth, async (_actor, trx) => {
@@ -44,9 +41,7 @@ export default class GettingStartedController {
   }
 
   async update({ auth, request, serialize }: HttpContext) {
-    const { params } = await request.validateUsing(updateGettingStartedValidator, {
-      data: requestData(request, request.body()),
-    })
+    const { params } = await request.validateUsing(updateGettingStartedValidator)
     const { companyId } = params
     const now = new Date().toISOString()
     await this.#currentActor.withActor(auth, async (_actor, trx) => {

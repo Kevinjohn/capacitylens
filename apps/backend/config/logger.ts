@@ -2,8 +2,43 @@ import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types'
 import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger'
-import UnexpectedException from '#exceptions/unexpected_exception'
-import { describeFailure } from '#services/logging_safety'
+
+/** Marks an unexpected product exception so the `err` serializer recognises it without importing `app/`. */
+export const UNEXPECTED_EXCEPTION = Symbol.for('capacitylens.unexpected_exception')
+
+interface UnexpectedErrorShape extends Error {
+  readonly [UNEXPECTED_EXCEPTION]: true
+  readonly errorType?: string
+  readonly status?: number
+}
+
+function isUnexpectedException(error: unknown): error is UnexpectedErrorShape {
+  return error instanceof Error && UNEXPECTED_EXCEPTION in error
+}
+
+/** The class, stack frames and cause classes of an error, without any message text. */
+export function describeFailure(error: unknown): {
+  errorName: string
+  stack: string[]
+  causes: string[]
+} {
+  if (!(error instanceof Error)) return { errorName: typeof error, stack: [], causes: [] }
+  // Frame lines start with whitespace and `at `; the first line, which carries the message, does not.
+  const stack =
+    typeof error.stack === 'string'
+      ? error.stack
+          .split('\n')
+          .filter((line) => /^\s+at /.test(line))
+          .slice(0, 30)
+      : []
+  const causes: string[] = []
+  let cause: unknown = error.cause
+  while (causes.length < 5 && cause !== undefined && cause !== null) {
+    causes.push(cause instanceof Error ? cause.constructor.name : typeof cause)
+    cause = cause instanceof Error ? cause.cause : undefined
+  }
+  return { errorName: error.constructor.name, stack, causes }
+}
 
 const ERROR_CATEGORIES = new Map<string, string>([
   ['E_VALIDATION_ERROR', 'validation'],
@@ -62,7 +97,7 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
        */
       serializers: {
         err(error: unknown) {
-          if (error instanceof UnexpectedException) {
+          if (isUnexpectedException(error)) {
             return {
               errorType: error.errorType ?? classifyLogError(error.cause),
               status: error.status,

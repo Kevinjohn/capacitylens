@@ -10,8 +10,8 @@ import MasqueradeUnavailableException from '#exceptions/masquerade_unavailable_e
 import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
-  // In development a 500 carries the error's message and stack.
-  protected debug = app.inDev
+  // Outside production a 500 carries the error's message and stack.
+  protected debug = !app.inProduction
 
   /** Every answer below 500 is an expected refusal and is not logged. */
   protected ignoreStatuses = Array.from({ length: 100 }, (_, offset) => 400 + offset)

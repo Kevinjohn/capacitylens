@@ -102,21 +102,20 @@ test.group('company route identifier bounds', (group) => {
     }
   })
 
-  test('a body that names params itself is refused, not overwritten', async ({
+  test('a credential body that names params itself is refused, not overwritten', async ({
     client,
     assert,
   }) => {
-    const user = await User.findOrFail(
-      await createIdentity(owner.email, { name: owner.name, password: owner.password })
-    )
-    await createFixtureCompanyForOwner(user.id, 'Wayne Enterprises', 'a-studio')
-    const response = await asLoggedInDataOwner(
-      client
-        .visit('api.getting_started.update', { companyId: 'a-studio' })
-        // Deliberately outside the generated body type, to reach the server's refusal.
-        .json({ dismissed: true, params: { companyId: 'a-studio' } } as never),
-      user
-    ).send()
+    const response = await client
+      .visit('api.session.store')
+      .header('sec-fetch-site', 'same-origin')
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({
+        email: owner.email,
+        password: owner.password,
+        params: { companyId: 'a-studio' },
+      } as never)
+      .send()
     response.assertStatus(422)
     assert.deepEqual((response.body() as unknown as { errors: unknown }).errors, [
       { message: 'Unsupported field.', rule: 'unknownField', field: 'params' },

@@ -9,7 +9,6 @@ import {
   listInvitationsValidator,
   revokeInvitationValidator,
 } from '#validators/invitations'
-import { requestData } from '#validators/request_rules'
 
 /**
  * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.
@@ -26,7 +25,7 @@ export default class InvitationsController {
   }
 
   async store({ auth, request, response, logger, serialize }: HttpContext) {
-    const body = await request.validateUsing(createInvitationValidator, { data: request.body() })
+    const body = await request.validateUsing(createInvitationValidator)
     const { email } = body
     const actorId = await this.#invitations.requireInvitationManager(auth, body.companyId)
     if (!this.#mailDelivery.isMailConfigured()) {
@@ -51,9 +50,7 @@ export default class InvitationsController {
   }
 
   async index({ auth, request, serialize }: HttpContext) {
-    const { params } = await request.validateUsing(listInvitationsValidator, {
-      data: requestData(request),
-    })
+    const { params } = await request.validateUsing(listInvitationsValidator)
     const actorId = await this.#invitations.requireInvitationManager(auth, params.companyId)
     // The Kit pages at 100; a small company's open invitations are read in full.
     const invites = []
@@ -72,9 +69,7 @@ export default class InvitationsController {
   }
 
   async destroy({ auth, request, response }: HttpContext) {
-    const { params } = await request.validateUsing(revokeInvitationValidator, {
-      data: requestData(request),
-    })
+    const { params } = await request.validateUsing(revokeInvitationValidator)
     const { id } = params
     const actorId = await this.#invitations.requireInvitationManager(auth, params.companyId)
     await accountKit.invitations.revoke({ actorId, invitationId: id })

@@ -520,7 +520,19 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'database constraint',
-    () => answered(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' })),
+    async () => {
+      const { default: app } = await import('@adonisjs/core/services/app')
+      const descriptor = Object.getOwnPropertyDescriptor(app, 'inProduction')
+      Object.defineProperty(app, 'inProduction', { configurable: true, value: true })
+      try {
+        return await answered(
+          Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' })
+        )
+      } finally {
+        if (descriptor) Object.defineProperty(app, 'inProduction', descriptor)
+        else Reflect.deleteProperty(app, 'inProduction')
+      }
+    },
     500,
     { error: 'Internal server error.' },
   ],
@@ -701,8 +713,16 @@ test.group('product error adapters', () => {
       payload: 'SENTINEL_PAYLOAD',
     })
     const { ctx, result, diagnostics } = context(error)
-    await new HttpExceptionHandler().handle(error, ctx)
-    await new HttpExceptionHandler().report(error, ctx)
+    const { default: app } = await import('@adonisjs/core/services/app')
+    const descriptor = Object.getOwnPropertyDescriptor(app, 'inProduction')
+    Object.defineProperty(app, 'inProduction', { configurable: true, value: true })
+    try {
+      await new HttpExceptionHandler().handle(error, ctx)
+      await new HttpExceptionHandler().report(error, ctx)
+    } finally {
+      if (descriptor) Object.defineProperty(app, 'inProduction', descriptor)
+      else Reflect.deleteProperty(app, 'inProduction')
+    }
     assert.equal(result.status, 500)
     assert.deepEqual(result.body, { error: 'Internal server error.' })
     assert.lengthOf(diagnostics, 1)

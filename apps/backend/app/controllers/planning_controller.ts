@@ -3,7 +3,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { PlanningService } from '#services/planning_service'
 import { planningReadValidator } from '#validators/planning'
 import { CurrentActorService } from '#services/auth/current_actor_service'
-import { requestData } from '#validators/request_rules'
 
 /** Planning reads. */
 @inject()
@@ -17,10 +16,8 @@ export default class PlanningController {
   }
 
   async show({ auth, request, serialize }: HttpContext) {
-    const { from, to, historyId, ifRevision, params } = await request.validateUsing(
-      planningReadValidator,
-      { data: requestData(request, request.qs()) }
-    )
+    const { from, to, historyId, ifRevision, params } =
+      await request.validateUsing(planningReadValidator)
     const { companyId } = params
     const window = from !== undefined && to !== undefined ? { from, to } : undefined
     return serialize(

@@ -76,9 +76,21 @@ test.group('password confirmation errors', () => {
           },
         },
       } as unknown as HttpContext
-      const handler = new HttpExceptionHandler()
-      await handler.handle(error, ctx)
-      await handler.report(error, ctx)
+      const { default: app } = await import('@adonisjs/core/services/app')
+      const descriptor = Object.getOwnPropertyDescriptor(app, 'inProduction')
+      if (status === 500) {
+        Object.defineProperty(app, 'inProduction', { configurable: true, value: true })
+      }
+      try {
+        const handler = new HttpExceptionHandler()
+        await handler.handle(error, ctx)
+        await handler.report(error, ctx)
+      } finally {
+        if (status === 500) {
+          if (descriptor) Object.defineProperty(app, 'inProduction', descriptor)
+          else Reflect.deleteProperty(app, 'inProduction')
+        }
+      }
       assert.equal(actualStatus, status)
       assert.deepEqual(body, expected)
       const retryAfter =

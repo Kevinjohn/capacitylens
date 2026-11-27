@@ -51,7 +51,10 @@ export function context(error: unknown, routeName?: string) {
         id: () => undefined,
         accepts: () => 'json',
         qs: () => ({}),
-        // The planning read's first step reads the route parameters; that is where `error` is thrown.
+        // The planning read's first step validates the request; that is where `error` is thrown.
+        validateUsing() {
+          throw error
+        },
         params() {
           throw error
         },
