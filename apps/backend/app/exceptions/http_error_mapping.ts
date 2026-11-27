@@ -4,6 +4,7 @@
 // a Vine validation failure takes the framework's answer.
 
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+import { errors as authErrors } from '@adonisjs/auth'
 import { errors as httpServerErrors } from '@adonisjs/core/http'
 import { errors as limiterErrors } from '@adonisjs/limiter'
 import { CompanyExportError } from '@capacitylens/shared/data/companyExport'
@@ -182,6 +183,12 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
 
 function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
   if (typeof error !== 'object' || error === null) return
+  if (error instanceof authErrors.E_UNAUTHORIZED_ACCESS) {
+    return {
+      status: 401,
+      body: { error: 'Sign-in required.', code: 'E_SIGN_IN_REQUIRED' },
+    }
+  }
   const code = 'code' in error ? error.code : undefined
   if (error instanceof httpServerErrors.E_ROUTE_NOT_FOUND) {
     return {

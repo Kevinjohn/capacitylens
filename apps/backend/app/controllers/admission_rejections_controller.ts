@@ -1,7 +1,6 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { AdmissionDecisionService } from '#services/admission/admission_decision_service'
-import { CurrentActorService } from '#services/auth/current_actor_service'
 import { decideAdmissionValidator } from '#validators/admission_query'
 import { requestData } from '#validators/request_rules'
 
@@ -11,12 +10,10 @@ import { requestData } from '#validators/request_rules'
  */
 @inject()
 export default class AdmissionRejectionsController {
-  #currentActor: CurrentActorService
   #decisions: AdmissionDecisionService
 
-  constructor(decisions: AdmissionDecisionService, currentActor: CurrentActorService) {
+  constructor(decisions: AdmissionDecisionService) {
     this.#decisions = decisions
-    this.#currentActor = currentActor
   }
 
   async store({ auth, request, serialize }: HttpContext) {
@@ -24,7 +21,7 @@ export default class AdmissionRejectionsController {
       data: requestData(request),
     })
     const { userId } = params
-    const actor = await this.#currentActor.readCurrentAccount(auth)
+    const actor = auth.getUserOrFail()
     return serialize(
       await this.#decisions.decide({ actorId: actor.id, userId, decision: 'reject' })
     )
