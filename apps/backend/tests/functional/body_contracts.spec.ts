@@ -1,23 +1,23 @@
-import { test } from '@japa/runner';
-import db from '@adonisjs/lucid/services/db';
-import limiter from '@adonisjs/limiter/services/main';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
-import { captureMail } from '#tests/helpers/identities';
+import { test } from '@japa/runner'
+import db from '@adonisjs/lucid/services/db'
+import limiter from '@adonisjs/limiter/services/main'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture'
+import { captureMail } from '#tests/helpers/identities'
 
-type Method = 'post' | 'put' | 'patch' | 'delete';
+type Method = 'post' | 'put' | 'patch' | 'delete'
 
 interface BodyContract {
-  method: Method;
-  url: (companyId: string) => string;
-  body: (companyId: string) => Record<string, unknown>;
+  method: Method
+  url: (companyId: string) => string
+  body: (companyId: string) => Record<string, unknown>
   /** Keys whose value Vine accepts in any form; they have their own parser. */
-  untyped?: string[];
+  untyped?: string[]
   /** Keys validated as a strict boolean or number, refused in string form. */
-  scalar?: Record<string, string>;
+  scalar?: Record<string, string>
 }
 
-const password = 'krypton-password-2026';
+const password = 'krypton-password-2026'
 
 const contracts: Record<string, BodyContract> = {
   'api.first_company_setup.store': {
@@ -140,35 +140,35 @@ const contracts: Record<string, BodyContract> = {
     url: (companyId) => `/api/v1/companies/${companyId}/ownership-transfer`,
     body: () => ({ toUserId: 'u1', confirmationId: '00000000-0000-0000-0000-000000000000' }),
   },
-};
+}
 
 test.group('request body contracts', (group) => {
-  group.setup(() => freshDatabase());
-  group.each.setup(() => limiter.clear());
+  group.setup(() => freshDatabase())
+  group.each.setup(() => limiter.clear())
 
   test('{$self} refuses unknown keys and wrongly typed values')
     .with(Object.keys(contracts))
     .run(async ({ client, assert, cleanup }, name) => {
-      captureMail(cleanup);
-      const contract = contracts[name];
-      const owner = await resetAuthenticatedClient(client);
-      const { id: companyId } = await db.from('companies').select('id').firstOrFail();
-      const valid = contract.body(companyId);
+      captureMail(cleanup)
+      const contract = contracts[name]
+      const owner = await resetAuthenticatedClient(client)
+      const { id: companyId } = await db.from('companies').select('id').firstOrFail()
+      const valid = contract.body(companyId)
       const refusals: [string, Record<string, unknown>][] = [
         ['unknown key', { ...valid, extra: true }],
-      ];
+      ]
       for (const key of Object.keys(valid)) {
-        if (contract.untyped?.includes(key)) continue;
-        refusals.push([`${key} as an array`, { ...valid, [key]: [] }]);
-        const stringForm = contract.scalar?.[key];
+        if (contract.untyped?.includes(key)) continue
+        refusals.push([`${key} as an array`, { ...valid, [key]: [] }])
+        const stringForm = contract.scalar?.[key]
         if (stringForm !== undefined) {
-          refusals.push([`${key} as a string`, { ...valid, [key]: stringForm }]);
+          refusals.push([`${key} as a string`, { ...valid, [key]: stringForm }])
         }
       }
       for (const [label, body] of refusals) {
-        const response = await owner[contract.method](contract.url(companyId)).json(body).send();
-        assert.equal(response.status(), 422, `${name}: ${label}`);
-        assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors, `${name}: ${label}`);
+        const response = await owner[contract.method](contract.url(companyId)).json(body).send()
+        assert.equal(response.status(), 422, `${name}: ${label}`)
+        assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors, `${name}: ${label}`)
       }
-    });
-});
+    })
+})

@@ -1,30 +1,30 @@
-import { useStore } from './useStore';
-import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { AppData } from '@capacitylens/shared/types/entities';
+import { useStore } from './useStore'
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
-const emptyScopedData = createEmptyAppData();
-const activeCache = new WeakMap<AppData, AppData>();
+const emptyScopedData = createEmptyAppData()
+const activeCache = new WeakMap<AppData, AppData>()
 
 /** The published dataset when it is `companyId`'s, otherwise one stable empty dataset. The planning
  * read is rejected unless every row is the context company's, so only a whole dataset can belong
  * to another company: the previous one, while a company switch has not reached the planning context.
  */
 export function resolveSharedScopedData(data: AppData, companyId: string | null): AppData {
-  const [company, ...others] = data.companies;
+  const [company, ...others] = data.companies
   return companyId !== null && company?.id === companyId && others.length === 0
     ? data
-    : emptyScopedData;
+    : emptyScopedData
 }
 
 /** Memoizes the active-only projection of a company-scoped set. */
 export function resolveSharedActiveData(data: AppData): AppData {
-  let active = activeCache.get(data);
+  let active = activeCache.get(data)
   if (!active) {
-    active = buildActiveData(data);
-    activeCache.set(data, active);
+    active = buildActiveData(data)
+    activeCache.set(data, active)
   }
-  return active;
+  return active
 }
 
 /**
@@ -36,7 +36,7 @@ export function resolveSharedActiveData(data: AppData): AppData {
  * @returns The active company's {@link AppData} set, or an empty `AppData` when no company is active.
  */
 export function useScopedData(): AppData {
-  return useStore((state) => resolveSharedScopedData(state.data, state.activeCompanyId));
+  return useStore((state) => resolveSharedScopedData(state.data, state.activeCompanyId))
 }
 
 /**
@@ -53,6 +53,6 @@ export function useScopedData(): AppData {
  * @returns The active company's {@link AppData} set with archived/soft-deleted rows excluded.
  */
 export function useActiveScopedData(): AppData {
-  const base = useScopedData();
-  return resolveSharedActiveData(base);
+  const base = useScopedData()
+  return resolveSharedActiveData(base)
 }

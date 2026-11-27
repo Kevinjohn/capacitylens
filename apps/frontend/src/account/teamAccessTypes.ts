@@ -1,50 +1,50 @@
-import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types';
-import type { Role } from '@capacitylens/shared/domain/access';
+import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types'
+import type { Role } from '@capacitylens/shared/domain/access'
 
 /** A company member and the resource-link state shown in team access. */
 export interface TeamMember {
-  userId: string;
-  role: Role;
-  status: MembershipStatus;
+  userId: string
+  role: Role
+  status: MembershipStatus
   /** Whether the reader may change this member's role or status, as the server decides. */
-  manage: boolean;
-  createdAt: string;
-  name: string | null;
-  email: string | null;
+  manage: boolean
+  createdAt: string
+  name: string | null
+  email: string | null
   /** Coarse, company-opted-in observation. Null means tracking is off; no timestamp is collected. */
-  signInConfirmed: boolean | null;
-  isSelf: boolean;
+  signInConfirmed: boolean | null
+  isSelf: boolean
   resourceLink?: {
-    resourceId: string;
-    revision: string;
-    resourceName?: string | null;
-    resourceStatus?: 'active' | 'disabled' | 'archived' | null;
-  } | null;
+    resourceId: string
+    revision: string
+    resourceName?: string | null
+    resourceStatus?: 'active' | 'disabled' | 'archived' | null
+  } | null
 }
 
 /** Members, sign-in tracking state, and resource candidates for a company. */
 export interface TeamDirectory {
-  members: TeamMember[];
-  signInTrackingEnabled: boolean;
-  resourceCandidates: { resourceId: string; label: string }[];
+  members: TeamMember[]
+  signInTrackingEnabled: boolean
+  resourceCandidates: { resourceId: string; label: string }[]
 }
 
 /** A pending invitation for one address. */
 export interface TeamInvitation {
-  id: string;
-  role: InvitationRole;
-  preauthEmail: string;
-  expiresAt: string;
-  createdAt: string;
+  id: string
+  role: InvitationRole
+  preauthEmail: string
+  expiresAt: string
+  createdAt: string
 }
 
 /** A signed-in person waiting for an Owner or Admin to approve their access. */
 export interface AdmissionRequest {
-  userId: string;
-  email: string;
-  requestedAt: string | null;
+  userId: string
+  email: string
+  requestedAt: string | null
   /** The role an invitation offered, which completion grants when it is assignable. */
-  invitedRole: string | null;
+  invitedRole: string | null
   /** `pending` waits for a first decision; a declined or revoked person can still be approved. */
-  approval: 'pending' | 'rejected' | 'revoked';
+  approval: 'pending' | 'rejected' | 'revoked'
 }

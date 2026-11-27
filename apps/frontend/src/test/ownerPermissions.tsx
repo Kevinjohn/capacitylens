@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { PermissionContext } from '@/auth/permissionContext';
-import { permissionValue } from './permissionGrants';
+import type { ReactNode } from 'react'
+import { PermissionContext } from '@/auth/permissionContext'
+import { permissionValue } from './permissionGrants'
 
 /** Ordinary component fixtures explicitly act as a resolved Owner; access tests provide their own context. */
 export function OwnerPermissions({ children }: { children: ReactNode }) {
@@ -8,5 +8,5 @@ export function OwnerPermissions({ children }: { children: ReactNode }) {
     <PermissionContext.Provider value={permissionValue('owner')}>
       {children}
     </PermissionContext.Provider>
-  );
+  )
 }

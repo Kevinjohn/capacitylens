@@ -1,54 +1,54 @@
-import { useMemo } from 'react';
-import { useCanEdit } from '@/auth/permissionContext';
-import { isPlanningHistoryReady } from '@/data/planning/planningReadiness';
-import { isShownByPlanningState } from '@/data/planning/planningNotices';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { hasActiveFilters, useStore } from '@/store/useStore';
-import { hasDisciplinesEnabled } from '@/store/selectors';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { SchedulerToolbarChrome, SchedulerToolbarFilters } from './SchedulerToolbarSections';
-import { buildFilterOptions } from './toolbarFilterOptions';
-import { useToolbarSearch } from './useToolbarSearch';
+import { useMemo } from 'react'
+import { useCanEdit } from '@/auth/permissionContext'
+import { isPlanningHistoryReady } from '@/data/planning/planningReadiness'
+import { isShownByPlanningState } from '@/data/planning/planningNotices'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { hasActiveFilters, useStore } from '@/store/useStore'
+import { hasDisciplinesEnabled } from '@/store/selectors'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { SchedulerToolbarChrome, SchedulerToolbarFilters } from './SchedulerToolbarSections'
+import { buildFilterOptions } from './toolbarFilterOptions'
+import { useToolbarSearch } from './useToolbarSearch'
 
 function useToolbarHistory() {
-  const undo = useStore((state) => state.undoPlanning);
-  const redo = useStore((state) => state.redoPlanning);
-  const canUndo = useStore((state) => isPlanningHistoryReady(state.planning, 'undo'));
-  const canRedo = useStore((state) => isPlanningHistoryReady(state.planning, 'redo'));
-  const setNotice = useStore((state) => state.setNotice);
+  const undo = useStore((state) => state.undoPlanning)
+  const redo = useStore((state) => state.redoPlanning)
+  const canUndo = useStore((state) => isPlanningHistoryReady(state.planning, 'undo'))
+  const canRedo = useStore((state) => isPlanningHistoryReady(state.planning, 'redo'))
+  const setNotice = useStore((state) => state.setNotice)
   const runHistoryAction = (action: () => Promise<unknown>) => {
     action().catch((error: unknown) => {
       // Surface a rejected toolbar mutation instead of letting it escape its event handler.
-      if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error');
-    });
-  };
-  return { undo, redo, canUndo, canRedo, runHistoryAction };
+      if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error')
+    })
+  }
+  return { undo, redo, canUndo, canRedo, runHistoryAction }
 }
 
 /** Exposes date navigation, search, filters, and drawing controls. */
 export function SchedulerToolbar() {
-  const canEdit = useCanEdit();
-  const zoom = useStore((state) => state.ui.zoom);
-  const setZoom = useStore((state) => state.setZoom);
-  const panDays = useStore((state) => state.panDays);
-  const goToToday = useStore((state) => state.goToToday);
-  const drawMode = useStore((state) => state.ui.drawMode);
-  const setDrawMode = useStore((state) => state.setDrawMode);
-  const history = useToolbarHistory();
-  const filters = useStore((state) => state.ui.filters);
-  const setFilters = useStore((state) => state.setFilters);
-  const clearFilters = useStore((state) => state.clearFilters);
-  const filtersActive = hasActiveFilters(filters);
-  const data = useActiveScopedData();
+  const canEdit = useCanEdit()
+  const zoom = useStore((state) => state.ui.zoom)
+  const setZoom = useStore((state) => state.setZoom)
+  const panDays = useStore((state) => state.panDays)
+  const goToToday = useStore((state) => state.goToToday)
+  const drawMode = useStore((state) => state.ui.drawMode)
+  const setDrawMode = useStore((state) => state.setDrawMode)
+  const history = useToolbarHistory()
+  const filters = useStore((state) => state.ui.filters)
+  const setFilters = useStore((state) => state.setFilters)
+  const clearFilters = useStore((state) => state.clearFilters)
+  const filtersActive = hasActiveFilters(filters)
+  const data = useActiveScopedData()
   const options = useMemo(
     () => buildFilterOptions(data, filters.clientId, filters.projectId),
-    [data, filters.clientId, filters.projectId],
-  );
-  const activeCompanyId = useStore((state) => state.activeCompanyId);
+    [data, filters.clientId, filters.projectId]
+  )
+  const activeCompanyId = useStore((state) => state.activeCompanyId)
   const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeCompanyId),
-  );
-  const search = useToolbarSearch({ filters, activeCompanyId, setFilters, clearFilters });
+    hasDisciplinesEnabled(state.data, state.activeCompanyId)
+  )
+  const search = useToolbarSearch({ filters, activeCompanyId, setFilters, clearFilters })
   const chromeProps = {
     zoom,
     setZoom,
@@ -58,7 +58,7 @@ export function SchedulerToolbar() {
     ...history,
     filtersOpen: search.filtersOpen,
     setFiltersOpen: search.setFiltersOpen,
-  };
+  }
   const filterProps = {
     ...options,
     disciplinesEnabled,
@@ -71,11 +71,11 @@ export function SchedulerToolbar() {
     onSearchChange: search.onSearchChange,
     onClear: search.onClear,
     setToolbarFilters: search.setToolbarFilters,
-  };
+  }
   return (
     <div data-testid="scheduler-toolbar" className="@container">
       <SchedulerToolbarChrome {...chromeProps} />
       {search.filtersOpen && <SchedulerToolbarFilters {...filterProps} />}
     </div>
-  );
+  )
 }

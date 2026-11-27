@@ -1,28 +1,28 @@
-import { inject } from '@adonisjs/core';
-import { args, flags } from '@adonisjs/core/ace';
-import type { CommandOptions } from '@adonisjs/core/types/ace';
-import OperatorCommand from '#commands/_operator_command';
-import { InstallationResetService } from '#services/operator/installation_reset_service';
+import { inject } from '@adonisjs/core'
+import { args, flags } from '@adonisjs/core/ace'
+import type { CommandOptions } from '@adonisjs/core/types/ace'
+import OperatorCommand from '#commands/_operator_command'
+import { InstallationResetService } from '#services/operator/installation_reset_service'
 
 /** Preserve the stopped installation before creating an empty replacement. */
 export default class AppReset extends OperatorCommand {
-  static commandName = 'app:reset';
+  static commandName = 'app:reset'
   static description =
-    'Back up and archive the stopped installation, then initialize a new database path';
-  static options: CommandOptions = { startApp: true };
-  @args.string({ description: 'New, unused database path' }) declare newDatabasePath: string;
+    'Back up and archive the stopped installation, then initialize a new database path'
+  static options: CommandOptions = { startApp: true }
+  @args.string({ description: 'New, unused database path' }) declare newDatabasePath: string
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
-  declare confirmServerStopped: boolean;
+  declare confirmServerStopped: boolean
 
   @flags.boolean({ description: 'Confirm this is a disposable non-production installation' })
-  declare disposable: boolean;
+  declare disposable: boolean
 
   @inject()
   async run(installationReset: InstallationResetService) {
-    this.logger.log(JSON.stringify(await installationReset.reset(this)));
+    this.logger.log(JSON.stringify(await installationReset.reset(this)))
   }
 
   protected buildFailureMessage(error: unknown) {
-    return error instanceof Error ? error.message : 'Installation reset failed';
+    return error instanceof Error ? error.message : 'Installation reset failed'
   }
 }

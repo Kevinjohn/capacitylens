@@ -1,4 +1,4 @@
-import type { ISODate } from '../types/entities.js';
+import type { ISODate } from '../types/entities.js'
 
 /**
  * Length of a Gregorian calendar month, leap years included. `month` is 1-based and must already
@@ -8,10 +8,10 @@ import type { ISODate } from '../types/entities.js';
  * @throws RangeError when month is not an integer from 1 through 12; callers must range-check it first.
  */
 export function countDaysInMonth(year: number, month: number): number {
-  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
-  if (days === undefined) throw new RangeError('Month must be between 1 and 12.');
-  return days;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+  if (days === undefined) throw new RangeError('Month must be between 1 and 12.')
+  return days
 }
 
 /**
@@ -21,24 +21,24 @@ export function countDaysInMonth(year: number, month: number): number {
  * so Gregorian month-length arithmetic validates it without consulting the host timezone.
  */
 export function isValidISODate(value: unknown): value is ISODate {
-  if (typeof value !== 'string') return false;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (year < 1 || month < 1 || month > 12 || day < 1) return false;
-  return day <= countDaysInMonth(year, month);
+  if (typeof value !== 'string') return false
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  if (year < 1 || month < 1 || month > 12 || day < 1) return false
+  return day <= countDaysInMonth(year, month)
 }
 
 const ISO_TIMESTAMP_RE =
-  /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+  /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/
 
 interface TimestampOffsetParts {
-  zone: string | undefined;
-  sign: string | undefined;
-  offsetHourText: string | undefined;
-  offsetMinuteText: string | undefined;
+  zone: string | undefined
+  sign: string | undefined
+  offsetHourText: string | undefined
+  offsetMinuteText: string | undefined
 }
 
 function parseTimestampOffsetMinutes({
@@ -47,12 +47,12 @@ function parseTimestampOffsetMinutes({
   offsetHourText,
   offsetMinuteText,
 }: TimestampOffsetParts): number | null {
-  if (zone === undefined) return null;
-  if (zone === 'Z') return 0;
-  const offsetHour = Number(offsetHourText);
-  const offsetMinute = Number(offsetMinuteText);
-  if (offsetHour > 23 || offsetMinute > 59) return null;
-  return (sign === '-' ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+  if (zone === undefined) return null
+  if (zone === 'Z') return 0
+  const offsetHour = Number(offsetHourText)
+  const offsetMinute = Number(offsetMinuteText)
+  if (offsetHour > 23 || offsetMinute > 59) return null
+  return (sign === '-' ? -1 : 1) * (offsetHour * 60 + offsetMinute)
 }
 
 /**
@@ -61,9 +61,9 @@ function parseTimestampOffsetMinutes({
  * required and fractional precision is capped at the millisecond precision the product stores.
  */
 export function parseISOTimestamp(value: unknown): number | null {
-  if (typeof value !== 'string') return null;
-  const match = ISO_TIMESTAMP_RE.exec(value);
-  if (!match) return null;
+  if (typeof value !== 'string') return null
+  const match = ISO_TIMESTAMP_RE.exec(value)
+  if (!match) return null
   const [
     ,
     date,
@@ -75,27 +75,27 @@ export function parseISOTimestamp(value: unknown): number | null {
     sign,
     offsetHourText,
     offsetMinuteText,
-  ] = match;
-  if (!isValidISODate(date)) return null;
+  ] = match
+  if (!isValidISODate(date)) return null
 
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-  const second = Number(secondText);
-  const milliseconds = Number((fraction ?? '').padEnd(3, '0') || '0');
-  if (hour > 23 || minute > 59 || second > 59) return null;
+  const hour = Number(hourText)
+  const minute = Number(minuteText)
+  const second = Number(secondText)
+  const milliseconds = Number((fraction ?? '').padEnd(3, '0') || '0')
+  if (hour > 23 || minute > 59 || second > 59) return null
 
   const offsetMinutes = parseTimestampOffsetMinutes({
     zone,
     sign,
     offsetHourText,
     offsetMinuteText,
-  });
-  if (offsetMinutes === null) return null;
+  })
+  if (offsetMinutes === null) return null
 
   const localAsUtc = Date.parse(
-    `${date}T${hourText}:${minuteText}:${secondText}.${String(milliseconds).padStart(3, '0')}Z`,
-  );
-  const expected = localAsUtc - offsetMinutes * 60_000;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) && parsed === expected ? parsed : null;
+    `${date}T${hourText}:${minuteText}:${secondText}.${String(milliseconds).padStart(3, '0')}Z`
+  )
+  const expected = localAsUtc - offsetMinutes * 60_000
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) && parsed === expected ? parsed : null
 }

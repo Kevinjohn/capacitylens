@@ -1,69 +1,69 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { admissionRequests } from './admissionRequests';
-import { invitationRequests } from './invitationRequests';
-import { memberRequests } from './memberRequests';
-import { resolveRefusalMessage, teamAccessApi } from './teamAccessApi';
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { admissionRequests } from './admissionRequests'
+import { invitationRequests } from './invitationRequests'
+import { memberRequests } from './memberRequests'
+import { resolveRefusalMessage, teamAccessApi } from './teamAccessApi'
 
 const json = (body: unknown) =>
   new Response(JSON.stringify({ data: body }), {
     status: 200,
     headers: { 'content-type': 'application/json' },
-  });
+  })
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks())
 
 describe('teamAccessApi operation outcomes', () => {
   it('classifies an in-progress operation as an unknown outcome', async () => {
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
-      Response.json({ code: 'E_COMMAND_IN_PROGRESS', error: 'Still running.' }, { status: 409 }),
-    );
+      Response.json({ code: 'E_COMMAND_IN_PROGRESS', error: 'Still running.' }, { status: 409 })
+    )
 
     await expect(
       teamAccessApi.createInvitation({
         companyId: 'company-1',
         role: 'viewer',
         email: 'selina@wayne.test',
-      }),
-    ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'Still running.' });
-  });
+      })
+    ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'Still running.' })
+  })
 
   it('reports a pending invitation for the address as already invited', async () => {
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
       Response.json(
         { code: 'E_ACCOUNT_KIT_INVITATION_PENDING', error: 'Account request rejected.' },
-        { status: 409 },
-      ),
-    );
+        { status: 409 }
+      )
+    )
 
     await expect(
       teamAccessApi.createInvitation({
         companyId: 'company-1',
         role: 'viewer',
         email: 'selina@wayne.test',
-      }),
-    ).resolves.toEqual({ kind: 'alreadyInvited', status: 409 });
-  });
+      })
+    ).resolves.toEqual({ kind: 'alreadyInvited', status: 409 })
+  })
 
   it('decodes an equivalent successful status instead of reporting a rejected operation', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
-      new Response(JSON.stringify({ data: { emailed: true } }), { status: 200 }),
-    );
+      new Response(JSON.stringify({ data: { emailed: true } }), { status: 200 })
+    )
 
     await expect(
       teamAccessApi.createInvitation({
         companyId: 'company-1',
         role: 'viewer',
         email: 'selina@wayne.test',
-      }),
-    ).resolves.toMatchObject({ kind: 'ok', status: 200, value: { emailed: true } });
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('equivalent success 200'));
-  });
-});
+      })
+    ).resolves.toMatchObject({ kind: 'ok', status: 200, value: { emailed: true } })
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('equivalent success 200'))
+  })
+})
 
 describe('teamAccessApi directory validation', () => {
   it('defaults absent additive fields and contains unsupported rows', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(
       json({
         members: [
@@ -97,8 +97,8 @@ describe('teamAccessApi directory validation', () => {
             isSelf: false,
           },
         ],
-      }),
-    );
+      })
+    )
 
     await expect(teamAccessApi.listMembers('company-1')).resolves.toMatchObject({
       kind: 'ok',
@@ -111,14 +111,14 @@ describe('teamAccessApi directory validation', () => {
           },
         ],
       },
-    });
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unsupported member-directory row'));
-  });
+    })
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unsupported member-directory row'))
+  })
 
   it.each(['false', null] as const)(
     'rejects a member whose manage flag is %j instead of a boolean',
     async (manage) => {
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
       const member = {
         userId: 'member-1',
         role: 'viewer',
@@ -128,36 +128,36 @@ describe('teamAccessApi directory validation', () => {
         email: null,
         isSelf: false,
         manage,
-      };
-      vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(json({ members: [member] }));
+      }
+      vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(json({ members: [member] }))
 
       await expect(teamAccessApi.listMembers('company-1')).resolves.toMatchObject({
         kind: 'invalid',
-      });
-    },
-  );
-});
+      })
+    }
+  )
+})
 
 describe('teamAccessApi member resource links', () => {
   it('keeps a link or unlink conflict uncertain despite a terminal-looking body', async () => {
     const conflict = () =>
-      Response.json({ code: 'E_CONFLICT', error: 'The member link changed.' }, { status: 409 });
-    vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(conflict());
-    vi.spyOn(memberRequests, 'clearMemberResourceLink').mockResolvedValue(conflict());
+      Response.json({ code: 'E_CONFLICT', error: 'The member link changed.' }, { status: 409 })
+    vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(conflict())
+    vi.spyOn(memberRequests, 'clearMemberResourceLink').mockResolvedValue(conflict())
     await expect(
       teamAccessApi.setMemberResourceLink({
         companyId: 'a1',
         userId: 'u1',
         resourceId: 'r1',
         expectedRevision: null,
-      }),
-    ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'The member link changed.' });
+      })
+    ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'The member link changed.' })
     await expect(teamAccessApi.clearMemberResourceLink('a1', 'u1', 'revision-1')).resolves.toEqual({
       kind: 'unknown',
       status: 409,
       message: 'The member link changed.',
-    });
-  });
+    })
+  })
 
   it.each([
     [null, 'created-revision'],
@@ -166,49 +166,49 @@ describe('teamAccessApi member resource links', () => {
     'decodes create/change success with expected revision %s',
     async (expectedRevision, revision) => {
       vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(
-        json({ resourceId: 'r1', revision }),
-      );
+        json({ resourceId: 'r1', revision })
+      )
       await expect(
         teamAccessApi.setMemberResourceLink({
           companyId: 'a1',
           userId: 'u1',
           resourceId: 'r1',
           expectedRevision,
-        }),
-      ).resolves.toEqual({ kind: 'ok', status: 200, value: { resourceId: 'r1', revision } });
-    },
-  );
+        })
+      ).resolves.toEqual({ kind: 'ok', status: 200, value: { resourceId: 'r1', revision } })
+    }
+  )
 
   it('preserves a structured refusal and contains an uncertain success body', async () => {
     vi.spyOn(memberRequests, 'setMemberResourceLink')
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ code: 'E_FORBIDDEN', error: 'The member link changed.' }), {
           status: 403,
-        }),
+        })
       )
-      .mockResolvedValueOnce(new Response('', { status: 200 }));
+      .mockResolvedValueOnce(new Response('', { status: 200 }))
     const input = {
       companyId: 'a1',
       userId: 'u1',
       resourceId: 'r1',
       expectedRevision: null,
-    };
+    }
     await expect(teamAccessApi.setMemberResourceLink(input)).resolves.toEqual({
       kind: 'rejected',
       status: 403,
       message: 'The member link changed.',
-    });
+    })
     await expect(teamAccessApi.setMemberResourceLink(input)).resolves.toMatchObject({
       kind: 'invalid',
       status: 200,
-    });
-  });
-});
+    })
+  })
+})
 
 describe('teamAccessApi invitation rows', () => {
   it('drops rows without an address or an invitable role and keeps valid peers', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const row = { expiresAt: '2026-08-27T10:00:00.000Z', createdAt: '2026-07-27T10:00:00.000Z' };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const row = { expiresAt: '2026-08-27T10:00:00.000Z', createdAt: '2026-07-27T10:00:00.000Z' }
     vi.spyOn(invitationRequests, 'listInvitations').mockResolvedValue(
       json({
         invites: [
@@ -216,18 +216,18 @@ describe('teamAccessApi invitation rows', () => {
           { ...row, id: 2, role: 'viewer' },
           { ...row, id: 3, role: 'auditor', preauthEmail: 'harley@wayne.test' },
         ],
-      }),
-    );
+      })
+    )
 
     await expect(teamAccessApi.listInvitations('company-1')).resolves.toMatchObject({
       kind: 'ok',
       value: [{ id: '1', preauthEmail: 'selina@wayne.test' }],
-    });
+    })
     expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('unsupported invitation-directory row'),
-    );
-  });
-});
+      expect.stringContaining('unsupported invitation-directory row')
+    )
+  })
+})
 
 describe('teamAccessApi invitation creation', () => {
   it.each([
@@ -236,20 +236,20 @@ describe('teamAccessApi invitation creation', () => {
   ])('reports whether a %s invitation was emailed', async (status, emailed) => {
     const create = vi
       .spyOn(invitationRequests, 'createInvitation')
-      .mockResolvedValue(new Response(JSON.stringify({ data: { id: 1, emailed } }), { status }));
-    const input = { companyId: 'a1', role: 'editor' as const, email: 'selina@wayne.test' };
+      .mockResolvedValue(new Response(JSON.stringify({ data: { id: 1, emailed } }), { status }))
+    const input = { companyId: 'a1', role: 'editor' as const, email: 'selina@wayne.test' }
 
     await expect(teamAccessApi.createInvitation(input)).resolves.toMatchObject({
       kind: 'ok',
       value: { emailed },
-    });
-    expect(create).toHaveBeenCalledWith(input);
-  });
+    })
+    expect(create).toHaveBeenCalledWith(input)
+  })
 
   it.each(['2026-02-30T10:00:00.000Z', '0', '2026-08-27', '2026-08-27T11:00:00.000+01:00'])(
     'rejects a non-canonical invitation timestamp: %s',
     async (expiresAt) => {
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
       vi.spyOn(invitationRequests, 'listInvitations').mockResolvedValue(
         json({
           invites: [
@@ -261,15 +261,15 @@ describe('teamAccessApi invitation creation', () => {
               createdAt: '2026-07-27T10:00:00.000Z',
             },
           ],
-        }),
-      );
+        })
+      )
 
       await expect(teamAccessApi.listInvitations('company-1')).resolves.toMatchObject({
         kind: 'invalid',
-      });
-    },
-  );
-});
+      })
+    }
+  )
+})
 
 describe('teamAccessApi duplicate validation', () => {
   it('rejects duplicate member identities', async () => {
@@ -281,17 +281,17 @@ describe('teamAccessApi duplicate validation', () => {
       name: 'Ada',
       email: 'ada@example.test',
       isSelf: false,
-    };
+    }
     vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(
       json({
         members: [member, { ...member, role: 'admin' }],
-      }),
-    );
+      })
+    )
 
     await expect(teamAccessApi.listMembers('company-1')).resolves.toMatchObject({
       kind: 'invalid',
-    });
-  });
+    })
+  })
 
   it('rejects duplicate invitation identities', async () => {
     const invitation = {
@@ -300,18 +300,18 @@ describe('teamAccessApi duplicate validation', () => {
       preauthEmail: 'selina@wayne.test',
       expiresAt: '2026-08-27T10:00:00.000Z',
       createdAt: '2026-07-27T10:00:00.000Z',
-    };
+    }
     vi.spyOn(invitationRequests, 'listInvitations').mockResolvedValue(
       json({
         invites: [invitation, { ...invitation, role: 'editor' }],
-      }),
-    );
+      })
+    )
 
     await expect(teamAccessApi.listInvitations('company-1')).resolves.toMatchObject({
       kind: 'invalid',
-    });
-  });
-});
+    })
+  })
+})
 
 describe('rejectionMessage', () => {
   // Only a `rejected` outcome carries a sentence the server wrote about the user's request. The
@@ -321,44 +321,44 @@ describe('rejectionMessage', () => {
     expect(
       resolveRefusalMessage(
         { kind: 'rejected', status: 409, message: 'That member owns the company.' },
-        'fallback',
-      ),
-    ).toBe('That member owns the company.');
-  });
+        'fallback'
+      )
+    ).toBe('That member owns the company.')
+  })
 
   it('falls back when a refusal carried no sentence', () => {
     expect(
-      resolveRefusalMessage({ kind: 'rejected', status: 403, message: null }, 'fallback'),
-    ).toBe('fallback');
-  });
+      resolveRefusalMessage({ kind: 'rejected', status: 403, message: null }, 'fallback')
+    ).toBe('fallback')
+  })
 
   it('falls back rather than showing a blank toast for an empty refusal message', () => {
     expect(resolveRefusalMessage({ kind: 'rejected', status: 403, message: '' }, 'fallback')).toBe(
-      'fallback',
-    );
-  });
+      'fallback'
+    )
+  })
 
   it("keeps the caller's sentence for unknown and invalid outcomes", () => {
     expect(
       resolveRefusalMessage(
         { kind: 'unknown', status: 502, message: 'Gateway timeout.' },
-        'fallback',
-      ),
-    ).toBe('fallback');
+        'fallback'
+      )
+    ).toBe('fallback')
     expect(
       resolveRefusalMessage(
         { kind: 'invalid', status: 200, message: 'The server returned an invalid response.' },
-        'fallback',
-      ),
-    ).toBe('fallback');
-  });
+        'fallback'
+      )
+    ).toBe('fallback')
+  })
 
   it("keeps the caller's sentence for a success handed to it defensively", () => {
     expect(resolveRefusalMessage<true>({ kind: 'ok', status: 204, value: true }, 'fallback')).toBe(
-      'fallback',
-    );
-  });
-});
+      'fallback'
+    )
+  })
+})
 
 describe('teamAccessApi admission requests', () => {
   it.each([
@@ -367,93 +367,93 @@ describe('teamAccessApi admission requests', () => {
   ])('rejects an admission page with a malformed required row', async (row) => {
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
-      .mockImplementation(async () => json({ items: [row], nextCursor: null }));
+      .mockImplementation(async () => json({ items: [row], nextCursor: null }))
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toMatchObject({
       kind: 'invalid',
-    });
-    expect(list).toHaveBeenCalledOnce();
-  });
+    })
+    expect(list).toHaveBeenCalledOnce()
+  })
 
   it('accepts string requestedAt values from fresh response bodies', async () => {
-    const row = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 'not-a-date' };
+    const row = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 'not-a-date' }
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status) =>
         json(
           status === 'pending'
             ? { items: [row], nextCursor: null }
-            : { items: [], nextCursor: null },
-        ),
-      );
+            : { items: [], nextCursor: null }
+        )
+      )
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
       kind: 'ok',
       status: 200,
       value: [{ ...row, invitedRole: null, approval: 'pending' }],
-    });
-    expect(list).toHaveBeenCalledTimes(3);
-  });
+    })
+    expect(list).toHaveBeenCalledTimes(3)
+  })
 
   it('rejects a mixed page instead of returning its valid subset or following its cursor', async () => {
-    const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null };
-    const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 };
+    const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null }
+    const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 }
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
         if (status === 'pending' && cursor === null) {
-          return json({ items: [valid, malformed], nextCursor: 'next' });
+          return json({ items: [valid, malformed], nextCursor: 'next' })
         }
-        if (status === 'pending' && cursor === 'next') return json({ items: [], nextCursor: null });
-        return json({ items: [], nextCursor: null });
-      });
+        if (status === 'pending' && cursor === 'next') return json({ items: [], nextCursor: null })
+        return json({ items: [], nextCursor: null })
+      })
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
       kind: 'invalid',
       status: 200,
       message: 'The server returned an invalid response.',
-    });
-    expect(list).toHaveBeenCalledOnce();
-    expect(list).toHaveBeenCalledWith('pending', null, undefined);
-  });
+    })
+    expect(list).toHaveBeenCalledOnce()
+    expect(list).toHaveBeenCalledWith('pending', null, undefined)
+  })
 
   it('discards earlier status rows and stops at a malformed later page', async () => {
-    const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null };
-    const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 };
+    const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null }
+    const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 }
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
-        if (status === 'pending') return json({ items: [valid], nextCursor: null });
+        if (status === 'pending') return json({ items: [valid], nextCursor: null })
         if (status === 'rejected' && cursor === null) {
-          return json({ items: [malformed], nextCursor: 'next' });
+          return json({ items: [malformed], nextCursor: 'next' })
         }
-        return json({ items: [], nextCursor: null });
-      });
+        return json({ items: [], nextCursor: null })
+      })
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
       kind: 'invalid',
       status: 200,
       message: 'The server returned an invalid response.',
-    });
+    })
     expect(list.mock.calls).toEqual([
       ['pending', null, undefined],
       ['rejected', null, undefined],
-    ]);
-  });
+    ])
+  })
 
   it('reads every page of pending, declined and revoked records', async () => {
-    const row = (userId: string) => ({ userId, email: `${userId}@wayne.test`, requestedAt: null });
+    const row = (userId: string) => ({ userId, email: `${userId}@wayne.test`, requestedAt: null })
     const list = vi
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
         if (status === 'pending') {
           return cursor
             ? json({ items: [row('dick')], nextCursor: null })
-            : json({ items: [row('jason')], nextCursor: 'next' });
+            : json({ items: [row('jason')], nextCursor: 'next' })
         }
-        if (status === 'rejected') return json({ items: [row('selina')], nextCursor: null });
-        return json({ items: [], nextCursor: null });
-      });
+        if (status === 'rejected') return json({ items: [row('selina')], nextCursor: null })
+        return json({ items: [], nextCursor: null })
+      })
 
     await expect(teamAccessApi.listAdmissionRequests()).resolves.toMatchObject({
       kind: 'ok',
@@ -462,7 +462,7 @@ describe('teamAccessApi admission requests', () => {
         { userId: 'dick', approval: 'pending' },
         { userId: 'selina', approval: 'rejected' },
       ],
-    });
-    expect(list).toHaveBeenCalledWith('pending', 'next', undefined);
-  });
-});
+    })
+    expect(list).toHaveBeenCalledWith('pending', 'next', undefined)
+  })
+})

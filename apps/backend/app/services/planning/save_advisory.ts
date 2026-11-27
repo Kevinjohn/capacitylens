@@ -1,28 +1,28 @@
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays'
 import {
   applyCapacityMode,
   buildCapacityAdvisory,
   listTimeOffApplyingTo,
-} from '@capacitylens/shared/lib/capacity';
-import { buildRepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory';
-import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { hasHourlyLoad, isCapacityTracked } from '@capacitylens/shared/types/entities';
-import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
-import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
+} from '@capacitylens/shared/lib/capacity'
+import { buildRepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory'
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek'
+import { hasHourlyLoad, isCapacityTracked } from '@capacitylens/shared/types/entities'
+import type { Allocation, AppData } from '@capacitylens/shared/types/entities'
+import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts'
 
 /** The capacity part of an allocation save reply. */
-export type SaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdvisory'>;
+export type SaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdvisory'>
 
 function listWrittenAllocationIds(intent: PlanningIntent): string[] {
-  if (intent.operation === 'allocation.create') return [intent.allocation.id];
+  if (intent.operation === 'allocation.create') return [intent.allocation.id]
   if (intent.operation === 'allocation.createGroup') {
-    return [intent.allocation.id, ...(intent.occurrenceIds ?? [])];
+    return [intent.allocation.id, ...(intent.occurrenceIds ?? [])]
   }
   if (intent.operation === 'allocation.update' || intent.operation === 'allocation.reassign') {
-    return [intent.id];
+    return [intent.id]
   }
-  if (intent.operation === 'allocation.duplicate') return [intent.occurrence.id];
-  return [];
+  if (intent.operation === 'allocation.duplicate') return [intent.occurrence.id]
+  return []
 }
 
 /**
@@ -34,30 +34,30 @@ export function buildSaveAdvisory(
   after: AppData,
   companyId: string
 ): SaveAdvisory {
-  const ids = listWrittenAllocationIds(intent);
+  const ids = listWrittenAllocationIds(intent)
   const written = ids
     .map((id) => after.allocations.find((row) => row.id === id))
-    .filter((row): row is Allocation => row !== undefined);
-  if (written.length === 0) return {};
-  const [first] = written;
-  const company = after.companies.find((row) => row.id === companyId);
-  const resource = after.resources.find((row) => row.id === first.resourceId);
-  if (!company || !resource) return {};
-  const blocksMode = !hasHourlyLoad(company.schedulingMode ?? 'hourly');
-  const writtenIds = new Set(ids);
+    .filter((row): row is Allocation => row !== undefined)
+  if (written.length === 0) return {}
+  const [first] = written
+  const company = after.companies.find((row) => row.id === companyId)
+  const resource = after.resources.find((row) => row.id === first.resourceId)
+  if (!company || !resource) return {}
+  const blocksMode = !hasHourlyLoad(company.schedulingMode ?? 'hourly')
+  const writtenIds = new Set(ids)
   const others = applyCapacityMode({
     allocations: after.allocations.filter(
       (row) => row.resourceId === resource.id && !writtenIds.has(row.id)
     ),
     blocksMode,
-  });
-  const proposals = applyCapacityMode({ allocations: written, blocksMode });
-  const [proposal] = proposals;
+  })
+  const proposals = applyCapacityMode({ allocations: written, blocksMode })
+  const [proposal] = proposals
   const effectiveWeek = resolveEffectiveWorkingWeek(
     resource,
     normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1)
-  );
-  const timeOff = listTimeOffApplyingTo(resource.id, after.timeOff);
+  )
+  const timeOff = listTimeOffApplyingTo(resource.id, after.timeOff)
   if (intent.operation === 'allocation.createGroup') {
     return {
       repeatAdvisory: buildRepeatingAllocationAdvisory({
@@ -68,7 +68,7 @@ export function buildSaveAdvisory(
         effectiveWeek,
         closures: after.closures,
       }),
-    };
+    }
   }
   return {
     advisory: isCapacityTracked(resource)
@@ -81,5 +81,5 @@ export function buildSaveAdvisory(
           closures: after.closures,
         })
       : { overDays: 0, timeOffDays: 0 },
-  };
+  }
 }

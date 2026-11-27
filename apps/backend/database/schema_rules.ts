@@ -1,6 +1,6 @@
-import { type SchemaRules } from '@adonisjs/lucid/types/schema_generator';
+import { type SchemaRules } from '@adonisjs/lucid/types/schema_generator'
 
-const weekdays = { tsType: "import('@capacitylens/shared/types/entities').Weekday[]" };
+const weekdays = { tsType: "import('@capacitylens/shared/types/entities').Weekday[]" }
 
 export default {
   types: {
@@ -86,4 +86,4 @@ export default {
       },
     },
   },
-} satisfies SchemaRules;
+} satisfies SchemaRules

@@ -1,37 +1,37 @@
-import { m } from '@/i18n';
-import type { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
+import { m } from '@/i18n'
+import type { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays'
 import type {
   CapacityOverviewAccess,
   DateStyle,
   SchedulingMode,
-} from '@capacitylens/shared/types/entities';
-import { getExternalExplainer } from '@/lib/externalCopy';
-import { buildLabels, buildLabelOptions } from '@/lib/metadata';
-import type { listCompanyWorkingDays } from '@/store/selectors';
-import type { StoreState } from '@/store/useStore';
-import { SegmentedControl, SwitchField } from '@/components/common/ui';
-import { SettingsSection } from './SettingsSection';
-import { SettingsDateFormatSection } from './SettingsDateFormatSection';
-import { SettingsWorkingDaysSection } from './SettingsWorkingDaysSection';
-import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, SCHEDULING_MESSAGES } from './settingsLabels';
+} from '@capacitylens/shared/types/entities'
+import { getExternalExplainer } from '@/lib/externalCopy'
+import { buildLabels, buildLabelOptions } from '@/lib/metadata'
+import type { listCompanyWorkingDays } from '@/store/selectors'
+import type { StoreState } from '@/store/useStore'
+import { SegmentedControl, SwitchField } from '@/components/common/ui'
+import { SettingsSection } from './SettingsSection'
+import { SettingsDateFormatSection } from './SettingsDateFormatSection'
+import { SettingsWorkingDaysSection } from './SettingsWorkingDaysSection'
+import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, SCHEDULING_MESSAGES } from './settingsLabels'
 
-type UpdateSetting = (patch: Parameters<StoreState['updateCompany']>[1]) => Promise<void>;
+type UpdateSetting = (patch: Parameters<StoreState['updateCompany']>[1]) => Promise<void>
 type SettingsSchedulingSectionProps = {
-  canEdit: boolean;
-  canManageCapacityOverviewAccess: boolean;
-  capacityOverviewAccess: CapacityOverviewAccess;
-  schedulingMode: SchedulingMode;
-  workingDayOrder: ReturnType<typeof listOrderedWeekdays>;
-  workingDays: ReturnType<typeof listCompanyWorkingDays>;
-  workingDaysMinimumId: string;
-  dateStyle: DateStyle;
-  updateSetting: UpdateSetting;
-  disciplinesEnabled: boolean;
-  placeholdersEnabled: boolean;
-  externalEnabled: boolean;
-  inlineActivityCreateEnabled: boolean;
-  showTaskFieldInSchedule: boolean;
-};
+  canEdit: boolean
+  canManageCapacityOverviewAccess: boolean
+  capacityOverviewAccess: CapacityOverviewAccess
+  schedulingMode: SchedulingMode
+  workingDayOrder: ReturnType<typeof listOrderedWeekdays>
+  workingDays: ReturnType<typeof listCompanyWorkingDays>
+  workingDaysMinimumId: string
+  dateStyle: DateStyle
+  updateSetting: UpdateSetting
+  disciplinesEnabled: boolean
+  placeholdersEnabled: boolean
+  externalEnabled: boolean
+  inlineActivityCreateEnabled: boolean
+  showTaskFieldInSchedule: boolean
+}
 
 function CapacityOverviewAccessSection({
   canManageCapacityOverviewAccess,
@@ -51,7 +51,7 @@ function CapacityOverviewAccessSection({
         ariaLabel={m.settings_capacity_overview_access_aria()}
         value={capacityOverviewAccess}
         onChange={(value) => {
-          void updateSetting({ capacityOverviewAccess: value });
+          void updateSetting({ capacityOverviewAccess: value })
         }}
         options={buildLabelOptions(buildLabels(CAPACITY_OVERVIEW_ACCESS_MESSAGES))}
         disabled={!canManageCapacityOverviewAccess}
@@ -59,7 +59,7 @@ function CapacityOverviewAccessSection({
         density="compact"
       />
     </SettingsSection>
-  );
+  )
 }
 
 function SchedulingModeSection({
@@ -85,7 +85,7 @@ function SchedulingModeSection({
         </li>
       </ul>
     </>
-  );
+  )
   return (
     <SettingsSection title={m.settings_scheduling_heading()} help={help}>
       <SegmentedControl
@@ -93,19 +93,19 @@ function SchedulingModeSection({
         ariaLabel={m.settings_scheduling_aria()}
         value={schedulingMode}
         onChange={(value) => {
-          void updateSetting({ schedulingMode: value });
+          void updateSetting({ schedulingMode: value })
         }}
         options={buildLabelOptions(buildLabels(SCHEDULING_MESSAGES))}
         disabled={!canEdit}
         fullWidth
       />
     </SettingsSection>
-  );
+  )
 }
 
 /** Controls schedule view preferences such as weekend minimization. */
 export function ScheduleViewSection(
-  props: Pick<StoreState, 'minimiseWeekends' | 'setMinimiseWeekends'>,
+  props: Pick<StoreState, 'minimiseWeekends' | 'setMinimiseWeekends'>
 ) {
   return (
     <SettingsSection title={m.settings_schedule_heading()} help={m.settings_schedule_intro()}>
@@ -117,7 +117,7 @@ export function ScheduleViewSection(
         />
       </div>
     </SettingsSection>
-  );
+  )
 }
 
 type CompanyFeaturesSectionProps = Pick<
@@ -129,11 +129,11 @@ type CompanyFeaturesSectionProps = Pick<
   | 'inlineActivityCreateEnabled'
   | 'showTaskFieldInSchedule'
   | 'updateSetting'
->;
+>
 
 /** Every company-wide on/off option in one section, so the toggles read as one list. */
 export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
-  const { canEdit, updateSetting } = props;
+  const { canEdit, updateSetting } = props
   const help = (
     <>
       <p>{m.settings_company_features_intro()}</p>
@@ -144,7 +144,7 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
       <p>{m.settings_activity_create_intro()}</p>
       <p>{m.settings_task_field_intro()}</p>
     </>
-  );
+  )
   return (
     <SettingsSection title={m.settings_company_features_heading()} help={help}>
       <div className="flex flex-col gap-3">
@@ -152,7 +152,7 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
           label={m.settings_disciplines_toggle()}
           checked={props.disciplinesEnabled}
           onChange={(next) => {
-            void updateSetting({ disciplinesEnabled: next });
+            void updateSetting({ disciplinesEnabled: next })
           }}
           disabled={!canEdit}
         />
@@ -160,7 +160,7 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
           label={m.settings_placeholders_toggle()}
           checked={props.placeholdersEnabled}
           onChange={(next) => {
-            void updateSetting({ placeholdersEnabled: next });
+            void updateSetting({ placeholdersEnabled: next })
           }}
           disabled={!canEdit}
         />
@@ -168,7 +168,7 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
           label={m.settings_external_toggle()}
           checked={props.externalEnabled}
           onChange={(next) => {
-            void updateSetting({ externalEnabled: next });
+            void updateSetting({ externalEnabled: next })
           }}
           disabled={!canEdit}
         />
@@ -176,7 +176,7 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
           label={m.settings_inline_activity_create_toggle()}
           checked={props.inlineActivityCreateEnabled}
           onChange={(next) => {
-            void updateSetting({ inlineActivityCreateEnabled: next });
+            void updateSetting({ inlineActivityCreateEnabled: next })
           }}
           disabled={!canEdit}
         />
@@ -184,13 +184,13 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
           label={m.settings_task_field_toggle()}
           checked={props.showTaskFieldInSchedule}
           onChange={(next) => {
-            void updateSetting({ showTaskFieldInSchedule: next });
+            void updateSetting({ showTaskFieldInSchedule: next })
           }}
           disabled={!canEdit}
         />
       </div>
     </SettingsSection>
-  );
+  )
 }
 
 type SettingsCompanySetupSectionsProps = Pick<
@@ -204,7 +204,7 @@ type SettingsCompanySetupSectionsProps = Pick<
   | 'canManageCapacityOverviewAccess'
   | 'capacityOverviewAccess'
   | 'dateStyle'
->;
+>
 
 /** Groups company scheduling defaults and setup controls. */
 export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {
@@ -226,7 +226,7 @@ export function SettingsCompanySetupSections(props: SettingsCompanySetupSections
         canEdit={props.canEdit}
         dateStyle={props.dateStyle}
         onChange={(dateStyle) => {
-          void props.updateSetting({ dateStyle });
+          void props.updateSetting({ dateStyle })
         }}
       />
       <CapacityOverviewAccessSection
@@ -235,5 +235,5 @@ export function SettingsCompanySetupSections(props: SettingsCompanySetupSections
         updateSetting={props.updateSetting}
       />
     </>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import vine from '@vinejs/vine';
+import vine from '@vinejs/vine'
 import {
   REQUEST_CONTEXT_FIELDS,
   USER_ID_PATTERN,
@@ -6,7 +6,7 @@ import {
   allowedFields,
   companyIdParam,
   isSupplied,
-} from '#validators/request_rules';
+} from '#validators/request_rules'
 
 export const transferOwnershipValidator = vine.create(
   vine
@@ -21,4 +21,4 @@ export const transferOwnershipValidator = vine.create(
       headers: accountOperationHeaders(),
     })
     .use(allowedFields({ fields: ['toUserId', 'confirmationId', ...REQUEST_CONTEXT_FIELDS] }))
-);
+)

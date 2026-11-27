@@ -1,20 +1,20 @@
-import app from '@adonisjs/core/services/app';
-import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
-import { errors as vineErrors } from '@vinejs/vine';
-import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
-import { mapPackageError } from '#exceptions/http_error_mapping';
-import ProductException from '#exceptions/product_exception';
-import UnexpectedException from '#exceptions/unexpected_exception';
-import AccountKitFailureException from '#exceptions/account_kit_failure_exception';
-import MasqueradeUnavailableException from '#exceptions/masquerade_unavailable_exception';
-import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety';
+import app from '@adonisjs/core/services/app'
+import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
+import { errors as vineErrors } from '@vinejs/vine'
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade'
+import { mapPackageError } from '#exceptions/http_error_mapping'
+import ProductException from '#exceptions/product_exception'
+import UnexpectedException from '#exceptions/unexpected_exception'
+import AccountKitFailureException from '#exceptions/account_kit_failure_exception'
+import MasqueradeUnavailableException from '#exceptions/masquerade_unavailable_exception'
+import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   // In development a 500 carries the error's message and stack.
-  protected debug = app.inDev;
+  protected debug = app.inDev
 
   /** Every answer below 500 is an expected refusal and is not logged. */
-  protected ignoreStatuses = Array.from({ length: 100 }, (_, offset) => 400 + offset);
+  protected ignoreStatuses = Array.from({ length: 100 }, (_, offset) => 400 + offset)
 
   /**
    * A product exception answers for itself and a Vine failure takes the framework's answer. A
@@ -22,19 +22,19 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    */
   async handle(error: unknown, ctx: HttpContext) {
     if (error instanceof ProductException || error instanceof vineErrors.E_VALIDATION_ERROR) {
-      return super.handle(error, ctx);
+      return super.handle(error, ctx)
     }
-    const answer = mapPackageError(error);
+    const answer = mapPackageError(error)
     if (answer) {
       for (const [name, value] of Object.entries(answer.headers ?? {})) {
-        ctx.response.header(name, value);
+        ctx.response.header(name, value)
       }
-      return ctx.response.status(answer.status).send(answer.body);
+      return ctx.response.status(answer.status).send(answer.body)
     }
     if (this.debug && error instanceof Error) {
-      return ctx.response.internalServerError({ error: error.message, stack: error.stack });
+      return ctx.response.internalServerError({ error: error.message, stack: error.stack })
     }
-    return super.handle(new UnexpectedException(error), ctx);
+    return super.handle(new UnexpectedException(error), ctx)
   }
 
   /**
@@ -45,8 +45,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    */
   async report(error: unknown, ctx: HttpContext) {
     try {
-      const reportable = this.#reportable(error);
-      if (reportable) await super.report(reportable, ctx);
+      const reportable = this.#reportable(error)
+      if (reportable) await super.report(reportable, ctx)
     } catch {
       // The server answers only after the report, so a failed report must not stop the answer. The
       // fallback line carries fixed fields only, and a logger that fails again is left alone.
@@ -54,7 +54,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         ctx.logger.error(
           { event: 'http.request.report_failed', errorType: 'logging_failure' },
           'Private diagnostic logger failed'
-        );
+        )
       } catch {
         // The answer must survive when the logger and its safe fallback both fail.
       }
@@ -68,19 +68,19 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       event: 'http.request.error',
       method: normalizeRequestMethod(ctx.request.method()),
       path: normalizeRoutePattern(ctx.route?.pattern),
-    };
+    }
   }
 
   #reportable(error: unknown) {
     if (error instanceof ProductException || error instanceof vineErrors.E_VALIDATION_ERROR) {
-      return error;
+      return error
     }
-    const answer = mapPackageError(error);
-    if (answer && answer.status < 500) return undefined;
-    if (answer?.errorType) return new AccountKitFailureException(error);
+    const answer = mapPackageError(error)
+    if (answer && answer.status < 500) return undefined
+    if (answer?.errorType) return new AccountKitFailureException(error)
     if (error instanceof masqueradeErrors.E_MASQUERADE_UNAVAILABLE) {
-      return new MasqueradeUnavailableException(error);
+      return new MasqueradeUnavailableException(error)
     }
-    return new UnexpectedException(error);
+    return new UnexpectedException(error)
   }
 }

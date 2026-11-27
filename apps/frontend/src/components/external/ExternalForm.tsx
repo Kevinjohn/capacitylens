@@ -1,26 +1,26 @@
-import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useState } from 'react';
-import { useStore } from '@/store/useStore';
-import { useEditSubmit } from '@/hooks/useEditSubmit';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { useFieldError } from '@/hooks/useFieldError';
-import { parseText } from '@/lib/validation';
-import { m } from '@/i18n';
-import { FormButtons, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
-import { FieldError } from '@/components/ui/field';
-import { NEUTRAL_COLOR } from '@/lib/palette';
-import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
-import type { Resource } from '@capacitylens/shared/types/entities';
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose'
+import { useState } from 'react'
+import { useStore } from '@/store/useStore'
+import { useEditSubmit } from '@/hooks/useEditSubmit'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { useFieldError } from '@/hooks/useFieldError'
+import { parseText } from '@/lib/validation'
+import { m } from '@/i18n'
+import { FormButtons, FormDialog, RequiredLegend, TextField } from '@/components/common/ui'
+import { FieldError } from '@/components/ui/field'
+import { NEUTRAL_COLOR } from '@/lib/palette'
+import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities'
+import type { Resource } from '@capacitylens/shared/types/entities'
 
 type ExternalFormFieldsProps = {
-  name: string;
-  onNameChange: (value: string) => void;
-  jobTitle: string;
-  onRoleChange: (value: string) => void;
-  error: string | null;
-  errorField: string | null;
-  errorId: string;
-};
+  name: string
+  onNameChange: (value: string) => void
+  jobTitle: string
+  onRoleChange: (value: string) => void
+  error: string | null
+  errorField: string | null
+  errorId: string
+}
 
 function ExternalFormFields(props: ExternalFormFieldsProps) {
   return (
@@ -46,7 +46,7 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
       <FieldError id={props.errorId}>{props.error}</FieldError>
       <RequiredLegend />
     </>
-  );
+  )
 }
 
 /** Creates or edits an external company and optional descriptor. Externals have no capacity; neutral colour and inert capacity defaults preserve the Resource entity contract. */
@@ -54,16 +54,16 @@ export function ExternalForm({
   resource,
   onClose: close,
 }: {
-  resource?: Resource;
-  onClose: () => void;
+  resource?: Resource
+  onClose: () => void
 }) {
-  const onClose = useFormLifetimeClose(close);
-  const add = useStore((state) => state.addResource);
-  const update = useStore((state) => state.updateResource);
-  const [name, setName] = useState(resource?.name ?? '');
-  const [jobTitle, setJobTitle] = useState(resource?.jobTitle ?? '');
-  const { error, errorField, errorId, fail } = useFieldError();
-  const resources = useStore((state) => state.data.resources);
+  const onClose = useFormLifetimeClose(close)
+  const add = useStore((state) => state.addResource)
+  const update = useStore((state) => state.updateResource)
+  const [name, setName] = useState(resource?.name ?? '')
+  const [jobTitle, setJobTitle] = useState(resource?.jobTitle ?? '')
+  const { error, errorField, errorId, fail } = useFieldError()
+  const resources = useStore((state) => state.data.resources)
   const { pending, submit } = useEditSubmit({
     editing: resource,
     rows: resources,
@@ -71,17 +71,17 @@ export function ExternalForm({
     cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
-  });
+  })
 
   const prepareSave = () => {
     const cleanName = parseText(name, fail, {
       field: 'name',
       required: true,
       requiredMessage: m.form_external_err_company_required(),
-    });
-    if (cleanName === null) return null;
-    const cleanJobTitle = parseText(jobTitle, fail, { field: 'jobTitle', required: false });
-    if (cleanJobTitle === null) return null;
+    })
+    if (cleanName === null) return null
+    const cleanJobTitle = parseText(jobTitle, fail, { field: 'jobTitle', required: false })
+    if (cleanJobTitle === null) return null
     const patch = {
       kind: 'external' as const,
       name: cleanName,
@@ -89,16 +89,16 @@ export function ExternalForm({
       // External capacity defaults satisfy the shared Resource validation contract even though capacity views exclude external load.
       ...buildExternalCapacityDefaults(),
       color: NEUTRAL_COLOR,
-    };
-    return resource ? () => update(resource.id, patch, resource.updatedAt) : () => add(patch);
-  };
+    }
+    return resource ? () => update(resource.id, patch, resource.updatedAt) : () => add(patch)
+  }
 
   return (
     <FormDialog
       title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit(prepareSave);
+        void submit(prepareSave)
       }}
       footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
@@ -114,5 +114,5 @@ export function ExternalForm({
         />
       </fieldset>
     </FormDialog>
-  );
+  )
 }

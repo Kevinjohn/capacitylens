@@ -1,22 +1,22 @@
-import { SignOutButton } from './SignOutButton';
-import { useId, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { requestApiResponse } from '@/api/queryClient';
-import { readApiError } from '@/lib/readApiError';
+import { SignOutButton } from './SignOutButton'
+import { useId, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { requestApiResponse } from '@/api/queryClient'
+import { readApiError } from '@/lib/readApiError'
 import {
   MAX_NAME_LENGTH,
   parseUserName,
   normalizeUserText,
   countUnicodeCharacters,
-} from '@capacitylens/shared/lib/strings';
+} from '@capacitylens/shared/lib/strings'
 import {
   DEFAULT_TIME_ZONE,
   listSupportedTimeZones,
   resolveTimeZoneOptionLabel,
-} from '@/lib/timezones';
-import { m } from '@/i18n';
+} from '@/lib/timezones'
+import { m } from '@/i18n'
 
 /** Collects the company name and fixed calendar convention after native identity authentication. */
 export function CompanySetup({
@@ -24,51 +24,51 @@ export function CompanySetup({
   onConflict,
   onSignOut,
 }: {
-  onCreated: () => Promise<void> | void;
-  onConflict: () => Promise<boolean>;
-  onSignOut: () => Promise<void> | void;
+  onCreated: () => Promise<void> | void
+  onConflict: () => Promise<boolean>
+  onSignOut: () => Promise<void> | void
 }) {
-  const id = useId();
-  const [name, setName] = useState('');
-  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1);
-  const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const id = useId()
+  const [name, setName] = useState('')
+  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1)
+  const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const submit = async () => {
-    if (busy) return;
-    const canonicalName = parseUserName(name);
+    if (busy) return
+    const canonicalName = parseUserName(name)
     if (canonicalName === null) {
       setError(
         !name.trim()
           ? m.validation_name_required()
           : countUnicodeCharacters(normalizeUserText(name)) > MAX_NAME_LENGTH
             ? m.validation_text_too_long()
-            : m.validation_text_invalid(),
-      );
-      return;
+            : m.validation_text_invalid()
+      )
+      return
     }
-    setBusy(true);
-    setError(null);
+    setBusy(true)
+    setError(null)
     try {
       const response = await requestApiResponse('api.first_company_setup.store', {
         body: { name: canonicalName, weekStartsOn, timeZone },
-      });
-      if (response.status === 409 && (await onConflict())) return;
-      if (!response.ok) throw new Error((await readApiError(response)) ?? m.company_setup_failed());
-      await onCreated();
+      })
+      if (response.status === 409 && (await onConflict())) return
+      if (!response.ok) throw new Error((await readApiError(response)) ?? m.company_setup_failed())
+      await onCreated()
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : m.company_setup_failed());
+      setError(failure instanceof Error ? failure.message : m.company_setup_failed())
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
-  };
+  }
   return (
     <main className="flex min-h-screen items-center justify-center p-6" data-testid="company-setup">
       <form
         className="w-full max-w-sm space-y-4"
         onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
+          event.preventDefault()
+          void submit()
         }}
       >
         <h1 className="text-2xl font-semibold">{m.company_setup_title()}</h1>
@@ -132,5 +132,5 @@ export function CompanySetup({
         </SignOutButton>
       </form>
     </main>
-  );
+  )
 }

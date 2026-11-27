@@ -1,10 +1,10 @@
-import type { PlanningMutationSuccess } from '@/api/planningContracts';
+import type { PlanningMutationSuccess } from '@/api/planningContracts'
 
 /** A committed planning receipt as the server sends it, for tests that script a reply. */
 export function makeReceipt(
   mutationId: string,
   revision: number,
-  overrides: Partial<PlanningMutationSuccess> = {},
+  overrides: Partial<PlanningMutationSuccess> = {}
 ): PlanningMutationSuccess {
   return {
     status: 'committed',
@@ -13,5 +13,5 @@ export function makeReceipt(
     restoration: { consumedGroupId: null, replacementGroupId: null },
     changes: { upserts: [], removed: [] },
     ...overrides,
-  };
+  }
 }

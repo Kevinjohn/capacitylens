@@ -1,4 +1,4 @@
-import capacitylens from '#config/capacitylens';
+import capacitylens from '#config/capacitylens'
 
 /** Whether this installation can send email. */
 export class MailDeliveryService {
@@ -7,6 +7,6 @@ export class MailDeliveryService {
    * and incomplete settings, so a host is the whole answer.
    */
   isMailConfigured(): boolean {
-    return Boolean(capacitylens.mailHost?.trim());
+    return Boolean(capacitylens.mailHost?.trim())
   }
 }

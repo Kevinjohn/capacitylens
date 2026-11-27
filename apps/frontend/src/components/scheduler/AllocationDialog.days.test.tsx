@@ -1,12 +1,12 @@
-import { PlanningCacheError } from '@/data/planning/planningErrors';
-import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { AllocationDialog } from './AllocationDialog';
-import { useStore } from '@/store/useStore';
-import { chooseOption } from '@/test/schedulerTestKit';
+import { PlanningCacheError } from '@/data/planning/planningErrors'
+import { getStubPlanningTransport } from '@/test/planningTransportHandle'
+import { requireCreated } from '@/test/requireCreated'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { AllocationDialog } from './AllocationDialog'
+import { useStore } from '@/store/useStore'
+import { chooseOption } from '@/test/schedulerTestKit'
 import {
   required,
   closestForm,
@@ -15,214 +15,212 @@ import {
   person,
   enableDays,
   renderAsOwner,
-} from '@/test/allocationDialogTestKit';
+} from '@/test/allocationDialogTestKit'
 
 beforeEach(async () => {
-  await resetAllocationDialogStore();
-});
+  await resetAllocationDialogStore()
+})
 
 describe('AllocationDialog days mode', () => {
   it('keeps a missing resource distinct from a resource with no effective working days', async () => {
-    await enableDays();
-    const user = userEvent.setup();
+    await enableDays()
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: 'missing-resource', startDate: '2026-06-01', endDate: '2026-06-05' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(
       new PlanningCacheError(
         'Allocation must reference an existing resource and activity in this company.',
         undefined,
-        422,
-      ),
-    );
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+        422
+      )
+    )
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).not.toHaveTextContent(
-      "This person has no working days within the company's current working week.",
-    );
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+      "This person has no working days within the company's current working week."
+    )
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('counts and derives spans through a company-narrowed effective week', async () => {
-    await enableDays([1, 2, 3, 4]);
+    await enableDays([1, 2, 3, 4])
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-05' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    expect(screen.getByLabelText('Days over')).toHaveValue(4);
-    expect(screen.getByLabelText('Days of work')).toHaveValue(4);
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '5' } });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByLabelText('Days over')).toHaveValue(4)
+    expect(screen.getByLabelText('Days of work')).toHaveValue(4)
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '5' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-08',
       hoursPerDay: 6.4,
-    });
-  });
+    })
+  })
 
   it('validates the maximum working span against the narrowed company week', async () => {
-    await enableDays([1, 2, 3, 4]);
+    await enableDays([1, 2, 3, 4])
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '9999-12-27', endDate: '9999-12-27' }}
         onClose={vi.fn()}
-      />,
-    );
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+      />
+    )
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
 
-    const daysOver = screen.getByLabelText('Days over');
-    expect(daysOver).toHaveAttribute('max', '4');
-    fireEvent.change(daysOver, { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '0' } });
-    fireEvent.submit(closestForm(daysOver));
+    const daysOver = screen.getByLabelText('Days over')
+    expect(daysOver).toHaveAttribute('max', '4')
+    fireEvent.change(daysOver, { target: { value: '5' } })
+    fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '0' } })
+    fireEvent.submit(closestForm(daysOver))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
-    expect(daysOver).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByLabelText('Days of work')).not.toHaveAttribute('aria-invalid', 'true');
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+    expect(screen.getByRole('alert')).toHaveTextContent(/cannot extend beyond 31 December 9999/i)
+    expect(daysOver).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Days of work')).not.toHaveAttribute('aria-invalid', 'true')
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('keeps zero-overlap date math finite but rejects creating a normal allocation', async () => {
-    await enableDays([2]);
+    await enableDays([2])
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '5' } });
-    expect(screen.getByText('Ends Wed 3 Jun 2026 · 1.6h/day')).toBeInTheDocument();
-    expect(screen.queryByText(/9999/)).not.toBeInTheDocument();
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '5' } })
+    expect(screen.getByText('Ends Wed 3 Jun 2026 · 1.6h/day')).toBeInTheDocument()
+    expect(screen.queryByText(/9999/)).not.toBeInTheDocument()
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      "This person has no working days within the company's current working week.",
-    );
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+      "This person has no working days within the company's current working week."
+    )
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('rejects even an ignored creation for a zero-overlap person (no escape hatch, decision 6)', async () => {
-    await useStore.getState().updateCompany(ACC, { workingDays: [2] });
+    await useStore.getState().updateCompany(ACC, { workingDays: [2] })
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    await user.click(screen.getByRole('checkbox', { name: 'Ignore working days' }));
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    await user.click(screen.getByRole('checkbox', { name: 'Ignore working days' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(useStore.getState().data.allocations).toHaveLength(0);
+    expect(useStore.getState().data.allocations).toHaveLength(0)
     expect(
-      screen.getByText(
-        "This person has no working days within the company's current working week.",
-      ),
-    ).toBeInTheDocument();
-  });
+      screen.getByText("This person has no working days within the company's current working week.")
+    ).toBeInTheDocument()
+  })
 
   it('leaves Ignore working days unchecked and skips personal non-working weekdays', async () => {
-    await enableDays();
+    await enableDays()
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 3, 5] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 3, 5] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const ignoreWorkingDays = screen.getByRole('checkbox', { name: 'Ignore working days' });
-    expect(ignoreWorkingDays).not.toBeChecked();
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '3' } });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const ignoreWorkingDays = screen.getByRole('checkbox', { name: 'Ignore working days' })
+    expect(ignoreWorkingDays).not.toBeChecked()
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '3' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-05',
       ignoreWorkingDays: false,
-    });
-  });
+    })
+  })
 
   it('includes every calendar day when Ignore working days is checked', async () => {
-    await enableDays();
+    await enableDays()
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 3, 5] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 3, 5] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const ignoreWorkingDays = screen.getByRole('checkbox', { name: 'Ignore working days' });
-    await user.click(ignoreWorkingDays);
-    expect(ignoreWorkingDays).toBeChecked();
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '3' } });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const ignoreWorkingDays = screen.getByRole('checkbox', { name: 'Ignore working days' })
+    await user.click(ignoreWorkingDays)
+    expect(ignoreWorkingDays).toBeChecked()
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '3' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-03',
       ignoreWorkingDays: true,
-    });
-  });
+    })
+  })
 
   it('reopens and resaves an existing checked allocation without changing its span or semantics', async () => {
-    await enableDays();
+    await enableDays()
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 3, 5] }),
-    );
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 3, 5] })
+    )
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: resource.id,
@@ -232,32 +230,32 @@ describe('AllocationDialog days mode', () => {
         hoursPerDay: 8,
         status: 'confirmed',
         ignoreWorkingDays: true,
-      }),
-    );
-    const user = userEvent.setup();
-    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+      })
+    )
+    const user = userEvent.setup()
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />)
 
-    expect(screen.getByRole('checkbox', { name: 'Ignore working days' })).toBeChecked();
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('checkbox', { name: 'Ignore working days' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(
-      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id)
     ).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-03',
       ignoreWorkingDays: true,
-    });
-  });
+    })
+  })
 
   it('derives end date + hours/day from start, days of work and days over', async () => {
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
       useStore
         .getState()
-        .addResource({ ...person('Bruce'), workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const onClose = vi.fn();
-    const user = userEvent.setup();
+        .addResource({ ...person('Bruce'), workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5] })
+    )
+    const onClose = vi.fn()
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -267,23 +265,23 @@ describe('AllocationDialog days mode', () => {
           endDate: '2026-06-01',
         }}
         onClose={onClose}
-      />,
-    );
+      />
+    )
 
-    expect(screen.queryByLabelText('End')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Hours / day')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('End')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Hours / day')).not.toBeInTheDocument()
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), {
       target: { value: '5' },
-    });
+    })
     fireEvent.change(screen.getByLabelText('Days over'), {
       target: { value: '10' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled()
     // 10 working days from Mon 2026-06-01 (Mon–Fri) lands on Fri 2026-06-12;
     // 5 days of work spread over 10 at the fixed 8h day = 4h/day. The legacy stored 6h value
     // deliberately has no effect on scheduling math.
@@ -291,15 +289,15 @@ describe('AllocationDialog days mode', () => {
       startDate: '2026-06-01',
       endDate: '2026-06-12',
       hoursPerDay: 4,
-    });
-  });
+    })
+  })
 
   it('rejects zero days of work', async () => {
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -309,27 +307,27 @@ describe('AllocationDialog days mode', () => {
           endDate: '2026-06-01',
         }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), {
       target: { value: '0' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/days of work must be greater than 0/i);
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+    expect(screen.getByRole('alert')).toHaveTextContent(/days of work must be greater than 0/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('rejects a derived span that would leave the four-digit-year date domain', async () => {
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const onClose = vi.fn();
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const onClose = vi.fn()
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -339,29 +337,29 @@ describe('AllocationDialog days mode', () => {
           endDate: '9999-12-31',
         }}
         onClose={onClose}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days over'), {
       target: { value: '2' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(/cannot extend beyond 31 December 9999/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('rejects a work volume that would derive more than 24h/day (no silent clamp)', async () => {
     // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24,
     // silently discarding the entered volume. The dialog must reject so preview === saved.
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -371,32 +369,32 @@ describe('AllocationDialog days mode', () => {
           endDate: '2026-06-01',
         }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), {
       target: { value: '5' },
-    });
+    })
     fireEvent.change(screen.getByLabelText('Days over'), {
       target: { value: '1' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/more than 24h a day/i);
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+    expect(screen.getByRole('alert')).toHaveTextContent(/more than 24h a day/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('rejects an EMPTY "Days over" submitted via Enter (no blur) instead of saving a 0-hour allocation', async () => {
     // Submitting from an empty Days over field bypasses the blur minimum. The resulting zero span must fail validation before an allocation is written.
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const onClose = vi.fn();
-    const addAllocation = vi.spyOn(useStore.getState(), 'addAllocation');
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const onClose = vi.fn()
+    const addAllocation = vi.spyOn(useStore.getState(), 'addAllocation')
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -406,32 +404,32 @@ describe('AllocationDialog days mode', () => {
           endDate: '2026-06-01',
         }}
         onClose={onClose}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), {
       target: { value: '5' },
-    });
+    })
     // Clear Days over, then submit without blurring so validation sees zero rather than the blur minimum.
-    const daysOver = screen.getByLabelText('Days over');
-    fireEvent.change(daysOver, { target: { value: '' } });
-    fireEvent.submit(closestForm(daysOver));
+    const daysOver = screen.getByLabelText('Days over')
+    fireEvent.change(daysOver, { target: { value: '' } })
+    fireEvent.submit(closestForm(daysOver))
 
-    expect(onClose).not.toHaveBeenCalled();
-    expect(addAllocation).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/days over must be a whole number from 1/i);
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-    addAllocation.mockRestore();
-  });
+    expect(onClose).not.toHaveBeenCalled()
+    expect(addAllocation).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(/days over must be a whole number from 1/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+    addAllocation.mockRestore()
+  })
 
   it('honours the drawn span when creating (days over = the dragged-out length)', async () => {
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const user = userEvent.setup()
 
     renderAsOwner(
       <AllocationDialog
@@ -442,47 +440,47 @@ describe('AllocationDialog days mode', () => {
           endDate: '2026-06-05',
         }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    expect(screen.getByLabelText('Days over')).toHaveValue(5);
-    expect(screen.getByLabelText('Days of work')).toHaveValue(5);
+    expect(screen.getByLabelText('Days over')).toHaveValue(5)
+    expect(screen.getByLabelText('Days of work')).toHaveValue(5)
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-05',
       hoursPerDay: 8,
-    });
-  });
+    })
+  })
 
   it('seeds a half day as half a day of work in days mode', async () => {
-    await enableDays();
+    await enableDays()
     const resource = await requireCreated(
       useStore
         .getState()
-        .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
-    );
+        .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] })
+    )
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    expect(screen.getByLabelText('Days over')).toHaveValue(1);
-    expect(screen.getByLabelText('Days of work')).toHaveValue(0.5);
-  });
+    expect(screen.getByLabelText('Days over')).toHaveValue(1)
+    expect(screen.getByLabelText('Days of work')).toHaveValue(0.5)
+  })
 
   it('does not drift hours when an unevenly-dividing allocation is re-saved unchanged', async () => {
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
     // A 1.875-day seed must retain its precision; rounding it to two decimal places would alter work volume on an unchanged save.
     const alloc = requireCreated(
       await useStore.getState().addAllocation({
@@ -492,25 +490,25 @@ describe('AllocationDialog days mode', () => {
         endDate: '2026-06-03',
         hoursPerDay: 5,
         status: 'confirmed',
-      }),
-    );
-    const user = userEvent.setup();
-    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+      })
+    )
+    const user = userEvent.setup()
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />)
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     const after = required(
       useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id),
-      'Expected the unchanged allocation to remain saved.',
-    );
-    expect(after.endDate).toBe('2026-06-03');
-    expect(after.hoursPerDay).toBeCloseTo(5, 6);
-  });
+      'Expected the unchanged allocation to remain saved.'
+    )
+    expect(after.endDate).toBe('2026-06-03')
+    expect(after.hoursPerDay).toBeCloseTo(5, 6)
+  })
 
   it('preserves a stored non-working end date when an existing allocation is saved unchanged', async () => {
-    await enableDays();
+    await enableDays()
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: resource.id,
@@ -519,24 +517,24 @@ describe('AllocationDialog days mode', () => {
         endDate: '2026-06-07',
         hoursPerDay: 8,
         status: 'confirmed',
-      }),
-    );
-    const user = userEvent.setup();
-    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+      })
+    )
+    const user = userEvent.setup()
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />)
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(
       useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)
-        ?.endDate,
-    ).toBe('2026-06-07');
-  });
+        ?.endDate
+    ).toBe('2026-06-07')
+  })
 
   it('seeds the days inputs by inverting an existing allocation', async () => {
-    await enableDays();
+    await enableDays()
     const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
 
     const alloc = requireCreated(
       await useStore.getState().addAllocation({
@@ -546,11 +544,11 @@ describe('AllocationDialog days mode', () => {
         endDate: '2026-06-12',
         hoursPerDay: 4,
         status: 'confirmed',
-      }),
-    );
-    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+      })
+    )
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />)
 
-    expect(screen.getByLabelText('Days of work')).toHaveValue(5);
-    expect(screen.getByLabelText('Days over')).toHaveValue(10);
-  });
-});
+    expect(screen.getByLabelText('Days of work')).toHaveValue(5)
+    expect(screen.getByLabelText('Days over')).toHaveValue(10)
+  })
+})

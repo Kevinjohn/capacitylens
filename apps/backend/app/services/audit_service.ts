@@ -1,4 +1,4 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /** The audit trail, written in the caller's transaction. */
 export class AuditService {
@@ -6,12 +6,12 @@ export class AuditService {
   async writeAudit(
     trx: TransactionClientContract,
     input: {
-      companyId: string;
-      actorId: string;
-      action: string;
-      entity: string;
-      entityId: string;
-      fields: string[];
+      companyId: string
+      actorId: string
+      action: string
+      entity: string
+      entityId: string
+      fields: string[]
     },
     now = new Date().toISOString()
   ) {
@@ -27,6 +27,6 @@ export class AuditService {
       }),
       created_at: now,
       updated_at: now,
-    });
+    })
   }
 }

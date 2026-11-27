@@ -1,13 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { makeActivity } from '@/test/fixtures';
-import { ToolbarActivityFilter } from './ToolbarActivityFilter';
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { makeActivity } from '@/test/fixtures'
+import { ToolbarActivityFilter } from './ToolbarActivityFilter'
 
-const admin = makeActivity({ id: 'act-admin', name: 'Admin', kind: 'internal' });
-const design = makeActivity({ id: 'act-design', name: 'Design', kind: 'allProjects' });
+const admin = makeActivity({ id: 'act-admin', name: 'Admin', kind: 'internal' })
+const design = makeActivity({ id: 'act-design', name: 'Design', kind: 'allProjects' })
 
 function renderFilter(props: Partial<React.ComponentProps<typeof ToolbarActivityFilter>> = {}) {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <ToolbarActivityFilter
       internalActivities={[admin]}
@@ -16,88 +16,88 @@ function renderFilter(props: Partial<React.ComponentProps<typeof ToolbarActivity
       activityKind={null}
       onChange={onChange}
       {...props}
-    />,
-  );
-  return onChange;
+    />
+  )
+  return onChange
 }
 
 function openActivityFilter() {
   fireEvent.keyDown(screen.getByRole('combobox', { name: 'Filter by activity' }), {
     key: 'ArrowDown',
-  });
+  })
 }
 
 describe('ToolbarActivityFilter', () => {
   it('selects the "Internal — All" activity group', () => {
-    const onChange = renderFilter();
-    openActivityFilter();
+    const onChange = renderFilter()
+    openActivityFilter()
 
-    fireEvent.click(screen.getByRole('option', { name: 'Internal — All' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Internal — All' }))
 
-    expect(onChange).toHaveBeenCalledWith({ activityKind: 'internal', activityId: null });
-  });
+    expect(onChange).toHaveBeenCalledWith({ activityKind: 'internal', activityId: null })
+  })
 
   it('selects a specific activity', () => {
-    const onChange = renderFilter();
-    openActivityFilter();
+    const onChange = renderFilter()
+    openActivityFilter()
 
-    fireEvent.click(screen.getByRole('option', { name: 'Admin' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Admin' }))
 
-    expect(onChange).toHaveBeenCalledWith({ activityId: 'act-admin', activityKind: null });
-  });
+    expect(onChange).toHaveBeenCalledWith({ activityId: 'act-admin', activityKind: null })
+  })
 
   it('clears a specific activity by selecting "All activities"', () => {
-    const onChange = renderFilter({ activityId: 'act-admin' });
-    openActivityFilter();
+    const onChange = renderFilter({ activityId: 'act-admin' })
+    openActivityFilter()
 
-    fireEvent.click(screen.getByRole('option', { name: 'All activities' }));
+    fireEvent.click(screen.getByRole('option', { name: 'All activities' }))
 
-    expect(onChange).toHaveBeenCalledWith({ activityId: null, activityKind: null });
-  });
+    expect(onChange).toHaveBeenCalledWith({ activityId: null, activityKind: null })
+  })
 
   it('displays "All projects — All" for the all-projects activity group', () => {
-    renderFilter({ activityKind: 'allProjects' });
+    renderFilter({ activityKind: 'allProjects' })
 
     expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
-      'All projects — All',
-    );
-  });
+      'All projects — All'
+    )
+  })
 
   it('keeps an archived activity selection readable and clearable', () => {
-    const onChange = renderFilter({ activityId: 'act-archived' });
+    const onChange = renderFilter({ activityId: 'act-archived' })
 
     expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
-      'Unavailable activity',
-    );
-    openActivityFilter();
+      'Unavailable activity'
+    )
+    openActivityFilter()
     expect(screen.getByRole('option', { name: 'Unavailable activity' })).toHaveAttribute(
       'aria-disabled',
-      'true',
-    );
-    fireEvent.click(screen.getByRole('option', { name: 'All activities' }));
-    expect(onChange).toHaveBeenCalledWith({ activityId: null, activityKind: null });
-  });
+      'true'
+    )
+    fireEvent.click(screen.getByRole('option', { name: 'All activities' }))
+    expect(onChange).toHaveBeenCalledWith({ activityId: null, activityKind: null })
+  })
 
   it('keeps an archived activity selection visible when no activities remain', () => {
-    renderFilter({ activityId: 'act-archived', internalActivities: [], allProjectsActivities: [] });
+    renderFilter({ activityId: 'act-archived', internalActivities: [], allProjectsActivities: [] })
 
     expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
-      'Unavailable activity',
-    );
-    openActivityFilter();
-    expect(screen.getByRole('option', { name: 'All activities' })).toBeInTheDocument();
-  });
+      'Unavailable activity'
+    )
+    openActivityFilter()
+    expect(screen.getByRole('option', { name: 'All activities' })).toBeInTheDocument()
+  })
 
   it('keeps a kind selection visible when its group becomes empty', () => {
-    renderFilter({ activityKind: 'internal', internalActivities: [] });
+    renderFilter({ activityKind: 'internal', internalActivities: [] })
 
     expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
-      'Unavailable activity',
-    );
-    openActivityFilter();
+      'Unavailable activity'
+    )
+    openActivityFilter()
     expect(screen.getByRole('option', { name: 'Unavailable activity' })).toHaveAttribute(
       'aria-disabled',
-      'true',
-    );
-  });
-});
+      'true'
+    )
+  })
+})

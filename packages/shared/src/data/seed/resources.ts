@@ -1,8 +1,8 @@
-import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import type { AppData } from '../../types/entities.js';
-import { buildExternalCapacityDefaults } from '../../types/entities.js';
-import { NEUTRAL_COLOR } from '../../lib/color.js';
-import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
+import { NULLABLE_FIELDS } from '../../types/nullableFields.js'
+import type { AppData } from '../../types/entities.js'
+import { buildExternalCapacityDefaults } from '../../types/entities.js'
+import { NEUTRAL_COLOR } from '../../lib/color.js'
+import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js'
 
 const RESOURCES: AppData['resources'] = [
   {
@@ -122,7 +122,7 @@ const RESOURCES: AppData['resources'] = [
     halfDays: [],
     color: '#2d75da',
   },
-];
+]
 
 /** Fresh copies of the seed resources. */
 export function createResources(): AppData['resources'] {
@@ -130,5 +130,5 @@ export function createResources(): AppData['resources'] {
     ...resource,
     workingDays: [...resource.workingDays],
     halfDays: [...resource.halfDays],
-  }));
+  }))
 }

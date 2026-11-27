@@ -1,84 +1,84 @@
-import { NEUTRAL_COLOR } from '@/lib/palette';
-import { useMemo } from 'react';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
-import type { Resource } from '@capacitylens/shared/types/entities';
-import { useStore } from '@/store/useStore';
+import { NEUTRAL_COLOR } from '@/lib/palette'
+import { useMemo } from 'react'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
+import type { Resource } from '@capacitylens/shared/types/entities'
+import { useStore } from '@/store/useStore'
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasResourceEngagementGrouping,
   hasPlaceholdersEnabled,
-} from '@/store/selectors';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { createResourceComparator } from '@/lib/resourceGrouping';
+} from '@/store/selectors'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { createResourceComparator } from '@/lib/resourceGrouping'
 
-type PartitionResourcesOptions = { resources: Resource[]; groupByEngagement: boolean };
+type PartitionResourcesOptions = { resources: Resource[]; groupByEngagement: boolean }
 function partitionResources({ resources, groupByEngagement }: PartitionResourcesOptions) {
-  const people: Resource[] = [];
-  const placeholders: Resource[] = [];
-  const externals: Resource[] = [];
+  const people: Resource[] = []
+  const placeholders: Resource[] = []
+  const externals: Resource[] = []
   for (const resource of resources) {
-    if (resource.kind === 'person') people.push(resource);
-    else if (resource.kind === 'placeholder') placeholders.push(resource);
-    else if (isExternalResource(resource)) externals.push(resource);
+    if (resource.kind === 'person') people.push(resource)
+    else if (resource.kind === 'placeholder') placeholders.push(resource)
+    else if (isExternalResource(resource)) externals.push(resource)
   }
   // Placeholders and externals are always Studio, so engagement order only moves people.
-  const compareResources = createResourceComparator(groupByEngagement);
-  people.sort(compareResources);
-  placeholders.sort(compareResources);
-  externals.sort(compareResources);
+  const compareResources = createResourceComparator(groupByEngagement)
+  people.sort(compareResources)
+  placeholders.sort(compareResources)
+  externals.sort(compareResources)
   return {
     people,
     studioPeople: people.filter((resource) => resource.engagement === 'studio'),
     supplementaryPeople: people.filter((resource) => resource.engagement === 'supplementary'),
     placeholders,
     externals,
-  };
+  }
 }
 
 /** Builds the scoped resource groups and actions shown by the list. */
 export function useResourceListModel() {
-  const { resources, disciplines } = useActiveScopedData();
+  const { resources, disciplines } = useActiveScopedData()
   const disciplinesById = useMemo(
     () => new Map(disciplines.map((discipline) => [discipline.id, discipline])),
-    [disciplines],
-  );
+    [disciplines]
+  )
   const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeCompanyId),
-  );
+    hasDisciplinesEnabled(state.data, state.activeCompanyId)
+  )
   const groupByEngagement = useStore((state) =>
-    hasResourceEngagementGrouping(state.data, state.activeCompanyId),
-  );
+    hasResourceEngagementGrouping(state.data, state.activeCompanyId)
+  )
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
-  );
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId)
+  )
   const externalEnabled = useStore((state) =>
-    hasExternalResourcesEnabled(state.data, state.activeCompanyId),
-  );
+    hasExternalResourcesEnabled(state.data, state.activeCompanyId)
+  )
   const groups = useMemo(
     () => partitionResources({ resources, groupByEngagement }),
-    [resources, groupByEngagement],
-  );
+    [resources, groupByEngagement]
+  )
   const resolveDisciplineName = (id?: string | null) =>
-    id ? disciplinesById.get(id)?.name : undefined;
+    id ? disciplinesById.get(id)?.name : undefined
   const resolveSwatchColor = (resource: Resource) =>
     (disciplinesEnabled && resource.disciplineId
       ? disciplinesById.get(resource.disciplineId)?.color
       : undefined) ??
     (disciplinesEnabled && resource.kind === 'person' && !resource.disciplineId
       ? NEUTRAL_COLOR
-      : resource.color);
+      : resource.color)
   const buildMetadata = (resource: Resource) =>
     [
       resource.jobTitle,
       disciplinesEnabled ? resolveDisciplineName(resource.disciplineId) : undefined,
     ]
       .filter(Boolean)
-      .join(' · ');
+      .join(' · ')
   const visibleCount =
     groups.people.length +
     (placeholdersEnabled ? groups.placeholders.length : 0) +
-    (externalEnabled ? groups.externals.length : 0);
+    (externalEnabled ? groups.externals.length : 0)
   return {
     ...groups,
     groupByEngagement,
@@ -87,8 +87,8 @@ export function useResourceListModel() {
     visibleCount,
     resolveSwatchColor,
     buildMetadata,
-  };
+  }
 }
 
 /** Prepared resource groups and actions consumed by the list view. */
-export type ResourceListModel = ReturnType<typeof useResourceListModel>;
+export type ResourceListModel = ReturnType<typeof useResourceListModel>

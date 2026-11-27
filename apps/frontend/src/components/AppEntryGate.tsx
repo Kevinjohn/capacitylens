@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { CompanyAccessRecovery } from './company/CompanyAccessRecovery';
-import { RotateHint } from './RotateHint';
-import { m } from '@/i18n';
+import { useEffect } from 'react'
+import type { ReactNode } from 'react'
+import { CompanyAccessRecovery } from './company/CompanyAccessRecovery'
+import { RotateHint } from './RotateHint'
+import { m } from '@/i18n'
 
 function LoadingGate() {
   return (
@@ -11,25 +11,25 @@ function LoadingGate() {
         {m.app_loading()}
       </p>
     </main>
-  );
+  )
 }
 
 function FocusableStage({ children }: { children: ReactNode }) {
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>('main input, main button, main a[href]')?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  return children;
+      document.querySelector<HTMLElement>('main input, main button, main a[href]')?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  return children
 }
 
 interface AppEntryGateProps {
-  hydrated: boolean;
-  hasActiveCompany: boolean;
-  ambiguousCompanyDirectory: boolean;
-  allowWithoutActiveCompany: boolean;
-  children: ReactNode;
+  hydrated: boolean
+  hasActiveCompany: boolean
+  ambiguousCompanyDirectory: boolean
+  allowWithoutActiveCompany: boolean
+  children: ReactNode
 }
 
 /** Expresses the mutually-exclusive app entry sequence in one ordered gate. */
@@ -40,7 +40,7 @@ export function AppEntryGate({
   allowWithoutActiveCompany,
   children,
 }: AppEntryGateProps) {
-  if (!hydrated) return <LoadingGate />;
+  if (!hydrated) return <LoadingGate />
 
   if (ambiguousCompanyDirectory || (!hasActiveCompany && !allowWithoutActiveCompany)) {
     return (
@@ -48,8 +48,8 @@ export function AppEntryGate({
         <CompanyAccessRecovery />
         <RotateHint />
       </FocusableStage>
-    );
+    )
   }
 
-  return children;
+  return children
 }

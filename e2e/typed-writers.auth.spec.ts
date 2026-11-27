@@ -1,5 +1,5 @@
-import { expect, test } from './fixtures';
-import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures'
+import type { Page } from '@playwright/test'
 import {
   AUTH_API,
   AUTH_PASSWORD,
@@ -8,41 +8,41 @@ import {
   createTestMember,
   sendPlanningIntent,
   signUpUser,
-} from './authTestKit';
+} from './authTestKit'
 import {
   freezeBrowserDate,
   isPlanningMutation,
   selectShadOption,
   waitForAppLanding,
-} from './browserTestKit';
+} from './browserTestKit'
 
-test.use({ contextOptions: { reducedMotion: 'reduce' } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 type PlanningWrite = {
-  method: string;
-  path: string;
-  operation?: string | undefined;
-  entity?: string | undefined;
-};
+  method: string
+  path: string
+  operation?: string | undefined
+  entity?: string | undefined
+}
 
 function recordPlanningWrites(page: Page) {
-  const writes: PlanningWrite[] = [];
+  const writes: PlanningWrite[] = []
   page.on('request', (request) => {
-    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return;
-    const path = new URL(request.url()).pathname;
-    if (path !== '/api/v1/batch' && !path.startsWith('/api/v1/companies/')) return;
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return
+    const path = new URL(request.url()).pathname
+    if (path !== '/api/v1/batch' && !path.startsWith('/api/v1/companies/')) return
     const intent = path.endsWith('/planning/mutations')
       ? (request.postDataJSON() as { intent: { operation: string; entity?: { entity: string } } })
           .intent
-      : undefined;
+      : undefined
     writes.push({
       method: request.method(),
       path,
       operation: intent?.operation,
       entity: intent?.entity?.entity,
-    });
-  });
-  return writes;
+    })
+  })
+  return writes
 }
 
 const mutationWrite = (companyId: string, operation: string, entity?: string): PlanningWrite => ({
@@ -50,276 +50,274 @@ const mutationWrite = (companyId: string, operation: string, entity?: string): P
   path: `/api/v1/companies/${companyId}/planning/mutations`,
   operation,
   entity,
-});
+})
 
 test('authenticated client creation and settings Undo/Redo persist as typed writes', async ({
   page,
   request,
 }) => {
-  const suffix = Date.now();
-  const email = `bruce-wayne-writers-${suffix}@capacitylens.dev`;
-  const owner = await signUpUser(email);
-  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Writers Studio ${suffix}`);
+  const suffix = Date.now()
+  const email = `bruce-wayne-writers-${suffix}@capacitylens.dev`
+  const owner = await signUpUser(email)
+  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Writers Studio ${suffix}`)
 
-  await page.goto('/');
-  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(AUTH_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
-  const writes = recordPlanningWrites(page);
+  await page.goto('/')
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor()
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(AUTH_PASSWORD)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }))
+  const writes = recordPlanningWrites(page)
 
-  await page.getByRole('link', { name: 'Clients' }).click();
-  await page.getByRole('button', { name: 'Add client' }).click();
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Wayne Foundation');
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(
-    page.getByTestId('client-row').filter({ hasText: 'Wayne Foundation' }),
-  ).toBeVisible();
+  await page.getByRole('link', { name: 'Clients' }).click()
+  await page.getByRole('button', { name: 'Add client' }).click()
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Wayne Foundation')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByTestId('client-row').filter({ hasText: 'Wayne Foundation' })).toBeVisible()
 
   const state = async () => {
     const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
-    });
-    expect(response.status()).toBe(200);
+    })
+    expect(response.status()).toBe(200)
     return (
       (await response.json()) as {
         data: {
-          clients: Array<{ name: string }>;
-          companies: Array<{ id: string; dateStyle: string | null }>;
-        };
+          clients: Array<{ name: string }>
+          companies: Array<{ id: string; dateStyle: string | null }>
+        }
       }
-    ).data;
-  };
+    ).data
+  }
   await expect
     .poll(async () => (await state()).clients.some((row) => row.name === 'Wayne Foundation'))
-    .toBe(true);
+    .toBe(true)
 
-  await page.getByRole('link', { name: 'Settings' }).click();
-  const dayMonth = page.getByRole('radio', { name: '9 Sep', exact: true });
-  const monthDay = page.getByRole('radio', { name: 'Sep 9', exact: true });
-  await expect(dayMonth).toHaveAttribute('aria-checked', 'true');
-  await monthDay.click();
-  await expect(monthDay).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('link', { name: 'Settings' }).click()
+  const dayMonth = page.getByRole('radio', { name: '9 Sep', exact: true })
+  const monthDay = page.getByRole('radio', { name: 'Sep 9', exact: true })
+  await expect(dayMonth).toHaveAttribute('aria-checked', 'true')
+  await monthDay.click()
+  await expect(monthDay).toHaveAttribute('aria-checked', 'true')
   await expect
     .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
-    .toBe('month-day');
+    .toBe('month-day')
 
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await page.getByTestId('undo-button').click();
+  await page.getByRole('link', { name: 'Schedule' }).click()
+  await page.getByTestId('undo-button').click()
   await expect
     .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
-    .toBeNull();
-  await page.getByTestId('redo-button').click();
+    .toBeNull()
+  await page.getByTestId('redo-button').click()
   await expect
     .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
-    .toBe('month-day');
-  await page.getByRole('link', { name: 'Settings' }).click();
-  await expect(monthDay).toHaveAttribute('aria-checked', 'true');
-  expect((await state()).clients.some((row) => row.name === 'Wayne Foundation')).toBe(true);
-  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.create', 'clients'));
-  expect(writes).toContainEqual(mutationWrite(companyId, 'settings.update'));
-  expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false);
-});
+    .toBe('month-day')
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(monthDay).toHaveAttribute('aria-checked', 'true')
+  expect((await state()).clients.some((row) => row.name === 'Wayne Foundation')).toBe(true)
+  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.create', 'clients'))
+  expect(writes).toContainEqual(mutationWrite(companyId, 'settings.update'))
+  expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false)
+})
 
 test('authenticated discipline and time-off deletion restore the same rows', async ({
   page,
   request,
 }) => {
-  const suffix = Date.now();
-  const email = `diana-prince-writers-${suffix}@capacitylens.dev`;
-  const owner = await signUpUser(email);
-  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`);
+  const suffix = Date.now()
+  const email = `diana-prince-writers-${suffix}@capacitylens.dev`
+  const owner = await signUpUser(email)
+  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`)
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'settings.update',
     changes: { disciplinesEnabled: true },
-  });
-  const resourceId = crypto.randomUUID();
+  })
+  const resourceId = crypto.randomUUID()
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Diana Prince',
     jobTitle: 'Designer',
-  });
+  })
   // The Time off page lists entries from the current week onward; the fixed dates below stay
   // visible only with the frozen browser date.
-  await freezeBrowserDate(page);
-  await page.goto('/');
-  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(AUTH_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
-  const writes = recordPlanningWrites(page);
+  await freezeBrowserDate(page)
+  await page.goto('/')
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor()
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(AUTH_PASSWORD)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }))
+  const writes = recordPlanningWrites(page)
 
   const state = async () => {
     const response = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
-    });
-    expect(response.status()).toBe(200);
+    })
+    expect(response.status()).toBe(200)
     return (
       (await response.json()) as {
         data: {
-          disciplines: Array<{ id: string; name: string }>;
-          timeOff: Array<{ id: string; note: string }>;
-        };
+          disciplines: Array<{ id: string; name: string }>
+          timeOff: Array<{ id: string; note: string }>
+        }
       }
-    ).data;
-  };
+    ).data
+  }
 
-  await page.getByRole('link', { name: 'Disciplines' }).click();
-  await page.getByRole('button', { name: 'Add discipline' }).click();
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Strategy');
-  await page.getByRole('button', { name: 'Save' }).click();
-  const discipline = page.getByTestId('discipline-row').filter({ hasText: 'Strategy' });
-  await expect(discipline).toBeVisible();
-  let disciplineId = '';
+  await page.getByRole('link', { name: 'Disciplines' }).click()
+  await page.getByRole('button', { name: 'Add discipline' }).click()
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Strategy')
+  await page.getByRole('button', { name: 'Save' }).click()
+  const discipline = page.getByTestId('discipline-row').filter({ hasText: 'Strategy' })
+  await expect(discipline).toBeVisible()
+  let disciplineId = ''
   await expect
     .poll(async () => {
-      disciplineId = (await state()).disciplines.find((row) => row.name === 'Strategy')?.id ?? '';
-      return disciplineId;
+      disciplineId = (await state()).disciplines.find((row) => row.name === 'Strategy')?.id ?? ''
+      return disciplineId
     })
-    .not.toBe('');
-  await discipline.getByRole('button', { name: /^Edit / }).click();
-  const disciplineEditor = page.getByRole('dialog', { name: 'Edit discipline' });
+    .not.toBe('')
+  await discipline.getByRole('button', { name: /^Edit / }).click()
+  const disciplineEditor = page.getByRole('dialog', { name: 'Edit discipline' })
   await disciplineEditor
     .getByRole('textbox', { name: 'Name', exact: true })
-    .fill('Strategy Operations');
-  await disciplineEditor.getByRole('button', { name: 'Save' }).click();
+    .fill('Strategy Operations')
+  await disciplineEditor.getByRole('button', { name: 'Save' }).click()
   const updatedDiscipline = page
     .getByTestId('discipline-row')
-    .filter({ hasText: 'Strategy Operations' });
-  await expect(updatedDiscipline).toBeVisible();
+    .filter({ hasText: 'Strategy Operations' })
+  await expect(updatedDiscipline).toBeVisible()
   await expect
     .poll(async () => (await state()).disciplines.find((row) => row.id === disciplineId)?.name)
-    .toBe('Strategy Operations');
-  await updatedDiscipline.getByRole('button', { name: 'Delete' }).click();
+    .toBe('Strategy Operations')
+  await updatedDiscipline.getByRole('button', { name: 'Delete' }).click()
   await page
     .getByRole('alertdialog', { name: 'Delete discipline?' })
     .getByRole('button', { name: 'Delete' })
-    .click();
-  await expect(updatedDiscipline).toHaveCount(0);
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await page.getByTestId('undo-button').click();
+    .click()
+  await expect(updatedDiscipline).toHaveCount(0)
+  await page.getByRole('link', { name: 'Schedule' }).click()
+  await page.getByTestId('undo-button').click()
   await expect
     .poll(async () => (await state()).disciplines.some((row) => row.id === disciplineId))
-    .toBe(true);
+    .toBe(true)
 
-  await page.getByRole('link', { name: 'Time off' }).click();
-  await page.getByRole('button', { name: 'Add time off' }).click();
-  const create = page.getByRole('dialog', { name: 'Add time off' });
-  await selectShadOption(create.getByLabel('Resource'), { label: 'Diana Prince' });
-  await create.getByLabel('Start').fill('2026-11-02');
-  await create.getByLabel('End').fill('2026-11-03');
-  await create.getByRole('textbox', { name: 'Note' }).fill('Watchtower visit');
-  await create.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('link', { name: 'Time off' }).click()
+  await page.getByRole('button', { name: 'Add time off' }).click()
+  const create = page.getByRole('dialog', { name: 'Add time off' })
+  await selectShadOption(create.getByLabel('Resource'), { label: 'Diana Prince' })
+  await create.getByLabel('Start').fill('2026-11-02')
+  await create.getByLabel('End').fill('2026-11-03')
+  await create.getByRole('textbox', { name: 'Note' }).fill('Watchtower visit')
+  await create.getByRole('button', { name: 'Save' }).click()
   const row = page
     .getByTestId('timeoff-group')
     .filter({ hasText: 'Diana Prince' })
-    .getByTestId('timeoff-row');
-  await expect(row).toBeVisible();
-  let timeOffId = '';
+    .getByTestId('timeoff-row')
+  await expect(row).toBeVisible()
+  let timeOffId = ''
   await expect
     .poll(async () => {
       timeOffId =
-        (await state()).timeOff.find((entry) => entry.note === 'Watchtower visit')?.id ?? '';
-      return timeOffId;
+        (await state()).timeOff.find((entry) => entry.note === 'Watchtower visit')?.id ?? ''
+      return timeOffId
     })
-    .not.toBe('');
-  await row.getByRole('button', { name: /^Edit / }).click();
-  const timeOffEditor = page.getByRole('dialog', { name: 'Edit time off' });
-  await timeOffEditor.getByRole('textbox', { name: 'Note' }).fill('Watchtower briefing');
-  await timeOffEditor.getByRole('button', { name: 'Save' }).click();
+    .not.toBe('')
+  await row.getByRole('button', { name: /^Edit / }).click()
+  const timeOffEditor = page.getByRole('dialog', { name: 'Edit time off' })
+  await timeOffEditor.getByRole('textbox', { name: 'Note' }).fill('Watchtower briefing')
+  await timeOffEditor.getByRole('button', { name: 'Save' }).click()
   await expect
     .poll(async () => (await state()).timeOff.find((entry) => entry.id === timeOffId)?.note)
-    .toBe('Watchtower briefing');
-  await row.getByRole('button', { name: 'Delete' }).click();
+    .toBe('Watchtower briefing')
+  await row.getByRole('button', { name: 'Delete' }).click()
   await page
     .getByRole('alertdialog', { name: 'Delete time off?' })
     .getByRole('button', { name: 'Delete' })
-    .click();
-  await expect(row).toHaveCount(0);
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await page.getByTestId('undo-button').click();
+    .click()
+  await expect(row).toHaveCount(0)
+  await page.getByRole('link', { name: 'Schedule' }).click()
+  await page.getByTestId('undo-button').click()
   await expect
     .poll(async () => (await state()).timeOff.find((entry) => entry.id === timeOffId)?.note)
-    .toBe('Watchtower briefing');
-  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.create', 'disciplines'));
-  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.update', 'disciplines'));
-  expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.create'));
-  expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.update'));
-  expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false);
-});
+    .toBe('Watchtower briefing')
+  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.create', 'disciplines'))
+  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.update', 'disciplines'))
+  expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.create'))
+  expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.update'))
+  expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false)
+})
 
 for (const repeat of [false, true]) {
   test(`an Editor creates ${repeat ? 'repeated' : 'single'} time off without a restricted note`, async ({
     page,
     request,
   }) => {
-    const suffix = `${Date.now()}-${repeat ? 'repeat' : 'single'}`;
-    const owner = await signUpUser(`time-off-owner-${suffix}@capacitylens.dev`);
-    const editor = await signUpUser(`time-off-editor-${suffix}@capacitylens.dev`);
-    const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`);
-    const resourceId = crypto.randomUUID();
+    const suffix = `${Date.now()}-${repeat ? 'repeat' : 'single'}`
+    const owner = await signUpUser(`time-off-owner-${suffix}@capacitylens.dev`)
+    const editor = await signUpUser(`time-off-editor-${suffix}@capacitylens.dev`)
+    const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`)
+    const resourceId = crypto.randomUUID()
     await createTestPerson(request, owner.cookie, companyId, {
       id: resourceId,
       name: 'Barbara Gordon',
       jobTitle: 'Designer',
-    });
-    createTestMember(companyId, editor.email, 'editor');
+    })
+    createTestMember(companyId, editor.email, 'editor')
 
     // The Time off page lists entries from the current week onward; the fixed dates below stay
     // visible only with the frozen browser date.
-    await freezeBrowserDate(page);
-    await page.goto('/');
-    await page.getByRole('heading', { name: 'Sign in' }).waitFor();
-    await page.getByLabel('Email').fill(editor.email);
-    await page.getByLabel('Password').fill(AUTH_PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
-    const writes = recordPlanningWrites(page);
-    await page.getByRole('link', { name: 'Time off' }).click();
-    await page.getByRole('button', { name: 'Add time off' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Add time off' });
-    await expect(dialog.getByLabel('Note')).toHaveCount(0);
-    await selectShadOption(dialog.getByLabel('Resource'), { label: 'Barbara Gordon' });
-    await dialog.getByLabel('Start').fill('2026-11-02');
-    await dialog.getByLabel('End').fill('2026-11-03');
+    await freezeBrowserDate(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: 'Sign in' }).waitFor()
+    await page.getByLabel('Email').fill(editor.email)
+    await page.getByLabel('Password').fill(AUTH_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }))
+    const writes = recordPlanningWrites(page)
+    await page.getByRole('link', { name: 'Time off' }).click()
+    await page.getByRole('button', { name: 'Add time off' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add time off' })
+    await expect(dialog.getByLabel('Note')).toHaveCount(0)
+    await selectShadOption(dialog.getByLabel('Resource'), { label: 'Barbara Gordon' })
+    await dialog.getByLabel('Start').fill('2026-11-02')
+    await dialog.getByLabel('End').fill('2026-11-03')
     if (repeat) {
-      await selectShadOption(dialog.getByTestId('timeoff-repeat'), { label: 'Weekly' });
-      await dialog.getByTestId('timeoff-repeat-until').fill('2026-11-09');
-      await expect(dialog.getByTestId('timeoff-repeat-preview')).toContainText('Creates 2 entries');
+      await selectShadOption(dialog.getByTestId('timeoff-repeat'), { label: 'Weekly' })
+      await dialog.getByTestId('timeoff-repeat-until').fill('2026-11-09')
+      await expect(dialog.getByTestId('timeoff-repeat-preview')).toContainText('Creates 2 entries')
     }
     const responsePromise = page.waitForResponse((response) =>
-      isPlanningMutation(response.request(), repeat ? 'timeOff.repeat' : 'timeOff.create'),
-    );
-    await dialog.getByRole('button', { name: 'Save' }).click();
-    const response = await responsePromise;
-    expect(response.status()).toBe(200);
+      isPlanningMutation(response.request(), repeat ? 'timeOff.repeat' : 'timeOff.create')
+    )
+    await dialog.getByRole('button', { name: 'Save' }).click()
+    const response = await responsePromise
+    expect(response.status()).toBe(200)
     const row = page
       .getByTestId('timeoff-group')
       .filter({ hasText: 'Barbara Gordon' })
-      .getByTestId('timeoff-row');
-    await expect(row).toHaveCount(repeat ? 2 : 1);
+      .getByTestId('timeoff-row')
+    await expect(row).toHaveCount(repeat ? 2 : 1)
     const stored = await request.get(`${AUTH_API}/api/v1/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
-    });
-    expect(stored.status()).toBe(200);
+    })
+    expect(stored.status()).toBe(200)
     const state = (
       (await stored.json()) as {
-        data: { timeOff: Array<{ resourceId: string; note: string | null }> };
+        data: { timeOff: Array<{ resourceId: string; note: string | null }> }
       }
-    ).data;
+    ).data
     expect(state.timeOff.filter((entry) => entry.resourceId === resourceId)).toHaveLength(
-      repeat ? 2 : 1,
-    );
+      repeat ? 2 : 1
+    )
     expect(
       state.timeOff
         .filter((entry) => entry.resourceId === resourceId)
-        .every((entry) => entry.note === null),
-    ).toBe(true);
+        .every((entry) => entry.note === null)
+    ).toBe(true)
     expect(writes).toContainEqual(
-      mutationWrite(companyId, repeat ? 'timeOff.repeat' : 'timeOff.create'),
-    );
-    expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false);
-  });
+      mutationWrite(companyId, repeat ? 'timeOff.repeat' : 'timeOff.create')
+    )
+    expect(writes.some((write) => write.path === '/api/v1/batch')).toBe(false)
+  })
 }

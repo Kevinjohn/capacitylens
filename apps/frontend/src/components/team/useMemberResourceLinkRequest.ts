@@ -1,28 +1,28 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import { m } from '@/i18n';
-import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
-import type { TeamMember } from '@/account/teamAccessApi';
+import { useLayoutEffect, useRef, useState } from 'react'
+import { m } from '@/i18n'
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi'
+import type { TeamMember } from '@/account/teamAccessApi'
 
 interface MemberResourceLinkRequestsInput {
-  companyId: string | null;
+  companyId: string | null
   /** Requests a fresh directory read and returns its generation. */
-  reload(): number;
+  reload(): number
   /** Generation of the newest successful directory read. */
-  acceptedReadGeneration: number;
+  acceptedReadGeneration: number
 }
 
 type ResolveResourceStatusOptions = {
-  expectedResourceId: string | null | undefined;
-  reconciled: boolean;
-};
+  expectedResourceId: string | null | undefined
+  reconciled: boolean
+}
 function resolveResourceStatus({
   expectedResourceId,
   reconciled,
 }: ResolveResourceStatusOptions): string {
-  if (!reconciled) return '';
+  if (!reconciled) return ''
   return expectedResourceId === null
     ? m.settings_member_resource_remove_done()
-    : m.settings_member_resource_update_done();
+    : m.settings_member_resource_update_done()
 }
 
 function requestResourceLinkChange(member: TeamMember, companyId: string, resourceId: string) {
@@ -32,24 +32,24 @@ function requestResourceLinkChange(member: TeamMember, companyId: string, resour
       userId: member.userId,
       resourceId,
       expectedRevision: member.resourceLink?.revision ?? null,
-    });
+    })
   }
   if (member.resourceLink) {
     return teamAccessApi.clearMemberResourceLink(
       companyId,
       member.userId,
-      member.resourceLink.revision,
-    );
+      member.resourceLink.revision
+    )
   }
-  return Promise.resolve({ kind: 'ok', value: true, status: 204 } as const);
+  return Promise.resolve({ kind: 'ok', value: true, status: 204 } as const)
 }
 
 interface MemberResourceLinkRequestState {
-  sending: boolean;
+  sending: boolean
   /** Generation of the directory read this member's last finished change requested. */
-  requiredReadGeneration: number;
-  error: string | null;
-  expectedResourceId: string | null | undefined;
+  requiredReadGeneration: number
+  error: string | null
+  expectedResourceId: string | null | undefined
 }
 
 const IDLE_REQUEST: MemberResourceLinkRequestState = {
@@ -57,15 +57,15 @@ const IDLE_REQUEST: MemberResourceLinkRequestState = {
   requiredReadGeneration: 0,
   error: null,
   expectedResourceId: undefined,
-};
+}
 
 /** One member's resource-link request as the row and dialog see it. */
 export interface MemberResourceLinkRequest {
-  pending: boolean;
-  error: string | null;
-  statusMessage: string;
-  change(resourceId: string): void;
-  clearStatus(): void;
+  pending: boolean
+  error: string | null
+  statusMessage: string
+  change(resourceId: string): void
+  clearStatus(): void
 }
 
 /**
@@ -82,56 +82,56 @@ export function useMemberResourceLinkRequests({
   acceptedReadGeneration,
 }: MemberResourceLinkRequestsInput): (member: TeamMember) => MemberResourceLinkRequest {
   const [requests, setRequests] = useState<ReadonlyMap<string, MemberResourceLinkRequestState>>(
-    () => new Map(),
-  );
-  const latestRequestByMember = useRef(new Map<string, number>());
-  const requestCount = useRef(0);
-  const currentCompany = useRef(companyId);
+    () => new Map()
+  )
+  const latestRequestByMember = useRef(new Map<string, number>())
+  const requestCount = useRef(0)
+  const currentCompany = useRef(companyId)
   useLayoutEffect(() => {
-    currentCompany.current = companyId;
-    latestRequestByMember.current.clear();
-  }, [companyId]);
+    currentCompany.current = companyId
+    latestRequestByMember.current.clear()
+  }, [companyId])
   const update = (userId: string, patch: Partial<MemberResourceLinkRequestState>) => {
     setRequests((previous) =>
-      new Map(previous).set(userId, { ...(previous.get(userId) ?? IDLE_REQUEST), ...patch }),
-    );
-  };
+      new Map(previous).set(userId, { ...(previous.get(userId) ?? IDLE_REQUEST), ...patch })
+    )
+  }
 
   const change = (member: TeamMember, resourceId: string) => {
-    if (!companyId) return;
-    const activeCompanyId = companyId;
-    const { userId } = member;
-    const generation = ++requestCount.current;
-    latestRequestByMember.current.set(userId, generation);
+    if (!companyId) return
+    const activeCompanyId = companyId
+    const { userId } = member
+    const generation = ++requestCount.current
+    latestRequestByMember.current.set(userId, generation)
     const isCurrent = () =>
       latestRequestByMember.current.get(userId) === generation &&
-      currentCompany.current === activeCompanyId;
-    update(userId, { sending: true, error: null, expectedResourceId: undefined });
+      currentCompany.current === activeCompanyId
+    update(userId, { sending: true, error: null, expectedResourceId: undefined })
     void requestResourceLinkChange(member, companyId, resourceId)
       .then((result) => {
-        if (!isCurrent()) return;
+        if (!isCurrent()) return
         if (result.kind === 'unknown' || result.kind === 'invalid') {
-          update(userId, { error: m.settings_member_resource_unknown() });
+          update(userId, { error: m.settings_member_resource_unknown() })
         } else if (result.kind === 'rejected') {
           update(userId, {
             error: resolveRefusalMessage(result, m.settings_member_resource_error()),
-          });
-        } else update(userId, { expectedResourceId: resourceId === '' ? null : resourceId });
+          })
+        } else update(userId, { expectedResourceId: resourceId === '' ? null : resourceId })
       })
       .catch((cause: unknown) => {
-        console.warn('Resource link request failed', cause);
-        if (isCurrent()) update(userId, { error: m.settings_member_resource_unknown() });
+        console.warn('Resource link request failed', cause)
+        if (isCurrent()) update(userId, { error: m.settings_member_resource_unknown() })
       })
       .finally(() => {
-        if (isCurrent()) update(userId, { sending: false, requiredReadGeneration: reload() });
-      });
-  };
+        if (isCurrent()) update(userId, { sending: false, requiredReadGeneration: reload() })
+      })
+  }
 
   return (member) => {
-    const request = requests.get(member.userId) ?? IDLE_REQUEST;
-    const pending = request.sending || acceptedReadGeneration < request.requiredReadGeneration;
+    const request = requests.get(member.userId) ?? IDLE_REQUEST
+    const pending = request.sending || acceptedReadGeneration < request.requiredReadGeneration
     const reconciled =
-      !pending && (member.resourceLink?.resourceId ?? null) === request.expectedResourceId;
+      !pending && (member.resourceLink?.resourceId ?? null) === request.expectedResourceId
     return {
       pending,
       error: request.error,
@@ -143,8 +143,8 @@ export function useMemberResourceLinkRequests({
       // A finished success is announced once; errors and unknown outcomes stay until the next
       // change. While the change is pending, keep it so a reopened dialog announces completion.
       clearStatus: () => {
-        if (!pending) update(member.userId, { expectedResourceId: undefined });
+        if (!pending) update(member.userId, { expectedResourceId: undefined })
       },
-    };
-  };
+    }
+  }
 }

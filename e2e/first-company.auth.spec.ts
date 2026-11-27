@@ -1,32 +1,32 @@
-import { expect, test } from '@playwright/test';
-import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createServer } from 'node:net';
-import { once } from 'node:events';
-import { fileURLToPath } from 'node:url';
-import { masqueradeTokenHeaders } from './authTestKit';
+import { expect, test } from '@playwright/test'
+import { spawn, spawnSync } from 'node:child_process'
+import { mkdtempSync, existsSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createServer } from 'node:net'
+import { once } from 'node:events'
+import { fileURLToPath } from 'node:url'
+import { masqueradeTokenHeaders } from './authTestKit'
 
 // This journey needs an empty native installation, independently of the shared role fixtures.
 test('operator setup creates the first Owner, one company and its default client', async ({
   page,
   request,
 }, testInfo) => {
-  test.setTimeout(90_000);
-  const backend = fileURLToPath(new URL('../apps/backend/', import.meta.url));
+  test.setTimeout(90_000)
+  const backend = fileURLToPath(new URL('../apps/backend/', import.meta.url))
   expect(
     existsSync(join(backend, 'public/index.html')),
-    'Build and sync the production SPA before this journey.',
-  ).toBe(true);
-  const scratch = mkdtempSync(join(tmpdir(), 'capacitylens-first-company-'));
-  const listener = createServer().listen(0, '127.0.0.1');
-  await once(listener, 'listening');
-  const port = (listener.address() as { port: number }).port;
+    'Build and sync the production SPA before this journey.'
+  ).toBe(true)
+  const scratch = mkdtempSync(join(tmpdir(), 'capacitylens-first-company-'))
+  const listener = createServer().listen(0, '127.0.0.1')
+  await once(listener, 'listening')
+  const port = (listener.address() as { port: number }).port
   await new Promise<void>((resolve, reject) =>
-    listener.close((error) => (error ? reject(error) : resolve())),
-  );
-  const origin = `http://127.0.0.1:${port}`;
+    listener.close((error) => (error ? reject(error) : resolve()))
+  )
+  const origin = `http://127.0.0.1:${port}`
   const environment = {
     ...process.env,
     NODE_ENV: 'test',
@@ -41,8 +41,8 @@ test('operator setup creates the first Owner, one company and its default client
     CAPACITYLENS_ALLOW_OPEN_SIGN_UP: 'true',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
     CAPACITYLENS_BACKUP_DIR: '',
-  };
-  let child: ReturnType<typeof spawn> | undefined;
+  }
+  let child: ReturnType<typeof spawn> | undefined
   try {
     const migrate = spawnSync(
       process.execPath,
@@ -52,110 +52,110 @@ test('operator setup creates the first Owner, one company and its default client
         env: environment,
         encoding: 'utf8',
         timeout: 30_000,
-      },
-    );
-    expect(migrate.status, `${migrate.stdout}\n${migrate.stderr}`).toBe(0);
+      }
+    )
+    expect(migrate.status, `${migrate.stdout}\n${migrate.stderr}`).toBe(0)
     // The operator prints the first-install link; the person who opens it becomes the Owner.
     const bootstrap = spawnSync(
       process.execPath,
       ['ace.js', 'account-kit:admission:bootstrap', 'bruce@wayne.example', '--role=viewer'],
-      { cwd: backend, env: environment, encoding: 'utf8', timeout: 30_000 },
-    );
-    expect(bootstrap.status, `${bootstrap.stdout}\n${bootstrap.stderr}`).toBe(0);
-    const setupLink = /"url":"([^"]+)"/.exec(bootstrap.stdout)?.[1];
-    expect(setupLink, 'the bootstrap command prints the setup link').toBeTruthy();
+      { cwd: backend, env: environment, encoding: 'utf8', timeout: 30_000 }
+    )
+    expect(bootstrap.status, `${bootstrap.stdout}\n${bootstrap.stderr}`).toBe(0)
+    const setupLink = /"url":"([^"]+)"/.exec(bootstrap.stdout)?.[1]
+    expect(setupLink, 'the bootstrap command prints the setup link').toBeTruthy()
     child = spawn(process.execPath, ['--import=@poppinss/ts-exec', 'bin/server.ts'], {
       cwd: backend,
       env: environment,
       stdio: 'ignore',
-    });
+    })
     await expect
       .poll(
         async () => {
           try {
-            return (await fetch(`${origin}/health/ready`)).ok;
+            return (await fetch(`${origin}/health/ready`)).ok
           } catch {
-            return false;
+            return false
           }
         },
-        { timeout: 20_000 },
+        { timeout: 20_000 }
       )
-      .toBe(true);
-    await page.goto(origin);
-    await expect(page.getByTestId('sign-in-setup-needed')).toBeVisible();
-    await page.goto(setupLink!);
-    await page.getByTestId('invite-name').fill('Bruce Wayne');
-    await page.getByTestId('invite-password').fill('first-company-password-2026');
-    await page.getByTestId('invite-submit').click();
-    await expect(page.getByTestId('company-setup')).toBeVisible();
+      .toBe(true)
+    await page.goto(origin)
+    await expect(page.getByTestId('sign-in-setup-needed')).toBeVisible()
+    await page.goto(setupLink!)
+    await page.getByTestId('invite-name').fill('Bruce Wayne')
+    await page.getByTestId('invite-password').fill('first-company-password-2026')
+    await page.getByTestId('invite-submit').click()
+    await expect(page.getByTestId('company-setup')).toBeVisible()
     const additionalIdentity = {
       name: 'Clark Kent',
       email: 'clark@wayne.example',
       password: 'first-company-teammate-password-2026',
-    };
+    }
     const prematureSignUp = await request.post(`${origin}/api/v1/auth/sign-up`, {
       data: additionalIdentity,
       headers: { 'sec-fetch-site': 'same-origin' },
-    });
-    expect(prematureSignUp.status()).toBe(403);
-    expect((await prematureSignUp.json()).code).toBe('E_SIGN_UP_CLOSED');
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-    await page.getByLabel('Email', { exact: true }).fill('bruce@wayne.example');
-    await page.getByLabel('Password', { exact: true }).fill('first-company-password-2026');
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(page.getByTestId('company-setup')).toBeVisible();
-    await expect(page.getByRole('textbox')).toHaveCount(1);
-    const companyName = page.getByLabel('Company name');
-    await companyName.fill('𐐀'.repeat(100));
-    await expect(companyName).toHaveValue('𐐀'.repeat(100));
-    await companyName.fill('𐐀'.repeat(101));
-    await page.getByRole('button', { name: 'Create company', exact: true }).click();
-    await expect(page.getByRole('alert')).toBeVisible();
-    await expect(companyName).toHaveValue('𐐀'.repeat(101));
-    await companyName.fill('Wayne Enterprises');
-    await page.getByLabel('Week starts on').selectOption('0');
-    await page.getByLabel('Time zone', { exact: true }).selectOption('America/New_York');
-    await page.setViewportSize({ width: 1440, height: 1000 });
+    })
+    expect(prematureSignUp.status()).toBe(403)
+    expect((await prematureSignUp.json()).code).toBe('E_SIGN_UP_CLOSED')
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await page.getByLabel('Email', { exact: true }).fill('bruce@wayne.example')
+    await page.getByLabel('Password', { exact: true }).fill('first-company-password-2026')
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page.getByTestId('company-setup')).toBeVisible()
+    await expect(page.getByRole('textbox')).toHaveCount(1)
+    const companyName = page.getByLabel('Company name')
+    await companyName.fill('𐐀'.repeat(100))
+    await expect(companyName).toHaveValue('𐐀'.repeat(100))
+    await companyName.fill('𐐀'.repeat(101))
+    await page.getByRole('button', { name: 'Create company', exact: true }).click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(companyName).toHaveValue('𐐀'.repeat(101))
+    await companyName.fill('Wayne Enterprises')
+    await page.getByLabel('Week starts on').selectOption('0')
+    await page.getByLabel('Time zone', { exact: true }).selectOption('America/New_York')
+    await page.setViewportSize({ width: 1440, height: 1000 })
     await page.screenshot({
       path:
         process.env.CAPACITYLENS_SETUP_CAPTURE_PATH ??
         testInfo.outputPath('company_first_run_setup.png'),
-    });
-    await page.getByRole('button', { name: 'Create company', exact: true }).click();
-    await expect(page.getByTestId('company-setup')).toHaveCount(0);
-    await expect(page.getByTestId('app-sidebar')).toBeVisible();
-    const companiesResponse = await page.request.get(`${origin}/api/v1/companies`);
+    })
+    await page.getByRole('button', { name: 'Create company', exact: true }).click()
+    await expect(page.getByTestId('company-setup')).toHaveCount(0)
+    await expect(page.getByTestId('app-sidebar')).toBeVisible()
+    const companiesResponse = await page.request.get(`${origin}/api/v1/companies`)
     const companies = ((await companiesResponse.json()) as { data: { id: string; role: string }[] })
-      .data;
-    expect(companies).toHaveLength(1);
-    expect(companies[0]!.role).toBe('owner');
-    const state = await page.request.get(`${origin}/api/v1/state?companyId=${companies[0]!.id}`);
-    const data = (await state.json()).data;
-    expect(data.companies[0].name).toBe('Wayne Enterprises');
-    expect(data.companies[0].weekStartsOn).toBe(0);
-    expect(data.companies[0].timezone).toBe('America/New_York');
-    expect(data.clients).toHaveLength(1);
-    expect(data.clients[0].builtin).toBe(true);
+      .data
+    expect(companies).toHaveLength(1)
+    expect(companies[0]!.role).toBe('owner')
+    const state = await page.request.get(`${origin}/api/v1/state?companyId=${companies[0]!.id}`)
+    const data = (await state.json()).data
+    expect(data.companies[0].name).toBe('Wayne Enterprises')
+    expect(data.companies[0].weekStartsOn).toBe(0)
+    expect(data.companies[0].timezone).toBe('America/New_York')
+    expect(data.clients).toHaveLength(1)
+    expect(data.clients[0].builtin).toBe(true)
     const duplicate = await page.request.post(`${origin}/api/v1/installation/company`, {
       data: { name: 'Stark Industries', weekStartsOn: 1, timeZone: 'Etc/GMT' },
       headers: await masqueradeTokenHeaders(page.request, undefined, origin),
-    });
-    expect(duplicate.status()).toBe(409);
+    })
+    expect(duplicate.status()).toBe(409)
     const permittedSignUp = await request.post(`${origin}/api/v1/auth/sign-up`, {
       data: additionalIdentity,
       headers: { 'sec-fetch-site': 'same-origin' },
-    });
-    expect(permittedSignUp.status()).toBe(201);
-    await page.reload();
-    await expect(page.getByTestId('app-sidebar')).toBeVisible();
-    await expect(page.getByTestId('company-setup')).toHaveCount(0);
+    })
+    expect(permittedSignUp.status()).toBe(201)
+    await page.reload()
+    await expect(page.getByTestId('app-sidebar')).toBeVisible()
+    await expect(page.getByTestId('company-setup')).toHaveCount(0)
   } finally {
     if (child && child.exitCode === null) {
-      const exited = once(child, 'exit');
-      child.kill('SIGTERM');
-      const timer = setTimeout(() => child?.kill('SIGKILL'), 5_000);
-      await exited.finally(() => clearTimeout(timer));
+      const exited = once(child, 'exit')
+      child.kill('SIGTERM')
+      const timer = setTimeout(() => child?.kill('SIGKILL'), 5_000)
+      await exited.finally(() => clearTimeout(timer))
     }
-    rmSync(scratch, { recursive: true, force: true });
+    rmSync(scratch, { recursive: true, force: true })
   }
-});
+})

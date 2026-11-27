@@ -1,26 +1,26 @@
-import { applyGesture } from '@/lib/gestureMath';
-import type { DateRange, DragMode } from '@/lib/gestureMath';
-import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
-import type { BarLayout } from './schedulerModel';
-import type { ColumnGeometry } from './columnGeometry';
+import { applyGesture } from '@/lib/gestureMath'
+import type { DateRange, DragMode } from '@/lib/gestureMath'
+import type { Allocation, Weekday } from '@capacitylens/shared/types/entities'
+import type { BarLayout } from './schedulerModel'
+import type { ColumnGeometry } from './columnGeometry'
 
 interface BuildGesturePreviewDatesInput {
-  allocation: Pick<Allocation, 'startDate' | 'endDate' | 'ignoreWorkingDays'>;
-  mode: DragMode;
-  deltaDays: number;
+  allocation: Pick<Allocation, 'startDate' | 'endDate' | 'ignoreWorkingDays'>
+  mode: DragMode
+  deltaDays: number
   /** The lane the pointer is over: the week the previewed range is placed in, and the one the
    * drop check below judges. */
-  previewDays: Weekday[] | undefined;
+  previewDays: Weekday[] | undefined
   /** The dragged bar's own week, passed only when the pointer is over a different lane. It sizes
    * the previewed range so the preview matches what the commit will write. */
-  sourceDays?: Weekday[] | undefined;
+  sourceDays?: Weekday[] | undefined
   /** Whether the pointer is over a different resource lane. This remains true if the source
    * resource disappears and its working week can no longer be resolved. */
-  isReassignment: boolean;
+  isReassignment: boolean
 }
 
 type GesturePreviewResult =
-  { kind: 'blocked' } | { kind: 'unchanged' } | { kind: 'ready'; dates: DateRange };
+  { kind: 'blocked' } | { kind: 'unchanged' } | { kind: 'ready'; dates: DateRange }
 
 /** Clamps a bar gesture to valid dates before previewing it. */
 export function buildGesturePreviewDates({
@@ -36,10 +36,10 @@ export function buildGesturePreviewDates({
     previewDays?.length === 0 &&
     !allocation.ignoreWorkingDays
   ) {
-    return { kind: 'blocked' };
+    return { kind: 'blocked' }
   }
   // A no-op gesture must keep stored dates so changed working calendars do not produce a preview that snaps back on release.
-  if (deltaDays === 0 && (mode !== 'move' || !isReassignment)) return { kind: 'unchanged' };
+  if (deltaDays === 0 && (mode !== 'move' || !isReassignment)) return { kind: 'unchanged' }
   return {
     kind: 'ready',
     dates: applyGesture({
@@ -52,26 +52,26 @@ export function buildGesturePreviewDates({
         ignoreWorkingDays: allocation.ignoreWorkingDays,
       },
     }),
-  };
+  }
 }
 
 /** Projects a bar gesture into visible column positions. */
 export function buildGesturePreviewGeometry(
   bar: BarLayout,
   geometry: ColumnGeometry,
-  preview: { mode: DragMode; deltaDays: number; deltaY: number; dates: DateRange | null } | null,
+  preview: { mode: DragMode; deltaDays: number; deltaY: number; dates: DateRange | null } | null
 ) {
-  let left = bar.x;
-  let width = bar.width;
-  let translateY = 0;
+  let left = bar.x
+  let width = bar.width
+  let translateY = 0
   if (preview) {
-    if (preview.mode === 'move') translateY = preview.deltaY;
+    if (preview.mode === 'move') translateY = preview.deltaY
     // Measure the settled preview range through the shared geometry, including zero-column reassignments whose destination calendar changes the span.
     if (preview.dates) {
-      left = geometry.getDateX(preview.dates.startDate);
-      width = geometry.getDatesWidth(preview.dates.startDate, preview.dates.endDate);
+      left = geometry.getDateX(preview.dates.startDate)
+      width = geometry.getDatesWidth(preview.dates.startDate, preview.dates.endDate)
     }
   }
 
-  return { left, width, translateY };
+  return { left, width, translateY }
 }

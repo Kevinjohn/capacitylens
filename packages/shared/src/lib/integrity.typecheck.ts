@@ -1,44 +1,44 @@
-import { removeAllocationAttribution } from './integrity.js';
+import { removeAllocationAttribution } from './integrity.js'
 
-const row = { id: 'a1', projectId: 'p1', updatedAt: 'before' } as const;
-const cleared = removeAllocationAttribution(row, 'after');
+const row = { id: 'a1', projectId: 'p1', updatedAt: 'before' } as const
+const cleared = removeAllocationAttribution(row, 'after')
 
-const preservedId: 'a1' = cleared.id;
-const clearedProject: null = cleared.projectId;
-const timestamp: string = cleared.updatedAt;
+const preservedId: 'a1' = cleared.id
+const clearedProject: null = cleared.projectId
+const timestamp: string = cleared.updatedAt
 
 // @ts-expect-error A cleared allocation does not retain its previous project.
-const previousProject: 'p1' = cleared.projectId;
+const previousProject: 'p1' = cleared.projectId
 // @ts-expect-error Restamping does not retain the old timestamp literal.
-const previousTimestamp: 'before' = cleared.updatedAt;
+const previousTimestamp: 'before' = cleared.updatedAt
 // @ts-expect-error Both attribution and timestamp fields are required inputs.
-removeAllocationAttribution({ id: 'a1' });
+removeAllocationAttribution({ id: 'a1' })
 // @ts-expect-error Attribution must be a project identifier or null.
-removeAllocationAttribution({ projectId: 42, updatedAt: 'before' });
+removeAllocationAttribution({ projectId: 42, updatedAt: 'before' })
 // @ts-expect-error The row timestamp must be a string.
-removeAllocationAttribution({ projectId: 'p1', updatedAt: { value: 'before' } });
+removeAllocationAttribution({ projectId: 'p1', updatedAt: { value: 'before' } })
 // @ts-expect-error A supplied restamp must be a timestamp string.
-removeAllocationAttribution(row, 42);
+removeAllocationAttribution(row, 42)
 // @ts-expect-error A supplied restamp cannot be an object.
-removeAllocationAttribution(row, { value: 'after' });
+removeAllocationAttribution(row, { value: 'after' })
 
-void [preservedId, clearedProject, timestamp, previousProject, previousTimestamp];
+void [preservedId, clearedProject, timestamp, previousProject, previousTimestamp]
 
 function checkUnion(
   unionRow:
     | { kind: 'annotated'; note: string; projectId: string; updatedAt: string }
-    | { kind: 'weighted'; weight: number; projectId: null; updatedAt: string },
+    | { kind: 'weighted'; weight: number; projectId: null; updatedAt: string }
 ) {
-  const result = removeAllocationAttribution(unionRow, 'after');
-  const project: null = result.projectId;
-  const updatedAt: string = result.updatedAt;
+  const result = removeAllocationAttribution(unionRow, 'after')
+  const project: null = result.projectId
+  const updatedAt: string = result.updatedAt
   if (result.kind === 'annotated') {
-    const note: string = result.note;
-    void note;
+    const note: string = result.note
+    void note
   } else {
-    const weight: number = result.weight;
-    void weight;
+    const weight: number = result.weight
+    void weight
   }
-  void [project, updatedAt];
+  void [project, updatedAt]
 }
-void checkUnion;
+void checkUnion

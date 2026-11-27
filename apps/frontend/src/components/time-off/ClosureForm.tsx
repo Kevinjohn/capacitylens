@@ -1,33 +1,33 @@
-import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useState } from 'react';
-import { useCompanyToday } from '@/hooks/useCompanyToday';
-import type { Closure } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { useEditSubmit } from '@/hooks/useEditSubmit';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
-import { parseText } from '@/lib/validation';
-import { useStore } from '@/store/useStore';
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose'
+import { useState } from 'react'
+import { useCompanyToday } from '@/hooks/useCompanyToday'
+import type { Closure } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { useEditSubmit } from '@/hooks/useEditSubmit'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError'
+import { parseText } from '@/lib/validation'
+import { useStore } from '@/store/useStore'
 import {
   DateField,
   FormButtons,
   FormDialog,
   RequiredLegend,
   TextField,
-} from '@/components/common/ui';
-import { FieldError } from '@/components/ui/field';
+} from '@/components/common/ui'
+import { FieldError } from '@/components/ui/field'
 
 type ClosureFormFieldsProps = {
-  name: string;
-  onNameChange: (value: string) => void;
-  startDate: string;
-  onStartDateChange: (value: string) => void;
-  endDate: string;
-  onEndDateChange: (value: string) => void;
-  error: string | null;
-  errorField: string | null;
-  errorId: string;
-};
+  name: string
+  onNameChange: (value: string) => void
+  startDate: string
+  onStartDateChange: (value: string) => void
+  endDate: string
+  onEndDateChange: (value: string) => void
+  error: string | null
+  errorField: string | null
+  errorId: string
+}
 
 function ClosureFormFields(props: ClosureFormFieldsProps) {
   return (
@@ -68,7 +68,7 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
       </FieldError>
       <RequiredLegend />
     </>
-  );
+  )
 }
 
 /** Creates or edits a company closure with guarded date fields. */
@@ -76,20 +76,20 @@ export function ClosureForm({
   closure,
   onClose: close,
 }: {
-  closure?: Closure;
-  onClose: () => void;
+  closure?: Closure
+  onClose: () => void
 }) {
-  const onClose = useFormLifetimeClose(close);
-  const add = useStore((state) => state.addClosure);
-  const update = useStore((state) => state.updateClosure);
-  const today = useCompanyToday();
-  const [name, setName] = useState(closure?.name ?? '');
-  const [startDate, setStartDate] = useState(closure?.startDate ?? today);
-  const [endDate, setEndDate] = useState(closure?.endDate ?? today);
-  const fieldError = useFieldError();
-  const { error, errorField, errorId, fail, clear } = fieldError;
-  useFieldErrorFocus(fieldError);
-  const closures = useStore((state) => state.data.closures);
+  const onClose = useFormLifetimeClose(close)
+  const add = useStore((state) => state.addClosure)
+  const update = useStore((state) => state.updateClosure)
+  const today = useCompanyToday()
+  const [name, setName] = useState(closure?.name ?? '')
+  const [startDate, setStartDate] = useState(closure?.startDate ?? today)
+  const [endDate, setEndDate] = useState(closure?.endDate ?? today)
+  const fieldError = useFieldError()
+  const { error, errorField, errorId, fail, clear } = fieldError
+  useFieldErrorFocus(fieldError)
+  const closures = useStore((state) => state.data.closures)
   const { pending, submit } = useEditSubmit({
     editing: closure,
     rows: closures,
@@ -98,31 +98,31 @@ export function ClosureForm({
     cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
-  });
+  })
 
   const prepareSave = () => {
     const cleanName = parseText(name, fail, {
       requiredMessage: m.form_closure_err_name_required(),
-    });
-    if (!cleanName) return null;
+    })
+    if (!cleanName) return null
     if (!startDate || !endDate) {
-      fail('dates', m.form_closure_err_dates_required());
-      return null;
+      fail('dates', m.form_closure_err_dates_required())
+      return null
     }
     if (endDate < startDate) {
-      fail('dates', m.form_closure_err_end_before_start());
-      return null;
+      fail('dates', m.form_closure_err_end_before_start())
+      return null
     }
-    const patch = { name: cleanName, startDate, endDate };
-    return closure ? () => update(closure.id, patch, closure.updatedAt) : () => add(patch);
-  };
+    const patch = { name: cleanName, startDate, endDate }
+    return closure ? () => update(closure.id, patch, closure.updatedAt) : () => add(patch)
+  }
 
   return (
     <FormDialog
       title={closure ? m.form_closure_edit_title() : m.form_closure_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit(prepareSave);
+        void submit(prepareSave)
       }}
       onEdit={clear}
       footer={<FormButtons onCancel={onClose} disabled={pending} />}
@@ -141,5 +141,5 @@ export function ClosureForm({
         />
       </fieldset>
     </FormDialog>
-  );
+  )
 }

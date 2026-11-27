@@ -1,40 +1,40 @@
-import { useId } from 'react';
-import { Input } from '@/components/ui/input';
-import { Field, FieldContent, FieldDescription } from '@/components/ui/field';
-import { RequiredFieldLabel } from './fieldLayout';
-import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
-import type { ProductFieldLayout } from './fieldTypes';
+import { useId } from 'react'
+import { Input } from '@/components/ui/input'
+import { Field, FieldContent, FieldDescription } from '@/components/ui/field'
+import { RequiredFieldLabel } from './fieldLayout'
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps'
+import type { ProductFieldLayout } from './fieldTypes'
 
 type TextFieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  description?: string;
-  autoFocus?: boolean;
-  invalid?: boolean;
-  required?: boolean;
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  description?: string
+  autoFocus?: boolean
+  invalid?: boolean
+  required?: boolean
   /** Optional description ID that remains referenced while the field is valid or invalid. */
-  externalDescriptionId?: string;
-  describedById?: string;
-  disabled?: boolean;
+  externalDescriptionId?: string
+  describedById?: string
+  disabled?: boolean
   /** Explicit native cap for fields whose raw length is their semantic limit, such as local search. */
-  maxLength?: number | null;
-  type?: 'text' | 'email' | 'password' | 'date';
-  autoComplete?: string;
-  minLength?: number;
-  ariaLabel?: string;
-  testId?: string;
+  maxLength?: number | null
+  type?: 'text' | 'email' | 'password' | 'date'
+  autoComplete?: string
+  minLength?: number
+  ariaLabel?: string
+  testId?: string
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
-  layout?: ProductFieldLayout;
-};
+  layout?: ProductFieldLayout
+}
 
 function resolveBooleanAttribute(value: boolean | undefined): true | undefined {
-  return value ? true : undefined;
+  return value ? true : undefined
 }
 
 function resolveNonEmptyAttribute(value: string): string | undefined {
-  return value === '' ? undefined : value;
+  return value === '' ? undefined : value
 }
 
 function TextFieldControl({
@@ -64,8 +64,8 @@ function TextFieldControl({
       invalid ? describedById : undefined,
     ]
       .filter(Boolean)
-      .join(' '),
-  );
+      .join(' ')
+  )
 
   return (
     <Input
@@ -88,17 +88,17 @@ function TextFieldControl({
       aria-describedby={ariaDescribedBy}
       onChange={(e) => onChange(e.target.value)}
     />
-  );
+  )
 }
 
 /** Renders a labelled text input with shared validation and layout behaviour. */
 export function TextField(props: TextFieldProps) {
-  const { label, description, invalid, required, disabled, layout = 'stacked' } = props;
-  const id = useId();
-  const descriptionId = useId();
-  const input = <TextFieldControl {...props} id={id} descriptionId={descriptionId} />;
-  const descriptionOnOwnRow = description && layout === 'label-control';
-  let fieldControl = input;
+  const { label, description, invalid, required, disabled, layout = 'stacked' } = props
+  const id = useId()
+  const descriptionId = useId()
+  const input = <TextFieldControl {...props} id={id} descriptionId={descriptionId} />
+  const descriptionOnOwnRow = description && layout === 'label-control'
+  let fieldControl = input
   if (descriptionOnOwnRow) {
     fieldControl = (
       <>
@@ -107,14 +107,14 @@ export function TextField(props: TextFieldProps) {
           {description}
         </FieldDescription>
       </>
-    );
+    )
   } else if (description) {
     fieldControl = (
       <FieldContent>
         {input}
         <FieldDescription id={descriptionId}>{description}</FieldDescription>
       </FieldContent>
-    );
+    )
   }
 
   return (
@@ -130,7 +130,7 @@ export function TextField(props: TextFieldProps) {
       />
       {fieldControl}
     </Field>
-  );
+  )
 }
 
 /** Renders a labelled numeric input with shared validation and layout behaviour. */
@@ -147,20 +147,20 @@ export function NumberField({
   describedById,
   layout = 'stacked',
 }: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-  invalid?: boolean;
-  required?: boolean;
-  disabled?: boolean;
-  describedById?: string;
+  label: string
+  value: number
+  onChange: (value: number) => void
+  min?: number
+  max?: number
+  step?: number
+  invalid?: boolean
+  required?: boolean
+  disabled?: boolean
+  describedById?: string
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
-  layout?: ProductFieldLayout;
+  layout?: ProductFieldLayout
 }) {
-  const id = useId();
+  const id = useId()
   return (
     <Field
       data-invalid={resolveBooleanAttribute(invalid)}
@@ -188,15 +188,15 @@ export function NumberField({
         // Clamp to [min, max] on blur, type=number's own min/max are advisory and
         // aren't enforced on paste/typing, so a stray entry would otherwise stick.
         onBlur={(e) => {
-          let numericValue = Number(e.target.value);
-          if (!Number.isFinite(numericValue)) numericValue = min ?? 0;
-          if (min !== undefined) numericValue = Math.max(min, numericValue);
-          if (max !== undefined) numericValue = Math.min(max, numericValue);
-          if (numericValue !== value) onChange(numericValue);
+          let numericValue = Number(e.target.value)
+          if (!Number.isFinite(numericValue)) numericValue = min ?? 0
+          if (min !== undefined) numericValue = Math.max(min, numericValue)
+          if (max !== undefined) numericValue = Math.min(max, numericValue)
+          if (numericValue !== value) onChange(numericValue)
         }}
       />
     </Field>
-  );
+  )
 }
 
 /** Renders a labelled date input with shared validation and layout behaviour. */
@@ -213,20 +213,20 @@ export function DateField({
   testId,
   layout = 'stacked',
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  invalid?: boolean;
-  required?: boolean;
-  describedById?: string;
-  min?: string;
-  max?: string;
-  disabled?: boolean;
-  testId?: string;
+  label: string
+  value: string
+  onChange: (value: string) => void
+  invalid?: boolean
+  required?: boolean
+  describedById?: string
+  min?: string
+  max?: string
+  disabled?: boolean
+  testId?: string
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
-  layout?: ProductFieldLayout;
+  layout?: ProductFieldLayout
 }) {
-  const id = useId();
+  const id = useId()
   return (
     <Field
       data-invalid={resolveBooleanAttribute(invalid)}
@@ -251,5 +251,5 @@ export function DateField({
         onChange={(e) => onChange(e.target.value)}
       />
     </Field>
-  );
+  )
 }

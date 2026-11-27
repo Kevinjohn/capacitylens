@@ -1,5 +1,5 @@
-import type { Role } from '@capacitylens/shared/domain/access';
-import { ROUTE_CLIENTS, ROUTE_RESOURCES, ROUTE_SETTINGS, ROUTE_TEAM } from './tourAnchors';
+import type { Role } from '@capacitylens/shared/domain/access'
+import { ROUTE_CLIENTS, ROUTE_RESOURCES, ROUTE_SETTINGS, ROUTE_TEAM } from './tourAnchors'
 
 /** Stable stop identity shared by role selection and translated tour copy. */
 export type RoleTourStepId =
@@ -10,17 +10,17 @@ export type RoleTourStepId =
   | 'editor-hierarchy'
   | 'editor-book'
   | 'viewer-grid'
-  | 'viewer-toolbar';
+  | 'viewer-toolbar'
 
 /** A role-scoped tour anchor, independent of browser and translation capabilities. */
 export interface RoleTourStep {
-  readonly id: RoleTourStepId;
-  readonly anchor: string;
-  readonly segment: Role;
-  readonly waitForElement?: number;
+  readonly id: RoleTourStepId
+  readonly anchor: string
+  readonly segment: Role
+  readonly waitForElement?: number
 }
 
-const roleOrder: Role[] = ['owner', 'admin', 'editor', 'viewer'];
+const roleOrder: Role[] = ['owner', 'admin', 'editor', 'viewer']
 
 const allSteps: readonly RoleTourStep[] = [
   {
@@ -66,10 +66,10 @@ const allSteps: readonly RoleTourStep[] = [
     segment: 'viewer',
     waitForElement: 1000,
   },
-];
+]
 
 /** Builds the tour from the caller's role down through the read-only schedule guidance. */
 export function buildRoleTour({ role }: { role: Role | null }): RoleTourStep[] {
-  const startIndex = role === null ? 0 : roleOrder.indexOf(role);
-  return allSteps.filter((step) => roleOrder.indexOf(step.segment) >= startIndex);
+  const startIndex = role === null ? 0 : roleOrder.indexOf(role)
+  return allSteps.filter((step) => roleOrder.indexOf(step.segment) >= startIndex)
 }

@@ -1,6 +1,6 @@
-import factory from '@adonisjs/lucid/factories';
-import Company from '#models/company';
-import { DateTime } from 'luxon';
+import factory from '@adonisjs/lucid/factories'
+import Company from '#models/company'
+import { DateTime } from 'luxon'
 
 /** A company with the product defaults left null. */
 export const CompanyFactory = factory
@@ -11,4 +11,4 @@ export const CompanyFactory = factory
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   }))
-  .build();
+  .build()

@@ -1,20 +1,20 @@
-import { m } from '@/i18n';
-import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity';
-import { plural } from '@/lib/pluralCopy';
+import { m } from '@/i18n'
+import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity'
+import { plural } from '@/lib/pluralCopy'
 
 /** The surface an advisory is written for. Over/time-off counts exist on every surface; only the
  * wording differs (a toast appends to a committed-move sentence, the saved-allocation notice states it standalone).
  * The `repeat` variant counts whole allocations and can add the non-effective-start count. */
-export type CapacityAdvisoryVariant = 'toast' | 'form' | 'repeat';
+export type CapacityAdvisoryVariant = 'toast' | 'form' | 'repeat'
 
 const ADVISORY_COPY: Record<
   CapacityAdvisoryVariant,
   {
-    over: (count: number) => string;
-    timeOff: (count: number) => string;
-    nonEffectiveStart?: (count: number) => string;
-    join: () => string;
-    wrap: (bits: string) => string;
+    over: (count: number) => string
+    timeOff: (count: number) => string
+    nonEffectiveStart?: (count: number) => string
+    join: () => string
+    wrap: (bits: string) => string
   }
 > = {
   toast: {
@@ -26,11 +26,11 @@ const ADVISORY_COPY: Record<
   form: {
     over: plural(
       m.form_allocation_advisory_over_capacity_one,
-      m.form_allocation_advisory_over_capacity_other,
+      m.form_allocation_advisory_over_capacity_other
     ),
     timeOff: plural(
       m.form_allocation_advisory_time_off_one,
-      m.form_allocation_advisory_time_off_other,
+      m.form_allocation_advisory_time_off_other
     ),
     join: m.form_allocation_advisory_join,
     wrap: (advisory) => m.form_allocation_advisory({ advisory }),
@@ -38,20 +38,20 @@ const ADVISORY_COPY: Record<
   repeat: {
     over: plural(
       m.form_allocation_repeat_advisory_over_capacity_one,
-      m.form_allocation_repeat_advisory_over_capacity_other,
+      m.form_allocation_repeat_advisory_over_capacity_other
     ),
     timeOff: plural(
       m.form_allocation_repeat_advisory_time_off_one,
-      m.form_allocation_repeat_advisory_time_off_other,
+      m.form_allocation_repeat_advisory_time_off_other
     ),
     nonEffectiveStart: plural(
       m.form_allocation_repeat_advisory_non_effective_start_one,
-      m.form_allocation_repeat_advisory_non_effective_start_other,
+      m.form_allocation_repeat_advisory_non_effective_start_other
     ),
     join: m.form_allocation_repeat_advisory_join,
     wrap: (advisory) => m.form_allocation_repeat_advisory({ advisory }),
   },
-};
+}
 
 /** The human sentence for an advisory result, or "" when it has nothing to say. Every surface
  * builds it the same way (over-capacity bit, then time-off bit, then the repeat-only non-effective
@@ -59,14 +59,14 @@ const ADVISORY_COPY: Record<
  * For the `repeat` variant the counts are allocations, not days (see the copy table). */
 export function formatCapacityAdvisory(
   result: CapacityAdvisory,
-  variant: CapacityAdvisoryVariant,
+  variant: CapacityAdvisoryVariant
 ): string {
-  const copy = ADVISORY_COPY[variant];
-  const bits: string[] = [];
-  if (result.overDays) bits.push(copy.over(result.overDays));
-  if (result.timeOffDays) bits.push(copy.timeOff(result.timeOffDays));
+  const copy = ADVISORY_COPY[variant]
+  const bits: string[] = []
+  if (result.overDays) bits.push(copy.over(result.overDays))
+  if (result.timeOffDays) bits.push(copy.timeOff(result.timeOffDays))
   if (result.nonEffectiveStartAllocations && copy.nonEffectiveStart) {
-    bits.push(copy.nonEffectiveStart(result.nonEffectiveStartAllocations));
+    bits.push(copy.nonEffectiveStart(result.nonEffectiveStartAllocations))
   }
-  return bits.length ? copy.wrap(bits.join(copy.join())) : '';
+  return bits.length ? copy.wrap(bits.join(copy.join())) : ''
 }

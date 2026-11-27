@@ -1,9 +1,9 @@
-import { inject } from '@adonisjs/core';
-import type { HttpContext } from '@adonisjs/core/http';
-import { AdmissionDecisionService } from '#services/admission/admission_decision_service';
-import { CurrentActorService } from '#services/auth/current_actor_service';
-import { decideAdmissionValidator } from '#validators/admission_query';
-import { requestData } from '#validators/request_rules';
+import { inject } from '@adonisjs/core'
+import type { HttpContext } from '@adonisjs/core/http'
+import { AdmissionDecisionService } from '#services/admission/admission_decision_service'
+import { CurrentActorService } from '#services/auth/current_actor_service'
+import { decideAdmissionValidator } from '#validators/admission_query'
+import { requestData } from '#validators/request_rules'
 
 /**
  * An Owner or Admin approves a person's admission. The Account Kit authorises every decision; it
@@ -11,22 +11,22 @@ import { requestData } from '#validators/request_rules';
  */
 @inject()
 export default class AdmissionApprovalsController {
-  #currentActor: CurrentActorService;
-  #decisions: AdmissionDecisionService;
+  #currentActor: CurrentActorService
+  #decisions: AdmissionDecisionService
 
   constructor(decisions: AdmissionDecisionService, currentActor: CurrentActorService) {
-    this.#decisions = decisions;
-    this.#currentActor = currentActor;
+    this.#decisions = decisions
+    this.#currentActor = currentActor
   }
 
   async store({ auth, request, serialize }: HttpContext) {
     const { params } = await request.validateUsing(decideAdmissionValidator, {
       data: requestData(request),
-    });
-    const { userId } = params;
-    const actor = await this.#currentActor.readCurrentAccount(auth);
+    })
+    const { userId } = params
+    const actor = await this.#currentActor.readCurrentAccount(auth)
     return serialize(
       await this.#decisions.decide({ actorId: actor.id, userId, decision: 'approve' })
-    );
+    )
   }
 }

@@ -1,8 +1,8 @@
-import type { AppData, ISOTimestamp } from '../../types/entities.js';
-import { resolveLifecycleStatus } from './types.js';
-import type { LifecycleEntityKey, LifecycleFields } from './types.js';
-import { buildActiveData } from './projection.js';
-import { LifecycleTransitionError } from './transitions.js';
+import type { AppData, ISOTimestamp } from '../../types/entities.js'
+import { resolveLifecycleStatus } from './types.js'
+import type { LifecycleEntityKey, LifecycleFields } from './types.js'
+import { buildActiveData } from './projection.js'
+import { LifecycleTransitionError } from './transitions.js'
 
 /**
  * Per-table counts of currently-active descendants that archiving one entity would additionally hide
@@ -11,20 +11,20 @@ import { LifecycleTransitionError } from './transitions.js';
  */
 export interface ArchiveImpact {
   /** Active projects hidden, non-zero only when archiving a client. */
-  projects: number;
+  projects: number
   /** Active phases hidden beneath an archived client or project. */
-  phases: number;
+  phases: number
   /** Active project-activities hidden. */
-  activities: number;
+  activities: number
   /** Active allocation bars hidden. */
-  allocations: number;
+  allocations: number
   /** Active time-off entries hidden, non-zero only when archiving a resource. */
-  timeOff: number;
+  timeOff: number
 }
 
 // A valid sentinel `archivedAt` used only to measure the cascade (never persisted), so this flips
 // the target row to 'archived' for the diff under the same strict timestamp rule as real rows.
-const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp;
+const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp
 
 /**
  * Count what archiving one active `resource`/`client`/`project`/`activity` would additionally hide from the
@@ -45,41 +45,41 @@ const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp;
 export function archiveImpact(
   data: AppData,
   entity: LifecycleEntityKey,
-  id: string,
+  id: string
 ): ArchiveImpact {
-  const target = data[entity].find((row) => row.id === id);
+  const target = data[entity].find((row) => row.id === id)
   if (!target) {
     throw new LifecycleTransitionError(
       'invalid_transition',
-      `Cannot measure archive impact: ${entity}.${id} is missing.`,
-    );
+      `Cannot measure archive impact: ${entity}.${id} is missing.`
+    )
   }
-  const targetState = resolveLifecycleStatus(target);
+  const targetState = resolveLifecycleStatus(target)
   if (targetState !== 'active') {
     throw new LifecycleTransitionError(
       'already_inactive',
-      `Cannot measure archive impact: ${entity}.${id} is ${targetState}, not active.`,
-    );
+      `Cannot measure archive impact: ${entity}.${id} is ${targetState}, not active.`
+    )
   }
   const flip = <T extends LifecycleFields & { id: string }>(rows: readonly T[]): T[] =>
-    rows.map((row) => (row.id === id ? { ...row, archivedAt: ARCHIVE_IMPACT_SENTINEL } : row));
+    rows.map((row) => (row.id === id ? { ...row, archivedAt: ARCHIVE_IMPACT_SENTINEL } : row))
   const archived: AppData = {
     ...data,
     resources: entity === 'resources' ? flip(data.resources) : data.resources,
     clients: entity === 'clients' ? flip(data.clients) : data.clients,
     projects: entity === 'projects' ? flip(data.projects) : data.projects,
     activities: entity === 'activities' ? flip(data.activities) : data.activities,
-  };
-  const before = buildActiveData(data);
-  const after = buildActiveData(archived);
+  }
+  const before = buildActiveData(data)
+  const after = buildActiveData(archived)
   const countHidden = (
-    key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff',
-  ): number => before[key].length - after[key].length;
+    key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff'
+  ): number => before[key].length - after[key].length
   return {
     projects: entity === 'clients' ? countHidden('projects') : 0,
     phases: countHidden('phases'),
     activities: entity === 'activities' ? 0 : countHidden('activities'),
     allocations: countHidden('allocations'),
     timeOff: entity === 'resources' ? countHidden('timeOff') : 0,
-  };
+  }
 }

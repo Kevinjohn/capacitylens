@@ -1,14 +1,14 @@
-import type { InvitationRole } from '@capacitylens/shared/account/types';
+import type { InvitationRole } from '@capacitylens/shared/account/types'
 
 /** Fields sent when creating a company invitation. */
 export interface CreateInvitationBody {
-  companyId: string;
-  role: InvitationRole;
-  email: string;
+  companyId: string
+  role: InvitationRole
+  email: string
 }
 
 /** The name and password an invitee chooses; the invitation fixes the address. */
 export interface InvitationSignUpBody {
-  name: string;
-  password: string;
+  name: string
+  password: string
 }

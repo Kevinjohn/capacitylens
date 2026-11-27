@@ -1,25 +1,25 @@
-import { test } from '@japa/runner';
-import type { HttpContext } from '@adonisjs/core/http';
-import env from '#start/env';
-import HttpExceptionHandler from '#exceptions/handler';
-import NotFoundException from '#exceptions/not_found_exception';
-import RefusalException from '#exceptions/refusal_exception';
-import MembershipSuspendedException from '#exceptions/membership_suspended_exception';
-import TargetIneligibleException from '#exceptions/target_ineligible_exception';
-import { MailDeliveryService } from '#services/mail_delivery_service';
+import { test } from '@japa/runner'
+import type { HttpContext } from '@adonisjs/core/http'
+import env from '#start/env'
+import HttpExceptionHandler from '#exceptions/handler'
+import NotFoundException from '#exceptions/not_found_exception'
+import RefusalException from '#exceptions/refusal_exception'
+import MembershipSuspendedException from '#exceptions/membership_suspended_exception'
+import TargetIneligibleException from '#exceptions/target_ineligible_exception'
+import { MailDeliveryService } from '#services/mail_delivery_service'
 
 test.group('request helpers', () => {
   test('mail is configured only with a non-blank host', ({ assert, cleanup }) => {
-    const mailDelivery = new MailDeliveryService();
-    const host = env.get('CAPACITYLENS_MAIL_HOST');
-    cleanup(() => env.set('CAPACITYLENS_MAIL_HOST', host ?? ''));
-    env.set('CAPACITYLENS_MAIL_HOST', '');
-    assert.isFalse(mailDelivery.isMailConfigured());
-    env.set('CAPACITYLENS_MAIL_HOST', '   ');
-    assert.isFalse(mailDelivery.isMailConfigured());
-    env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example');
-    assert.isTrue(mailDelivery.isMailConfigured());
-  });
+    const mailDelivery = new MailDeliveryService()
+    const host = env.get('CAPACITYLENS_MAIL_HOST')
+    cleanup(() => env.set('CAPACITYLENS_MAIL_HOST', host ?? ''))
+    env.set('CAPACITYLENS_MAIL_HOST', '')
+    assert.isFalse(mailDelivery.isMailConfigured())
+    env.set('CAPACITYLENS_MAIL_HOST', '   ')
+    assert.isFalse(mailDelivery.isMailConfigured())
+    env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example')
+    assert.isTrue(mailDelivery.isMailConfigured())
+  })
 
   for (const [error, status, body] of [
     [
@@ -44,23 +44,23 @@ test.group('request helpers', () => {
     test(`the handler renders ${error.constructor.name} from its own status and code`, async ({
       assert,
     }) => {
-      assert.instanceOf(error, RefusalException);
-      let sent: unknown;
-      let sentStatus = 0;
+      assert.instanceOf(error, RefusalException)
+      let sent: unknown
+      let sentStatus = 0
       const ctx = {
         response: {
           status(value: number) {
-            sentStatus = value;
-            return this;
+            sentStatus = value
+            return this
           },
           send(value: unknown) {
-            sent = value;
+            sent = value
           },
         },
-      } as unknown as HttpContext;
-      await new HttpExceptionHandler().handle(error, ctx);
-      assert.equal(sentStatus, status);
-      assert.deepEqual(sent, body);
-    });
+      } as unknown as HttpContext
+      await new HttpExceptionHandler().handle(error, ctx)
+      assert.equal(sentStatus, status)
+      assert.deepEqual(sent, body)
+    })
   }
-});
+})

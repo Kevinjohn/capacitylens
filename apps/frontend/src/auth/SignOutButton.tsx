@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import type { ComponentProps } from 'react';
-import { Button } from '@/components/ui/button';
-import { resolveErrorMessage } from '@/lib/errorMessage';
+import { useState } from 'react'
+import type { ComponentProps } from 'react'
+import { Button } from '@/components/ui/button'
+import { resolveErrorMessage } from '@/lib/errorMessage'
 
 type SignOutButtonProps = Pick<
   ComponentProps<typeof Button>,
   'children' | 'className' | 'disabled' | 'size' | 'variant'
 > & {
-  onSignOut: () => Promise<void> | void;
-};
+  onSignOut: () => Promise<void> | void
+}
 
 /** Keeps the sign-out action available for retry when the server cannot confirm sign-out. */
 export function SignOutButton({
@@ -17,20 +17,20 @@ export function SignOutButton({
   children,
   ...buttonProps
 }: SignOutButtonProps) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const signOut = async () => {
-    setPending(true);
-    setError(null);
+    setPending(true)
+    setError(null)
     try {
-      await onSignOut();
+      await onSignOut()
     } catch (failure) {
       // Keep the request failure beside the action on every signed-in screen.
-      setError(resolveErrorMessage(failure));
+      setError(resolveErrorMessage(failure))
     } finally {
-      setPending(false);
+      setPending(false)
     }
-  };
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -48,5 +48,5 @@ export function SignOutButton({
         </p>
       )}
     </div>
-  );
+  )
 }

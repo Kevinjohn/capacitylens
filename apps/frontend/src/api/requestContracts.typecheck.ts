@@ -1,49 +1,49 @@
-import type { RequestArgs } from '@tuyau/core/types';
-import { client, requestApiResponse } from './queryClient';
-import type { registry, Route } from '@capacitylens/backend/registry';
+import type { RequestArgs } from '@tuyau/core/types'
+import { client, requestApiResponse } from './queryClient'
+import type { registry, Route } from '@capacitylens/backend/registry'
 
-type Routes = typeof registry.routes;
+type Routes = typeof registry.routes
 
 /** Compile-time checks ensure generated request inputs cannot silently regress to empty objects. */
 export function checkOrdinaryRequestContracts() {
   const signIn: RequestArgs<Routes['api.session.store']> = {
     body: { email: 'clark@wayne.example', password: 'secret' },
-  };
+  }
   const signUp: RequestArgs<Routes['api.new_account.store']> = {
     body: { email: 'clark@wayne.example', password: 'secret', name: 'Clark Kent' },
-  };
+  }
   const admission: RequestArgs<Routes['api.admission_requests.index']> = {
     query: { status: 'approved', cursor: 'opaque' },
-  };
+  }
   const state: RequestArgs<Routes['api.company_state.show']> = {
     query: { companyId: 'a-studio', includeInactive: '1' },
-  };
+  }
   const missingPassword: RequestArgs<Routes['api.session.store']> = {
     // @ts-expect-error Sign-in requires a password.
     body: { email: 'clark@wayne.example' },
-  };
+  }
   const missingName: RequestArgs<Routes['api.new_account.store']> = {
     // @ts-expect-error The generated sign-up body requires the display name.
     body: { email: 'clark@wayne.example', password: 'secret' },
-  };
+  }
   const invalidStatus: RequestArgs<Routes['api.admission_requests.index']> = {
     // @ts-expect-error Admission status is a generated finite union.
     query: { status: 'unknown' },
-  };
+  }
   const invalidInactive: RequestArgs<Routes['api.company_state.show']> = {
     // @ts-expect-error State's inactive flag is the literal wire value.
     query: { companyId: 'a-studio', includeInactive: true },
-  };
+  }
   void requestApiResponse('api.company_state.show', {
     // @ts-expect-error The generated read query refuses boolean inactive flags at the browser seam.
     query: { companyId: 'a-studio', includeInactive: true },
-  });
+  })
   void requestApiResponse('api.company_state.show', {
     // @ts-expect-error Admission status cannot be supplied as a state query.
     query: { companyId: 'a-studio', status: 'pending' },
-  });
+  })
   // @ts-expect-error Sign-in is a generated POST route, never GET.
-  client.get('/api/v1/auth/sign-in', {});
+  client.get('/api/v1/auth/sign-in', {})
   return {
     signIn,
     signUp,
@@ -53,7 +53,7 @@ export function checkOrdinaryRequestContracts() {
     missingName,
     invalidStatus,
     invalidInactive,
-  };
+  }
 }
 
 /** Each body the browser builds is the generated validator input; a wrongly typed key fails here. */
@@ -165,5 +165,5 @@ export function checkBodyContracts() {
       // @ts-expect-error Getting started is only ever dismissed.
       dismissed: false,
     } satisfies Route.Body<'api.getting_started.update'>,
-  ];
+  ]
 }

@@ -1,13 +1,13 @@
-import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { useStore } from '@/store/useStore';
-import { hasPlaceholdersEnabled } from '@/store/selectors';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { useEditSubmit } from '@/hooks/useEditSubmit';
-import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
-import { useCompanyToday } from '@/hooks/useCompanyToday';
-import { m } from '@/i18n';
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose'
+import { useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useStore } from '@/store/useStore'
+import { hasPlaceholdersEnabled } from '@/store/selectors'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { useEditSubmit } from '@/hooks/useEditSubmit'
+import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError'
+import { useCompanyToday } from '@/hooks/useCompanyToday'
+import { m } from '@/i18n'
 import {
   DateField,
   FormButtons,
@@ -15,67 +15,67 @@ import {
   RequiredLegend,
   SelectField,
   TextField,
-} from '@/components/common/ui';
-import type { Option } from '@/components/common/ui';
-import { FieldError } from '@/components/ui/field';
-import { buildTimeOffTypeOptions, resolveResourceDisplayName } from '@/lib/metadata';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { isResourceKindEnabled } from '@/lib/resourceGrouping';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
-import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
-import { useAccessGrant } from '@/auth/permissionContext';
-import { useTimeOffRepeat } from './useTimeOffRepeat';
-import { TimeOffRepeatFields } from './TimeOffRepeatFields';
-import { prepareTimeOffSave } from './timeOffFormSubmission';
+} from '@/components/common/ui'
+import type { Option } from '@/components/common/ui'
+import { FieldError } from '@/components/ui/field'
+import { buildTimeOffTypeOptions, resolveResourceDisplayName } from '@/lib/metadata'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { isResourceKindEnabled } from '@/lib/resourceGrouping'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
+import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities'
+import { useAccessGrant } from '@/auth/permissionContext'
+import { useTimeOffRepeat } from './useTimeOffRepeat'
+import { TimeOffRepeatFields } from './TimeOffRepeatFields'
+import { prepareTimeOffSave } from './timeOffFormSubmission'
 
 interface TimeOffFormProps {
-  timeOff?: TimeOff;
-  defaults?: { resourceId?: string; startDate?: ISODate; endDate?: ISODate };
-  onClose: () => void;
+  timeOff?: TimeOff
+  defaults?: { resourceId?: string; startDate?: ISODate; endDate?: ISODate }
+  onClose: () => void
 }
 interface TimeOffFieldsProps {
-  resourceId: string;
-  setResourceId: (value: string) => void;
-  resourceOptions: Option[];
-  startDate: ISODate | '';
-  setStartDate: (value: ISODate) => void;
-  endDate: ISODate | '';
-  setEndDate: (value: ISODate) => void;
-  type: TimeOffType;
-  setType: (value: TimeOffType) => void;
-  note: string;
-  setNote: (value: string) => void;
-  canEditNote: boolean;
-  errorField: string | null;
-  errorId: string;
-  repeatFields?: ReactNode;
-  pending: boolean;
+  resourceId: string
+  setResourceId: (value: string) => void
+  resourceOptions: Option[]
+  startDate: ISODate | ''
+  setStartDate: (value: ISODate) => void
+  endDate: ISODate | ''
+  setEndDate: (value: ISODate) => void
+  type: TimeOffType
+  setType: (value: TimeOffType) => void
+  note: string
+  setNote: (value: string) => void
+  canEditNote: boolean
+  errorField: string | null
+  errorId: string
+  repeatFields?: ReactNode
+  pending: boolean
 }
 
 interface TimeOffDraftOptions {
-  timeOff: TimeOff | undefined;
-  defaults: TimeOffFormProps['defaults'];
-  today: ISODate;
-  canEditNote: boolean;
+  timeOff: TimeOff | undefined
+  defaults: TimeOffFormProps['defaults']
+  today: ISODate
+  canEditNote: boolean
 }
 
 function resolveDraftValue<T>(stored: T | undefined, fallback: T | undefined, defaultValue: T): T {
-  return stored ?? fallback ?? defaultValue;
+  return stored ?? fallback ?? defaultValue
 }
 
 function useTimeOffDraft({ timeOff, defaults, today, canEditNote }: TimeOffDraftOptions) {
   const [resourceId, setResourceId] = useState(
-    resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, ''),
-  );
+    resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, '')
+  )
   const [startDate, setStartDate] = useState(
-    resolveDraftValue(timeOff?.startDate, defaults?.startDate, today),
-  );
+    resolveDraftValue(timeOff?.startDate, defaults?.startDate, today)
+  )
   const [endDate, setEndDate] = useState(
-    resolveDraftValue(timeOff?.endDate, defaults?.endDate, today),
-  );
-  const [type, setType] = useState<TimeOffType>(timeOff?.type ?? 'holiday');
-  const initialNote = canEditNote ? (timeOff?.note ?? '') : '';
-  const [note, setNote] = useState(initialNote);
+    resolveDraftValue(timeOff?.endDate, defaults?.endDate, today)
+  )
+  const [type, setType] = useState<TimeOffType>(timeOff?.type ?? 'holiday')
+  const initialNote = canEditNote ? (timeOff?.note ?? '') : ''
+  const [note, setNote] = useState(initialNote)
   return {
     resourceId,
     setResourceId,
@@ -87,14 +87,14 @@ function useTimeOffDraft({ timeOff, defaults, today, canEditNote }: TimeOffDraft
     setType,
     note,
     setNote,
-  };
+  }
 }
 
 type UseTimeOffResourceOptionsOptions = {
-  resources: ReturnType<typeof useActiveScopedData>['resources'];
-  placeholdersEnabled: boolean;
-  resourceId: string;
-};
+  resources: ReturnType<typeof useActiveScopedData>['resources']
+  placeholdersEnabled: boolean
+  resourceId: string
+}
 function useTimeOffResourceOptions({
   resources,
   placeholdersEnabled,
@@ -107,27 +107,27 @@ function useTimeOffResourceOptions({
         .filter(
           (resource) =>
             resource.id === resourceId ||
-            isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false }),
+            isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false })
         ),
-    [resources, placeholdersEnabled, resourceId],
-  );
+    [resources, placeholdersEnabled, resourceId]
+  )
   return filteredResources.map((resource) => ({
     value: resource.id,
     label: resolveResourceDisplayName(resource),
-  }));
+  }))
 }
 
 function buildTimeOffRepeatFields(options: {
-  timeOff: TimeOff | undefined;
-  startDate: ISODate | '';
-  repeatState: ReturnType<typeof useTimeOffRepeat>;
-  errorField: string | null;
-  errorId: string;
-  disabled: boolean;
+  timeOff: TimeOff | undefined
+  startDate: ISODate | ''
+  repeatState: ReturnType<typeof useTimeOffRepeat>
+  errorField: string | null
+  errorId: string
+  disabled: boolean
 }): ReactNode {
-  if (options.timeOff) return undefined;
+  if (options.timeOff) return undefined
   const { repeat, repeatUntil, maximum, preview, changeRepeat, changeRepeatUntil } =
-    options.repeatState;
+    options.repeatState
   return (
     <TimeOffRepeatFields
       startDate={options.startDate}
@@ -141,33 +141,33 @@ function buildTimeOffRepeatFields(options: {
       onRepeatChange={changeRepeat}
       onRepeatUntilChange={changeRepeatUntil}
     />
-  );
+  )
 }
 
 function useCanEditTimeOffNote(): boolean {
-  return useAccessGrant().canSeeTimeOffNote;
+  return useAccessGrant().canSeeTimeOffNote
 }
 
 /** Creates or edits time off for an authorised resource. */
 export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormProps) {
-  const onClose = useFormLifetimeClose(close);
-  const add = useStore((state) => state.addTimeOff);
-  const addRepeated = useStore((state) => state.addRepeatedTimeOff);
-  const update = useStore((state) => state.updateTimeOff);
+  const onClose = useFormLifetimeClose(close)
+  const add = useStore((state) => state.addTimeOff)
+  const addRepeated = useStore((state) => state.addRepeatedTimeOff)
+  const update = useStore((state) => state.updateTimeOff)
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
-  );
-  const today = useCompanyToday();
-  const resources = useActiveScopedData().resources;
-  const canEditNote = useCanEditTimeOffNote();
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId)
+  )
+  const today = useCompanyToday()
+  const resources = useActiveScopedData().resources
+  const canEditNote = useCanEditTimeOffNote()
 
-  const fields = useTimeOffDraft({ timeOff, defaults, today, canEditNote });
-  const acceptedSubmission = useRef(false);
-  const repeatState = useTimeOffRepeat(fields);
-  const fieldError = useFieldError();
-  const { error, errorField, errorId, fail, clear } = fieldError;
-  useFieldErrorFocus(fieldError);
-  const timeOffRows = useStore((state) => state.data.timeOff);
+  const fields = useTimeOffDraft({ timeOff, defaults, today, canEditNote })
+  const acceptedSubmission = useRef(false)
+  const repeatState = useTimeOffRepeat(fields)
+  const fieldError = useFieldError()
+  const { error, errorField, errorId, fail, clear } = fieldError
+  useFieldErrorFocus(fieldError)
+  const timeOffRows = useStore((state) => state.data.timeOff)
   const { pending, submit } = useEditSubmit({
     editing: timeOff,
     rows: timeOffRows,
@@ -176,13 +176,13 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
     cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
-  });
+  })
 
   const resourceOptions = useTimeOffResourceOptions({
     resources,
     placeholdersEnabled,
     resourceId: fields.resourceId,
-  });
+  })
   const repeatFields = buildTimeOffRepeatFields({
     timeOff,
     startDate: fields.startDate,
@@ -190,7 +190,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
     errorField,
     errorId,
     disabled: pending,
-  });
+  })
 
   const prepareSave = () =>
     prepareTimeOffSave({
@@ -205,14 +205,14 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
       repeat: repeatState.repeat,
       repeatUntil: repeatState.repeatUntil,
       acceptedSubmission,
-    });
+    })
 
   return (
     <FormDialog
       title={timeOff ? m.form_time_off_edit_title() : m.form_time_off_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        submit(prepareSave).catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
+        submit(prepareSave).catch((cause: unknown) => fail(null, resolveErrorMessage(cause)))
       }}
       onEdit={clear}
       footer={<FormButtons onCancel={onClose} disabled={pending} />}
@@ -233,7 +233,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
       </FieldError>
       <RequiredLegend />
     </FormDialog>
-  );
+  )
 }
 
 function TimeOffFields({
@@ -298,7 +298,7 @@ function TimeOffFields({
         />
       )}
     </>
-  );
+  )
 }
 
 function TimeOffDateFields({
@@ -310,13 +310,13 @@ function TimeOffDateFields({
   errorId,
   disabled,
 }: {
-  startDate: ISODate | '';
-  setStartDate: (value: ISODate) => void;
-  endDate: ISODate | '';
-  setEndDate: (value: ISODate) => void;
-  invalid: boolean;
-  errorId: string;
-  disabled: boolean;
+  startDate: ISODate | ''
+  setStartDate: (value: ISODate) => void
+  endDate: ISODate | ''
+  setEndDate: (value: ISODate) => void
+  invalid: boolean
+  errorId: string
+  disabled: boolean
 }) {
   return (
     <div data-time-off-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
@@ -339,5 +339,5 @@ function TimeOffDateFields({
         disabled={disabled}
       />
     </div>
-  );
+  )
 }

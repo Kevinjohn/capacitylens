@@ -1,27 +1,27 @@
-import { resolvePortLane } from '../tooling/ports.mjs';
-import { startE2eWorkerServer } from '../scripts/e2e/e2eWorkerRuntime.mjs';
-import { configureServerTarget, prepareServerTemplate, serverTarget } from './serverTestState';
+import { resolvePortLane } from '../tooling/ports.mjs'
+import { startE2eWorkerServer } from '../scripts/e2e/e2eWorkerRuntime.mjs'
+import { configureServerTarget, prepareServerTemplate, serverTarget } from './serverTestState'
 
 /** The process handles and target owned by one Playwright worker slot. */
-export type E2eWorkerServer = Awaited<ReturnType<typeof startE2eWorkerServer>>;
+export type E2eWorkerServer = Awaited<ReturnType<typeof startE2eWorkerServer>>
 
 /** Start the real API, serving the built SPA, for this worker's stable parallel index. */
 export async function startWorkerServer(parallelIndex: number): Promise<E2eWorkerServer> {
-  const portLane = resolvePortLane();
-  const target = serverTarget(portLane, parallelIndex);
-  const runtime = await startE2eWorkerServer(target, portLane, parallelIndex);
+  const portLane = resolvePortLane()
+  const target = serverTarget(portLane, parallelIndex)
+  const runtime = await startE2eWorkerServer(target, portLane, parallelIndex)
   try {
-    configureServerTarget(target);
-    await prepareServerTemplate(target);
-    return runtime;
+    configureServerTarget(target)
+    await prepareServerTemplate(target)
+    return runtime
   } catch (error) {
     try {
-      await runtime.stop();
+      await runtime.stop()
     } catch (cleanupError) {
       throw new AggregateError([error, cleanupError], 'Worker fixture setup and cleanup failed.', {
         cause: cleanupError,
-      });
+      })
     }
-    throw error;
+    throw error
   }
 }

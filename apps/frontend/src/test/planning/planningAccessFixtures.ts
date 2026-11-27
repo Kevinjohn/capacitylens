@@ -1,4 +1,4 @@
-import type { PlanningAccess } from '@/data/planning/planningCacheTypes';
+import type { PlanningAccess } from '@/data/planning/planningCacheTypes'
 
 /** A planning access for test reads: by default an Owner, reading as themselves, who can write. */
 export function makePlanningAccess(overrides: Partial<PlanningAccess> = {}): PlanningAccess {
@@ -10,5 +10,5 @@ export function makePlanningAccess(overrides: Partial<PlanningAccess> = {}): Pla
     canSeePrivateNames: true,
     canSeeTimeOffNote: true,
     ...overrides,
-  };
+  }
 }

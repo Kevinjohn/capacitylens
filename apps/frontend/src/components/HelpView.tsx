@@ -1,22 +1,22 @@
-import { Link, useOutletContext } from 'react-router-dom';
-import { useTourOperation } from '@/hooks/useTourOperation';
-import { m } from '@/i18n';
-import { useStore } from '@/store/useStore';
-import { Button } from './ui/button';
-import { ListPage } from './common/ListPage';
-import { useDiagnosticsAccessDecision } from './diagnostics/useDiagnosticsAccessDecision';
-import { APP_NAME } from '@capacitylens/shared/brand';
-import { ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
+import { Link, useOutletContext } from 'react-router-dom'
+import { useTourOperation } from '@/hooks/useTourOperation'
+import { m } from '@/i18n'
+import { useStore } from '@/store/useStore'
+import { Button } from './ui/button'
+import { ListPage } from './common/ListPage'
+import { useDiagnosticsAccessDecision } from './diagnostics/useDiagnosticsAccessDecision'
+import { APP_NAME } from '@capacitylens/shared/brand'
+import { ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors'
 
 /** Context the app shell passes to routed pages through its `Outlet`. */
-export type AppOutletContext = { showOrientation: (trigger: HTMLButtonElement) => void };
+export type AppOutletContext = { showOrientation: (trigger: HTMLButtonElement) => void }
 
 /** Shared guidance and a role-aware route to the existing schedule tour. */
 export function HelpView() {
-  const setNotice = useStore((state) => state.setNotice);
-  const shell = useOutletContext<AppOutletContext | null>();
-  const diagnosticsAllowed = useDiagnosticsAccessDecision() === 'allowed';
-  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice);
+  const setNotice = useStore((state) => state.setNotice)
+  const shell = useOutletContext<AppOutletContext | null>()
+  const diagnosticsAllowed = useDiagnosticsAccessDecision() === 'allowed'
+  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice)
 
   return (
     <ListPage title={m.help_title()}>
@@ -60,5 +60,5 @@ export function HelpView() {
         )}
       </div>
     </ListPage>
-  );
+  )
 }

@@ -1,36 +1,36 @@
-import { test } from '@japa/runner';
-import type { HttpContext } from '@adonisjs/core/http';
-import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
-import app from '@adonisjs/core/services/app';
-import db from '@adonisjs/lucid/services/db';
-import hash from '@adonisjs/core/services/hash';
-import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
-import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
-import { CurrentActorService } from '#services/auth/current_actor_service';
-import { readState } from '#tests/helpers/state_fixture';
+import { test } from '@japa/runner'
+import type { HttpContext } from '@adonisjs/core/http'
+import type { Trx } from '@kevinjohn/adonisjs-account-kit/types'
+import app from '@adonisjs/core/services/app'
+import db from '@adonisjs/lucid/services/db'
+import hash from '@adonisjs/core/services/hash'
+import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/main'
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport'
+import PasswordConfirmationsController from '#controllers/password_confirmations_controller'
+import { CurrentActorService } from '#services/auth/current_actor_service'
+import { readState } from '#tests/helpers/state_fixture'
 import {
   asLoggedInDataOwner,
   resetAuthenticatedData,
-} from '#tests/helpers/authenticated_data_fixture';
-import User from '#models/user';
-import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { readPlanningRevision } from '#tests/helpers/data/planning_revision';
+} from '#tests/helpers/authenticated_data_fixture'
+import User from '#models/user'
+import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { readPlanningRevision } from '#tests/helpers/data/planning_revision'
 import {
   anonymiseProofRequest,
   companyId,
   confirmationRequired,
   issueProof,
-} from '#tests/helpers/privacy/password_confirmation';
+} from '#tests/helpers/privacy/password_confirmation'
 
 test.group('package proof adoption boundaries', (group) => {
-  group.setup(() => freshDatabase());
-  group.each.setup(() => clearIdentities());
+  group.setup(() => freshDatabase())
+  group.each.setup(() => clearIdentities())
 
   test('a foreign Origin is refused on password proof issuance', async ({ client, assert }) => {
-    const { userId } = await resetAuthenticatedData(client);
+    const { userId } = await resetAuthenticatedData(client)
     const response = await asLoggedInDataOwner(
       client.visit('api.password_confirmations.store'),
       await User.findOrFail(userId)
@@ -38,11 +38,11 @@ test.group('package proof adoption boundaries', (group) => {
       .header('origin', 'https://lex.example')
       .header('sec-fetch-site', 'cross-site')
       .json(anonymiseProofRequest)
-      .send();
-    response.assertStatus(403);
-    assert.deepEqual(response.body(), { error: 'Cross-site request rejected.' });
-    assert.lengthOf(await db.from('password_confirmations'), 0);
-  });
+      .send()
+    response.assertStatus(403)
+    assert.deepEqual(response.body(), { error: 'Cross-site request rejected.' })
+    assert.lengthOf(await db.from('password_confirmations'), 0)
+  })
 
   for (const gate of ['unverified', 'unadmitted'] as const) {
     test(`issuance preflight refuses ${gate} before package verification`, async ({
@@ -50,60 +50,60 @@ test.group('package proof adoption boundaries', (group) => {
       assert,
       cleanup,
     }) => {
-      const { cookie, userId } = await resetAuthenticatedData(client);
-      let expected: object;
+      const { cookie, userId } = await resetAuthenticatedData(client)
+      let expected: object
       if (gate === 'unverified') {
         await db.from('users').where('id', userId).update({
           email_verified_at: null,
           unverified_email: 'bruce.wayne@wayne.example',
-        });
+        })
         expected = {
           error: 'Email verification is required.',
           code: 'E_ACCOUNT_KIT_UNVERIFIED_EMAIL',
-        };
+        }
       } else {
-        const admission = await app.container.make(AccountAdmission);
-        await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
-        const currentActor = await app.container.make(CurrentActorService);
+        const admission = await app.container.make(AccountAdmission)
+        await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' })
+        const currentActor = await app.container.make(CurrentActorService)
         expected = {
           error: 'Your access to this company is waiting on admission.',
           code: 'E_ADMISSION_REQUIRED',
           decision: await db.transaction((trx) =>
             currentActor.requireAdmissionDecision(userId, trx)
           ),
-        };
+        }
       }
-      const prove = proofs.confirmPassword;
-      const controller = PasswordConfirmationsController.prototype.store;
-      let reached = 0;
+      const prove = proofs.confirmPassword
+      const controller = PasswordConfirmationsController.prototype.store
+      let reached = 0
       proofs.confirmPassword = async () => {
-        throw new Error('Preflight must refuse before package verification.');
-      };
+        throw new Error('Preflight must refuse before package verification.')
+      }
       PasswordConfirmationsController.prototype.store = function (ctx) {
-        reached++;
-        return controller.call(this, ctx);
-      };
+        reached++
+        return controller.call(this, ctx)
+      }
       cleanup(() => {
-        proofs.confirmPassword = prove;
-        PasswordConfirmationsController.prototype.store = controller;
-      });
-      const response = await issueProof(client, cookie);
-      response.assertStatus(403);
-      assert.deepEqual(response.body(), expected);
-      assert.equal(reached, 1, 'the request must reach controller preflight');
-      assert.lengthOf(await db.from('password_confirmations'), 0);
-    });
+        proofs.confirmPassword = prove
+        PasswordConfirmationsController.prototype.store = controller
+      })
+      const response = await issueProof(client, cookie)
+      response.assertStatus(403)
+      assert.deepEqual(response.body(), expected)
+      assert.equal(reached, 1, 'the request must reach controller preflight')
+      assert.lengthOf(await db.from('password_confirmations'), 0)
+    })
   }
 
   test('wrong passwords exhaust one account across browsers while another account succeeds', async ({
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
-    const second = await signIn(client, 'bruce.wayne@wayne.example');
-    const other = await createIdentity('clark.kent@wayne.example');
-    await db.from('memberships').where('scope_id', 'a-loft').delete();
-    const now = new Date().toISOString();
+    const { cookie } = await resetAuthenticatedData(client)
+    const second = await signIn(client, 'bruce.wayne@wayne.example')
+    const other = await createIdentity('clark.kent@wayne.example')
+    await db.from('memberships').where('scope_id', 'a-loft').delete()
+    const now = new Date().toISOString()
     await db.table('memberships').insert({
       scope_id: 'a-loft',
       user_id: other,
@@ -111,165 +111,165 @@ test.group('package proof adoption boundaries', (group) => {
       status: 'active',
       created_at: now,
       updated_at: now,
-    });
-    const browser = await signIn(client, 'clark.kent@wayne.example');
+    })
+    const browser = await signIn(client, 'clark.kent@wayne.example')
     for (let i = 0; i < 5; i++) {
       const response = await issueProof(client, i % 2 ? second.cookie : cookie, {
         ...anonymiseProofRequest,
         password: 'wrong',
-      });
-      response.assertStatus(403);
+      })
+      response.assertStatus(403)
       assert.deepEqual(response.body(), {
         error: 'Incorrect password.',
         code: 'E_PASSWORD_CONFIRMATION_DENIED',
-      });
+      })
     }
     const success = await issueProof(client, browser.cookie, {
       ...anonymiseProofRequest,
       companyId: 'a-loft',
-    });
-    success.assertStatus(200);
-    const blocked = await issueProof(client, second.cookie);
-    blocked.assertStatus(429);
-    assert.deepEqual(blocked.body(), { error: 'Too many attempts. Try again in 20 minutes.' });
-    const retryAfter = Number(blocked.header('retry-after'));
-    assert.isAbove(retryAfter, 1140);
-    assert.isAtMost(retryAfter, 1200);
-  });
+    })
+    success.assertStatus(200)
+    const blocked = await issueProof(client, second.cookie)
+    blocked.assertStatus(429)
+    assert.deepEqual(blocked.body(), { error: 'Too many attempts. Try again in 20 minutes.' })
+    const retryAfter = Number(blocked.header('retry-after'))
+    assert.isAbove(retryAfter, 1140)
+    assert.isAtMost(retryAfter, 1200)
+  })
 
   test('a prune failure after issue still returns its stored proof outside transactions', async ({
     client,
     assert,
     cleanup,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
-    const original = proofs.prune;
-    let called = 0;
+    const { cookie } = await resetAuthenticatedData(client)
+    const original = proofs.prune
+    let called = 0
     proofs.prune = async () => {
       // This root query would time out if issuance still held the only connection.
-      await db.from('password_confirmations').select('id');
-      called++;
-      throw new Error('PRIVATE_PRUNE_FAILURE');
-    };
+      await db.from('password_confirmations').select('id')
+      called++
+      throw new Error('PRIVATE_PRUNE_FAILURE')
+    }
     cleanup(() => {
-      proofs.prune = original;
-    });
-    const response = await issueProof(client, cookie);
-    response.assertStatus(200);
-    assert.deepEqual(Object.keys(response.body().data), ['confirmationId']);
-    assert.equal(called, 1);
+      proofs.prune = original
+    })
+    const response = await issueProof(client, cookie)
+    response.assertStatus(200)
+    assert.deepEqual(Object.keys(response.body().data), ['confirmationId'])
+    assert.equal(called, 1)
     const row = await db
       .from('password_confirmations')
       .where('id', response.body().data.confirmationId)
-      .firstOrFail();
-    assert.isNull(row.consumed_at);
-  });
+      .firstOrFail()
+    assert.isNull(row.consumed_at)
+  })
 
   test('admission revoked while password verification is pending refuses issuance', async ({
     client,
     assert,
     cleanup,
   }) => {
-    const { cookie, userId } = await resetAuthenticatedData(client);
-    const original = hash.verify;
-    const checking = Promise.withResolvers<void>();
-    const pending = Promise.withResolvers<void>();
+    const { cookie, userId } = await resetAuthenticatedData(client)
+    const original = hash.verify
+    const checking = Promise.withResolvers<void>()
+    const pending = Promise.withResolvers<void>()
     hash.verify = async function (...args) {
-      const result = await original.apply(this, args);
-      checking.resolve();
-      await pending.promise;
-      return result;
-    };
+      const result = await original.apply(this, args)
+      checking.resolve()
+      await pending.promise
+      return result
+    }
     cleanup(() => {
-      pending.resolve();
-      hash.verify = original;
-    });
-    const request = issueProof(client, cookie);
-    await checking.promise;
-    const admission = await app.container.make(AccountAdmission);
-    await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
-    const currentActor = await app.container.make(CurrentActorService);
+      pending.resolve()
+      hash.verify = original
+    })
+    const request = issueProof(client, cookie)
+    await checking.promise
+    const admission = await app.container.make(AccountAdmission)
+    await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' })
+    const currentActor = await app.container.make(CurrentActorService)
     const decision = await db.transaction((trx) =>
       currentActor.requireAdmissionDecision(userId, trx)
-    );
-    pending.resolve();
-    const response = await request;
-    response.assertStatus(403);
+    )
+    pending.resolve()
+    const response = await request
+    response.assertStatus(403)
     assert.deepEqual(response.body(), {
       error: 'Your access to this company is waiting on admission.',
       code: 'E_ADMISSION_REQUIRED',
       decision,
-    });
-    assert.lengthOf(await db.from('password_confirmations').where('user_id', userId), 0);
-  });
+    })
+    assert.lengthOf(await db.from('password_confirmations').where('user_id', userId), 0)
+  })
 
   test('overlong missing company scopes keep the complete host refusal in request bodies and match no path route', async ({
     client,
     assert,
   }) => {
-    const { cookie, userId } = await resetAuthenticatedData(client);
-    const user = await User.findOrFail(userId);
-    const scope = 'x'.repeat(256);
+    const { cookie, userId } = await resetAuthenticatedData(client)
+    const user = await User.findOrFail(userId)
+    const scope = 'x'.repeat(256)
     const document = buildCompanyExport(await readState(companyId, true), {
       companyId,
       completeness: 'full',
-    });
-    const baseRevision = await readPlanningRevision(companyId);
+    })
+    const baseRevision = await readPlanningRevision(companyId)
     const responses = [
       await issueProof(client, cookie, { ...anonymiseProofRequest, companyId: scope }),
       await asLoggedInDataOwner(client.visit('api.imports.store'), user)
         .json({ companyId: scope, document, baseRevision, confirmationId: 'missing' })
         .send(),
-    ];
+    ]
     for (const response of responses) {
-      response.assertStatus(403);
-      assert.deepEqual(response.body(), confirmationRequired);
+      response.assertStatus(403)
+      assert.deepEqual(response.body(), confirmationRequired)
     }
     const anonymise = await asLoggedInDataOwner(
       client.visit('api.company_anonymisations.store', { companyId: scope }),
       user
     )
       .json({ confirmationId: 'missing' })
-      .send();
-    anonymise.assertStatus(404);
-  });
+      .send()
+    anonymise.assertStatus(404)
+  })
 
   test('Kit transaction context is removed after callback completion and interruption', async ({
     client,
     assert,
     cleanup,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client);
-    const original = PasswordConfirmationsController.prototype.store;
-    let checked = 0;
+    const { cookie } = await resetAuthenticatedData(client)
+    const original = PasswordConfirmationsController.prototype.store
+    let checked = 0
     PasswordConfirmationsController.prototype.store = async function (ctx: HttpContext) {
-      const currentActor = await app.container.make(CurrentActorService);
+      const currentActor = await app.container.make(CurrentActorService)
       for (const interrupted of [false, true]) {
-        let captured: Trx | undefined;
-        const sentinel = new Error('INTERRUPTED_CALLBACK');
+        let captured: Trx | undefined
+        const sentinel = new Error('INTERRUPTED_CALLBACK')
         try {
           await currentActor.withActor(ctx.auth, async (actor, trx) => {
-            captured = trx;
-            assert.equal(String(currentActor.requireKitContext(trx).account.id), actor.userId);
-            assert.equal(currentActor.requireKitContext(trx).signInId, actor.sessionId);
-            assert.strictEqual(currentActor.requireKitContext(trx).trx, trx);
-            if (interrupted) throw sentinel;
-          });
+            captured = trx
+            assert.equal(String(currentActor.requireKitContext(trx).account.id), actor.userId)
+            assert.equal(currentActor.requireKitContext(trx).signInId, actor.sessionId)
+            assert.strictEqual(currentActor.requireKitContext(trx).trx, trx)
+            if (interrupted) throw sentinel
+          })
         } catch (error) {
-          if (error !== sentinel) throw error;
+          if (error !== sentinel) throw error
         }
-        assert.isDefined(captured);
-        assert.throws(() => currentActor.requireKitContext(captured!), /inside withActor/);
-        assert.throws(() => currentActor.requireActor(captured!), /inside withActor/);
-        checked++;
+        assert.isDefined(captured)
+        assert.throws(() => currentActor.requireKitContext(captured!), /inside withActor/)
+        assert.throws(() => currentActor.requireActor(captured!), /inside withActor/)
+        checked++
       }
-      return original.call(this, ctx);
-    };
+      return original.call(this, ctx)
+    }
     cleanup(() => {
-      PasswordConfirmationsController.prototype.store = original;
-    });
-    const response = await issueProof(client, cookie);
-    response.assertStatus(200);
-    assert.equal(checked, 2);
-  });
-});
+      PasswordConfirmationsController.prototype.store = original
+    })
+    const response = await issueProof(client, cookie)
+    response.assertStatus(200)
+    assert.equal(checked, 2)
+  })
+})

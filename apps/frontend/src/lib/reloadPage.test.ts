@@ -1,25 +1,25 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { reloadPage } from './reloadPage';
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { reloadPage } from './reloadPage'
 
-const realLocation = window.location;
+const realLocation = window.location
 
 afterEach(() => {
   Object.defineProperty(window, 'location', {
     configurable: true,
     value: realLocation,
-  });
-});
+  })
+})
 
 describe('reloadPage', () => {
   it('reloads through the browser location boundary', () => {
-    const reload = vi.fn();
+    const reload = vi.fn()
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: { ...realLocation, reload },
-    });
+    })
 
-    reloadPage();
+    reloadPage()
 
-    expect(reload).toHaveBeenCalledOnce();
-  });
-});
+    expect(reload).toHaveBeenCalledOnce()
+  })
+})

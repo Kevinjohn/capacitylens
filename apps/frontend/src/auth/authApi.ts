@@ -1,33 +1,33 @@
-import { readHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import type { RequestArgs, ResponseOf } from '@tuyau/core/types';
-import type { registry, Route } from '@capacitylens/backend/registry';
-import { client, requestApiResponse } from '@/api/queryClient';
-import type { ProductRoutes } from '@/api/queryClient';
+import { readHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+import type { RequestArgs, ResponseOf } from '@tuyau/core/types'
+import type { registry, Route } from '@capacitylens/backend/registry'
+import { client, requestApiResponse } from '@/api/queryClient'
+import type { ProductRoutes } from '@/api/queryClient'
 
 export interface AuthApiError extends Omit<HttpErrorBody, 'error'> {
-  message: string;
-  status: number;
+  message: string
+  status: number
 }
 
 export interface AuthApiResult<T> {
-  data: T | null;
-  error: AuthApiError | null;
+  data: T | null
+  error: AuthApiError | null
 }
 
-type PasswordCredentials = RequestArgs<(typeof registry.routes)['api.session.store']>['body'];
+type PasswordCredentials = RequestArgs<(typeof registry.routes)['api.session.store']>['body']
 
 interface PasswordChangeInput {
-  currentPassword: string;
-  newPassword: string;
+  currentPassword: string
+  newPassword: string
 }
 
 function readErrorMessage(value: unknown, status: number): AuthApiError {
   const { error: message, ...metadata } = readHttpErrorBody(
     value,
-    `Authentication request failed (${status}).`,
-  );
-  return { message, ...metadata, status };
+    `Authentication request failed (${status}).`
+  )
+  return { message, ...metadata, status }
 }
 
 type AuthRoute = Extract<
@@ -46,28 +46,28 @@ type AuthRoute = Extract<
   | 'api.admission.show'
   | 'api.admission_requests.store'
   | 'api.memberships.store'
->;
+>
 
 async function request<Name extends AuthRoute>(
   name: Name,
-  args: RequestArgs<ProductRoutes[Name]>,
+  args: RequestArgs<ProductRoutes[Name]>
 ): Promise<AuthApiResult<ResponseOf<ProductRoutes[Name]>['data']>> {
-  const response = await requestApiResponse(name, args);
-  const payload: unknown = await response.json().catch(() => null);
-  if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) };
+  const response = await requestApiResponse(name, args)
+  const payload: unknown = await response.json().catch(() => null)
+  if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) }
   // A success without a readable envelope carries no data, as an unreadable body did before.
-  return { data: (payload as ResponseOf<ProductRoutes[Name]> | null)?.data ?? null, error: null };
+  return { data: (payload as ResponseOf<ProductRoutes[Name]> | null)?.data ?? null, error: null }
 }
 
 const post = <Name extends AuthRoute>(name: Name, body: Route.Body<Name>) =>
   // Every auth route takes no path parameters, so the body is its whole request.
-  request(name, { body } as unknown as RequestArgs<ProductRoutes[Name]>);
+  request(name, { body } as unknown as RequestArgs<ProductRoutes[Name]>)
 
 /** Typed browser client for the product's session, credential, confirmation and admission endpoints. */
 export const authApi = {
   signIn: {
     email: async (input: PasswordCredentials) => {
-      const received: { response?: { ok: boolean; status: number; payload: unknown } } = {};
+      const received: { response?: { ok: boolean; status: number; payload: unknown } } = {}
       const [data, error] = await client
         .request('api.session.store', {
           body: input,
@@ -81,23 +81,23 @@ export const authApi = {
                   ok: response.ok,
                   status: response.status,
                   payload: await response.json().catch(() => null),
-                };
+                }
               },
             ],
           },
         })
-        .safe();
+        .safe()
       if (received.response && !received.response.ok) {
         return {
           data: null,
           error: readErrorMessage(received.response.payload, received.response.status),
-        };
+        }
       }
-      if (!error) return { data: data.data, error: null };
-      if (received.response) return { data: null, error: null };
+      if (!error) return { data: data.data, error: null }
+      if (received.response) return { data: null, error: null }
       // Before a response, callers still receive the native fetch or abort failure.
-      if (error.kind === 'network') throw error.cause;
-      throw error;
+      if (error.kind === 'network') throw error.cause
+      throw error
     },
   },
   signOut: () => post('api.session.destroy', {}),
@@ -118,4 +118,4 @@ export const authApi = {
   requestAdmission: () => post('api.admission_requests.store', {}),
   /** Creates the admitted identity's company membership; never restores suspended access. */
   completeMembership: () => post('api.memberships.store', {}),
-};
+}

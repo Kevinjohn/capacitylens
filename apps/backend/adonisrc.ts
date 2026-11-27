@@ -1,6 +1,6 @@
-import { indexEntities } from '@adonisjs/core/generators';
-import { defineConfig } from '@adonisjs/core/app';
-import { defineCommands } from '@kevinjohn/adonisjs-account-kit/define_commands';
+import { indexEntities } from '@adonisjs/core/generators'
+import { defineConfig } from '@adonisjs/core/app'
+import { defineCommands } from '@kevinjohn/adonisjs-account-kit/define_commands'
 
 export default defineConfig({
   /*
@@ -136,4 +136,4 @@ export default defineConfig({
       () => import('./hooks/generate_registry.js'),
     ],
   },
-});
+})

@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
-import { useStore } from '@/store/useStore';
-import { hasDisciplinesEnabled } from '@/store/selectors';
-import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
-import { useFieldError } from '@/hooks/useFieldError';
-import { m } from '@/i18n';
+import { useMemo } from 'react'
+import { useStore } from '@/store/useStore'
+import { hasDisciplinesEnabled } from '@/store/selectors'
+import { useActiveScopedData, useScopedData } from '@/store/useScopedData'
+import { useFieldError } from '@/hooks/useFieldError'
+import { m } from '@/i18n'
 import {
   FormButtons,
   FormDialog,
@@ -11,30 +11,30 @@ import {
   SegmentedField,
   SelectField,
   TextField,
-} from '@/components/common/ui';
-import type { Option } from '@/components/common/ui';
-import { buildProjectOptions } from '@/components/common/projectOptions';
-import { FieldError, FieldGroup } from '@/components/ui/field';
-import { buildResourceEngagementOptions } from '@/lib/metadata';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { useResourceFormState } from './useResourceFormState';
-import type { ResourceFormState } from './useResourceFormState';
-import { useResourceSubmit } from './useResourceSubmit';
-import type { ResourceSubmitDraft } from './useResourceSubmit';
-import { ResourceAvailabilityFields } from './ResourceAvailabilityFields';
-import type { Discipline, Resource, ResourceKind } from '@capacitylens/shared/types/entities';
+} from '@/components/common/ui'
+import type { Option } from '@/components/common/ui'
+import { buildProjectOptions } from '@/components/common/projectOptions'
+import { FieldError, FieldGroup } from '@/components/ui/field'
+import { buildResourceEngagementOptions } from '@/lib/metadata'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { useResourceFormState } from './useResourceFormState'
+import type { ResourceFormState } from './useResourceFormState'
+import { useResourceSubmit } from './useResourceSubmit'
+import type { ResourceSubmitDraft } from './useResourceSubmit'
+import { ResourceAvailabilityFields } from './ResourceAvailabilityFields'
+import type { Discipline, Resource, ResourceKind } from '@capacitylens/shared/types/entities'
 
-type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
-type ResolveFormTitleOptions = { resource: Resource | undefined; isPlaceholder: boolean };
+type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void }
+type ResolveFormTitleOptions = { resource: Resource | undefined; isPlaceholder: boolean }
 function resolveFormTitle({ resource, isPlaceholder }: ResolveFormTitleOptions) {
   if (resource) {
     return isPlaceholder
       ? m.form_resource_edit_placeholder_title()
-      : m.form_resource_edit_resource_title();
+      : m.form_resource_edit_resource_title()
   }
   return isPlaceholder
     ? m.form_resource_add_placeholder_title()
-    : m.form_resource_add_resource_title();
+    : m.form_resource_add_resource_title()
 }
 
 type ResourceFieldsState = Pick<
@@ -42,18 +42,18 @@ type ResourceFieldsState = Pick<
   'name' | 'setName' | 'jobTitle' | 'setJobTitle'
 > &
   Pick<ResourceFormState, 'disciplineId' | 'setDisciplineId' | 'engagement' | 'setEngagement'> &
-  Pick<ResourceFormState, 'projectId' | 'setProjectId'>;
+  Pick<ResourceFormState, 'projectId' | 'setProjectId'>
 
 type ResourceFieldsProps = {
-  form: ResourceFieldsState;
-  isPlaceholder: boolean;
-  disabled: boolean;
-  disciplinesEnabled: boolean;
-  disciplines: Discipline[];
-  projectOptions: Option[];
-  errorField: string | null;
-  errorId: string;
-};
+  form: ResourceFieldsState
+  isPlaceholder: boolean
+  disabled: boolean
+  disciplinesEnabled: boolean
+  disciplines: Discipline[]
+  projectOptions: Option[]
+  errorField: string | null
+  errorId: string
+}
 
 function ResourceFields(props: ResourceFieldsProps) {
   const {
@@ -65,11 +65,11 @@ function ResourceFields(props: ResourceFieldsProps) {
     projectOptions,
     errorField,
     errorId,
-  } = props;
+  } = props
   const disciplineOptions = disciplines.map((discipline) => ({
     value: discipline.id,
     label: discipline.name,
-  }));
+  }))
   return (
     <fieldset disabled={disabled} className="min-w-0">
       <FieldGroup className="gap-3">
@@ -128,21 +128,21 @@ function ResourceFields(props: ResourceFieldsProps) {
         )}
       </FieldGroup>
     </fieldset>
-  );
+  )
 }
 
 type ResourceFormBodyProps = {
-  form: ResourceFormState;
-  isPlaceholder: boolean;
-  isPerson: boolean;
-  disabled: boolean;
-  disciplinesEnabled: boolean;
-  disciplines: Discipline[];
-  projectOptions: Option[];
-  error: string | null;
-  errorField: string | null;
-  errorId: string;
-};
+  form: ResourceFormState
+  isPlaceholder: boolean
+  isPerson: boolean
+  disabled: boolean
+  disciplinesEnabled: boolean
+  disciplines: Discipline[]
+  projectOptions: Option[]
+  error: string | null
+  errorField: string | null
+  errorId: string
+}
 
 function ResourceFormBody({
   form,
@@ -176,7 +176,7 @@ function ResourceFormBody({
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </>
-  );
+  )
 }
 
 function buildResourceSubmitDraft(form: ResourceFormState): ResourceSubmitDraft {
@@ -190,24 +190,24 @@ function buildResourceSubmitDraft(form: ResourceFormState): ResourceSubmitDraft 
     firstAvailableDate: form.firstAvailableDate,
     lastAvailableDate: form.lastAvailableDate,
     projectId: form.projectId,
-  };
+  }
 }
 
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
 export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceFormProps) {
-  const add = useStore((state) => state.addResource);
-  const update = useStore((state) => state.updateResource);
-  const data = useActiveScopedData();
-  const raw = useScopedData();
-  const kind = resource?.kind ?? kindProp ?? 'person';
-  const isPlaceholder = kind === 'placeholder';
-  const isPerson = kind === 'person';
-  const form = useResourceFormState(resource);
-  const { error, errorField, errorId, fail } = useFieldError();
+  const add = useStore((state) => state.addResource)
+  const update = useStore((state) => state.updateResource)
+  const data = useActiveScopedData()
+  const raw = useScopedData()
+  const kind = resource?.kind ?? kindProp ?? 'person'
+  const isPlaceholder = kind === 'placeholder'
+  const isPerson = kind === 'person'
+  const form = useResourceFormState(resource)
+  const { error, errorField, errorId, fail } = useFieldError()
   const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeCompanyId),
-  );
-  const currentProjectId = resource?.projectId;
+    hasDisciplinesEnabled(state.data, state.activeCompanyId)
+  )
+  const currentProjectId = resource?.projectId
   const projectOptions = useMemo(
     () =>
       buildProjectOptions({
@@ -217,10 +217,10 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
         rawClients: raw.clients,
         currentProjectId,
       }),
-    [data.projects, data.clients, raw.projects, raw.clients, currentProjectId],
-  );
-  const draft = buildResourceSubmitDraft(form);
-  const resources = useStore((state) => state.data.resources);
+    [data.projects, data.clients, raw.projects, raw.clients, currentProjectId]
+  )
+  const draft = buildResourceSubmitDraft(form)
+  const resources = useStore((state) => state.data.resources)
   const { submit, submitting } = useResourceSubmit({
     resource,
     kind,
@@ -232,13 +232,13 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     add,
     update,
     readActiveCompanyId: () => useStore.getState().activeCompanyId,
-  });
+  })
   return (
     <FormDialog
       title={resolveFormTitle({ resource, isPlaceholder })}
       onClose={onClose}
       onSubmit={() => {
-        submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
+        submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)))
       }}
       footer={<FormButtons onCancel={onClose} disabled={submitting} />}
     >
@@ -255,5 +255,5 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
         errorId={errorId}
       />
     </FormDialog>
-  );
+  )
 }

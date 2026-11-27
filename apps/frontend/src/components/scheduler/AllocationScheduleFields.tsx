@@ -1,4 +1,4 @@
-import { m } from '@/i18n';
+import { m } from '@/i18n'
 import {
   CheckboxField,
   DateField,
@@ -7,18 +7,18 @@ import {
   SegmentedField,
   SelectField,
   TextField,
-} from '@/components/common/ui';
-import type { Option } from '@/components/common/ui';
-import { FieldError } from '@/components/ui/field';
-import { buildAllocationStatusOptions } from '@/lib/metadata';
-import { formatShortDateEndpoint } from '@/lib/dateDisplay';
+} from '@/components/common/ui'
+import type { Option } from '@/components/common/ui'
+import { FieldError } from '@/components/ui/field'
+import { buildAllocationStatusOptions } from '@/lib/metadata'
+import { formatShortDateEndpoint } from '@/lib/dateDisplay'
 import {
   AllocationControlColumn,
   AllocationSpanRow,
   DateRangeFields,
-} from './AllocationDialogFieldLayout';
-import type { AllocationDialogState } from './useAllocationDialogState';
-import { roundToHundredths } from '@/lib/roundToHundredths';
+} from './AllocationDialogFieldLayout'
+import type { AllocationDialogState } from './useAllocationDialogState'
+import { roundToHundredths } from '@/lib/roundToHundredths'
 
 const buildRepeatOptions = (): Option[] => [
   { value: 'none', label: m.form_allocation_repeat_none() },
@@ -27,23 +27,23 @@ const buildRepeatOptions = (): Option[] => [
   { value: 'every-three-weeks', label: m.form_allocation_repeat_every_three_weeks() },
   { value: 'every-four-weeks', label: m.form_allocation_repeat_every_four_weeks() },
   { value: 'monthly', label: m.form_allocation_repeat_monthly() },
-];
+]
 
 const buildHoursPerDayOptions = (): Option[] => [
   { value: '1', label: m.form_allocation_hours_per_day_one_hour() },
   { value: '2', label: m.form_allocation_hours_per_day_quarter_day() },
   { value: '4', label: m.form_allocation_hours_per_day_half_day() },
   { value: '8', label: m.form_allocation_hours_per_day_full_day() },
-];
+]
 
-type ScheduleProps = AllocationDialogState['scheduleFields'];
+type ScheduleProps = AllocationDialogState['scheduleFields']
 type TaskProps = Pick<
   ScheduleProps,
   'task' | 'setTask' | 'showTaskFieldInSchedule' | 'errorField' | 'errorId'
->;
+>
 
 function TaskField(props: TaskProps) {
-  if (!props.showTaskFieldInSchedule) return null;
+  if (!props.showTaskFieldInSchedule) return null
   return (
     <TextField
       label={m.form_allocation_task_label()}
@@ -53,7 +53,7 @@ function TaskField(props: TaskProps) {
       describedById={props.errorId}
       layout="label-control"
     />
-  );
+  )
 }
 
 type TypedSpanProps = Pick<
@@ -67,7 +67,7 @@ type TypedSpanProps = Pick<
   | 'setHoursPerDay'
   | 'errorField'
   | 'errorId'
->;
+>
 
 function TypedSpanFields(props: TypedSpanProps) {
   return (
@@ -92,7 +92,7 @@ function TypedSpanFields(props: TypedSpanProps) {
         />
       )}
     </AllocationSpanRow>
-  );
+  )
 }
 
 type CountedSpanProps = Pick<
@@ -110,17 +110,17 @@ type CountedSpanProps = Pick<
   | 'daysOverDisabled'
   | 'errorField'
   | 'errorId'
->;
+>
 
 function renderCountedSpanHint(props: CountedSpanProps) {
-  if (!props.startDate || !props.endDateHint) return undefined;
+  if (!props.startDate || !props.endDateHint) return undefined
   const message = props.isDays
     ? m.form_allocation_ends_hint_hours({
         date: props.endDateHint,
         hours: roundToHundredths(props.effHoursPerDay),
       })
-    : m.form_allocation_ends_hint({ date: props.endDateHint });
-  return <p className="text-xs text-muted-foreground">{message}</p>;
+    : m.form_allocation_ends_hint({ date: props.endDateHint })
+  return <p className="text-xs text-muted-foreground">{message}</p>
 }
 
 function CountedSpanFields(props: CountedSpanProps) {
@@ -158,7 +158,7 @@ function CountedSpanFields(props: CountedSpanProps) {
         describedById={props.errorId}
       />
     </AllocationSpanRow>
-  );
+  )
 }
 
 type RepeatProps = Pick<
@@ -173,7 +173,7 @@ type RepeatProps = Pick<
   | 'repeatLastStart'
   | 'errorField'
   | 'errorId'
->;
+>
 
 function RepeatFields(props: RepeatProps) {
   return (
@@ -200,13 +200,13 @@ function RepeatFields(props: RepeatProps) {
       )}
       {props.repeatExpansion && props.repeatLastStart && <RepeatPreview {...props} />}
     </>
-  );
+  )
 }
 
 function RepeatPreview(props: RepeatProps) {
-  if (!props.repeatExpansion || !props.repeatLastStart) return null;
+  if (!props.repeatExpansion || !props.repeatLastStart) return null
   // Date repeat limits against their first occurrence so a cutoff in another year cannot look earlier than the booking.
-  const anchor = props.repeatExpansion.startDates[0] ?? props.repeatLastStart;
+  const anchor = props.repeatExpansion.startDates[0] ?? props.repeatLastStart
   return (
     <AllocationControlColumn>
       <p className="text-xs text-muted-foreground">
@@ -217,7 +217,7 @@ function RepeatPreview(props: RepeatProps) {
         })}
       </p>
     </AllocationControlColumn>
-  );
+  )
 }
 
 type DetailProps = Pick<
@@ -233,13 +233,13 @@ type DetailProps = Pick<
   | 'error'
   | 'errorField'
   | 'errorId'
->;
+>
 
 function DetailFields(props: DetailProps) {
   const setNote = (value: string) => {
-    props.setNoteEdited(true);
-    props.setNote(value);
-  };
+    props.setNoteEdited(true)
+    props.setNote(value)
+  }
   return (
     <>
       <SegmentedField
@@ -275,7 +275,7 @@ function DetailFields(props: DetailProps) {
       </FieldError>
       <RequiredLegend />
     </>
-  );
+  )
 }
 
 /** Edits allocation dates, quantity, and repeat options. */
@@ -287,5 +287,5 @@ export function AllocationScheduleFields(props: ScheduleProps) {
       {props.create && <RepeatFields {...props} />}
       <DetailFields {...props} />
     </>
-  );
+  )
 }

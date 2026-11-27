@@ -2,22 +2,22 @@
 // confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
 // proof.
 
-import { inject } from '@adonisjs/core';
-import capacitylens from '#config/capacitylens';
-import db from '@adonisjs/lucid/services/db';
-import hash from '@adonisjs/core/services/hash';
-import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import User from '#models/user';
-import { DateTime } from 'luxon';
-import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password';
+import { inject } from '@adonisjs/core'
+import capacitylens from '#config/capacitylens'
+import db from '@adonisjs/lucid/services/db'
+import hash from '@adonisjs/core/services/hash'
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
+import User from '#models/user'
+import { DateTime } from 'luxon'
+import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password'
 
 /** The development bootstrap identity. */
 @inject()
 export class DevelopmentBootstrapService {
-  #admission: AccountAdmission;
+  #admission: AccountAdmission
 
   constructor(admission: AccountAdmission) {
-    this.#admission = admission;
+    this.#admission = admission
   }
 
   /** Keeps interrupted-bootstrap recovery explicit rather than adopting an identity by address. */
@@ -31,38 +31,38 @@ export class DevelopmentBootstrapService {
       'node ace.js account-kit:admission:approve admin@admin.admin',
       'Do not run operator commands while the server is running.',
       'The bootstrap never changes an existing password.',
-    ].join(' ');
+    ].join(' ')
   }
 
   /** Preserves the committed identity when admission setup needs operator recovery. */
   async recordBootstrapAdmission(email: string) {
     try {
-      await this.#admission.operator.grantInvitation({ email, role: 'admin' });
-      await this.#admission.operator.approve({ email });
+      await this.#admission.operator.grantInvitation({ email, role: 'admin' })
+      await this.#admission.operator.approve({ email })
     } catch (cause) {
-      throw new Error(this.buildBootstrapRecoveryMessage(), { cause });
+      throw new Error(this.buildBootstrapRecoveryMessage(), { cause })
     }
   }
 
   async bootstrapDevelopmentCredential() {
-    if (!capacitylens.createAdmin) return;
-    const password = capacitylens.bootstrapAdminPassword;
+    if (!capacitylens.createAdmin) return
+    const password = capacitylens.bootstrapAdminPassword
     if (!password || getPasswordLengthFailure(password)) {
       throw new Error(
         'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must satisfy the password length policy'
-      );
+      )
     }
-    const email = 'admin@admin.admin';
-    const existing = await User.query({ client: db.connection() }).select('id').first();
+    const email = 'admin@admin.admin'
+    const existing = await User.query({ client: db.connection() }).select('id').first()
     if (existing) {
-      const user = await User.findBy('email', email);
-      if (!user) return;
-      if (await this.#admission.isAdmitted(user.id)) return;
-      throw new Error(this.buildBootstrapRecoveryMessage());
+      const user = await User.findBy('email', email)
+      if (!user) return
+      if (await this.#admission.isAdmitted(user.id)) return
+      throw new Error(this.buildBootstrapRecoveryMessage())
     }
-    const passwordHash = await hash.make(password);
+    const passwordHash = await hash.make(password)
     await db.transaction(async (trx) => {
-      if (await User.query({ client: trx }).select('id').first()) return;
+      if (await User.query({ client: trx }).select('id').first()) return
       // The model's hooks set the id and both timestamps; the verification instant is stored the
       // way Account Kit stores it for every other identity.
       await User.create(
@@ -74,8 +74,8 @@ export class DevelopmentBootstrapService {
           unverifiedEmail: null,
         },
         { client: trx }
-      );
-    });
-    await this.recordBootstrapAdmission(email);
+      )
+    })
+    await this.recordBootstrapAdmission(email)
   }
 }

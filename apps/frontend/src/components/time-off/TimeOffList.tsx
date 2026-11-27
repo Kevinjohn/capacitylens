@@ -1,8 +1,8 @@
-import { useStore } from '@/store/useStore';
-import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import { hasPlaceholdersEnabled, resolveWeekStart } from '@/store/selectors';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { useEntityListState } from '@/hooks/useEntityListState';
+import { useStore } from '@/store/useStore'
+import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath'
+import { hasPlaceholdersEnabled, resolveWeekStart } from '@/store/selectors'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { useEntityListState } from '@/hooks/useEntityListState'
 import {
   AddButton,
   ConfirmDialog,
@@ -10,25 +10,25 @@ import {
   EditButton,
   EmptyState,
   ListPage,
-} from '@/components/common/ui';
-import { formatShortDate, formatShortDateEndpoint, formatDayCount } from '@/lib/dateDisplay';
-import { TimeOffForm } from './TimeOffForm';
-import { buildTimeOffGroups } from './timeOffView';
-import type { TimeOffGroup } from './timeOffView';
-import type { TimeOff } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
-import { Fragment, useMemo } from 'react';
-import { Calendar } from 'lucide-react';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { useConfirmDelete } from '@/hooks/useConfirmDelete';
-import { CompanyClosureSection } from './CompanyClosureSection';
-import { useCompanyToday } from '@/hooks/useCompanyToday';
+} from '@/components/common/ui'
+import { formatShortDate, formatShortDateEndpoint, formatDayCount } from '@/lib/dateDisplay'
+import { TimeOffForm } from './TimeOffForm'
+import { buildTimeOffGroups } from './timeOffView'
+import type { TimeOffGroup } from './timeOffView'
+import type { TimeOff } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
+import { Fragment, useMemo } from 'react'
+import { Calendar } from 'lucide-react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { useConfirmDelete } from '@/hooks/useConfirmDelete'
+import { CompanyClosureSection } from './CompanyClosureSection'
+import { useCompanyToday } from '@/hooks/useCompanyToday'
 
 interface PersonalTimeOffSectionProps {
-  groups: TimeOffGroup[];
-  onAdd: () => void;
-  onEdit: (timeOff: TimeOff) => void;
-  onDelete: (timeOff: TimeOff) => void;
+  groups: TimeOffGroup[]
+  onAdd: () => void
+  onEdit: (timeOff: TimeOff) => void
+  onDelete: (timeOff: TimeOff) => void
 }
 
 function PersonalTimeOffSection({ groups, onAdd, onEdit, onDelete }: PersonalTimeOffSectionProps) {
@@ -48,15 +48,15 @@ function PersonalTimeOffSection({ groups, onAdd, onEdit, onDelete }: PersonalTim
         <TimeOffGroups groups={groups} onEdit={onEdit} onDelete={onDelete} />
       )}
     </section>
-  );
+  )
 }
 
 function TimeOffGroups({ groups, onEdit, onDelete }: Omit<PersonalTimeOffSectionProps, 'onAdd'>) {
   return (
     <div className="flex flex-col gap-6" data-testid="timeoff-groups">
       {groups.map((group) => {
-        const groupKey = group.kind === 'resource' ? `resource-${group.resourceId}` : group.kind;
-        const headingId = `time-off-group-${encodeURIComponent(groupKey)}`;
+        const groupKey = group.kind === 'resource' ? `resource-${group.resourceId}` : group.kind
+        const headingId = `time-off-group-${encodeURIComponent(groupKey)}`
         return (
           <section
             key={groupKey}
@@ -81,18 +81,18 @@ function TimeOffGroups({ groups, onEdit, onDelete }: Omit<PersonalTimeOffSection
               ))}
             </ItemGroup>
           </section>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
 
 interface TimeOffItemProps {
-  timeOff: TimeOff;
-  resourceName: string;
-  separated: boolean;
-  onEdit: (timeOff: TimeOff) => void;
-  onDelete: (timeOff: TimeOff) => void;
+  timeOff: TimeOff
+  resourceName: string
+  separated: boolean
+  onEdit: (timeOff: TimeOff) => void
+  onDelete: (timeOff: TimeOff) => void
 }
 
 function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: TimeOffItemProps) {
@@ -100,7 +100,7 @@ function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: Tim
     name: resourceName,
     start: formatShortDateEndpoint(timeOff.startDate, timeOff.endDate),
     end: formatShortDateEndpoint(timeOff.endDate, timeOff.startDate),
-  };
+  }
   return (
     <Fragment>
       {separated && <ItemSeparator />}
@@ -123,26 +123,26 @@ function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: Tim
         </ItemActions>
       </Item>
     </Fragment>
-  );
+  )
 }
 
 /** Lists scoped time-off entries and their available actions. */
 export function TimeOffList() {
-  const data = useActiveScopedData();
-  const resources = data.resources;
+  const data = useActiveScopedData()
+  const resources = data.resources
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
-  );
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId)
+  )
   const calendarWeekStartsOn = useStore((state) =>
-    resolveWeekStart(state.data, state.activeCompanyId),
-  );
-  const deleteEntity = useStore((state) => state.deleteTimeOff);
+    resolveWeekStart(state.data, state.activeCompanyId)
+  )
+  const deleteEntity = useStore((state) => state.deleteTimeOff)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
-    useEntityListState<TimeOff>();
-  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
+    useEntityListState<TimeOff>()
+  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null))
 
-  const today = useCompanyToday();
-  const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
+  const today = useCompanyToday()
+  const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn)
   const groups = useMemo(
     () =>
       buildTimeOffGroups({
@@ -151,8 +151,8 @@ export function TimeOffList() {
         weekStart: currentWeekStart,
         placeholdersEnabled,
       }),
-    [currentWeekStart, data.timeOff, placeholdersEnabled, resources],
-  );
+    [currentWeekStart, data.timeOff, placeholdersEnabled, resources]
+  )
 
   return (
     <ListPage title={m.list_time_off_title()}>
@@ -173,11 +173,11 @@ export function TimeOffList() {
           title={m.list_time_off_delete_title()}
           message={m.list_time_off_delete_message()}
           onConfirm={() => {
-            void confirmDelete(confirming.id);
+            void confirmDelete(confirming.id)
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
     </ListPage>
-  );
+  )
 }

@@ -1,22 +1,22 @@
-import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from '@/lib/lanePacking';
-import type { LaneLayout } from '@/lib/lanePacking';
-import { isHalfDay } from '@capacitylens/shared/lib/capacity';
-import { hasRangeOverlap, getWeekday } from '@capacitylens/shared/lib/dateMath';
-import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { resolveBarColor } from '@capacitylens/shared/lib/color';
-import { resolveTimeOffTypeLabel } from '@/lib/metadata';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
+import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from '@/lib/lanePacking'
+import type { LaneLayout } from '@/lib/lanePacking'
+import { isHalfDay } from '@capacitylens/shared/lib/capacity'
+import { hasRangeOverlap, getWeekday } from '@capacitylens/shared/lib/dateMath'
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek'
+import { resolveBarColor } from '@capacitylens/shared/lib/color'
+import { resolveTimeOffTypeLabel } from '@/lib/metadata'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
 import type {
   Allocation,
   ID,
   ISODate,
   Resource,
   TimeOff,
-} from '@capacitylens/shared/types/entities';
-import { isCreationStartBlockedForEffectiveWeek } from './creationAvailability';
-import { includeRenderableDateRange } from '@/lib/renderableDateRanges';
-import type { createAllocationFilters } from './schedulerModelFilters';
-import type { createCapacitySource } from './schedulerRowCapacity';
+} from '@capacitylens/shared/types/entities'
+import { isCreationStartBlockedForEffectiveWeek } from './creationAvailability'
+import { includeRenderableDateRange } from '@/lib/renderableDateRanges'
+import type { createAllocationFilters } from './schedulerModelFilters'
+import type { createCapacitySource } from './schedulerRowCapacity'
 import type {
   BarLayout,
   CapacitySource,
@@ -24,27 +24,27 @@ import type {
   RowModel,
   SchedulerModelOptions,
   TimeOffBlock,
-} from './schedulerModelTypes';
+} from './schedulerModelTypes'
 
 interface CreateRowBuilderInput {
-  model: Pick<SchedulerModelOptions, 'geom' | 'days'>;
-  companyWorkingDays: NonNullable<SchedulerModelOptions['preferences']['companyWorkingDays']>;
-  laneLayout: LaneLayout;
-  allocationsByResource: Map<ID, Allocation[]>;
-  timeOffByResource: Map<ID, TimeOff[]>;
+  model: Pick<SchedulerModelOptions, 'geom' | 'days'>
+  companyWorkingDays: NonNullable<SchedulerModelOptions['preferences']['companyWorkingDays']>
+  laneLayout: LaneLayout
+  allocationsByResource: Map<ID, Allocation[]>
+  timeOffByResource: Map<ID, TimeOff[]>
   // Renderable closures only, so day states and capacity omit the same invalid rows.
-  closures: SchedulerModelOptions['data']['closures'];
-  seriesEndByKey: Map<string, ISODate>;
-  allocationFilters: ReturnType<typeof createAllocationFilters>;
-  capacitySource: ReturnType<typeof createCapacitySource>;
+  closures: SchedulerModelOptions['data']['closures']
+  seriesEndByKey: Map<string, ISODate>
+  allocationFilters: ReturnType<typeof createAllocationFilters>
+  capacitySource: ReturnType<typeof createCapacitySource>
 }
 
-type AllocationFilters = ReturnType<typeof createAllocationFilters>;
-const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
+type AllocationFilters = ReturnType<typeof createAllocationFilters>
+const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = []
 
 function buildTimeOffBlock(
   timeOffEntry: TimeOff,
-  geometry: SchedulerModelOptions['geom'],
+  geometry: SchedulerModelOptions['geom']
 ): TimeOffBlock {
   return {
     id: timeOffEntry.id,
@@ -52,46 +52,46 @@ function buildTimeOffBlock(
     width: geometry.getDatesWidth(timeOffEntry.startDate, timeOffEntry.endDate),
     label: resolveTimeOffTypeLabel(timeOffEntry.type),
     ...(timeOffEntry.note ? { note: timeOffEntry.note } : {}),
-  };
+  }
 }
 
 function createTimelineIntersection(days: ISODate[]) {
-  const timelineStart = days[0];
-  const timelineEnd = days[days.length - 1];
+  const timelineStart = days[0]
+  const timelineEnd = days[days.length - 1]
   return (row: { startDate: ISODate; endDate: ISODate }) =>
     timelineStart !== undefined &&
     timelineEnd !== undefined &&
-    hasRangeOverlap(row.startDate, row.endDate, timelineStart, timelineEnd);
+    hasRangeOverlap(row.startDate, row.endDate, timelineStart, timelineEnd)
 }
 
 function listVisibleAllocations(input: {
-  allAllocations: Allocation[];
-  dimmed: boolean;
-  hasTimelineIntersection: (row: { startDate: ISODate; endDate: ISODate }) => boolean;
-  filters: Pick<AllocationFilters, 'notTentativeHidden'>;
-  matchingVisibleAllocations: Allocation[];
+  allAllocations: Allocation[]
+  dimmed: boolean
+  hasTimelineIntersection: (row: { startDate: ISODate; endDate: ISODate }) => boolean
+  filters: Pick<AllocationFilters, 'notTentativeHidden'>
+  matchingVisibleAllocations: Allocation[]
 }): Allocation[] {
-  if (!input.dimmed) return input.matchingVisibleAllocations;
+  if (!input.dimmed) return input.matchingVisibleAllocations
   return input.allAllocations
     .filter(input.filters.notTentativeHidden)
-    .filter(input.hasTimelineIntersection);
+    .filter(input.hasTimelineIntersection)
 }
 
 function buildBars(input: {
-  allocations: Allocation[];
-  geometry: SchedulerModelOptions['geom'];
-  laneLayout: LaneLayout;
-  seriesEndByKey: Map<string, ISODate>;
-  filters: Pick<AllocationFilters, 'projectClientFor' | 'activityById' | 'colorMaps'>;
-  external: boolean;
+  allocations: Allocation[]
+  geometry: SchedulerModelOptions['geom']
+  laneLayout: LaneLayout
+  seriesEndByKey: Map<string, ISODate>
+  filters: Pick<AllocationFilters, 'projectClientFor' | 'activityById' | 'colorMaps'>
+  external: boolean
 }): { bars: BarLayout[]; laneCount: number } {
-  const { lanes, laneCount } = packLanes(input.allocations);
-  const laneIndicesByAllocationId = new Map(lanes.map((lane) => [lane.id, lane.lane]));
+  const { lanes, laneCount } = packLanes(input.allocations)
+  const laneIndicesByAllocationId = new Map(lanes.map((lane) => [lane.id, lane.lane]))
   const bars = input.allocations.map((allocation) => {
-    const { project, client } = input.filters.projectClientFor(allocation);
+    const { project, client } = input.filters.projectClientFor(allocation)
     const seriesEnd = allocation.seriesId
       ? input.seriesEndByKey.get(`${allocation.companyId}\u0000${allocation.seriesId}`)
-      : undefined;
+      : undefined
     return {
       allocation,
       x: input.geometry.getDateX(allocation.startDate),
@@ -103,39 +103,39 @@ function buildBars(input: {
       ...(client ? { client: client.name } : {}),
       ...(seriesEnd ? { seriesEnd } : {}),
       external: input.external,
-    };
-  });
-  return { bars, laneCount };
+    }
+  })
+  return { bars, laneCount }
 }
 
 function buildDayStates(input: {
-  resource: Resource;
-  days: ISODate[];
-  closures: CreateRowBuilderInput['closures'];
-  effectiveWeek: ReturnType<typeof resolveEffectiveWorkingWeek>;
-  capacity: CapacitySource;
+  resource: Resource
+  days: ISODate[]
+  closures: CreateRowBuilderInput['closures']
+  effectiveWeek: ReturnType<typeof resolveEffectiveWorkingWeek>
+  capacity: CapacitySource
 }): Pick<RowModel, 'dayStates' | 'conflictDayCount' | 'partialCapacityDayCount'> {
-  const dayStates: DayState[] = [];
-  let conflictDayCount = 0;
-  let partialCapacityDayCount = 0;
+  const dayStates: DayState[] = []
+  let conflictDayCount = 0
+  let partialCapacityDayCount = 0
   for (const date of input.days) {
     // A date the server's read did not cover draws no capacity cue until its read arrives.
-    const dayCapacity = input.capacity.resolveCapacityOnDay(date);
-    const over = dayCapacity?.over ?? false;
+    const dayCapacity = input.capacity.resolveCapacityOnDay(date)
+    const over = dayCapacity?.over ?? false
     const creationBlocked = isCreationStartBlockedForEffectiveWeek({
       resource: input.resource,
       date,
       timeOff: input.capacity.listTimeOffOn(date),
       effectiveWeek: input.effectiveWeek,
       closures: input.closures,
-    });
-    const unavailable = (input.capacity.tracked && dayCapacity?.available === 0) || creationBlocked;
+    })
+    const unavailable = (input.capacity.tracked && dayCapacity?.available === 0) || creationBlocked
     const partialCapacity =
-      input.capacity.tracked && !unavailable && isHalfDay(input.resource, getWeekday(date));
-    const hasTimeOff = input.capacity.countTimeOffOn(date) > 0;
-    const timeOffConflict = input.capacity.hasTimeOffConflictOn(date);
-    if (over || timeOffConflict) conflictDayCount++;
-    if (partialCapacity) partialCapacityDayCount++;
+      input.capacity.tracked && !unavailable && isHalfDay(input.resource, getWeekday(date))
+    const hasTimeOff = input.capacity.countTimeOffOn(date) > 0
+    const timeOffConflict = input.capacity.hasTimeOffConflictOn(date)
+    if (over || timeOffConflict) conflictDayCount++
+    if (partialCapacity) partialCapacityDayCount++
     dayStates.push({
       over,
       timeOffConflict,
@@ -143,9 +143,9 @@ function buildDayStates(input: {
       partialCapacity,
       creationBlocked,
       hasTimeOff,
-    });
+    })
   }
-  return { dayStates, conflictDayCount, partialCapacityDayCount };
+  return { dayStates, conflictDayCount, partialCapacityDayCount }
 }
 
 /** Builds resource rows against one shared scheduler model context. */
@@ -160,28 +160,28 @@ export function createRowBuilder({
   allocationFilters,
   capacitySource: { capacitySourceFor, visDays: visibleDays },
 }: CreateRowBuilderInput) {
-  const hasTimelineIntersection = createTimelineIntersection(days);
+  const hasTimelineIntersection = createTimelineIntersection(days)
 
   return function buildRow(resource: Resource): RowModel {
     const allAllocations = (allocationsByResource.get(resource.id) ?? []).filter(
-      includeRenderableDateRange,
-    );
-    const resourceTimeOff = timeOffByResource.get(resource.id) ?? [];
-    const isExternal = isExternalResource(resource);
+      includeRenderableDateRange
+    )
+    const resourceTimeOff = timeOffByResource.get(resource.id) ?? []
+    const isExternal = isExternalResource(resource)
 
-    const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
+    const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays)
     // Determine dimming from matching bars inside the displayed timeline so hidden or off-timeline work cannot create an empty full-opacity row. Unmatched staffing rows retain their real load.
     const matchingVisibleAllocations = allAllocations
       .filter(allocationFilters.allocVisible)
-      .filter(hasTimelineIntersection);
-    const dimmed = allocationFilters.workFilterActive && matchingVisibleAllocations.length === 0;
+      .filter(hasTimelineIntersection)
+    const dimmed = allocationFilters.workFilterActive && matchingVisibleAllocations.length === 0
     const visibleAllocations = listVisibleAllocations({
       allAllocations,
       dimmed,
       hasTimelineIntersection,
       filters: allocationFilters,
       matchingVisibleAllocations,
-    });
+    })
     const { bars, laneCount } = buildBars({
       allocations: visibleAllocations,
       geometry,
@@ -189,22 +189,22 @@ export function createRowBuilder({
       seriesEndByKey,
       filters: allocationFilters,
       external: isExternal,
-    });
-    const capacity = capacitySourceFor({ resource, resourceTimeOff });
+    })
+    const capacity = capacitySourceFor({ resource, resourceTimeOff })
     const daySummary = buildDayStates({
       resource,
       days,
       closures,
       effectiveWeek,
       capacity,
-    });
+    })
 
     const personalTimeOffBlocks = resourceTimeOff
       .filter(hasTimelineIntersection)
-      .map((entry) => buildTimeOffBlock(entry, geometry));
-    const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS;
+      .map((entry) => buildTimeOffBlock(entry, geometry))
+    const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS
     // Visible utilisation sums the server's figures over the visible dates; overSoon is the server's flag. Untracked externals report neither signal.
-    const utilisation = capacity.resolveUtilisationOver(visibleDays);
+    const utilisation = capacity.resolveUtilisationOver(visibleDays)
     return {
       resource,
       rowHeight: resolveRowHeightForLanes(laneCount, laneLayout),
@@ -214,6 +214,6 @@ export function createRowBuilder({
       utilisation,
       overSoon: capacity.overSoon,
       dimmed,
-    };
-  };
+    }
+  }
 }

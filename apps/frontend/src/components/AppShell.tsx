@@ -1,37 +1,37 @@
-import { Suspense } from 'react';
-import type { CSSProperties } from 'react';
-import { matchPath, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { GettingStarted } from './GettingStarted';
-import { Toaster } from 'sonner';
-import { useStore } from '@/store/useStore';
-import { CommandPalette } from './CommandPalette';
-import { PermissionProvider } from '@/auth/PermissionProvider';
-import { RotateHint } from './RotateHint';
-import { Spinner } from './ui/spinner';
-import { Alert, AlertDescription } from './ui/alert';
-import { m } from '@/i18n';
-import { ACCOUNT_LINK } from '@/lib/navLinks';
-import { AppEntryGate } from './AppEntryGate';
-import { useAppShellViewModel } from './useAppShellViewModel';
-import { useVisibleRoutes } from './useVisibleRoutes';
-import { AppSidebar } from './AppSidebar';
-import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar';
-import { readPlanningProblem } from '@/data/planning/planningNotices';
-import { useAuth } from '@/auth/authContext';
-import { ProductOrientation } from './ProductOrientation';
-import { MasqueradeBanner } from './MasqueradeBanner';
-import { buildMasqueradeBannerContent } from './masqueradeBannerContent';
-import { useProductOrientation } from './useProductOrientation';
-import type { AppOutletContext } from './HelpView';
+import { Suspense } from 'react'
+import type { CSSProperties } from 'react'
+import { matchPath, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { GettingStarted } from './GettingStarted'
+import { Toaster } from 'sonner'
+import { useStore } from '@/store/useStore'
+import { CommandPalette } from './CommandPalette'
+import { PermissionProvider } from '@/auth/PermissionProvider'
+import { RotateHint } from './RotateHint'
+import { Spinner } from './ui/spinner'
+import { Alert, AlertDescription } from './ui/alert'
+import { m } from '@/i18n'
+import { ACCOUNT_LINK } from '@/lib/navLinks'
+import { AppEntryGate } from './AppEntryGate'
+import { useAppShellViewModel } from './useAppShellViewModel'
+import { useVisibleRoutes } from './useVisibleRoutes'
+import { AppSidebar } from './AppSidebar'
+import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar'
+import { readPlanningProblem } from '@/data/planning/planningNotices'
+import { useAuth } from '@/auth/authContext'
+import { ProductOrientation } from './ProductOrientation'
+import { MasqueradeBanner } from './MasqueradeBanner'
+import { buildMasqueradeBannerContent } from './masqueradeBannerContent'
+import { useProductOrientation } from './useProductOrientation'
+import type { AppOutletContext } from './HelpView'
 
 function MobileSidebarTrigger() {
-  const { openMobile } = useSidebar();
+  const { openMobile } = useSidebar()
   return (
     <SidebarTrigger
       aria-expanded={openMobile}
       aria-label={openMobile ? m.nav_collapse_menu() : m.nav_expand_menu()}
     />
-  );
+  )
 }
 
 function AppShellLoader() {
@@ -43,7 +43,7 @@ function AppShellLoader() {
       <Spinner role="presentation" aria-label={undefined} />
       {m.app_loading()}
     </div>
-  );
+  )
 }
 
 function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState>['theme'] }) {
@@ -61,23 +61,23 @@ function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState
         } as CSSProperties
       }
     />
-  );
+  )
 }
 
 type GatedAppProps = {
-  hydrated: boolean;
-  hasActiveCompany: boolean;
-  ambiguousCompanyDirectory: boolean;
-  allowWithoutActiveCompany: boolean;
-  activeCompanyId: ReturnType<typeof useStore.getState>['activeCompanyId'];
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-  dirtyForm: boolean;
-  paletteOpen: boolean;
-  closePalette: () => void;
-  masqueradeBanner: ReturnType<typeof buildMasqueradeBannerContent>;
-  navigate: ReturnType<typeof useNavigate>;
-};
+  hydrated: boolean
+  hasActiveCompany: boolean
+  ambiguousCompanyDirectory: boolean
+  allowWithoutActiveCompany: boolean
+  activeCompanyId: ReturnType<typeof useStore.getState>['activeCompanyId']
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
+  dirtyForm: boolean
+  paletteOpen: boolean
+  closePalette: () => void
+  masqueradeBanner: ReturnType<typeof buildMasqueradeBannerContent>
+  navigate: ReturnType<typeof useNavigate>
+}
 
 function GatedApp({
   hydrated,
@@ -93,11 +93,11 @@ function GatedApp({
   masqueradeBanner,
   navigate,
 }: GatedAppProps) {
-  const { user } = useAuth();
+  const { user } = useAuth()
   const orientation = useProductOrientation({
     userId: user?.id ?? null,
     companyId: activeCompanyId,
-  });
+  })
 
   return (
     <AppEntryGate
@@ -126,11 +126,11 @@ function GatedApp({
         </SidebarProvider>
       </PermissionProvider>
     </AppEntryGate>
-  );
+  )
 }
 
 function GatedSidebar({ sidebarOpen }: Pick<GatedAppProps, 'sidebarOpen'>) {
-  const routes = useVisibleRoutes();
+  const routes = useVisibleRoutes()
   return (
     <>
       <a
@@ -145,7 +145,7 @@ function GatedSidebar({ sidebarOpen }: Pick<GatedAppProps, 'sidebarOpen'>) {
         open={sidebarOpen}
       />
     </>
-  );
+  )
 }
 
 function GatedMain({
@@ -154,13 +154,13 @@ function GatedMain({
   navigate,
   orientation,
 }: Pick<GatedAppProps, 'hydrated' | 'masqueradeBanner' | 'navigate'> & {
-  orientation: ReturnType<typeof useProductOrientation>;
+  orientation: ReturnType<typeof useProductOrientation>
 }) {
-  const loader = <AppShellLoader />;
+  const loader = <AppShellLoader />
   const projectionChanging = useStore(
-    (state) => state.masquerade.kind === 'starting' || state.masquerade.kind === 'ending',
-  );
-  const planningProblem = useStore((state) => readPlanningProblem(state.planning));
+    (state) => state.masquerade.kind === 'starting' || state.masquerade.kind === 'ending'
+  )
+  const planningProblem = useStore((state) => readPlanningProblem(state.planning))
   return (
     <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
       <div className="border-b border-line p-2 md:hidden">
@@ -194,33 +194,33 @@ function GatedMain({
         loader
       )}
     </main>
-  );
+  )
 }
 
 /** Coordinates application routes, navigation, company notices, and global dialogs. */
 export function AppShell() {
-  const navigate = useNavigate();
-  const { paletteOpen, closePalette } = useAppShellViewModel();
-  const hydrated = useStore((state) => state.hydrated);
-  const masquerade = useStore((state) => state.masquerade);
-  const masqueradeBanner = buildMasqueradeBannerContent(masquerade);
+  const navigate = useNavigate()
+  const { paletteOpen, closePalette } = useAppShellViewModel()
+  const hydrated = useStore((state) => state.hydrated)
+  const masquerade = useStore((state) => state.masquerade)
+  const masqueradeBanner = buildMasqueradeBannerContent(masquerade)
   // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
   // explicit light and dark preferences pass through as concrete schemes.
-  const themePreference = useStore((state) => state.theme);
-  const companies = useStore((state) => state.data.companies);
-  const companySummaries = useStore((state) => state.companySummaries);
-  const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous);
-  const activeCompanyId = useStore((state) => state.activeCompanyId);
+  const themePreference = useStore((state) => state.theme)
+  const companies = useStore((state) => state.data.companies)
+  const companySummaries = useStore((state) => state.companySummaries)
+  const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous)
+  const activeCompanyId = useStore((state) => state.activeCompanyId)
   // Company summaries keep the company gate valid while the selected company's authoritative set is still loading. Child content remains behind its hydration gate.
   const activeCompany =
     companies.find((company) => company.id === activeCompanyId) ??
-    companySummaries.find((a) => a.id === activeCompanyId);
+    companySummaries.find((a) => a.id === activeCompanyId)
   const accountRoute =
-    matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
+    matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null
 
-  const dirtyForm = useStore((state) => state.dirtyForm);
-  const sidebarOpen = useStore((state) => state.sidebarOpen);
-  const setSidebarOpen = useStore((state) => state.setSidebarOpen);
+  const dirtyForm = useStore((state) => state.dirtyForm)
+  const sidebarOpen = useStore((state) => state.sidebarOpen)
+  const setSidebarOpen = useStore((state) => state.setSidebarOpen)
 
   return (
     <>
@@ -242,5 +242,5 @@ export function AppShell() {
         navigate={navigate}
       />
     </>
-  );
+  )
 }

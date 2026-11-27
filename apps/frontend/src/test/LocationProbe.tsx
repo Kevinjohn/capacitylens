@@ -1,9 +1,9 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom'
 
 /** Shows the current route and navigates to a settings deep link when clicked. */
 export function LocationProbe() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location = useLocation()
+  const navigate = useNavigate()
   return (
     <button
       type="button"
@@ -14,5 +14,5 @@ export function LocationProbe() {
       {location.search}
       {location.hash}
     </button>
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
-import { makeActivity, makeResource } from '@/test/fixtures';
-import { buildRepeatExpansion } from './buildRepeatExpansion';
+import { describe, expect, it } from 'vitest'
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
+import { makeActivity, makeResource } from '@/test/fixtures'
+import { buildRepeatExpansion } from './buildRepeatExpansion'
 
-type ExpansionInput = Parameters<typeof buildRepeatExpansion>[0];
+type ExpansionInput = Parameters<typeof buildRepeatExpansion>[0]
 
 // A Monday-to-Tuesday hourly allocation repeated weekly for four occurrences. Every guard test
 // changes exactly one field from this valid baseline, so a null result points at that guard.
@@ -37,22 +37,22 @@ function validInput(overrides: Partial<ExpansionInput> = {}): ExpansionInput {
     status: 'confirmed',
     validDaysOver: true,
     ...overrides,
-  };
+  }
 }
 
 function expectRejected(overrides: Partial<ExpansionInput>) {
-  expect(buildRepeatExpansion(validInput(overrides))).toBeNull();
+  expect(buildRepeatExpansion(validInput(overrides))).toBeNull()
 }
 
 function expectAccepted(overrides: Partial<ExpansionInput>) {
-  expect(buildRepeatExpansion(validInput(overrides))).not.toBeNull();
+  expect(buildRepeatExpansion(validInput(overrides))).not.toBeNull()
 }
 
 describe('buildRepeatExpansion', () => {
   it('projects one draft per repeated start date for a valid creation', () => {
-    const expansion = buildRepeatExpansion(validInput());
-    expect(expansion?.startDates).toEqual(['2027-01-04', '2027-01-11', '2027-01-18', '2027-01-25']);
-    expect(expansion?.drafts.map((draft) => draft.startDate)).toEqual(expansion?.startDates);
+    const expansion = buildRepeatExpansion(validInput())
+    expect(expansion?.startDates).toEqual(['2027-01-04', '2027-01-11', '2027-01-18', '2027-01-25'])
+    expect(expansion?.drafts.map((draft) => draft.startDate)).toEqual(expansion?.startDates)
     expect(expansion?.drafts[0]).toMatchObject({
       resourceId: 'r1',
       activityId: 't1',
@@ -60,96 +60,96 @@ describe('buildRepeatExpansion', () => {
       hoursPerDay: 4,
       status: 'confirmed',
       ignoreWorkingDays: false,
-    });
-    expect(expansion?.drafts[0]).not.toHaveProperty('note');
-    expect(expansion?.drafts[0]).not.toHaveProperty('task');
-    expect(expansion?.drafts[0]).not.toHaveProperty('projectId');
-  });
+    })
+    expect(expansion?.drafts[0]).not.toHaveProperty('note')
+    expect(expansion?.drafts[0]).not.toHaveProperty('task')
+    expect(expansion?.drafts[0]).not.toHaveProperty('projectId')
+  })
 
   it('carries note, task and attributed project only when present', () => {
     const expansion = buildRepeatExpansion(
-      validInput({ note: 'Bring the deck', task: 'Review', attributedProjectId: 'p1' }),
-    );
+      validInput({ note: 'Bring the deck', task: 'Review', attributedProjectId: 'p1' })
+    )
     expect(expansion?.drafts[0]).toMatchObject({
       note: 'Bring the deck',
       task: 'Review',
       projectId: 'p1',
-    });
-  });
+    })
+  })
 
   it('forces ignoreWorkingDays for external resources', () => {
-    const external = makeResource({ kind: 'external' });
+    const external = makeResource({ kind: 'external' })
     const expansion = buildRepeatExpansion(
-      validInput({ isExternal: true, selectedResource: external, effHoursPerDay: 0 }),
-    );
-    expect(expansion?.drafts.every((draft) => draft.ignoreWorkingDays)).toBe(true);
-  });
+      validInput({ isExternal: true, selectedResource: external, effHoursPerDay: 0 })
+    )
+    expect(expansion?.drafts.every((draft) => draft.ignoreWorkingDays)).toBe(true)
+  })
 
   it('returns null outside a repeating creation context', () => {
-    expectRejected({ create: undefined });
-    expectRejected({ repeat: 'none' });
-    expectRejected({ selectedResource: undefined });
-    expectRejected({ selectedEffectiveWeek: undefined });
-    expectRejected({ resourceId: '' });
-    expectRejected({ activityId: '' });
-    expectRejected({ selectedActivity: undefined });
-  });
+    expectRejected({ create: undefined })
+    expectRejected({ repeat: 'none' })
+    expectRejected({ selectedResource: undefined })
+    expectRejected({ selectedEffectiveWeek: undefined })
+    expectRejected({ resourceId: '' })
+    expectRejected({ activityId: '' })
+    expectRejected({ selectedActivity: undefined })
+  })
 
   it('returns null when the allocation span is not a valid date range', () => {
-    expectRejected({ startDate: 'not-a-date' });
-    expectRejected({ effEndDate: 'not-a-date' });
-    expectRejected({ effEndDate: '2027-01-03' });
-    expectAccepted({ effEndDate: '2027-01-04' });
-  });
+    expectRejected({ startDate: 'not-a-date' })
+    expectRejected({ effEndDate: 'not-a-date' })
+    expectRejected({ effEndDate: '2027-01-03' })
+    expectAccepted({ effEndDate: '2027-01-04' })
+  })
 
   it('keeps repeat until inside the minimum and maximum bounds', () => {
-    expectRejected({ repeatUntil: 'not-a-date' });
-    expectRejected({ repeatUntil: '2027-01-10' });
-    expectAccepted({ repeatUntil: '2027-01-11' });
-    expectRejected({ repeatUntilMaximum: undefined });
-    expectRejected({ repeatUntil: '2027-02-02', repeatUntilMaximum: '2027-02-01' });
-    expectAccepted({ repeatUntil: '2027-02-01', repeatUntilMaximum: '2027-02-01' });
-  });
+    expectRejected({ repeatUntil: 'not-a-date' })
+    expectRejected({ repeatUntil: '2027-01-10' })
+    expectAccepted({ repeatUntil: '2027-01-11' })
+    expectRejected({ repeatUntilMaximum: undefined })
+    expectRejected({ repeatUntil: '2027-02-02', repeatUntilMaximum: '2027-02-01' })
+    expectAccepted({ repeatUntil: '2027-02-01', repeatUntilMaximum: '2027-02-01' })
+  })
 
   it('requires a valid days-over span in days and blocks modes', () => {
-    expectRejected({ isDays: true, mode: 'days', validDaysOver: false });
-    expectRejected({ isDays: true, mode: 'days', spanFitsDateDomain: false });
-    expectRejected({ isBlocks: true, mode: 'blocks', validDaysOver: false });
-    expectAccepted({ isBlocks: true, mode: 'blocks', effHoursPerDay: 0 });
-    expectAccepted({ isDays: true, mode: 'days' });
-  });
+    expectRejected({ isDays: true, mode: 'days', validDaysOver: false })
+    expectRejected({ isDays: true, mode: 'days', spanFitsDateDomain: false })
+    expectRejected({ isBlocks: true, mode: 'blocks', validDaysOver: false })
+    expectAccepted({ isBlocks: true, mode: 'blocks', effHoursPerDay: 0 })
+    expectAccepted({ isDays: true, mode: 'days' })
+  })
 
   it('requires positive days of work in days mode', () => {
-    expectRejected({ isDays: true, mode: 'days', daysOfWork: 0 });
-    expectRejected({ isDays: true, mode: 'days', daysOfWork: Number.NaN });
-    expectAccepted({ isBlocks: true, mode: 'blocks', daysOfWork: 0 });
-  });
+    expectRejected({ isDays: true, mode: 'days', daysOfWork: 0 })
+    expectRejected({ isDays: true, mode: 'days', daysOfWork: Number.NaN })
+    expectAccepted({ isBlocks: true, mode: 'blocks', daysOfWork: 0 })
+  })
 
   it('requires hours per day between zero exclusive and the daily maximum in hourly mode', () => {
-    expectRejected({ effHoursPerDay: 0 });
-    expectRejected({ effHoursPerDay: Number.NaN });
-    expectRejected({ effHoursPerDay: Number.POSITIVE_INFINITY });
-    expectRejected({ effHoursPerDay: MAX_HOURS_PER_DAY + 1 });
-    expectAccepted({ effHoursPerDay: MAX_HOURS_PER_DAY });
+    expectRejected({ effHoursPerDay: 0 })
+    expectRejected({ effHoursPerDay: Number.NaN })
+    expectRejected({ effHoursPerDay: Number.POSITIVE_INFINITY })
+    expectRejected({ effHoursPerDay: MAX_HOURS_PER_DAY + 1 })
+    expectAccepted({ effHoursPerDay: MAX_HOURS_PER_DAY })
     expectAccepted({
       isExternal: true,
       selectedResource: makeResource({ kind: 'external' }),
       effHoursPerDay: 0,
-    });
-  });
+    })
+  })
 
   it('returns null when a placeholder cannot take the selected project', () => {
-    const unbound = makeResource({ kind: 'placeholder', projectId: null });
-    expectRejected({ selectedResource: unbound, selectedEffectiveProjectId: 'p1' });
-    const bound = makeResource({ kind: 'placeholder', projectId: 'p1' });
-    expectAccepted({ selectedResource: bound, selectedEffectiveProjectId: 'p1' });
-  });
+    const unbound = makeResource({ kind: 'placeholder', projectId: null })
+    expectRejected({ selectedResource: unbound, selectedEffectiveProjectId: 'p1' })
+    const bound = makeResource({ kind: 'placeholder', projectId: 'p1' })
+    expectAccepted({ selectedResource: bound, selectedEffectiveProjectId: 'p1' })
+  })
 
   it('returns null instead of throwing when the expansion cannot fit the date domain', () => {
     expectRejected({
       repeatUntil: '2027-12-31',
       repeatUntilMaximum: '2028-12-31',
       startDate: '2027-01-04',
-    });
-  });
-});
+    })
+  })
+})

@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
-import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { m } from '@/i18n';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { m } from '@/i18n'
 import {
   expectNotice,
   fakeApiFetch,
@@ -12,90 +12,86 @@ import {
   ownerAndEditor,
   makeRawMember,
   renderSection,
-} from './MembersSectionTestKit';
+} from './MembersSectionTestKit'
 
 interface InviteFailureCaseInput {
-  status: number;
-  body: { error: string };
-  expected: RegExp;
-  fieldError: boolean;
+  status: number
+  body: { error: string }
+  expected: RegExp
+  fieldError: boolean
 }
 
 interface InviteReconciliationCaseInput {
-  status: number;
-  body: { error: string };
-  expected: RegExp;
-  reconciles: boolean;
+  status: number
+  body: { error: string }
+  expected: RegExp
+  reconciles: boolean
 }
 
 const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
-}));
+}))
 
 vi.mock('@/auth/companyTransition', () => ({
   startMasquerade: companyTransitionMocks.startMasquerade,
-}));
+}))
 
 beforeEach(async () => {
-  companyTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithCompany();
-});
+  companyTransitionMocks.startMasquerade.mockClear()
+  await resetStoreWithCompany()
+})
 afterEach(() => {
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 async function renderInviteSection(): Promise<void> {
-  renderSection();
-  await screen.findByTestId('invite-open');
-  fireEvent.click(screen.getByTestId('invite-open'));
-  await screen.findByRole('dialog', { name: 'Invite someone' });
+  renderSection()
+  await screen.findByTestId('invite-open')
+  fireEvent.click(screen.getByTestId('invite-open'))
+  await screen.findByRole('dialog', { name: 'Invite someone' })
 }
 
 function fillAddressedInvite(): void {
   fireEvent.change(screen.getByTestId('invite-preauth'), {
     target: { value: 'diana@example.test' },
-  });
+  })
 }
 
 function closeInviteDialog(): void {
   fireEvent.click(
     within(screen.getByRole('dialog', { name: 'Invite someone' })).getByRole('button', {
       name: 'Cancel',
-    }),
-  );
+    })
+  )
 }
 
 describe('MembersSection — invite mint', () => {
   it('places Invite someone before the member table', async () => {
-    vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]));
-    renderSection();
+    vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]))
+    renderSection()
 
-    const invites = await screen.findByTestId('invites-section');
-    const members = await screen.findByTestId('members-section');
-    expect(
-      invites.compareDocumentPosition(members) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
+    const invites = await screen.findByTestId('invites-section')
+    const members = await screen.findByTestId('members-section')
+    expect(invites.compareDocumentPosition(members) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 
   it('shows the selected invite role consequences before creating the link', async () => {
-    vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]));
-    await renderInviteSection();
-    await screen.findByTestId('members-section');
+    vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]))
+    await renderInviteSection()
+    await screen.findByTestId('members-section')
 
-    expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(/Can edit scheduling data/);
-    fireEvent.keyDown(screen.getByTestId('invite-role'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'Viewer' }));
-    expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(
-      /Read-only schedule access/,
-    );
-  });
+    expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(/Can edit scheduling data/)
+    fireEvent.keyDown(screen.getByTestId('invite-role'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Viewer' }))
+    expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(/Read-only schedule access/)
+  })
   it('renders outstanding invite expiry on the viewer local calendar date', async () => {
-    const expiresAt = '2026-12-01T00:00:00.000Z';
+    const expiresAt = '2026-12-01T00:00:00.000Z'
     const localDate = vi
       .spyOn(Date.prototype, 'toLocaleDateString')
-      .mockReturnValue('LOCAL INVITE DATE');
+      .mockReturnValue('LOCAL INVITE DATE')
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
       'GET /invitations': () =>
         jsonResponse({
@@ -111,23 +107,23 @@ describe('MembersSection — invite mint', () => {
             ],
           },
         }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    })
+    vi.stubGlobal('fetch', fetchMock)
 
-    await renderInviteSection();
+    await renderInviteSection()
 
-    expect(await screen.findByText(/expires LOCAL INVITE DATE/)).toBeInTheDocument();
-    expect(localDate).toHaveBeenCalled();
+    expect(await screen.findByText(/expires LOCAL INVITE DATE/)).toBeInTheDocument()
+    expect(localDate).toHaveBeenCalled()
     expect(
-      localDate.mock.contexts.every((date) => (date as Date).toISOString() === expiresAt),
-    ).toBe(true);
-  });
+      localDate.mock.contexts.every((date) => (date as Date).toISOString() === expiresAt)
+    ).toBe(true)
+  })
 
   it('marks an invitation expired and removes its action without remounting Settings', async () => {
-    const expiryDelay = 60_000;
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-07-17T12:00:00.000Z'));
-    const expiresAt = new Date(Date.now() + expiryDelay).toISOString();
+    const expiryDelay = 60_000
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-17T12:00:00.000Z'))
+    const expiresAt = new Date(Date.now() + expiryDelay).toISOString()
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
       'GET /invitations': () =>
         jsonResponse({
@@ -143,21 +139,21 @@ describe('MembersSection — invite mint', () => {
             ],
           },
         }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    })
+    vi.stubGlobal('fetch', fetchMock)
 
-    renderSection();
+    renderSection()
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    fireEvent.click(screen.getByTestId('invite-open'));
-    expect(screen.getByTestId('invite-revoke')).toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    fireEvent.click(screen.getByTestId('invite-open'))
+    expect(screen.getByTestId('invite-revoke')).toBeInTheDocument()
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(expiryDelay + 1);
-    });
-    expect(screen.getByText(/expired/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('invite-revoke')).not.toBeInTheDocument();
-  });
+      await vi.advanceTimersByTimeAsync(expiryDelay + 1)
+    })
+    expect(screen.getByText(/expired/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('invite-revoke')).not.toBeInTheDocument()
+  })
   it('keeps the last authoritative invite list when a same-company invite reload fails', async () => {
     const existingInvite = {
       id: 1,
@@ -165,34 +161,34 @@ describe('MembersSection — invite mint', () => {
       preauthEmail: 'existing@example.test',
       expiresAt: '2026-12-01T00:00:00.000Z',
       createdAt: '2026-07-17T00:00:00.000Z',
-    };
-    let invitationReads = 0;
+    }
+    let invitationReads = 0
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
       'GET /invitations': () => {
-        invitationReads += 1;
+        invitationReads += 1
         return invitationReads === 1
           ? jsonResponse({ data: { invites: [existingInvite] } })
-          : jsonResponse({ error: 'Invite reload failed.' }, 503);
+          : jsonResponse({ error: 'Invite reload failed.' }, 503)
       },
       'POST /api/v1/invitations': () => jsonResponse({ data: { id: 3, emailed: true } }, 201),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    await renderInviteSection();
-    expect(await screen.findByText(/existing@example\.test/)).toBeInTheDocument();
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await renderInviteSection()
+    expect(await screen.findByText(/existing@example\.test/)).toBeInTheDocument()
 
-    fillAddressedInvite();
-    fireEvent.click(screen.getByTestId('invite-submit'));
+    fillAddressedInvite()
+    fireEvent.click(screen.getByTestId('invite-submit'))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invite reload failed.');
-    expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
-  });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invite reload failed.')
+    expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument()
+  })
   it('ignores a late unknown mutation outcome after the user has switched companies', async () => {
-    const nextCompanyId = 'acc_second';
-    let resolveCreate: ((response: Response) => void) | undefined;
+    const nextCompanyId = 'acc_second'
+    let resolveCreate: ((response: Response) => void) | undefined
     const fetchMock = fakeApiFetch(async (target, request): Promise<Response> => {
-      const isRead = request.method === 'GET';
+      const isRead = request.method === 'GET'
       if (target.endsWith('/members') && isRead) {
-        const second = target.includes(`/${nextCompanyId}/`);
+        const second = target.includes(`/${nextCompanyId}/`)
         return jsonResponse({
           data: {
             members: [
@@ -206,36 +202,36 @@ describe('MembersSection — invite mint', () => {
                 : makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
             ],
           },
-        });
+        })
       }
       if (target.endsWith('/invitations') && isRead) {
-        return jsonResponse({ data: { invites: [] } });
+        return jsonResponse({ data: { invites: [] } })
       }
       if (target.endsWith('/api/v1/invitations') && request.method === 'POST') {
         return await new Promise<Response>((resolve) => {
-          resolveCreate = resolve;
-        });
+          resolveCreate = resolve
+        })
       }
-      throw new Error(`Unexpected request: ${target}`);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    await renderInviteSection();
-    await screen.findByTestId('members-section');
+      throw new Error(`Unexpected request: ${target}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await renderInviteSection()
+    await screen.findByTestId('members-section')
 
-    fillAddressedInvite();
-    fireEvent.click(screen.getByTestId('invite-submit'));
-    await waitFor(() => expect(resolveCreate).toBeTypeOf('function'));
-    act(() => useStore.setState({ activeCompanyId: nextCompanyId }));
-    expect(await screen.findByText('second@example.test')).toBeInTheDocument();
+    fillAddressedInvite()
+    fireEvent.click(screen.getByTestId('invite-submit'))
+    await waitFor(() => expect(resolveCreate).toBeTypeOf('function'))
+    act(() => useStore.setState({ activeCompanyId: nextCompanyId }))
+    expect(await screen.findByText('second@example.test')).toBeInTheDocument()
 
     await act(async () => {
-      resolveCreate?.(jsonResponse({ error: 'The first account outcome is unknown.' }, 503));
-    });
+      resolveCreate?.(jsonResponse({ error: 'The first account outcome is unknown.' }, 503))
+    })
 
-    expect(screen.getByText('second@example.test')).toBeInTheDocument();
-    expect(screen.queryByText(/first account outcome is unknown/i)).not.toBeInTheDocument();
-    expect(useStore.getState().notice?.message ?? '').not.toMatch(/unknown outcome/i);
-  });
+    expect(screen.getByText('second@example.test')).toBeInTheDocument()
+    expect(screen.queryByText(/first account outcome is unknown/i)).not.toBeInTheDocument()
+    expect(useStore.getState().notice?.message ?? '').not.toMatch(/unknown outcome/i)
+  })
   it.each([
     [201, true, /Invitation emailed to diana@example\.test/],
     [
@@ -247,84 +243,84 @@ describe('MembersSection — invite mint', () => {
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
       'POST /api/v1/invitations': () =>
         jsonResponse({ data: emailed ? { id: 1, emailed } : { committed: true, emailed } }, status),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    await renderInviteSection();
-    await screen.findByTestId('members-section');
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await renderInviteSection()
+    await screen.findByTestId('members-section')
 
-    fillAddressedInvite();
-    fireEvent.click(screen.getByTestId('invite-submit'));
+    fillAddressedInvite()
+    fireEvent.click(screen.getByTestId('invite-submit'))
 
-    await expectNotice(notice);
-    const post = fetchMock.requests.find((request) => request.method === 'POST');
+    await expectNotice(notice)
+    const post = fetchMock.requests.find((request) => request.method === 'POST')
     expect(JSON.parse(String(post?.body))).toEqual({
       companyId: DEFAULT_COMPANY_ID,
       role: 'editor',
       email: 'diana@example.test',
-    });
-  });
+    })
+  })
 
   it('requires an email for an invite without posting', async () => {
-    const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }]);
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    await screen.findByTestId('invite-open');
-    fireEvent.click(screen.getByTestId('invite-open'));
+    const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }])
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('invite-open')
+    fireEvent.click(screen.getByTestId('invite-open'))
 
-    await userEvent.setup().click(await screen.findByTestId('invite-submit'));
+    await userEvent.setup().click(await screen.findByTestId('invite-submit'))
 
-    const field = screen.getByTestId('invite-preauth');
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(m.settings_invite_email_required());
-    expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
-    expect(fetchMock.requests.some((request) => request.method === 'POST')).toBe(false);
-  });
+    const field = screen.getByTestId('invite-preauth')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(m.settings_invite_email_required())
+    expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id)
+    expect(fetchMock.requests.some((request) => request.method === 'POST')).toBe(false)
+  })
   it('shows a terminal invite refusal after closing a pending request', async () => {
-    let resolveCreate: ((response: Response) => void) | undefined;
+    let resolveCreate: ((response: Response) => void) | undefined
     const fetchMock = mockApi(ownerAndEditor, {
       'POST /api/v1/invitations': () =>
         new Promise<Response>((resolve) => {
-          resolveCreate = resolve;
+          resolveCreate = resolve
         }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    await renderInviteSection();
-    fillAddressedInvite();
-    fireEvent.click(screen.getByTestId('invite-submit'));
-    await waitFor(() => expect(resolveCreate).toBeTypeOf('function'));
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await renderInviteSection()
+    fillAddressedInvite()
+    fireEvent.click(screen.getByTestId('invite-submit'))
+    await waitFor(() => expect(resolveCreate).toBeTypeOf('function'))
 
-    closeInviteDialog();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    closeInviteDialog()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     await act(async () => {
-      resolveCreate?.(jsonResponse({ error: 'Invite forbidden.' }, 403));
-    });
+      resolveCreate?.(jsonResponse({ error: 'Invite forbidden.' }, 403))
+    })
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Invite forbidden.');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    const errorId = alert.id;
-    expect(errorId).not.toBe('');
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Invite forbidden.')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const errorId = alert.id
+    expect(errorId).not.toBe('')
 
-    fireEvent.click(screen.getByTestId('invite-open'));
-    expect(screen.getByTestId('invite-preauth')).toHaveAttribute('aria-describedby', errorId);
-    expect(screen.getAllByRole('alert')).toHaveLength(1);
-    expect(document.querySelectorAll(`[id="${errorId}"]`)).toHaveLength(1);
-  });
+    fireEvent.click(screen.getByTestId('invite-open'))
+    expect(screen.getByTestId('invite-preauth')).toHaveAttribute('aria-describedby', errorId)
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(document.querySelectorAll(`[id="${errorId}"]`)).toHaveLength(1)
+  })
 
   it('keeps a validation error visible after Cancel and associates it on reopen', async () => {
-    vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]));
-    await renderInviteSection();
-    fireEvent.click(screen.getByTestId('invite-submit'));
+    vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]))
+    await renderInviteSection()
+    fireEvent.click(screen.getByTestId('invite-submit'))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(m.settings_invite_email_required());
-    closeInviteDialog();
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent(m.settings_invite_email_required());
-    const errorId = alert.id;
-    fireEvent.click(screen.getByTestId('invite-open'));
-    expect(screen.getByTestId('invite-preauth')).toHaveAttribute('aria-describedby', errorId);
-    expect(document.querySelectorAll(`[id="${errorId}"]`)).toHaveLength(1);
-  });
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.settings_invite_email_required())
+    closeInviteDialog()
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(m.settings_invite_email_required())
+    const errorId = alert.id
+    fireEvent.click(screen.getByTestId('invite-open'))
+    expect(screen.getByTestId('invite-preauth')).toHaveAttribute('aria-describedby', errorId)
+    expect(document.querySelectorAll(`[id="${errorId}"]`)).toHaveLength(1)
+  })
 
   it.each([
     {
@@ -346,39 +342,39 @@ describe('MembersSection — invite mint', () => {
         'fetch',
         mockApi(ownerAndEditor, {
           'POST /api/v1/invitations': () => jsonResponse(body, status),
-        }),
-      );
-      await renderInviteSection();
+        })
+      )
+      await renderInviteSection()
 
-      fillAddressedInvite();
-      await userEvent.setup().click(await screen.findByTestId('invite-submit'));
+      fillAddressedInvite()
+      await userEvent.setup().click(await screen.findByTestId('invite-submit'))
 
-      const alert = fieldError ? await screen.findByRole('alert') : null;
-      if (fieldError) expect(alert).toHaveTextContent(expected);
-      else await expectNotice(expected);
+      const alert = fieldError ? await screen.findByRole('alert') : null
+      if (fieldError) expect(alert).toHaveTextContent(expected)
+      else await expectNotice(expected)
       if (fieldError) {
-        if (alert === null) throw new Error('Expected the invitation field error');
+        if (alert === null) throw new Error('Expected the invitation field error')
         expect(
-          screen.getByTestId('invite-preauth').getAttribute('aria-describedby')?.split(' '),
-        ).toContain(alert.id);
+          screen.getByTestId('invite-preauth').getAttribute('aria-describedby')?.split(' ')
+        ).toContain(alert.id)
       }
-    },
-  );
+    }
+  )
 
   it('reconciles a thrown invite creation', async () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
         'POST /api/v1/invitations': () => Promise.reject(new Error('invite transport lost')),
-      }),
-    );
-    await renderInviteSection();
+      })
+    )
+    await renderInviteSection()
 
-    fillAddressedInvite();
-    await userEvent.setup().click(await screen.findByTestId('invite-submit'));
+    fillAddressedInvite()
+    await userEvent.setup().click(await screen.findByTestId('invite-submit'))
 
-    await expectNotice(/unknown outcome.*invite transport lost.*reloaded/i);
-  });
+    await expectNotice(/unknown outcome.*invite transport lost.*reloaded/i)
+  })
   it.each([
     {
       status: 503,
@@ -395,38 +391,38 @@ describe('MembersSection — invite mint', () => {
   ])(
     'handles a $status invite-revoke response without dropping the row',
     async ({ status, body, expected, reconciles }: InviteReconciliationCaseInput) => {
-      let inviteReads = 0;
+      let inviteReads = 0
       const invite = {
         id: 1,
         role: 'editor',
         preauthEmail: 'existing@example.test',
         expiresAt: '2026-12-01T00:00:00.000Z',
         createdAt: '2026-07-17T00:00:00.000Z',
-      };
+      }
       vi.stubGlobal(
         'fetch',
         mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
           'GET /invitations': () => {
-            inviteReads += 1;
-            return jsonResponse({ data: { invites: [invite] } });
+            inviteReads += 1
+            return jsonResponse({ data: { invites: [invite] } })
           },
           'DELETE /invitations/1': () => jsonResponse(body, status),
-        }),
-      );
-      await renderInviteSection();
-      closeInviteDialog();
+        })
+      )
+      await renderInviteSection()
+      closeInviteDialog()
 
-      await userEvent.setup().click(await screen.findByTestId('invite-revoke'));
+      await userEvent.setup().click(await screen.findByTestId('invite-revoke'))
 
-      if (reconciles) await expectNotice(expected);
-      else expect(await screen.findByRole('alert')).toHaveTextContent(expected);
-      expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
-      expect(inviteReads).toBe(reconciles ? 2 : 1);
-    },
-  );
+      if (reconciles) await expectNotice(expected)
+      else expect(await screen.findByRole('alert')).toHaveTextContent(expected)
+      expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument()
+      expect(inviteReads).toBe(reconciles ? 2 : 1)
+    }
+  )
 
   it('warns and rereads invitations after a thrown revoke', async () => {
-    let inviteReads = 0;
+    let inviteReads = 0
     const invite = {
       id: 1,
       role: 'editor',
@@ -434,23 +430,23 @@ describe('MembersSection — invite mint', () => {
       expiresAt: '2026-12-01T00:00:00.000Z',
       usedAt: null,
       createdAt: '2026-07-17T00:00:00.000Z',
-    };
+    }
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
         'GET /invitations': () => {
-          inviteReads += 1;
-          return jsonResponse({ data: { invites: [invite] } });
+          inviteReads += 1
+          return jsonResponse({ data: { invites: [invite] } })
         },
         'DELETE /invitations/1': () => Promise.reject(new Error('revoke transport lost')),
-      }),
-    );
-    await renderInviteSection();
+      })
+    )
+    await renderInviteSection()
 
-    closeInviteDialog();
-    await userEvent.setup().click(await screen.findByTestId('invite-revoke'));
+    closeInviteDialog()
+    await userEvent.setup().click(await screen.findByTestId('invite-revoke'))
 
-    await expectNotice(/unknown outcome.*revoke transport lost.*reloaded/i);
-    expect(inviteReads).toBe(2);
-  });
-});
+    await expectNotice(/unknown outcome.*revoke transport lost.*reloaded/i)
+    expect(inviteReads).toBe(2)
+  })
+})

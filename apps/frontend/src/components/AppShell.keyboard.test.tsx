@@ -1,121 +1,121 @@
-import { describe, it, expect, vi } from 'vitest';
-import type { Mock } from 'vitest';
-import { screen, act, waitFor } from '@testing-library/react';
-import { PlanningCacheError } from '@/data/planning/planningErrors';
-import { useStore } from '@/store/useStore';
-import { setUpAppShellTests, renderAppShell } from './AppShellTestKit';
+import { describe, it, expect, vi } from 'vitest'
+import type { Mock } from 'vitest'
+import { screen, act, waitFor } from '@testing-library/react'
+import { PlanningCacheError } from '@/data/planning/planningErrors'
+import { useStore } from '@/store/useStore'
+import { setUpAppShellTests, renderAppShell } from './AppShellTestKit'
 
-const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
+const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }))
 vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
   syncLocaleFromCompany: i18nMocks.syncLocaleFromCompany,
-}));
+}))
 
-setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
+setUpAppShellTests(i18nMocks.syncLocaleFromCompany)
 
 describe('AppShell undo/redo keyboard', () => {
   // The shortcuts drive the planning cache's typed history.
   function withPlanningHistorySpies(run: (spies: { undo: Mock; redo: Mock }) => void) {
-    const { undoPlanning, redoPlanning } = useStore.getState();
-    const spies = { undo: vi.fn(async () => true), redo: vi.fn(async () => true) };
-    useStore.setState({ undoPlanning: spies.undo, redoPlanning: spies.redo });
+    const { undoPlanning, redoPlanning } = useStore.getState()
+    const spies = { undo: vi.fn(async () => true), redo: vi.fn(async () => true) }
+    useStore.setState({ undoPlanning: spies.undo, redoPlanning: spies.redo })
     try {
-      run(spies);
+      run(spies)
     } finally {
-      useStore.setState({ undoPlanning, redoPlanning });
+      useStore.setState({ undoPlanning, redoPlanning })
     }
   }
 
   it('⌘Z undoes through planning history, but is IGNORED while a form is dirty', () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
+    useStore.getState().setHydrated(true)
+    renderAppShell({})
 
     withPlanningHistorySpies((spies) => {
       // A dirty form owns ⌘Z, undoing would revert the data behind the unsaved form (the
       // focus check alone misses non-text controls like a <select>), so it must be ignored.
       act(() => {
-        useStore.getState().setDirtyForm(true);
-      });
+        useStore.getState().setDirtyForm(true)
+      })
       act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
-      });
-      expect(spies.undo).not.toHaveBeenCalled();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }))
+      })
+      expect(spies.undo).not.toHaveBeenCalled()
 
       act(() => {
-        useStore.getState().setDirtyForm(false);
-      });
+        useStore.getState().setDirtyForm(false)
+      })
       act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
-      });
-      expect(spies.undo).toHaveBeenCalledOnce();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }))
+      })
+      expect(spies.undo).toHaveBeenCalledOnce()
 
       act(() => {
         window.dispatchEvent(
-          new KeyboardEvent('keydown', { key: 'z', metaKey: true, shiftKey: true }),
-        );
-      });
-      expect(spies.redo).toHaveBeenCalledOnce();
-    });
-  });
+          new KeyboardEvent('keydown', { key: 'z', metaKey: true, shiftKey: true })
+        )
+      })
+      expect(spies.redo).toHaveBeenCalledOnce()
+    })
+  })
 
   it('surfaces a rejected shortcut as an error notice unless planning state already shows it', async () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
-    const { undoPlanning } = useStore.getState();
+    useStore.getState().setHydrated(true)
+    renderAppShell({})
+    const { undoPlanning } = useStore.getState()
     try {
       // Swap the action inside act so the shortcut listener re-binds before the key press.
       act(() =>
-        useStore.setState({ undoPlanning: () => Promise.reject(new Error('History is corrupt')) }),
-      );
+        useStore.setState({ undoPlanning: () => Promise.reject(new Error('History is corrupt')) })
+      )
       act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
-      });
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }))
+      })
       await waitFor(() =>
         expect(useStore.getState().notice).toEqual({
           message: 'History is corrupt',
           tone: 'error',
-        }),
-      );
+        })
+      )
 
-      act(() => useStore.getState().setNotice(null));
+      act(() => useStore.getState().setNotice(null))
       // A stale revision is shown by refetching server state, so it must not also raise a toast.
       act(() =>
         useStore.setState({
           undoPlanning: () =>
             Promise.reject(
-              new PlanningCacheError('The schedule changed.', 'E_STALE_REVISION', 409),
+              new PlanningCacheError('The schedule changed.', 'E_STALE_REVISION', 409)
             ),
-        }),
-      );
+        })
+      )
       await act(async () => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      });
-      expect(useStore.getState().notice).toBeNull();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }))
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      expect(useStore.getState().notice).toBeNull()
     } finally {
-      useStore.setState({ undoPlanning });
+      useStore.setState({ undoPlanning })
     }
-  });
+  })
 
   it('ignores undo and redo while a clean dialog has focus on a non-text control', () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
+    useStore.getState().setHydrated(true)
+    renderAppShell({})
 
-    const dialog = document.createElement('div');
-    dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
-    dialog.setAttribute('data-state', 'open');
-    const button = document.createElement('button');
-    dialog.append(button);
-    document.body.append(dialog);
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.setAttribute('data-state', 'open')
+    const button = document.createElement('button')
+    dialog.append(button)
+    document.body.append(dialog)
 
     try {
       withPlanningHistorySpies((spies) => {
         act(() => {
           button.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true }),
-          );
-        });
+            new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true })
+          )
+        })
         act(() => {
           button.dispatchEvent(
             new KeyboardEvent('keydown', {
@@ -123,127 +123,125 @@ describe('AppShell undo/redo keyboard', () => {
               metaKey: true,
               shiftKey: true,
               bubbles: true,
-            }),
-          );
-        });
-        expect(spies.undo).not.toHaveBeenCalled();
-        expect(spies.redo).not.toHaveBeenCalled();
-      });
+            })
+          )
+        })
+        expect(spies.undo).not.toHaveBeenCalled()
+        expect(spies.redo).not.toHaveBeenCalled()
+      })
     } finally {
-      dialog.remove();
+      dialog.remove()
     }
-  });
-});
+  })
+})
 
 describe('AppShell command palette dirty-form guard', () => {
   it('Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette', async () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
+    useStore.getState().setHydrated(true)
+    renderAppShell({})
 
     act(() => {
-      useStore.getState().setDirtyForm(true);
-    });
+      useStore.getState().setDirtyForm(true)
+    })
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+    })
 
-    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
     // Sonner mounts notices through its portal asynchronously, so wait for the rendered message.
     expect(
-      await screen.findByText(
-        'You have unsaved changes — use Cancel or Save to close this dialog.',
-      ),
-    ).toBeInTheDocument();
-  });
+      await screen.findByText('You have unsaved changes — use Cancel or Save to close this dialog.')
+    ).toBeInTheDocument()
+  })
   it('Ctrl+K with dirtyForm=false opens the palette', () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
+    useStore.getState().setHydrated(true)
+    renderAppShell({})
 
     act(() => {
-      useStore.getState().setDirtyForm(false);
-    });
+      useStore.getState().setDirtyForm(false)
+    })
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+    })
 
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-  });
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+  })
   it('leaves Cmd/Ctrl+K to an existing dialog', () => {
-    renderAppShell({});
-    const dialog = document.createElement('div');
-    dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
-    dialog.setAttribute('data-state', 'open');
-    document.body.appendChild(dialog);
-    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
+    renderAppShell({})
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.setAttribute('data-state', 'open')
+    document.body.appendChild(dialog)
+    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true })
     try {
       act(() => {
-        window.dispatchEvent(event);
-      });
-      expect(event.defaultPrevented).toBe(false);
-      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
+        window.dispatchEvent(event)
+      })
+      expect(event.defaultPrevented).toBe(false)
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
     } finally {
-      dialog.remove();
+      dialog.remove()
     }
-  });
+  })
   it('ignores Cmd/Ctrl+K during IME composition', () => {
-    renderAppShell({});
+    renderAppShell({})
     const event = new KeyboardEvent('keydown', {
       key: 'k',
       metaKey: true,
       isComposing: true,
       cancelable: true,
-    });
+    })
     act(() => {
-      window.dispatchEvent(event);
-    });
-    expect(event.defaultPrevented).toBe(false);
-    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
-  });
+      window.dispatchEvent(event)
+    })
+    expect(event.defaultPrevented).toBe(false)
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+  })
   it('keeps the palette open when the Ctrl+K keydown repeats', () => {
-    renderAppShell({});
+    renderAppShell({})
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, repeat: true }));
-    });
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, repeat: true }))
+    })
 
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-  });
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+  })
   it('closes the open palette with a second Ctrl+K', () => {
-    renderAppShell({});
+    renderAppShell({})
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+    })
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument()
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
-  });
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+    })
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+  })
   it('leaves Ctrl+K to a later dialog even while the palette is open', () => {
-    renderAppShell({});
+    renderAppShell({})
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+    })
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument()
 
-    const dialog = document.createElement('div');
-    dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
-    dialog.setAttribute('data-state', 'open');
-    document.body.appendChild(dialog);
-    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.setAttribute('data-state', 'open')
+    document.body.appendChild(dialog)
+    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true })
     try {
       act(() => {
-        window.dispatchEvent(event);
-      });
-      expect(event.defaultPrevented).toBe(false);
-      expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+        window.dispatchEvent(event)
+      })
+      expect(event.defaultPrevented).toBe(false)
+      expect(screen.getByTestId('command-palette')).toBeInTheDocument()
     } finally {
-      dialog.remove();
+      dialog.remove()
     }
-  });
-});
+  })
+})

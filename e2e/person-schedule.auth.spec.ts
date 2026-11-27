@@ -1,5 +1,5 @@
-import { expect, test } from './fixtures';
-import type { APIRequestContext, Page } from './fixtures';
+import { expect, test } from './fixtures'
+import type { APIRequestContext, Page } from './fixtures'
 import {
   AUTH_PASSWORD,
   bootstrapOrg,
@@ -7,34 +7,34 @@ import {
   createTestMember,
   sendPlanningIntent,
   signUpUser,
-} from './authTestKit';
-import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from './browserTestKit';
+} from './authTestKit'
+import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from './browserTestKit'
 
-test.use({ contextOptions: { reducedMotion: 'reduce' } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
-const STAMP = Date.now();
-const COMPANY = `Wayne Privacy Studio ${STAMP}`;
-const OWNER = `clark-kent-${STAMP}@capacitylens.dev`;
-const VIEWER = `kara-zor-el-${STAMP}@capacitylens.dev`;
-const RESOURCE_ID = crypto.randomUUID();
-const TIME_OFF_ID = crypto.randomUUID();
-const CLIENT_ID = crypto.randomUUID();
-const PROJECT_ID = crypto.randomUUID();
-const ACTIVITY_ID = crypto.randomUUID();
-const ALLOCATION_ID = crypto.randomUUID();
-const PRIVATE_NOTE = 'Owner-only medical appointment';
-const REAL_CLIENT = 'Kane Industries Acquisition';
-const REAL_PROJECT = 'Gotham Renewal';
+const STAMP = Date.now()
+const COMPANY = `Wayne Privacy Studio ${STAMP}`
+const OWNER = `clark-kent-${STAMP}@capacitylens.dev`
+const VIEWER = `kara-zor-el-${STAMP}@capacitylens.dev`
+const RESOURCE_ID = crypto.randomUUID()
+const TIME_OFF_ID = crypto.randomUUID()
+const CLIENT_ID = crypto.randomUUID()
+const PROJECT_ID = crypto.randomUUID()
+const ACTIVITY_ID = crypto.randomUUID()
+const ALLOCATION_ID = crypto.randomUUID()
+const PRIVATE_NOTE = 'Owner-only medical appointment'
+const REAL_CLIENT = 'Kane Industries Acquisition'
+const REAL_PROJECT = 'Gotham Renewal'
 
 async function createPrivacyScenario(request: APIRequestContext) {
-  const owner = await signUpUser(OWNER);
-  const viewer = await signUpUser(VIEWER);
-  const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
+  const owner = await signUpUser(OWNER)
+  const viewer = await signUpUser(VIEWER)
+  const companyId = await bootstrapOrg(request, owner.cookie, COMPANY)
   await createTestPerson(request, owner.cookie, companyId, {
     id: RESOURCE_ID,
     name: 'Victor Stone',
     jobTitle: 'Developer',
-  });
+  })
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'timeOff.create',
     timeOff: {
@@ -45,7 +45,7 @@ async function createPrivacyScenario(request: APIRequestContext) {
       type: 'sick',
       note: PRIVATE_NOTE,
     },
-  });
+  })
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
@@ -53,7 +53,7 @@ async function createPrivacyScenario(request: APIRequestContext) {
       id: CLIENT_ID,
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
-  });
+  })
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
@@ -67,7 +67,7 @@ async function createPrivacyScenario(request: APIRequestContext) {
         codeName: 'Aurora',
       },
     },
-  });
+  })
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
@@ -80,7 +80,7 @@ async function createPrivacyScenario(request: APIRequestContext) {
         phaseId: null,
       },
     },
-  });
+  })
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
@@ -93,32 +93,32 @@ async function createPrivacyScenario(request: APIRequestContext) {
       hoursPerDay: 8,
       status: 'confirmed',
     },
-  });
+  })
 
-  createTestMember(companyId, viewer.email, 'viewer');
-  return { owner, viewer };
+  createTestMember(companyId, viewer.email, 'viewer')
+  return { owner, viewer }
 }
 
 async function signIn(page: Page, email: string) {
-  await freezeBrowserDate(page);
-  await page.goto('/');
-  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(AUTH_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
-  await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
+  await freezeBrowserDate(page)
+  await page.goto('/')
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor()
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(AUTH_PASSWORD)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }))
+  await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible()
 }
 
 async function openPrivacyDrawer(page: Page) {
-  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-  await setZoom(page, 1);
-  await goToSeedWeek(page);
-  const row = page.getByTestId('scheduler-row').filter({ hasText: 'Victor Stone' });
-  await expect(row).toBeVisible();
-  await row.getByRole('button', { name: "View Victor Stone's schedule VS" }).click();
-  return page.getByRole('dialog', { name: "Victor Stone's schedule" });
+  await page.getByRole('link', { name: 'Schedule', exact: true }).click()
+  await setZoom(page, 1)
+  await goToSeedWeek(page)
+  const row = page.getByTestId('scheduler-row').filter({ hasText: 'Victor Stone' })
+  await expect(row).toBeVisible()
+  await row.getByRole('button', { name: "View Victor Stone's schedule VS" }).click()
+  return page.getByRole('dialog', { name: "Victor Stone's schedule" })
 }
 
 test('viewer cannot read personal time-off notes, while the owner can', async ({
@@ -126,33 +126,33 @@ test('viewer cannot read personal time-off notes, while the owner can', async ({
   request,
   context,
 }) => {
-  const { owner, viewer } = await createPrivacyScenario(request);
+  const { owner, viewer } = await createPrivacyScenario(request)
 
-  await signIn(page, viewer.email);
-  const viewerSheet = await openPrivacyDrawer(page);
-  await expect(viewerSheet).toBeVisible();
-  await expect(viewerSheet).toContainText('Sick');
-  await expect(viewerSheet).toContainText('10 – 11 Jun');
-  await expect(viewerSheet).not.toContainText('2026');
-  await expect(viewerSheet).not.toContainText(PRIVATE_NOTE);
-  await expect(page.locator(`[title*="${PRIVATE_NOTE}"]`)).toHaveCount(0);
-  await expect(viewerSheet).not.toContainText(REAL_CLIENT);
-  await expect(viewerSheet).not.toContainText(REAL_PROJECT);
-  await expect(viewerSheet).toContainText('"Nightwing"');
-  await expect(viewerSheet).toContainText('"Aurora"');
+  await signIn(page, viewer.email)
+  const viewerSheet = await openPrivacyDrawer(page)
+  await expect(viewerSheet).toBeVisible()
+  await expect(viewerSheet).toContainText('Sick')
+  await expect(viewerSheet).toContainText('10 – 11 Jun')
+  await expect(viewerSheet).not.toContainText('2026')
+  await expect(viewerSheet).not.toContainText(PRIVATE_NOTE)
+  await expect(page.locator(`[title*="${PRIVATE_NOTE}"]`)).toHaveCount(0)
+  await expect(viewerSheet).not.toContainText(REAL_CLIENT)
+  await expect(viewerSheet).not.toContainText(REAL_PROJECT)
+  await expect(viewerSheet).toContainText('"Nightwing"')
+  await expect(viewerSheet).toContainText('"Aurora"')
   await expect(
     page.locator(
-      `[aria-label*="${REAL_CLIENT}"], [title*="${REAL_CLIENT}"], [aria-label*="${REAL_PROJECT}"], [title*="${REAL_PROJECT}"]`,
-    ),
-  ).toHaveCount(0);
-  await page.keyboard.press('Escape');
-  await expect(viewerSheet).toHaveCount(0);
+      `[aria-label*="${REAL_CLIENT}"], [title*="${REAL_CLIENT}"], [aria-label*="${REAL_PROJECT}"], [title*="${REAL_PROJECT}"]`
+    )
+  ).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(viewerSheet).toHaveCount(0)
 
-  await context.clearCookies();
-  await signIn(page, owner.email);
-  const ownerSheet = await openPrivacyDrawer(page);
-  await expect(ownerSheet).toBeVisible();
-  await expect(ownerSheet).toContainText(PRIVATE_NOTE);
-  await expect(ownerSheet).toContainText(REAL_CLIENT);
-  await expect(ownerSheet).toContainText(REAL_PROJECT);
-});
+  await context.clearCookies()
+  await signIn(page, owner.email)
+  const ownerSheet = await openPrivacyDrawer(page)
+  await expect(ownerSheet).toBeVisible()
+  await expect(ownerSheet).toContainText(PRIVATE_NOTE)
+  await expect(ownerSheet).toContainText(REAL_CLIENT)
+  await expect(ownerSheet).toContainText(REAL_PROJECT)
+})

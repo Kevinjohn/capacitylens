@@ -9,24 +9,24 @@
 // assigned code points differently during an engine rollout.
 
 /** Max Unicode code points for a single-line name / role / label. */
-export const MAX_NAME_LENGTH = 100;
+export const MAX_NAME_LENGTH = 100
 /** Practical UTF-8 byte maximum for an email accepted by identity/invite forms and server writes. */
-export const MAX_EMAIL_LENGTH = 254;
+export const MAX_EMAIL_LENGTH = 254
 /** Max Unicode code points for a multi-line note. */
-export const MAX_NOTE_LENGTH = 1000;
+export const MAX_NOTE_LENGTH = 1000
 
 /** Count Unicode code points for name and note limits; email length uses UTF-8 bytes. */
 export function countUnicodeCharacters(value: string): number {
-  return Array.from(value).length;
+  return Array.from(value).length
 }
 
 // Stateless and reusable, build it once at module scope (same idiom as GRAPHEME_SEGMENTER below)
 // instead of allocating a fresh encoder on every length check.
-const TEXT_ENCODER = new TextEncoder();
+const TEXT_ENCODER = new TextEncoder()
 
 /** Length in UTF-8 bytes, the unit of {@link MAX_EMAIL_LENGTH}. */
 export function countUtf8Bytes(value: string): number {
-  return TEXT_ENCODER.encode(value).byteLength;
+  return TEXT_ENCODER.encode(value).byteLength
 }
 
 // Characters refused in user text: emoji & pictographs (Extended_Pictographic), "other"
@@ -45,52 +45,52 @@ export function countUtf8Bytes(value: string): number {
 // CJK), digits, whitespace, punctuation, and currency/math symbols (Sc/Sm, €, £, +, =)
 // are allowed, so real names like "José Müller" or "O'Brien & Co" pass untouched.
 const DISALLOWED =
-  /[\p{Extended_Pictographic}\p{So}\p{Me}\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}]/u;
+  /[\p{Extended_Pictographic}\p{So}\p{Me}\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}]/u
 
-const GRAPHEME_SEGMENTER = new Intl.Segmenter('en', { granularity: 'grapheme' });
+const GRAPHEME_SEGMENTER = new Intl.Segmenter('en', { granularity: 'grapheme' })
 
 /** True if `value` contains any disallowed character. In multiline mode, newlines and tabs
  * (both Cc) are exempt so a note can wrap. */
 export function hasDisallowedChars(value: string, options: { multiline?: boolean } = {}): boolean {
-  const subject = options.multiline ? value.replace(/[\n\t]/g, '') : value;
-  return DISALLOWED.test(subject);
+  const subject = options.multiline ? value.replace(/[\n\t]/g, '') : value
+  return DISALLOWED.test(subject)
 }
 
 function stripDisallowedCharacters(value: string): string {
-  let cleaned = '';
+  let cleaned = ''
   for (const character of value.normalize('NFC')) {
     // Preserve newlines and tabs until whitespace normalization; multiline mode retains newlines and converts tabs to spaces.
     if (character === '\n' || character === '\t' || !DISALLOWED.test(character)) {
-      cleaned += character;
+      cleaned += character
     }
   }
-  return cleaned;
+  return cleaned
 }
 
 /** Canonicalize user-authored plain text before applying the shared character and length rules.
  * This preserves punctuation and letters; it never strips disallowed characters or truncates. */
 export function normalizeUserText(value: string, options: { multiline?: boolean } = {}): string {
-  const normalized = value.normalize('NFC');
+  const normalized = value.normalize('NFC')
   return (
     options.multiline
       ? normalized.replace(/[^\S\n]+/g, ' ').replace(/\n{3,}/g, '\n\n')
       : normalized.replace(/\s+/g, ' ')
-  ).trim();
+  ).trim()
 }
 
 /** Return a valid canonical single-line name without dropping or truncating supplied characters. */
 export function parseUserName(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const canonical = value.normalize('NFC');
-  const normalized = normalizeUserText(canonical);
+  if (typeof value !== 'string') return null
+  const canonical = value.normalize('NFC')
+  const normalized = normalizeUserText(canonical)
   if (
     !normalized ||
     hasDisallowedChars(canonical) ||
     countUnicodeCharacters(normalized) > MAX_NAME_LENGTH
   ) {
-    return null;
+    return null
   }
-  return normalized;
+  return normalized
 }
 
 /** Strip disallowed characters, collapse whitespace runs, trim, and cap length. Used on
@@ -98,22 +98,22 @@ export function parseUserName(value: unknown): string | null {
  * point so surrogate pairs / emoji are dropped as whole characters. */
 export function cleanText(
   value: string,
-  options: { multiline?: boolean; maxLength?: number } = {},
+  options: { multiline?: boolean; maxLength?: number } = {}
 ): string {
-  const multiline = options.multiline ?? false;
-  let out = stripDisallowedCharacters(value);
-  out = normalizeUserText(out, { multiline });
-  const max = options.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH);
-  if (countUnicodeCharacters(out) <= max) return out;
+  const multiline = options.multiline ?? false
+  let out = stripDisallowedCharacters(value)
+  out = normalizeUserText(out, { multiline })
+  const max = options.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH)
+  if (countUnicodeCharacters(out) <= max) return out
   // Keep the existing code-point budget, but never spend only part of a grapheme cluster. This
   // avoids changing a visible character by dropping its combining tail at the boundary.
-  let truncated = '';
-  let count = 0;
+  let truncated = ''
+  let count = 0
   for (const { segment } of GRAPHEME_SEGMENTER.segment(out)) {
-    const segmentLength = countUnicodeCharacters(segment);
-    if (count + segmentLength > max) break;
-    truncated += segment;
-    count += segmentLength;
+    const segmentLength = countUnicodeCharacters(segment)
+    if (count + segmentLength > max) break
+    truncated += segment
+    count += segmentLength
   }
-  return truncated.trim();
+  return truncated.trim()
 }

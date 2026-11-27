@@ -1,19 +1,12 @@
-import { NULLABLE_FIELDS } from '../types/nullableFields.js';
-import { describe, expect, it } from 'vitest';
-import { buildGettingStartedSteps } from './gettingStarted.js';
-import { createEmptyAppData } from '../types/entities.js';
-import type {
-  Activity,
-  Allocation,
-  AppData,
-  Client,
-  Project,
-  Resource,
-} from '../types/entities.js';
-import { FIXTURE_RESOURCE_EXTERNAL } from '../data/fixtures.js';
+import { NULLABLE_FIELDS } from '../types/nullableFields.js'
+import { describe, expect, it } from 'vitest'
+import { buildGettingStartedSteps } from './gettingStarted.js'
+import { createEmptyAppData } from '../types/entities.js'
+import type { Activity, Allocation, AppData, Client, Project, Resource } from '../types/entities.js'
+import { FIXTURE_RESOURCE_EXTERNAL } from '../data/fixtures.js'
 
-const NOW = '2026-06-03T12:00:00.000Z';
-const entity = { companyId: 'a1', createdAt: NOW, updatedAt: NOW };
+const NOW = '2026-06-03T12:00:00.000Z'
+const entity = { companyId: 'a1', createdAt: NOW, updatedAt: NOW }
 const client = (over: Partial<Client> = { ...NULLABLE_FIELDS.clients }): Client => ({
   ...NULLABLE_FIELDS.clients,
   id: 'c1',
@@ -21,7 +14,7 @@ const client = (over: Partial<Client> = { ...NULLABLE_FIELDS.clients }): Client 
   color: '#123456',
   ...entity,
   ...over,
-});
+})
 const project = (over: Partial<Project> = { ...NULLABLE_FIELDS.projects }): Project => ({
   ...NULLABLE_FIELDS.projects,
   id: 'p1',
@@ -30,7 +23,7 @@ const project = (over: Partial<Project> = { ...NULLABLE_FIELDS.projects }): Proj
   color: '#123456',
   ...entity,
   ...over,
-});
+})
 const activity = (over: Partial<Activity> = { ...NULLABLE_FIELDS.activities }): Activity => ({
   ...NULLABLE_FIELDS.activities,
   id: 't1',
@@ -38,7 +31,7 @@ const activity = (over: Partial<Activity> = { ...NULLABLE_FIELDS.activities }): 
   kind: 'internal',
   ...entity,
   ...over,
-});
+})
 const person = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id: 'r1',
@@ -53,9 +46,9 @@ const person = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Res
   color: '#123456',
   ...entity,
   ...over,
-});
+})
 const allocation = (
-  over: Partial<Allocation> = { ...NULLABLE_FIELDS.allocations },
+  over: Partial<Allocation> = { ...NULLABLE_FIELDS.allocations }
 ): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
   id: 'al1',
@@ -67,8 +60,8 @@ const allocation = (
   status: 'tentative',
   ...entity,
   ...over,
-});
-const dataWith = (tables: Partial<AppData>): AppData => ({ ...createEmptyAppData(), ...tables });
+})
+const dataWith = (tables: Partial<AppData>): AppData => ({ ...createEmptyAppData(), ...tables })
 
 describe('first-use outcome truth table', () => {
   it('starts with all five outcomes incomplete', () => {
@@ -78,8 +71,8 @@ describe('first-use outcome truth table', () => {
       project: false,
       activity: false,
       scheduled: false,
-    });
-  });
+    })
+  })
 
   it.each([
     ['person', person(), true],
@@ -88,38 +81,38 @@ describe('first-use outcome truth table', () => {
   ] as const)(
     'classifies an active %s resource for the person outcome',
     (_name, resource, expected) => {
-      expect(buildGettingStartedSteps(dataWith({ resources: [resource] })).person).toBe(expected);
-    },
-  );
+      expect(buildGettingStartedSteps(dataWith({ resources: [resource] })).person).toBe(expected)
+    }
+  )
 
   it('does not count archived people', () => {
     expect(
-      buildGettingStartedSteps(dataWith({ resources: [person({ archivedAt: NOW })] })).person,
-    ).toBe(false);
-  });
+      buildGettingStartedSteps(dataWith({ resources: [person({ archivedAt: NOW })] })).person
+    ).toBe(false)
+  })
 
   it('treats malformed lifecycle tombstones as active, matching buildActiveData', () => {
-    const malformed = 'not-a-date';
-    const malformedPerson = person({ archivedAt: malformed });
-    const malformedClient = client({ archivedAt: malformed });
-    const malformedProject = project({ archivedAt: malformed });
+    const malformed = 'not-a-date'
+    const malformedPerson = person({ archivedAt: malformed })
+    const malformedClient = client({ archivedAt: malformed })
+    const malformedProject = project({ archivedAt: malformed })
     const malformedActivity = activity({
       kind: 'project',
       projectId: 'p1',
       archivedAt: malformed,
-    });
-    expect(buildGettingStartedSteps(dataWith({ resources: [malformedPerson] })).person).toBe(true);
+    })
+    expect(buildGettingStartedSteps(dataWith({ resources: [malformedPerson] })).person).toBe(true)
     expect(
       buildGettingStartedSteps(
         dataWith({
           clients: [malformedClient],
           projects: [malformedProject],
           activities: [malformedActivity],
-        }),
-      ).activity,
-    ).toBe(true);
-    expect(buildGettingStartedSteps(dataWith({ clients: [malformedClient] })).client).toBe(true);
-  });
+        })
+      ).activity
+    ).toBe(true)
+    expect(buildGettingStartedSteps(dataWith({ clients: [malformedClient] })).client).toBe(true)
+  })
 
   it.each([
     ['internal', activity({ kind: 'internal' }), [], [], true],
@@ -148,10 +141,10 @@ describe('first-use outcome truth table', () => {
   ] as const)('classifies %s for the work outcome', (_name, work, projects, clients, expected) => {
     expect(
       buildGettingStartedSteps(
-        dataWith({ activities: [work], projects: [...projects], clients: [...clients] }),
-      ).activity,
-    ).toBe(expected);
-  });
+        dataWith({ activities: [work], projects: [...projects], clients: [...clients] })
+      ).activity
+    ).toBe(expected)
+  })
 
   it('does not let a dangling project activity hide a coherent activity', () => {
     const steps = buildGettingStartedSteps(
@@ -160,25 +153,25 @@ describe('first-use outcome truth table', () => {
           activity({ kind: 'project', projectId: 'missing' }),
           activity({ id: 't2', kind: 'internal' }),
         ],
-      }),
-    );
-    expect(steps.activity).toBe(true);
-  });
+      })
+    )
+    expect(steps.activity).toBe(true)
+  })
 
   it('does not count inactive work or project ancestry', () => {
     expect(
-      buildGettingStartedSteps(dataWith({ activities: [activity({ archivedAt: NOW })] })).activity,
-    ).toBe(false);
+      buildGettingStartedSteps(dataWith({ activities: [activity({ archivedAt: NOW })] })).activity
+    ).toBe(false)
     expect(
       buildGettingStartedSteps(
         dataWith({
           activities: [activity({ kind: 'project', projectId: 'p1' })],
           projects: [project({ archivedAt: NOW })],
           clients: [client()],
-        }),
-      ).activity,
-    ).toBe(false);
-  });
+        })
+      ).activity
+    ).toBe(false)
+  })
 
   it.each([
     ['zero-hour allocation', allocation(), person(), activity(), [], [], true],
@@ -267,19 +260,19 @@ describe('first-use outcome truth table', () => {
           activities: [work],
           projects: [...projects],
           clients: [...clients],
-        }),
-      );
-      expect(steps.scheduled).toBe(expected);
-    },
-  );
+        })
+      )
+      expect(steps.scheduled).toBe(expected)
+    }
+  )
 
   it('counts client and project independently, excluding the built-in client', () => {
-    expect(buildGettingStartedSteps(dataWith({ clients: [client()] })).client).toBe(true);
-    expect(buildGettingStartedSteps(dataWith({ projects: [project()] })).project).toBe(false);
+    expect(buildGettingStartedSteps(dataWith({ clients: [client()] })).client).toBe(true)
+    expect(buildGettingStartedSteps(dataWith({ projects: [project()] })).project).toBe(false)
     const complete = buildGettingStartedSteps(
-      dataWith({ clients: [client()], projects: [project()] }),
-    );
-    expect(complete.client).toBe(true);
-    expect(complete.project).toBe(true);
-  });
-});
+      dataWith({ clients: [client()], projects: [project()] })
+    )
+    expect(complete.client).toBe(true)
+    expect(complete.project).toBe(true)
+  })
+})

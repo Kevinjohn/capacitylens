@@ -1,25 +1,25 @@
-import { test } from '@japa/runner';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import db from '@adonisjs/lucid/services/db';
-import { seed } from '@capacitylens/shared/data/seed';
-import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
-import { UserFactory } from '#database/factories/user_factory';
-import { DateTime } from 'luxon';
+import { test } from '@japa/runner'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import db from '@adonisjs/lucid/services/db'
+import { seed } from '@capacitylens/shared/data/seed'
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture'
+import { UserFactory } from '#database/factories/user_factory'
+import { DateTime } from 'luxon'
 
 test.group('membership control-data isolation', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
 
   test('keeps representative admission and membership controls out of export and retired CRUD', async ({
     client,
     assert,
   }) => {
-    client = await resetAuthenticatedClient(client, true);
-    const stamp = '2026-10-15T00:00:00.000Z';
-    await db.from('account_invitations').where('email', 'diana.prince@wayne.example').delete();
-    await db.from('account_member_resources').where('id', 'link-control-isolation').delete();
-    await db.from('memberships').where('user_id', 'u-control-isolation').delete();
-    await db.from('users').where('id', 'u-control-isolation').delete();
-    const resource = seed().resources.find((row) => row.id === 'r-tyler')!;
+    client = await resetAuthenticatedClient(client, true)
+    const stamp = '2026-10-15T00:00:00.000Z'
+    await db.from('account_invitations').where('email', 'diana.prince@wayne.example').delete()
+    await db.from('account_member_resources').where('id', 'link-control-isolation').delete()
+    await db.from('memberships').where('user_id', 'u-control-isolation').delete()
+    await db.from('users').where('id', 'u-control-isolation').delete()
+    const resource = seed().resources.find((row) => row.id === 'r-tyler')!
     await db.transaction((trx) =>
       UserFactory.client(trx)
         .merge({
@@ -29,7 +29,7 @@ test.group('membership control-data isolation', (group) => {
           emailVerifiedAt: DateTime.fromISO(stamp),
         })
         .create()
-    );
+    )
     await db.table('memberships').insert({
       scope_id: 'a-studio',
       user_id: 'u-control-isolation',
@@ -37,7 +37,7 @@ test.group('membership control-data isolation', (group) => {
       status: 'active',
       created_at: stamp,
       updated_at: stamp,
-    });
+    })
     await db.table('account_member_resources').insert({
       id: 'link-control-isolation',
       company_id: 'a-studio',
@@ -46,7 +46,7 @@ test.group('membership control-data isolation', (group) => {
       revision: stamp,
       created_at: stamp,
       updated_at: stamp,
-    });
+    })
     await db.table('account_invitations').insert({
       email: 'diana.prince@wayne.example',
       role: 'viewer',
@@ -54,7 +54,7 @@ test.group('membership control-data isolation', (group) => {
       expires_at: stamp,
       created_at: stamp,
       updated_at: stamp,
-    });
+    })
     await db.table('account_admissions').insert({
       user_id: 'u-control-isolation',
       invited_email: 'clark.kent@wayne.example',
@@ -64,20 +64,20 @@ test.group('membership control-data isolation', (group) => {
       approval_status: 'approved',
       created_at: stamp,
       updated_at: stamp,
-    });
+    })
     await db.table('password_reset_tokens').insert({
       tokenable_id: 'u-control-isolation',
       email: 'clark.kent@wayne.example',
       hash: 'secret-reset-token-hash',
       expires_at: stamp,
       created_at: stamp,
-    });
+    })
 
     const exported = await client
       .visit('api.company_state.show')
       .qs({ companyId: 'a-studio', includeInactive: '1' })
-      .send();
-    exported.assertStatus(200);
+      .send()
+    exported.assertStatus(200)
     for (const property of [
       'memberships',
       'accountMemberResources',
@@ -85,8 +85,8 @@ test.group('membership control-data isolation', (group) => {
       'accountAdmissions',
       'passwordResetTokens',
     ])
-      assert.notProperty(exported.body().data, property);
-    const serialized = JSON.stringify(exported.body().data);
+      assert.notProperty(exported.body().data, property)
+    const serialized = JSON.stringify(exported.body().data)
     for (const secret of [
       'u-control-isolation',
       'clark.kent@wayne.example',
@@ -94,7 +94,7 @@ test.group('membership control-data isolation', (group) => {
       'secret-control-token-hash',
       'secret-reset-token-hash',
     ])
-      assert.notInclude(serialized, secret);
+      assert.notInclude(serialized, secret)
 
     const attempted = await client
       .post('/api/v1/batch')
@@ -109,14 +109,14 @@ test.group('membership control-data isolation', (group) => {
           },
         ],
       })
-      .send();
-    assert.equal(attempted.status(), 404);
+      .send()
+    assert.equal(attempted.status(), 404)
 
     assert.isNotNull(
       await db.from('account_member_resources').where('id', 'link-control-isolation').first()
-    );
+    )
     assert.isNotNull(
       await db.from('account_invitations').where('email', 'diana.prince@wayne.example').first()
-    );
-  });
-});
+    )
+  })
+})

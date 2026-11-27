@@ -92,6 +92,7 @@
     "@capacitylens/shared": "workspace:*"
   },
   "devDependencies": {
+    "@adonisjs/prettier-config": "^1.5.0",
     "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
     "@kevinjohn/adonisjs-code-conventions": "github:Kevinjohn/oss-adonisjs-code-conventions#8211ab2438719db0714e815fe15b64426c133c03",
@@ -115,5 +116,6 @@
     "vitepress": "^1.6.4",
     "vitest": "^4.1.12",
     "yaml": "2.9.1"
-  }
+  },
+  "prettier": "@adonisjs/prettier-config"
 }

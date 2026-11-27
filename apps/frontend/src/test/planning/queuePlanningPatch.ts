@@ -1,20 +1,20 @@
-import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
-import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { makeReceipt } from './makeReceipt';
-import type { PlanningPatch, StubPlanningTransport } from './stubPlanningTransport';
+import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts'
+import { getStubPlanningTransport } from '@/test/planningTransportHandle'
+import { makeReceipt } from './makeReceipt'
+import type { PlanningPatch, StubPlanningTransport } from './stubPlanningTransport'
 
 /** Queue a receipt and the rows it changes, without teaching the transport planning rules. */
 export function queuePlanningPatch(
   changed: (execution: PlanningExecution) => PlanningPatch,
   receipt: {
-    consumedGroupId?: string | null;
-    replacementGroupId?: string | null;
+    consumedGroupId?: string | null
+    replacementGroupId?: string | null
   } & Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdvisory'> = {},
-  transport: StubPlanningTransport = getStubPlanningTransport(),
+  transport: StubPlanningTransport = getStubPlanningTransport()
 ): void {
-  const { consumedGroupId = null, replacementGroupId = null, ...advisory } = receipt;
+  const { consumedGroupId = null, replacementGroupId = null, ...advisory } = receipt
   if (consumedGroupId !== null && replacementGroupId !== null) {
-    throw new Error('A planning restoration receipt cannot consume and replace a group together.');
+    throw new Error('A planning restoration receipt cannot consume and replace a group together.')
   }
   transport.respondNext(
     (execution) =>
@@ -28,6 +28,6 @@ export function queuePlanningPatch(
         ...advisory,
       }),
     undefined,
-    changed,
-  );
+    changed
+  )
 }

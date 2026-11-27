@@ -1,8 +1,8 @@
-import ProductException from '#exceptions/product_exception';
+import ProductException from '#exceptions/product_exception'
 
 /** The framework's validation body, `{ errors: [{ message }] }`, for one refusal sentence. */
 export function buildValidationBody(message: string) {
-  return { errors: [{ message }] };
+  return { errors: [{ message }] }
 }
 
 /**
@@ -11,13 +11,13 @@ export function buildValidationBody(message: string) {
  * reads one shape for invalid input.
  */
 export default class ValidationRefusalException extends ProductException {
-  static status = 422;
+  static status = 422
 
   constructor(message: string) {
-    super(message);
+    super(message)
   }
 
   override body() {
-    return buildValidationBody(this.message);
+    return buildValidationBody(this.message)
   }
 }

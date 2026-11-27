@@ -1,31 +1,31 @@
-import { Fragment } from 'react';
-import { Plus, Users } from 'lucide-react';
-import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
+import { Fragment } from 'react'
+import { Plus, Users } from 'lucide-react'
+import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 import {
   AddButton,
   ColorSwatch,
   DeleteButton,
   EditButton,
   EmptyState,
-} from '@/components/common/ui';
-import { Badge } from '@/components/ui/badge';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { Separator } from '@/components/ui/separator';
-import { resolveResourceDisplayName } from '@/lib/metadata';
-import { FavouriteButton } from './FavouriteButton';
-import { ExternalResourceSection } from './ExternalResourceSection';
-import type { ResourceListModel } from './useResourceListModel';
+} from '@/components/common/ui'
+import { Badge } from '@/components/ui/badge'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { Separator } from '@/components/ui/separator'
+import { resolveResourceDisplayName } from '@/lib/metadata'
+import { FavouriteButton } from './FavouriteButton'
+import { ExternalResourceSection } from './ExternalResourceSection'
+import type { ResourceListModel } from './useResourceListModel'
 
 type ResourceListContentProps = {
-  model: ResourceListModel;
-  onAdd: (kind: ResourceKind) => void;
-  onEdit: (resource: Resource) => void;
-  onRequestArchive: (resource: Resource) => void;
-  onAddExternal: () => void;
-  onEditExternal: (resource: Resource) => void;
-  onRequestExternalArchive: (resource: Resource) => void;
-};
+  model: ResourceListModel
+  onAdd: (kind: ResourceKind) => void
+  onEdit: (resource: Resource) => void
+  onRequestArchive: (resource: Resource) => void
+  onAddExternal: () => void
+  onEditExternal: (resource: Resource) => void
+  onRequestExternalArchive: (resource: Resource) => void
+}
 
 /** Displays resource rows and empty states from an already prepared list model. */
 export function ResourceListContent(props: ResourceListContentProps) {
@@ -42,11 +42,11 @@ export function ResourceListContent(props: ResourceListContentProps) {
         />
       )}
     </>
-  );
+  )
 }
 
 function PeopleSections(props: ResourceListContentProps) {
-  const { model } = props;
+  const { model } = props
   if (!model.groupByEngagement || model.people.length === 0) {
     const emptyAction =
       model.visibleCount === 0
@@ -57,7 +57,7 @@ function PeopleSections(props: ResourceListContentProps) {
               onClick: () => props.onAdd('person'),
             },
           }
-        : undefined;
+        : undefined
     return (
       <ResourceRows
         rows={model.people}
@@ -65,7 +65,7 @@ function PeopleSections(props: ResourceListContentProps) {
         {...(emptyAction ? { enrich: emptyAction } : {})}
         {...props}
       />
-    );
+    )
   }
   return (
     <>
@@ -85,7 +85,7 @@ function PeopleSections(props: ResourceListContentProps) {
         {...props}
       />
     </>
-  );
+  )
 }
 
 function PlaceholderSection(props: ResourceListContentProps) {
@@ -105,16 +105,16 @@ function PlaceholderSection(props: ResourceListContentProps) {
         {...props}
       />
     </>
-  );
+  )
 }
 
 type EngagementSectionProps = ResourceListContentProps & {
-  id: string;
-  title: string;
-  rows: Resource[];
-  empty: string;
-  separated?: boolean;
-};
+  id: string
+  title: string
+  rows: Resource[]
+  empty: string
+  separated?: boolean
+}
 
 function EngagementSection({
   id,
@@ -132,14 +132,14 @@ function EngagementSection({
       </h2>
       <ResourceRows rows={rows} empty={empty} {...props} />
     </section>
-  );
+  )
 }
 
 type ResourceRowsProps = ResourceListContentProps & {
-  rows: Resource[];
-  empty: string;
-  enrich?: { description: string; action: { label: string; onClick: () => void } };
-};
+  rows: Resource[]
+  empty: string
+  enrich?: { description: string; action: { label: string; onClick: () => void } }
+}
 
 function ResourceRows({ rows, empty, enrich, ...props }: ResourceRowsProps) {
   if (rows.length === 0) {
@@ -155,7 +155,7 @@ function ResourceRows({ rows, empty, enrich, ...props }: ResourceRowsProps) {
       >
         {empty}
       </EmptyState>
-    );
+    )
   }
   return (
     <ItemGroup className="rounded-md border bg-card">
@@ -166,7 +166,7 @@ function ResourceRows({ rows, empty, enrich, ...props }: ResourceRowsProps) {
         </Fragment>
       ))}
     </ItemGroup>
-  );
+  )
 }
 
 function ResourceRow({
@@ -175,10 +175,10 @@ function ResourceRow({
   onEdit,
   onRequestArchive,
 }: Pick<ResourceListContentProps, 'model' | 'onEdit' | 'onRequestArchive'> & {
-  resource: Resource;
+  resource: Resource
 }) {
-  const metadata = model.buildMetadata(resource);
-  const displayName = resolveResourceDisplayName(resource);
+  const metadata = model.buildMetadata(resource)
+  const displayName = resolveResourceDisplayName(resource)
   return (
     <Item size="sm" role="listitem" data-testid="resource-row" className="rounded-none">
       <ItemContent className="flex-row flex-wrap items-center gap-2">
@@ -201,5 +201,5 @@ function ResourceRow({
         />
       </ItemActions>
     </Item>
-  );
+  )
 }

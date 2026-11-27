@@ -1,17 +1,17 @@
-import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { requireCreated } from '@/test/requireCreated'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 import {
   resetStoreWithCompany,
   DEFAULT_COMPANY_ID,
   jsonResponse,
   makeResourceDraft,
-} from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { m } from '@/i18n';
-import { teamAccessApi } from '@/account/teamAccessApi';
+} from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { m } from '@/i18n'
+import { teamAccessApi } from '@/account/teamAccessApi'
 import {
   chooseMemberAction,
   fakeApiFetch,
@@ -24,95 +24,95 @@ import {
   renderSection,
   requireCallback,
   requireValue,
-} from './MembersSectionTestKit';
-import type { RawMember } from './MembersSectionTestKit';
+} from './MembersSectionTestKit'
+import type { RawMember } from './MembersSectionTestKit'
 
 const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
-}));
+}))
 
 vi.mock('@/auth/companyTransition', () => ({
   startMasquerade: companyTransitionMocks.startMasquerade,
-}));
+}))
 
 beforeEach(async () => {
-  companyTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithCompany();
-});
+  companyTransitionMocks.startMasquerade.mockClear()
+  await resetStoreWithCompany()
+})
 afterEach(() => {
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('MembersSection — member lifecycle', () => {
   const lifecycleMembers: RawMember[] = [
     { userId: 'me', role: 'owner', isSelf: true },
     { userId: 'ed', role: 'editor' },
-  ];
+  ]
 
   it('never offers a transfer-ownership control on any row', async () => {
-    vi.stubGlobal('fetch', mockApi(lifecycleMembers));
-    renderSection();
-    await screen.findByTestId('members-section');
+    vi.stubGlobal('fetch', mockApi(lifecycleMembers))
+    renderSection()
+    await screen.findByTestId('members-section')
 
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-    await openMemberMenu(userEvent.setup(), edRow);
-    expect(screen.queryByTestId('member-make-owner')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /transfer ownership/i })).not.toBeInTheDocument();
-  });
+    const edRow = await waitForMemberRow(/ed@x\.io/)
+    await openMemberMenu(userEvent.setup(), edRow)
+    expect(screen.queryByTestId('member-make-owner')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /transfer ownership/i })).not.toBeInTheDocument()
+  })
 
   it('confirms Suspend before PATCHing the new status', async () => {
-    const user = userEvent.setup();
-    const fetchMock = mockApi(lifecycleMembers);
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const edRow = await waitForMemberRow(/ed@x\.io/);
+    const user = userEvent.setup()
+    const fetchMock = mockApi(lifecycleMembers)
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    const edRow = await waitForMemberRow(/ed@x\.io/)
 
-    await chooseMemberAction(user, edRow, 'member-suspend');
-    const dialog = screen.getByRole('alertdialog');
-    expect(within(dialog).getByText(/cannot open this company until/i)).toBeInTheDocument();
+    await chooseMemberAction(user, edRow, 'member-suspend')
+    const dialog = screen.getByRole('alertdialog')
+    expect(within(dialog).getByText(/cannot open this company until/i)).toBeInTheDocument()
 
     expect(fetchMock.requests.map((request) => request.path)).not.toContainEqual(
-      expect.stringContaining('/status'),
-    );
+      expect.stringContaining('/status')
+    )
 
-    await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Suspend/ }))
     await waitFor(() =>
       expect(fetchMock.requests).toContainEqual(
         expect.objectContaining({
           path: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
           method: 'PATCH',
           body: JSON.stringify({ status: 'suspended' }),
-        }),
-      ),
-    );
+        })
+      )
+    )
     await waitFor(() =>
-      expect(useStore.getState().notice?.message).toBe(m.settings_members_status_changed()),
-    );
-  });
+      expect(useStore.getState().notice?.message).toBe(m.settings_members_status_changed())
+    )
+  })
   it('badges a suspended member and offers Restore but no role edit', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const fetchMock = mockApi([
       { userId: 'me', role: 'owner', isSelf: true },
       { userId: 'ed', role: 'editor', status: 'suspended' },
-    ]);
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    await openInactiveGroup(user);
-    const edRow = await waitForMemberRow(/ed@x\.io/);
+    ])
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await openInactiveGroup(user)
+    const edRow = await waitForMemberRow(/ed@x\.io/)
     // A non-active member must stay reachable and legible, or the state is unreversible.
     expect(within(edRow).getByTestId('member-status')).toHaveTextContent(
-      m.settings_member_status_suspended(),
-    );
-    expect(within(edRow).queryByTestId('member-edit')).not.toBeInTheDocument();
+      m.settings_member_status_suspended()
+    )
+    expect(within(edRow).queryByTestId('member-edit')).not.toBeInTheDocument()
 
-    await openMemberMenu(user, edRow);
-    expect(screen.queryByTestId('member-suspend')).not.toBeInTheDocument();
-    await user.click(screen.getByTestId('member-restore'));
+    await openMemberMenu(user, edRow)
+    expect(screen.queryByTestId('member-suspend')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('member-restore'))
     await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /restore/i }),
-    );
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /restore/i })
+    )
 
     await waitFor(() =>
       expect(fetchMock.requests).toContainEqual(
@@ -120,56 +120,56 @@ describe('MembersSection — member lifecycle', () => {
           path: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
           method: 'PATCH',
           body: JSON.stringify({ status: 'active' }),
-        }),
-      ),
-    );
-  });
+        })
+      )
+    )
+  })
   it('keeps non-active members out of the main table and behind a collapsed disclosure', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
       mockApi([
         { userId: 'me', role: 'owner', isSelf: true },
         { userId: 'ed', role: 'editor', status: 'suspended' },
         { userId: 'vic', role: 'viewer', status: 'suspended' },
-      ]),
-    );
-    renderSection();
+      ])
+    )
+    renderSection()
 
-    const mainTable = await screen.findByTestId('members-table');
-    expect(within(mainTable).getAllByTestId('member-row')).toHaveLength(1);
-    expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
+    const mainTable = await screen.findByTestId('members-table')
+    expect(within(mainTable).getAllByTestId('member-row')).toHaveLength(1)
+    expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument()
 
-    const toggle = screen.getByTestId('members-inactive-toggle');
-    expect(toggle).toHaveTextContent(m.settings_members_inactive_group({ count: 2 }));
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument();
+    const toggle = screen.getByTestId('members-inactive-toggle')
+    expect(toggle).toHaveTextContent(m.settings_members_inactive_group({ count: 2 }))
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument()
 
-    const inactiveTable = await openInactiveGroup(user);
-    const expectedColumns = ['Name', 'Role', 'Email', 'Link to Resource', 'Actions'];
+    const inactiveTable = await openInactiveGroup(user)
+    const expectedColumns = ['Name', 'Role', 'Email', 'Link to Resource', 'Actions']
     expect(
       within(mainTable)
         .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(expectedColumns);
+        .map((header) => header.textContent)
+    ).toEqual(expectedColumns)
     expect(
       within(inactiveTable)
         .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(expectedColumns);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        .map((header) => header.textContent)
+    ).toEqual(expectedColumns)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
 
     const badges = within(inactiveTable)
       .getAllByTestId('member-status')
-      .map((badge) => badge.textContent);
+      .map((badge) => badge.textContent)
     expect(badges).toEqual([
       m.settings_member_status_suspended(),
       m.settings_member_status_suspended(),
-    ]);
+    ])
 
-    await user.click(toggle);
-    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument();
-  });
+    await user.click(toggle)
+    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument()
+  })
 
   it('omits the disclosure entirely when every membership is active', async () => {
     vi.stubGlobal(
@@ -177,72 +177,72 @@ describe('MembersSection — member lifecycle', () => {
       mockApi([
         { userId: 'me', role: 'owner', isSelf: true },
         { userId: 'ed', role: 'editor' },
-      ]),
-    );
-    renderSection();
+      ])
+    )
+    renderSection()
 
-    await screen.findByTestId('members-table');
-    expect(screen.queryByTestId('members-inactive-toggle')).not.toBeInTheDocument();
-  });
+    await screen.findByTestId('members-table')
+    expect(screen.queryByTestId('members-inactive-toggle')).not.toBeInTheDocument()
+  })
   it('offers no member action against the Owner or against yourself', async () => {
     vi.stubGlobal(
       'fetch',
       mockApi([
         { userId: 'me', role: 'admin', isSelf: true },
         { userId: 'owner', role: 'owner' },
-      ]),
-    );
-    renderSection();
-    const selfRow = await waitForMemberRow(/me@x\.io/);
+      ])
+    )
+    renderSection()
+    const selfRow = await waitForMemberRow(/me@x\.io/)
 
     // The server reports neither row as manageable: suspending yourself would lock you out, and the
     // Owner is protected by the single-owner invariant.
-    expect(within(selfRow).queryByTestId('member-menu')).not.toBeInTheDocument();
+    expect(within(selfRow).queryByTestId('member-menu')).not.toBeInTheDocument()
 
-    const ownerRow = await waitForMemberRow(/owner@x\.io/);
-    expect(within(ownerRow).queryByTestId('member-menu')).not.toBeInTheDocument();
-  });
+    const ownerRow = await waitForMemberRow(/owner@x\.io/)
+    expect(within(ownerRow).queryByTestId('member-menu')).not.toBeInTheDocument()
+  })
 
   it('surfaces a refused status change instead of reporting success', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
       mockApi(lifecycleMembers, {
         'PATCH /members/ed/status': () => jsonResponse({ error: 'Forbidden.' }, 403),
-      }),
-    );
-    renderSection();
-    const edRow = await waitForMemberRow(/ed@x\.io/);
+      })
+    )
+    renderSection()
+    const edRow = await waitForMemberRow(/ed@x\.io/)
 
-    await chooseMemberAction(user, edRow, 'member-suspend');
+    await chooseMemberAction(user, edRow, 'member-suspend')
     await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
-    );
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i })
+    )
 
-    expect(await screen.findByText('Forbidden.')).toBeInTheDocument();
-    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
-  });
+    expect(await screen.findByText('Forbidden.')).toBeInTheDocument()
+    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed())
+  })
   it('keeps complete legacy email values in the DOM and title without assuming they are valid', async () => {
     vi.stubGlobal(
       'fetch',
       mockApi([
         { userId: 'me', role: 'owner', isSelf: true, email: null },
         { userId: 'legacy', role: 'viewer', email: 'not an email value' },
-      ]),
-    );
-    renderSection();
-    const missing = within(await waitForMemberRow(/No email/i)).getByTestId('member-email');
-    expect(missing).toHaveTextContent(m.settings_member_email_missing());
+      ])
+    )
+    renderSection()
+    const missing = within(await waitForMemberRow(/No email/i)).getByTestId('member-email')
+    expect(missing).toHaveTextContent(m.settings_member_email_missing())
     expect(within(missing).getByText(m.settings_member_email_missing())).not.toHaveAttribute(
-      'title',
-    );
+      'title'
+    )
     const malformed = within(await waitForMemberRow(/not an email value/i)).getByTestId(
-      'member-email',
-    );
-    const fullValue = within(malformed).getByText('not an email value');
-    expect(fullValue).toHaveClass('truncate');
-    expect(fullValue).toHaveAttribute('title', 'not an email value');
-  });
+      'member-email'
+    )
+    const fullValue = within(malformed).getByText('not an email value')
+    expect(fullValue).toHaveClass('truncate')
+    expect(fullValue).toHaveAttribute('title', 'not an email value')
+  })
 
   it('keeps sign-in confirmation absent when the stored setting is enabled', async () => {
     vi.stubGlobal(
@@ -250,175 +250,169 @@ describe('MembersSection — member lifecycle', () => {
       mockApi([
         { userId: 'me', role: 'owner', isSelf: true, signInConfirmed: true },
         { userId: 'ed', role: 'editor', signInConfirmed: false },
-      ]),
-    );
-    renderSection();
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-    const edRow = await waitForMemberRow(/ed@x\.io/);
+      ])
+    )
+    renderSection()
+    const selfRow = await waitForMemberRow(/me@x\.io/)
+    const edRow = await waitForMemberRow(/ed@x\.io/)
 
-    expect(within(selfRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument();
-    expect(within(edRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument();
-    expect(screen.queryByText(/2026|unknown/i)).not.toBeInTheDocument();
-  });
+    expect(within(selfRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument()
+    expect(within(edRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument()
+    expect(screen.queryByText(/2026|unknown/i)).not.toBeInTheDocument()
+  })
 
   it('hides sign-in tracking and uses the fixed five-column table', async () => {
-    vi.stubGlobal('fetch', makeSignInTrackingApi());
-    renderSection();
+    vi.stubGlobal('fetch', makeSignInTrackingApi())
+    renderSection()
 
-    await screen.findByTestId('members-table');
-    expect(screen.queryByTestId('member-sign-in-tracking')).not.toBeInTheDocument();
+    await screen.findByTestId('members-table')
+    expect(screen.queryByTestId('member-sign-in-tracking')).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('columnheader', { name: m.settings_member_col_sign_in_confirmed() }),
-    ).not.toBeInTheDocument();
+      screen.queryByRole('columnheader', { name: m.settings_member_col_sign_in_confirmed() })
+    ).not.toBeInTheDocument()
 
-    const table = screen.getByTestId('members-table');
+    const table = screen.getByTestId('members-table')
     expect(
       within(table)
         .getAllByRole('columnheader')
-        .map((header) => header.textContent),
+        .map((header) => header.textContent)
     ).toEqual([
       m.settings_member_col_name(),
       m.settings_invite_role_label(),
       m.settings_member_col_email(),
       m.settings_member_col_scheduled_person(),
       m.settings_member_col_actions(),
-    ]);
+    ])
     const editorRow = requireValue(
       within(table)
         .getAllByTestId('member-row')
         .find((row) => within(row).queryByText('Clark Kent')),
-      'the Clark Kent row in the members table',
-    );
-    const cells = within(editorRow).getAllByRole('cell');
-    expect(cells).toHaveLength(5);
-    const actionCell = requireValue(cells[4], 'the actions cell');
+      'the Clark Kent row in the members table'
+    )
+    const cells = within(editorRow).getAllByRole('cell')
+    expect(cells).toHaveLength(5)
+    const actionCell = requireValue(cells[4], 'the actions cell')
     expect(within(actionCell).getByTestId('member-masquerade')).toHaveAttribute(
       'data-variant',
-      'outline',
-    );
-    expect(within(actionCell).getByTestId('member-edit')).toHaveAttribute(
-      'data-variant',
-      'outline',
-    );
+      'outline'
+    )
+    expect(within(actionCell).getByTestId('member-edit')).toHaveAttribute('data-variant', 'outline')
     expect(within(actionCell).getByTestId('member-resource-menu')).toHaveAttribute(
       'data-variant',
-      'outline',
-    );
-    expect(within(actionCell).getByTestId('member-menu')).toHaveAttribute(
-      'data-variant',
-      'outline',
-    );
-    expect(within(editorRow).getByTestId('member-email')).toHaveClass('text-xs');
-    expect(screen.getByTestId('members-section')).not.toHaveAttribute('data-slot', 'card');
-  });
+      'outline'
+    )
+    expect(within(actionCell).getByTestId('member-menu')).toHaveAttribute('data-variant', 'outline')
+    expect(within(editorRow).getByTestId('member-email')).toHaveClass('text-xs')
+    expect(screen.getByTestId('members-section')).not.toHaveAttribute('data-slot', 'card')
+  })
   it('permits only one member mutation while an action is in flight', async () => {
-    let release: (() => void) | null = null;
+    let release: (() => void) | null = null
     const reads = mockApi([
       { userId: 'me', role: 'owner', isSelf: true },
       { userId: 'ed', role: 'editor' },
-    ]);
+    ])
     const fetchMock = fakeApiFetch((url, request) => {
       if (request.method === 'POST' || request.method === 'DELETE' || request.method === 'PATCH') {
         return new Promise<Response>((resolve) => {
-          release = () => resolve(new Response(null, { status: 204 }));
-        });
+          release = () => resolve(new Response(null, { status: 204 }))
+        })
       }
-      return reads(url, request);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const editorRow = await waitForMemberRow(/ed@x\.io/);
+      return reads(url, request)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    const editorRow = await waitForMemberRow(/ed@x\.io/)
 
-    const user = userEvent.setup();
-    await chooseMemberAction(user, editorRow, 'member-suspend');
+    const user = userEvent.setup()
+    await chooseMemberAction(user, editorRow, 'member-suspend')
     await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
-    );
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i })
+    )
 
-    await waitFor(() => expect(within(editorRow).getByTestId('member-menu')).toBeDisabled());
-    expect(within(editorRow).getByTestId('member-edit')).toBeDisabled();
-    await user.click(within(editorRow).getByTestId('member-menu'));
-    expect(screen.queryByText(m.settings_member_settings_heading())).not.toBeInTheDocument();
+    await waitFor(() => expect(within(editorRow).getByTestId('member-menu')).toBeDisabled())
+    expect(within(editorRow).getByTestId('member-edit')).toBeDisabled()
+    await user.click(within(editorRow).getByTestId('member-menu'))
+    expect(screen.queryByText(m.settings_member_settings_heading())).not.toBeInTheDocument()
 
-    const mutations = fetchMock.requests.filter((request) => request.method !== 'GET');
-    expect(mutations).toHaveLength(1);
-    expect(mutations[0]?.path).toContain('/status');
-    requireCallback(release, 'the pending member mutation release callback')();
-    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
-  });
+    const mutations = fetchMock.requests.filter((request) => request.method !== 'GET')
+    expect(mutations).toHaveLength(1)
+    expect(mutations[0]?.path).toContain('/status')
+    requireCallback(release, 'the pending member mutation release callback')()
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3))
+  })
   it('reconciles an uncertain Resource link and invalidates derived pictures', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' })),
-    );
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' }))
+    )
     const fetchMock = mockApi([
       { userId: 'me', role: 'owner', isSelf: true },
       { userId: 'ed', role: 'editor', name: 'Clark Kent' },
-    ]);
-    vi.stubGlobal('fetch', fetchMock);
+    ])
+    vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(teamAccessApi, 'setMemberResourceLink').mockResolvedValue({
       kind: 'unknown',
       status: 409,
       message: 'The operation may have completed.',
-    });
-    renderSection();
-    const row = await waitForMemberRow(/ed@x\.io/);
-    await user.click(within(row).getByTestId('member-resource-menu'));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('combobox', { name: /choose Resource/i }));
-    await user.click(screen.getByRole('option', { name: 'Bruce Wayne' }));
+    })
+    renderSection()
+    const row = await waitForMemberRow(/ed@x\.io/)
+    await user.click(within(row).getByTestId('member-resource-menu'))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('combobox', { name: /choose Resource/i }))
+    await user.click(screen.getByRole('option', { name: 'Bruce Wayne' }))
     expect(
-      await within(dialog).findByText(m.settings_member_resource_unknown()),
-    ).toBeInTheDocument();
+      await within(dialog).findByText(m.settings_member_resource_unknown())
+    ).toBeInTheDocument()
     expect(
-      fetchMock.requests.filter((request) => request.path.includes('/members')).length,
-    ).toBeGreaterThan(1);
-  });
+      fetchMock.requests.filter((request) => request.path.includes('/members')).length
+    ).toBeGreaterThan(1)
+  })
 
   it('keeps member actions distinct and opens Resource linking from its own icon', async () => {
-    const user = userEvent.setup();
-    await useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' }));
+    const user = userEvent.setup()
+    await useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' }))
     vi.stubGlobal(
       'fetch',
       mockApi([
         { userId: 'me', role: 'owner', isSelf: true },
         { userId: 'ed', role: 'editor' },
-      ]),
-    );
-    renderSection();
+      ])
+    )
+    renderSection()
 
-    const row = await waitForMemberRow(/ed@x\.io/);
-    expect(within(row).getByTestId('member-masquerade')).toBeInTheDocument();
-    expect(within(row).getByTestId('member-edit')).toBeInTheDocument();
-    expect(within(row).getByTestId('member-resource-menu')).toBeInTheDocument();
-    expect(within(row).getByTestId('member-menu')).toBeInTheDocument();
-    expect(within(row).getByTestId('member-resource-status')).toHaveTextContent('None');
-    const actionCell = requireValue(within(row).getAllByRole('cell')[4], 'the action cell');
-    expect(actionCell).toHaveClass('px-4', 'text-right', 'whitespace-nowrap');
-    expect(actionCell.firstElementChild).toHaveClass('flex', 'justify-end', 'gap-1');
+    const row = await waitForMemberRow(/ed@x\.io/)
+    expect(within(row).getByTestId('member-masquerade')).toBeInTheDocument()
+    expect(within(row).getByTestId('member-edit')).toBeInTheDocument()
+    expect(within(row).getByTestId('member-resource-menu')).toBeInTheDocument()
+    expect(within(row).getByTestId('member-menu')).toBeInTheDocument()
+    expect(within(row).getByTestId('member-resource-status')).toHaveTextContent('None')
+    const actionCell = requireValue(within(row).getAllByRole('cell')[4], 'the action cell')
+    expect(actionCell).toHaveClass('px-4', 'text-right', 'whitespace-nowrap')
+    expect(actionCell.firstElementChild).toHaveClass('flex', 'justify-end', 'gap-1')
 
-    await user.click(within(row).getByTestId('member-resource-menu'));
-    const resourceDialog = await screen.findByRole('dialog');
-    expect(within(row).getByTestId('member-resource-menu')).toBeInTheDocument();
-    expect(resourceDialog).toHaveAccessibleName(m.settings_member_col_scheduled_person());
-    expect(within(resourceDialog).getByTestId('member-resource-link')).toBeInTheDocument();
-    await user.click(within(resourceDialog).getByRole('button', { name: /close/i }));
+    await user.click(within(row).getByTestId('member-resource-menu'))
+    const resourceDialog = await screen.findByRole('dialog')
+    expect(within(row).getByTestId('member-resource-menu')).toBeInTheDocument()
+    expect(resourceDialog).toHaveAccessibleName(m.settings_member_col_scheduled_person())
+    expect(within(resourceDialog).getByTestId('member-resource-link')).toBeInTheDocument()
+    await user.click(within(resourceDialog).getByRole('button', { name: /close/i }))
 
-    const settingsTrigger = within(row).getByTestId('member-menu');
-    await user.click(settingsTrigger);
-    const settingsDialog = await screen.findByRole('dialog');
-    expect(within(row).getByTestId('member-menu')).toBeInTheDocument();
-    expect(within(settingsDialog).queryByTestId('member-resource-status')).not.toBeInTheDocument();
-    await user.keyboard('{Escape}');
-    await waitFor(() => expect(settingsTrigger).toHaveFocus());
-  });
+    const settingsTrigger = within(row).getByTestId('member-menu')
+    await user.click(settingsTrigger)
+    const settingsDialog = await screen.findByRole('dialog')
+    expect(within(row).getByTestId('member-menu')).toBeInTheDocument()
+    expect(within(settingsDialog).queryByTestId('member-resource-status')).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(settingsTrigger).toHaveFocus())
+  })
 
   it('announces a completed Resource-link save inside the open dialog', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' })),
-    );
-    let linked = false;
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' }))
+    )
+    let linked = false
     const fetchMock = mockApi(
       [
         { userId: 'me', role: 'owner', isSelf: true },
@@ -441,28 +435,28 @@ describe('MembersSection — member lifecycle', () => {
             },
           }),
         'PUT /members/ed/resource-link': () => {
-          linked = true;
-          return jsonResponse({ data: { resourceId: resource.id, revision: 'rev-2' } });
+          linked = true
+          return jsonResponse({ data: { resourceId: resource.id, revision: 'rev-2' } })
         },
-      },
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const row = await waitForMemberRow(/ed@x\.io/);
-    await user.click(within(row).getByTestId('member-resource-menu'));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('combobox', { name: /choose Resource/i }));
-    await user.click(screen.getByRole('option', { name: 'Bruce Wayne' }));
-    expect(await within(dialog).findByRole('status')).toHaveTextContent('Resource link updated.');
-  });
+      }
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    const row = await waitForMemberRow(/ed@x\.io/)
+    await user.click(within(row).getByTestId('member-resource-menu'))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('combobox', { name: /choose Resource/i }))
+    await user.click(screen.getByRole('option', { name: 'Bruce Wayne' }))
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Resource link updated.')
+  })
 
   it('retains the current inactive person for direct unlink and reconciles after the write', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' })),
-    );
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' }))
+    )
     await useStore
       .getState()
-      .updateResource(resource.id, { archivedAt: '2026-09-14T10:00:00.000Z' });
+      .updateResource(resource.id, { archivedAt: '2026-09-14T10:00:00.000Z' })
     const fetchMock = mockApi([
       { userId: 'me', role: 'owner', isSelf: true },
       {
@@ -471,40 +465,40 @@ describe('MembersSection — member lifecycle', () => {
         name: 'Clark Kent',
         resourceLink: { resourceId: resource.id, resourceName: 'Bruce Wayne', revision: 'rev-1' },
       },
-    ]);
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const row = await waitForMemberRow(/ed@x\.io/);
-    expect(within(row).getByTestId('member-resource-status')).toHaveTextContent('Bruce Wayne');
-    expect(within(row).queryByRole('button', { name: /change Resource/i })).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByTestId('member-resource-menu'));
-    const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByRole('button', { name: /remove Resource link/i }));
+    ])
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    const row = await waitForMemberRow(/ed@x\.io/)
+    expect(within(row).getByTestId('member-resource-status')).toHaveTextContent('Bruce Wayne')
+    expect(within(row).queryByRole('button', { name: /change Resource/i })).not.toBeInTheDocument()
+    await userEvent.click(within(row).getByTestId('member-resource-menu'))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: /remove Resource link/i }))
     await waitFor(() =>
       expect(
-        fetchMock.requests.find((request) => request.path.includes('/members/ed/resource-link')),
+        fetchMock.requests.find((request) => request.path.includes('/members/ed/resource-link'))
       ).toEqual(
         expect.objectContaining({
           method: 'DELETE',
           body: JSON.stringify({ expectedRevision: 'rev-1' }),
-        }),
-      ),
-    );
+        })
+      )
+    )
     expect(fetchMock.requests.filter((request) => request.path.endsWith('/members'))).toHaveLength(
-      2,
-    );
-  });
+      2
+    )
+  })
 
   // The server authorizes candidates; the Resources list only orders them. A candidate the client
   // store has not loaded yet (a person created in another session, or a poll that has not landed)
   // must still be offered, and a live link to one must not be reported as inactive.
   it('offers a server candidate the Resources store has not loaded and orders the rest by Resources', async () => {
     const diana = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Diana Prince' })),
-    );
+      useStore.getState().addResource(makeResourceDraft({ name: 'Diana Prince' }))
+    )
     const bruce = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' })),
-    );
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' }))
+    )
     const fetchMock = mockApi(
       [
         { userId: 'me', role: 'owner', isSelf: true },
@@ -543,30 +537,30 @@ describe('MembersSection — member lifecycle', () => {
               ],
             },
           }),
-      },
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const row = await waitForMemberRow(/ed@x\.io/);
-    expect(within(row).getByTestId('member-resource-status')).toHaveTextContent('Barry Allen');
-    expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByTestId('member-resource-menu'));
-    const dialog = await screen.findByRole('dialog');
-    const selector = within(dialog).getByTestId('member-resource-link');
-    await userEvent.click(selector);
+      }
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    const row = await waitForMemberRow(/ed@x\.io/)
+    expect(within(row).getByTestId('member-resource-status')).toHaveTextContent('Barry Allen')
+    expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument()
+    await userEvent.click(within(row).getByTestId('member-resource-menu'))
+    const dialog = await screen.findByRole('dialog')
+    const selector = within(dialog).getByTestId('member-resource-link')
+    await userEvent.click(selector)
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       m.settings_member_resource_unlinked(),
       'Bruce Wayne',
       'Diana Prince',
       'Barry Allen',
-    ]);
-  });
+    ])
+  })
 
   it('focuses the selector on open and restores focus to the trigger on close', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' })),
-    );
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' }))
+    )
     const fetchMock = mockApi(
       [
         { userId: 'me', role: 'owner', isSelf: true },
@@ -575,22 +569,22 @@ describe('MembersSection — member lifecycle', () => {
       {
         'PUT /members/ed/resource-link': () =>
           jsonResponse({ data: { resourceId: resource.id, revision: 'rev-2' } }),
-      },
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const row = await waitForMemberRow(/ed@x\.io/);
-    const trigger = within(row).getByTestId('member-resource-menu');
-    await user.click(trigger);
-    const dialog = await screen.findByRole('dialog');
-    const select = within(dialog).getByRole('combobox', { name: /choose Resource/i });
-    expect(select).toHaveFocus();
-    await user.click(within(dialog).getByRole('button', { name: /close/i }));
-    await waitFor(() => expect(trigger).toHaveFocus());
+      }
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    const row = await waitForMemberRow(/ed@x\.io/)
+    const trigger = within(row).getByTestId('member-resource-menu')
+    await user.click(trigger)
+    const dialog = await screen.findByRole('dialog')
+    const select = within(dialog).getByRole('combobox', { name: /choose Resource/i })
+    expect(select).toHaveFocus()
+    await user.click(within(dialog).getByRole('button', { name: /close/i }))
+    await waitFor(() => expect(trigger).toHaveFocus())
 
-    await user.click(trigger);
-    await screen.findByRole('dialog');
-    await user.keyboard('{Escape}');
-    await waitFor(() => expect(trigger).toHaveFocus());
-  });
-});
+    await user.click(trigger)
+    await screen.findByRole('dialog')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+})

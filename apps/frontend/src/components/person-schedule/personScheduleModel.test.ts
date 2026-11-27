@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { Activity } from '@capacitylens/shared/types/entities';
+import { describe, expect, it } from 'vitest'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import type { Activity } from '@capacitylens/shared/types/entities'
 import {
   makeActivity,
   makeAllocation,
@@ -8,39 +8,39 @@ import {
   makeProject,
   makeResource,
   makeTimeOff,
-} from '@/test/fixtures';
-import { buildPersonSchedule } from './personScheduleModel';
+} from '@/test/fixtures'
+import { buildPersonSchedule } from './personScheduleModel'
 
 const resource = makeResource({
   id: 'r1',
   companyId: 'a1',
   name: 'Diana Prince',
   color: '#123456',
-});
+})
 const client = makeClient({
   id: 'c1',
   companyId: 'a1',
   name: 'Wayne Foundation',
   color: '#222222',
-});
+})
 const project = makeProject({
   id: 'p1',
   companyId: 'a1',
   clientId: client.id,
   name: 'Watchtower',
   color: '#abcdef',
-});
+})
 const activity = makeActivity({
   id: 't1',
   companyId: 'a1',
   projectId: project.id,
   name: 'Research',
-});
+})
 
 function withoutProjectId(value: Activity): Activity {
-  const copy = { ...value };
-  copy.projectId = null;
-  return copy;
+  const copy = { ...value }
+  copy.projectId = null
+  return copy
 }
 
 function build(overrides: Partial<Parameters<typeof buildPersonSchedule>[0]> = {}) {
@@ -61,7 +61,7 @@ function build(overrides: Partial<Parameters<typeof buildPersonSchedule>[0]> = {
     title: "Diana Prince's schedule",
     activityFallback: 'Activity',
     ...overrides,
-  });
+  })
 }
 
 describe('buildPersonSchedule inclusion and ordering', () => {
@@ -83,10 +83,10 @@ describe('buildPersonSchedule inclusion and ordering', () => {
       makeAllocation({ id: 'same-a', startDate: '2026-09-07', endDate: '2026-09-08' }),
       makeAllocation({ id: 'start-boundary', startDate: '2026-09-05', endDate: '2026-09-07' }),
       makeAllocation({ id: 'outside-after', startDate: '2026-10-05', endDate: '2026-10-06' }),
-    ];
+    ]
     const timeOff = [
       makeTimeOff({ id: 'same-time-off', startDate: '2026-09-07', endDate: '2026-09-08' }),
-    ];
+    ]
 
     const complete = build({
       data: {
@@ -98,7 +98,7 @@ describe('buildPersonSchedule inclusion and ordering', () => {
         allocations,
         timeOff,
       },
-    });
+    })
 
     expect(complete.model.entries.map((entry) => entry.key)).toEqual([
       'allocation:start-boundary',
@@ -106,14 +106,14 @@ describe('buildPersonSchedule inclusion and ordering', () => {
       'allocation:same-b',
       'timeOff:same-time-off',
       'allocation:end-boundary',
-    ]);
+    ])
     expect(complete.model.entries[0]).toMatchObject({
       startDate: '2026-09-05',
       endDate: '2026-09-07',
-    });
-    expect(complete.model.entries.at(-1)).toMatchObject({ status: 'completed' });
-  });
-});
+    })
+    expect(complete.model.entries.at(-1)).toMatchObject({ status: 'completed' })
+  })
+})
 
 describe('buildPersonSchedule allocation projection', () => {
   it('projects attribution, colours, hourly load, notes, and the maximum linked-series end', () => {
@@ -122,8 +122,8 @@ describe('buildPersonSchedule allocation projection', () => {
         id: 'allProjects',
         kind: 'allProjects',
         name: 'Workshop',
-      }),
-    );
+      })
+    )
     const selected = makeAllocation({
       id: 'occurrence-1',
       activityId: allProjects.id,
@@ -134,7 +134,7 @@ describe('buildPersonSchedule allocation projection', () => {
       hoursPerDay: 4,
       note: 'Bring prototypes',
       task: 'Prototype review',
-    });
+    })
     const laterOtherResource = makeAllocation({
       id: 'occurrence-2',
       resourceId: 'other-resource',
@@ -143,7 +143,7 @@ describe('buildPersonSchedule allocation projection', () => {
       seriesId: 'series-1',
       startDate: '2027-02-01',
       endDate: '2027-02-03',
-    });
+    })
     const result = build({
       data: {
         ...createEmptyAppData(),
@@ -153,7 +153,7 @@ describe('buildPersonSchedule allocation projection', () => {
         activities: [allProjects],
         allocations: [selected, laterOtherResource],
       },
-    });
+    })
 
     expect(result.model.entries).toEqual([
       expect.objectContaining({
@@ -167,9 +167,9 @@ describe('buildPersonSchedule allocation projection', () => {
         note: 'Bring prototypes',
         task: 'Prototype review',
       }),
-    ]);
-  });
-});
+    ])
+  })
+})
 
 describe('buildPersonSchedule task visibility', () => {
   it('omits task text when the company visibility setting is off', () => {
@@ -183,10 +183,10 @@ describe('buildPersonSchedule task visibility', () => {
         ],
       },
       showTaskFieldInSchedule: false,
-    });
-    expect(result.model.entries[0]).not.toHaveProperty('task');
-  });
-});
+    })
+    expect(result.model.entries[0]).not.toHaveProperty('task')
+  })
+})
 
 describe('buildPersonSchedule hour visibility', () => {
   it.each(['days', 'hourly'] as const)('shows hours in %s mode', (schedulingMode) => {
@@ -198,12 +198,12 @@ describe('buildPersonSchedule hour visibility', () => {
         activities: [activity],
         allocations: [makeAllocation({ startDate: '2026-09-10', endDate: '2026-09-10' })],
       },
-    });
-    expect(result.model.entries[0]).toMatchObject({ hoursPerDay: 8 });
-  });
+    })
+    expect(result.model.entries[0]).toMatchObject({ hoursPerDay: 8 })
+  })
 
   it('omits hours in Blocks mode and for external resources', () => {
-    const external = makeResource({ id: 'r1', kind: 'external', name: 'Daily Planet' });
+    const external = makeResource({ id: 'r1', kind: 'external', name: 'Daily Planet' })
     const inBlocks = build({
       schedulingMode: 'blocks',
       data: {
@@ -212,7 +212,7 @@ describe('buildPersonSchedule hour visibility', () => {
         activities: [activity],
         allocations: [makeAllocation({ startDate: '2026-09-10', endDate: '2026-09-10' })],
       },
-    });
+    })
     const externalResult = build({
       resource: external,
       data: {
@@ -221,11 +221,11 @@ describe('buildPersonSchedule hour visibility', () => {
         activities: [activity],
         allocations: [makeAllocation({ startDate: '2026-09-10', endDate: '2026-09-10' })],
       },
-    });
-    expect(inBlocks.model.entries[0]).not.toHaveProperty('hoursPerDay');
-    expect(externalResult.model.entries[0]).not.toHaveProperty('hoursPerDay');
-  });
-});
+    })
+    expect(inBlocks.model.entries[0]).not.toHaveProperty('hoursPerDay')
+    expect(externalResult.model.entries[0]).not.toHaveProperty('hoursPerDay')
+  })
+})
 
 describe('buildPersonSchedule time off and Internal work', () => {
   it('omits external time off and projects time-off notes only when authorized', () => {
@@ -233,35 +233,35 @@ describe('buildPersonSchedule time off and Internal work', () => {
       startDate: '2026-09-09',
       endDate: '2026-09-10',
       note: 'Private appointment',
-    });
+    })
     const repeatedTimeOff = makeTimeOff({
       id: 'to2',
       startDate: '2026-09-09',
       endDate: '2026-09-10',
       note: 'Second occurrence',
-    });
+    })
     const denied = build({
       data: { ...createEmptyAppData(), resources: [resource], timeOff: [timeOff, repeatedTimeOff] },
-    });
+    })
     const allowed = build({
       canSeeTimeOffNotes: true,
       data: { ...createEmptyAppData(), resources: [resource], timeOff: [timeOff] },
-    });
-    const external = makeResource({ id: 'r1', kind: 'external', name: 'Daily Planet' });
+    })
+    const external = makeResource({ id: 'r1', kind: 'external', name: 'Daily Planet' })
     const externalResult = build({
       resource: external,
       canSeeTimeOffNotes: true,
       data: { ...createEmptyAppData(), resources: [external], timeOff: [timeOff] },
-    });
+    })
 
-    expect(denied.model.entries).toHaveLength(2);
-    expect(denied.model.entries[0]).not.toHaveProperty('note');
+    expect(denied.model.entries).toHaveLength(2)
+    expect(denied.model.entries[0]).not.toHaveProperty('note')
     expect(allowed.model.entries[0]).toMatchObject({
       kind: 'timeOff',
       note: 'Private appointment',
-    });
-    expect(externalResult.model.entries).toEqual([]);
-  });
+    })
+    expect(externalResult.model.entries).toEqual([])
+  })
 
   it('shows internal work in neutral grey without dropping it', () => {
     const internalClient = makeClient({
@@ -269,8 +269,8 @@ describe('buildPersonSchedule time off and Internal work', () => {
       builtin: true,
       name: 'Internal',
       color: '#112233',
-    });
-    const internalActivity = withoutProjectId(makeActivity({ kind: 'internal', name: 'Admin' }));
+    })
+    const internalActivity = withoutProjectId(makeActivity({ kind: 'internal', name: 'Admin' }))
     const data = {
       ...createEmptyAppData(),
       resources: [resource],
@@ -283,35 +283,35 @@ describe('buildPersonSchedule time off and Internal work', () => {
           endDate: '2026-09-10',
         }),
       ],
-    };
+    }
 
     expect(build({ data }).model.entries[0]).toMatchObject({
       activity: 'Admin',
       client: 'Internal',
       color: '#9ca3af',
-    });
-  });
-});
+    })
+  })
+})
 
 describe('buildPersonSchedule defensive projection', () => {
   it('uses projected names untouched, falls back for missing activities, and returns invalid diagnostics', () => {
-    const projectedClient = makeClient({ id: 'c1', name: '"Foundation"' });
+    const projectedClient = makeClient({ id: 'c1', name: '"Foundation"' })
     const projectedProject = makeProject({
       id: 'p1',
       clientId: projectedClient.id,
       name: '"Tower"',
-    });
+    })
     const invalid = makeAllocation({
       id: 'invalid',
       startDate: 'not-a-date',
       endDate: '2026-09-10',
-    });
+    })
     const missingActivity = makeAllocation({
       id: 'missing',
       activityId: 'missing',
       startDate: '2026-09-10',
       endDate: '2026-09-10',
-    });
+    })
     const result = build({
       data: {
         ...createEmptyAppData(),
@@ -325,10 +325,10 @@ describe('buildPersonSchedule defensive projection', () => {
           missingActivity,
         ],
       },
-    });
+    })
 
-    expect(result.model.entries[0]).toMatchObject({ project: '"Tower"', client: '"Foundation"' });
-    expect(result.model.entries[1]).toMatchObject({ activity: 'Activity' });
-    expect(result.invalidRecords).toEqual([{ kind: 'allocation', sourceId: 'invalid' }]);
-  });
-});
+    expect(result.model.entries[0]).toMatchObject({ project: '"Tower"', client: '"Foundation"' })
+    expect(result.model.entries[1]).toMatchObject({ activity: 'Activity' })
+    expect(result.invalidRecords).toEqual([{ kind: 'allocation', sourceId: 'invalid' }])
+  })
+})

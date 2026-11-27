@@ -1,16 +1,16 @@
-import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useMemo, useState } from 'react';
-import { useStore } from '@/store/useStore';
-import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
-import { useEditSubmit } from '@/hooks/useEditSubmit';
-import type { EntitySave } from '@/hooks/useEditSubmit';
-import { useFieldError } from '@/hooks/useFieldError';
-import { resolveDomainErrorMessage } from '@/lib/errorMessage';
-import { validatePresetColor, parseName } from '@/lib/validation';
-import { validateProjectClient } from '@capacitylens/shared/lib/integrity';
-import { DEFAULT_COLORS } from '@/lib/palette';
-import { byName } from '@/lib/displayOrder';
-import { m } from '@/i18n';
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose'
+import { useMemo, useState } from 'react'
+import { useStore } from '@/store/useStore'
+import { useActiveScopedData, useScopedData } from '@/store/useScopedData'
+import { useEditSubmit } from '@/hooks/useEditSubmit'
+import type { EntitySave } from '@/hooks/useEditSubmit'
+import { useFieldError } from '@/hooks/useFieldError'
+import { resolveDomainErrorMessage } from '@/lib/errorMessage'
+import { validatePresetColor, parseName } from '@/lib/validation'
+import { validateProjectClient } from '@capacitylens/shared/lib/integrity'
+import { DEFAULT_COLORS } from '@/lib/palette'
+import { byName } from '@/lib/displayOrder'
+import { m } from '@/i18n'
 import {
   ColorField,
   FormButtons,
@@ -18,12 +18,12 @@ import {
   RequiredLegend,
   SelectField,
   TextField,
-} from '@/components/common/ui';
-import type { Option } from '@/components/common/ui';
-import { PrivateNameFields } from '@/components/common/PrivateNameFields';
-import { usePrivateNameFields } from '@/components/common/usePrivateNameFields';
-import { FieldError } from '@/components/ui/field';
-import type { Project } from '@capacitylens/shared/types/entities';
+} from '@/components/common/ui'
+import type { Option } from '@/components/common/ui'
+import { PrivateNameFields } from '@/components/common/PrivateNameFields'
+import { usePrivateNameFields } from '@/components/common/usePrivateNameFields'
+import { FieldError } from '@/components/ui/field'
+import type { Project } from '@capacitylens/shared/types/entities'
 
 /** Add (no `project`) or edit a project: name, required client, preset colour. `onClose` fires on
  * save or cancel. */
@@ -31,40 +31,40 @@ export function ProjectForm({
   project,
   onClose: close,
 }: {
-  project?: Project;
-  onClose: () => void;
+  project?: Project
+  onClose: () => void
 }) {
-  const onClose = useFormLifetimeClose(close);
-  const add = useStore((state) => state.addProject);
-  const update = useStore((state) => state.updateProject);
-  const data = useActiveScopedData();
-  const clients = data.clients;
+  const onClose = useFormLifetimeClose(close)
+  const add = useStore((state) => state.addProject)
+  const update = useStore((state) => state.updateProject)
+  const data = useActiveScopedData()
+  const clients = data.clients
   // Keep the raw scoped set for the archived-parent label when the server returns an archived
   // parent alongside a child that still references it.
-  const rawClients = useScopedData().clients;
+  const rawClients = useScopedData().clients
 
-  const [name, setName] = useState(project?.name ?? '');
-  const [clientId, setClientId] = useState(project?.clientId ?? '');
-  const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project);
-  const { error, errorField, errorId, fail } = useFieldError();
-  const privateNameFields = usePrivateNameFields(project, fail);
-  const allProjects = useStore((state) => state.data.projects);
+  const [name, setName] = useState(project?.name ?? '')
+  const [clientId, setClientId] = useState(project?.clientId ?? '')
+  const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project)
+  const { error, errorField, errorId, fail } = useFieldError()
+  const privateNameFields = usePrivateNameFields(project, fail)
+  const allProjects = useStore((state) => state.data.projects)
   const { pending, submit } = useEditSubmit({
     editing: project,
     rows: allProjects,
     staleMessage: m.form_project_err_changed,
     fail,
     onSaved: onClose,
-  });
+  })
   const selectedClientIsInternal =
-    clients.find((client) => client.id === clientId)?.builtin === true;
+    clients.find((client) => client.id === clientId)?.builtin === true
   // Internal projects always read as neutral grey, so their colour is not editable.
-  const showColourPicker = !selectedClientIsInternal;
+  const showColourPicker = !selectedClientIsInternal
 
   // Memoise client ordering because keystrokes do not change the client list. Append the current archived-client option outside that memo so its label resolves using the active locale.
   const baseClientOptions: Option[] = useMemo(() => {
-    const internalClient = clients.find((client) => client.builtin === true);
-    const ordinaryClients = clients.filter((client) => client.builtin !== true).sort(byName);
+    const internalClient = clients.find((client) => client.builtin === true)
+    const ordinaryClients = clients.filter((client) => client.builtin !== true).sort(byName)
     return [
       ...(internalClient ? [{ value: internalClient.id, label: internalClient.name }] : []),
       ...ordinaryClients.map((client, index) => ({
@@ -72,24 +72,24 @@ export function ProjectForm({
         label: client.name,
         separatorBefore: internalClient !== undefined && index === 0,
       })),
-    ];
-  }, [clients]);
+    ]
+  }, [clients])
   // Retain a disabled selected option for the existing archived client so unrelated project edits round-trip its unchanged ID.
   const clientOptions = resolveProjectClientOptions({
     baseOptions: baseClientOptions,
     clients,
     rawClients,
     project,
-  });
+  })
   const prepareSave = () =>
-    prepareProjectSave({ project, name, clientId, color, privateNameFields, fail, add, update });
+    prepareProjectSave({ project, name, clientId, color, privateNameFields, fail, add, update })
 
   return (
     <FormDialog
       title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit(prepareSave);
+        void submit(prepareSave)
       }}
       footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
@@ -122,7 +122,7 @@ export function ProjectForm({
         />
       </fieldset>
     </FormDialog>
-  );
+  )
 }
 
 function resolveProjectClientOptions({
@@ -131,13 +131,13 @@ function resolveProjectClientOptions({
   rawClients,
   project,
 }: {
-  baseOptions: Option[];
-  clients: ReturnType<typeof useActiveScopedData>['clients'];
-  rawClients: ReturnType<typeof useScopedData>['clients'];
-  project: Project | undefined;
+  baseOptions: Option[]
+  clients: ReturnType<typeof useActiveScopedData>['clients']
+  rawClients: ReturnType<typeof useScopedData>['clients']
+  project: Project | undefined
 }): Option[] {
-  if (!project || clients.some((client) => client.id === project.clientId)) return baseOptions;
-  const raw = rawClients.find((client) => client.id === project.clientId);
+  if (!project || clients.some((client) => client.id === project.clientId)) return baseOptions
+  const raw = rawClients.find((client) => client.id === project.clientId)
   return [
     ...baseOptions,
     {
@@ -145,7 +145,7 @@ function resolveProjectClientOptions({
       label: raw ? m.list_label_archived({ name: raw.name }) : m.form_option_current_archived(),
       disabled: true,
     },
-  ];
+  ]
 }
 
 function prepareProjectSave({
@@ -158,30 +158,30 @@ function prepareProjectSave({
   add,
   update,
 }: {
-  project: Project | undefined;
-  name: string;
-  clientId: string;
-  color: string;
-  privateNameFields: ReturnType<typeof usePrivateNameFields>;
-  fail: ReturnType<typeof useFieldError>['fail'];
-  add: ReturnType<typeof useStore.getState>['addProject'];
-  update: ReturnType<typeof useStore.getState>['updateProject'];
+  project: Project | undefined
+  name: string
+  clientId: string
+  color: string
+  privateNameFields: ReturnType<typeof usePrivateNameFields>
+  fail: ReturnType<typeof useFieldError>['fail']
+  add: ReturnType<typeof useStore.getState>['addProject']
+  update: ReturnType<typeof useStore.getState>['updateProject']
 }): EntitySave | null {
-  const trimmed = parseName(name, fail);
-  if (!trimmed) return null;
-  const privacy = privateNameFields.parsePrivacyPatch();
-  if (!privacy) return null;
-  const check = validateProjectClient(clientId);
+  const trimmed = parseName(name, fail)
+  if (!trimmed) return null
+  const privacy = privateNameFields.parsePrivacyPatch()
+  if (!privacy) return null
+  const check = validateProjectClient(clientId)
   if (!check.ok) {
-    const code = check.codes[0];
-    if (!code) throw new Error('Project validation failed without an error code.');
-    fail('client', resolveDomainErrorMessage(code));
-    return null;
+    const code = check.codes[0]
+    if (!code) throw new Error('Project validation failed without an error code.')
+    fail('client', resolveDomainErrorMessage(code))
+    return null
   }
-  if (!validatePresetColor(color, fail)) return null;
+  if (!validatePresetColor(color, fail)) return null
   if (project) {
     return () =>
-      update(project.id, { name: trimmed, clientId, color, ...privacy }, project.updatedAt);
+      update(project.id, { name: trimmed, clientId, color, ...privacy }, project.updatedAt)
   }
   return () =>
     add({
@@ -191,7 +191,7 @@ function prepareProjectSave({
       ...(privacy.isPrivate && privacy.codeName
         ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
         : {}),
-    });
+    })
 }
 
 function ProjectClientField({
@@ -202,12 +202,12 @@ function ProjectClientField({
   errorId,
   disabled,
 }: {
-  clientId: string;
-  setClientId: (value: string) => void;
-  clientOptions: Option[];
-  errorField: string | null;
-  errorId: string;
-  disabled: boolean;
+  clientId: string
+  setClientId: (value: string) => void
+  clientOptions: Option[]
+  errorField: string | null
+  errorId: string
+  disabled: boolean
 }) {
   return (
     <SelectField
@@ -222,7 +222,7 @@ function ProjectClientField({
       layout="label-control"
       disabled={disabled}
     />
-  );
+  )
 }
 
 function ProjectNameFields({
@@ -234,13 +234,13 @@ function ProjectNameFields({
   privateNameFields,
   disabled,
 }: {
-  name: string;
-  setName: (value: string) => void;
-  protectedName: boolean;
-  errorField: string | null;
-  errorId: string;
-  privateNameFields: ReturnType<typeof usePrivateNameFields>;
-  disabled: boolean;
+  name: string
+  setName: (value: string) => void
+  protectedName: boolean
+  errorField: string | null
+  errorId: string
+  privateNameFields: ReturnType<typeof usePrivateNameFields>
+  disabled: boolean
 }) {
   return (
     <>
@@ -263,7 +263,7 @@ function ProjectNameFields({
         disabled={disabled}
       />
     </>
-  );
+  )
 }
 
 function ProjectFormDetails({
@@ -275,13 +275,13 @@ function ProjectFormDetails({
   error,
   disabled,
 }: {
-  showColourPicker: boolean;
-  color: string;
-  setColor: (value: string) => void;
-  errorField: string | null;
-  errorId: string;
-  error: string | null;
-  disabled: boolean;
+  showColourPicker: boolean
+  color: string
+  setColor: (value: string) => void
+  errorField: string | null
+  errorId: string
+  error: string | null
+  disabled: boolean
 }) {
   return (
     <>
@@ -299,5 +299,5 @@ function ProjectFormDetails({
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </>
-  );
+  )
 }

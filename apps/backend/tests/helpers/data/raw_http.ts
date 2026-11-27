@@ -1,43 +1,43 @@
-import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { request as httpRequest } from 'node:http';
-import { createServer, type AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { terminateProcessTree } from '@capacitylens/tooling/devProcesses';
+import { spawn, spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
+import { createServer, type AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { terminateProcessTree } from '@capacitylens/tooling/devProcesses'
 
-const backendRoot = new URL('../../../', import.meta.url);
+const backendRoot = new URL('../../../', import.meta.url)
 
 interface Reply {
-  status: number;
-  headers: Record<string, string | string[] | undefined>;
+  status: number
+  headers: Record<string, string | string[] | undefined>
 }
 
 interface Booted {
-  send(method: string, path: string, headers?: Record<string, string>): Promise<Reply>;
+  send(method: string, path: string, headers?: Record<string, string>): Promise<Reply>
 }
 
 async function freePort() {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address() as AddressInfo;
-  await new Promise((resolve) => server.close(resolve));
-  return port;
+  const server = createServer()
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address() as AddressInfo
+  await new Promise((resolve) => server.close(resolve))
+  return port
 }
 
 function send(port: number, method: string, path: string, headers: Record<string, string> = {}) {
   return new Promise<Reply>((resolve, reject) => {
     // A fresh connection per request keeps every request's socket address independent.
-    const outgoing = httpRequest({ host: '127.0.0.1', port, method, path, headers, agent: false });
+    const outgoing = httpRequest({ host: '127.0.0.1', port, method, path, headers, agent: false })
     outgoing.on('response', (response) => {
-      response.resume();
+      response.resume()
       response.on('end', () =>
         resolve({ status: response.statusCode ?? 0, headers: response.headers })
-      );
-    });
-    outgoing.on('error', reject);
-    outgoing.end();
-  });
+      )
+    })
+    outgoing.on('error', reject)
+    outgoing.end()
+  })
 }
 
 /**
@@ -49,11 +49,11 @@ export async function withServer(
   options: { peer?: string },
   run: (server: Booted) => Promise<void>
 ) {
-  const root = mkdtempSync(join(tmpdir(), 'capacitylens-http-contract-'));
-  const port = await freePort();
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-http-contract-'))
+  const port = await freePort()
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith('CAPACITYLENS_'))
-  );
+  )
   const env = {
     ...inherited,
     NODE_ENV: 'test',
@@ -65,10 +65,10 @@ export async function withServer(
     CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${port}`,
     CAPACITYLENS_DB: join(root, 'contract.db'),
     ...settings,
-  };
-  const preload: string[] = [];
+  }
+  const preload: string[] = []
   if (options.peer) {
-    const file = join(root, 'peer.mjs');
+    const file = join(root, 'peer.mjs')
     writeFileSync(
       file,
       [
@@ -79,18 +79,18 @@ export async function withServer(
         '  return emit.call(this, event, socket, ...rest)',
         '}',
       ].join('\n')
-    );
-    preload.push(`--import=${file}`);
+    )
+    preload.push(`--import=${file}`)
   }
   const migrated = spawnSync(process.execPath, ['ace.js', 'migration:run', '--force'], {
     cwd: backendRoot,
     env,
     encoding: 'utf8',
     timeout: 60_000,
-  });
+  })
   if (migrated.status !== 0) {
-    rmSync(root, { recursive: true, force: true });
-    throw new Error(`Migration failed: ${migrated.stdout}\n${migrated.stderr}`);
+    rmSync(root, { recursive: true, force: true })
+    throw new Error(`Migration failed: ${migrated.stdout}\n${migrated.stderr}`)
   }
   const child = spawn(
     process.execPath,
@@ -101,40 +101,40 @@ export async function withServer(
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     }
-  );
-  let output = '';
+  )
+  let output = ''
   const capture = (chunk: Buffer) => {
-    output = (output + chunk.toString()).slice(-12_000);
-  };
-  child.stdout?.on('data', capture);
-  child.stderr?.on('data', capture);
+    output = (output + chunk.toString()).slice(-12_000)
+  }
+  child.stdout?.on('data', capture)
+  child.stderr?.on('data', capture)
   try {
-    let ready = false;
+    let ready = false
     for (let attempt = 0; attempt < 150 && !ready; attempt++) {
       if (child.exitCode !== null || child.signalCode !== null)
-        throw new Error(`The server exited before readiness. ${output}`);
+        throw new Error(`The server exited before readiness. ${output}`)
       try {
-        ready = (await send(port, 'GET', '/health/live').then(({ status }) => status)) === 200;
+        ready = (await send(port, 'GET', '/health/live').then(({ status }) => status)) === 200
       } catch {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100))
       }
     }
-    if (!ready) throw new Error(`The server did not become ready. ${output}`);
-    await run({ send: (method, path, headers) => send(port, method, path, headers) });
+    if (!ready) throw new Error(`The server did not become ready. ${output}`)
+    await run({ send: (method, path, headers) => send(port, method, path, headers) })
   } finally {
-    await terminateProcessTree(child, { graceMs: 5000, forceMs: 1000 });
-    rmSync(root, { recursive: true, force: true });
+    await terminateProcessTree(child, { graceMs: 5000, forceMs: 1000 })
+    rmSync(root, { recursive: true, force: true })
   }
 }
 
 export const limitedRead = (server: Booted, forwardedFor: string) =>
   server
     .send('GET', '/api/v1/auth/me', { 'x-forwarded-for': forwardedFor })
-    .then(({ status }) => status);
+    .then(({ status }) => status)
 
 interface RawResponse {
-  statusCode: number | undefined;
-  body: string;
+  statusCode: number | undefined
+  body: string
 }
 
 /** Posts raw bytes to the suite's test server, bypassing the API client's body encoding. */
@@ -161,14 +161,14 @@ export function postRaw(
         },
       },
       (response) => {
-        const chunks: Buffer[] = [];
-        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        const chunks: Buffer[] = []
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
         response.on('end', () =>
           resolve({ statusCode: response.statusCode, body: Buffer.concat(chunks).toString('utf8') })
-        );
+        )
       }
-    );
-    request.on('error', reject);
-    request.end(body);
-  });
+    )
+    request.on('error', reject)
+    request.end(body)
+  })
 }

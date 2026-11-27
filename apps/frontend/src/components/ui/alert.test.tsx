@@ -1,29 +1,29 @@
-import { loadPlanningData } from "@/test/fixtures";
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useStore } from "@/store/useStore";
-import { createEmptyAppData } from "@capacitylens/shared/types/entities";
+import { loadPlanningData } from '@/test/fixtures'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useStore } from '@/store/useStore'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
 
 beforeEach(() => {
-  loadPlanningData(createEmptyAppData());
-  useStore.getState().clearFilters();
-  useStore.getState().setDirtyForm(false);
-});
+  loadPlanningData(createEmptyAppData())
+  useStore.getState().clearFilters()
+  useStore.getState().setDirtyForm(false)
+})
 
-describe("Alert", () => {
-  it("keeps destructive body copy on the opaque danger token", () => {
+describe('Alert', () => {
+  it('keeps destructive body copy on the opaque danger token', () => {
     render(
       <Alert variant="destructive">
         <AlertDescription>Save failed.</AlertDescription>
-      </Alert>,
-    );
+      </Alert>
+    )
 
-    expect(screen.getByRole("alert")).toHaveClass(
-      "*:data-[slot=alert-description]:text-destructive",
-    );
-    expect(screen.getByRole("alert")).not.toHaveClass(
-      "*:data-[slot=alert-description]:text-destructive/90",
-    );
-  });
-});
+    expect(screen.getByRole('alert')).toHaveClass(
+      '*:data-[slot=alert-description]:text-destructive'
+    )
+    expect(screen.getByRole('alert')).not.toHaveClass(
+      '*:data-[slot=alert-description]:text-destructive/90'
+    )
+  })
+})

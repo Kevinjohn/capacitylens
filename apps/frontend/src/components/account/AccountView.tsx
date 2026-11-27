@@ -1,22 +1,22 @@
-import { SignOutButton } from '@/auth/SignOutButton';
-import { useAuth } from '@/auth/authContext';
-import { m } from '@/i18n';
-import { DEFAULT_COLORS } from '@/lib/palette';
-import { LogOut } from 'lucide-react';
-import { useState } from 'react';
-import { Avatar, ListPage } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { SecuritySection } from '@/components/settings/SecuritySection';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SignOutButton } from '@/auth/SignOutButton'
+import { useAuth } from '@/auth/authContext'
+import { m } from '@/i18n'
+import { DEFAULT_COLORS } from '@/lib/palette'
+import { LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { Avatar, ListPage } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { SecuritySection } from '@/components/settings/SecuritySection'
+import { SettingsSection } from '@/components/settings/SettingsSection'
 
 function resolveIdentity(auth: ReturnType<typeof useAuth>) {
-  const identity = auth.user;
+  const identity = auth.user
   return {
     name: identity?.name ?? identity?.email ?? m.account_local_identity(),
     email: identity?.email,
     imageUrl: auth.user?.image ?? undefined,
-  };
+  }
 }
 
 function EmailCell({ email }: { email: string | undefined }) {
@@ -35,15 +35,15 @@ function EmailCell({ email }: { email: string | undefined }) {
         </Tooltip>
       )}
     </td>
-  );
+  )
 }
 
 /** Renders the signed-in person's identity and personal security controls outside company data. */
 export function AccountView() {
-  const auth = useAuth();
-  const { name, email, imageUrl } = resolveIdentity(auth);
-  const [passwordOpen, setPasswordOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const auth = useAuth()
+  const { name, email, imageUrl } = resolveIdentity(auth)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   return (
     <ListPage title={m.account_title()} wide>
@@ -120,5 +120,5 @@ export function AccountView() {
         />
       </div>
     </ListPage>
-  );
+  )
 }

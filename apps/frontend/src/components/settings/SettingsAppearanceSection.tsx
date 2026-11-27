@@ -1,10 +1,10 @@
-import { m } from '@/i18n';
-import { buildLabels, buildLabelOptions } from '@/lib/metadata';
-import { SegmentedControl, SwitchField } from '@/components/common/ui';
-import { SettingsSection } from './SettingsSection';
+import { m } from '@/i18n'
+import { buildLabels, buildLabelOptions } from '@/lib/metadata'
+import { SegmentedControl, SwitchField } from '@/components/common/ui'
+import { SettingsSection } from './SettingsSection'
 
-import type { StoreState } from '@/store/useStore';
-import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILISATION_MESSAGES } from './settingsLabels';
+import type { StoreState } from '@/store/useStore'
+import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILISATION_MESSAGES } from './settingsLabels'
 /** Edits this device's theme, bar-label and utilisation-display preferences. */
 export function SettingsAppearanceSection({
   barLabelPrefs: barLabelPreferences,
@@ -15,13 +15,13 @@ export function SettingsAppearanceSection({
   setTheme,
   disciplinesEnabled,
 }: {
-  barLabelPrefs: StoreState['barLabelPrefs'];
-  setBarLabelPref: StoreState['setBarLabelPref'];
-  utilisationPrefs: StoreState['utilisationPrefs'];
-  setUtilisationPref: StoreState['setUtilisationPref'];
-  theme: StoreState['theme'];
-  setTheme: StoreState['setTheme'];
-  disciplinesEnabled: boolean;
+  barLabelPrefs: StoreState['barLabelPrefs']
+  setBarLabelPref: StoreState['setBarLabelPref']
+  utilisationPrefs: StoreState['utilisationPrefs']
+  setUtilisationPref: StoreState['setUtilisationPref']
+  theme: StoreState['theme']
+  setTheme: StoreState['setTheme']
+  disciplinesEnabled: boolean
 }) {
   return (
     <>
@@ -67,5 +67,5 @@ export function SettingsAppearanceSection({
         />
       </SettingsSection>
     </>
-  );
+  )
 }

@@ -1,65 +1,65 @@
-import { useId, useMemo, useState, useLayoutEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useStore } from '@/store/useStore';
-import { hasExternalResourcesEnabled, hasPlaceholdersEnabled } from '@/store/selectors';
-import { useActiveScopedData } from '@/store/useScopedData';
-import { m } from '@/i18n';
-import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from './ui/command';
-import { cn } from '@/lib/cn';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
-import { buildPaletteItems } from './buildPaletteItems';
-import type { PaletteItem } from './buildPaletteItems';
-import { useVisibleRoutes } from './useVisibleRoutes';
-import { FieldError } from '@/components/ui/field';
-import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput';
+import { useId, useMemo, useState, useLayoutEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useStore } from '@/store/useStore'
+import { hasExternalResourcesEnabled, hasPlaceholdersEnabled } from '@/store/selectors'
+import { useActiveScopedData } from '@/store/useScopedData'
+import { m } from '@/i18n'
+import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from './ui/command'
+import { cn } from '@/lib/cn'
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
+import { buildPaletteItems } from './buildPaletteItems'
+import type { PaletteItem } from './buildPaletteItems'
+import { useVisibleRoutes } from './useVisibleRoutes'
+import { FieldError } from '@/components/ui/field'
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput'
 
 function groupPaletteItems(items: PaletteItem[]) {
-  const sections: { title: string; items: PaletteItem[] }[] = [];
+  const sections: { title: string; items: PaletteItem[] }[] = []
   for (const item of items) {
-    let section = sections.find((candidate) => candidate.title === item.section);
+    let section = sections.find((candidate) => candidate.title === item.section)
     if (!section) {
-      section = { title: item.section, items: [] };
-      sections.push(section);
+      section = { title: item.section, items: [] }
+      sections.push(section)
     }
-    section.items.push(item);
+    section.items.push(item)
   }
-  return sections;
+  return sections
 }
 
 function useActiveDescendant(input: HTMLInputElement | null, list: HTMLDivElement | null) {
   useLayoutEffect(() => {
-    if (!input || !list) return;
+    if (!input || !list) return
     const sync = () => {
-      const activeId = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]')?.id;
-      if (activeId) input.setAttribute('aria-activedescendant', activeId);
-      else input.removeAttribute('aria-activedescendant');
-    };
-    const observer = new MutationObserver(sync);
+      const activeId = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]')?.id
+      if (activeId) input.setAttribute('aria-activedescendant', activeId)
+      else input.removeAttribute('aria-activedescendant')
+    }
+    const observer = new MutationObserver(sync)
     observer.observe(list, {
       attributes: true,
       attributeFilter: ['aria-selected'],
       childList: true,
       subtree: true,
-    });
-    sync();
-    return () => observer.disconnect();
-  }, [input, list]);
+    })
+    sync()
+    return () => observer.disconnect()
+  }, [input, list])
 }
 
 function usePaletteItems(query: string, onClose: () => void) {
-  const navigate = useNavigate();
-  const goToToday = useStore((state) => state.goToToday);
-  const goToDate = useStore((state) => state.goToDate);
-  const jumpToResource = useStore((state) => state.jumpToResource);
-  const setFilters = useStore((state) => state.setFilters);
-  const data = useActiveScopedData();
+  const navigate = useNavigate()
+  const goToToday = useStore((state) => state.goToToday)
+  const goToDate = useStore((state) => state.goToDate)
+  const jumpToResource = useStore((state) => state.jumpToResource)
+  const setFilters = useStore((state) => state.setFilters)
+  const data = useActiveScopedData()
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
-  );
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId)
+  )
   const externalEnabled = useStore((state) =>
-    hasExternalResourcesEnabled(state.data, state.activeCompanyId),
-  );
-  const routes = useVisibleRoutes();
+    hasExternalResourcesEnabled(state.data, state.activeCompanyId)
+  )
+  const routes = useVisibleRoutes()
   return useMemo(
     () =>
       buildPaletteItems({
@@ -87,8 +87,8 @@ function usePaletteItems(query: string, onClose: () => void) {
       jumpToResource,
       setFilters,
       onClose,
-    ],
-  );
+    ]
+  )
 }
 
 function PaletteResults({
@@ -98,11 +98,11 @@ function PaletteResults({
   setListElement,
   query,
 }: {
-  items: PaletteItem[];
-  sections: { title: string; items: PaletteItem[] }[];
-  activeValue: string;
-  setListElement: (element: HTMLDivElement | null) => void;
-  query: string;
+  items: PaletteItem[]
+  sections: { title: string; items: PaletteItem[] }[]
+  activeValue: string
+  setListElement: (element: HTMLDivElement | null) => void
+  query: string
 }) {
   return (
     <CommandList ref={setListElement} label={m.palette_results_label()}>
@@ -125,7 +125,7 @@ function PaletteResults({
                 <span
                   className={cn(
                     'shrink-0 truncate text-xs',
-                    item.id === activeValue ? 'text-muted-foreground' : 'text-faint',
+                    item.id === activeValue ? 'text-muted-foreground' : 'text-faint'
                   )}
                 >
                   {item.sublabel}
@@ -136,7 +136,7 @@ function PaletteResults({
         </CommandGroup>
       ))}
     </CommandList>
-  );
+  )
 }
 
 /** Renders the command palette and manages its active result and search state. */
@@ -146,38 +146,38 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // jump targets, their schedule row is hidden, so jumping to it would scroll to nothing.
   // Active Internal projects remain searchable. Internal activities open the management list.
 
-  const [query, setQuery] = useState('');
-  const [queryTooLong, setQueryTooLong] = useState(false);
-  const queryErrorId = useId();
+  const [query, setQuery] = useState('')
+  const [queryTooLong, setQueryTooLong] = useState(false)
+  const queryErrorId = useId()
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
   // know which row is active so we can drive the input's `aria-activedescendant` (see below); cmdk
   // routes its own pointer/keyboard moves through onValueChange back into this state.
-  const [activeValue, setActiveValue] = useState('');
+  const [activeValue, setActiveValue] = useState('')
 
   // Portal-backed cmdk nodes arrive after this component's first commit. Callback-ref state makes
   // their availability an explicit effect dependency for the active-descendant repair below.
-  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
-  const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
+  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null)
+  const [listElement, setListElement] = useState<HTMLDivElement | null>(null)
   // Palette filtering depends on data and the query, not the changing active-result value, so pointer navigation must not rebuild search results.
-  const items: PaletteItem[] = usePaletteItems(query, onClose);
+  const items: PaletteItem[] = usePaletteItems(query, onClose)
 
   // Controlled cmdk selection does not reliably publish aria-activedescendant. Mirror the selected option's actual DOM id onto the focused input, observing list selection changes because cmdk can update without rendering this component.
-  useActiveDescendant(inputElement, listElement);
+  useActiveDescendant(inputElement, listElement)
 
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) onClose()
       }}
     >
       <DialogContent
         data-testid="command-palette"
         overlayProps={{
           'data-testid': 'command-palette-overlay',
-          onMouseDown: (event) => {
-            event.preventDefault();
-            onClose();
+          'onMouseDown': (event) => {
+            event.preventDefault()
+            onClose()
           },
         }}
         showCloseButton={false}
@@ -215,11 +215,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 placeholder={m.palette_search_placeholder()}
                 value={query}
                 onValueChange={(value) => {
-                  setQuery(value);
-                  if (value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setQueryTooLong(false);
+                  setQuery(value)
+                  if (value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setQueryTooLong(false)
                 }}
                 onPaste={(event) => {
-                  setQueryTooLong(rejectOverlongQueryPaste(event));
+                  setQueryTooLong(rejectOverlongQueryPaste(event))
                 }}
                 aria-invalid={queryTooLong || undefined}
                 aria-describedby={queryTooLong ? queryErrorId : undefined}
@@ -245,5 +245,5 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         </Command>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

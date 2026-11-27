@@ -1,7 +1,7 @@
-import factory from '@adonisjs/lucid/factories';
-import Resource from '#models/resource';
-import { DateTime } from 'luxon';
-import type { Weekday } from '@capacitylens/shared/types/entities';
+import factory from '@adonisjs/lucid/factories'
+import Resource from '#models/resource'
+import { DateTime } from 'luxon'
+import type { Weekday } from '@capacitylens/shared/types/entities'
 
 /** Resources rows are company-scoped: merge `companyId` and the parent ids the test needs. */
 export const ResourceFactory = factory
@@ -19,4 +19,4 @@ export const ResourceFactory = factory
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   }))
-  .build();
+  .build()

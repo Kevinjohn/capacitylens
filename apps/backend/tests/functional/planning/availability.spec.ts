@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
-import { test } from '@japa/runner';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { readState } from '#tests/helpers/state_fixture';
+import { randomUUID } from 'node:crypto'
+import { test } from '@japa/runner'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { readState } from '#tests/helpers/state_fixture'
 import {
   companyId,
   configureAuth,
@@ -10,24 +10,24 @@ import {
   intentSession,
   loginAsMember,
   validationSentence,
-} from '#tests/functional/planning/helpers';
-import { mutationInput } from '#tests/helpers/planning/mutations';
+} from '#tests/functional/planning/helpers'
+import { mutationInput } from '#tests/helpers/planning/mutations'
 
 test.group('typed resource availability', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await resetPlanningFixture();
-  });
+    await resetPlanningFixture()
+  })
 
   test('keeps a retained allocation editable after a later resource boundary', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const before = await readState(companyId, true);
-    const allocation = before.allocations[0]!;
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const before = await readState(companyId, true)
+    const allocation = before.allocations[0]!
     const boundary = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -39,9 +39,9 @@ test.group('typed resource availability', (group) => {
           changes: { firstAvailableDate: '2027-01-01' },
         })
       )
-      .send();
-    boundary.assertStatus(200);
-    assert.isTrue(allocation.endDate < '2027-01-01');
+      .send()
+    boundary.assertStatus(200)
+    assert.isTrue(allocation.endDate < '2027-01-01')
 
     const edit = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -54,24 +54,24 @@ test.group('typed resource availability', (group) => {
           changes: { note: 'Keep context' },
         })
       )
-      .send();
-    edit.assertStatus(200);
-    const afterEdit = await readState(companyId, true);
-    const saved = afterEdit.allocations.find((row) => row.id === allocation.id)!;
-    assert.equal(saved.note, 'Keep context');
-    assert.equal(saved.startDate, allocation.startDate);
-    assert.equal(saved.endDate, allocation.endDate);
-  });
+      .send()
+    edit.assertStatus(200)
+    const afterEdit = await readState(companyId, true)
+    const saved = afterEdit.allocations.find((row) => row.id === allocation.id)!
+    assert.equal(saved.note, 'Keep context')
+    assert.equal(saved.startDate, allocation.startDate)
+    assert.equal(saved.endDate, allocation.endDate)
+  })
 
   test('uses company working days unless an allocation includes non-working days', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const data = await readState(companyId, true);
-    const resourceId = newAllocation(data).resourceId;
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const data = await readState(companyId, true)
+    const resourceId = newAllocation(data).resourceId
     const calendar = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -79,8 +79,8 @@ test.group('typed resource availability', (group) => {
       .json(
         mutationInput(0, { operation: 'settings.update', changes: { workingDays: [1, 2, 3, 4] } })
       )
-      .send();
-    calendar.assertStatus(200);
+      .send()
+    calendar.assertStatus(200)
     const bounded = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -92,21 +92,21 @@ test.group('typed resource availability', (group) => {
           changes: { lastAvailableDate: '2026-06-04' },
         })
       )
-      .send();
-    bounded.assertStatus(200);
+      .send()
+    bounded.assertStatus(200)
     const candidate = {
       ...newAllocation(data),
       resourceId,
       startDate: '2026-06-04',
       endDate: '2026-06-05',
-    };
+    }
     const ordinary = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(2, { operation: 'allocation.create', allocation: candidate }))
-      .send();
-    ordinary.assertStatus(200);
+      .send()
+    ordinary.assertStatus(200)
     const inclusive = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -117,11 +117,11 @@ test.group('typed resource availability', (group) => {
           allocation: { ...candidate, id: randomUUID(), ignoreWorkingDays: true },
         })
       )
-      .send();
-    inclusive.assertStatus(422);
-    assert.isString(validationSentence(inclusive));
-    const after = await readState(companyId, true);
-    assert.isDefined(after.allocations.find((row) => row.id === candidate.id));
+      .send()
+    inclusive.assertStatus(422)
+    assert.isString(validationSentence(inclusive))
+    const after = await readState(companyId, true)
+    assert.isDefined(after.allocations.find((row) => row.id === candidate.id))
     assert.isUndefined(
       after.allocations.find(
         (row) =>
@@ -129,18 +129,18 @@ test.group('typed resource availability', (group) => {
           row.startDate === candidate.startDate &&
           row.resourceId === resourceId
       )
-    );
-  });
+    )
+  })
 
   test('rolls back an allocation group when an occurrence exceeds availability', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const data = await readState(companyId, true);
-    const resourceId = newAllocation(data).resourceId;
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const data = await readState(companyId, true)
+    const resourceId = newAllocation(data).resourceId
     const bounded = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -152,15 +152,15 @@ test.group('typed resource availability', (group) => {
           changes: { lastAvailableDate: '2026-06-01' },
         })
       )
-      .send();
-    bounded.assertStatus(200);
-    const before = await readState(companyId, true);
+      .send()
+    bounded.assertStatus(200)
+    const before = await readState(companyId, true)
     const inside = {
       ...newAllocation(data),
       resourceId,
       startDate: '2026-06-01',
       endDate: '2026-06-01',
-    };
+    }
     const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -172,9 +172,9 @@ test.group('typed resource availability', (group) => {
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-08' },
         })
       )
-      .send();
-    refused.assertStatus(422);
-    assert.isString(validationSentence(refused));
-    assert.deepEqual(await readState(companyId, true), before);
-  });
-});
+      .send()
+    refused.assertStatus(422)
+    assert.isString(validationSentence(refused))
+    assert.deepEqual(await readState(companyId, true), before)
+  })
+})

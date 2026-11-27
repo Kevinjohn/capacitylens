@@ -1,114 +1,114 @@
-import vine from '@vinejs/vine';
-import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
-import { isIsoTimestamp } from '@kevinjohn/adonisjs-lucid-checked-columns';
-import { isWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays';
-import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
-import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
+import vine from '@vinejs/vine'
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates'
+import { isIsoTimestamp } from '@kevinjohn/adonisjs-lucid-checked-columns'
+import { isWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays'
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
+import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl'
 import {
   ENTITY_ID_PATTERN,
   findTextProblem,
   isAcceptedColor,
-} from '@capacitylens/shared/types/entityFieldRules';
-import { normalizeUserText } from '@capacitylens/shared/lib/strings';
+} from '@capacitylens/shared/types/entityFieldRules'
+import { normalizeUserText } from '@capacitylens/shared/lib/strings'
 
 // Vine field builders and intent-matching helpers shared by every planning validator. Each field
 // rule is written once in `@capacitylens/shared/types/entityFieldRules`, which the merged-row check
 // in `row.ts` and the company import also use; the request schemas keep the sentences they report.
 
-export const uuid = () => vine.string().uuid();
+export const uuid = () => vine.string().uuid()
 // Existing rows retain their stable identifiers during the transport transition.
-export const entityId = () => vine.string().regex(ENTITY_ID_PATTERN);
-export const number = () => vine.number({ strict: true });
-export const boolean = () => vine.boolean({ strict: true });
+export const entityId = () => vine.string().regex(ENTITY_ID_PATTERN)
+export const number = () => vine.number({ strict: true })
+export const boolean = () => vine.boolean({ strict: true })
 export const userText = (multiline = false, required = false) =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
-      if (typeof value !== 'string') return;
-      const problem = findTextProblem(value, multiline);
+      if (typeof value !== 'string') return
+      const problem = findTextProblem(value, multiline)
       if (problem === 'unsupported') {
-        field.report('Text contains unsupported characters.', 'text', field);
-        return;
+        field.report('Text contains unsupported characters.', 'text', field)
+        return
       }
       if (required && normalizeUserText(value.normalize('NFC'), { multiline }).length === 0) {
-        field.report('Text is required.', 'text', field);
-        return;
+        field.report('Text is required.', 'text', field)
+        return
       }
-      if (problem === 'tooLong') field.report('Text is too long.', 'text', field);
+      if (problem === 'tooLong') field.report('Text is too long.', 'text', field)
     })()
-  );
-export const nullableUserText = (multiline = false) => userText(multiline).nullable();
-export const nameText = () => userText(false, true);
-export const nullableId = () => entityId().nullable();
+  )
+export const nullableUserText = (multiline = false) => userText(multiline).nullable()
+export const nameText = () => userText(false, true)
+export const nullableId = () => entityId().nullable()
 export const calendarDate = () =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
-      if (typeof value === 'string' && isValidISODate(value)) return;
-      field.report('The {{ field }} field must be a valid calendar date.', 'date', field);
+      if (typeof value === 'string' && isValidISODate(value)) return
+      field.report('The {{ field }} field must be a valid calendar date.', 'date', field)
     })()
-  );
+  )
 export const revision = () =>
   number()
     .min(0)
     .use(
       vine.createRule((value, _options, field) => {
-        if (Number.isSafeInteger(value)) return;
-        field.report('The {{ field }} field must be a safe integer.', 'safeInteger', field);
+        if (Number.isSafeInteger(value)) return
+        field.report('The {{ field }} field must be a safe integer.', 'safeInteger', field)
       })()
-    );
-export const hours = () => number().min(0).max(MAX_HOURS_PER_DAY);
-const weekday = vine.enum([0, 1, 2, 3, 4, 5, 6] as const);
+    )
+export const hours = () => number().min(0).max(MAX_HOURS_PER_DAY)
+const weekday = vine.enum([0, 1, 2, 3, 4, 5, 6] as const)
 export const presetColor = (allowNeutral = false) =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
-      if (isAcceptedColor(value, { neutral: allowNeutral })) return;
-      field.report('The color must be a preset color.', 'presetColor', field);
+      if (isAcceptedColor(value, { neutral: allowNeutral })) return
+      field.report('The color must be a preset color.', 'presetColor', field)
     })()
-  );
+  )
 export const resourceAvatar = () =>
   vine
     .string()
     .use(
       vine.createRule((value, _options, field) => {
-        const parsed = parseResourceAvatarUrl(value);
-        if (value === null || (parsed !== null && parsed !== undefined)) return;
-        field.report('Avatar URL must be HTTPS without embedded credentials.', 'avatarUrl', field);
+        const parsed = parseResourceAvatarUrl(value)
+        if (value === null || (parsed !== null && parsed !== undefined)) return
+        field.report('Avatar URL must be HTTPS without embedded credentials.', 'avatarUrl', field)
       })()
     )
-    .nullable();
+    .nullable()
 export const weekdays = () =>
   vine.array(weekday).use(
     vine.createRule((value, _options, field) => {
-      if (isWeekdaySet(value)) return;
-      field.report('Weekdays must be distinct values from 0 to 6.', 'weekdays', field);
+      if (isWeekdaySet(value)) return
+      field.report('Weekdays must be distinct values from 0 to 6.', 'weekdays', field)
     })()
-  );
+  )
 
 export const dateRange = vine.createRule((value, _options, field) => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-  const { startDate, endDate } = value as { startDate?: unknown; endDate?: unknown };
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return
+  const { startDate, endDate } = value as { startDate?: unknown; endDate?: unknown }
   if (typeof startDate === 'string' && typeof endDate === 'string' && startDate > endDate) {
-    field.report('The end date must be on or after the start date.', 'dateRange', field);
+    field.report('The end date must be on or after the start date.', 'dateRange', field)
   }
-});
+})
 
 export const hasOperation = (value: unknown, operation: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
-  (value as { operation?: unknown }).operation === operation;
+  (value as { operation?: unknown }).operation === operation
 
 export const hasOperationPrefix = (value: unknown, prefix: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
   typeof (value as { operation?: unknown }).operation === 'string' &&
-  (value as { operation: string }).operation.startsWith(prefix);
+  (value as { operation: string }).operation.startsWith(prefix)
 
 export const hasEntity = (value: unknown, entity: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
-  (value as { entity?: unknown }).entity === entity;
+  (value as { entity?: unknown }).entity === entity
 
 export const meta = () => ({
   mutationId: uuid(),
@@ -124,16 +124,16 @@ export const meta = () => ({
     .string()
     .use(
       vine.createRule((value, _options, field) => {
-        if (isIsoTimestamp(value)) return;
+        if (isIsoTimestamp(value)) return
         field.report(
           'The {{ field }} field must be a UTC timestamp with milliseconds.',
           'timestamp',
           field
-        );
+        )
       })()
     )
     .optional(),
-});
+})
 
 export const requireChanges = (allowedFields: readonly string[]) =>
   vine.createRule((value, _options, field) => {
@@ -142,16 +142,16 @@ export const requireChanges = (allowedFields: readonly string[]) =>
       typeof value === 'object' &&
       Object.keys(value).some((key) => allowedFields.includes(key))
     ) {
-      return;
+      return
     }
-    field.report('At least one writable field is required.', 'emptyChanges', field);
-  })();
+    field.report('At least one writable field is required.', 'emptyChanges', field)
+  })()
 
 const hasKind = (value: unknown, kind: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
-  (value as { kind?: unknown }).kind === kind;
+  (value as { kind?: unknown }).kind === kind
 
 /** A repeat cadence, the wire form of the shared `RepeatPattern`. */
 export const repeatPattern = () =>
@@ -172,27 +172,27 @@ export const repeatPattern = () =>
     ])
     .otherwise((_value, field) =>
       field.report('Unsupported repeat pattern.', 'unsupportedPattern', field)
-    );
+    )
 
 /** A repeat's pattern and its inclusive last start date; the server generates the occurrences. */
-export const repeatRange = () => vine.object({ pattern: repeatPattern(), until: calendarDate() });
+export const repeatRange = () => vine.object({ pattern: repeatPattern(), until: calendarDate() })
 
 /** Later occurrence ids must differ from the id of the first occurrence, held in `property`. */
 export const occurrenceIdsExcludeFirst = (property: 'allocation' | 'timeOff') =>
   vine.createRule((value, _options, field) => {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-    const { occurrenceIds } = value as { occurrenceIds?: unknown };
-    const first = (value as Record<string, unknown>)[property] as { id?: unknown } | undefined;
-    if (!Array.isArray(occurrenceIds) || !occurrenceIds.includes(first?.id)) return;
-    field.report('Entity IDs must be unique.', 'distinctIds', field);
-  })();
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return
+    const { occurrenceIds } = value as { occurrenceIds?: unknown }
+    const first = (value as Record<string, unknown>)[property] as { id?: unknown } | undefined
+    if (!Array.isArray(occurrenceIds) || !occurrenceIds.includes(first?.id)) return
+    field.report('Entity IDs must be unique.', 'distinctIds', field)
+  })()
 
 export const uniqueArrayIds = (property: 'ids' | 'occurrenceIds') =>
   vine.createRule((value, _options, field) => {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-    const ids = (value as Record<string, unknown>)[property];
-    if (!Array.isArray(ids)) return;
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return
+    const ids = (value as Record<string, unknown>)[property]
+    if (!Array.isArray(ids)) return
     if (ids.some((id) => typeof id !== 'string') || new Set(ids).size !== ids.length) {
-      field.report('Entity IDs must be unique.', 'distinctIds', field);
+      field.report('Entity IDs must be unique.', 'distinctIds', field)
     }
-  })();
+  })()

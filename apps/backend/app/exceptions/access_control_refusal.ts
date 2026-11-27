@@ -1,5 +1,5 @@
-import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { errors } from '@kevinjohn/adonisjs-access-control';
+import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+import { errors } from '@kevinjohn/adonisjs-access-control'
 
 // Unlisted exceptions (UNKNOWN_ROLE, INVALID_CONFIG, OWNER_DISABLED, SCOPE_NOT_EMPTY, INVALID_INPUT)
 // are server faults. Product callers validate roles, statuses and targets before calling the
@@ -41,14 +41,14 @@ const refusals: ReadonlyArray<
     errors.E_ACCESS_CONTROL_CONFLICT,
     { status: 409, code: 'E_CONFLICT', error: 'The company changed. Try again.' },
   ],
-];
+]
 
 /** Maps a recognised package exception to its product refusal; returns undefined for anything else, which is a server fault. */
 export function buildAccessRefusal(
   error: unknown
 ): { status: number; body: HttpErrorBody } | undefined {
-  const mapped = refusals.find(([exception]) => error instanceof exception)?.[1];
+  const mapped = refusals.find(([exception]) => error instanceof exception)?.[1]
   return mapped
     ? { status: mapped.status, body: { error: mapped.error, code: mapped.code } }
-    : undefined;
+    : undefined
 }

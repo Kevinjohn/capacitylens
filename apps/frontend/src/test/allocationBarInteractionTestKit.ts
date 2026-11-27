@@ -1,15 +1,15 @@
-import { act } from '@testing-library/react';
-import { requireCreated } from '@/test/requireCreated';
-import type { Allocation } from '@capacitylens/shared/types/entities';
-import { archiveForTest, makeResourceDraft } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import type { BarLayout } from '@/components/scheduler/schedulerModel';
+import { act } from '@testing-library/react'
+import { requireCreated } from '@/test/requireCreated'
+import type { Allocation } from '@capacitylens/shared/types/entities'
+import { archiveForTest, makeResourceDraft } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import type { BarLayout } from '@/components/scheduler/schedulerModel'
 
 /** Lets a committed gesture's typed planning write settle and publish. */
 export async function settlePlanning(): Promise<void> {
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
 }
 
 /** Creates a DOM rectangle with predictable vertical bounds for gesture tests. */
@@ -23,28 +23,28 @@ export const rect = (top: number, bottom: number): DOMRect => ({
   x: 0,
   y: top,
   toJSON: () => ({}),
-});
+})
 
 /** Creates the stored client, project and project activity that interaction tests book against. */
 export async function createActivityScaffold() {
-  const s = useStore.getState();
-  const client = await requireCreated(s.addClient({ name: 'Ferris', color: '#1' }));
+  const s = useStore.getState()
+  const client = await requireCreated(s.addClient({ name: 'Ferris', color: '#1' }))
   const project = await requireCreated(
-    s.addProject({ name: 'P', clientId: client.id, color: '#2' }),
-  );
+    s.addProject({ name: 'P', clientId: client.id, color: '#2' })
+  )
   const activity = await requireCreated(
-    s.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
-  );
-  return { client, project, activity };
+    s.addActivity({ name: 'Wires', kind: 'project', projectId: project.id })
+  )
+  return { client, project, activity }
 }
 
 /** Creates a stored allocation with optional field overrides for interaction tests. */
 export async function createAllocation(overrides: Partial<Allocation> = {}): Promise<Allocation> {
-  const s = useStore.getState();
-  const { activity: t } = await createActivityScaffold();
+  const s = useStore.getState()
+  const { activity: t } = await createActivityScaffold()
   const r = await requireCreated(
-    s.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
-  );
+    s.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' }))
+  )
   return requireCreated(
     await s.addAllocation({
       resourceId: r.id,
@@ -54,30 +54,30 @@ export async function createAllocation(overrides: Partial<Allocation> = {}): Pro
       hoursPerDay: 8,
       status: 'confirmed',
       ...overrides,
-    }),
-  );
+    })
+  )
 }
 
 /** Creates a visible allocation whose archived activity is excluded from capacity signals. */
 export async function createVisibleAllocationWithHiddenCapacity(): Promise<Allocation> {
-  const st = useStore.getState();
-  const hiddenClient = await requireCreated(st.addClient({ name: 'Archived client', color: '#1' }));
+  const st = useStore.getState()
+  const hiddenClient = await requireCreated(st.addClient({ name: 'Archived client', color: '#1' }))
   const hiddenProject = await requireCreated(
-    st.addProject({ name: 'Archived work', clientId: hiddenClient.id, color: '#2' }),
-  );
+    st.addProject({ name: 'Archived work', clientId: hiddenClient.id, color: '#2' })
+  )
   const hiddenActivity = await requireCreated(
-    st.addActivity({ name: 'Hidden work', kind: 'project', projectId: hiddenProject.id }),
-  );
-  const visibleClient = await requireCreated(st.addClient({ name: 'Visible client', color: '#3' }));
+    st.addActivity({ name: 'Hidden work', kind: 'project', projectId: hiddenProject.id })
+  )
+  const visibleClient = await requireCreated(st.addClient({ name: 'Visible client', color: '#3' }))
   const visibleProject = await requireCreated(
-    st.addProject({ name: 'Visible work', clientId: visibleClient.id, color: '#4' }),
-  );
+    st.addProject({ name: 'Visible work', clientId: visibleClient.id, color: '#4' })
+  )
   const visibleActivity = await requireCreated(
-    st.addActivity({ name: 'Visible work', kind: 'project', projectId: visibleProject.id }),
-  );
+    st.addActivity({ name: 'Visible work', kind: 'project', projectId: visibleProject.id })
+  )
   const resource = await requireCreated(
-    st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#5' })),
-  );
+    st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#5' }))
+  )
   await st.addAllocation({
     resourceId: resource.id,
     activityId: hiddenActivity.id,
@@ -85,7 +85,7 @@ export async function createVisibleAllocationWithHiddenCapacity(): Promise<Alloc
     endDate: '2026-06-03',
     hoursPerDay: 8,
     status: 'confirmed',
-  });
+  })
   const visible = await requireCreated(
     await st.addAllocation({
       resourceId: resource.id,
@@ -94,10 +94,10 @@ export async function createVisibleAllocationWithHiddenCapacity(): Promise<Alloc
       endDate: '2026-06-02',
       hoursPerDay: 4,
       status: 'confirmed',
-    }),
-  );
-  await archiveForTest('clients', hiddenClient.id);
-  return visible;
+    })
+  )
+  await archiveForTest('clients', hiddenClient.id)
+  return visible
 }
 
 /** Wraps an allocation in the bar layout expected by interaction tests. */
@@ -109,24 +109,24 @@ export const barFor = (allocation: Allocation): BarLayout => ({
   color: '#3b82f6',
   label: 'Wires',
   external: false,
-});
+})
 
 /** Reads a saved allocation and fails the test when it is missing. */
 export function getStoredAllocation(allocationId: Allocation['id']): Allocation {
   const allocation = useStore
     .getState()
-    .data.allocations.find((candidate) => candidate.id === allocationId);
-  if (!allocation) throw new Error(`Expected allocation ${allocationId} to remain in the store.`);
-  return allocation;
+    .data.allocations.find((candidate) => candidate.id === allocationId)
+  if (!allocation) throw new Error(`Expected allocation ${allocationId} to remain in the store.`)
+  return allocation
 }
 
 /** Reads the current screen-reader announcement and fails when absent. */
 export function getSrAnnouncement() {
-  const announcement = useStore.getState().srAnnouncement;
+  const announcement = useStore.getState().srAnnouncement
   if (!announcement) {
-    throw new Error('Expected the allocation edit to produce a screen-reader announcement.');
+    throw new Error('Expected the allocation edit to produce a screen-reader announcement.')
   }
-  return announcement;
+  return announcement
 }
 
 /** Creates predictable lane bounds for pointer interaction tests. */
@@ -140,4 +140,4 @@ export const laneRect = (top: number, bottom: number): DOMRect => ({
   x: 0,
   y: top,
   toJSON: () => ({}),
-});
+})

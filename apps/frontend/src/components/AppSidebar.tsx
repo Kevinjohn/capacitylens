@@ -1,10 +1,10 @@
-import { matchPath, NavLink, useLocation } from 'react-router-dom';
-import { useAuth } from '@/auth/authContext';
-import { DEFAULT_COLORS } from '@/lib/palette';
-import { Avatar } from './common/ui';
-import { ACCOUNT_LINK, HELP_LINK } from '@/lib/navLinks';
-import { ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
-import type { NavigationLinkDefinition } from '@/lib/navLinks';
+import { matchPath, NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '@/auth/authContext'
+import { DEFAULT_COLORS } from '@/lib/palette'
+import { Avatar } from './common/ui'
+import { ACCOUNT_LINK, HELP_LINK } from '@/lib/navLinks'
+import { ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors'
+import type { NavigationLinkDefinition } from '@/lib/navLinks'
 import {
   Sidebar,
   SidebarContent,
@@ -19,33 +19,33 @@ import {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
-} from './ui/sidebar';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { m } from '@/i18n';
-import { CHROME_SPACING } from './scheduler/layout';
-import type React from 'react';
-import { APP_NAME } from '@capacitylens/shared/brand';
+} from './ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
+import { m } from '@/i18n'
+import { CHROME_SPACING } from './scheduler/layout'
+import type React from 'react'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 interface AppSidebarProps {
-  adminLinks: NavigationLinkDefinition[];
-  navLinks: NavigationLinkDefinition[];
-  open: boolean;
+  adminLinks: NavigationLinkDefinition[]
+  navLinks: NavigationLinkDefinition[]
+  open: boolean
 }
 
 /** CapacityLens navigation composed from the standard ShadCN Sidebar primitives. */
 export function AppSidebar({ adminLinks, navLinks, open }: AppSidebarProps) {
-  const { pathname } = useLocation();
-  const { isMobile, openMobile, setOpenMobile } = useSidebar();
-  const expanded = isMobile ? openMobile : open;
-  const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
+  const { pathname } = useLocation()
+  const { isMobile, openMobile, setOpenMobile } = useSidebar()
+  const expanded = isMobile ? openMobile : open
+  const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu()
   // On mobile the sidebar is an overlay sheet; following a link must dismiss it or the destination
   // stays hidden behind the nav. On desktop the sidebar is persistent, so this is a no-op.
   const closeOnMobile = () => {
-    if (isMobile) setOpenMobile(false);
-  };
+    if (isMobile) setOpenMobile(false)
+  }
 
   // Sidebar spacing flows through shared CSS variables so menu groups use one rhythm while icon-rail buttons retain square geometry.
-  const spacing = CHROME_SPACING;
+  const spacing = CHROME_SPACING
 
   return (
     <Sidebar
@@ -70,15 +70,15 @@ export function AppSidebar({ adminLinks, navLinks, open }: AppSidebarProps) {
 
       <SidebarRail aria-hidden="true" />
     </Sidebar>
-  );
+  )
 }
 
 function SidebarHeaderContent({
   expanded,
   toggleLabel,
 }: {
-  expanded: boolean;
-  toggleLabel: string;
+  expanded: boolean
+  toggleLabel: string
 }) {
   return (
     <SidebarHeader className="flex-row items-center">
@@ -95,7 +95,7 @@ function SidebarHeaderContent({
         {APP_NAME}
       </div>
     </SidebarHeader>
-  );
+  )
 }
 
 function SidebarNavigation({
@@ -104,10 +104,10 @@ function SidebarNavigation({
   pathname,
   onNavigate,
 }: {
-  navLinks: NavigationLinkDefinition[];
-  adminLinks: NavigationLinkDefinition[];
-  pathname: string;
-  onNavigate: () => void;
+  navLinks: NavigationLinkDefinition[]
+  adminLinks: NavigationLinkDefinition[]
+  pathname: string
+  onNavigate: () => void
 }) {
   return (
     <SidebarContent>
@@ -132,15 +132,15 @@ function SidebarNavigation({
         )}
       </nav>
     </SidebarContent>
-  );
+  )
 }
 
 function SidebarAccountFooter({
   onNavigate,
   pathname,
 }: {
-  onNavigate: () => void;
-  pathname: string;
+  onNavigate: () => void
+  pathname: string
 }) {
   return (
     <SidebarFooter>
@@ -150,11 +150,11 @@ function SidebarAccountFooter({
         <SessionMenuItem onNavigate={onNavigate} pathname={pathname} />
       </SidebarMenu>
     </SidebarFooter>
-  );
+  )
 }
 
 function HelpMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathname: string }) {
-  const HelpIcon = HELP_LINK.icon;
+  const HelpIcon = HELP_LINK.icon
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -172,7 +172,7 @@ function HelpMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathna
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  )
 }
 
 // Share destination markup so primary and administration links keep matching and tour anchors consistent.
@@ -181,15 +181,15 @@ function NavMenu({
   onNavigate,
   pathname,
 }: {
-  links: NavigationLinkDefinition[];
-  onNavigate: () => void;
-  pathname: string;
+  links: NavigationLinkDefinition[]
+  onNavigate: () => void
+  pathname: string
 }) {
   return (
     <SidebarMenu>
       {links.map(({ to, label, icon: NavIcon }) => {
-        const text = label();
-        const isActive = matchPath({ path: to, end: to === '/' }, pathname) !== null;
+        const text = label()
+        const isActive = matchPath({ path: to, end: to === '/' }, pathname) !== null
         return (
           <SidebarMenuItem key={to}>
             <SidebarMenuButton asChild isActive={isActive} tooltip={text}>
@@ -199,17 +199,17 @@ function NavMenu({
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
-        );
+        )
       })}
     </SidebarMenu>
-  );
+  )
 }
 
 function SessionMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathname: string }) {
-  const { user } = useAuth();
+  const { user } = useAuth()
 
-  const name = user?.name ?? user?.email ?? m.settings_signed_in_unknown();
-  const imageUrl = user?.image ?? undefined;
+  const name = user?.name ?? user?.email ?? m.settings_signed_in_unknown()
+  const imageUrl = user?.image ?? undefined
 
   return (
     <SidebarMenuItem>
@@ -234,5 +234,5 @@ function SessionMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pat
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  )
 }

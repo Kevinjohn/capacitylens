@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { resolveCapacityOverviewAccessDecision } from './capacityOverviewAccess';
+import { describe, expect, it } from 'vitest'
+import { resolveCapacityOverviewAccessDecision } from './capacityOverviewAccess'
 
 describe('resolveCapacityOverviewAccessDecision', () => {
   it('denies access when no company role applies', () => {
@@ -8,9 +8,9 @@ describe('resolveCapacityOverviewAccessDecision', () => {
         role: null,
         status: 'not-applicable',
         access: 'owner_admin',
-      }),
-    ).toBe('denied');
-  });
+      })
+    ).toBe('denied')
+  })
 
   it('waits while an authenticated role is unresolved', () => {
     expect(
@@ -18,9 +18,9 @@ describe('resolveCapacityOverviewAccessDecision', () => {
         role: 'viewer',
         status: 'pending',
         access: 'everyone',
-      }),
-    ).toBe('pending');
-  });
+      })
+    ).toBe('pending')
+  })
 
   it.each([
     ['owner', 'owner_admin', 'allowed'],
@@ -31,9 +31,9 @@ describe('resolveCapacityOverviewAccessDecision', () => {
     ['viewer', 'everyone', 'allowed'],
   ] as const)('resolves %s under %s as %s', (role, access, expected) => {
     expect(resolveCapacityOverviewAccessDecision({ role, status: 'resolved', access })).toBe(
-      expected,
-    );
-  });
+      expected
+    )
+  })
 
   it('fails closed when role verification is unavailable', () => {
     expect(
@@ -41,7 +41,7 @@ describe('resolveCapacityOverviewAccessDecision', () => {
         role: 'viewer',
         status: 'unavailable',
         access: 'everyone',
-      }),
-    ).toBe('denied');
-  });
-});
+      })
+    ).toBe('denied')
+  })
+})

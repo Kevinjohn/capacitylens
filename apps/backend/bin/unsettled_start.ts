@@ -4,15 +4,15 @@
  * then drains and Node would exit 0 having run nothing.
  */
 export function failUnsettledStart<T>(start: Promise<T>, entry: string) {
-  let settled = false;
+  let settled = false
   process.once('beforeExit', () => {
-    if (settled) return;
-    process.exitCode = 1;
+    if (settled) return
+    process.exitCode = 1
     console.error(
       `${entry} stopped before the application started: a container resolution never settled.`
-    );
-  });
+    )
+  })
   return start.finally(() => {
-    settled = true;
-  });
+    settled = true
+  })
 }

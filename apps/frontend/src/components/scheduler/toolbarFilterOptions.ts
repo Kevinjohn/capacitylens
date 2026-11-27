@@ -1,27 +1,27 @@
-import type { AppData } from '@capacitylens/shared/types/entities';
-import { byName, createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
-import { compareByDisciplineOrder } from '@/store/selectors';
-import { formatProjectLabel } from '@/components/common/projectOptions';
+import type { AppData } from '@capacitylens/shared/types/entities'
+import { byName, createClientProjectDisplayNameComparator } from '@/lib/displayOrder'
+import { compareByDisciplineOrder } from '@/store/selectors'
+import { formatProjectLabel } from '@/components/common/projectOptions'
 
 /** One entity option in a {@link FilterSelect}, the stored id and the text the menu shows. */
 export interface FilterOption {
-  id: string;
-  label: string;
+  id: string
+  label: string
   /** Optional client context rendered with lower visual emphasis for project options. */
-  contextLabel?: string;
-  primaryLabel?: string;
+  contextLabel?: string
+  primaryLabel?: string
 }
 
 /** Builds scoped filter choices from active projects, activities, and resources. */
 export function buildFilterOptions(
   data: AppData,
   selectedClientId: string | null = null,
-  selectedProjectId: string | null = null,
+  selectedProjectId: string | null = null
 ) {
   const clients = [...data.clients].sort(
-    (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b),
-  );
-  const clientNames = new Map(clients.map((client) => [client.id, client.name]));
+    (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b)
+  )
+  const clientNames = new Map(clients.map((client) => [client.id, client.name]))
   return {
     disciplineOptions: [...data.disciplines]
       .sort(compareByDisciplineOrder)
@@ -35,16 +35,16 @@ export function buildFilterOptions(
         (project) =>
           selectedClientId === null ||
           project.clientId === selectedClientId ||
-          project.id === selectedProjectId,
+          project.id === selectedProjectId
       )
       .sort(createClientProjectDisplayNameComparator(data.clients))
       .map((project) => {
-        const clientName = clientNames.get(project.clientId);
+        const clientName = clientNames.get(project.clientId)
         return {
           id: project.id,
           label: formatProjectLabel(project.name, clientName),
           ...(clientName ? { contextLabel: `${clientName} /`, primaryLabel: project.name } : {}),
-        };
+        }
       }),
 
     internalActivities: data.activities
@@ -53,5 +53,5 @@ export function buildFilterOptions(
     allProjectsActivities: data.activities
       .filter((activity) => activity.kind === 'allProjects')
       .sort(byName),
-  };
+  }
 }

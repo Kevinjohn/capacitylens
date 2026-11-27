@@ -1,6 +1,6 @@
-import { test } from '@japa/runner';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import db from '@adonisjs/lucid/services/db';
+import { test } from '@japa/runner'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import db from '@adonisjs/lucid/services/db'
 import {
   captureEnvironment,
   setEnvironment,
@@ -9,126 +9,126 @@ import {
   requestSignedOutSession,
   responseStatus,
   signIn,
-} from '#tests/helpers/auth/native_auth_limits';
+} from '#tests/helpers/auth/native_auth_limits'
 
 test.group('native auth and API rate limits', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await db.from('rate_limits').delete();
-    const bootedTrust = httpConfig().trustProxy;
+    await db.from('rate_limits').delete()
+    const bootedTrust = httpConfig().trustProxy
     return () => {
-      httpConfig().trustProxy = bootedTrust;
-    };
-  });
+      httpConfig().trustProxy = bootedTrust
+    }
+  })
 
   test('configured API limit returns JSON 429 while health stays exempt', async ({
     client,
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
-    setEnvironment('CAPACITYLENS_RATE_LIMIT', '2');
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
+    setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
 
     for (const remaining of ['1', '0']) {
-      const counted = await requestSignedOutSession(client);
-      assert.equal(counted.status(), 401);
-      assert.equal(counted.header('x-ratelimit-limit'), '2');
-      assert.equal(counted.header('x-ratelimit-remaining'), remaining);
+      const counted = await requestSignedOutSession(client)
+      assert.equal(counted.status(), 401)
+      assert.equal(counted.header('x-ratelimit-limit'), '2')
+      assert.equal(counted.header('x-ratelimit-remaining'), remaining)
     }
-    const limited = await requestSignedOutSession(client);
-    assert.equal(limited.status(), 429);
-    assert.deepEqual(limited.body(), { error: 'Rate limit exceeded.' });
-    assert.equal(limited.header('x-ratelimit-limit'), '2');
-    assert.equal(limited.header('x-ratelimit-remaining'), '0');
-    assert.match(String(limited.header('retry-after')), /^[1-9]\d*$/);
-    assert.isFalse(Number.isNaN(Date.parse(String(limited.header('x-ratelimit-reset')))));
-    const persistedLimits = await db.from('rate_limits').select('key', 'points');
-    assert.isNotEmpty(persistedLimits, 'the native database limiter records the client bucket');
+    const limited = await requestSignedOutSession(client)
+    assert.equal(limited.status(), 429)
+    assert.deepEqual(limited.body(), { error: 'Rate limit exceeded.' })
+    assert.equal(limited.header('x-ratelimit-limit'), '2')
+    assert.equal(limited.header('x-ratelimit-remaining'), '0')
+    assert.match(String(limited.header('retry-after')), /^[1-9]\d*$/)
+    assert.isFalse(Number.isNaN(Date.parse(String(limited.header('x-ratelimit-reset')))))
+    const persistedLimits = await db.from('rate_limits').select('key', 'points')
+    assert.isNotEmpty(persistedLimits, 'the native database limiter records the client bucket')
     for (const limit of persistedLimits) {
-      assert.isAbove(Number(limit.points), 0);
-      assert.match(String(limit.key), /^rlflx:api_[a-f0-9]{64}$/);
+      assert.isAbove(Number(limit.points), 0)
+      assert.match(String(limit.key), /^rlflx:api_[a-f0-9]{64}$/)
     }
 
     for (let attempt = 0; attempt < 5; attempt++)
-      assert.equal(await responseStatus(client.visit('health_checks.live').send()), 200);
-  });
+      assert.equal(await responseStatus(client.visit('health_checks.live').send()), 200)
+  })
 
   test('GET /health/live is not limited', async ({ client, assert, cleanup }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
-    setEnvironment('CAPACITYLENS_RATE_LIMIT', '1');
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
+    setEnvironment('CAPACITYLENS_RATE_LIMIT', '1')
 
     for (let attempt = 0; attempt < 3; attempt++)
-      assert.equal(await responseStatus(client.visit('health_checks.live').send()), 200);
-  });
+      assert.equal(await responseStatus(client.visit('health_checks.live').send()), 200)
+  })
 
   test('API rate limiting is disabled when unset, zero, or malformed', async ({
     client,
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
     for (const configured of ['', '0', '-1', '1.5', 'invalid', ' 2 ']) {
-      await db.from('rate_limits').delete();
-      setEnvironment('CAPACITYLENS_RATE_LIMIT', configured);
+      await db.from('rate_limits').delete()
+      setEnvironment('CAPACITYLENS_RATE_LIMIT', configured)
       for (let attempt = 0; attempt < 4; attempt++)
         assert.equal(
           await responseStatus(requestSignedOutSession(client)),
           401,
           `setting ${configured}`
-        );
+        )
     }
-  });
+  })
 
   test('forwarded client identity is ignored unless proxy headers are explicitly trusted', async ({
     client,
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
-    setEnvironment('CAPACITYLENS_RATE_LIMIT', '2');
-    trustProxyHeaders(false);
-    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401);
-    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.42')), 401);
-    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.43')), 429);
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
+    setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
+    trustProxyHeaders(false)
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401)
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.42')), 401)
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.43')), 429)
 
-    await db.from('rate_limits').delete();
-    trustProxyHeaders(true);
-    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401);
-    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.42')), 401);
-    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401);
-    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 429);
-  });
+    await db.from('rate_limits').delete()
+    trustProxyHeaders(true)
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401)
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.42')), 401)
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401)
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 429)
+  })
 
   test('failed sign-in attempts are bounded by client and limiter records omit credentials', async ({
     client,
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
-    setEnvironment('CAPACITYLENS_RATE_LIMIT', '0');
-    trustProxyHeaders(true);
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
+    setEnvironment('CAPACITYLENS_RATE_LIMIT', '0')
+    trustProxyHeaders(true)
 
-    const email = `private-${crypto.randomUUID()}@example.test`;
-    const forwardedIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`;
+    const email = `private-${crypto.randomUUID()}@example.test`
+    const forwardedIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`
     // The Account Kit allows five failed sign-ins per client and address each minute.
     for (let attempt = 0; attempt < 5; attempt++) {
-      const response = await signIn(client, forwardedIp, email);
-      assert.equal(response.status(), 401);
-      assert.notInclude(JSON.stringify(response.body()), email);
-      assert.notInclude(JSON.stringify(response.body()), 'never-store-this-password-012345');
+      const response = await signIn(client, forwardedIp, email)
+      assert.equal(response.status(), 401)
+      assert.notInclude(JSON.stringify(response.body()), email)
+      assert.notInclude(JSON.stringify(response.body()), 'never-store-this-password-012345')
     }
-    const blocked = await signIn(client, forwardedIp, email);
-    assert.equal(blocked.status(), 429);
-    assert.notInclude(JSON.stringify(blocked.body()), email);
-    assert.notInclude(JSON.stringify(blocked.body()), 'never-store-this-password-012345');
+    const blocked = await signIn(client, forwardedIp, email)
+    assert.equal(blocked.status(), 429)
+    assert.notInclude(JSON.stringify(blocked.body()), email)
+    assert.notInclude(JSON.stringify(blocked.body()), 'never-store-this-password-012345')
 
-    const nextClient = await signIn(client, '198.51.100.240', email);
-    assert.equal(nextClient.status(), 401);
-    const entries = await db.from('rate_limits').select('key');
-    assert.isNotEmpty(entries);
+    const nextClient = await signIn(client, '198.51.100.240', email)
+    assert.equal(nextClient.status(), 401)
+    const entries = await db.from('rate_limits').select('key')
+    assert.isNotEmpty(entries)
     for (const entry of entries) {
-      assert.notInclude(String(entry.key), email);
-      assert.notInclude(String(entry.key), 'never-store-this-password-012345');
+      assert.notInclude(String(entry.key), email)
+      assert.notInclude(String(entry.key), 'never-store-this-password-012345')
     }
-  });
-});
+  })
+})

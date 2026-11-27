@@ -1,13 +1,13 @@
-import type { CSSProperties } from 'react';
-import type { Closure, ISODate } from '@capacitylens/shared/types/entities';
-import type { ColumnGeometry } from './columnGeometry';
-import { buildVisibleSpanInsets } from './visibleSpanInsets';
+import type { CSSProperties } from 'react'
+import type { Closure, ISODate } from '@capacitylens/shared/types/entities'
+import type { ColumnGeometry } from './columnGeometry'
+import { buildVisibleSpanInsets } from './visibleSpanInsets'
 
 // Clamp the closure label to the visible region on both axes so long spans remain identifiable while scrolling.
-const LABEL_INSETS_X = buildVisibleSpanInsets('x', 'var(--band-left)', 'var(--band-width)');
-const LABEL_INSETS_Y = buildVisibleSpanInsets('y', '0px', 'var(--band-height)');
+const LABEL_INSETS_X = buildVisibleSpanInsets('x', 'var(--band-left)', 'var(--band-width)')
+const LABEL_INSETS_Y = buildVisibleSpanInsets('y', '0px', 'var(--band-height)')
 
-const READABLE_ACROSS_WIDTH = 44;
+const READABLE_ACROSS_WIDTH = 44
 
 function ClosureLabel({ name, width }: { name: string; width: number }) {
   return (
@@ -34,7 +34,7 @@ function ClosureLabel({ name, width }: { name: string; width: number }) {
         </span>
       )}
     </div>
-  );
+  )
 }
 
 /** Marks a company closure across its scheduled dates. */
@@ -46,18 +46,18 @@ export function ClosureBand({
   leftOffset,
   height,
 }: {
-  closure: Closure;
-  visibleStart: ISODate;
-  visibleEnd: ISODate;
-  geom: ColumnGeometry;
-  leftOffset: number;
-  height: number;
+  closure: Closure
+  visibleStart: ISODate
+  visibleEnd: ISODate
+  geom: ColumnGeometry
+  leftOffset: number
+  height: number
 }) {
-  const start = closure.startDate < visibleStart ? visibleStart : closure.startDate;
-  const end = closure.endDate > visibleEnd ? visibleEnd : closure.endDate;
-  const width = geometry.getDatesWidth(start, end);
-  if (height <= 0 || width <= 0) return null;
-  const timelineLeft = geometry.getDateX(start);
+  const start = closure.startDate < visibleStart ? visibleStart : closure.startDate
+  const end = closure.endDate > visibleEnd ? visibleEnd : closure.endDate
+  const width = geometry.getDatesWidth(start, end)
+  if (height <= 0 || width <= 0) return null
+  const timelineLeft = geometry.getDateX(start)
 
   // Both closure layers share one timeline-coordinate geometry so the label stays aligned with its shading. Exclude the frozen resource-column offset from the published clamp coordinate.
   const geometryStyle: CSSProperties = {
@@ -67,7 +67,7 @@ export function ClosureBand({
     ['--band-left' as string]: `${timelineLeft}px`,
     ['--band-width' as string]: `${width}px`,
     ['--band-height' as string]: `${height}px`,
-  };
+  }
 
   return (
     <>
@@ -95,5 +95,5 @@ export function ClosureBand({
         <ClosureLabel name={closure.name} width={width} />
       </div>
     </>
-  );
+  )
 }

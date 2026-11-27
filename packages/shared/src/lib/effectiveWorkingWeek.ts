@@ -1,18 +1,18 @@
-import { normalizeWeekdays } from './companyWorkingDays.js';
-import { hasPersonalWorkingPattern } from '../types/entities.js';
-import type { Resource, Weekday } from '../types/entities.js';
+import { normalizeWeekdays } from './companyWorkingDays.js'
+import { hasPersonalWorkingPattern } from '../types/entities.js'
+import type { Resource, Weekday } from '../types/entities.js'
 
 /** The weekdays effective for a resource. The `days` variant is guaranteed to contain
  * at least one weekday, with duplicates removed and values stored in ascending order. */
-export type EffectiveWorkingWeek = { kind: 'none' } | { kind: 'days'; days: Weekday[] };
+export type EffectiveWorkingWeek = { kind: 'none' } | { kind: 'days'; days: Weekday[] }
 
 /** The membership test for an effective week: false for `none`, so every consumer that asks
  * "is this weekday effective?" shares one definition instead of re-deriving the discriminant. */
 export function hasEffectiveWeekDay(
   effectiveWeek: EffectiveWorkingWeek,
-  weekday: Weekday,
+  weekday: Weekday
 ): boolean {
-  return effectiveWeek.kind === 'days' && effectiveWeek.days.includes(weekday);
+  return effectiveWeek.kind === 'days' && effectiveWeek.days.includes(weekday)
 }
 
 /** Whether a normal (calendar-respecting) record placed at `weekday` starts outside the effective
@@ -22,9 +22,9 @@ export function hasEffectiveWeekDay(
 export function isStartOnNonEffectiveWeekday(
   effectiveWeek: EffectiveWorkingWeek,
   ignoreWorkingDays: boolean | undefined,
-  weekday: Weekday,
+  weekday: Weekday
 ): boolean {
-  return !ignoreWorkingDays && !hasEffectiveWeekDay(effectiveWeek, weekday);
+  return !ignoreWorkingDays && !hasEffectiveWeekDay(effectiveWeek, weekday)
 }
 
 /** The one predicate for a normal allocation that cannot use working-span math, because feeding
@@ -32,23 +32,23 @@ export function isStartOnNonEffectiveWeekday(
  * allocation always spans calendar days, so it is exempt. */
 export function hasNoEffectiveWorkingDays(
   effectiveWeek: EffectiveWorkingWeek | null | undefined,
-  ignoreWorkingDays: boolean | undefined,
+  ignoreWorkingDays: boolean | undefined
 ): boolean {
-  return effectiveWeek?.kind !== 'days' && !ignoreWorkingDays;
+  return effectiveWeek?.kind !== 'days' && !ignoreWorkingDays
 }
 
 /** Derives the company/personal calendar intersection for people. Placeholders and externals have
  * no personal capacity pattern, so their effective calendar is the complete company set. */
 export function resolveEffectiveWorkingWeek(
   resource: Pick<Resource, 'kind' | 'workingDays'>,
-  companyWorkingDays: Weekday[],
+  companyWorkingDays: Weekday[]
 ): EffectiveWorkingWeek {
-  const canonicalCompanyDays = normalizeWeekdays(companyWorkingDays);
-  let days = canonicalCompanyDays;
+  const canonicalCompanyDays = normalizeWeekdays(companyWorkingDays)
+  let days = canonicalCompanyDays
   if (hasPersonalWorkingPattern(resource)) {
-    const personalWorkingDays = new Set(resource.workingDays);
-    days = canonicalCompanyDays.filter((weekday) => personalWorkingDays.has(weekday));
+    const personalWorkingDays = new Set(resource.workingDays)
+    days = canonicalCompanyDays.filter((weekday) => personalWorkingDays.has(weekday))
   }
 
-  return days.length === 0 ? { kind: 'none' } : { kind: 'days', days };
+  return days.length === 0 ? { kind: 'none' } : { kind: 'days', days }
 }

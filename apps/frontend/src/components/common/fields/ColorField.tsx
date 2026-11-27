@@ -1,53 +1,53 @@
-import { useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import { useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import {
   SWATCHES,
   SWATCH_COLUMNS,
   resolveSwatchLabel,
   resolveColorName,
   resolveSwatchIndex,
-} from '@/lib/palette';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Field, FieldLabel } from '@/components/ui/field';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/cn';
-import { m } from '@/i18n';
-import { useMarkFormDirty } from '@/components/common/formDirty';
-import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
-import type { ProductFieldLayout } from './fieldTypes';
+} from '@/lib/palette'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/cn'
+import { m } from '@/i18n'
+import { useMarkFormDirty } from '@/components/common/formDirty'
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps'
+import type { ProductFieldLayout } from './fieldTypes'
 
 type ColorFieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  invalid?: boolean;
-  describedById?: string;
-  disabled?: boolean;
-  layout?: ProductFieldLayout;
-};
+  label: string
+  value: string
+  onChange: (value: string) => void
+  invalid?: boolean
+  describedById?: string
+  disabled?: boolean
+  layout?: ProductFieldLayout
+}
 
 type SwatchGridProps = {
-  label: string;
-  value: string;
-  selectedIndex: number;
-  markDirty: () => void;
-  onChange: (value: string) => void;
-  onClose: () => void;
-  disabled: boolean;
-};
+  label: string
+  value: string
+  selectedIndex: number
+  markDirty: () => void
+  onChange: (value: string) => void
+  onClose: () => void
+  disabled: boolean
+}
 
 type ColorTriggerProps = Pick<ColorFieldProps, 'label' | 'value'> & {
-  invalid: boolean | undefined;
-  describedById: string | undefined;
-  disabled: boolean;
-};
+  invalid: boolean | undefined
+  describedById: string | undefined
+  disabled: boolean
+}
 
 function resolveSwatchDelta(key: string): number | null {
-  if (key === 'ArrowRight') return 1;
-  if (key === 'ArrowLeft') return -1;
-  if (key === 'ArrowDown') return SWATCH_COLUMNS;
-  if (key === 'ArrowUp') return -SWATCH_COLUMNS;
-  return null;
+  if (key === 'ArrowRight') return 1
+  if (key === 'ArrowLeft') return -1
+  if (key === 'ArrowDown') return SWATCH_COLUMNS
+  if (key === 'ArrowUp') return -SWATCH_COLUMNS
+  return null
 }
 
 function ColorTrigger({ label, value, invalid, describedById, disabled }: ColorTriggerProps) {
@@ -68,7 +68,7 @@ function ColorTrigger({ label, value, invalid, describedById, disabled }: ColorT
         />
       </Button>
     </PopoverTrigger>
-  );
+  )
 }
 
 function SwatchGrid({
@@ -103,14 +103,14 @@ function SwatchGrid({
         />
       ))}
     </PopoverContent>
-  );
+  )
 }
 
 type SwatchButtonProps = Omit<SwatchGridProps, 'label' | 'value'> & {
-  hex: string;
-  index: number;
-  value: string;
-};
+  hex: string
+  index: number
+  value: string
+}
 
 function SwatchButton({
   hex,
@@ -122,28 +122,28 @@ function SwatchButton({
   onClose,
   disabled,
 }: SwatchButtonProps) {
-  const selected = hex.toLowerCase() === value.toLowerCase();
+  const selected = hex.toLowerCase() === value.toLowerCase()
 
   function selectNextSwatch(event: KeyboardEvent<HTMLButtonElement>) {
-    if (disabled) return;
-    const delta = resolveSwatchDelta(event.key);
-    if (delta === null) return;
-    event.preventDefault();
-    const next = (index + delta + SWATCHES.length) % SWATCHES.length;
-    const nextHex = SWATCHES[next];
-    if (!nextHex) return;
+    if (disabled) return
+    const delta = resolveSwatchDelta(event.key)
+    if (delta === null) return
+    event.preventDefault()
+    const next = (index + delta + SWATCHES.length) % SWATCHES.length
+    const nextHex = SWATCHES[next]
+    if (!nextHex) return
     if (next !== selectedIndex) {
-      markDirty();
-      onChange(nextHex);
+      markDirty()
+      onChange(nextHex)
     }
-    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus()
   }
 
   function selectSwatch() {
-    if (disabled) return;
-    if (!selected) markDirty();
-    onChange(hex);
-    onClose();
+    if (disabled) return
+    if (!selected) markDirty()
+    onChange(hex)
+    onClose()
   }
 
   return (
@@ -159,11 +159,11 @@ function SwatchButton({
       onClick={selectSwatch}
       className={cn(
         'size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110',
-        selected && 'outline outline-2 outline-offset-1 outline-brand-strong',
+        selected && 'outline outline-2 outline-offset-1 outline-brand-strong'
       )}
       style={{ backgroundColor: hex }}
     />
-  );
+  )
 }
 
 /** Restricts colour selection to the supported swatches. */
@@ -176,7 +176,7 @@ export function ColorField({
   disabled = false,
   layout = 'stacked',
 }: ColorFieldProps) {
-  const markDirty = useMarkFormDirty();
+  const markDirty = useMarkFormDirty()
   return (
     <Field data-invalid={invalid ? true : undefined} {...buildProductFieldLayoutProps(layout)}>
       <FieldLabel>{label}</FieldLabel>
@@ -191,7 +191,7 @@ export function ColorField({
         markDirty={markDirty}
       />
     </Field>
-  );
+  )
 }
 
 function ColorPopover({
@@ -203,20 +203,20 @@ function ColorPopover({
   disabled,
   markDirty,
 }: Omit<ColorFieldProps, 'invalid' | 'describedById' | 'disabled'> & {
-  invalid: boolean | undefined;
-  describedById: string | undefined;
-  disabled: boolean;
-  markDirty: () => void;
+  invalid: boolean | undefined
+  describedById: string | undefined
+  disabled: boolean
+  markDirty: () => void
 }) {
-  const [open, setOpen] = useState(false);
-  const effectiveOpen = open && !disabled;
-  const selectedIndex = Math.max(0, resolveSwatchIndex(value));
+  const [open, setOpen] = useState(false)
+  const effectiveOpen = open && !disabled
+  const selectedIndex = Math.max(0, resolveSwatchIndex(value))
 
   return (
     <Popover
       open={effectiveOpen}
       onOpenChange={(nextOpen) => {
-        if (!disabled) setOpen(nextOpen);
+        if (!disabled) setOpen(nextOpen)
       }}
     >
       <ColorTrigger
@@ -236,5 +236,5 @@ function ColorPopover({
         disabled={disabled}
       />
     </Popover>
-  );
+  )
 }

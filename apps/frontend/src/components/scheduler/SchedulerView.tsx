@@ -1,5 +1,5 @@
-import { SchedulerToolbar } from './SchedulerToolbar';
-import { SchedulerGrid } from './SchedulerGrid';
+import { SchedulerToolbar } from './SchedulerToolbar'
+import { SchedulerGrid } from './SchedulerGrid'
 
 /** Combines schedule controls with the week grid. */
 export function SchedulerView() {
@@ -10,5 +10,5 @@ export function SchedulerView() {
         <SchedulerGrid />
       </div>
     </div>
-  );
+  )
 }

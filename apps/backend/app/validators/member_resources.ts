@@ -1,13 +1,13 @@
-import vine from '@vinejs/vine';
+import vine from '@vinejs/vine'
 import {
   REQUEST_CONTEXT_FIELDS,
   accountOperationHeaders,
   allowedFields,
   companyIdParam,
   userIdParam,
-} from '#validators/request_rules';
+} from '#validators/request_rules'
 
-const memberParams = () => vine.object({ companyId: companyIdParam(), userId: userIdParam() });
+const memberParams = () => vine.object({ companyId: companyIdParam(), userId: userIdParam() })
 
 export const setLinkValidator = vine.create(
   vine
@@ -18,7 +18,7 @@ export const setLinkValidator = vine.create(
       headers: accountOperationHeaders(),
     })
     .use(allowedFields({ fields: ['resourceId', 'expectedRevision', ...REQUEST_CONTEXT_FIELDS] }))
-);
+)
 
 export const clearLinkValidator = vine.create(
   vine
@@ -28,4 +28,4 @@ export const clearLinkValidator = vine.create(
       headers: accountOperationHeaders(),
     })
     .use(allowedFields({ fields: ['expectedRevision', ...REQUEST_CONTEXT_FIELDS] }))
-);
+)

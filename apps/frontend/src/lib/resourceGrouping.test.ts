@@ -1,25 +1,25 @@
-import { describe, expect, it } from 'vitest';
-import { makeResource } from '@/test/fixtures';
+import { describe, expect, it } from 'vitest'
+import { makeResource } from '@/test/fixtures'
 import {
   buildEngagementGroups,
   buildResourceBand,
   createResourceComparator,
   isResourceKindEnabled,
-} from './resourceGrouping';
+} from './resourceGrouping'
 
 describe('resource grouping and kind rules', () => {
   it('always enables people and follows the company switch for the other kinds', () => {
-    const allOff = { placeholdersEnabled: false, externalEnabled: false };
-    expect(isResourceKindEnabled({ kind: 'person' }, allOff)).toBe(true);
-    expect(isResourceKindEnabled({ kind: 'placeholder' }, allOff)).toBe(false);
-    expect(isResourceKindEnabled({ kind: 'external' }, allOff)).toBe(false);
+    const allOff = { placeholdersEnabled: false, externalEnabled: false }
+    expect(isResourceKindEnabled({ kind: 'person' }, allOff)).toBe(true)
+    expect(isResourceKindEnabled({ kind: 'placeholder' }, allOff)).toBe(false)
+    expect(isResourceKindEnabled({ kind: 'external' }, allOff)).toBe(false)
     expect(
-      isResourceKindEnabled({ kind: 'placeholder' }, { ...allOff, placeholdersEnabled: true }),
-    ).toBe(true);
+      isResourceKindEnabled({ kind: 'placeholder' }, { ...allOff, placeholdersEnabled: true })
+    ).toBe(true)
     expect(isResourceKindEnabled({ kind: 'external' }, { ...allOff, externalEnabled: true })).toBe(
-      true,
-    );
-  });
+      true
+    )
+  })
 
   it('takes band titles from the message layer', () => {
     expect(
@@ -33,7 +33,7 @@ describe('resource grouping and kind rules', () => {
           'engagement-studio',
           'engagement-supplementary',
         ] as const
-      ).map(buildResourceBand),
+      ).map(buildResourceBand)
     ).toEqual([
       { key: 'resources', title: 'Resources' },
       { key: 'overall', title: 'Overall' },
@@ -42,20 +42,20 @@ describe('resource grouping and kind rules', () => {
       { key: 'external', title: 'External party' },
       { key: 'engagement-studio', title: 'Studio' },
       { key: 'engagement-supplementary', title: 'Supplementary' },
-    ]);
-  });
+    ])
+  })
 
   it('splits by engagement, keeps the band colour and drops empty bands', () => {
-    const studio = makeResource({ id: 'studio', engagement: 'studio' });
-    const supplementary = makeResource({ id: 'supplementary', engagement: 'supplementary' });
-    const ungrouped = { ...buildResourceBand('unassigned'), color: '#777777' };
+    const studio = makeResource({ id: 'studio', engagement: 'studio' })
+    const supplementary = makeResource({ id: 'supplementary', engagement: 'supplementary' })
+    const ungrouped = { ...buildResourceBand('unassigned'), color: '#777777' }
 
     expect(
       buildEngagementGroups({
         resources: [supplementary, studio],
         groupByEngagement: true,
         ungrouped,
-      }),
+      })
     ).toEqual([
       { key: 'engagement-studio', title: 'Studio', color: '#777777', resources: [studio] },
       {
@@ -64,19 +64,19 @@ describe('resource grouping and kind rules', () => {
         color: '#777777',
         resources: [supplementary],
       },
-    ]);
+    ])
     expect(
       buildEngagementGroups({ resources: [studio], groupByEngagement: true, ungrouped }).map(
-        (group) => group.key,
-      ),
-    ).toEqual(['engagement-studio']);
+        (group) => group.key
+      )
+    ).toEqual(['engagement-studio'])
     expect(
-      buildEngagementGroups({ resources: [studio], groupByEngagement: false, ungrouped }),
-    ).toEqual([{ ...ungrouped, resources: [studio] }]);
+      buildEngagementGroups({ resources: [studio], groupByEngagement: false, ungrouped })
+    ).toEqual([{ ...ungrouped, resources: [studio] }])
     expect(buildEngagementGroups({ resources: [], groupByEngagement: false, ungrouped })).toEqual(
-      [],
-    );
-  });
+      []
+    )
+  })
 
   it('orders people by engagement, favourite and name, then placeholders by name', () => {
     const resources = [
@@ -86,7 +86,7 @@ describe('resource grouping and kind rules', () => {
       makeResource({ id: 'p1', kind: 'placeholder', name: null }),
       makeResource({ id: 'fav', name: 'Zatanna Zatara', isFavourite: true }),
       makeResource({ id: 'diana', name: 'Diana Prince' }),
-    ];
+    ]
 
     expect([...resources].sort(createResourceComparator(true)).map(({ id }) => id)).toEqual([
       'fav',
@@ -95,7 +95,7 @@ describe('resource grouping and kind rules', () => {
       'sup',
       'p1',
       'p2',
-    ]);
+    ])
     expect([...resources].sort(createResourceComparator(false)).map(({ id }) => id)).toEqual([
       'fav',
       'sup',
@@ -103,6 +103,6 @@ describe('resource grouping and kind rules', () => {
       'diana',
       'p1',
       'p2',
-    ]);
-  });
-});
+    ])
+  })
+})

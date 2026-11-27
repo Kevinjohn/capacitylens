@@ -1,5 +1,5 @@
-import { NULLABLE_FIELDS } from '../types/nullableFields.js';
-import { describe, it, expect } from 'vitest';
+import { NULLABLE_FIELDS } from '../types/nullableFields.js'
+import { describe, it, expect } from 'vitest'
 import {
   resolveBarColor,
   resolveProjectColor,
@@ -8,35 +8,35 @@ import {
   resolveAccessibleBarColors,
   isPresetColor,
   PRESET_COLORS,
-} from './color.js';
-import type { BarColorMaps } from './color.js';
-import type { Allocation, Client, Project, Resource, Activity } from '../types/entities.js';
+} from './color.js'
+import type { BarColorMaps } from './color.js'
+import type { Allocation, Client, Project, Resource, Activity } from '../types/entities.js'
 
 function maps(
   over: {
-    activities?: Activity[];
-    projects?: Project[];
-    clients?: Client[];
-    resources?: Resource[];
-  } = {},
+    activities?: Activity[]
+    projects?: Project[]
+    clients?: Client[]
+    resources?: Resource[]
+  } = {}
 ): BarColorMaps {
   return {
     activities: new Map((over.activities ?? []).map((t) => [t.id, t])),
     projects: new Map((over.projects ?? []).map((p) => [p.id, p])),
     clients: new Map((over.clients ?? []).map((c) => [c.id, c])),
     resources: new Map((over.resources ?? []).map((r) => [r.id, r])),
-  };
+  }
 }
 
 describe('canonical palette', () => {
   it('pins every persisted swatch and its tie-break order', () => {
     expect(PRESET_COLORS.join(',')).toBe(
-      '#f5bcbc,#f7caba,#f9d9b8,#f9e6b8,#f9f1b8,#d9f2c0,#c2f0d1,#c0edf2,#bed4f4,#ccc0f2,#e0c2f0,#f4bedd,#d8b397,#eb7272,#ef906e,#f3ae6a,#f3ca6a,#f3e16a,#aee37a,#7edf9e,#7adae3,#76a5e7,#947ae3,#be7edf,#e776b8,#c38c61,#e02727,#e65621,#ed841b,#edae1b,#edd11b,#84d434,#3ace6b,#34c7d4,#2d75da,#5c34d4,#9c3ace,#da2d92,#9e663c,#9c1616,#a13812,#a5590d,#a5780d,#a5910d,#59931f,#248f47,#1f8a93,#1b4f98,#3c1f93,#6b248f,#981b64,#684327',
-    );
-  });
-});
+      '#f5bcbc,#f7caba,#f9d9b8,#f9e6b8,#f9f1b8,#d9f2c0,#c2f0d1,#c0edf2,#bed4f4,#ccc0f2,#e0c2f0,#f4bedd,#d8b397,#eb7272,#ef906e,#f3ae6a,#f3ca6a,#f3e16a,#aee37a,#7edf9e,#7adae3,#76a5e7,#947ae3,#be7edf,#e776b8,#c38c61,#e02727,#e65621,#ed841b,#edae1b,#edd11b,#84d434,#3ace6b,#34c7d4,#2d75da,#5c34d4,#9c3ace,#da2d92,#9e663c,#9c1616,#a13812,#a5590d,#a5780d,#a5910d,#59931f,#248f47,#1f8a93,#1b4f98,#3c1f93,#6b248f,#981b64,#684327'
+    )
+  })
+})
 
-const TS = 't';
+const TS = 't'
 const alloc = (resourceId: string, activityId: string, projectId?: string): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
   id: 'a',
@@ -50,7 +50,7 @@ const alloc = (resourceId: string, activityId: string, projectId?: string): Allo
   endDate: '2026-06-02',
   hoursPerDay: 0,
   status: 'confirmed',
-});
+})
 const project = (id: string, color: string): Project => ({
   ...NULLABLE_FIELDS.projects,
   id,
@@ -60,7 +60,7 @@ const project = (id: string, color: string): Project => ({
   name: id,
   clientId: 'c',
   color,
-});
+})
 const activity = (id: string, projectId?: string): Activity => ({
   ...NULLABLE_FIELDS.activities,
   id,
@@ -70,7 +70,7 @@ const activity = (id: string, projectId?: string): Activity => ({
   name: id,
   kind: 'project',
   ...(projectId === undefined ? {} : { projectId }),
-});
+})
 const resource = (id: string, kind: Resource['kind']): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id,
@@ -85,7 +85,7 @@ const resource = (id: string, kind: Resource['kind']): Resource => ({
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
   color: '#123456',
-});
+})
 
 describe('resolveBarColor', () => {
   it("colours a person's bar by its project", () => {
@@ -93,9 +93,9 @@ describe('resolveBarColor', () => {
       activities: [activity('t', 'p')],
       projects: [project('p', '#abcdef')],
       resources: [resource('r', 'person')],
-    });
-    expect(resolveBarColor(alloc('r', 't'), m)).toBe('#abcdef');
-  });
+    })
+    expect(resolveBarColor(alloc('r', 't'), m)).toBe('#abcdef')
+  })
 
   it('forces an EXTERNAL bar to neutral grey, overriding the project colour', () => {
     // Same project as the person above, but the external short-circuit wins so an outsourced
@@ -104,9 +104,9 @@ describe('resolveBarColor', () => {
       activities: [activity('t', 'p')],
       projects: [project('p', '#abcdef')],
       resources: [resource('ext', 'external')],
-    });
-    expect(resolveBarColor(alloc('ext', 't'), m)).toBe('#9ca3af');
-  });
+    })
+    expect(resolveBarColor(alloc('ext', 't'), m)).toBe('#9ca3af')
+  })
 
   it('always shows an internal activity bar in grey', () => {
     const internal: Activity = {
@@ -117,11 +117,11 @@ describe('resolveBarColor', () => {
       updatedAt: TS,
       name: 'Admin',
       kind: 'internal',
-    };
-    const base = maps({ activities: [internal], resources: [resource('r', 'person')] });
-    expect(resolveBarColor(alloc('r', 'internal'), base)).toBe('#9ca3af');
-  });
-});
+    }
+    const base = maps({ activities: [internal], resources: [resource('r', 'person')] })
+    expect(resolveBarColor(alloc('r', 'internal'), base)).toBe('#9ca3af')
+  })
+})
 
 describe('resolveBarColor project attribution', () => {
   it('always shows an Internal-owned project in grey while keeping its saved colour', () => {
@@ -134,18 +134,18 @@ describe('resolveBarColor project attribution', () => {
       name: 'Internal',
       color: '#2d75da',
       builtin: true,
-    };
-    const saved = project('p', '#abcdef');
+    }
+    const saved = project('p', '#abcdef')
     const base = maps({
       activities: [activity('t', 'p')],
       projects: [saved],
       clients: [internalClient],
       resources: [resource('r', 'person')],
-    });
-    expect(resolveBarColor(alloc('r', 't'), base)).toBe('#9ca3af');
-    expect(resolveProjectColor(saved, internalClient)).toBe('#9ca3af');
-    expect(saved.color).toBe('#abcdef');
-  });
+    })
+    expect(resolveBarColor(alloc('r', 't'), base)).toBe('#9ca3af')
+    expect(resolveProjectColor(saved, internalClient)).toBe('#9ca3af')
+    expect(saved.color).toBe('#abcdef')
+  })
 
   it('does not treat a project-less all-projects activity as internal work', () => {
     const crossProject: Activity = {
@@ -156,10 +156,10 @@ describe('resolveBarColor project attribution', () => {
       updatedAt: TS,
       name: 'Design',
       kind: 'allProjects',
-    };
-    const m = maps({ activities: [crossProject], resources: [resource('r', 'person')] });
-    expect(resolveBarColor(alloc('r', 'cross'), m)).toBe('#123456');
-  });
+    }
+    const m = maps({ activities: [crossProject], resources: [resource('r', 'person')] })
+    expect(resolveBarColor(alloc('r', 'cross'), m)).toBe('#123456')
+  })
 
   it('colours an attributed all-projects allocation by its effective project', () => {
     const allProjects: Activity = {
@@ -170,16 +170,16 @@ describe('resolveBarColor project attribution', () => {
       updatedAt: TS,
       name: 'Design',
       kind: 'allProjects',
-    };
+    }
     const m = maps({
       activities: [allProjects],
       projects: [project('p', '#abcdef')],
       resources: [resource('r', 'person')],
-    });
+    })
 
-    expect(resolveBarColor(alloc('r', 'allProjects', 'p'), m)).toBe('#abcdef');
-  });
-});
+    expect(resolveBarColor(alloc('r', 'allProjects', 'p'), m)).toBe('#abcdef')
+  })
+})
 
 describe('resolveBarColor fallbacks', () => {
   it("falls back to the client's colour when its project has no colour of its own", () => {
@@ -193,121 +193,121 @@ describe('resolveBarColor fallbacks', () => {
       updatedAt: TS,
       name: 'Ferris',
       color: '#112233',
-    };
+    }
     const m = maps({
       activities: [activity('t', 'p')],
       projects: [project('p', '')],
       clients: [client],
       resources: [resource('r', 'person')],
-    });
-    expect(resolveBarColor(alloc('r', 't'), m)).toBe('#112233');
-  });
+    })
+    expect(resolveBarColor(alloc('r', 't'), m)).toBe('#112233')
+  })
 
   it('falls all the way through to neutral grey when nothing in the chain resolves', () => {
     // Empty maps: the activity/project/client/resource lookups all miss, so this exercises the
     // terminal `resource?.color ?? NEUTRAL_COLOR` fallback directly, not the external/internal
     // early returns above it.
-    const m = maps();
-    expect(resolveBarColor(alloc('missing-r', 'missing-t'), m)).toBe('#9ca3af');
-  });
-});
+    const m = maps()
+    expect(resolveBarColor(alloc('missing-r', 'missing-t'), m)).toBe('#9ca3af')
+  })
+})
 
 describe('calculateContrastRatio', () => {
   it('linearises a near-black channel via the low-s division branch, not the gamma curve', () => {
     // s = 1/255 <= 0.03928, so normalizeLinearChannel must take the s/12.92 branch. Using the
     // gamma (pow) branch instead, or multiplying instead of dividing, gives a very
     // different luminance and thus ratio.
-    expect(calculateContrastRatio('#010101', '#000000')).toBeCloseTo(1.0060705396709768, 9);
-  });
+    expect(calculateContrastRatio('#010101', '#000000')).toBeCloseTo(1.0060705396709768, 9)
+  })
 
   it('linearises a mid-tone channel via the gamma curve division, not multiplication', () => {
     // s = 128/255 > 0.03928, so this exercises the pow((s+0.055)/1.055, 2.4) branch.
-    expect(calculateContrastRatio('#808080', '#ffffff')).toBeCloseTo(3.9494396480491156, 9);
-  });
+    expect(calculateContrastRatio('#808080', '#ffffff')).toBeCloseTo(3.9494396480491156, 9)
+  })
 
   it('falls back to a ratio of 1 when only one channel of a hex is unparseable', () => {
     // Only the r channel is invalid here, so a mutated some->every (or an emptied
     // array) would miss it and let NaN leak into the luminance math instead of
     // short-circuiting to the documented "no contrast info" fallback of 1.
-    expect(calculateContrastRatio('#zz0000', '#123456')).toBe(1);
-  });
+    expect(calculateContrastRatio('#zz0000', '#123456')).toBe(1)
+  })
 
   it('falls back to a ratio of 1 when the SECOND hex is unparseable', () => {
     // hexA is valid and non-black, so only checking hexA for null (dropping the
     // `|| lb === null` half of the guard) would let a null lb fall through into
     // the luminance arithmetic instead of short-circuiting to 1.
-    expect(calculateContrastRatio('#ffffff', '#zzzzzz')).toBe(1);
-  });
+    expect(calculateContrastRatio('#ffffff', '#zzzzzz')).toBe(1)
+  })
 
   it('rejects a non-hex trailing nibble in every colour byte', () => {
-    expect(calculateContrastRatio('#1z2z3z', '#ffffff')).toBe(1);
-  });
-});
+    expect(calculateContrastRatio('#1z2z3z', '#ffffff')).toBe(1)
+  })
+})
 
 describe('resolveReadableTextColor', () => {
   it('accounts for the real (non-zero) luminance of DARK_INK, not a zeroed-out fallback', () => {
     // At this exact background luminance, using DARK_INK's true luminance picks
     // white ink; treating it as 0 (e.g. a ?? -> && slip, which returns 0 because
     // the left side is truthy) flips the decision to dark ink.
-    expect(resolveReadableTextColor('#767676')).toBe('#ffffff');
-  });
+    expect(resolveReadableTextColor('#767676')).toBe('#ffffff')
+  })
 
   it('uses the correct white-luminance numerator (1 + 0.05) when picking ink', () => {
     // At this background luminance, the real numerator picks white ink; the
     // mutated numerator (1 - 0.05) undershoots and flips the decision to dark ink.
-    expect(resolveReadableTextColor('#7c7c7c')).toBe('#ffffff');
-  });
+    expect(resolveReadableTextColor('#7c7c7c')).toBe('#ffffff')
+  })
 
   it('returns the dark-ink guard value directly for an unparseable hex', () => {
     // calculateRelativeLuminance(hex) is null here, so the load-bearing guard must return DARK_INK
     // itself: not fall through into calculateContrastRatio, where both sides would tie at the
     // "no contrast info" value of 1 and hand the answer to white ink instead.
-    expect(resolveReadableTextColor('#zzzzzz')).toBe('#1c2230');
-  });
-});
+    expect(resolveReadableTextColor('#zzzzzz')).toBe('#1c2230')
+  })
+})
 
 describe('resolveAccessibleBarColors', () => {
   it('darkens (multiplies channels down) when white ink is chosen', () => {
     // Exercises the darken branch body (r/g/b *= 0.92) and the formatHex '#' prefix +
     // clamp + zero-pad; a b *= -> b /= slip alone changes the blue channel here.
-    expect(resolveAccessibleBarColors('#6366f1')).toEqual({ bg: '#5b5ede', ink: '#ffffff' });
-  });
+    expect(resolveAccessibleBarColors('#6366f1')).toEqual({ bg: '#5b5ede', ink: '#ffffff' })
+  })
 
   it('lightens (moves channels toward 255) when dark ink is chosen, never darkens', () => {
     // Real ink here is DARK_INK, so this must take the else/lighten branch. Forcing
     // `darken` true, or the inner `if (darken)` true, or flipping any of the +=/-=
     // or the (255 - c) to (255 + c) in that branch, all change this exact bg.
-    expect(resolveAccessibleBarColors('#3b82f6')).toEqual({ bg: '#5391f7', ink: '#1c2230' });
-  });
+    expect(resolveAccessibleBarColors('#3b82f6')).toEqual({ bg: '#5391f7', ink: '#1c2230' })
+  })
 
   it('falls back to the neutral colour when the hex has any unparseable channel', () => {
-    expect(resolveAccessibleBarColors('#zz3456')).toEqual({ bg: '#9ca3af', ink: '#1c2230' });
-  });
+    expect(resolveAccessibleBarColors('#zz3456')).toEqual({ bg: '#9ca3af', ink: '#1c2230' })
+  })
 
   it('falls back when each colour byte has a valid first nibble followed by junk', () => {
-    expect(resolveAccessibleBarColors('#1z2z3z')).toEqual({ bg: '#9ca3af', ink: '#1c2230' });
-  });
+    expect(resolveAccessibleBarColors('#1z2z3z')).toEqual({ bg: '#9ca3af', ink: '#1c2230' })
+  })
 
   it('zero-pads a single-hex-digit channel back to two digits', () => {
     // The adjusted red channel here rounds to 0, i.e. a single hex digit ("0")
     // that must be left-padded to "00"; dropping the padStart pad character
     // would shorten the whole hex string.
-    expect(resolveAccessibleBarColors('#0070f8')).toEqual({ bg: '#0067e4', ink: '#ffffff' });
-  });
+    expect(resolveAccessibleBarColors('#0070f8')).toEqual({ bg: '#0067e4', ink: '#ffffff' })
+  })
 
   it('passes an already-AA-compliant colour through verbatim, never entering the nudge loop', () => {
     // Pure black clears 4.5:1 against white ink on the very first contrast check
     // (21:1), so the loop body never runs and `nudged` stays false, bg must equal the input
     // hex exactly (the caller's own string), not a formatHex() round-trip of the same RGB.
-    expect(resolveAccessibleBarColors('#000000')).toEqual({ bg: '#000000', ink: '#ffffff' });
-  });
-});
+    expect(resolveAccessibleBarColors('#000000')).toEqual({ bg: '#000000', ink: '#ffffff' })
+  })
+})
 
 describe('PRESET_COLORS', () => {
   it('keeps the exported palette runtime-immutable and aligned with membership checks', () => {
-    expect(Object.isFrozen(PRESET_COLORS)).toBe(true);
-    expect(() => (PRESET_COLORS as unknown as string[]).push('#000000')).toThrow(TypeError);
-    expect(PRESET_COLORS).not.toContain('#000000');
-    expect(isPresetColor('#000000')).toBe(false);
-  });
-});
+    expect(Object.isFrozen(PRESET_COLORS)).toBe(true)
+    expect(() => (PRESET_COLORS as unknown as string[]).push('#000000')).toThrow(TypeError)
+    expect(PRESET_COLORS).not.toContain('#000000')
+    expect(isPresetColor('#000000')).toBe(false)
+  })
+})

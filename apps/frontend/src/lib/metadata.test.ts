@@ -1,6 +1,6 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, it, expect } from 'vitest';
-import { m } from '@/i18n';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, it, expect } from 'vitest'
+import { m } from '@/i18n'
 import {
   resolveAllocationStatusLabel,
   resolveAllocationStatusAnnotation,
@@ -14,9 +14,9 @@ import {
   resolvePlaceholderDisplayName,
   buildLabels,
   buildLabelOptions,
-} from './metadata';
-import type { LabelMessages } from './metadata';
-import type { AllocationStatus, Resource, TimeOffType } from '@capacitylens/shared/types/entities';
+} from './metadata'
+import type { LabelMessages } from './metadata'
+import type { AllocationStatus, Resource, TimeOffType } from '@capacitylens/shared/types/entities'
 
 const makeResource = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Resource => ({
   ...NULLABLE_FIELDS.resources,
@@ -33,7 +33,7 @@ const makeResource = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }
   halfDays: [],
   color: '#000',
   ...over,
-});
+})
 
 describe('timeOffTypeLabels', () => {
   it('maps every TimeOffType to its resolved message', () => {
@@ -42,9 +42,9 @@ describe('timeOffTypeLabels', () => {
       sick: m.enum_time_off_type_sick(),
       unpaid: m.enum_time_off_type_unpaid(),
       other: m.enum_time_off_type_other(),
-    });
-  });
-});
+    })
+  })
+})
 
 describe('allocationStatusLabels', () => {
   it('maps every AllocationStatus to its resolved message', () => {
@@ -52,40 +52,40 @@ describe('allocationStatusLabels', () => {
       confirmed: m.enum_allocation_status_confirmed(),
       tentative: m.enum_allocation_status_tentative(),
       completed: m.enum_allocation_status_completed(),
-    });
-  });
-});
+    })
+  })
+})
 
 describe('single-value label getters', () => {
   it('allocationStatusLabel agrees with the map for every status', () => {
     for (const [status, label] of Object.entries(buildAllocationStatusLabels())) {
       expect(resolveAllocationStatusLabel(status as 'confirmed' | 'tentative' | 'completed')).toBe(
-        label,
-      );
+        label
+      )
     }
-  });
+  })
 
   it('timeOffTypeLabel agrees with the map for every type', () => {
     for (const [type, label] of Object.entries(buildTimeOffTypeLabels())) {
-      expect(resolveTimeOffTypeLabel(type as 'holiday' | 'sick' | 'unpaid' | 'other')).toBe(label);
+      expect(resolveTimeOffTypeLabel(type as 'holiday' | 'sick' | 'unpaid' | 'other')).toBe(label)
     }
-  });
+  })
 
   it('omits the default status annotation while retaining exceptional status labels', () => {
-    expect(resolveAllocationStatusAnnotation('confirmed')).toBeNull();
+    expect(resolveAllocationStatusAnnotation('confirmed')).toBeNull()
     expect(resolveAllocationStatusAnnotation('tentative')).toBe(
-      m.enum_allocation_status_tentative(),
-    );
+      m.enum_allocation_status_tentative()
+    )
     expect(resolveAllocationStatusAnnotation('completed')).toBe(
-      m.enum_allocation_status_completed(),
-    );
-  });
+      m.enum_allocation_status_completed()
+    )
+  })
 
   it('returns a blank label for values outside the runtime unions', () => {
-    expect(resolveAllocationStatusLabel('legacy-status' as AllocationStatus)).toBe('');
-    expect(resolveTimeOffTypeLabel('legacy-type' as TimeOffType)).toBe('');
-  });
-});
+    expect(resolveAllocationStatusLabel('legacy-status' as AllocationStatus)).toBe('')
+    expect(resolveTimeOffTypeLabel('legacy-type' as TimeOffType)).toBe('')
+  })
+})
 
 describe('toOptions-derived option lists', () => {
   it('turns a label map into ordered {value,label} pairs', () => {
@@ -93,86 +93,86 @@ describe('toOptions-derived option lists', () => {
       { value: 'confirmed', label: m.enum_allocation_status_confirmed() },
       { value: 'tentative', label: m.enum_allocation_status_tentative() },
       { value: 'completed', label: m.enum_allocation_status_completed() },
-    ]);
-  });
+    ])
+  })
 
   it('resourceEngagementOptions covers every ResourceEngagement', () => {
     expect(buildResourceEngagementOptions()).toEqual([
       { value: 'studio', label: m.enum_resource_engagement_studio() },
       { value: 'supplementary', label: m.enum_resource_engagement_supplementary() },
-    ]);
-  });
+    ])
+  })
 
   it('enum option lists each round-trip their label map', () => {
     for (const [value, label] of Object.entries(buildAllocationStatusLabels())) {
-      expect(buildAllocationStatusOptions()).toContainEqual({ value, label });
+      expect(buildAllocationStatusOptions()).toContainEqual({ value, label })
     }
     for (const [value, label] of Object.entries(buildTimeOffTypeLabels())) {
-      expect(buildTimeOffTypeOptions()).toContainEqual({ value, label });
+      expect(buildTimeOffTypeOptions()).toContainEqual({ value, label })
     }
-  });
-});
+  })
+})
 
 describe('resourceDisplayName / placeholderDisplayName', () => {
   it('shows the literal "Placeholder" name for a placeholder resource', () => {
-    const r = makeResource({ kind: 'placeholder', name: 'Slot 1' });
-    expect(resolveResourceDisplayName(r)).toBe(resolvePlaceholderDisplayName());
-    expect(resolveResourceDisplayName(r)).not.toBe('Slot 1');
-  });
+    const r = makeResource({ kind: 'placeholder', name: 'Slot 1' })
+    expect(resolveResourceDisplayName(r)).toBe(resolvePlaceholderDisplayName())
+    expect(resolveResourceDisplayName(r)).not.toBe('Slot 1')
+  })
 
   it("shows the resource's own name for a non-placeholder resource", () => {
-    const r = makeResource({ kind: 'person', name: 'Bruce Wayne' });
-    expect(resolveResourceDisplayName(r)).toBe('Bruce Wayne');
-  });
+    const r = makeResource({ kind: 'person', name: 'Bruce Wayne' })
+    expect(resolveResourceDisplayName(r)).toBe('Bruce Wayne')
+  })
 
   it('falls back to job title when a non-placeholder resource is unnamed', () => {
     const r = makeResource({
       kind: 'external',
       jobTitle: 'Consultant',
-    });
-    expect(resolveResourceDisplayName(r)).toBe('Consultant');
-  });
+    })
+    expect(resolveResourceDisplayName(r)).toBe('Consultant')
+  })
 
   it.each(['', '   '])(
     'falls back to job title when a non-placeholder name is blank: %j',
     (name) => {
-      const r = makeResource({ kind: 'external', name, jobTitle: 'Consultant' });
-      expect(resolveResourceDisplayName(r)).toBe('Consultant');
-    },
-  );
-});
+      const r = makeResource({ kind: 'external', name, jobTitle: 'Consultant' })
+      expect(resolveResourceDisplayName(r)).toBe('Consultant')
+    }
+  )
+})
 
 // Exercise the derivation primitives directly so independently owned tables preserve lazy locale lookup.
 describe('labelsFrom / toOptions', () => {
   it('resolves every message at CALL time, so a locale switch is live', () => {
-    let locale = 'en';
+    let locale = 'en'
     const table: LabelMessages<'alpha' | 'beta'> = {
       alpha: () => `alpha:${locale}`,
       beta: () => `beta:${locale}`,
-    };
+    }
 
-    expect(buildLabels(table)).toEqual({ alpha: 'alpha:en', beta: 'beta:en' });
-    locale = 'fr';
-    expect(buildLabels(table)).toEqual({ alpha: 'alpha:fr', beta: 'beta:fr' });
-  });
+    expect(buildLabels(table)).toEqual({ alpha: 'alpha:en', beta: 'beta:en' })
+    locale = 'fr'
+    expect(buildLabels(table)).toEqual({ alpha: 'alpha:fr', beta: 'beta:fr' })
+  })
 
   it("preserves the table's declaration order through to the option list", () => {
     const table: LabelMessages<'third' | 'first' | 'second'> = {
       third: () => 'Third',
       first: () => 'First',
       second: () => 'Second',
-    };
+    }
 
     expect(buildLabelOptions(buildLabels(table))).toEqual([
       { value: 'third', label: 'Third' },
       { value: 'first', label: 'First' },
       { value: 'second', label: 'Second' },
-    ]);
-  });
+    ])
+  })
 
   it('degrades to an empty map/list for an empty table rather than throwing', () => {
-    const empty: LabelMessages<never> = {};
-    expect(buildLabels(empty)).toEqual({});
-    expect(buildLabelOptions(buildLabels(empty))).toEqual([]);
-  });
-});
+    const empty: LabelMessages<never> = {}
+    expect(buildLabels(empty)).toEqual({})
+    expect(buildLabelOptions(buildLabels(empty))).toEqual([])
+  })
+})

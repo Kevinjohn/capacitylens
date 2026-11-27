@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { readAuthResponse } from './authResponse';
+import { describe, expect, it, vi } from 'vitest'
+import { readAuthResponse } from './authResponse'
 
 const signedIn = (body: Record<string, unknown>) =>
   new Response(
@@ -11,8 +11,8 @@ const signedIn = (body: Record<string, unknown>) =>
         ...body,
       },
     }),
-    { status: 200 },
-  );
+    { status: 200 }
+  )
 
 describe('readAuthResponse limited gates', () => {
   it('keeps an unmet invitation requirement for the access screen', async () => {
@@ -22,14 +22,14 @@ describe('readAuthResponse limited gates', () => {
           admitted: false,
           requirements: { invitation: { met: false }, approval: { met: true, status: 'approved' } },
         },
-      }),
-    );
+      })
+    )
     expect(result).toMatchObject({
       kind: 'pass',
       accessGate: 'admission',
       admission: { invitationMissing: true, domainRefused: false, approvalStatus: 'approved' },
-    });
-  });
+    })
+  })
 
   it('keeps a refused domain for the access screen', async () => {
     const result = await readAuthResponse(
@@ -38,21 +38,21 @@ describe('readAuthResponse limited gates', () => {
           admitted: false,
           requirements: { domain: { met: false, reason: 'not_allowed' } },
         },
-      }),
-    );
-    expect(result).toMatchObject({ kind: 'pass', admission: { domainRefused: true } });
-  });
+      })
+    )
+    expect(result).toMatchObject({ kind: 'pass', admission: { domainRefused: true } })
+  })
 
   it.each([
     { admission: undefined },
     { admission: { admitted: true, requirements: {} }, membershipRequired: undefined },
     { admission: { admitted: true, requirements: {} }, emailVerified: 'yes' },
   ])('treats a missing or malformed gate as an invalid response (%o)', async (body) => {
-    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
-      expect(await readAuthResponse(signedIn(body))).toMatchObject({ kind: 'error' });
+      expect(await readAuthResponse(signedIn(body))).toMatchObject({ kind: 'error' })
     } finally {
-      consoleWarn.mockRestore();
+      consoleWarn.mockRestore()
     }
-  });
-});
+  })
+})

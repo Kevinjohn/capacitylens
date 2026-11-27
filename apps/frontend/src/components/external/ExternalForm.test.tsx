@@ -1,60 +1,60 @@
-import { requireCreated } from '@/test/requireCreated';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render as renderTestingLibrary, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { resetStoreWithCompany } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { ExternalForm } from './ExternalForm';
-import { OwnerPermissions } from '@/test/ownerPermissions';
-import { RestorationCleanupDialog } from '@/components/common/RestorationCleanupDialog';
-import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
-import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningCacheError } from '@/data/planning/planningErrors';
+import { requireCreated } from '@/test/requireCreated'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render as renderTestingLibrary, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { resetStoreWithCompany } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { ExternalForm } from './ExternalForm'
+import { OwnerPermissions } from '@/test/ownerPermissions'
+import { RestorationCleanupDialog } from '@/components/common/RestorationCleanupDialog'
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch'
+import { getStubPlanningTransport } from '@/test/planningTransportHandle'
+import { PlanningCacheError } from '@/data/planning/planningErrors'
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
-  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions })
 
 beforeEach(async () => {
-  await resetStoreWithCompany();
-});
+  await resetStoreWithCompany()
+})
 
 describe('ExternalForm', () => {
   it('rejects a blank company name and associates the error with the field', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    render(<ExternalForm onClose={onClose} />);
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ExternalForm onClose={onClose} />)
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    const company = screen.getByLabelText('Company');
-    const alert = screen.getByRole('alert');
-    expect(company).toHaveAttribute('aria-invalid', 'true');
-    expect(company).toHaveAttribute('aria-describedby', alert.id);
-    expect(alert).toHaveTextContent('Company name is required.');
-    expect(onClose).not.toHaveBeenCalled();
-    expect(useStore.getState().data.resources).toEqual([]);
-  });
+    const company = screen.getByLabelText('Company')
+    const alert = screen.getByRole('alert')
+    expect(company).toHaveAttribute('aria-invalid', 'true')
+    expect(company).toHaveAttribute('aria-describedby', alert.id)
+    expect(alert).toHaveTextContent('Company name is required.')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.resources).toEqual([])
+  })
 
   it('adds an external party with the submitted company and descriptor', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    render(<ExternalForm onClose={onClose} />);
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ExternalForm onClose={onClose} />)
 
-    await user.type(screen.getByLabelText('Company'), 'Pixel Forge');
-    await user.type(screen.getByLabelText('Descriptor'), 'Print partner');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.type(screen.getByLabelText('Company'), 'Pixel Forge')
+    await user.type(screen.getByLabelText('Descriptor'), 'Print partner')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(useStore.getState().data.resources).toHaveLength(1);
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(useStore.getState().data.resources).toHaveLength(1)
     expect(useStore.getState().data.resources[0]).toMatchObject({
       kind: 'external',
       name: 'Pixel Forge',
       jobTitle: 'Print partner',
-    });
-  });
+    })
+  })
 
   it('prefills and updates an existing external party', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const resource = await requireCreated(
       useStore.getState().addResource({
         kind: 'external',
@@ -66,31 +66,31 @@ describe('ExternalForm', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#737373',
-      }),
-    );
-    const onClose = vi.fn();
-    render(<ExternalForm resource={resource} onClose={onClose} />);
+      })
+    )
+    const onClose = vi.fn()
+    render(<ExternalForm resource={resource} onClose={onClose} />)
 
-    expect(screen.getByLabelText('Company')).toHaveValue('Kord Industries');
-    expect(screen.getByLabelText('Descriptor')).toHaveValue('Visual design');
-    await user.clear(screen.getByLabelText('Company'));
-    await user.type(screen.getByLabelText('Company'), 'Kord Studio');
-    await user.clear(screen.getByLabelText('Descriptor'));
-    await user.type(screen.getByLabelText('Descriptor'), 'Brand partner');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByLabelText('Company')).toHaveValue('Kord Industries')
+    expect(screen.getByLabelText('Descriptor')).toHaveValue('Visual design')
+    await user.clear(screen.getByLabelText('Company'))
+    await user.type(screen.getByLabelText('Company'), 'Kord Studio')
+    await user.clear(screen.getByLabelText('Descriptor'))
+    await user.type(screen.getByLabelText('Descriptor'), 'Brand partner')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(useStore.getState().data.resources).toHaveLength(1);
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(useStore.getState().data.resources).toHaveLength(1)
     expect(useStore.getState().data.resources[0]).toMatchObject({
       id: resource.id,
       kind: 'external',
       name: 'Kord Studio',
       jobTitle: 'Brand partner',
-    });
-  });
+    })
+  })
 
   it('rejects a stale edit instead of overwriting a concurrent change', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const resource = await requireCreated(
       useStore.getState().addResource({
         kind: 'external',
@@ -102,10 +102,10 @@ describe('ExternalForm', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#737373',
-      }),
-    );
-    const onClose = vi.fn();
-    render(<ExternalForm resource={resource} onClose={onClose} />);
+      })
+    )
+    const onClose = vi.fn()
+    render(<ExternalForm resource={resource} onClose={onClose} />)
 
     queuePlanningPatch(() => ({
       upserts: [
@@ -115,38 +115,38 @@ describe('ExternalForm', () => {
         },
       ],
       removed: [],
-    }));
-    await useStore.getState().updateResource(resource.id, { jobTitle: 'Brand lead' });
-    await user.clear(screen.getByLabelText('Company'));
-    await user.type(screen.getByLabelText('Company'), 'Kord Studio');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    }))
+    await useStore.getState().updateResource(resource.id, { jobTitle: 'Brand lead' })
+    await user.clear(screen.getByLabelText('Company'))
+    await user.type(screen.getByLabelText('Company'), 'Kord Studio')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      /external party changed while you were editing/i,
-    );
-    expect(onClose).not.toHaveBeenCalled();
+      /external party changed while you were editing/i
+    )
+    expect(onClose).not.toHaveBeenCalled()
     expect(useStore.getState().data.resources[0]).toMatchObject({
       name: 'Kord Industries',
       jobTitle: 'Brand lead',
-    });
-  });
+    })
+  })
 
   it('surfaces a store rejection without closing the form', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    useStore.getState().setActiveCompany(null);
-    render(<ExternalForm onClose={onClose} />);
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    useStore.getState().setActiveCompany(null)
+    render(<ExternalForm onClose={onClose} />)
 
-    await user.type(screen.getByLabelText('Company'), 'Unscoped partner');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.type(screen.getByLabelText('Company'), 'Unscoped partner')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/No active company is selected/);
-    expect(onClose).not.toHaveBeenCalled();
-    expect(useStore.getState().data.resources).toEqual([]);
-  });
+    expect(screen.getByRole('alert')).toHaveTextContent(/No active company is selected/)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.resources).toEqual([])
+  })
 
   it('keeps the edited draft open and reports the save cancelled when Restore cleanup is cancelled', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const resource = await requireCreated(
       useStore.getState().addResource({
         kind: 'external',
@@ -158,45 +158,45 @@ describe('ExternalForm', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#737373',
-      }),
-    );
+      })
+    )
     const closure = await requireCreated(
       useStore
         .getState()
-        .addClosure({ name: 'Gotham closure', startDate: '2026-12-24', endDate: '2026-12-25' }),
-    );
+        .addClosure({ name: 'Gotham closure', startDate: '2026-12-24', endDate: '2026-12-25' })
+    )
     queuePlanningPatch(() => ({ upserts: [], removed: [{ entity: 'closures', id: closure.id }] }), {
       replacementGroupId: 'closure-restore-group',
-    });
-    await useStore.getState().deleteClosure(closure.id);
+    })
+    await useStore.getState().deleteClosure(closure.id)
     getStubPlanningTransport().failNext(
       new PlanningCacheError(
         'This change clears 1 restorable item.',
         'E_RESTORATION_CONFIRMATION_REQUIRED',
         409,
         false,
-        1,
-      ),
-    );
-    const before = structuredClone(useStore.getState().data);
-    const onClose = vi.fn();
+        1
+      )
+    )
+    const before = structuredClone(useStore.getState().data)
+    const onClose = vi.fn()
     render(
       <>
         <ExternalForm resource={resource} onClose={onClose} />
         <RestorationCleanupDialog />
-      </>,
-    );
-    await user.clear(screen.getByLabelText('Company'));
-    await user.type(screen.getByLabelText('Company'), 'Kord Studio');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+      </>
+    )
+    await user.clear(screen.getByLabelText('Company'))
+    await user.type(screen.getByLabelText('Company'), 'Kord Studio')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-      'This change clears 1 restorable item',
-    );
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      'This change clears 1 restorable item'
+    )
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Company')).toHaveValue('Kord Studio');
-    expect(screen.getByRole('alert')).toHaveTextContent('The planning save was cancelled.');
-    expect(useStore.getState().data).toEqual(before);
-  });
-});
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Company')).toHaveValue('Kord Studio')
+    expect(screen.getByRole('alert')).toHaveTextContent('The planning save was cancelled.')
+    expect(useStore.getState().data).toEqual(before)
+  })
+})

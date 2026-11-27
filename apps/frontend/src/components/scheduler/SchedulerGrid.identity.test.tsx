@@ -1,159 +1,159 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import type { ReactNode } from 'react';
-import { PermissionContext } from '@/auth/permissionContext';
-import { resetStoreWithData, DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { schedulerDataset } from '@/test/schedulerTestKit';
-import { SchedulerGrid } from './SchedulerGrid';
-import { OwnerPermissions } from '@/test/ownerPermissions';
-import { permissionValue } from '@/test/permissionGrants';
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { PermissionContext } from '@/auth/permissionContext'
+import { resetStoreWithData, DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { schedulerDataset } from '@/test/schedulerTestKit'
+import { SchedulerGrid } from './SchedulerGrid'
+import { OwnerPermissions } from '@/test/ownerPermissions'
+import { permissionValue } from '@/test/permissionGrants'
 
 function OwnerRouter({ children }: { children: ReactNode }) {
   return (
     <OwnerPermissions>
       <MemoryRouter>{children}</MemoryRouter>
     </OwnerPermissions>
-  );
+  )
 }
 
 beforeEach(async () => {
-  await resetStoreWithData(schedulerDataset(), DEFAULT_COMPANY_ID);
-  useStore.getState().setOriginDate('2026-06-01');
-  useStore.getState().setZoom(1);
-  useStore.getState().setDrawMode('work');
-  useStore.getState().clearFilters();
-  useStore.getState().setUtilisationPref({ key: 'showDiscipline', value: true });
+  await resetStoreWithData(schedulerDataset(), DEFAULT_COMPANY_ID)
+  useStore.getState().setOriginDate('2026-06-01')
+  useStore.getState().setZoom(1)
+  useStore.getState().setDrawMode('work')
+  useStore.getState().clearFilters()
+  useStore.getState().setUtilisationPref({ key: 'showDiscipline', value: true })
   useStore.setState((state) => ({
     ui: { ...state.ui, collapsedGroups: [], scrollToResource: null },
-  }));
-});
+  }))
+})
 
 describe('SchedulerGrid component identity and row variants', () => {
   it.each([null, 'https://images.example/bruce.png'])(
     'shows the stored avatar URL %s, and no image without one',
     async (avatarUrl) => {
       class LoadedImage {
-        complete = true;
-        naturalWidth = 1;
-        crossOrigin: string | null = null;
-        referrerPolicy = '';
-        src = '';
+        complete = true
+        naturalWidth = 1
+        crossOrigin: string | null = null
+        referrerPolicy = ''
+        src = ''
         addEventListener() {}
         removeEventListener() {}
       }
-      vi.stubGlobal('Image', LoadedImage);
-      const bruce = useStore.getState().data.resources.find(({ name }) => name === 'Bruce');
-      if (!bruce) throw new Error('Expected Bruce in the scheduler fixture');
-      await useStore.getState().updateResource(bruce.id, { avatarUrl });
+      vi.stubGlobal('Image', LoadedImage)
+      const bruce = useStore.getState().data.resources.find(({ name }) => name === 'Bruce')
+      if (!bruce) throw new Error('Expected Bruce in the scheduler fixture')
+      await useStore.getState().updateResource(bruce.id, { avatarUrl })
 
       try {
-        const { container } = render(<SchedulerGrid />, { wrapper: OwnerRouter });
+        const { container } = render(<SchedulerGrid />, { wrapper: OwnerRouter })
 
-        const avatar = container.querySelector('button[data-testid="person-schedule-trigger"] img');
+        const avatar = container.querySelector('button[data-testid="person-schedule-trigger"] img')
         if (avatarUrl === null) {
-          expect(avatar).toBeNull();
+          expect(avatar).toBeNull()
         } else {
-          expect(avatar).toHaveAttribute('src', avatarUrl);
-          expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer');
+          expect(avatar).toHaveAttribute('src', avatarUrl)
+          expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer')
         }
       } finally {
-        vi.unstubAllGlobals();
+        vi.unstubAllGlobals()
       }
-    },
-  );
+    }
+  )
 
   it('retains the focused bar and group DOM nodes when the utilisation display changes', () => {
-    render(<SchedulerGrid />, { wrapper: OwnerRouter });
-    const bar = screen.getByTestId('allocation-bar');
-    const group = screen.getByTestId('discipline-group');
-    bar.focus();
-    act(() => useStore.getState().setUtilisationPref({ key: 'showDiscipline', value: false }));
-    expect(screen.getByTestId('allocation-bar')).toBe(bar);
-    expect(screen.getByTestId('discipline-group')).toBe(group);
-    expect(bar).toHaveFocus();
-    expect(group).not.toHaveTextContent(/avg/);
-  });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter })
+    const bar = screen.getByTestId('allocation-bar')
+    const group = screen.getByTestId('discipline-group')
+    bar.focus()
+    act(() => useStore.getState().setUtilisationPref({ key: 'showDiscipline', value: false }))
+    expect(screen.getByTestId('allocation-bar')).toBe(bar)
+    expect(screen.getByTestId('discipline-group')).toBe(group)
+    expect(bar).toHaveFocus()
+    expect(group).not.toHaveTextContent(/avg/)
+  })
 
   it('keeps viewer rows readable without exposing create, draw or edit controls', () => {
     render(
       <PermissionContext.Provider value={permissionValue('viewer')}>
         <SchedulerGrid />
       </PermissionContext.Provider>,
-      { wrapper: OwnerRouter },
-    );
-    expect(screen.getByTestId('scheduler-row')).toBeVisible();
-    expect(screen.queryByRole('button', { name: /Add allocation for/ })).not.toBeInTheDocument();
-    expect(screen.getByTestId('allocation-bar')).toHaveAttribute('role', 'img');
-    const trigger = screen.getByRole('button', { name: "View Bruce's schedule B" });
-    expect(trigger).toBeVisible();
-    expect(trigger).toHaveAttribute('data-testid', 'person-schedule-trigger');
-    expect(within(trigger).getByTestId('person-schedule-avatar')).toBeVisible();
+      { wrapper: OwnerRouter }
+    )
+    expect(screen.getByTestId('scheduler-row')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Add allocation for/ })).not.toBeInTheDocument()
+    expect(screen.getByTestId('allocation-bar')).toHaveAttribute('role', 'img')
+    const trigger = screen.getByRole('button', { name: "View Bruce's schedule B" })
+    expect(trigger).toBeVisible()
+    expect(trigger).toHaveAttribute('data-testid', 'person-schedule-trigger')
+    expect(within(trigger).getByTestId('person-schedule-avatar')).toBeVisible()
     expect(within(trigger).getByTestId('person-schedule-eye')).toHaveClass(
       'group-hover:opacity-100',
-      'group-focus-visible:opacity-100',
-    );
+      'group-focus-visible:opacity-100'
+    )
     expect(
       within(screen.getByTestId('scheduler-row')).getAllByRole('button', {
         name: "View Bruce's schedule B",
-      }),
-    ).toHaveLength(1);
-  });
-});
+      })
+    ).toHaveLength(1)
+  })
+})
 
 describe('SchedulerGrid individual schedule drawer', () => {
   it('opens one read-only schedule sheet without replacing the grid', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerGrid />, { wrapper: OwnerRouter });
-    const grid = screen.getByTestId('scheduler-grid');
+    const user = userEvent.setup()
+    render(<SchedulerGrid />, { wrapper: OwnerRouter })
+    const grid = screen.getByTestId('scheduler-grid')
 
-    await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }));
+    await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }))
 
-    expect(screen.getByRole('dialog', { name: "Bruce's schedule" })).toBeVisible();
-    expect(screen.getByTestId('scheduler-grid')).toBe(grid);
-    expect(screen.getAllByTestId('person-schedule-sheet')).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: "Bruce's schedule" })).toBeVisible()
+    expect(screen.getByTestId('scheduler-grid')).toBe(grid)
+    expect(screen.getAllByTestId('person-schedule-sheet')).toHaveLength(1)
     expect(
-      screen.queryByRole('button', { name: /Edit|Delete|Save|Duplicate/ }),
-    ).not.toBeInTheDocument();
-  });
+      screen.queryByRole('button', { name: /Edit|Delete|Save|Duplicate/ })
+    ).not.toBeInTheDocument()
+  })
 
   it('returns focus to the grid without scrolling when the opener disconnects', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerGrid />, { wrapper: OwnerRouter });
-    const grid = screen.getByTestId('scheduler-grid');
-    grid.scrollLeft = 37;
-    grid.scrollTop = 19;
-    const trigger = screen.getByRole('button', { name: "View Bruce's schedule B" });
-    await user.click(trigger);
-    trigger.remove();
+    const user = userEvent.setup()
+    render(<SchedulerGrid />, { wrapper: OwnerRouter })
+    const grid = screen.getByTestId('scheduler-grid')
+    grid.scrollLeft = 37
+    grid.scrollTop = 19
+    const trigger = screen.getByRole('button', { name: "View Bruce's schedule B" })
+    await user.click(trigger)
+    trigger.remove()
 
-    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: 'Close' }))
 
-    await waitFor(() => expect(grid).toHaveFocus());
-    expect(grid.scrollLeft).toBe(37);
-    expect(grid.scrollTop).toBe(19);
-  });
+    await waitFor(() => expect(grid).toHaveFocus())
+    expect(grid.scrollLeft).toBe(37)
+    expect(grid.scrollTop).toBe(19)
+  })
 
   it('removes selected company content synchronously on a company switch', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerGrid />, { wrapper: OwnerRouter });
-    await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }));
-    expect(screen.getByRole('dialog', { name: "Bruce's schedule" })).toBeVisible();
+    const user = userEvent.setup()
+    render(<SchedulerGrid />, { wrapper: OwnerRouter })
+    await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }))
+    expect(screen.getByRole('dialog', { name: "Bruce's schedule" })).toBeVisible()
 
     // The switch clears the company date until a2's read lands; `CompanyDateRoute` holds the grid
     // behind its loader meanwhile, so the date arrives here in the same render.
     act(() => {
-      useStore.getState().setActiveCompany('a2');
-      useStore.setState((state) => ({ planning: { ...state.planning, today: '2026-06-03' } }));
-    });
+      useStore.getState().setActiveCompany('a2')
+      useStore.setState((state) => ({ planning: { ...state.planning, today: '2026-06-03' } }))
+    })
 
-    expect(screen.queryByText("Bruce's schedule")).not.toBeInTheDocument();
-  });
+    expect(screen.queryByText("Bruce's schedule")).not.toBeInTheDocument()
+  })
 
   it('preserves the dimmed placeholder surface and work-mode creation affordance', async () => {
-    await useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { placeholdersEnabled: true });
+    await useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { placeholdersEnabled: true })
     await resetStoreWithData(
       {
         ...useStore.getState().data,
@@ -162,14 +162,14 @@ describe('SchedulerGrid individual schedule drawer', () => {
         ],
         allocations: [],
       },
-      DEFAULT_COMPANY_ID,
-    );
-    useStore.getState().setFilters({ projectId: 'p1', showUnmatched: true });
-    render(<SchedulerGrid />, { wrapper: OwnerRouter });
-    expect(screen.getByTestId('scheduler-row')).toHaveAttribute('data-dimmed', 'true');
+      DEFAULT_COMPANY_ID
+    )
+    useStore.getState().setFilters({ projectId: 'p1', showUnmatched: true })
+    render(<SchedulerGrid />, { wrapper: OwnerRouter })
+    expect(screen.getByTestId('scheduler-row')).toHaveAttribute('data-dimmed', 'true')
     expect(within(screen.getByTestId('scheduler-row')).getByRole('rowheader')).toHaveClass(
-      'hatch-lines',
-    );
-    expect(screen.getByRole('button', { name: /Add allocation for Placeholder/ })).toBeVisible();
-  });
-});
+      'hatch-lines'
+    )
+    expect(screen.getByRole('button', { name: /Add allocation for Placeholder/ })).toBeVisible()
+  })
+})

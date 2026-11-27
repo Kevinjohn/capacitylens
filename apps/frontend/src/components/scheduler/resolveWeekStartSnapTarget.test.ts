@@ -1,48 +1,48 @@
-import { describe, it, expect } from 'vitest';
-import { buildColumnGeometry } from './columnGeometry';
-import { resolveWeekStartSnapTarget } from './resolveWeekStartSnapTarget';
-import { listDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import { describe, it, expect } from 'vitest'
+import { buildColumnGeometry } from './columnGeometry'
+import { resolveWeekStartSnapTarget } from './resolveWeekStartSnapTarget'
+import { listDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath'
 
 // Use a multi-week window to prove snapping floors to the current week even when the next week boundary is nearer.
-const DAYS = listDaysISO('2026-06-01', '2026-06-21');
-const DAY_W = 48;
-const OFF = { minimiseWeekends: false, weekendWidth: 20 };
-const ON = { minimiseWeekends: true, weekendWidth: 20 };
+const DAYS = listDaysISO('2026-06-01', '2026-06-21')
+const DAY_W = 48
+const OFF = { minimiseWeekends: false, weekendWidth: 20 }
+const ON = { minimiseWeekends: true, weekendWidth: 20 }
 
-const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
+const geom = buildColumnGeometry(DAYS, DAY_W, OFF)
 
-const mon1 = geom.getDateX('2026-06-01');
+const mon1 = geom.getDateX('2026-06-01')
 
 describe('resolveWeekStartSnapTarget — floor to the current week start (uniform grid)', () => {
-  const mon2 = geom.getDateX('2026-06-08');
+  const mon2 = geom.getDateX('2026-06-08')
 
   it('a left edge mid-week (Wed) floors BACK to the same Monday', () => {
-    const wedX = geom.getDateX('2026-06-03');
+    const wedX = geom.getDateX('2026-06-03')
     expect(
-      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 }),
-    ).toBe(mon1);
-  });
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 })
+    ).toBe(mon1)
+  })
 
   it('a left edge past the half-week (Fri) ALSO floors back to the SAME Monday, never forward', () => {
-    const friX = geom.getDateX('2026-06-05');
+    const friX = geom.getDateX('2026-06-05')
     const target = resolveWeekStartSnapTarget({
       geom,
       days: DAYS,
       scrollLeft: friX,
       weekStartsOn: 1,
-    });
-    expect(target).toBe(mon1);
-    expect(target).toBeLessThan(mon2);
-  });
+    })
+    expect(target).toBe(mon1)
+    expect(target).toBeLessThan(mon2)
+  })
 
   it('returns null when already exactly on a Monday (convergence — caller no-ops)', () => {
     expect(
-      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: mon1, weekStartsOn: 1 }),
-    ).toBeNull();
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: mon1, weekStartsOn: 1 })
+    ).toBeNull()
     expect(
-      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: mon2, weekStartsOn: 1 }),
-    ).toBeNull();
-  });
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: mon2, weekStartsOn: 1 })
+    ).toBeNull()
+  })
 
   it('returns null within the 0.5px convergence band (sub-pixel already-aligned)', () => {
     // A position 0.4px above Monday resolves to that Monday and falls within the convergence band.
@@ -53,8 +53,8 @@ describe('resolveWeekStartSnapTarget — floor to the current week start (unifor
         days: DAYS,
         scrollLeft: mon2 + 0.4,
         weekStartsOn: 1,
-      }),
-    ).toBeNull();
+      })
+    ).toBeNull()
 
     expect(
       resolveWeekStartSnapTarget({
@@ -62,35 +62,35 @@ describe('resolveWeekStartSnapTarget — floor to the current week start (unifor
         days: DAYS,
         scrollLeft: mon2 + 0.6,
         weekStartsOn: 1,
-      }),
-    ).toBe(mon2);
-  });
-});
+      })
+    ).toBe(mon2)
+  })
+})
 
 describe('resolveWeekStartSnapTarget — Sunday week start (weekStartsOn=0)', () => {
   it("clamps the first partial week's preceding Sunday to the window origin", () => {
-    const tueX = geom.getDateX('2026-06-02');
+    const tueX = geom.getDateX('2026-06-02')
     expect(
-      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
-    ).toBe(0);
-  });
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 })
+    ).toBe(0)
+  })
 
   it('floors to the SUNDAY, not the Monday', () => {
-    const tueX = geom.getDateX('2026-06-09');
-    const sunday = geom.getDateX('2026-06-07');
+    const tueX = geom.getDateX('2026-06-09')
+    const sunday = geom.getDateX('2026-06-07')
     expect(
-      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
-    ).toBe(sunday);
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 })
+    ).toBe(sunday)
 
     expect(
-      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
-    ).not.toBe(geom.getDateX('2026-06-08'));
-  });
-});
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 })
+    ).not.toBe(geom.getDateX('2026-06-08'))
+  })
+})
 
 describe('resolveWeekStartSnapTarget — convergence boundary is <=, not <', () => {
   it('preserves an explicit zero epsilon', () => {
-    const mondayOffset = geom.getDateX('2026-06-08');
+    const mondayOffset = geom.getDateX('2026-06-08')
     expect(
       resolveWeekStartSnapTarget({
         geom,
@@ -98,8 +98,8 @@ describe('resolveWeekStartSnapTarget — convergence boundary is <=, not <', () 
         scrollLeft: mondayOffset,
         weekStartsOn: 1,
         epsilon: 0,
-      }),
-    ).toBeNull();
+      })
+    ).toBeNull()
     expect(
       resolveWeekStartSnapTarget({
         geom,
@@ -107,9 +107,9 @@ describe('resolveWeekStartSnapTarget — convergence boundary is <=, not <', () 
         scrollLeft: mondayOffset + 0.4,
         weekStartsOn: 1,
         epsilon: 0,
-      }),
-    ).toBe(mondayOffset);
-  });
+      })
+    ).toBe(mondayOffset)
+  })
 
   it('a distance EXACTLY equal to a custom epsilon still counts as converged (returns null)', () => {
     expect(
@@ -119,10 +119,10 @@ describe('resolveWeekStartSnapTarget — convergence boundary is <=, not <', () 
         scrollLeft: mon1 + 2,
         weekStartsOn: 1,
         epsilon: 2,
-      }),
-    ).toBeNull();
-  });
-});
+      })
+    ).toBeNull()
+  })
+})
 
 describe('resolveWeekStartSnapTarget — degenerate inputs stay finite', () => {
   it('an out-of-range (negative / huge) scrollLeft falls back via days[0]/last day, never NaN', () => {
@@ -131,50 +131,50 @@ describe('resolveWeekStartSnapTarget — degenerate inputs stay finite', () => {
       days: DAYS,
       scrollLeft: -9999,
       weekStartsOn: 1,
-    });
-    expect(lo).toBe(0);
-    expect(Number.isFinite(lo as number)).toBe(true);
+    })
+    expect(lo).toBe(0)
+    expect(Number.isFinite(lo as number)).toBe(true)
 
     const hi = resolveWeekStartSnapTarget({
       geom,
       days: DAYS,
       scrollLeft: 9_999_999,
       weekStartsOn: 1,
-    });
-    expect(Number.isFinite(hi as number)).toBe(true);
-    expect(hi).toBe(geom.getDateX('2026-06-15'));
-  });
+    })
+    expect(Number.isFinite(hi as number)).toBe(true)
+    expect(hi).toBe(geom.getDateX('2026-06-15'))
+  })
 
   it('returns a no-op for an empty day window instead of throwing', () => {
-    const empty = buildColumnGeometry([], DAY_W, OFF);
+    const empty = buildColumnGeometry([], DAY_W, OFF)
     expect(
-      resolveWeekStartSnapTarget({ geom: empty, days: [], scrollLeft: 0, weekStartsOn: 1 }),
-    ).toBeNull();
-  });
+      resolveWeekStartSnapTarget({ geom: empty, days: [], scrollLeft: 0, weekStartsOn: 1 })
+    ).toBeNull()
+  })
 
   it('degrades invalid dates and an out-of-window first week start to zero', () => {
-    const invalidDays = ['not-a-date'];
-    const invalidGeom = buildColumnGeometry(invalidDays, DAY_W, OFF);
+    const invalidDays = ['not-a-date']
+    const invalidGeom = buildColumnGeometry(invalidDays, DAY_W, OFF)
     expect(
       resolveWeekStartSnapTarget({
         geom: invalidGeom,
         days: invalidDays,
         scrollLeft: 48,
         weekStartsOn: 1,
-      }),
-    ).toBe(0);
-    const partial = listDaysISO('2026-06-03', '2026-06-09');
-    const partialGeom = buildColumnGeometry(partial, DAY_W, OFF);
+      })
+    ).toBe(0)
+    const partial = listDaysISO('2026-06-03', '2026-06-09')
+    const partialGeom = buildColumnGeometry(partial, DAY_W, OFF)
     expect(
       resolveWeekStartSnapTarget({
         geom: partialGeom,
         days: partial,
         scrollLeft: DAY_W,
         weekStartsOn: 1,
-      }),
-    ).toBe(0);
-  });
-});
+      })
+    ).toBe(0)
+  })
+})
 
 // Fractional scroll positions just below a Monday boundary must still resolve to that Monday within the convergence band. Narrow weekends make a mistaken floor jump back a whole week.
 describe.each([
@@ -183,9 +183,9 @@ describe.each([
 ] as const)(
   'resolveWeekStartSnapTarget — sub-pixel left edge near a Monday boundary (%s)',
   (_label, opts) => {
-    const geometry = buildColumnGeometry(DAYS, DAY_W, opts);
-    const mondayOffset = geometry.getDateX('2026-06-08');
-    const prevMonday = geometry.getDateX('2026-06-01');
+    const geometry = buildColumnGeometry(DAYS, DAY_W, opts)
+    const mondayOffset = geometry.getDateX('2026-06-08')
+    const prevMonday = geometry.getDateX('2026-06-01')
 
     it('a position a sub-pixel BELOW the Monday boundary stays on that Monday (no week-back jump)', () => {
       const target = resolveWeekStartSnapTarget({
@@ -193,11 +193,11 @@ describe.each([
         days: DAYS,
         scrollLeft: mondayOffset - 0.4,
         weekStartsOn: 1,
-      });
+      })
 
-      expect(target).not.toBe(prevMonday);
-      expect(target).toBeNull();
-    });
+      expect(target).not.toBe(prevMonday)
+      expect(target).toBeNull()
+    })
 
     it('a position a sub-pixel ABOVE the Monday boundary also stays on that Monday (no-op)', () => {
       expect(
@@ -206,40 +206,40 @@ describe.each([
           days: DAYS,
           scrollLeft: mondayOffset + 0.4,
           weekStartsOn: 1,
-        }),
-      ).toBeNull();
-    });
+        })
+      ).toBeNull()
+    })
 
     it('a genuinely mid-week (integer Wed) left edge still FLOORS to that week’s Monday', () => {
-      const wedX = geometry.getDateX('2026-06-10');
+      const wedX = geometry.getDateX('2026-06-10')
       expect(
         resolveWeekStartSnapTarget({
           geom: geometry,
           days: DAYS,
           scrollLeft: wedX,
           weekStartsOn: 1,
-        }),
-      ).toBe(mondayOffset);
-    });
-  },
-);
+        })
+      ).toBe(mondayOffset)
+    })
+  }
+)
 
 describe('resolveWeekStartSnapTarget — minimised-weekend geometry', () => {
-  const geometry = buildColumnGeometry(DAYS, DAY_W, ON);
+  const geometry = buildColumnGeometry(DAYS, DAY_W, ON)
 
   it('floors to the correct INTEGER week-start offset across narrowed weekends', () => {
-    const wedX = geometry.getDateX('2026-06-10');
-    const mondayOfWeek2 = geometry.getDateX('2026-06-08');
+    const wedX = geometry.getDateX('2026-06-10')
+    const mondayOfWeek2 = geometry.getDateX('2026-06-08')
     const target = resolveWeekStartSnapTarget({
       geom: geometry,
       days: DAYS,
       scrollLeft: wedX,
       weekStartsOn: 1,
-    });
-    expect(target).toBe(mondayOfWeek2);
+    })
+    expect(target).toBe(mondayOfWeek2)
     // Snap targets use integer geometry offsets so zoom anchoring does not drift.
-    expect(Number.isInteger(target as number)).toBe(true);
+    expect(Number.isInteger(target as number)).toBe(true)
 
-    expect(target).toBe(geometry.getDateX(startOfWeekISO('2026-06-10', 1)));
-  });
-});
+    expect(target).toBe(geometry.getDateX(startOfWeekISO('2026-06-10', 1)))
+  })
+})

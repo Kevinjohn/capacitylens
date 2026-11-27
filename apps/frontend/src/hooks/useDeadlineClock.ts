@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 // Clamp distant deadlines because browser timeout delays above the signed 32-bit
 // ceiling overflow into immediate callbacks. A clamped wake must re-arm without
 // claiming the deadline has passed.
-const MAX_TIMEOUT_DELAY = 2_147_483_647;
+const MAX_TIMEOUT_DELAY = 2_147_483_647
 
 interface DeadlineClockInput {
-  pickNextDeadline: (clock: number) => number | null;
-  readNow: () => number;
+  pickNextDeadline: (clock: number) => number | null
+  readNow: () => number
 }
 
 /**
@@ -36,29 +36,29 @@ interface DeadlineClockInput {
  * @returns the current clock value; re-read (causing a re-render) just after that deadline passes.
  */
 export function useDeadlineClock({ pickNextDeadline, readNow }: DeadlineClockInput): number {
-  const [clock, setClock] = useState(readNow);
-  const nextAt = pickNextDeadline(clock);
+  const [clock, setClock] = useState(readNow)
+  const nextAt = pickNextDeadline(clock)
 
   useEffect(() => {
-    if (nextAt === null) return;
-    let timer = 0;
+    if (nextAt === null) return
+    let timer = 0
     const arm = () => {
       // Wake strictly after the boundary because expiration consumers and the re-arm guard require
       // the clock to be greater than nextAt.
       timer = window.setTimeout(
         () => {
           if (readNow() <= nextAt) {
-            arm();
-            return;
+            arm()
+            return
           }
-          setClock(readNow());
+          setClock(readNow())
         },
-        Math.min(nextAt - readNow() + 1, MAX_TIMEOUT_DELAY),
-      );
-    };
-    arm();
-    return () => window.clearTimeout(timer);
-  }, [nextAt, readNow]);
+        Math.min(nextAt - readNow() + 1, MAX_TIMEOUT_DELAY)
+      )
+    }
+    arm()
+    return () => window.clearTimeout(timer)
+  }, [nextAt, readNow])
 
-  return clock;
+  return clock
 }

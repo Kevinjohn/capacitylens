@@ -1,30 +1,30 @@
-import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs';
-import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import net from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import test from 'node:test';
-import { resolvePortLane, workerPorts } from '../../tooling/ports.mjs';
-import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs'
+import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import net from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import test from 'node:test'
+import { resolvePortLane, workerPorts } from '../../tooling/ports.mjs'
+import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs'
 
-const portLane = resolvePortLane();
-const slot = E2E_SCRIPT_TEST_SLOTS.runtime;
+const portLane = resolvePortLane()
+const slot = E2E_SCRIPT_TEST_SLOTS.runtime
 const target = (databasePath, apiPort) => ({
   portLane,
   slot,
   api: `http://127.0.0.1:${apiPort}`,
   databasePath,
   templatePath: `${databasePath}.template`,
-});
+})
 
 function listen(port) {
   return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(port, '127.0.0.1', () => resolve(server));
-  });
+    const server = net.createServer()
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', () => resolve(server))
+  })
 }
 
 const stagedWorkerSource = `
@@ -72,84 +72,84 @@ if (stage === 'active') {
 } else {
   await startE2eWorkerServer(target, portLane, slot);
 }
-`;
+`
 
 async function waitForFile(path, timeoutMs = 20_000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
-      return JSON.parse(await readFile(path, 'utf8'));
+      return JSON.parse(await readFile(path, 'utf8'))
     } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
+      if (error.code !== 'ENOENT') throw error
     }
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10))
   }
-  throw new Error(`Timed out waiting for staged worker marker ${path}.`);
+  throw new Error(`Timed out waiting for staged worker marker ${path}.`)
 }
 
 async function waitForProcessGroupExit(group, timeoutMs = 15_000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
-      process.kill(-group, 0);
+      process.kill(-group, 0)
     } catch (error) {
-      if (error.code === 'ESRCH') return;
+      if (error.code === 'ESRCH') return
       // macOS reports EPERM for a group whose only members are unreaped zombies; it is not gone yet.
-      if (error.code !== 'EPERM') throw error;
+      if (error.code !== 'EPERM') throw error
     }
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await new Promise((resolve) => setTimeout(resolve, 25))
   }
-  assert.throws(() => process.kill(-group, 0), { code: 'ESRCH' });
+  assert.throws(() => process.kill(-group, 0), { code: 'ESRCH' })
 }
 
 function waitForExit(child) {
   return new Promise((resolve, reject) => {
-    child.once('error', reject);
-    child.once('exit', (code, signal) => resolve({ code, signal }));
-  });
+    child.once('error', reject)
+    child.once('exit', (code, signal) => resolve({ code, signal }))
+  })
 }
 
 test('an occupied API endpoint leaves the existing database untouched', async () => {
-  const ports = workerPorts(portLane, slot);
-  const temp = join(tmpdir(), `capacitylens-e2e-collision-${process.pid}.db`);
-  await writeFile(temp, 'preserve this database');
-  const listener = await listen(ports.api);
+  const ports = workerPorts(portLane, slot)
+  const temp = join(tmpdir(), `capacitylens-e2e-collision-${process.pid}.db`)
+  await writeFile(temp, 'preserve this database')
+  const listener = await listen(ports.api)
   try {
     await assert.rejects(
       startE2eWorkerServer(target(temp, ports.api), portLane, slot),
-      /API \d+ port is occupied; refusing to remove its database/,
-    );
-    assert.equal(await readFile(temp, 'utf8'), 'preserve this database');
+      /API \d+ port is occupied; refusing to remove its database/
+    )
+    assert.equal(await readFile(temp, 'utf8'), 'preserve this database')
   } finally {
     await new Promise((resolve, reject) =>
-      listener.close((error) => (error ? reject(error) : resolve())),
-    );
-    await rm(temp, { force: true });
+      listener.close((error) => (error ? reject(error) : resolve()))
+    )
+    await rm(temp, { force: true })
   }
-});
+})
 
 test('the real E2E API launcher failure reaches the guardian stderr stream', async () => {
-  const ports = workerPorts(portLane, slot);
-  const listener = await listen(ports.api);
+  const ports = workerPorts(portLane, slot)
+  const listener = await listen(ports.api)
   const guardian = spawn(
     process.execPath,
     [new URL('./e2eProcessGuardian.mjs', import.meta.url).pathname],
-    { detached: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] },
-  );
-  let stderr = '';
-  guardian.stdout.on('data', () => {});
+    { detached: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }
+  )
+  let stderr = ''
+  guardian.stdout.on('data', () => {})
   guardian.stderr.setEncoding('utf8').on('data', (chunk) => {
-    stderr = `${stderr}${chunk}`.slice(-12_000);
-  });
+    stderr = `${stderr}${chunk}`.slice(-12_000)
+  })
   const exited = new Promise((resolve, reject) => {
-    guardian.once('error', reject);
-    guardian.once('exit', resolve);
-  });
+    guardian.once('error', reject)
+    guardian.once('exit', resolve)
+  })
   try {
     await new Promise((resolve, reject) => {
-      guardian.once('spawn', resolve);
-      guardian.once('error', reject);
-    });
+      guardian.once('spawn', resolve)
+      guardian.once('error', reject)
+    })
     guardian.send({
       type: 'START',
       command: process.execPath,
@@ -163,134 +163,134 @@ test('the real E2E API launcher failure reaches the guardian stderr stream', asy
         cwd: process.cwd(),
         env: { ...process.env, CAPACITYLENS_PORT_LANE: String(portLane) },
       },
-    });
-    await exited;
+    })
+    await exited
     assert.match(
       stderr,
       new RegExp(
-        `Worker API ${ports.api} port is already occupied; refusing to replace its database`,
-      ),
-    );
+        `Worker API ${ports.api} port is already occupied; refusing to replace its database`
+      )
+    )
   } finally {
-    if (guardian.connected) guardian.disconnect();
+    if (guardian.connected) guardian.disconnect()
     await new Promise((resolve, reject) =>
-      listener.close((error) => (error ? reject(error) : resolve())),
-    );
+      listener.close((error) => (error ? reject(error) : resolve()))
+    )
   }
-});
+})
 
 test('a normal guardian stop terminates its service group before exit', async () => {
   const guardian = spawn(
     process.execPath,
     [new URL('./e2eProcessGuardian.mjs', import.meta.url).pathname],
-    { detached: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] },
-  );
-  guardian.stderr.on('data', () => {});
-  let readyResolve;
-  const ready = new Promise((resolve) => (readyResolve = resolve));
+    { detached: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }
+  )
+  guardian.stderr.on('data', () => {})
+  let readyResolve
+  const ready = new Promise((resolve) => (readyResolve = resolve))
   guardian.stdout.setEncoding('utf8').on('data', (chunk) => {
-    if (chunk.includes('NORMAL_STOP_READY')) readyResolve();
-  });
+    if (chunk.includes('NORMAL_STOP_READY')) readyResolve()
+  })
   const exited = new Promise((resolve, reject) => {
-    guardian.once('error', reject);
-    guardian.once('exit', resolve);
-  });
+    guardian.once('error', reject)
+    guardian.once('exit', resolve)
+  })
   try {
     await new Promise((resolve, reject) => {
-      guardian.once('spawn', resolve);
-      guardian.once('error', reject);
-    });
+      guardian.once('spawn', resolve)
+      guardian.once('error', reject)
+    })
     guardian.send({
       type: 'START',
       command: process.execPath,
       args: ['-e', "console.log('NORMAL_STOP_READY'); setInterval(() => {}, 1000)"],
       options: {},
-    });
-    await ready;
-    guardian.send({ type: 'STOP' });
-    await exited;
-    assert.throws(() => process.kill(-guardian.pid, 0), { code: 'ESRCH' });
+    })
+    await ready
+    guardian.send({ type: 'STOP' })
+    await exited
+    assert.throws(() => process.kill(-guardian.pid, 0), { code: 'ESRCH' })
   } finally {
-    if (guardian.connected) guardian.disconnect();
+    if (guardian.connected) guardian.disconnect()
   }
-});
+})
 
 test('guardian disconnect cleans each crash stage before stale lease recovery removes files', async () => {
-  const db = join(tmpdir(), `capacitylens-e2e-stale-${process.pid}.db`);
-  const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
-  const id = `l${portLane}-w${slot}`;
-  const lock = join(leaseDirectory, `${id}.lock`);
-  const ownerName = 'owner-999999999-dead.json';
-  const owner = join(lock, ownerName);
-  await mkdir(leaseDirectory, { recursive: true });
-  await mkdir(lock, { recursive: true });
-  await writeFile(db, 'stale');
-  await writeFile(`${db}.template`, 'stale template');
-  const runtime = await import('./e2eWorkerRuntime.mjs');
-  const guardianScript = new URL('./e2eProcessGuardian.mjs', import.meta.url);
+  const db = join(tmpdir(), `capacitylens-e2e-stale-${process.pid}.db`)
+  const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers')
+  const id = `l${portLane}-w${slot}`
+  const lock = join(leaseDirectory, `${id}.lock`)
+  const ownerName = 'owner-999999999-dead.json'
+  const owner = join(lock, ownerName)
+  await mkdir(leaseDirectory, { recursive: true })
+  await mkdir(lock, { recursive: true })
+  await writeFile(db, 'stale')
+  await writeFile(`${db}.template`, 'stale template')
+  const runtime = await import('./e2eWorkerRuntime.mjs')
+  const guardianScript = new URL('./e2eProcessGuardian.mjs', import.meta.url)
   const waitExit = (child) =>
     new Promise((resolve, reject) => {
-      child.once('error', reject);
-      child.once('exit', (code, signal) => resolve({ code, signal }));
-    });
+      child.once('error', reject)
+      child.once('exit', (code, signal) => resolve({ code, signal }))
+    })
   const makeGuardian = async () => {
     const guardian = spawn(process.execPath, [guardianScript.pathname], {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-    });
-    guardian.stdout.on('data', () => {});
-    guardian.stderr.on('data', () => {});
+    })
+    guardian.stdout.on('data', () => {})
+    guardian.stderr.on('data', () => {})
     await new Promise((resolve, reject) => {
-      guardian.once('spawn', resolve);
-      guardian.once('error', reject);
-    });
-    return guardian;
-  };
-  const resetLease = async () => rm(lock, { recursive: true, force: true });
+      guardian.once('spawn', resolve)
+      guardian.once('error', reject)
+    })
+    return guardian
+  }
+  const resetLease = async () => rm(lock, { recursive: true, force: true })
   const putOwner = async (groups) => {
-    await mkdir(lock, { recursive: true });
-    await writeFile(owner, JSON.stringify({ pid: 999_999_999, groups }));
-  };
+    await mkdir(lock, { recursive: true })
+    await writeFile(owner, JSON.stringify({ pid: 999_999_999, groups }))
+  }
   try {
     // Crash after spawn but before recording the guardian: no service has been STARTed.
-    await resetLease();
-    await putOwner([]);
-    const unrecorded = await makeGuardian();
-    const unrecordedExit = waitExit(unrecorded);
-    unrecorded.disconnect();
-    await unrecordedExit;
-    assert.throws(() => process.kill(-unrecorded.pid, 0), { code: 'ESRCH' });
-    await writeFile(db, 'stale pre-record');
-    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
-    await assert.rejects(access(db), { code: 'ENOENT' });
+    await resetLease()
+    await putOwner([])
+    const unrecorded = await makeGuardian()
+    const unrecordedExit = waitExit(unrecorded)
+    unrecorded.disconnect()
+    await unrecordedExit
+    assert.throws(() => process.kill(-unrecorded.pid, 0), { code: 'ESRCH' })
+    await writeFile(db, 'stale pre-record')
+    await runtime.recoverE2eWorker(target(db, 1), portLane, slot)
+    await assert.rejects(access(db), { code: 'ENOENT' })
 
     // Crash after the guardian PID is atomically recorded but before START.
-    await resetLease();
-    const recorded = await makeGuardian();
-    await putOwner([recorded.pid]);
-    const recordedExit = waitExit(recorded);
-    recorded.disconnect();
-    await recordedExit;
-    await writeFile(db, 'stale');
-    await writeFile(`${db}.template`, 'stale template');
-    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
-    await assert.rejects(access(db), { code: 'ENOENT' });
-    await assert.rejects(access(`${db}.template`), { code: 'ENOENT' });
-    await assert.rejects(access(owner), { code: 'ENOENT' });
+    await resetLease()
+    const recorded = await makeGuardian()
+    await putOwner([recorded.pid])
+    const recordedExit = waitExit(recorded)
+    recorded.disconnect()
+    await recordedExit
+    await writeFile(db, 'stale')
+    await writeFile(`${db}.template`, 'stale template')
+    await runtime.recoverE2eWorker(target(db, 1), portLane, slot)
+    await assert.rejects(access(db), { code: 'ENOENT' })
+    await assert.rejects(access(`${db}.template`), { code: 'ENOENT' })
+    await assert.rejects(access(owner), { code: 'ENOENT' })
 
     // Crash while active; a TERM-ignoring grandchild must be gone after guardian escalation.
-    const active = await makeGuardian();
-    const activeExit = waitExit(active);
+    const active = await makeGuardian()
+    const activeExit = waitExit(active)
     const output = new Promise((resolve, reject) => {
-      let buffered = '';
+      let buffered = ''
       active.stdout.setEncoding('utf8').on('data', (chunk) => {
-        buffered += chunk;
-        const match = /DESCENDANT_READY:(\d+)/.exec(buffered);
-        if (match) resolve(Number(match[1]));
-      });
-      active.once('error', reject);
-    });
-    await putOwner([active.pid]);
+        buffered += chunk
+        const match = /DESCENDANT_READY:(\d+)/.exec(buffered)
+        if (match) resolve(Number(match[1]))
+      })
+      active.once('error', reject)
+    })
+    await putOwner([active.pid])
     active.send({
       type: 'START',
       command: process.execPath,
@@ -299,47 +299,47 @@ test('guardian disconnect cleans each crash stage before stale lease recovery re
         "const {spawn}=require('node:child_process'); const c=spawn(process.execPath,['-e',\"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)\"],{stdio:'ignore'}); console.log('DESCENDANT_READY:'+c.pid); setInterval(()=>{},1000)",
       ],
       options: {},
-    });
-    const descendantPid = await output;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    active.disconnect();
-    await activeExit;
-    await writeFile(db, 'stale active');
-    await runtime.recoverE2eWorker(target(db, 1), portLane, slot);
-    assert.throws(() => process.kill(-active.pid, 0), { code: 'ESRCH' });
-    assert.throws(() => process.kill(descendantPid, 0), { code: 'ESRCH' });
+    })
+    const descendantPid = await output
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    active.disconnect()
+    await activeExit
+    await writeFile(db, 'stale active')
+    await runtime.recoverE2eWorker(target(db, 1), portLane, slot)
+    assert.throws(() => process.kill(-active.pid, 0), { code: 'ESRCH' })
+    assert.throws(() => process.kill(descendantPid, 0), { code: 'ESRCH' })
     assert.equal(
       await access(db).then(
         () => true,
-        () => false,
+        () => false
       ),
-      false,
-    );
+      false
+    )
   } finally {
-    await rm(db, { force: true });
-    await rm(`${db}.template`, { force: true });
-    await resetLease();
+    await rm(db, { force: true })
+    await rm(`${db}.template`, { force: true })
+    await resetLease()
   }
-});
+})
 
 test('SIGKILL of the real worker parent reaps guardians before recovery and restart', async () => {
-  const db = join(process.cwd(), 'apps/backend', `.e2e-l${portLane}-w${slot}.db`);
-  const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
-  const lock = join(leaseDirectory, `l${portLane}-w${slot}.lock`);
-  const runtimeUrl = new URL('./e2eWorkerRuntime.mjs', import.meta.url).href;
-  const temp = join(tmpdir(), `capacitylens-e2e-parent-crash-${process.pid}`);
-  await mkdir(temp, { recursive: true });
+  const db = join(process.cwd(), 'apps/backend', `.e2e-l${portLane}-w${slot}.db`)
+  const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers')
+  const lock = join(leaseDirectory, `l${portLane}-w${slot}.lock`)
+  const runtimeUrl = new URL('./e2eWorkerRuntime.mjs', import.meta.url).href
+  const temp = join(tmpdir(), `capacitylens-e2e-parent-crash-${process.pid}`)
+  await mkdir(temp, { recursive: true })
 
   const recoverAndCheckFiles = async () => {
-    await writeFile(db, 'stale worker database');
-    await writeFile(`${db}.template`, 'stale worker template');
-    await recoverE2eWorker(target(db, workerPorts(portLane, slot).api), portLane, slot);
+    await writeFile(db, 'stale worker database')
+    await writeFile(`${db}.template`, 'stale worker template')
+    await recoverE2eWorker(target(db, workerPorts(portLane, slot).api), portLane, slot)
     for (const path of [db, `${db}.template`])
-      await assert.rejects(access(path), { code: 'ENOENT' });
-  };
+      await assert.rejects(access(path), { code: 'ENOENT' })
+  }
 
   const runStage = async (stage) => {
-    const marker = join(temp, `${stage}.json`);
+    const marker = join(temp, `${stage}.json`)
     const child = spawn(process.execPath, ['--input-type=module', '-e', stagedWorkerSource], {
       cwd: process.cwd(),
       env: {
@@ -352,119 +352,119 @@ test('SIGKILL of the real worker parent reaps guardians before recovery and rest
         CAPACITYLENS_CRASH_SLOT: String(slot),
       },
       stdio: ['ignore', 'ignore', 'pipe'],
-    });
-    let stderr = '';
+    })
+    let stderr = ''
     child.stderr.setEncoding('utf8').on('data', (chunk) => {
-      stderr = `${stderr}${chunk}`.slice(-12_000);
-    });
-    const exited = waitForExit(child);
+      stderr = `${stderr}${chunk}`.slice(-12_000)
+    })
+    const exited = waitForExit(child)
     try {
-      const staged = await waitForFile(marker);
-      let ownerPath = staged.ownerPath;
-      let groups = staged.owner?.groups;
+      const staged = await waitForFile(marker)
+      let ownerPath = staged.ownerPath
+      let groups = staged.owner?.groups
       if (stage === 'active') {
         const owners = (await readdir(lock)).filter((name) =>
-          /^owner-\d+-[a-f0-9-]+\.json$/.test(name),
-        );
-        assert.equal(owners.length, 1, 'active worker publishes exactly one lease owner');
-        ownerPath = join(lock, owners[0]);
-        groups = JSON.parse(await readFile(ownerPath, 'utf8')).groups;
-        assert.equal(groups.length, 1, 'active worker has one API guardian group');
+          /^owner-\d+-[a-f0-9-]+\.json$/.test(name)
+        )
+        assert.equal(owners.length, 1, 'active worker publishes exactly one lease owner')
+        ownerPath = join(lock, owners[0])
+        groups = JSON.parse(await readFile(ownerPath, 'utf8')).groups
+        assert.equal(groups.length, 1, 'active worker has one API guardian group')
       } else if (stage === 'before-owner') {
-        assert.equal(staged.owner.groups.length, 1, 'pending owner has the spawned API guardian');
-        assert.deepEqual(JSON.parse(await readFile(ownerPath, 'utf8')).groups, []);
+        assert.equal(staged.owner.groups.length, 1, 'pending owner has the spawned API guardian')
+        assert.deepEqual(JSON.parse(await readFile(ownerPath, 'utf8')).groups, [])
       } else {
-        assert.equal(staged.owner.groups.length, 1, 'published owner has the spawned API guardian');
-        assert.deepEqual(JSON.parse(await readFile(ownerPath, 'utf8')).groups, staged.owner.groups);
+        assert.equal(staged.owner.groups.length, 1, 'published owner has the spawned API guardian')
+        assert.deepEqual(JSON.parse(await readFile(ownerPath, 'utf8')).groups, staged.owner.groups)
       }
 
-      child.kill('SIGKILL');
-      assert.deepEqual(await exited, { code: null, signal: 'SIGKILL' }, stderr);
-      for (const group of groups) await waitForProcessGroupExit(group);
-      await recoverAndCheckFiles();
+      child.kill('SIGKILL')
+      assert.deepEqual(await exited, { code: null, signal: 'SIGKILL' }, stderr)
+      for (const group of groups) await waitForProcessGroupExit(group)
+      await recoverAndCheckFiles()
     } finally {
-      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-      await exited.catch(() => {});
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+      await exited.catch(() => {})
     }
-  };
+  }
 
   try {
-    await runStage('before-owner');
-    await runStage('after-owner');
-    await runStage('active');
+    await runStage('before-owner')
+    await runStage('after-owner')
+    await runStage('active')
 
     const restarted = await startE2eWorkerServer(
       target(db, workerPorts(portLane, slot).api),
       portLane,
-      slot,
-    );
+      slot
+    )
     try {
-      assert.equal((await fetch(`${restarted.target.api}/health/ready`)).ok, true);
-      assert.equal(restarted.baseURL, restarted.target.api, 'the API serves the browser page');
+      assert.equal((await fetch(`${restarted.target.api}/health/ready`)).ok, true)
+      assert.equal(restarted.baseURL, restarted.target.api, 'the API serves the browser page')
     } finally {
-      await restarted.stop();
+      await restarted.stop()
     }
   } finally {
-    await rm(db, { force: true });
-    await rm(`${db}-wal`, { force: true });
-    await rm(`${db}-shm`, { force: true });
-    await rm(`${db}.template`, { force: true });
-    await rm(lock, { recursive: true, force: true });
-    await rm(temp, { recursive: true, force: true });
+    await rm(db, { force: true })
+    await rm(`${db}-wal`, { force: true })
+    await rm(`${db}-shm`, { force: true })
+    await rm(`${db}.template`, { force: true })
+    await rm(lock, { recursive: true, force: true })
+    await rm(temp, { recursive: true, force: true })
   }
-});
+})
 
 test('a live process group from a stale record is never signalled and keeps its files', async () => {
-  const db = join(tmpdir(), `capacitylens-e2e-preserved-${process.pid}.db`);
-  const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${portLane}-w${slot}.lock`);
-  const ownerPath = join(lock, 'owner-999999999-dead.json');
-  await mkdir(lock, { recursive: true });
-  await writeFile(db, 'preserve');
-  await writeFile(`${db}.template`, 'preserve template');
+  const db = join(tmpdir(), `capacitylens-e2e-preserved-${process.pid}.db`)
+  const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${portLane}-w${slot}.lock`)
+  const ownerPath = join(lock, 'owner-999999999-dead.json')
+  await mkdir(lock, { recursive: true })
+  await writeFile(db, 'preserve')
+  await writeFile(`${db}.template`, 'preserve template')
   const unrelated = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
     detached: true,
     stdio: 'ignore',
-  });
-  assert.ok(unrelated.pid);
-  let cleanupError;
+  })
+  assert.ok(unrelated.pid)
+  let cleanupError
   try {
     await new Promise((resolve, reject) => {
-      unrelated.once('spawn', resolve);
-      unrelated.once('error', reject);
-    });
-    await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [unrelated.pid] }));
+      unrelated.once('spawn', resolve)
+      unrelated.once('error', reject)
+    })
+    await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [unrelated.pid] }))
     await assert.rejects(
       recoverE2eWorker(target(db, 1), portLane, slot),
-      /preserving the lease and worker files/,
-    );
-    assert.equal(await readFile(db, 'utf8'), 'preserve');
-    assert.equal(await readFile(`${db}.template`, 'utf8'), 'preserve template');
+      /preserving the lease and worker files/
+    )
+    assert.equal(await readFile(db, 'utf8'), 'preserve')
+    assert.equal(await readFile(`${db}.template`, 'utf8'), 'preserve template')
     assert.equal(
       await access(ownerPath).then(
         () => true,
-        () => false,
+        () => false
       ),
-      true,
-    );
-    assert.doesNotThrow(() => process.kill(unrelated.pid, 0));
+      true
+    )
+    assert.doesNotThrow(() => process.kill(unrelated.pid, 0))
   } finally {
     try {
-      process.kill(-unrelated.pid, 'SIGKILL');
+      process.kill(-unrelated.pid, 'SIGKILL')
     } catch (error) {
-      if (error.code !== 'ESRCH') cleanupError = error;
+      if (error.code !== 'ESRCH') cleanupError = error
     }
-    await rm(db, { force: true });
-    await rm(`${db}.template`, { force: true });
-    await rm(lock, { recursive: true, force: true });
+    await rm(db, { force: true })
+    await rm(`${db}.template`, { force: true })
+    await rm(lock, { recursive: true, force: true })
   }
-  if (cleanupError) throw cleanupError;
-});
+  if (cleanupError) throw cleanupError
+})
 
 test('concurrent stale-owner reapers cannot remove the successor lease', async () => {
-  const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
-  const lock = join(leaseDirectory, `l${portLane}-w${slot}.lock`);
-  const ownerPath = join(lock, 'owner-999999999-dead.json');
-  await mkdir(lock, { recursive: true });
+  const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers')
+  const lock = join(leaseDirectory, `l${portLane}-w${slot}.lock`)
+  const ownerPath = join(lock, 'owner-999999999-dead.json')
+  await mkdir(lock, { recursive: true })
   const owner = spawn(
     process.execPath,
     [
@@ -477,69 +477,69 @@ test('concurrent stale-owner reapers cannot remove the successor lease', async (
     setInterval(() => {}, 1000);
   `,
     ],
-    { detached: true, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] },
-  );
-  assert.ok(owner.pid);
+    { detached: true, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] }
+  )
+  assert.ok(owner.pid)
   const ownerReady = new Promise((resolve, reject) => {
-    owner.once('error', reject);
+    owner.once('error', reject)
     owner.on('message', (message) => {
-      if (message.type === 'ready') resolve();
-    });
-  });
+      if (message.type === 'ready') resolve()
+    })
+  })
   const cleanup = async () => {
     try {
-      owner.kill('SIGKILL');
+      owner.kill('SIGKILL')
     } catch (error) {
-      if (error.code !== 'ESRCH') throw error;
+      if (error.code !== 'ESRCH') throw error
     }
     try {
-      process.kill(-owner.pid, 'SIGKILL');
+      process.kill(-owner.pid, 'SIGKILL')
     } catch (error) {
-      if (error.code !== 'ESRCH') throw error;
+      if (error.code !== 'ESRCH') throw error
     }
-    await rm(lock, { recursive: true, force: true });
-  };
-  try {
-    await ownerReady;
-    await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [owner.pid] }));
-    const first = import('./e2eWorkerRuntime.mjs').then(({ acquireE2eWorkerLease }) =>
-      acquireE2eWorkerLease(portLane, slot),
-    );
-    const second = import('./e2eWorkerRuntime.mjs').then(({ acquireE2eWorkerLease }) =>
-      acquireE2eWorkerLease(portLane, slot),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    owner.send({ type: 'exit' });
-    const outcomes = await Promise.allSettled([first, second]);
-    const leases = outcomes.filter((outcome) => outcome.status === 'fulfilled');
-    const failures = outcomes.filter((outcome) => outcome.status === 'rejected');
-    assert.equal(leases.length, 1);
-    assert.equal(failures.length, 1);
-    assert.match(failures[0].reason.message, /already owned by live process/);
-
-    const lease = leases[0].value;
-    const ownerFiles = await readdir(lease.paths.lock);
-    assert.deepEqual(ownerFiles, [lease.paths.owner.split('/').at(-1)]);
-    assert.equal(JSON.parse(await readFile(lease.paths.owner, 'utf8')).pid, process.pid);
-    const { releaseE2eWorkerLease } = await import('./e2eWorkerRuntime.mjs');
-    await releaseE2eWorkerLease(lease.paths);
-  } finally {
-    await cleanup();
+    await rm(lock, { recursive: true, force: true })
   }
-});
+  try {
+    await ownerReady
+    await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [owner.pid] }))
+    const first = import('./e2eWorkerRuntime.mjs').then(({ acquireE2eWorkerLease }) =>
+      acquireE2eWorkerLease(portLane, slot)
+    )
+    const second = import('./e2eWorkerRuntime.mjs').then(({ acquireE2eWorkerLease }) =>
+      acquireE2eWorkerLease(portLane, slot)
+    )
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    owner.send({ type: 'exit' })
+    const outcomes = await Promise.allSettled([first, second])
+    const leases = outcomes.filter((outcome) => outcome.status === 'fulfilled')
+    const failures = outcomes.filter((outcome) => outcome.status === 'rejected')
+    assert.equal(leases.length, 1)
+    assert.equal(failures.length, 1)
+    assert.match(failures[0].reason.message, /already owned by live process/)
+
+    const lease = leases[0].value
+    const ownerFiles = await readdir(lease.paths.lock)
+    assert.deepEqual(ownerFiles, [lease.paths.owner.split('/').at(-1)])
+    assert.equal(JSON.parse(await readFile(lease.paths.owner, 'utf8')).pid, process.pid)
+    const { releaseE2eWorkerLease } = await import('./e2eWorkerRuntime.mjs')
+    await releaseE2eWorkerLease(lease.paths)
+  } finally {
+    await cleanup()
+  }
+})
 
 test('a dead owner interrupted before publishing a record update is recovered', async () => {
-  const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${portLane}-w${slot}.lock`);
-  const ownerPath = join(lock, 'owner-999999999-dead.json');
-  await mkdir(lock, { recursive: true });
+  const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${portLane}-w${slot}.lock`)
+  const ownerPath = join(lock, 'owner-999999999-dead.json')
+  await mkdir(lock, { recursive: true })
   try {
-    await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [] }));
-    await writeFile(`${ownerPath}.999999999.tmp`, JSON.stringify({ pid: 999_999_999, groups: [] }));
-    const { acquireE2eWorkerLease, releaseE2eWorkerLease } = await import('./e2eWorkerRuntime.mjs');
-    const lease = await acquireE2eWorkerLease(portLane, slot);
-    assert.deepEqual(await readdir(lease.paths.lock), [lease.paths.owner.split('/').at(-1)]);
-    await releaseE2eWorkerLease(lease.paths);
+    await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [] }))
+    await writeFile(`${ownerPath}.999999999.tmp`, JSON.stringify({ pid: 999_999_999, groups: [] }))
+    const { acquireE2eWorkerLease, releaseE2eWorkerLease } = await import('./e2eWorkerRuntime.mjs')
+    const lease = await acquireE2eWorkerLease(portLane, slot)
+    assert.deepEqual(await readdir(lease.paths.lock), [lease.paths.owner.split('/').at(-1)])
+    await releaseE2eWorkerLease(lease.paths)
   } finally {
-    await rm(lock, { recursive: true, force: true });
+    await rm(lock, { recursive: true, force: true })
   }
-});
+})

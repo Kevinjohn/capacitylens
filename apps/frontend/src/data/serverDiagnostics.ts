@@ -1,10 +1,10 @@
-import { requestApiResponse } from '@/api/queryClient';
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { requestApiResponse } from '@/api/queryClient'
+import { isRecord } from '@capacitylens/shared/lib/isRecord'
 
 /** One server diagnostics read: the decoded body, or null when it was unreadable, and when it ran. */
 export interface ServerDiagnosticsObservation {
-  response: unknown;
-  observedAt: string;
+  response: unknown
+  observedAt: string
 }
 
 /**
@@ -14,14 +14,14 @@ export interface ServerDiagnosticsObservation {
  * @throws The fetch failure when the server cannot be reached.
  */
 export async function readServerDiagnostics(
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<ServerDiagnosticsObservation> {
-  const response = await requestApiResponse('api.diagnostics.show', signal ? { signal } : {});
+  const response = await requestApiResponse('api.diagnostics.show', signal ? { signal } : {})
   // An unreadable body is represented as an unavailable server in the fixed projection.
-  const body: unknown = await response.json().catch(() => null);
+  const body: unknown = await response.json().catch(() => null)
   // A 200 answer is wrapped in `data`; the 503 answer is flat.
   return {
     response: response.ok && isRecord(body) ? body.data : body,
     observedAt: new Date().toISOString(),
-  };
+  }
 }

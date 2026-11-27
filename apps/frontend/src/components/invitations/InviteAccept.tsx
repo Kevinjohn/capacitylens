@@ -1,21 +1,21 @@
-import { useEffect, useId, useState } from 'react';
-import type { FormEvent } from 'react';
-import { useParams } from 'react-router-dom';
-import { APP_NAME } from '@capacitylens/shared/brand';
-import { isRole } from '@capacitylens/shared/account/types';
+import { useEffect, useId, useState } from 'react'
+import type { FormEvent } from 'react'
+import { useParams } from 'react-router-dom'
+import { APP_NAME } from '@capacitylens/shared/brand'
+import { isRole } from '@capacitylens/shared/account/types'
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   getPasswordLengthFailure,
-} from '@capacitylens/shared/domain/password';
-import { m } from '@/i18n';
-import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignUpApi';
-import type { InvitationPreview } from '@/account/invitationSignUpApi';
-import { resolveRoleLabel } from '@/lib/accessCopy';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
+} from '@capacitylens/shared/domain/password'
+import { m } from '@/i18n'
+import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignUpApi'
+import type { InvitationPreview } from '@/account/invitationSignUpApi'
+import { resolveRoleLabel } from '@/lib/accessCopy'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 
 // The invitation route renders before sign-in. The server owns the token, fixes the address and
 // grants membership; an Owner or Admin still approves the new identity before it sees company data.
@@ -26,40 +26,40 @@ type State =
   | { kind: 'working'; preview: InvitationPreview }
   | { kind: 'failed'; message: string }
   /** The sign-up answer was lost or failed after the account may have been created. */
-  | { kind: 'uncertain' };
+  | { kind: 'uncertain' }
 
 /** Before the company exists an invitation is the setup link, and setup grants Owner. */
 function getRoleText(role: string | null) {
-  return role && isRole(role) ? resolveRoleLabel(role) : m.invite_setup_role();
+  return role && isRole(role) ? resolveRoleLabel(role) : m.invite_setup_role()
 }
 
 function describeSignUpError(name: string, password: string): string | null {
-  if (!name.trim()) return m.invite_err_name_required();
-  const lengthFailure = getPasswordLengthFailure(password);
-  if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
-  if (lengthFailure === 'too-long') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
-  return null;
+  if (!name.trim()) return m.invite_err_name_required()
+  const lengthFailure = getPasswordLengthFailure(password)
+  if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH })
+  if (lengthFailure === 'too-long') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH })
+  return null
 }
 
 /** Accepts an emailed invitation by creating a password identity for its address, then signs in. */
 export function InviteAccept() {
-  const { token } = useParams<{ token: string }>();
+  const { token } = useParams<{ token: string }>()
   // React Router may keep this element while only `:token` changes; never carry state across links.
-  return <InviteAcceptForToken key={token ?? ''} token={token} />;
+  return <InviteAcceptForToken key={token ?? ''} token={token} />
 }
 
 function buildInitialState(token: string | undefined): State {
-  return token ? { kind: 'checking' } : { kind: 'failed', message: m.invite_err_missing_token() };
+  return token ? { kind: 'checking' } : { kind: 'failed', message: m.invite_err_missing_token() }
 }
 
 function useInvitePreview(token: string | undefined) {
-  const [state, setState] = useState<State>(() => buildInitialState(token));
+  const [state, setState] = useState<State>(() => buildInitialState(token))
   useEffect(() => {
-    if (!token) return;
-    let current = true;
+    if (!token) return
+    let current = true
     readInvitationPreview(token)
       .then((result) => {
-        if (!current) return;
+        if (!current) return
         setState(
           result.kind === 'ok'
             ? { kind: 'form', preview: result.preview }
@@ -67,69 +67,69 @@ function useInvitePreview(token: string | undefined) {
                 kind: 'failed',
                 message:
                   result.kind === 'invalid' ? m.invite_err_invalid() : m.invite_err_unavailable(),
-              },
-        );
+              }
+        )
       })
       .catch((failure: unknown) => {
-        console.warn('InviteAccept: preview failed', failure);
-        if (current) setState({ kind: 'failed', message: m.invite_err_network() });
-      });
+        console.warn('InviteAccept: preview failed', failure)
+        if (current) setState({ kind: 'failed', message: m.invite_err_network() })
+      })
     return () => {
-      current = false;
-    };
-  }, [token]);
-  return [state, setState] as const;
+      current = false
+    }
+  }, [token])
+  return [state, setState] as const
 }
 
 function InviteAcceptForToken({ token }: { token: string | undefined }) {
-  const [state, setState] = useInvitePreview(token);
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const nameId = useId();
-  const passwordId = useId();
-  const errorId = useId();
+  const [state, setState] = useInvitePreview(token)
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const nameId = useId()
+  const passwordId = useId()
+  const errorId = useId()
 
   useEffect(() => {
-    document.title = `${m.invite_title()} · ${APP_NAME}`;
-  }, []);
+    document.title = `${m.invite_title()} · ${APP_NAME}`
+  }, [])
 
   const submit = async (event: FormEvent, preview: InvitationPreview) => {
-    event.preventDefault();
-    if (!token) return;
-    const invalid = describeSignUpError(name, password);
-    setError(invalid);
-    if (invalid) return;
-    setState({ kind: 'working', preview });
+    event.preventDefault()
+    if (!token) return
+    const invalid = describeSignUpError(name, password)
+    setError(invalid)
+    if (invalid) return
+    setState({ kind: 'working', preview })
     try {
-      const result = await signUpWithInvitation(token, { name: name.trim(), password });
+      const result = await signUpWithInvitation(token, { name: name.trim(), password })
       if (result.kind === 'signed-up') {
         // A full reload rechecks the session; after a 202 the account exists and sign-in shows.
-        window.location.assign('/');
-        return;
+        window.location.assign('/')
+        return
       }
       if (result.kind === 'uncertain') {
-        setPassword('');
-        setState({ kind: 'uncertain' });
-        return;
+        setPassword('')
+        setState({ kind: 'uncertain' })
+        return
       }
       if (result.kind === 'invalid-token') {
-        setState({ kind: 'failed', message: m.invite_err_invalid() });
-        return;
+        setState({ kind: 'failed', message: m.invite_err_invalid() })
+        return
       }
       setError(
         result.kind === 'email-in-use'
           ? m.invite_err_email_registered()
-          : (result.message ?? m.invite_err_failed()),
-      );
-      setState({ kind: 'form', preview });
+          : (result.message ?? m.invite_err_failed())
+      )
+      setState({ kind: 'form', preview })
     } catch (failure) {
       // The account may exist; a retry would spend nothing useful and report a misleading invalid link.
-      console.error('InviteAccept: sign-up failed', failure);
-      setPassword('');
-      setState({ kind: 'uncertain' });
+      console.error('InviteAccept: sign-up failed', failure)
+      setPassword('')
+      setState({ kind: 'uncertain' })
     }
-  };
+  }
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
@@ -227,5 +227,5 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         </Card>
       </main>
     </div>
-  );
+  )
 }

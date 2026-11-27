@@ -1,8 +1,8 @@
-import { test, expect } from './dbFixtures';
-import AxeBuilder from '@axe-core/playwright';
-import { openApp } from './browserTestKit';
+import { test, expect } from './dbFixtures'
+import AxeBuilder from '@axe-core/playwright'
+import { openApp } from './browserTestKit'
 
-test.use({ contextOptions: { reducedMotion: 'reduce' } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 // These company values are captured at company creation and frozen thereafter. Settings presents
 // them as a compact read-only summary; the server's 409 backstop remains in frozen-company-settings.db.spec.ts.
@@ -11,74 +11,74 @@ test.describe('Company details', () => {
     'vertically centres every section title with its help action',
     { tag: '@engine' },
     async ({ page }) => {
-      await openApp(page, '/settings');
-      await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+      await openApp(page, '/settings')
+      await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible()
       // Sections that need an editing role appear only once the membership role resolves, so count
       // them in the settled editable state.
-      await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled();
+      await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled()
 
-      const titles = page.locator('[data-slot="settings-row"] h3');
-      const helpActions = page.locator('[data-slot="settings-row"] button[aria-label^="About "]');
-      const sectionCount = await titles.count();
-      expect(sectionCount).toBeGreaterThan(0);
-      await expect(helpActions).toHaveCount(sectionCount);
+      const titles = page.locator('[data-slot="settings-row"] h3')
+      const helpActions = page.locator('[data-slot="settings-row"] button[aria-label^="About "]')
+      const sectionCount = await titles.count()
+      expect(sectionCount).toBeGreaterThan(0)
+      await expect(helpActions).toHaveCount(sectionCount)
 
       await expect(async () => {
         for (let index = 0; index < sectionCount; index += 1) {
-          const titleBox = await titles.nth(index).boundingBox();
-          const helpBox = await helpActions.nth(index).boundingBox();
-          expect(titleBox).not.toBeNull();
-          expect(helpBox).not.toBeNull();
+          const titleBox = await titles.nth(index).boundingBox()
+          const helpBox = await helpActions.nth(index).boundingBox()
+          expect(titleBox).not.toBeNull()
+          expect(helpBox).not.toBeNull()
 
-          const titleCentre = titleBox!.y + titleBox!.height / 2;
-          const helpCentre = helpBox!.y + helpBox!.height / 2;
-          expect(Math.abs(titleCentre - helpCentre)).toBeLessThanOrEqual(0.5);
+          const titleCentre = titleBox!.y + titleBox!.height / 2
+          const helpCentre = helpBox!.y + helpBox!.height / 2
+          expect(Math.abs(titleCentre - helpCentre)).toBeLessThanOrEqual(0.5)
         }
-      }).toPass({ timeout: 5_000 });
-    },
-  );
+      }).toPass({ timeout: 5_000 })
+    }
+  )
 
   test('renders the frozen values without disabled form controls', async ({ page }) => {
-    await openApp(page, '/settings');
+    await openApp(page, '/settings')
 
-    const heading = page.getByRole('heading', { name: 'Company details', exact: true });
-    const card = heading.locator('xpath=ancestor::*[@data-slot="settings-row"]');
-    await expect(card.getByRole('row', { name: 'Company name Wayne Enterprises' })).toBeVisible();
-    await expect(card.getByRole('row', { name: 'Week starts on Monday' })).toBeVisible();
-    await expect(card.getByRole('row', { name: 'Time zone GMT (UTC+00:00)' })).toBeVisible();
-    await expect(card.getByRole('row', { name: /^Language/ })).toHaveCount(0);
-    await expect(page.getByLabel('Company name')).toHaveCount(0);
-    await expect(page.getByRole('radiogroup', { name: 'Week starts on' })).toHaveCount(0);
-    await expect(page.getByRole('combobox', { name: 'Time zone' })).toHaveCount(0);
-  });
+    const heading = page.getByRole('heading', { name: 'Company details', exact: true })
+    const card = heading.locator('xpath=ancestor::*[@data-slot="settings-row"]')
+    await expect(card.getByRole('row', { name: 'Company name Wayne Enterprises' })).toBeVisible()
+    await expect(card.getByRole('row', { name: 'Week starts on Monday' })).toBeVisible()
+    await expect(card.getByRole('row', { name: 'Time zone GMT (UTC+00:00)' })).toBeVisible()
+    await expect(card.getByRole('row', { name: /^Language/ })).toHaveCount(0)
+    await expect(page.getByLabel('Company name')).toHaveCount(0)
+    await expect(page.getByRole('radiogroup', { name: 'Week starts on' })).toHaveCount(0)
+    await expect(page.getByRole('combobox', { name: 'Time zone' })).toHaveCount(0)
+  })
 
   test('opens the fuller frozen-value explanation from the question-mark action', async ({
     page,
   }) => {
-    await openApp(page, '/settings');
-    await page.getByRole('button', { name: 'About Company details' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Company details', exact: true });
-    await expect(dialog).toContainText(/cannot be changed here/i);
-    await expect(dialog).toContainText(/set which day starts the week/i);
-  });
+    await openApp(page, '/settings')
+    await page.getByRole('button', { name: 'About Company details' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Company details', exact: true })
+    await expect(dialog).toContainText(/cannot be changed here/i)
+    await expect(dialog).toContainText(/set which day starts the week/i)
+  })
 
   test('Settings page passes axe accessibility check', { tag: '@engine' }, async ({ page }) => {
-    await openApp(page, '/settings');
+    await openApp(page, '/settings')
     // The page shell lands before the membership role resolves; until then every editable control
     // renders disabled. A scan that overlaps that change samples dimmed labels beside enabled
     // controls and reports false contrast failures, so wait for the settled editable state.
-    await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled();
-    const results = await new AxeBuilder({ page }).analyze();
+    await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled()
+    const results = await new AxeBuilder({ page }).analyze()
     const blocking = results.violations.filter(
-      (v) => v.impact === 'serious' || v.impact === 'critical',
-    );
+      (v) => v.impact === 'serious' || v.impact === 'critical'
+    )
     expect(
       blocking,
       JSON.stringify(
         blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
         null,
-        2,
-      ),
-    ).toEqual([]);
-  });
-});
+        2
+      )
+    ).toEqual([])
+  })
+})

@@ -1,21 +1,21 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext } from 'react'
 
 /** Verified user identity exposed to authenticated application screens. */
 export interface AuthUser {
-  id: string;
-  name?: string;
-  email?: string;
+  id: string
+  name?: string
+  email?: string
   /** The signed-in identity's image URL, validated server-side; absent when there is none. */
-  image?: string | null;
+  image?: string | null
 }
 
 /** Authentication state and actions available to app screens. */
 export interface AuthContextValue {
-  user: AuthUser | null;
+  user: AuthUser | null
   /** Rechecks server-owned authentication and company-creation permission. Unresolved refreshes preserve the previous snapshot and log a warning; the promise does not reject, so event callers may discard it. */
-  refreshAuth: () => Promise<void>;
+  refreshAuth: () => Promise<void>
   /** Ends the product session and restarts the app. A failed request rejects so the caller can show the error. */
-  signOut: () => Promise<void>;
+  signOut: () => Promise<void>
 }
 
 /** Context supplying authentication state to the application. */
@@ -23,9 +23,9 @@ export const AuthContext = createContext<AuthContextValue>({
   user: null,
   refreshAuth: async () => {},
   signOut: async () => {},
-});
+})
 
 /** Reads authentication state and actions from the nearest auth provider. */
 export function useAuth(): AuthContextValue {
-  return useContext(AuthContext);
+  return useContext(AuthContext)
 }

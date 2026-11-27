@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
-import type { ISODate } from '@capacitylens/shared/types/entities';
+import { useEffect, useRef, useState } from 'react'
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates'
+import type { ISODate } from '@capacitylens/shared/types/entities'
 
 /**
  * Holds a create form's repeat choice and its "repeat until" date.
@@ -12,34 +12,34 @@ import type { ISODate } from '@capacitylens/shared/types/entities';
  */
 export function useRepeatUntil<S extends string>(
   startDate: ISODate | '',
-  suggestRepeatUntil: (startDate: ISODate) => ISODate,
+  suggestRepeatUntil: (startDate: ISODate) => ISODate
 ) {
-  const [repeat, setRepeat] = useState<S | 'none'>('none');
-  const [repeatUntil, setRepeatUntil] = useState<ISODate | ''>('');
-  const repeatUntilIsSuggested = useRef(false);
+  const [repeat, setRepeat] = useState<S | 'none'>('none')
+  const [repeatUntil, setRepeatUntil] = useState<ISODate | ''>('')
+  const repeatUntilIsSuggested = useRef(false)
 
   useEffect(() => {
     if (repeat !== 'none' && repeatUntilIsSuggested.current && isValidISODate(startDate)) {
-      setRepeatUntil(suggestRepeatUntil(startDate));
+      setRepeatUntil(suggestRepeatUntil(startDate))
     }
-  }, [repeat, startDate, suggestRepeatUntil]);
+  }, [repeat, startDate, suggestRepeatUntil])
 
   const changeRepeat = (value: string) => {
-    const next = value as S | 'none';
+    const next = value as S | 'none'
     if (repeat === 'none' && next !== 'none') {
-      repeatUntilIsSuggested.current = true;
-      if (isValidISODate(startDate)) setRepeatUntil(suggestRepeatUntil(startDate));
+      repeatUntilIsSuggested.current = true
+      if (isValidISODate(startDate)) setRepeatUntil(suggestRepeatUntil(startDate))
     } else if (next === 'none') {
-      repeatUntilIsSuggested.current = false;
-      setRepeatUntil('');
+      repeatUntilIsSuggested.current = false
+      setRepeatUntil('')
     }
-    setRepeat(next);
-  };
+    setRepeat(next)
+  }
 
   const changeRepeatUntil = (value: string) => {
-    repeatUntilIsSuggested.current = false;
-    setRepeatUntil(value);
-  };
+    repeatUntilIsSuggested.current = false
+    setRepeatUntil(value)
+  }
 
-  return { repeat, repeatUntil, changeRepeat, changeRepeatUntil };
+  return { repeat, repeatUntil, changeRepeat, changeRepeatUntil }
 }

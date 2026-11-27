@@ -1,17 +1,17 @@
-import vine from '@vinejs/vine';
+import vine from '@vinejs/vine'
 import {
   CAPACITY_OVERVIEW_ACCESS_VALUES,
   DATE_STYLES,
   SCHEDULING_MODES,
-} from '@capacitylens/shared/types/entities';
-import { isSupportedTimeZone } from '@capacitylens/shared/types/entityFieldRules';
+} from '@capacitylens/shared/types/entities'
+import { isSupportedTimeZone } from '@capacitylens/shared/types/entityFieldRules'
 import {
   boolean,
   nameText,
   presetColor,
   requireChanges,
   weekdays,
-} from '#validators/planning/fields';
+} from '#validators/planning/fields'
 
 export const settingsChanges = {
   name: nameText().optional(),
@@ -24,8 +24,8 @@ export const settingsChanges = {
     .string()
     .use(
       vine.createRule((value, _options, field) => {
-        if (isSupportedTimeZone(value)) return;
-        field.report('The timezone must be supported.', 'timezone', field);
+        if (isSupportedTimeZone(value)) return
+        field.report('The timezone must be supported.', 'timezone', field)
       })()
     )
     .nullable()
@@ -34,8 +34,8 @@ export const settingsChanges = {
   workingDays: weekdays()
     .use(
       vine.createRule((value, _options, field) => {
-        if (value === null || (Array.isArray(value) && value.length > 0)) return;
-        field.report('Working days must contain a working day.', 'workingDays', field);
+        if (value === null || (Array.isArray(value) && value.length > 0)) return
+        field.report('Working days must contain a working day.', 'workingDays', field)
       })()
     )
     .nullable()
@@ -47,10 +47,10 @@ export const settingsChanges = {
   showTaskFieldInSchedule: boolean().nullable().optional(),
   capacityOverviewAccess: vine.enum(CAPACITY_OVERVIEW_ACCESS_VALUES).nullable().optional(),
   dateStyle: vine.enum(DATE_STYLES).nullable().optional(),
-};
+}
 
 export const settingsIntent = vine.object({
   operation: vine.literal('settings.update'),
   // `language` is frozen at company creation, so the writable list here leaves it out.
   changes: vine.object(settingsChanges).use(requireChanges(Object.keys(settingsChanges))),
-});
+})

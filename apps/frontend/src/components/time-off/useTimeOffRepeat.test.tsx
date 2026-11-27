@@ -1,15 +1,15 @@
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
-import { Component } from 'react';
-import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RepeatingDateError } from '@capacitylens/shared/lib/repeatingDates';
-import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
-import { useTimeOffRepeat } from './useTimeOffRepeat';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
+import { Component } from 'react'
+import type { ReactNode } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { RepeatingDateError } from '@capacitylens/shared/lib/repeatingDates'
+import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences'
+import { useTimeOffRepeat } from './useTimeOffRepeat'
 
 vi.mock('@capacitylens/shared/lib/repeatingOccurrences', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@capacitylens/shared/lib/repeatingOccurrences')>()),
   buildRepeatedTimeOffDrafts: vi.fn(),
-}));
+}))
 
 const input = {
   resourceId: 'bruce-wayne',
@@ -17,54 +17,54 @@ const input = {
   endDate: '2026-01-30' as const,
   type: 'holiday' as const,
   note: '',
-};
+}
 
 afterEach(() => {
-  vi.restoreAllMocks();
-  vi.resetAllMocks();
-});
+  vi.restoreAllMocks()
+  vi.resetAllMocks()
+})
 
 describe('useTimeOffRepeat preview errors', () => {
   it('keeps expected repeat validation errors out of render', () => {
     vi.mocked(buildRepeatedTimeOffDrafts).mockImplementationOnce(() => {
       throw new RepeatingDateError(
         'invalid-last-weekday-start',
-        'Choose the last weekday of the month.',
-      );
-    });
-    const { result } = renderHook(() => useTimeOffRepeat(input));
+        'Choose the last weekday of the month.'
+      )
+    })
+    const { result } = renderHook(() => useTimeOffRepeat(input))
 
-    act(() => result.current.changeRepeat('monthly-last-weekday'));
+    act(() => result.current.changeRepeat('monthly-last-weekday'))
 
-    expect(result.current.preview).toBeNull();
-  });
+    expect(result.current.preview).toBeNull()
+  })
 
   it('surfaces an unexpected RangeError to the component error boundary', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(buildRepeatedTimeOffDrafts).mockImplementation(() => {
-      throw new RangeError('Unexpected repeat failure');
-    });
+      throw new RangeError('Unexpected repeat failure')
+    })
     class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-      state = { error: null as Error | null };
+      state = { error: null as Error | null }
       static getDerivedStateFromError(error: Error) {
-        return { error };
+        return { error }
       }
       render() {
-        return this.state.error ? <p>{this.state.error.message}</p> : this.props.children;
+        return this.state.error ? <p>{this.state.error.message}</p> : this.props.children
       }
     }
     function Harness() {
-      const repeat = useTimeOffRepeat(input);
-      return <button onClick={() => repeat.changeRepeat('weekly')}>Enable repeat</button>;
+      const repeat = useTimeOffRepeat(input)
+      return <button onClick={() => repeat.changeRepeat('weekly')}>Enable repeat</button>
     }
     render(
       <ErrorBoundary>
         <Harness />
-      </ErrorBoundary>,
-    );
+      </ErrorBoundary>
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Enable repeat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enable repeat' }))
 
-    expect(screen.getByText('Unexpected repeat failure')).toBeInTheDocument();
-  });
-});
+    expect(screen.getByText('Unexpected repeat failure')).toBeInTheDocument()
+  })
+})

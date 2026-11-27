@@ -1,30 +1,30 @@
-import { m } from '@/i18n';
-import { MAX_PASSWORD_INPUT_CODE_UNITS } from '@capacitylens/shared/domain/password';
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { FieldError, FieldGroup } from '@/components/ui/field';
-import { SignInField } from './SignInField';
+import { m } from '@/i18n'
+import { MAX_PASSWORD_INPUT_CODE_UNITS } from '@capacitylens/shared/domain/password'
+import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { FieldError, FieldGroup } from '@/components/ui/field'
+import { SignInField } from './SignInField'
 
 type SignInIds = {
-  email: string;
-  password: string;
-  error: string;
-};
+  email: string
+  password: string
+  error: string
+}
 
 type SignInFormProps = {
-  passwordAutoFocus: boolean;
-  busy: boolean;
-  error: string | null;
-  ids: SignInIds;
+  passwordAutoFocus: boolean
+  busy: boolean
+  error: string | null
+  ids: SignInIds
   passwordSignIn: {
-    email: string;
-    setEmail: Dispatch<SetStateAction<string>>;
-    password: string;
-    setPassword: Dispatch<SetStateAction<string>>;
-    signInWithPassword: (event: FormEvent) => Promise<void>;
-  };
-};
+    email: string
+    setEmail: Dispatch<SetStateAction<string>>
+    password: string
+    setPassword: Dispatch<SetStateAction<string>>
+    signInWithPassword: (event: FormEvent) => Promise<void>
+  }
+}
 
 /** The password sign-in form. */
 export function SignInForm(props: SignInFormProps) {
@@ -36,26 +36,26 @@ export function SignInForm(props: SignInFormProps) {
       ids={props.ids}
       passwordSignIn={props.passwordSignIn}
     />
-  );
+  )
 }
 
 type PasswordFormProps = Pick<SignInFormProps, 'busy' | 'error' | 'ids' | 'passwordSignIn'> & {
-  autoFocus: boolean;
-};
+  autoFocus: boolean
+}
 
 function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordFormProps) {
-  const [passwordTooLong, setPasswordTooLong] = useState(false);
-  const describedBy = error ? ids.error : undefined;
+  const [passwordTooLong, setPasswordTooLong] = useState(false)
+  const describedBy = error ? ids.error : undefined
   return (
     <form
       onSubmit={(event) => {
         if (passwordSignIn.password.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
-          event.preventDefault();
-          setPasswordTooLong(true);
-          return;
+          event.preventDefault()
+          setPasswordTooLong(true)
+          return
         }
-        setPasswordTooLong(false);
-        void passwordSignIn.signInWithPassword(event);
+        setPasswordTooLong(false)
+        void passwordSignIn.signInWithPassword(event)
       }}
       noValidate
     >
@@ -90,5 +90,5 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
         </div>
       </FieldGroup>
     </form>
-  );
+  )
 }

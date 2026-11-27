@@ -1,77 +1,77 @@
-import { archiveForTest } from '@/test/fixtures';
-import { requireCreated } from '@/test/requireCreated';
-import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { StrictMode } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { ResourceForm } from './ResourceForm';
-import { useStore } from '@/store/useStore';
-import { makeResourceDraft, requireValue, resetStoreWithCompany } from '@/test/fixtures';
-import { PlanningCacheError } from '@/data/planning/planningErrors';
-import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { archiveForTest } from '@/test/fixtures'
+import { requireCreated } from '@/test/requireCreated'
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { StrictMode } from 'react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ResourceForm } from './ResourceForm'
+import { useStore } from '@/store/useStore'
+import { makeResourceDraft, requireValue, resetStoreWithCompany } from '@/test/fixtures'
+import { PlanningCacheError } from '@/data/planning/planningErrors'
+import { getStubPlanningTransport } from '@/test/planningTransportHandle'
 
-const addResource = useStore.getState().addResource;
-const updateResource = useStore.getState().updateResource;
+const addResource = useStore.getState().addResource
+const updateResource = useStore.getState().updateResource
 
-beforeEach(() => resetStoreWithCompany());
+beforeEach(() => resetStoreWithCompany())
 
 afterEach(async () => {
-  useStore.setState({ addResource, updateResource });
-  cleanup();
+  useStore.setState({ addResource, updateResource })
+  cleanup()
   // Radix dispatches its unmount autofocus event on the next timer turn, while this jsdom realm is still alive.
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
-});
+  await new Promise<void>((resolve) => setTimeout(resolve, 0))
+})
 
 describe('ResourceForm layout', () => {
   it("uses the compact row for a placeholder's bound project", () => {
-    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />)
 
     expect(screen.getByLabelText('Bound project').closest('[data-slot="field"]')).toHaveAttribute(
       'data-product-layout',
-      'label-control',
-    );
-  });
+      'label-control'
+    )
+  })
 
   it('shows simple availability dates with separators for people only', () => {
-    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
+    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />)
 
-    expect(screen.queryByLabelText('Avatar URL')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Start date')).toHaveAttribute('type', 'date');
-    expect(screen.getByLabelText('End date')).toHaveAttribute('type', 'date');
-    const startField = screen.getByLabelText('Start date').closest('[data-slot="field"]');
-    const endField = screen.getByLabelText('End date').closest('[data-slot="field"]');
-    expect(startField).not.toHaveAttribute('data-product-layout');
-    expect(endField).not.toHaveAttribute('data-product-layout');
-    expect(startField?.parentElement).toBe(endField?.parentElement);
-    expect(startField?.parentElement).toHaveAttribute('data-resource-availability-date-row');
+    expect(screen.queryByLabelText('Avatar URL')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Start date')).toHaveAttribute('type', 'date')
+    expect(screen.getByLabelText('End date')).toHaveAttribute('type', 'date')
+    const startField = screen.getByLabelText('Start date').closest('[data-slot="field"]')
+    const endField = screen.getByLabelText('End date').closest('[data-slot="field"]')
+    expect(startField).not.toHaveAttribute('data-product-layout')
+    expect(endField).not.toHaveAttribute('data-product-layout')
+    expect(startField?.parentElement).toBe(endField?.parentElement)
+    expect(startField?.parentElement).toHaveAttribute('data-resource-availability-date-row')
     expect(startField?.parentElement).toHaveClass(
       'grid',
       'min-w-0',
       'grid-cols-1',
       'gap-2',
-      'sm:grid-cols-2',
-    );
-    expect(screen.queryByText(/leave blank for no boundary/i)).not.toBeInTheDocument();
-    const separators = document.body.querySelectorAll('[data-slot="separator"]');
-    expect(separators).toHaveLength(2);
-    for (const separator of separators) expect(separator).toHaveClass('my-4');
+      'sm:grid-cols-2'
+    )
+    expect(screen.queryByText(/leave blank for no boundary/i)).not.toBeInTheDocument()
+    const separators = document.body.querySelectorAll('[data-slot="separator"]')
+    expect(separators).toHaveLength(2)
+    for (const separator of separators) expect(separator).toHaveClass('my-4')
 
-    person.unmount();
-    const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('End date')).not.toBeInTheDocument();
+    person.unmount()
+    const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />)
+    expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('End date')).not.toBeInTheDocument()
 
-    placeholder.unmount();
-    render(<ResourceForm kind="external" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('End date')).not.toBeInTheDocument();
-  });
-});
+    placeholder.unmount()
+    render(<ResourceForm kind="external" onClose={vi.fn()} />)
+    expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('End date')).not.toBeInTheDocument()
+  })
+})
 
 describe('ResourceForm availability dates', () => {
   it('preserves an existing avatar URL when a manager edits resource metadata', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const resource = await requireCreated(
       useStore.getState().addResource({
         kind: 'person',
@@ -84,41 +84,41 @@ describe('ResourceForm availability dates', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#737373',
-      }),
-    );
-    render(<ResourceForm resource={resource} onClose={vi.fn()} />);
+      })
+    )
+    render(<ResourceForm resource={resource} onClose={vi.fn()} />)
 
-    expect(screen.queryByLabelText('Avatar URL')).not.toBeInTheDocument();
-    await user.clear(screen.getByLabelText('Job title'));
-    await user.type(screen.getByLabelText('Job title'), 'Design lead');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.queryByLabelText('Avatar URL')).not.toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Job title'))
+    await user.type(screen.getByLabelText('Job title'), 'Design lead')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
       jobTitle: 'Design lead',
       avatarUrl: 'https://images.example/barbara.png',
-    });
-  });
+    })
+  })
 
   it('saves equal inclusive boundaries', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    render(<ResourceForm kind="person" onClose={onClose} />);
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ResourceForm kind="person" onClose={onClose} />)
 
-    await user.type(screen.getByLabelText('Name'), 'Barbara Gordon');
-    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-09-10' } });
-    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-09-10' } });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.type(screen.getByLabelText('Name'), 'Barbara Gordon')
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-09-10' } })
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-09-10' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
       firstAvailableDate: '2026-09-10',
       lastAvailableDate: '2026-09-10',
-    });
-    expect(onClose).toHaveBeenCalledOnce();
-  });
+    })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
 
   it('clears one existing boundary while preserving the other and metadata', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
+    const user = userEvent.setup()
+    const onClose = vi.fn()
     const resource = await requireCreated(
       useStore.getState().addResource({
         kind: 'person',
@@ -132,64 +132,64 @@ describe('ResourceForm availability dates', () => {
         color: '#737373',
         firstAvailableDate: '2026-09-01',
         lastAvailableDate: '2026-09-30',
-      }),
-    );
-    render(<ResourceForm resource={resource} onClose={onClose} />);
+      })
+    )
+    render(<ResourceForm resource={resource} onClose={onClose} />)
 
-    await user.clear(screen.getByLabelText('Start date'));
-    await user.clear(screen.getByLabelText('Job title'));
-    await user.type(screen.getByLabelText('Job title'), 'Design lead');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.clear(screen.getByLabelText('Start date'))
+    await user.clear(screen.getByLabelText('Job title'))
+    await user.type(screen.getByLabelText('Job title'), 'Design lead')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    const updated = requireValue(useStore.getState().data.resources[0], 'updated resource');
-    expect(updated).toHaveProperty('firstAvailableDate', null);
-    expect(updated).toMatchObject({ lastAvailableDate: '2026-09-30', jobTitle: 'Design lead' });
-    expect(onClose).toHaveBeenCalledOnce();
-  });
+    const updated = requireValue(useStore.getState().data.resources[0], 'updated resource')
+    expect(updated).toHaveProperty('firstAvailableDate', null)
+    expect(updated).toMatchObject({ lastAvailableDate: '2026-09-30', jobTitle: 'Design lead' })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
 
   it('rejects a reversed availability range accessibly', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    render(<ResourceForm kind="person" onClose={onClose} />);
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ResourceForm kind="person" onClose={onClose} />)
 
-    await user.type(screen.getByLabelText('Name'), 'Barbara Gordon');
-    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-09-11' } });
-    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-09-10' } });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.type(screen.getByLabelText('Name'), 'Barbara Gordon')
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-09-11' } })
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-09-10' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/end date.*start date/i);
-    expect(screen.getByLabelText('End date')).toHaveAttribute('aria-invalid', 'true');
-    expect(onClose).not.toHaveBeenCalled();
-    expect(useStore.getState().data.resources).toHaveLength(0);
-  });
-});
+    expect(screen.getByRole('alert')).toHaveTextContent(/end date.*start date/i)
+    expect(screen.getByLabelText('End date')).toHaveAttribute('aria-invalid', 'true')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.resources).toHaveLength(0)
+  })
+})
 
 describe('ResourceForm disciplines', () => {
   it('hides Discipline for people and placeholders when there are no scoped disciplines', () => {
-    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText('Discipline')).not.toBeInTheDocument();
+    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />)
+    expect(screen.queryByLabelText('Discipline')).not.toBeInTheDocument()
 
-    person.unmount();
-    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText('Discipline')).not.toBeInTheDocument();
-  });
+    person.unmount()
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />)
+    expect(screen.queryByLabelText('Discipline')).not.toBeInTheDocument()
+  })
 
   it('shows Discipline for people and placeholders when enabled with a scoped discipline', async () => {
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#737373' });
+    await useStore.getState().addDiscipline({ name: 'Design', color: '#737373' })
 
-    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
-    expect(screen.getByLabelText('Discipline')).toBeVisible();
+    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />)
+    expect(screen.getByLabelText('Discipline')).toBeVisible()
 
-    person.unmount();
-    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
-    expect(screen.getByLabelText('Discipline')).toBeVisible();
-  });
+    person.unmount()
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />)
+    expect(screen.getByLabelText('Discipline')).toBeVisible()
+  })
 
   it('preserves an existing discipline when the disabled control is hidden', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const discipline = await requireCreated(
-      useStore.getState().addDiscipline({ name: 'Design', color: '#737373' }),
-    );
+      useStore.getState().addDiscipline({ name: 'Design', color: '#737373' })
+    )
     const resource = await requireCreated(
       useStore.getState().addResource({
         kind: 'person',
@@ -202,30 +202,30 @@ describe('ResourceForm disciplines', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#737373',
-      }),
-    );
+      })
+    )
     await useStore
       .getState()
       .updateCompany(requireValue(useStore.getState().data.companies[0], 'company').id, {
         disciplinesEnabled: false,
-      });
-    render(<ResourceForm resource={resource} onClose={vi.fn()} />);
+      })
+    render(<ResourceForm resource={resource} onClose={vi.fn()} />)
 
-    expect(screen.queryByLabelText('Discipline')).not.toBeInTheDocument();
-    await user.clear(screen.getByLabelText('Job title'));
-    await user.type(screen.getByLabelText('Job title'), 'Design lead');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.queryByLabelText('Discipline')).not.toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Job title'))
+    await user.type(screen.getByLabelText('Job title'), 'Design lead')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
       jobTitle: 'Design lead',
       disciplineId: discipline.id,
-    });
-  });
-});
+    })
+  })
+})
 
 it('rejects a stale person edit instead of overwriting a concurrent change', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   const resource = await requireCreated(
     useStore.getState().addResource({
       kind: 'person',
@@ -237,9 +237,9 @@ it('rejects a stale person edit instead of overwriting a concurrent change', asy
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
       color: '#737373',
-    }),
-  );
-  render(<ResourceForm resource={resource} onClose={onClose} />);
+    })
+  )
+  render(<ResourceForm resource={resource} onClose={onClose} />)
 
   queuePlanningPatch(() => ({
     upserts: [
@@ -249,127 +249,127 @@ it('rejects a stale person edit instead of overwriting a concurrent change', asy
       },
     ],
     removed: [],
-  }));
-  await useStore.getState().updateResource(resource.id, { jobTitle: 'Design lead' });
-  await user.clear(screen.getByLabelText('Name'));
-  await user.type(screen.getByLabelText('Name'), 'Alice renamed');
-  await user.click(screen.getByRole('button', { name: 'Save' }));
+  }))
+  await useStore.getState().updateResource(resource.id, { jobTitle: 'Design lead' })
+  await user.clear(screen.getByLabelText('Name'))
+  await user.type(screen.getByLabelText('Name'), 'Alice renamed')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
 
-  expect(screen.getByRole('alert')).toHaveTextContent(/resource changed while you were editing/i);
-  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole('alert')).toHaveTextContent(/resource changed while you were editing/i)
+  expect(onClose).not.toHaveBeenCalled()
   expect(useStore.getState().data.resources[0]).toMatchObject({
     name: 'Alice',
     jobTitle: 'Design lead',
-  });
-});
+  })
+})
 
 it('keeps the dialog open and shows the persistence error when the server rejects a new person', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   vi.spyOn(useStore.getState(), 'addResource').mockRejectedValue(
-    new Error('Resource could not be saved by the server.'),
-  );
+    new Error('Resource could not be saved by the server.')
+  )
   try {
-    render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    render(<ResourceForm kind="person" onClose={onClose} />)
+    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Resource could not be saved by the server.',
-    );
-    expect(onClose).not.toHaveBeenCalled();
+      'Resource could not be saved by the server.'
+    )
+    expect(onClose).not.toHaveBeenCalled()
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it('keeps the draft and displays a refusal returned by the planning transport', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
-  const transport = getStubPlanningTransport();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  const transport = getStubPlanningTransport()
   transport.failNext(
-    new PlanningCacheError('The planning server refused this resource change.', undefined, 422),
-  );
-  render(<ResourceForm kind="person" onClose={onClose} />);
+    new PlanningCacheError('The planning server refused this resource change.', undefined, 422)
+  )
+  render(<ResourceForm kind="person" onClose={onClose} />)
 
-  await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-  await user.click(screen.getByRole('button', { name: 'Save' }));
+  await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    'The planning server refused this resource change.',
-  );
-  expect(onClose).not.toHaveBeenCalled();
-  expect(screen.getByLabelText('Name')).toHaveValue('Bruce Wayne');
-  expect(transport.calls).toHaveLength(1);
-  expect(transport.calls[0]).toMatchObject({ operation: 'resource.create' });
-  expect(useStore.getState().data.resources).toHaveLength(0);
-});
+    'The planning server refused this resource change.'
+  )
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Name')).toHaveValue('Bruce Wayne')
+  expect(transport.calls).toHaveLength(1)
+  expect(transport.calls[0]).toMatchObject({ operation: 'resource.create' })
+  expect(useStore.getState().data.resources).toHaveLength(0)
+})
 
 it('shows a planning conflict when the typed write is refused', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   vi.spyOn(useStore.getState(), 'addResource').mockRejectedValue(
-    new PlanningCacheError('Row is stale.', 'revision_conflict', 409),
-  );
+    new PlanningCacheError('Row is stale.', 'revision_conflict', 409)
+  )
   try {
-    render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    render(<ResourceForm kind="person" onClose={onClose} />)
+    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Row is stale.');
-    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Row is stale.')
+    expect(onClose).not.toHaveBeenCalled()
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it("keeps the server's own reason when a save is rejected as invalid", async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   vi.spyOn(useStore.getState(), 'addResource').mockRejectedValue(
-    new PlanningCacheError('That discipline no longer exists.', undefined, 422),
-  );
+    new PlanningCacheError('That discipline no longer exists.', undefined, 422)
+  )
   try {
-    render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    render(<ResourceForm kind="person" onClose={onClose} />)
+    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('That discipline no longer exists.');
-    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('That discipline no longer exists.')
+    expect(onClose).not.toHaveBeenCalled()
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it('retries a transient rejected save without adding a duplicate person', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   vi.spyOn(useStore.getState(), 'addResource')
     .mockRejectedValueOnce(new Error('Temporary server failure.'))
     .mockRejectedValueOnce(new Error('Temporary server failure again.'))
-    .mockImplementation(addResource);
+    .mockImplementation(addResource)
   try {
-    render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure.');
-    expect(useStore.getState().data.resources).toHaveLength(0);
+    render(<ResourceForm kind="person" onClose={onClose} />)
+    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure.')
+    expect(useStore.getState().data.resources).toHaveLength(0)
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure again.');
-    expect(useStore.getState().data.resources).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure again.')
+    expect(useStore.getState().data.resources).toHaveLength(0)
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(useStore.getState().data.resources).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(useStore.getState().data.resources).toHaveLength(1)
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it('retries an existing edit from its latest optimistic snapshot', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   const resource = await requireCreated(
     useStore.getState().addResource({
       kind: 'person',
@@ -381,186 +381,186 @@ it('retries an existing edit from its latest optimistic snapshot', async () => {
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
       color: '#737373',
-    }),
-  );
+    })
+  )
   vi.spyOn(useStore.getState(), 'updateResource')
     .mockRejectedValueOnce(new Error('Temporary server failure.'))
     .mockRejectedValueOnce(new Error('Temporary server failure again.'))
-    .mockImplementation(updateResource);
+    .mockImplementation(updateResource)
   try {
-    render(<ResourceForm resource={resource} onClose={onClose} />);
-    await user.clear(screen.getByLabelText('Job title'));
-    await user.type(screen.getByLabelText('Job title'), 'Lead designer');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure.');
+    render(<ResourceForm resource={resource} onClose={onClose} />)
+    await user.clear(screen.getByLabelText('Job title'))
+    await user.type(screen.getByLabelText('Job title'), 'Lead designer')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure.')
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure again.');
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure again.')
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
     expect(useStore.getState().data.resources[0]).toMatchObject({
       name: 'Bruce Wayne',
       jobTitle: 'Lead designer',
-    });
+    })
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it('closes after a successful save under StrictMode', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   render(
     <StrictMode>
       <ResourceForm kind="person" onClose={onClose} />
-    </StrictMode>,
-  );
-  await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-  await user.click(screen.getByRole('button', { name: 'Save' }));
-  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-});
+    </StrictMode>
+  )
+  await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+})
 
 it('ignores a second submit while the first typed write is pending', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
-  let releaseWrite!: () => void;
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  let releaseWrite!: () => void
   const pending = new Promise<void>((resolve) => {
-    releaseWrite = resolve;
-  });
+    releaseWrite = resolve
+  })
   vi.spyOn(useStore.getState(), 'addResource').mockImplementation(async (input) => {
-    const saved = await addResource(input);
-    await pending;
-    return saved;
-  });
+    const saved = await addResource(input)
+    await pending
+    return saved
+  })
   try {
-    render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-    const save = screen.getByRole('button', { name: 'Save' });
-    await user.click(save);
-    expect(screen.getByLabelText('Name')).toBeDisabled();
-    expect(screen.getByLabelText('Job title')).toBeDisabled();
-    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
-    await user.click(save);
-    expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(onClose).not.toHaveBeenCalled();
+    render(<ResourceForm kind="person" onClose={onClose} />)
+    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+    const save = screen.getByRole('button', { name: 'Save' })
+    await user.click(save)
+    expect(screen.getByLabelText('Name')).toBeDisabled()
+    expect(screen.getByLabelText('Job title')).toBeDisabled()
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled()
+    await user.click(save)
+    expect(useStore.getState().data.resources).toHaveLength(1)
+    expect(onClose).not.toHaveBeenCalled()
 
-    releaseWrite();
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    releaseWrite()
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it('does not let a late typed write response close a form after its company changed', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
-  let releaseWrite!: () => void;
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  let releaseWrite!: () => void
   const pending = new Promise<void>((resolve) => {
-    releaseWrite = resolve;
-  });
+    releaseWrite = resolve
+  })
   vi.spyOn(useStore.getState(), 'addResource').mockImplementation(async (input) => {
-    const saved = await addResource(input);
-    await pending;
-    return saved;
-  });
+    const saved = await addResource(input)
+    await pending
+    return saved
+  })
   try {
-    render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    useStore.getState().setActiveCompany(null);
+    render(<ResourceForm kind="person" onClose={onClose} />)
+    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    useStore.getState().setActiveCompany(null)
 
-    releaseWrite();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(onClose).not.toHaveBeenCalled();
+    releaseWrite()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(onClose).not.toHaveBeenCalled()
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it('does not surface a late typed write refusal after its company changed', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
-  let releaseWrite!: () => void;
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  let releaseWrite!: () => void
   const pending = new Promise<void>((resolve) => {
-    releaseWrite = resolve;
-  });
+    releaseWrite = resolve
+  })
   vi.spyOn(useStore.getState(), 'addResource').mockImplementation(async (input) => {
-    await addResource(input);
-    await pending;
-    throw new Error('stale save failure');
-  });
+    await addResource(input)
+    await pending
+    throw new Error('stale save failure')
+  })
   try {
-    render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    useStore.getState().setActiveCompany(null);
+    render(<ResourceForm kind="person" onClose={onClose} />)
+    await user.type(screen.getByLabelText('Name'), 'Bruce Wayne')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    useStore.getState().setActiveCompany(null)
 
-    releaseWrite();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    releaseWrite()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   } finally {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
   }
-});
+})
 
 it('hides Employment and Engagement for a placeholder and requires a bound project', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
-  render(<ResourceForm kind="placeholder" onClose={onClose} />);
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  render(<ResourceForm kind="placeholder" onClose={onClose} />)
 
-  expect(screen.queryByLabelText('Employment')).not.toBeInTheDocument();
-  expect(screen.queryByLabelText('Engagement')).not.toBeInTheDocument();
-  await user.type(screen.getByLabelText('Job title'), 'Senior Designer');
-  await user.click(screen.getByRole('button', { name: 'Save' }));
+  expect(screen.queryByLabelText('Employment')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('Engagement')).not.toBeInTheDocument()
+  await user.type(screen.getByLabelText('Job title'), 'Senior Designer')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
 
-  expect(screen.getByRole('alert')).toHaveTextContent(/bound to a project/i);
-  expect(onClose).not.toHaveBeenCalled();
-  expect(useStore.getState().data.resources).toHaveLength(0);
-});
+  expect(screen.getByRole('alert')).toHaveTextContent(/bound to a project/i)
+  expect(onClose).not.toHaveBeenCalled()
+  expect(useStore.getState().data.resources).toHaveLength(0)
+})
 
 it('saves a placeholder once a bound project is chosen', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   await useStore
     .getState()
     .updateCompany(requireValue(useStore.getState().data.companies[0], 'company').id, {
       workingDays: [1, 3, 5],
-    });
+    })
   const client = await requireCreated(
-    useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
-  );
+    useStore.getState().addClient({ name: 'Ferris', color: '#111' })
+  )
   const project = await requireCreated(
-    useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
-  );
-  render(<ResourceForm kind="placeholder" onClose={onClose} />);
+    useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
+  )
+  render(<ResourceForm kind="placeholder" onClose={onClose} />)
 
-  await user.type(screen.getByLabelText('Job title'), 'Senior Designer');
-  fireEvent.keyDown(screen.getByLabelText('Bound project'), { key: 'ArrowDown' });
-  fireEvent.click(screen.getByRole('option', { name: 'Ferris / Lightning' }));
-  await user.click(screen.getByRole('button', { name: 'Save' }));
+  await user.type(screen.getByLabelText('Job title'), 'Senior Designer')
+  fireEvent.keyDown(screen.getByLabelText('Bound project'), { key: 'ArrowDown' })
+  fireEvent.click(screen.getByRole('option', { name: 'Ferris / Lightning' }))
+  await user.click(screen.getByRole('button', { name: 'Save' }))
 
-  expect(onClose).toHaveBeenCalled();
-  const resources = useStore.getState().data.resources;
-  expect(resources).toHaveLength(1);
-  expect(resources[0]?.kind).toBe('placeholder');
-  expect(resources[0]?.projectId).toBe(project.id);
-  expect(resources[0]?.engagement).toBe('studio');
-  expect(resources[0]?.workingDays).toEqual([1, 2, 3, 4, 5]);
-  expect(resources[0]?.halfDays).toEqual([]);
-});
+  expect(onClose).toHaveBeenCalled()
+  const resources = useStore.getState().data.resources
+  expect(resources).toHaveLength(1)
+  expect(resources[0]?.kind).toBe('placeholder')
+  expect(resources[0]?.projectId).toBe(project.id)
+  expect(resources[0]?.engagement).toBe('studio')
+  expect(resources[0]?.workingDays).toEqual([1, 2, 3, 4, 5])
+  expect(resources[0]?.halfDays).toEqual([])
+})
 
 // An existing archived project must remain a disabled selected option so unrelated placeholder edits preserve the unchanged projectId.
 it('edits a placeholder bound to an archived project without forcing a reassignment', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   const client = await requireCreated(
-    useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
-  );
+    useStore.getState().addClient({ name: 'Ferris', color: '#111' })
+  )
   const project = await requireCreated(
-    useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
-  );
+    useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
+  )
   const placeholder = await requireCreated(
     useStore.getState().addResource({
       kind: 'placeholder',
@@ -572,55 +572,55 @@ it('edits a placeholder bound to an archived project without forcing a reassignm
       halfDays: [],
       projectId: project.id,
       color: '#333',
-    }),
-  );
-  await archiveForTest('projects', project.id);
+    })
+  )
+  await archiveForTest('projects', project.id)
   // Adopt this direct fixture edit before the form captures its canonical save revision.
-  await useStore.getState().refreshPlanning();
-  render(<ResourceForm resource={placeholder} onClose={onClose} />);
+  await useStore.getState().refreshPlanning()
+  render(<ResourceForm resource={placeholder} onClose={onClose} />)
 
-  const select = screen.getByLabelText('Bound project');
-  expect(select).toHaveTextContent('Ferris / Lightning (archived)');
-  fireEvent.keyDown(select, { key: 'ArrowDown' });
+  const select = screen.getByLabelText('Bound project')
+  expect(select).toHaveTextContent('Ferris / Lightning (archived)')
+  fireEvent.keyDown(select, { key: 'ArrowDown' })
   expect(screen.getByRole('option', { name: 'Ferris / Lightning (archived)' })).toHaveAttribute(
-    'data-disabled',
-  );
-  fireEvent.keyDown(document, { key: 'Escape' });
+    'data-disabled'
+  )
+  fireEvent.keyDown(document, { key: 'Escape' })
 
-  await user.clear(screen.getByLabelText('Job title'));
-  await user.type(screen.getByLabelText('Job title'), 'Senior Designer');
-  await user.click(screen.getByRole('button', { name: 'Save' }));
+  await user.clear(screen.getByLabelText('Job title'))
+  await user.type(screen.getByLabelText('Job title'), 'Senior Designer')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
 
-  expect(onClose).toHaveBeenCalled();
-  const saved = useStore.getState().data.resources[0];
-  if (!saved) throw new Error('Expected saved resource');
-  expect(saved.jobTitle).toBe('Senior Designer');
-  expect(saved.projectId).toBe(project.id);
-});
+  expect(onClose).toHaveBeenCalled()
+  const saved = useStore.getState().data.resources[0]
+  if (!saved) throw new Error('Expected saved resource')
+  expect(saved.jobTitle).toBe('Senior Designer')
+  expect(saved.projectId).toBe(project.id)
+})
 
 describe('ResourceForm engagement', () => {
   it('defaults new people to Studio and saves Supplementary without showing Employment', async () => {
-    const user = userEvent.setup();
-    render(<ResourceForm kind="person" onClose={vi.fn()} />);
+    const user = userEvent.setup()
+    render(<ResourceForm kind="person" onClose={vi.fn()} />)
 
-    expect(screen.queryByLabelText('Employment')).not.toBeInTheDocument();
-    const engagement = screen.getByRole('radiogroup', { name: 'Engagement' });
-    expect(engagement).toHaveTextContent('Studio');
-    expect(screen.queryByRole('combobox', { name: 'Engagement' })).not.toBeInTheDocument();
-    expect(within(engagement).getByRole('radio', { name: 'Supplementary' })).toBeVisible();
+    expect(screen.queryByLabelText('Employment')).not.toBeInTheDocument()
+    const engagement = screen.getByRole('radiogroup', { name: 'Engagement' })
+    expect(engagement).toHaveTextContent('Studio')
+    expect(screen.queryByRole('combobox', { name: 'Engagement' })).not.toBeInTheDocument()
+    expect(within(engagement).getByRole('radio', { name: 'Supplementary' })).toBeVisible()
 
-    await user.type(screen.getByLabelText('Name'), 'Selina Kyle');
-    await user.click(within(engagement).getByRole('radio', { name: 'Supplementary' }));
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.type(screen.getByLabelText('Name'), 'Selina Kyle')
+    await user.click(within(engagement).getByRole('radio', { name: 'Supplementary' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
       employmentType: 'permanent',
       engagement: 'supplementary',
-    });
-  });
+    })
+  })
 
   it('preserves hidden employment data when engagement is edited', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const resource = await requireCreated(
       useStore.getState().addResource({
         kind: 'person',
@@ -632,75 +632,75 @@ describe('ResourceForm engagement', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#737373',
-      }),
-    );
-    render(<ResourceForm resource={resource} onClose={vi.fn()} />);
+      })
+    )
+    render(<ResourceForm resource={resource} onClose={vi.fn()} />)
 
-    const engagement = screen.getByRole('radiogroup', { name: 'Engagement' });
-    await user.click(within(engagement).getByRole('radio', { name: 'Supplementary' }));
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const engagement = screen.getByRole('radiogroup', { name: 'Engagement' })
+    await user.click(within(engagement).getByRole('radio', { name: 'Supplementary' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
       employmentType: 'freelancer',
       engagement: 'supplementary',
-    });
-  });
-});
+    })
+  })
+})
 
 it('opens legacy working days as full days and unselected weekdays as not working', () => {
-  render(<ResourceForm kind="person" onClose={vi.fn()} />);
+  render(<ResourceForm kind="person" onClose={vi.fn()} />)
 
   expect(
     within(screen.getByRole('row', { name: /Monday/ })).getByRole('radio', {
       name: 'Monday Full day',
-    }),
-  ).toBeChecked();
+    })
+  ).toBeChecked()
   expect(
     within(screen.getByRole('row', { name: /Saturday/ })).getByRole('radio', {
       name: 'Saturday Not working',
-    }),
-  ).toBeChecked();
-});
+    })
+  ).toBeChecked()
+})
 
 it('preserves a six-hour working day when editing a person’s job title', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
+  const user = userEvent.setup()
+  const onClose = vi.fn()
   const resource = await requireCreated(
     useStore
       .getState()
-      .addResource(makeResourceDraft({ name: 'Barbara Gordon', workingHoursPerDay: 6 })),
-  );
-  render(<ResourceForm resource={resource} onClose={onClose} />);
+      .addResource(makeResourceDraft({ name: 'Barbara Gordon', workingHoursPerDay: 6 }))
+  )
+  render(<ResourceForm resource={resource} onClose={onClose} />)
 
-  await user.clear(screen.getByLabelText('Job title'));
-  await user.type(screen.getByLabelText('Job title'), 'Design lead');
-  await user.click(screen.getByRole('button', { name: 'Save' }));
+  await user.clear(screen.getByLabelText('Job title'))
+  await user.type(screen.getByLabelText('Job title'), 'Design lead')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
 
-  expect(onClose).toHaveBeenCalledOnce();
+  expect(onClose).toHaveBeenCalledOnce()
   expect(useStore.getState().data.resources[0]).toMatchObject({
     id: resource.id,
     jobTitle: 'Design lead',
     workingHoursPerDay: 6,
-  });
-});
+  })
+})
 
 it('blocks saving a resource with no working days selected', async () => {
-  const user = userEvent.setup();
-  const onClose = vi.fn();
-  render(<ResourceForm kind="person" onClose={onClose} />);
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  render(<ResourceForm kind="person" onClose={onClose} />)
 
-  await user.type(screen.getByLabelText('Name'), 'Alice');
+  await user.type(screen.getByLabelText('Name'), 'Alice')
 
   for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
     await user.click(
       within(screen.getByRole('row', { name: new RegExp(day) })).getByRole('radio', {
         name: `${day} Not working`,
-      }),
-    );
+      })
+    )
   }
-  await user.click(screen.getByRole('button', { name: 'Save' }));
+  await user.click(screen.getByRole('button', { name: 'Save' }))
 
-  expect(screen.getByRole('alert')).toHaveTextContent(/at least one working day/i);
-  expect(onClose).not.toHaveBeenCalled();
-  expect(useStore.getState().data.resources).toHaveLength(0);
-});
+  expect(screen.getByRole('alert')).toHaveTextContent(/at least one working day/i)
+  expect(onClose).not.toHaveBeenCalled()
+  expect(useStore.getState().data.resources).toHaveLength(0)
+})

@@ -1,21 +1,21 @@
-import type { Client, Project, ScopedEntityKey } from '@capacitylens/shared/types/entities';
-import { redactPrivateName } from '@capacitylens/shared/domain/privateNames';
-import type { PlanningAccessGrant } from '#services/planning/access_grant';
+import type { Client, Project, ScopedEntityKey } from '@capacitylens/shared/types/entities'
+import { redactPrivateName } from '@capacitylens/shared/domain/privateNames'
+import type { PlanningAccessGrant } from '#services/planning/access_grant'
 
-type RestrictionFlag = 'canSeePrivateNames' | 'canSeeTimeOffNote';
+type RestrictionFlag = 'canSeePrivateNames' | 'canSeeTimeOffNote'
 
 /** Fields a role without the named visibility flag may neither see nor change. */
 export interface RestrictedFieldRule {
-  flag: RestrictionFlag;
+  flag: RestrictionFlag
   /** Hidden on every row of the table. */
-  fields: readonly string[];
+  fields: readonly string[]
   /** Hidden only on a row marked private (`isPrivate: true`). */
-  privateRowFields: readonly string[];
+  privateRowFields: readonly string[]
   /** Hidden fields the read projection still sends, because the browser needs them. */
-  shownOnRead: readonly string[];
+  shownOnRead: readonly string[]
   /** A create may send these fields empty (`null`, `false`) without the flag. */
-  emptyAllowedOnCreate: boolean;
-  refusal: string;
+  emptyAllowedOnCreate: boolean
+  refusal: string
 }
 
 const PRIVATE_NAME_RULE: RestrictedFieldRule = {
@@ -25,7 +25,7 @@ const PRIVATE_NAME_RULE: RestrictedFieldRule = {
   shownOnRead: ['isPrivate'],
   emptyAllowedOnCreate: true,
   refusal: 'Only an owner can change private names.',
-};
+}
 
 /** The one declaration of restricted fields; every read and write path derives from it. */
 export const RESTRICTED_FIELDS: Partial<Record<ScopedEntityKey, RestrictedFieldRule>> = {
@@ -39,14 +39,14 @@ export const RESTRICTED_FIELDS: Partial<Record<ScopedEntityKey, RestrictedFieldR
     emptyAllowedOnCreate: false,
     refusal: 'The time-off note is restricted.',
   },
-};
+}
 
-type VisibilityFlags = Pick<PlanningAccessGrant, RestrictionFlag>;
+type VisibilityFlags = Pick<PlanningAccessGrant, RestrictionFlag>
 
 /** The table's rule when the caller lacks its flag; otherwise nothing is restricted. */
 export function getRestriction(table: ScopedEntityKey, flags: VisibilityFlags) {
-  const rule = RESTRICTED_FIELDS[table];
-  return rule && !flags[rule.flag] ? rule : undefined;
+  const rule = RESTRICTED_FIELDS[table]
+  return rule && !flags[rule.flag] ? rule : undefined
 }
 
 /** Whether the caller is restricted on this stored row's private fields. */
@@ -55,8 +55,8 @@ export function isPrivateRowRestricted(
   flags: VisibilityFlags,
   existing: Record<string, unknown> | undefined
 ) {
-  const rule = getRestriction(table, flags);
-  return Boolean(rule && rule.privateRowFields.length > 0 && existing?.isPrivate === true);
+  const rule = getRestriction(table, flags)
+  return Boolean(rule && rule.privateRowFields.length > 0 && existing?.isPrivate === true)
 }
 
 /** The fields this caller cannot see on this row. */
@@ -65,9 +65,9 @@ export function listHiddenFields(
   flags: VisibilityFlags,
   existing: Record<string, unknown> | undefined
 ): readonly string[] {
-  const rule = getRestriction(table, flags);
-  if (!rule) return [];
-  return existing?.isPrivate === true ? [...rule.fields, ...rule.privateRowFields] : rule.fields;
+  const rule = getRestriction(table, flags)
+  if (!rule) return []
+  return existing?.isPrivate === true ? [...rule.fields, ...rule.privateRowFields] : rule.fields
 }
 
 /**
@@ -79,19 +79,19 @@ export function projectForReader<T extends object>(
   flags: VisibilityFlags,
   row: T
 ): T {
-  const rule = getRestriction(table, flags);
-  if (!rule) return row;
+  const rule = getRestriction(table, flags)
+  if (!rule) return row
   // Only clients and projects have private-row fields, so a row reaching redaction is one of them.
   let projected = (
     rule.privateRowFields.length > 0 ? redactPrivateName(row as T & (Client | Project)) : row
-  ) as Record<string, unknown>;
+  ) as Record<string, unknown>
   for (const field of rule.fields) {
-    if (rule.shownOnRead.includes(field)) continue;
+    if (rule.shownOnRead.includes(field)) continue
     if (projected[field] !== null && projected[field] !== undefined) {
-      projected = { ...projected, [field]: null };
+      projected = { ...projected, [field]: null }
     }
   }
-  return projected as T;
+  return projected as T
 }
 
 /**
@@ -100,6 +100,6 @@ export function projectForReader<T extends object>(
  * as `name`.
  */
 export function resolveDisplayName(row: { name: string; codeName?: string | null }): string {
-  const codeName = row.codeName?.trim();
-  return codeName === undefined || codeName === '' ? row.name : codeName;
+  const codeName = row.codeName?.trim()
+  return codeName === undefined || codeName === '' ? row.name : codeName
 }

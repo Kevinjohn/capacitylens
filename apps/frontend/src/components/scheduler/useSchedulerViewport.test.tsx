@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
-import { useSchedulerViewport } from './useSchedulerViewport';
-import { useStore } from '@/store/useStore';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { useSchedulerViewport } from './useSchedulerViewport'
+import { useStore } from '@/store/useStore'
 
 // All scroll-derived date reads share the rounded column inverse so fractional near-boundary positions do not select the preceding date.
 
@@ -11,17 +11,17 @@ function Harness({
   weekSnapEnabled = false,
   calendarWeekStartsOn = 1,
 }: {
-  minimiseWeekends?: boolean;
-  weekSnapEnabled?: boolean;
-  calendarWeekStartsOn?: 0 | 1;
+  minimiseWeekends?: boolean
+  weekSnapEnabled?: boolean
+  calendarWeekStartsOn?: 0 | 1
 }) {
-  const ui = useStore((s) => s.ui);
+  const ui = useStore((s) => s.ui)
   const { scrollRef, leftEdgeIdx, onScroll, visibleStartDate, geom } = useSchedulerViewport({
     ui,
     minimiseWeekends,
     weekSnapEnabled,
     calendarWeekStartsOn,
-  });
+  })
   return (
     <div ref={scrollRef} data-testid="scroll" onScroll={onScroll} style={{ overflow: 'auto' }}>
       <div data-testid="left-edge-idx">{leftEdgeIdx}</div>
@@ -30,22 +30,22 @@ function Harness({
       <div data-testid="boundary-2">{geom.x(2)}</div>
       <div data-testid="boundary-3">{geom.x(3)}</div>
     </div>
-  );
+  )
 }
 
 function setupViewport() {
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
     configurable: true,
     get: () => 1200,
-  });
+  })
   Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
     configurable: true,
     get: () => 600,
-  });
+  })
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-    callback(0);
-    return 1;
-  });
+    callback(0)
+    return 1
+  })
   useStore.setState((state) => ({
     ui: {
       ...state.ui,
@@ -56,77 +56,77 @@ function setupViewport() {
       collapsedGroups: [],
     },
     draggingAllocationId: null,
-  }));
+  }))
 }
 
 function teardownViewport() {
-  vi.restoreAllMocks();
-  delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth;
-  delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight;
+  vi.restoreAllMocks()
+  delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth
+  delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight
 }
 
 describe('useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding', () => {
-  beforeEach(setupViewport);
-  afterEach(teardownViewport);
+  beforeEach(setupViewport)
+  afterEach(teardownViewport)
 
   it('onScroll resolves a scrollLeft fractionally below a column boundary to that column, not the previous one', () => {
-    render(<Harness />);
-    const grid = screen.getByTestId('scroll');
-    const boundary = Number(screen.getByTestId('boundary-2').textContent);
+    render(<Harness />)
+    const grid = screen.getByTestId('scroll')
+    const boundary = Number(screen.getByTestId('boundary-2').textContent)
 
     act(() => {
-      grid.scrollLeft = boundary - 0.4;
-      grid.dispatchEvent(new Event('scroll'));
-    });
+      grid.scrollLeft = boundary - 0.4
+      grid.dispatchEvent(new Event('scroll'))
+    })
 
     // Without rounding, indexAt's strict floor would resolve boundary - 0.4 to index 1
     // (2026-06-02): the previous column. Rounded first, it lands on the boundary column.
-    expect(screen.getByTestId('left-edge-idx').textContent).toBe('2');
-    expect(screen.getByTestId('visible-start').textContent).toBe('2026-06-03');
-    expect(grid.style.getPropertyValue('--sched-scroll-left')).toBe(`${boundary - 0.4}px`);
-  });
+    expect(screen.getByTestId('left-edge-idx').textContent).toBe('2')
+    expect(screen.getByTestId('visible-start').textContent).toBe('2026-06-03')
+    expect(grid.style.getPropertyValue('--sched-scroll-left')).toBe(`${boundary - 0.4}px`)
+  })
 
   it('onScroll still resolves an exact boundary scrollLeft to that column (rounding is a no-op there)', () => {
-    render(<Harness />);
-    const grid = screen.getByTestId('scroll');
-    const boundary = Number(screen.getByTestId('boundary-2').textContent);
+    render(<Harness />)
+    const grid = screen.getByTestId('scroll')
+    const boundary = Number(screen.getByTestId('boundary-2').textContent)
 
     act(() => {
-      grid.scrollLeft = boundary;
-      grid.dispatchEvent(new Event('scroll'));
-    });
+      grid.scrollLeft = boundary
+      grid.dispatchEvent(new Event('scroll'))
+    })
 
-    expect(screen.getByTestId('left-edge-idx').textContent).toBe('2');
-    expect(screen.getByTestId('visible-start').textContent).toBe('2026-06-03');
-  });
+    expect(screen.getByTestId('left-edge-idx').textContent).toBe('2')
+    expect(screen.getByTestId('visible-start').textContent).toBe('2026-06-03')
+  })
 
   it('the drag-end resync effect (a third unrounded indexAt call site) resolves the same sub-pixel scrollLeft correctly', () => {
     // Ending a drag must resynchronize the frozen left-edge date through the same rounded scroll inverse as ordinary scrolling.
-    useStore.setState({ draggingAllocationId: 'a1' });
-    render(<Harness />);
-    const grid = screen.getByTestId('scroll');
-    const boundary = Number(screen.getByTestId('boundary-3').textContent);
+    useStore.setState({ draggingAllocationId: 'a1' })
+    render(<Harness />)
+    const grid = screen.getByTestId('scroll')
+    const boundary = Number(screen.getByTestId('boundary-3').textContent)
 
     act(() => {
-      grid.scrollLeft = boundary - 0.4;
-    });
+      grid.scrollLeft = boundary - 0.4
+    })
     act(() => {
-      useStore.setState({ draggingAllocationId: null });
-    });
+      useStore.setState({ draggingAllocationId: null })
+    })
 
-    expect(screen.getByTestId('left-edge-idx').textContent).toBe('3');
-    expect(screen.getByTestId('visible-start').textContent).toBe('2026-06-04');
-  });
-});
+    expect(screen.getByTestId('left-edge-idx').textContent).toBe('3')
+    expect(screen.getByTestId('visible-start').textContent).toBe('2026-06-04')
+  })
+})
 
 describe('useSchedulerViewport — viewport changes', () => {
-  beforeEach(setupViewport);
-  afterEach(teardownViewport);
+  beforeEach(setupViewport)
+  afterEach(teardownViewport)
 
   it("recenters with the new commit's focus offset after origin and focus change together", () => {
-    render(<Harness />);
-    const grid = screen.getByTestId('scroll');
-    expect(grid.scrollLeft).toBe(0);
+    render(<Harness />)
+    const grid = screen.getByTestId('scroll')
+    expect(grid.scrollLeft).toBe(0)
 
     act(() => {
       useStore.setState((state) => ({
@@ -136,14 +136,14 @@ describe('useSchedulerViewport — viewport changes', () => {
           focusDate: '2026-08-15',
           recenterToken: state.ui.recenterToken + 1,
         },
-      }));
-    });
+      }))
+    })
 
-    const currentFocusX = Number(screen.getByTestId('focus-x').textContent);
-    expect(currentFocusX).toBeGreaterThan(0);
-    expect(grid.scrollLeft).toBe(currentFocusX);
-    expect(grid.style.getPropertyValue('--sched-scroll-left')).toBe(`${currentFocusX}px`);
-  });
+    const currentFocusX = Number(screen.getByTestId('focus-x').textContent)
+    expect(currentFocusX).toBeGreaterThan(0)
+    expect(grid.scrollLeft).toBe(currentFocusX)
+    expect(grid.style.getPropertyValue('--sched-scroll-left')).toBe(`${currentFocusX}px`)
+  })
 
   it('clamps a zoom anchor whose week start falls before the timeline origin', () => {
     useStore.setState((state) => ({
@@ -153,138 +153,138 @@ describe('useSchedulerViewport — viewport changes', () => {
         originDate: '2026-06-03',
         focusDate: '2026-06-03',
       },
-    }));
-    render(<Harness calendarWeekStartsOn={1} />);
-    const grid = screen.getByTestId('scroll');
+    }))
+    render(<Harness calendarWeekStartsOn={1} />)
+    const grid = screen.getByTestId('scroll')
 
     act(() => {
-      grid.scrollLeft = 0;
-      grid.dispatchEvent(new Event('scroll'));
-    });
+      grid.scrollLeft = 0
+      grid.dispatchEvent(new Event('scroll'))
+    })
     act(() => {
-      useStore.setState((state) => ({ ui: { ...state.ui, zoom: 2 } }));
-    });
+      useStore.setState((state) => ({ ui: { ...state.ui, zoom: 2 } }))
+    })
 
-    expect(grid.scrollLeft).toBe(0);
-  });
-});
+    expect(grid.scrollLeft).toBe(0)
+  })
+})
 
 describe('useSchedulerViewport — pending week snapping', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    setupViewport();
-  });
+    vi.useFakeTimers()
+    setupViewport()
+  })
   afterEach(() => {
-    teardownViewport();
-    vi.useRealTimers();
-  });
+    teardownViewport()
+    vi.useRealTimers()
+  })
 
   it('cancels an idle snap when snapping is disabled before the timer fires', () => {
-    const { rerender } = render(<Harness weekSnapEnabled />);
-    const grid = screen.getByTestId('scroll');
-    const boundary = Number(screen.getByTestId('boundary-2').textContent);
+    const { rerender } = render(<Harness weekSnapEnabled />)
+    const grid = screen.getByTestId('scroll')
+    const boundary = Number(screen.getByTestId('boundary-2').textContent)
 
     act(() => {
-      grid.scrollLeft = boundary;
-      grid.dispatchEvent(new Event('scroll'));
-    });
-    rerender(<Harness weekSnapEnabled={false} />);
-    expect(vi.getTimerCount()).toBe(0);
+      grid.scrollLeft = boundary
+      grid.dispatchEvent(new Event('scroll'))
+    })
+    rerender(<Harness weekSnapEnabled={false} />)
+    expect(vi.getTimerCount()).toBe(0)
     act(() => {
-      vi.runAllTimers();
-    });
+      vi.runAllTimers()
+    })
 
-    expect(grid.scrollLeft).toBe(boundary);
-  });
+    expect(grid.scrollLeft).toBe(boundary)
+  })
 
   it('cancels an idle snap when the calendar week changes', () => {
-    const { rerender } = render(<Harness weekSnapEnabled calendarWeekStartsOn={1} />);
-    const grid = screen.getByTestId('scroll');
-    const boundary = Number(screen.getByTestId('boundary-2').textContent);
+    const { rerender } = render(<Harness weekSnapEnabled calendarWeekStartsOn={1} />)
+    const grid = screen.getByTestId('scroll')
+    const boundary = Number(screen.getByTestId('boundary-2').textContent)
 
     act(() => {
-      grid.scrollLeft = boundary;
-      grid.dispatchEvent(new Event('scroll'));
-    });
-    rerender(<Harness weekSnapEnabled calendarWeekStartsOn={0} />);
-    expect(vi.getTimerCount()).toBe(0);
+      grid.scrollLeft = boundary
+      grid.dispatchEvent(new Event('scroll'))
+    })
+    rerender(<Harness weekSnapEnabled calendarWeekStartsOn={0} />)
+    expect(vi.getTimerCount()).toBe(0)
     act(() => {
-      vi.runAllTimers();
-    });
+      vi.runAllTimers()
+    })
 
-    expect(grid.scrollLeft).toBe(boundary);
-  });
+    expect(grid.scrollLeft).toBe(boundary)
+  })
 
   it('cancels an idle snap when zoom changes semantic geometry', () => {
-    render(<Harness weekSnapEnabled />);
-    const grid = screen.getByTestId('scroll');
+    render(<Harness weekSnapEnabled />)
+    const grid = screen.getByTestId('scroll')
 
     act(() => {
-      grid.scrollLeft = Number(screen.getByTestId('boundary-2').textContent);
-      grid.dispatchEvent(new Event('scroll'));
-    });
+      grid.scrollLeft = Number(screen.getByTestId('boundary-2').textContent)
+      grid.dispatchEvent(new Event('scroll'))
+    })
     act(() => {
-      useStore.setState((state) => ({ ui: { ...state.ui, zoom: 2 } }));
-    });
+      useStore.setState((state) => ({ ui: { ...state.ui, zoom: 2 } }))
+    })
 
-    expect(vi.getTimerCount()).toBe(0);
-  });
-});
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})
 
 describe('useSchedulerViewport — week snap lifecycle', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    setupViewport();
-  });
+    vi.useFakeTimers()
+    setupViewport()
+  })
   afterEach(() => {
-    teardownViewport();
-    vi.useRealTimers();
-  });
+    teardownViewport()
+    vi.useRealTimers()
+  })
 
   it('cancels a pending animation frame and permits new scroll work after semantics change', () => {
-    const requestFrame = vi.mocked(window.requestAnimationFrame).mockImplementation(() => 42);
-    const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame');
-    const { rerender } = render(<Harness weekSnapEnabled />);
-    const grid = screen.getByTestId('scroll');
+    const requestFrame = vi.mocked(window.requestAnimationFrame).mockImplementation(() => 42)
+    const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame')
+    const { rerender } = render(<Harness weekSnapEnabled />)
+    const grid = screen.getByTestId('scroll')
 
     act(() => {
-      grid.dispatchEvent(new Event('scroll'));
-    });
-    rerender(<Harness weekSnapEnabled={false} />);
+      grid.dispatchEvent(new Event('scroll'))
+    })
+    rerender(<Harness weekSnapEnabled={false} />)
 
-    expect(cancelFrame).toHaveBeenCalledWith(42);
+    expect(cancelFrame).toHaveBeenCalledWith(42)
     act(() => {
-      grid.dispatchEvent(new Event('scroll'));
-    });
-    expect(requestFrame).toHaveBeenCalledTimes(2);
-  });
+      grid.dispatchEvent(new Event('scroll'))
+    })
+    expect(requestFrame).toHaveBeenCalledTimes(2)
+  })
 
   it('snaps normally when its semantics remain current', () => {
-    render(<Harness weekSnapEnabled />);
-    const grid = screen.getByTestId('scroll');
-    const boundary = Number(screen.getByTestId('boundary-2').textContent);
+    render(<Harness weekSnapEnabled />)
+    const grid = screen.getByTestId('scroll')
+    const boundary = Number(screen.getByTestId('boundary-2').textContent)
 
     act(() => {
-      grid.scrollLeft = boundary;
-      grid.dispatchEvent(new Event('scroll'));
-      vi.runAllTimers();
-    });
+      grid.scrollLeft = boundary
+      grid.dispatchEvent(new Event('scroll'))
+      vi.runAllTimers()
+    })
 
-    expect(grid.scrollLeft).toBe(0);
-  });
+    expect(grid.scrollLeft).toBe(0)
+  })
 
   it('clears an idle snap when the viewport unmounts', () => {
-    const { unmount } = render(<Harness weekSnapEnabled />);
-    const grid = screen.getByTestId('scroll');
+    const { unmount } = render(<Harness weekSnapEnabled />)
+    const grid = screen.getByTestId('scroll')
 
     act(() => {
-      grid.scrollLeft = Number(screen.getByTestId('boundary-2').textContent);
-      grid.dispatchEvent(new Event('scroll'));
-    });
-    expect(vi.getTimerCount()).toBe(1);
+      grid.scrollLeft = Number(screen.getByTestId('boundary-2').textContent)
+      grid.dispatchEvent(new Event('scroll'))
+    })
+    expect(vi.getTimerCount()).toBe(1)
 
-    unmount();
+    unmount()
 
-    expect(vi.getTimerCount()).toBe(0);
-  });
-});
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})

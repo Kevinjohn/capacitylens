@@ -1,9 +1,9 @@
-import type { HookParams } from '@adonisjs/assembler/types';
-import { generateRegistry } from '@tuyau/core/hooks';
+import type { HookParams } from '@adonisjs/assembler/types'
+import { generateRegistry } from '@tuyau/core/hooks'
 
 // The browser narrows every error body itself, including Vine's 422 `{ errors }`, so the registry
 // does not type validation errors.
-const registry = generateRegistry({ validationErrorType: false });
+const registry = generateRegistry({ validationErrorType: false })
 
 /**
  * Writes the API client registry, except in an e2e worker API server: the workers share one
@@ -12,7 +12,7 @@ const registry = generateRegistry({ validationErrorType: false });
 export default async function generateRegistryHook(...args: HookParams<'init'>) {
   // The assembler runs this hook before the application boots, so `#start/env` is not loaded here;
   // start/env.ts still declares the variable for the server process.
-  if (process.env.CAPACITYLENS_E2E_WORKER_API === '1') return;
-  if (!('run' in registry)) throw new Error('generateRegistry returned a lazy hook');
-  await registry.run(...args);
+  if (process.env.CAPACITYLENS_E2E_WORKER_API === '1') return
+  if (!('run' in registry)) throw new Error('generateRegistry returned a lazy hook')
+  await registry.run(...args)
 }

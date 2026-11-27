@@ -188,7 +188,7 @@ build output, so a hand edit there is overwritten. The
 
 ## Licence
 
-CapacityLens is [GPL-3.0-or-later](LICENSE). Product names and logos are handled separately in
+CapacityLens is [GPL-3.0-or-later](LICENSE.md). Product names and logos are handled separately in
 [TRADEMARKS.md](TRADEMARKS.md).
 
 [![Validation including E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/validation.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/validation.yml?query=branch%3Amain)
@@ -197,6 +197,6 @@ CapacityLens is [GPL-3.0-or-later](LICENSE). Product names and logos are handled
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kevinjohn/capacitylens/badge)](https://scorecard.dev/viewer/?uri=github.com/Kevinjohn/capacitylens)
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/14555/baseline)](https://www.bestpractices.dev/projects/14555)
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
-[![license: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![license: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE.md)
 
 Validation includes application/backend checks and Chromium, Firefox and WebKit E2E tests. Coverage measures frontend source files; backend coverage is not included.

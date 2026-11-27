@@ -1,5 +1,5 @@
-import { m } from '@/i18n';
-import type { Weekday } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n'
+import type { Weekday } from '@capacitylens/shared/types/entities'
 
 // The table holds uncalled message references (`m.weekday_long_mon`, not `m.weekday_long_mon()`).
 // This module is evaluated once at import, and Paraglide resolves the active locale at call time,
@@ -14,14 +14,14 @@ const WEEKDAY_MESSAGES: Record<Weekday, { long: () => string; short: () => strin
   4: { long: m.weekday_long_thu, short: m.weekday_short_thu },
   5: { long: m.weekday_long_fri, short: m.weekday_short_fri },
   6: { long: m.weekday_long_sat, short: m.weekday_short_sat },
-};
+}
 
 /** The localised full label for a weekday (Sun=0 … Sat=6). */
 export function resolveWeekdayLabel(day: Weekday): string {
-  return WEEKDAY_MESSAGES[day].long();
+  return WEEKDAY_MESSAGES[day].long()
 }
 
 /** The localised abbreviated label for a weekday (Sun=0 … Sat=6). */
 export function resolveWeekdayShortLabel(day: Weekday): string {
-  return WEEKDAY_MESSAGES[day].short();
+  return WEEKDAY_MESSAGES[day].short()
 }

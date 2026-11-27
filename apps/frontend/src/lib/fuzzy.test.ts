@@ -1,116 +1,116 @@
-import { describe, it, expect } from 'vitest';
-import { foldForSearch, filterFuzzy } from './fuzzy';
+import { describe, it, expect } from 'vitest'
+import { foldForSearch, filterFuzzy } from './fuzzy'
 
 const resources = [
   { id: 'r-tyler', name: 'Bruce Wayne' },
   { id: 'r-pam', name: 'Diana Prince' },
   { id: 'r-nike', name: 'Clark Kent' },
   { id: 'r-alex', name: 'Barry Allen' },
-];
-const getText = (resource: { name: string }) => resource.name;
+]
+const getText = (resource: { name: string }) => resource.name
 
 describe('foldForSearch', () => {
   it('lower-cases and strips canonically decomposable diacritics', () => {
-    expect(foldForSearch('José ÁLVAREZ')).toBe('jose alvarez');
-    expect(foldForSearch('Müller')).toBe('muller');
-  });
+    expect(foldForSearch('José ÁLVAREZ')).toBe('jose alvarez')
+    expect(foldForSearch('Müller')).toBe('muller')
+  })
 
   it('is total for lone surrogates and leaves undecomposable text alone', () => {
-    expect(foldForSearch('\ud800')).toBe('\ud800');
-    expect(foldForSearch('Bruce Wayne')).toBe('bruce wayne');
-  });
-});
+    expect(foldForSearch('\ud800')).toBe('\ud800')
+    expect(foldForSearch('Bruce Wayne')).toBe('bruce wayne')
+  })
+})
 
 describe('fuzzyFilter — ranking', () => {
   it('returns all items for empty query', () => {
-    expect(filterFuzzy(resources, '', getText)).toHaveLength(4);
-  });
+    expect(filterFuzzy(resources, '', getText)).toHaveLength(4)
+  })
 
   it('filters out non-matches', () => {
-    const result = filterFuzzy(resources, 'zzz', getText);
-    expect(result).toHaveLength(0);
-  });
+    const result = filterFuzzy(resources, 'zzz', getText)
+    expect(result).toHaveLength(0)
+  })
 
   it('ranks prefix match before subsequence match', () => {
     // "bru" is a tier-0 prefix of "Bruce Wayne"; none of the other seeded names contain a
     // "u" at all, so it's the only match.
-    const result = filterFuzzy(resources, 'bru', getText);
-    expect(result[0]?.id).toBe('r-tyler');
-  });
+    const result = filterFuzzy(resources, 'bru', getText)
+    expect(result[0]?.id).toBe('r-tyler')
+  })
 
   it('ranks a contiguous match before a scattered subsequence match', () => {
-    const result = filterFuzzy(resources, 'ay', getText);
-    expect(result.map((r) => r.id)).toEqual(['r-tyler', 'r-alex']);
-  });
+    const result = filterFuzzy(resources, 'ay', getText)
+    expect(result.map((r) => r.id)).toEqual(['r-tyler', 'r-alex'])
+  })
 
   it('sorts tier-0 before tier-1 before tier-3', () => {
-    const result = filterFuzzy(resources, 'barry', getText);
-    expect(result).toHaveLength(1);
-    expect(result[0]?.id).toBe('r-alex');
-  });
+    const result = filterFuzzy(resources, 'barry', getText)
+    expect(result).toHaveLength(1)
+    expect(result[0]?.id).toBe('r-alex')
+  })
 
   it('stable tie-break: within same tier, shorter name first then alpha', () => {
-    const result = filterFuzzy(resources, 'b', getText);
-    expect(result[0]?.id).toBe('r-alex');
-  });
+    const result = filterFuzzy(resources, 'b', getText)
+    expect(result[0]?.id).toBe('r-alex')
+  })
 
   it('is case-insensitive in matching', () => {
-    expect(filterFuzzy(resources, 'BRUCE', getText)).toHaveLength(1);
-    expect(filterFuzzy(resources, 'BRUCE', getText)[0]?.id).toBe('r-tyler');
-  });
+    expect(filterFuzzy(resources, 'BRUCE', getText)).toHaveLength(1)
+    expect(filterFuzzy(resources, 'BRUCE', getText)[0]?.id).toBe('r-tyler')
+  })
 
   it('finds accented names from an unaccented query', () => {
     const people = [
       ...resources,
       { id: 'r-jose', name: 'José Alvarez' },
       { id: 'r-muller', name: 'Greta Müller' },
-    ];
-    expect(filterFuzzy(people, 'jose', getText).map((person) => person.id)).toEqual(['r-jose']);
-    expect(filterFuzzy(people, 'muller', getText).map((person) => person.id)).toEqual(['r-muller']);
-  });
-});
+    ]
+    expect(filterFuzzy(people, 'jose', getText).map((person) => person.id)).toEqual(['r-jose'])
+    expect(filterFuzzy(people, 'muller', getText).map((person) => person.id)).toEqual(['r-muller'])
+  })
+})
 
 describe('fuzzyFilter — query and tie behavior', () => {
   it('returns items in original (unsorted) order for an empty or whitespace-only query', () => {
-    expect(filterFuzzy(resources, '', getText)).toEqual(resources);
-    expect(filterFuzzy(resources, '   ', getText)).toEqual(resources);
-  });
+    expect(filterFuzzy(resources, '', getText)).toEqual(resources)
+    expect(filterFuzzy(resources, '   ', getText)).toEqual(resources)
+  })
 
   it('trims the query before scoring, so surrounding whitespace does not defeat an exact match', () => {
-    const result = filterFuzzy(resources, ' bruce', getText);
-    expect(result.map((r) => r.id)).toContain('r-tyler');
-  });
+    const result = filterFuzzy(resources, ' bruce', getText)
+    expect(result.map((r) => r.id)).toContain('r-tyler')
+  })
 
   it('sorts strictly by tier first, even when the tie-break would otherwise disagree', () => {
     const items = [
       { id: 't0', name: 'alphabetsoup' },
       { id: 't2', name: 'zzalz' },
-    ];
-    expect(filterFuzzy(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['t0', 't2']);
-  });
+    ]
+    expect(filterFuzzy(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['t0', 't2'])
+  })
 
   it('does not skip the tier compare on equal tiers (falls through to the length tie-break)', () => {
     const items = [
       { id: 'long', name: 'alphabet' },
       { id: 'short', name: 'al' },
-    ];
-    expect(filterFuzzy(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long']);
-  });
+    ]
+    expect(filterFuzzy(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long'])
+  })
 
   it('breaks a same-tier tie by length even when alpha order disagrees', () => {
     const items = [
       { id: 'short', name: 'qz' },
       { id: 'long', name: 'qaaaaa' },
-    ];
+    ]
 
-    expect(filterFuzzy(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long']);
-  });
+    expect(filterFuzzy(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long'])
+  })
 
   it('breaks a same-tier, same-length tie alphabetically', () => {
     const items = [
       { id: 'b', name: 'qb' },
       { id: 'a', name: 'qa' },
-    ];
-    expect(filterFuzzy(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['a', 'b']);
-  });
-});
+    ]
+    expect(filterFuzzy(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['a', 'b'])
+  })
+})

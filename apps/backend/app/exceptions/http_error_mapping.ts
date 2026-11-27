@@ -3,12 +3,12 @@
 // input takes the framework's 422 `{ errors }` body. Product exceptions answer for themselves, and
 // a Vine validation failure takes the framework's answer.
 
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { errors as httpServerErrors } from '@adonisjs/core/http';
-import { errors as limiterErrors } from '@adonisjs/limiter';
-import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
-import { E_ACCOUNT_KIT_ADMISSION_REQUIRED } from '@kevinjohn/adonisjs-account-kit/admission';
-import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade';
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+import { errors as httpServerErrors } from '@adonisjs/core/http'
+import { errors as limiterErrors } from '@adonisjs/limiter'
+import { CompanyExportError } from '@capacitylens/shared/data/companyExport'
+import { E_ACCOUNT_KIT_ADMISSION_REQUIRED } from '@kevinjohn/adonisjs-account-kit/admission'
+import { errors as masqueradeErrors } from '@kevinjohn/adonisjs-masquerade'
 import {
   PasswordConfirmationRequiredException,
   PasswordConfirmationStaleException,
@@ -16,20 +16,20 @@ import {
   PasswordConfirmationDeniedException,
   PasswordConfirmationThrottledException,
   InvalidPasswordConfirmationRequestException,
-} from '@kevinjohn/adonisjs-confirm-action-with-password';
-import { buildKitRefusal } from '#exceptions/account_kit_refusal';
-import { buildAccessRefusal } from '#exceptions/access_control_refusal';
-import { buildValidationBody } from '#exceptions/validation_refusal_exception';
+} from '@kevinjohn/adonisjs-confirm-action-with-password'
+import { buildKitRefusal } from '#exceptions/account_kit_refusal'
+import { buildAccessRefusal } from '#exceptions/access_control_refusal'
+import { buildValidationBody } from '#exceptions/validation_refusal_exception'
 
 /**
  * One answered package error. `errorType` marks an answer whose error is still logged as a server
  * fault, under that category.
  */
 export interface HttpErrorResponse {
-  status: number;
-  body: object;
-  headers?: Record<string, string>;
-  errorType?: string;
+  status: number
+  body: object
+  headers?: Record<string, string>
+  errorType?: string
 }
 
 /**
@@ -47,7 +47,7 @@ function buildAdmissionRequiredResponse(
       code: 'E_ADMISSION_REQUIRED',
       decision: error.decision,
     } satisfies ProductHttpErrorBody,
-  };
+  }
 }
 
 // The stop, prune and unknown-commit exceptions extend `E_MASQUERADE_UNAVAILABLE`.
@@ -86,15 +86,15 @@ const masqueradeResponses: ReadonlyArray<
     masqueradeErrors.E_MASQUERADE_UNAVAILABLE,
     { status: 503, code: 'E_MASQUERADE_UNAVAILABLE', message: 'Masquerade is unavailable.' },
   ],
-];
+]
 
 function buildMasqueradeResponse(error: unknown): HttpErrorResponse | undefined {
   // Invalid input answers like any other validation refusal.
   if (error instanceof masqueradeErrors.E_MASQUERADE_INVALID_INPUT) {
-    return { status: 422, body: buildValidationBody('Invalid masquerade request.') };
+    return { status: 422, body: buildValidationBody('Invalid masquerade request.') }
   }
-  const known = masqueradeResponses.find(([exception]) => error instanceof exception)?.[1];
-  return known && { status: known.status, body: { error: known.message, code: known.code } };
+  const known = masqueradeResponses.find(([exception]) => error instanceof exception)?.[1]
+  return known && { status: known.status, body: { error: known.message, code: known.code } }
 }
 
 function buildConfirmationResponse(error: unknown): HttpErrorResponse | undefined {
@@ -106,27 +106,27 @@ function buildConfirmationResponse(error: unknown): HttpErrorResponse | undefine
     return {
       status: 403,
       body: { error: 'Confirm this action again.', code: 'E_PASSWORD_CONFIRMATION_REQUIRED' },
-    };
+    }
   }
   if (error instanceof PasswordConfirmationDeniedException) {
     return {
       status: 403,
       body: { error: 'Incorrect password.', code: 'E_PASSWORD_CONFIRMATION_DENIED' },
-    };
+    }
   }
   if (error instanceof PasswordConfirmationThrottledException) {
-    const seconds = Math.max(1, Math.ceil(error.retryAfterSeconds));
-    const minutes = Math.ceil(seconds / 60);
+    const seconds = Math.max(1, Math.ceil(error.retryAfterSeconds))
+    const minutes = Math.ceil(seconds / 60)
     return {
       status: 429,
       headers: { 'Retry-After': String(seconds) },
       body: {
         error: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
       },
-    };
+    }
   }
   if (error instanceof InvalidPasswordConfirmationRequestException) {
-    return { status: 400, body: { error: 'Invalid password confirmation.' } };
+    return { status: 400, body: { error: 'Invalid password confirmation.' } }
   }
 }
 
@@ -145,7 +145,7 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
         error: 'Unsupported media type.',
         code: 'E_UNSUPPORTED_MEDIA_TYPE',
       } satisfies ProductHttpErrorBody,
-    };
+    }
   }
   if (
     error instanceof SyntaxError &&
@@ -160,7 +160,7 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
         error: 'Request body must be valid JSON.',
         code: 'E_INVALID_JSON',
       } satisfies ProductHttpErrorBody,
-    };
+    }
   }
   if (
     typeof error === 'object' &&
@@ -176,18 +176,18 @@ function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefin
         error: 'Request JSON must be an object or array.',
         code: 'E_INVALID_JSON_SHAPE',
       } satisfies ProductHttpErrorBody,
-    };
+    }
   }
 }
 
 function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
-  if (typeof error !== 'object' || error === null) return;
-  const code = 'code' in error ? error.code : undefined;
+  if (typeof error !== 'object' || error === null) return
+  const code = 'code' in error ? error.code : undefined
   if (error instanceof httpServerErrors.E_ROUTE_NOT_FOUND) {
     return {
       status: 404,
       body: { error: 'Not found.', code: 'E_NOT_FOUND' } satisfies ProductHttpErrorBody,
-    };
+    }
   }
   if (code === 'E_REQUEST_ENTITY_TOO_LARGE') {
     return {
@@ -196,7 +196,7 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
         error: 'Request body is too large.',
         code: 'E_PAYLOAD_TOO_LARGE',
       } satisfies ProductHttpErrorBody,
-    };
+    }
   }
   if (code === 'E_ENCODING_UNSUPPORTED') {
     return {
@@ -205,7 +205,7 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
         error: 'Unsupported media type.',
         code: 'E_UNSUPPORTED_MEDIA_TYPE',
       } satisfies ProductHttpErrorBody,
-    };
+    }
   }
 }
 
@@ -215,34 +215,34 @@ function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefin
  * send the package's envelope, so the handler must answer them before `super.handle`.
  */
 export function mapPackageError(error: unknown): HttpErrorResponse | undefined {
-  const masquerade = buildMasqueradeResponse(error);
-  if (masquerade) return masquerade;
+  const masquerade = buildMasqueradeResponse(error)
+  if (masquerade) return masquerade
   if (error instanceof E_ACCOUNT_KIT_ADMISSION_REQUIRED) {
-    return buildAdmissionRequiredResponse(error);
+    return buildAdmissionRequiredResponse(error)
   }
-  const kitRefusal = buildKitRefusal(error);
+  const kitRefusal = buildKitRefusal(error)
   if (kitRefusal) {
     return {
       ...kitRefusal,
       // Account Kit refusals are expected outcomes; its server faults are still reported.
       ...(kitRefusal.status >= 500 ? { errorType: 'account_kit_failure' } : {}),
-    };
+    }
   }
-  const accessRefusal = buildAccessRefusal(error);
+  const accessRefusal = buildAccessRefusal(error)
   if (accessRefusal) {
-    return { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } };
+    return { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } }
   }
-  const confirmation = buildConfirmationResponse(error);
-  if (confirmation) return confirmation;
+  const confirmation = buildConfirmationResponse(error)
+  if (confirmation) return confirmation
   // Shared code holds no backend code (departure 1), so the export format's own error is answered here.
   if (error instanceof CompanyExportError) {
-    return { status: 400, body: { error: error.message } };
+    return { status: 400, body: { error: error.message } }
   }
   if (error instanceof limiterErrors.E_TOO_MANY_REQUESTS) {
     const headers = Object.fromEntries(
       Object.entries(error.getDefaultHeaders()).map(([name, value]) => [name, String(value)])
-    );
-    return { status: 429, headers, body: { error: 'Rate limit exceeded.' } };
+    )
+    return { status: 429, headers, body: { error: 'Rate limit exceeded.' } }
   }
-  return buildParserFailureResponse(error) ?? buildFrameworkCodeResponse(error);
+  return buildParserFailureResponse(error) ?? buildFrameworkCodeResponse(error)
 }

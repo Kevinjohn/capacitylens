@@ -1,13 +1,13 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { randomUUID } from 'node:crypto';
-import app from '@adonisjs/core/services/app';
-import { PlanningExecutionService } from '#services/planning/planning_execution_service';
-import type { PlanningIntent } from '#validators/planning/contracts';
-import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import { StateRepositoryService } from '#services/state_repository_service';
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { randomUUID } from 'node:crypto'
+import app from '@adonisjs/core/services/app'
+import { PlanningExecutionService } from '#services/planning/planning_execution_service'
+import type { PlanningIntent } from '#validators/planning/contracts'
+import type { PlanningAccessGrant } from '#services/planning/access_grant'
+import { StateRepositoryService } from '#services/state_repository_service'
 
-const stateRepository = new StateRepositoryService();
-const planningExecution = await app.container.make(PlanningExecutionService);
+const stateRepository = new StateRepositoryService()
+const planningExecution = await app.container.make(PlanningExecutionService)
 
 /** The access an Owner holds in planning. */
 export const owner: PlanningAccessGrant = {
@@ -15,7 +15,7 @@ export const owner: PlanningAccessGrant = {
   canWrite: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
-};
+}
 
 /** Runs one planning intent in `trx` against the company's current state. */
 export async function executePlanningIntent(
@@ -24,7 +24,7 @@ export async function executePlanningIntent(
   intent: PlanningIntent,
   accessGrant: PlanningAccessGrant
 ) {
-  const data = await stateRepository.readStateWithClient(trx, companyId, true);
+  const data = await stateRepository.readStateWithClient(trx, companyId, true)
   return planningExecution.executePlanningIntent({
     trx,
     companyId,
@@ -32,5 +32,5 @@ export async function executePlanningIntent(
     accessGrant,
     data,
     identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
-  });
+  })
 }

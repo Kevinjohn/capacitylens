@@ -1,5 +1,5 @@
-import { useEffect, useSyncExternalStore } from 'react';
-import { m } from '@/i18n';
+import { useEffect, useSyncExternalStore } from 'react'
+import { m } from '@/i18n'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,23 +9,23 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog'
 import {
   completeRestorationCleanup,
   readRestorationCleanupCount,
   subscribeRestorationCleanup,
-} from '@/data/planning/restorationCleanupConfirmation';
+} from '@/data/planning/restorationCleanupConfirmation'
 
 /** Keeps a pending save in its original editor until the company-wide Restore loss is accepted. */
 export function RestorationCleanupDialog() {
-  const count = useSyncExternalStore(subscribeRestorationCleanup, readRestorationCleanupCount);
-  useEffect(() => () => completeRestorationCleanup(false), []);
-  if (count === null) return null;
+  const count = useSyncExternalStore(subscribeRestorationCleanup, readRestorationCleanupCount)
+  useEffect(() => () => completeRestorationCleanup(false), [])
+  if (count === null) return null
   return (
     <AlertDialog
       open
       onOpenChange={(open) => {
-        if (!open) completeRestorationCleanup(false);
+        if (!open) completeRestorationCleanup(false)
       }}
     >
       <AlertDialogContent data-testid="restoration-cleanup-confirmation">
@@ -47,5 +47,5 @@ export function RestorationCleanupDialog() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }

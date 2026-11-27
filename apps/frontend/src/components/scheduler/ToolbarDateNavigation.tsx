@@ -1,8 +1,8 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { m } from '@/i18n';
-import { ZOOM_LEVELS } from '@/lib/schedulerConfig';
-import type { WeeksZoom } from '@/lib/schedulerConfig';
-import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { m } from '@/i18n'
+import { ZOOM_LEVELS } from '@/lib/schedulerConfig'
+import type { WeeksZoom } from '@/lib/schedulerConfig'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -10,19 +10,19 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/select'
 
 const buildZoomLabel = (weeks: number) =>
   weeks > 1
     ? m.scheduler_weeks_option_other({ count: weeks })
-    : m.scheduler_weeks_option_one({ count: weeks });
+    : m.scheduler_weeks_option_one({ count: weeks })
 
 /** Zoom and date navigation callbacks for the schedule toolbar. */
 export interface ToolbarDateNavigationProps {
-  zoom: WeeksZoom;
-  onZoomChange: (zoom: WeeksZoom) => void;
-  onPanDays: (days: number) => void;
-  onToday: () => void;
+  zoom: WeeksZoom
+  onZoomChange: (zoom: WeeksZoom) => void
+  onPanDays: (days: number) => void
+  onToday: () => void
 }
 
 /** Lets users move the visible window, change zoom, or return to today. */
@@ -78,5 +78,5 @@ export function ToolbarDateNavigation({
         </SelectContent>
       </Select>
     </>
-  );
+  )
 }

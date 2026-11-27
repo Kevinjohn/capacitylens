@@ -1,6 +1,6 @@
-import vine from '@vinejs/vine';
-import { writableFields } from '@capacitylens/shared/types/entityFields';
-import { ALLOCATION_STATUSES } from '@capacitylens/shared/types/entities';
+import vine from '@vinejs/vine'
+import { writableFields } from '@capacitylens/shared/types/entityFields'
+import { ALLOCATION_STATUSES } from '@capacitylens/shared/types/entities'
 import {
   boolean,
   calendarDate,
@@ -14,7 +14,7 @@ import {
   requireChanges,
   uniqueArrayIds,
   uuid,
-} from '#validators/planning/fields';
+} from '#validators/planning/fields'
 
 const allocationCreate = vine
   .object({
@@ -30,7 +30,7 @@ const allocationCreate = vine
     task: nullableUserText().optional(),
     ignoreWorkingDays: boolean().nullable().optional(),
   })
-  .use(dateRange());
+  .use(dateRange())
 
 export const allocationChanges = vine
   .object({
@@ -45,27 +45,27 @@ export const allocationChanges = vine
     task: nullableUserText().optional(),
     ignoreWorkingDays: boolean().nullable().optional(),
   })
-  .use(dateRange());
+  .use(dateRange())
 
 const occurrence = vine
   .object({ id: uuid(), startDate: calendarDate(), endDate: calendarDate() })
-  .use(dateRange());
+  .use(dateRange())
 
 const duplicateIdIsDistinct = vine.createRule((value, _options, field) => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return
   const { sourceAllocationId, occurrence: duplicate } = value as {
-    sourceAllocationId?: unknown;
-    occurrence?: { id?: unknown };
-  };
+    sourceAllocationId?: unknown
+    occurrence?: { id?: unknown }
+  }
   if (
     typeof sourceAllocationId === 'string' &&
     typeof duplicate?.id === 'string' &&
     sourceAllocationId !== duplicate.id
   ) {
-    return;
+    return
   }
-  field.report('The duplicated allocation must have a new ID.', 'distinctIds', field);
-});
+  field.report('The duplicated allocation must have a new ID.', 'distinctIds', field)
+})
 
 export const allocationIntent = vine
   .union([
@@ -134,4 +134,4 @@ export const allocationIntent = vine
   ])
   .otherwise((_value, field) =>
     field.report('Unsupported allocation operation.', 'unsupportedOperation', field)
-  );
+  )

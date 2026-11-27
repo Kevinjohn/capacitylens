@@ -1,8 +1,8 @@
-import type { ISOTimestamp, Resource } from '../../types/entities.js';
-import { parseISOTimestamp } from '../../lib/isoDates.js';
-import { buildShortIdTag } from '../privateNames.js';
-import { resolveLifecycleStatus } from './types.js';
-import type { LifecycleFields } from './types.js';
+import type { ISOTimestamp, Resource } from '../../types/entities.js'
+import { parseISOTimestamp } from '../../lib/isoDates.js'
+import { buildShortIdTag } from '../privateNames.js'
+import { resolveLifecycleStatus } from './types.js'
+import type { LifecycleFields } from './types.js'
 
 /**
  * May this entity be archived? Pure affordance predicate, true iff the entity is currently
@@ -14,7 +14,7 @@ import type { LifecycleFields } from './types.js';
  * @returns `true` iff {@link resolveLifecycleStatus} is `'active'`.
  */
 export function canArchive(entity: LifecycleFields): boolean {
-  return resolveLifecycleStatus(entity) === 'active';
+  return resolveLifecycleStatus(entity) === 'active'
 }
 
 /**
@@ -25,20 +25,20 @@ export function canArchive(entity: LifecycleFields): boolean {
  * @returns `true` iff {@link resolveLifecycleStatus} is `'archived'`.
  */
 export function canRestore(entity: LifecycleFields): boolean {
-  return resolveLifecycleStatus(entity) === 'archived';
+  return resolveLifecycleStatus(entity) === 'archived'
 }
 
 /** Why a lifecycle transition was refused. */
-export type LifecycleTransitionErrorCode = 'already_inactive' | 'invalid_transition';
+export type LifecycleTransitionErrorCode = 'already_inactive' | 'invalid_transition'
 
 /** A lifecycle precondition failure that API adapters may classify without inspecting prose. */
 export class LifecycleTransitionError extends Error {
-  readonly code: LifecycleTransitionErrorCode;
+  readonly code: LifecycleTransitionErrorCode
 
   constructor(code: LifecycleTransitionErrorCode, message: string) {
-    super(message);
-    this.name = 'LifecycleTransitionError';
-    this.code = code;
+    super(message)
+    this.name = 'LifecycleTransitionError'
+    this.code = code
   }
 }
 
@@ -59,17 +59,17 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
   if (!canArchive(entity)) {
     throw new LifecycleTransitionError(
       'already_inactive',
-      'Cannot archive: entity is already archived.',
-    );
+      'Cannot archive: entity is already archived.'
+    )
   }
-  const archivedMs = parseISOTimestamp(nowISO);
+  const archivedMs = parseISOTimestamp(nowISO)
   if (archivedMs === null) {
     throw new LifecycleTransitionError(
       'invalid_transition',
-      'Cannot archive: archive time must be a valid ISO timestamp.',
-    );
+      'Cannot archive: archive time must be a valid ISO timestamp.'
+    )
   }
-  return Object.assign({ ...entity }, { archivedAt: new Date(archivedMs).toISOString() });
+  return Object.assign({ ...entity }, { archivedAt: new Date(archivedMs).toISOString() })
 }
 
 /** Restore an archived entity to active without mutating it by removing archivedAt.
@@ -78,11 +78,11 @@ export function restore<T extends LifecycleFields>(entity: T): T {
   if (!canRestore(entity)) {
     throw new LifecycleTransitionError(
       'invalid_transition',
-      `Cannot restore: entity is ${resolveLifecycleStatus(entity)}, not archived.`,
-    );
+      `Cannot restore: entity is ${resolveLifecycleStatus(entity)}, not archived.`
+    )
   }
   // Remove archivedAt to represent the active state by absence.
-  return Object.assign({ ...entity }, { archivedAt: null });
+  return Object.assign({ ...entity }, { archivedAt: null })
 }
 
 /**
@@ -97,5 +97,5 @@ export function obfuscateResource(resource: Resource): Resource {
     ...resource,
     name: `Removed person #${buildShortIdTag(resource.id)}`,
     jobTitle: 'Removed resource',
-  };
+  }
 }

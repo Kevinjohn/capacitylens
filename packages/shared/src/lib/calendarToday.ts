@@ -1,5 +1,5 @@
-import type { ISODate } from '../types/entities.js';
-import { assertFourDigitISODate, formatISODate } from './dateMath.js';
+import type { ISODate } from '../types/entities.js'
+import { assertFourDigitISODate, formatISODate } from './dateMath.js'
 
 /**
  * The calendar date at an instant. `invalid-time-zone` means the zone is not a valid IANA
@@ -7,19 +7,19 @@ import { assertFourDigitISODate, formatISODate } from './dateMath.js';
  */
 export type CalendarTodayResult =
   | { kind: 'resolved'; date: ISODate }
-  | { kind: 'invalid-time-zone'; date: ISODate; timeZone: string; cause: unknown };
+  | { kind: 'invalid-time-zone'; date: ISODate; timeZone: string; cause: unknown }
 
 type CalendarFormatter =
-  { kind: 'valid'; formatter: Intl.DateTimeFormat } | { kind: 'invalid'; cause: unknown };
+  { kind: 'valid'; formatter: Intl.DateTimeFormat } | { kind: 'invalid'; cause: unknown }
 
 // Reuse formatters because construction is expensive on the render path. Invalid zones are cached
 // with their cause so a repeated lookup neither reconstructs nor loses the reason.
-const calendarFormatters = new Map<string, CalendarFormatter>();
+const calendarFormatters = new Map<string, CalendarFormatter>()
 
 function createCalendarFormatter(timeZone: string): CalendarFormatter {
-  const cached = calendarFormatters.get(timeZone);
-  if (cached !== undefined) return cached;
-  let entry: CalendarFormatter;
+  const cached = calendarFormatters.get(timeZone)
+  if (cached !== undefined) return cached
+  let entry: CalendarFormatter
   try {
     // Use formatToParts for safety (avoids any locale-specific separators). Only the
     // Intl constructor is guarded here. A malformed IANA timeZone is the only thing
@@ -34,14 +34,14 @@ function createCalendarFormatter(timeZone: string): CalendarFormatter {
         month: '2-digit',
         day: '2-digit',
       }),
-    };
+    }
   } catch (cause) {
     // A malformed IANA timeZone makes the constructor throw a RangeError, which would otherwise
     // crash "today" resolution. The caller receives the cause and the local-date fallback.
-    entry = { kind: 'invalid', cause };
+    entry = { kind: 'invalid', cause }
   }
-  calendarFormatters.set(timeZone, entry);
-  return entry;
+  calendarFormatters.set(timeZone, entry)
+  return entry
 }
 
 /**
@@ -58,24 +58,24 @@ function createCalendarFormatter(timeZone: string): CalendarFormatter {
  */
 export function resolveCalendarToday(
   timeZone?: string,
-  now: number = Date.now(),
+  now: number = Date.now()
 ): CalendarTodayResult {
-  if (!timeZone) return { kind: 'resolved', date: formatISODate(new Date(now)) };
-  const entry = createCalendarFormatter(timeZone);
+  if (!timeZone) return { kind: 'resolved', date: formatISODate(new Date(now)) }
+  const entry = createCalendarFormatter(timeZone)
   if (entry.kind === 'invalid') {
     return {
       kind: 'invalid-time-zone',
       date: formatISODate(new Date(now)),
       timeZone,
       cause: entry.cause,
-    };
+    }
   }
-  const parts = entry.formatter.formatToParts(new Date(now));
-  const get = (partType: string) => parts.find((part) => part.type === partType)?.value ?? '00';
+  const parts = entry.formatter.formatToParts(new Date(now))
+  const get = (partType: string) => parts.find((part) => part.type === partType)?.value ?? '00'
   // Intl gives `year: "numeric"` parts, so a system clock outside years 1000-9999 would otherwise
   // produce a pseudo-ISODate like "999-06-15" that breaks lexicographic YYYY-MM-DD compares.
   return {
     kind: 'resolved',
     date: assertFourDigitISODate(`${get('year')}-${get('month')}-${get('day')}`),
-  };
+  }
 }

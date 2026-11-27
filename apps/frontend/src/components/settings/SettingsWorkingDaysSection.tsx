@@ -1,14 +1,14 @@
-import { m } from '@/i18n';
-import type { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { resolveWeekdayLabel, resolveWeekdayShortLabel } from '@/lib/weekdays';
-import type { listCompanyWorkingDays } from '@/store/selectors';
-import type { StoreState } from '@/store/useStore';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
-import { SettingsSection } from './SettingsSection';
+import { m } from '@/i18n'
+import type { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays'
+import { resolveWeekdayLabel, resolveWeekdayShortLabel } from '@/lib/weekdays'
+import type { listCompanyWorkingDays } from '@/store/selectors'
+import type { StoreState } from '@/store/useStore'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { SettingsSection } from './SettingsSection'
 
-type WorkingDays = ReturnType<typeof listCompanyWorkingDays>;
-type UpdateSetting = (patch: Parameters<StoreState['updateCompany']>[1]) => Promise<void>;
+type WorkingDays = ReturnType<typeof listCompanyWorkingDays>
+type UpdateSetting = (patch: Parameters<StoreState['updateCompany']>[1]) => Promise<void>
 
 function WorkingDayCheckbox({
   canEdit,
@@ -17,18 +17,18 @@ function WorkingDayCheckbox({
   workingDaysMinimumId,
   updateSetting,
 }: {
-  canEdit: boolean;
-  day: WorkingDays[number];
-  workingDays: WorkingDays;
-  workingDaysMinimumId: string;
-  updateSetting: UpdateSetting;
+  canEdit: boolean
+  day: WorkingDays[number]
+  workingDays: WorkingDays
+  workingDaysMinimumId: string
+  updateSetting: UpdateSetting
 }) {
-  const id = `company-working-day-${day}`;
-  const checked = workingDays.includes(day);
+  const id = `company-working-day-${day}`
+  const checked = workingDays.includes(day)
   // Live-disable rather than submit-time validation: each toggle saves immediately, so a refused
   // change must be impossible rather than rejected after it appears to save.
-  const isOnlyWorkingDay = checked && workingDays.length === 1;
-  const disabled = !canEdit || isOnlyWorkingDay;
+  const isOnlyWorkingDay = checked && workingDays.length === 1
+  const disabled = !canEdit || isOnlyWorkingDay
 
   return (
     <Field
@@ -53,12 +53,12 @@ function WorkingDayCheckbox({
               workingDays: checked
                 ? workingDays.filter((candidate) => candidate !== day)
                 : [...workingDays, day].sort((a, b) => a - b),
-            });
+            })
           }}
         />
       </FieldLabel>
     </Field>
-  );
+  )
 }
 
 /** Edits company working days only when the current role may change them. */
@@ -69,11 +69,11 @@ export function SettingsWorkingDaysSection({
   workingDaysMinimumId,
   updateSetting,
 }: {
-  canEdit: boolean;
-  workingDayOrder: ReturnType<typeof listOrderedWeekdays>;
-  workingDays: WorkingDays;
-  workingDaysMinimumId: string;
-  updateSetting: UpdateSetting;
+  canEdit: boolean
+  workingDayOrder: ReturnType<typeof listOrderedWeekdays>
+  workingDays: WorkingDays
+  workingDaysMinimumId: string
+  updateSetting: UpdateSetting
 }) {
   return (
     <SettingsSection
@@ -108,5 +108,5 @@ export function SettingsWorkingDaysSection({
         )}
       </FieldSet>
     </SettingsSection>
-  );
+  )
 }

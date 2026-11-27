@@ -1,5 +1,5 @@
-import { useActiveScopedData } from '@/store/useScopedData';
-import { useEntityListState } from '@/hooks/useEntityListState';
+import { useActiveScopedData } from '@/store/useScopedData'
+import { useEntityListState } from '@/hooks/useEntityListState'
 import {
   ColorSwatch,
   ConfirmDialog,
@@ -7,29 +7,29 @@ import {
   EditButton,
   EmptyState,
   ListPage,
-} from '@/components/common/ui';
-import { ProjectForm } from './ProjectForm';
-import type { Client, ID, Project } from '@capacitylens/shared/types/entities';
-import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
-import { m } from '@/i18n';
-import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames';
-import { resolveProjectColor } from '@capacitylens/shared/lib/color';
-import { Fragment, useMemo } from 'react';
-import { Folder, Plus } from 'lucide-react';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
-import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
+} from '@/components/common/ui'
+import { ProjectForm } from './ProjectForm'
+import type { Client, ID, Project } from '@capacitylens/shared/types/entities'
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations'
+import { m } from '@/i18n'
+import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames'
+import { resolveProjectColor } from '@capacitylens/shared/lib/color'
+import { Fragment, useMemo } from 'react'
+import { Folder, Plus } from 'lucide-react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { createClientProjectDisplayNameComparator } from '@/lib/displayOrder'
+import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection'
 
 function buildProjectArchiveMessage(project: Project): string {
-  const name = project.isPrivate === true ? buildQuotedContextName(project.name) : project.name;
-  return m.list_projects_archive_message({ name });
+  const name = project.isPrivate === true ? buildQuotedContextName(project.name) : project.name
+  return m.list_projects_archive_message({ name })
 }
 
 interface ProjectItemsProps {
-  projects: Project[];
-  clientsById: Map<ID, Client>;
-  onEdit: (project: Project) => void;
-  onArchive: (project: Project) => void;
+  projects: Project[]
+  clientsById: Map<ID, Client>
+  onEdit: (project: Project) => void
+  onArchive: (project: Project) => void
 }
 
 function ProjectItems({ projects, clientsById, onEdit, onArchive }: ProjectItemsProps) {
@@ -62,25 +62,25 @@ function ProjectItems({ projects, clientsById, onEdit, onArchive }: ProjectItems
         </Fragment>
       ))}
     </ItemGroup>
-  );
+  )
 }
 
 /** Lists scoped projects with their available management actions. */
 export function ProjectList() {
-  const data = useActiveScopedData();
-  const clients = data.clients;
+  const data = useActiveScopedData()
+  const clients = data.clients
   const projects = useMemo(
     () => [...data.projects].sort(createClientProjectDisplayNameComparator(clients)),
-    [clients, data.projects],
-  );
+    [clients, data.projects]
+  )
   const clientsById = useMemo(
     () => new Map(clients.map((client) => [client.id, client])),
-    [clients],
-  );
+    [clients]
+  )
 
-  const { archive } = useLifecycleOperations();
+  const { archive } = useLifecycleOperations()
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
-    useEntityListState<Project>();
+    useEntityListState<Project>()
 
   return (
     <ListPage
@@ -120,12 +120,12 @@ export function ProjectList() {
           message={buildProjectArchiveMessage(confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void archive('projects', confirming.id);
-            setConfirming(null);
+            void archive('projects', confirming.id)
+            setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
     </ListPage>
-  );
+  )
 }

@@ -1,36 +1,36 @@
-import type { AppData } from '@capacitylens/shared/types/entities';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
-import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
-import { buildEmptyFilters } from '@/store/useStore';
+import type { AppData } from '@capacitylens/shared/types/entities'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath'
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity'
+import { buildEmptyFilters } from '@/store/useStore'
 import {
   makeActivity,
   makeAllocation,
   makeClient,
   makeProject,
   makeResource,
-} from '@/test/fixtures';
-import { buildColumnGeometry } from './columnGeometry';
-import { buildSchedulerModel } from './schedulerModel';
-import type { GroupModel } from './schedulerModel';
+} from '@/test/fixtures'
+import { buildColumnGeometry } from './columnGeometry'
+import { buildSchedulerModel } from './schedulerModel'
+import type { GroupModel } from './schedulerModel'
 
 interface SchedulerModelTestInput {
-  filters?: ReturnType<typeof buildEmptyFilters> | undefined;
-  disciplinesEnabled?: boolean | undefined;
-  placeholdersEnabled?: boolean | undefined;
-  externalEnabled?: boolean | undefined;
-  capacity?: CapacitySection | null | undefined;
+  filters?: ReturnType<typeof buildEmptyFilters> | undefined
+  disciplinesEnabled?: boolean | undefined
+  placeholdersEnabled?: boolean | undefined
+  externalEnabled?: boolean | undefined
+  capacity?: CapacitySection | null | undefined
 }
 
 /** Start of the fixed model-test week. */
-export const start = '2026-06-01';
+export const start = '2026-06-01'
 /** End of the fixed model-test week. */
-export const end = '2026-06-07';
+export const end = '2026-06-07'
 /** Dates in the fixed model-test week. */
-export const days = listDaysISO(start, end);
+export const days = listDaysISO(start, end)
 /** Uniform column geometry for the fixed model-test week. */
-export const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
+export const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 })
 
 function makeDefaultDisciplines(): AppData['disciplines'] {
   return [
@@ -52,12 +52,12 @@ function makeDefaultDisciplines(): AppData['disciplines'] {
       name: 'Development',
       sortOrder: 1,
     },
-  ];
+  ]
 }
 
 /** Builds scoped scheduler fixtures with optional discipline overrides. */
 export function makeDataset(
-  disciplines: AppData['disciplines'] = makeDefaultDisciplines(),
+  disciplines: AppData['disciplines'] = makeDefaultDisciplines()
 ): AppData {
   return {
     ...createEmptyAppData(),
@@ -103,7 +103,7 @@ export function makeDataset(
       makeAllocation({ id: 'a3', companyId: 'acct-test', resourceId: 'r2', activityId: 't2' }),
     ],
     timeOff: [],
-  };
+  }
 }
 
 /** Builds a scheduler model from the test fixture and chosen filters. */
@@ -122,14 +122,14 @@ export const build = ({
     capacity,
     filters,
     preferences: { disciplinesEnabled, placeholdersEnabled, externalEnabled },
-  });
+  })
 /** Flattens every group and row into the modeled bar list. */
 export const listAllBars = (model: GroupModel[]) =>
-  model.flatMap((group) => group.rows).flatMap((row) => row.bars);
+  model.flatMap((group) => group.rows).flatMap((row) => row.bars)
 
 /** Adds an external resource to the standard scheduler fixture. */
 export function makeDatasetWithExternal(): AppData {
-  const data = makeDataset();
+  const data = makeDataset()
   data.resources.push(
     makeResource({
       id: 'ext1',
@@ -138,8 +138,8 @@ export function makeDatasetWithExternal(): AppData {
       name: 'Kord Industries',
       jobTitle: 'Partner studio',
       color: '#9ca3af',
-    }),
-  );
+    })
+  )
   data.allocations.push({
     ...NULLABLE_FIELDS.allocations,
     id: 'aext',
@@ -152,7 +152,7 @@ export function makeDatasetWithExternal(): AppData {
     endDate: '2026-06-07',
     hoursPerDay: 0,
     status: 'confirmed',
-  });
+  })
   data.timeOff.push({
     ...NULLABLE_FIELDS.timeOff,
     id: 'toext',
@@ -163,8 +163,8 @@ export function makeDatasetWithExternal(): AppData {
     startDate: '2026-06-02',
     endDate: '2026-06-03',
     type: 'holiday',
-  });
-  return data;
+  })
+  return data
 }
 
 export function makeDisciplines(): AppData['disciplines'] {
@@ -187,10 +187,10 @@ export function makeDisciplines(): AppData['disciplines'] {
       sortOrder: 1,
       color: null,
     },
-  ];
+  ]
 }
 
 export const listBarIds = (model: GroupModel[]) =>
   listAllBars(model)
     .map((b) => b.allocation.id)
-    .sort();
+    .sort()

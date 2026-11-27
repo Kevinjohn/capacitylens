@@ -1,5 +1,5 @@
-import { Fragment, useId, useState } from 'react';
-import { Field } from '@/components/ui/field';
+import { Fragment, useId, useState } from 'react'
+import { Field } from '@/components/ui/field'
 import {
   Select,
   SelectContent,
@@ -9,60 +9,60 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useMarkFormDirty } from '@/components/common/formDirty';
-import { RequiredFieldLabel } from './fieldLayout';
-import type { Option } from './fieldTypes';
-import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
-import type { ProductFieldLayout } from './fieldTypes';
+} from '@/components/ui/select'
+import { useMarkFormDirty } from '@/components/common/formDirty'
+import { RequiredFieldLabel } from './fieldLayout'
+import type { Option } from './fieldTypes'
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps'
+import type { ProductFieldLayout } from './fieldTypes'
 
 // Radix reserves the empty string for its placeholder state. Encode every caller value into a
 // separate non-empty domain instead of reserving one otherwise-legal string as a sentinel.
-const SELECT_VALUE_PREFIX = '__capacitylens_option__:';
-const encodeSelectValue = (value: string): string => `${SELECT_VALUE_PREFIX}${value}`;
-const decodeSelectValue = (value: string): string => value.slice(SELECT_VALUE_PREFIX.length);
+const SELECT_VALUE_PREFIX = '__capacitylens_option__:'
+const encodeSelectValue = (value: string): string => `${SELECT_VALUE_PREFIX}${value}`
+const decodeSelectValue = (value: string): string => value.slice(SELECT_VALUE_PREFIX.length)
 
 type SelectFieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Option[];
-  placeholder?: string;
-  disabled?: boolean;
-  invalid?: boolean;
-  required?: boolean;
-  describedById?: string;
-  ariaLabel?: string;
-  testId?: string;
-  autoFocus?: boolean;
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Option[]
+  placeholder?: string
+  disabled?: boolean
+  invalid?: boolean
+  required?: boolean
+  describedById?: string
+  ariaLabel?: string
+  testId?: string
+  autoFocus?: boolean
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
-  layout?: ProductFieldLayout;
-};
+  layout?: ProductFieldLayout
+}
 
-type OptionGroup = { key?: string; label?: string; options: Option[] };
+type OptionGroup = { key?: string; label?: string; options: Option[] }
 
 function buildOptionGroups(options: Option[]): OptionGroup[] {
   return options.reduce<OptionGroup[]>((groups, option) => {
-    const previous = groups.at(-1);
-    const key = option.groupKey ?? option.groupLabel;
-    if (previous && previous.key === key) previous.options.push(option);
+    const previous = groups.at(-1)
+    const key = option.groupKey ?? option.groupLabel
+    if (previous && previous.key === key) previous.options.push(option)
     else {
       groups.push({
         ...(key ? { key } : {}),
         ...(option.groupLabel ? { label: option.groupLabel } : {}),
         options: [option],
-      });
+      })
     }
-    return groups;
-  }, []);
+    return groups
+  }, [])
 }
 
 function SelectFieldOptions({
   optionGroups,
   disabled,
 }: {
-  optionGroups: OptionGroup[];
-  disabled: boolean;
+  optionGroups: OptionGroup[]
+  disabled: boolean
 }) {
   return optionGroups.map((group, index) => (
     <SelectGroup key={`${group.key ?? 'ungrouped'}-${index}`}>
@@ -80,11 +80,11 @@ function SelectFieldOptions({
         </Fragment>
       ))}
     </SelectGroup>
-  ));
+  ))
 }
 
 function normalizeFlag(value: boolean | undefined): true | undefined {
-  return value ? true : undefined;
+  return value ? true : undefined
 }
 
 /** Renders a labelled select with field validation and layout options. */
@@ -103,11 +103,11 @@ export function SelectField({
   autoFocus,
   layout = 'stacked',
 }: SelectFieldProps) {
-  const id = useId();
-  const markDirty = useMarkFormDirty();
-  const selectedOption = options.find((option) => option.value === value);
-  const unresolvedValue = value !== '' && selectedOption === undefined;
-  const optionGroups = buildOptionGroups(options);
+  const id = useId()
+  const markDirty = useMarkFormDirty()
+  const selectedOption = options.find((option) => option.value === value)
+  const unresolvedValue = value !== '' && selectedOption === undefined
+  const optionGroups = buildOptionGroups(options)
   return (
     <Field
       data-invalid={normalizeFlag(invalid)}
@@ -138,26 +138,26 @@ export function SelectField({
         autoFocus={autoFocus}
       />
     </Field>
-  );
+  )
 }
 
 type SelectFieldControlProps = {
-  id: string;
-  value: string;
-  selectedValue: string;
-  selectedLabel: string | undefined;
-  onChange: (value: string) => void;
-  markDirty: () => void;
-  optionGroups: OptionGroup[];
-  placeholder: string | undefined;
-  disabled: boolean;
-  invalid: boolean | undefined;
-  required: boolean | undefined;
-  describedById: string | undefined;
-  ariaLabel: string | undefined;
-  testId: string | undefined;
-  autoFocus: boolean | undefined;
-};
+  id: string
+  value: string
+  selectedValue: string
+  selectedLabel: string | undefined
+  onChange: (value: string) => void
+  markDirty: () => void
+  optionGroups: OptionGroup[]
+  placeholder: string | undefined
+  disabled: boolean
+  invalid: boolean | undefined
+  required: boolean | undefined
+  describedById: string | undefined
+  ariaLabel: string | undefined
+  testId: string | undefined
+  autoFocus: boolean | undefined
+}
 
 function SelectFieldControl({
   id,
@@ -176,8 +176,8 @@ function SelectFieldControl({
   testId,
   autoFocus,
 }: SelectFieldControlProps) {
-  const [open, setOpen] = useState(false);
-  const effectiveOpen = open && !disabled;
+  const [open, setOpen] = useState(false)
+  const effectiveOpen = open && !disabled
 
   return (
     <Select
@@ -185,14 +185,14 @@ function SelectFieldControl({
       {...(disabled ? { disabled: true } : {})}
       open={effectiveOpen}
       onOpenChange={(nextOpen) => {
-        if (!disabled) setOpen(nextOpen);
+        if (!disabled) setOpen(nextOpen)
       }}
       onValueChange={(next) => {
-        if (disabled) return;
-        const resolved = decodeSelectValue(next);
-        if (resolved === value) return;
-        markDirty();
-        onChange(resolved);
+        if (disabled) return
+        const resolved = decodeSelectValue(next)
+        if (resolved === value) return
+        markDirty()
+        onChange(resolved)
       }}
     >
       <SelectTrigger
@@ -212,5 +212,5 @@ function SelectFieldControl({
         <SelectFieldOptions optionGroups={optionGroups} disabled={disabled} />
       </SelectContent>
     </Select>
-  );
+  )
 }

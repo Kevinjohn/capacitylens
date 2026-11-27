@@ -1,17 +1,17 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import Resource from '#models/resource';
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import Resource from '#models/resource'
 
 /** Keeps archived resources identifiable in the member directory. */
 export interface MemberResourceLinkProjection {
-  resourceId: string;
-  revision: string;
-  resourceName: string | null;
-  resourceStatus: 'active' | 'archived';
+  resourceId: string
+  revision: string
+  resourceName: string | null
+  resourceStatus: 'active' | 'archived'
 }
 
 /** Makes an absent link explicit for every selected member. */
 export interface MemberResourceFields {
-  resourceLink: MemberResourceLinkProjection | null;
+  resourceLink: MemberResourceLinkProjection | null
 }
 
 /** Reads the member/person links an Owner or Admin sees in the member directory. */
@@ -22,16 +22,16 @@ export class MemberResourceDirectoryService {
       .withScopes((scopes) => scopes.forCompany(companyId))
       .where('kind', 'person')
       .whereNull('archived_at')
-      .select('id', 'name', 'job_title');
+      .select('id', 'name', 'job_title')
     return rows.map((row) => ({
       resourceId: String(row.id),
       label: String(row.name ?? row.jobTitle),
-    }));
+    }))
   }
 
   /** Reads a selected set of same-company association fields, keyed by member ID. */
   async readMemberFields(trx: TransactionClientContract, companyId: string, userIds: string[]) {
-    if (userIds.length === 0) return new Map<string, MemberResourceFields>();
+    if (userIds.length === 0) return new Map<string, MemberResourceFields>()
     const links = await trx
       .from('account_member_resources as link')
       .leftJoin('resources as resource', function () {
@@ -39,7 +39,7 @@ export class MemberResourceDirectoryService {
           'resource.company_id',
           '=',
           'link.company_id'
-        );
+        )
       })
       .where('link.company_id', companyId)
       .whereIn('link.user_id', userIds)
@@ -49,9 +49,9 @@ export class MemberResourceDirectoryService {
         'link.revision',
         'resource.name',
         'resource.archived_at'
-      );
-    const result = new Map<string, MemberResourceFields>();
-    for (const userId of userIds) result.set(userId, { resourceLink: null });
+      )
+    const result = new Map<string, MemberResourceFields>()
+    for (const userId of userIds) result.set(userId, { resourceLink: null })
     for (const link of links) {
       result.set(String(link.user_id), {
         resourceLink: {
@@ -60,8 +60,8 @@ export class MemberResourceDirectoryService {
           resourceName: link.name ?? null,
           resourceStatus: link.archived_at ? 'archived' : 'active',
         },
-      });
+      })
     }
-    return result;
+    return result
   }
 }

@@ -1,28 +1,28 @@
-import { useState } from 'react';
-import type { Route } from '@capacitylens/backend/registry';
-import { requestApiResponse } from '@/api/queryClient';
-import { readApiData } from '@/api/readApiData';
-import { readApiError } from '@/lib/readApiError';
-import { FormDialog } from '@/components/common/ui';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Field, FieldLabel } from '@/components/ui/field';
-import { m } from '@/i18n';
+import { useState } from 'react'
+import type { Route } from '@capacitylens/backend/registry'
+import { requestApiResponse } from '@/api/queryClient'
+import { readApiData } from '@/api/readApiData'
+import { readApiError } from '@/lib/readApiError'
+import { FormDialog } from '@/components/common/ui'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { m } from '@/i18n'
 
-type ConfirmationBody = Route.Body<'api.password_confirmations.store'>;
+type ConfirmationBody = Route.Body<'api.password_confirmations.store'>
 
 /** One action with its own intent shape, as the generated request body pairs them. */
 export type PasswordConfirmationRequest = ConfirmationBody extends infer Body
   ? Body extends { action: unknown; intent: unknown }
     ? Pick<Body, 'action' | 'intent'>
     : never
-  : never;
+  : never
 
 type PasswordConfirmationDialogProps = PasswordConfirmationRequest & {
-  companyId: string;
-  onConfirmed: (confirmationId: string) => void;
-  onCancel: () => void;
-};
+  companyId: string
+  onConfirmed: (confirmationId: string) => void
+  onCancel: () => void
+}
 
 /** Confirms one exact action; each dialog receives only its own confirmation id. */
 export function PasswordConfirmationDialog({
@@ -31,39 +31,39 @@ export function PasswordConfirmationDialog({
   onCancel,
   ...request
 }: PasswordConfirmationDialogProps) {
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const confirm = async () => {
-    if (busy || password.length === 0) return;
-    setBusy(true);
-    setError(null);
+    if (busy || password.length === 0) return
+    setBusy(true)
+    setError(null)
     try {
       const response = await requestApiResponse('api.password_confirmations.store', {
         body: { ...request, companyId, password },
-      });
+      })
       if (!response.ok) {
-        setError((await readApiError(response)) ?? m.reauth_failed());
-        setBusy(false);
-        return;
+        setError((await readApiError(response)) ?? m.reauth_failed())
+        setBusy(false)
+        return
       }
-      const result: unknown = await readApiData(response);
+      const result: unknown = await readApiData(response)
       if (
         !result ||
         typeof result !== 'object' ||
         !('confirmationId' in result) ||
         typeof result.confirmationId !== 'string'
       ) {
-        throw new Error('Password confirmation returned no confirmation id.');
+        throw new Error('Password confirmation returned no confirmation id.')
       }
-      onConfirmed(result.confirmationId);
+      onConfirmed(result.confirmationId)
     } catch (cause) {
-      console.error('Password confirmation failed', cause);
-      setError(m.sign_in_network_error());
-      setBusy(false);
+      console.error('Password confirmation failed', cause)
+      setError(m.sign_in_network_error())
+      setBusy(false)
     }
-  };
+  }
 
   return (
     <FormDialog
@@ -103,5 +103,5 @@ export function PasswordConfirmationDialog({
         </Button>
       </div>
     </FormDialog>
-  );
+  )
 }

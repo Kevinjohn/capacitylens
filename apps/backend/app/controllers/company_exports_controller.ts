@@ -1,31 +1,28 @@
-import { inject } from '@adonisjs/core';
-import type { HttpContext } from '@adonisjs/core/http';
-import { transformState } from '#transformers/state_transformer';
-import { CurrentActorService } from '#services/auth/current_actor_service';
-import { PlanningAccessService } from '#services/planning/planning_access_service';
-import {
-  buildCompanyExport,
-  serializeCompanyExport,
-} from '@capacitylens/shared/data/companyExport';
-import { StateRepositoryService } from '#services/state_repository_service';
-import { showCompanyExportValidator } from '#validators/export_query';
-import { requestData } from '#validators/request_rules';
+import { inject } from '@adonisjs/core'
+import type { HttpContext } from '@adonisjs/core/http'
+import { transformState } from '#transformers/state_transformer'
+import { CurrentActorService } from '#services/auth/current_actor_service'
+import { PlanningAccessService } from '#services/planning/planning_access_service'
+import { buildCompanyExport, serializeCompanyExport } from '@capacitylens/shared/data/companyExport'
+import { StateRepositoryService } from '#services/state_repository_service'
+import { showCompanyExportValidator } from '#validators/export_query'
+import { requestData } from '#validators/request_rules'
 
 /** The company's export document. */
 @inject()
 export default class CompanyExportsController {
-  #currentActor: CurrentActorService;
-  #stateRepository: StateRepositoryService;
-  #planningAccess: PlanningAccessService;
+  #currentActor: CurrentActorService
+  #stateRepository: StateRepositoryService
+  #planningAccess: PlanningAccessService
 
   constructor(
     currentActor: CurrentActorService,
     stateRepository: StateRepositoryService,
     planningAccess: PlanningAccessService
   ) {
-    this.#currentActor = currentActor;
-    this.#stateRepository = stateRepository;
-    this.#planningAccess = planningAccess;
+    this.#currentActor = currentActor
+    this.#stateRepository = stateRepository
+    this.#planningAccess = planningAccess
   }
 
   /**
@@ -36,24 +33,24 @@ export default class CompanyExportsController {
   async show({ auth, request, response, serialize }: HttpContext) {
     const { params } = await request.validateUsing(showCompanyExportValidator, {
       data: requestData(request),
-    });
-    const { companyId } = params;
+    })
+    const { companyId } = params
     const text = await this.#currentActor.withActor(auth, async (_actor, trx) => {
-      const { planningAccess } = await this.#planningAccess.resolvePlanningAccess(trx, companyId);
+      const { planningAccess } = await this.#planningAccess.resolvePlanningAccess(trx, companyId)
       const rows = await this.#stateRepository.readStateWithClient(
         trx,
         companyId,
         this.#stateRepository.mayReadInactive(planningAccess.role)
-      );
+      )
       return serializeCompanyExport(
         buildCompanyExport(transformState(rows, companyId, planningAccess.role), {
           companyId,
           completeness: planningAccess.canSeePrivateNames ? 'full' : 'redacted',
         })
-      );
-    });
-    response.header('Content-Type', 'application/json; charset=utf-8');
-    response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
-    return response.send(await serialize.withoutWrapping(text));
+      )
+    })
+    response.header('Content-Type', 'application/json; charset=utf-8')
+    response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"')
+    return response.send(await serialize.withoutWrapping(text))
   }
 }

@@ -1,7 +1,7 @@
-import { test } from '@japa/runner';
-import { buildTimeOffOccurrences, type RepeatRange } from '#services/planning/repeat_occurrences';
-import ValidationRefusalException from '#exceptions/validation_refusal_exception';
-import { allocationOccurrences, firstSpan } from '#tests/helpers/unit/planning_fixtures';
+import { test } from '@japa/runner'
+import { buildTimeOffOccurrences, type RepeatRange } from '#services/planning/repeat_occurrences'
+import ValidationRefusalException from '#exceptions/validation_refusal_exception'
+import { allocationOccurrences, firstSpan } from '#tests/helpers/unit/planning_fixtures'
 
 // The same literals pin the shared projection in packages/shared repeatingOccurrences.test.ts.
 test.group('allocation repeat occurrences', () => {
@@ -17,12 +17,12 @@ test.group('allocation repeat occurrences', () => {
         ['2026-06-15', '2026-06-17'],
         ['2026-06-22', '2026-06-24'],
       ]
-    );
-  });
+    )
+  })
 
   test('a span across non-working days keeps its count of working days', ({ assert }) => {
     // Wednesday to the next Monday is two working days for a Monday to Wednesday person.
-    const wednesday = { ...firstSpan, startDate: '2026-06-03', endDate: '2026-06-08' };
+    const wednesday = { ...firstSpan, startDate: '2026-06-03', endDate: '2026-06-08' }
     assert.deepEqual(
       allocationOccurrences(
         'days',
@@ -34,8 +34,8 @@ test.group('allocation repeat occurrences', () => {
         ['2026-06-10', '2026-06-15'],
         ['2026-06-17', '2026-06-22'],
       ]
-    );
-  });
+    )
+  })
 
   test('a monthly repeat counts working days past non-working starts', ({ assert }) => {
     assert.deepEqual(
@@ -45,8 +45,8 @@ test.group('allocation repeat occurrences', () => {
         ['2026-07-01', '2026-07-07'],
         ['2026-08-01', '2026-08-05'],
       ]
-    );
-  });
+    )
+  })
 
   test('an hourly company keeps the calendar span', ({ assert }) => {
     assert.deepEqual(
@@ -56,22 +56,22 @@ test.group('allocation repeat occurrences', () => {
         ['2026-07-01', '2026-07-03'],
         ['2026-08-01', '2026-08-03'],
       ]
-    );
-  });
+    )
+  })
 
   test('a repeat the shared rules refuse is a validation error', ({ assert }) => {
     for (const until of ['2026-06-07', '2026-12-02']) {
       assert.throws(
         () => allocationOccurrences('days', { pattern: { kind: 'weeks', interval: 1 }, until }),
         ValidationRefusalException
-      );
+      )
     }
-  });
-});
+  })
+})
 
 test.group('time-off repeat occurrences', () => {
   const dates = (entry: { startDate: string; endDate: string }, repeat: RepeatRange) =>
-    buildTimeOffOccurrences(entry, repeat).map(({ startDate, endDate }) => [startDate, endDate]);
+    buildTimeOffOccurrences(entry, repeat).map(({ startDate, endDate }) => [startDate, endDate])
 
   test('a monthly last-weekday repeat keeps the calendar span on each last Tuesday', ({
     assert,
@@ -87,25 +87,25 @@ test.group('time-off repeat occurrences', () => {
         ['2026-08-25', '2026-08-26'],
         ['2026-09-29', '2026-09-30'],
       ]
-    );
-  });
+    )
+  })
 
   test('time off repeats over its own horizon, past where an allocation stops', ({ assert }) => {
     const weekly = dates(
       { startDate: '2026-06-01', endDate: '2026-06-01' },
       { pattern: { kind: 'weeks', interval: 1 }, until: '2027-01-04' }
-    );
-    assert.lengthOf(weekly, 32);
-    assert.deepEqual(weekly.at(-1), ['2027-01-04', '2027-01-04']);
-  });
+    )
+    assert.lengthOf(weekly, 32)
+    assert.deepEqual(weekly.at(-1), ['2027-01-04', '2027-01-04'])
+  })
 
   test('a repeat the shared rules refuse is a validation error', ({ assert }) => {
-    const entry = { startDate: '2026-06-30', endDate: '2026-07-01' };
+    const entry = { startDate: '2026-06-30', endDate: '2026-07-01' }
     for (const until of ['2026-06-29', '2027-06-30']) {
       assert.throws(
         () => dates(entry, { pattern: { kind: 'monthly-last-weekday' }, until }),
         ValidationRefusalException
-      );
+      )
     }
-  });
-});
+  })
+})

@@ -1,5 +1,5 @@
-import vine from '@vinejs/vine';
-import { allowedFields } from '#validators/request_rules';
+import vine from '@vinejs/vine'
+import { allowedFields } from '#validators/request_rules'
 
 /** Each action names its own intent; the import document keeps its own parser in the controller. */
 export const confirmPasswordValidator = vine.create(
@@ -36,4 +36,4 @@ export const confirmPasswordValidator = vine.create(
       ])
     )
     .use(allowedFields({ fields: ['action', 'companyId', 'intent', 'password'] }))
-);
+)

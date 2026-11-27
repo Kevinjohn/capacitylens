@@ -1,45 +1,45 @@
-import { useEffect } from 'react';
-import type { useNavigate } from 'react-router-dom';
-import type { buildMasqueradeBannerContent } from './masqueradeBannerContent';
-import { Alert, AlertDescription } from './ui/alert';
-import { Button } from './ui/button';
-import { m } from '@/i18n';
+import { useEffect } from 'react'
+import type { useNavigate } from 'react-router-dom'
+import type { buildMasqueradeBannerContent } from './masqueradeBannerContent'
+import { Alert, AlertDescription } from './ui/alert'
+import { Button } from './ui/button'
+import { m } from '@/i18n'
 import {
   endMasquerade,
   reconcileMasqueradeStatus,
   retryMasqueradeProjection,
-} from '@/auth/companyTransition';
+} from '@/auth/companyTransition'
 
 const masqueradeButtonClassName =
-  'border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white';
+  'border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white'
 
 /** Names the member being viewed, its expiry, and the controls to retry or end the view. */
 export function MasqueradeBanner({
   banner,
   navigate,
 }: {
-  banner: Exclude<ReturnType<typeof buildMasqueradeBannerContent>, null>;
-  navigate: ReturnType<typeof useNavigate>;
+  banner: Exclude<ReturnType<typeof buildMasqueradeBannerContent>, null>
+  navigate: ReturnType<typeof useNavigate>
 }) {
   useEffect(() => {
-    const deadline = banner.deadline;
-    if (!deadline) return;
-    let timer: number | undefined;
+    const deadline = banner.deadline
+    if (!deadline) return
+    let timer: number | undefined
     const checkDeadline = () => {
-      const remaining = Date.parse(deadline) - Date.now();
+      const remaining = Date.parse(deadline) - Date.now()
       if (remaining > 0) {
-        timer = window.setTimeout(checkDeadline, Math.min(remaining, 2_147_483_647));
-        return;
+        timer = window.setTimeout(checkDeadline, Math.min(remaining, 2_147_483_647))
+        return
       }
       void reconcileMasqueradeStatus().catch((error) => {
-        console.warn('Masquerade expiry status could not be refreshed', error);
-      });
-    };
-    checkDeadline();
+        console.warn('Masquerade expiry status could not be refreshed', error)
+      })
+    }
+    checkDeadline()
     return () => {
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [banner.deadline]);
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
+  }, [banner.deadline])
 
   return (
     <Alert
@@ -54,7 +54,7 @@ export function MasqueradeBanner({
             <span className="ml-2 font-normal">
               {m.app_masquerade_expires({
                 time: new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(
-                  new Date(banner.deadline),
+                  new Date(banner.deadline)
                 ),
               })}
             </span>
@@ -84,5 +84,5 @@ export function MasqueradeBanner({
         )}
       </AlertDescription>
     </Alert>
-  );
+  )
 }

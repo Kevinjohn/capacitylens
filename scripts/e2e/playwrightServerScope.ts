@@ -4,11 +4,11 @@
  * @throws When a non-empty name contains characters outside letters, digits, underscores and hyphens.
  */
 export function parseReportPhaseName(value: string | undefined): string {
-  if (!value) return 'default';
+  if (!value) return 'default'
   if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
     throw new Error(
-      'CAPACITYLENS_E2E_PHASE may contain only letters, numbers, underscores and hyphens.',
-    );
+      'CAPACITYLENS_E2E_PHASE may contain only letters, numbers, underscores and hyphens.'
+    )
   }
-  return value;
+  return value
 }

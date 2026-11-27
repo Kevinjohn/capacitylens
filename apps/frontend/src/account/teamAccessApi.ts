@@ -1,44 +1,39 @@
 // Account administration decodes untrusted responses here so Team and access view models consume semantic outcomes.
-import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types';
-import type { Role } from '@capacitylens/shared/domain/access';
-import { admissionRequests } from './admissionRequests';
-import { invitationRequests } from './invitationRequests';
-import { memberRequests } from './memberRequests';
-import { readOperationResult, readResult } from './accessResult';
+import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types'
+import type { Role } from '@capacitylens/shared/domain/access'
+import { admissionRequests } from './admissionRequests'
+import { invitationRequests } from './invitationRequests'
+import { memberRequests } from './memberRequests'
+import { readOperationResult, readResult } from './accessResult'
 import {
   parseAdmissionPage,
   parseDelivery,
   parseInvitations,
   parseMembers,
-} from './teamAccessParsers';
-import type { AdmissionPage } from './teamAccessParsers';
-import type { TeamAccessResult } from './accessResult';
-import { ownershipTransferAccess } from './ownershipTransferAccess';
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
-import { readApiErrorCode } from '@/lib/readApiError';
-import type { TeamDirectory, TeamInvitation, AdmissionRequest } from './teamAccessTypes';
+} from './teamAccessParsers'
+import type { AdmissionPage } from './teamAccessParsers'
+import type { TeamAccessResult } from './accessResult'
+import { ownershipTransferAccess } from './ownershipTransferAccess'
+import { isRecord } from '@capacitylens/shared/lib/isRecord'
+import { readApiErrorCode } from '@/lib/readApiError'
+import type { TeamDirectory, TeamInvitation, AdmissionRequest } from './teamAccessTypes'
 
-export { resolveRefusalMessage, type TeamAccessResult } from './accessResult';
-export type {
-  TeamMember,
-  TeamDirectory,
-  TeamInvitation,
-  AdmissionRequest,
-} from './teamAccessTypes';
-export type { OwnershipTransferReceipt } from './ownershipTransferAccess';
+export { resolveRefusalMessage, type TeamAccessResult } from './accessResult'
+export type { TeamMember, TeamDirectory, TeamInvitation, AdmissionRequest } from './teamAccessTypes'
+export type { OwnershipTransferReceipt } from './ownershipTransferAccess'
 
-const acceptNoContent = (): true => true;
+const acceptNoContent = (): true => true
 
-type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
+type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean }
 /** Provides typed request methods for team and access administration. */
 export const teamAccessApi = {
   ...ownershipTransferAccess,
 
   async listMembers(
     companyId: string,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<TeamAccessResult<TeamDirectory>> {
-    return readResult(await memberRequests.listMembers(companyId, signal), parseMembers);
+    return readResult(await memberRequests.listMembers(companyId, signal), parseMembers)
   },
 
   async setMemberSignInTracking({
@@ -47,47 +42,44 @@ export const teamAccessApi = {
   }: SetMemberSignInTrackingOptions): Promise<TeamAccessResult<boolean>> {
     return readResult(
       await memberRequests.setMemberSignInTracking({ companyId, enabled }),
-      (body) => (isRecord(body) && typeof body.enabled === 'boolean' ? body.enabled : null),
-    );
+      (body) => (isRecord(body) && typeof body.enabled === 'boolean' ? body.enabled : null)
+    )
   },
 
   async listInvitations(
     companyId: string,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<TeamAccessResult<TeamInvitation[]>> {
-    return readResult(
-      await invitationRequests.listInvitations(companyId, signal),
-      parseInvitations,
-    );
+    return readResult(await invitationRequests.listInvitations(companyId, signal), parseInvitations)
   },
 
   async changeMemberRole(
     companyId: string,
     userId: string,
-    role: Role,
+    role: Role
   ): Promise<TeamAccessResult<true>> {
     return readOperationResult(
       await memberRequests.changeMemberRole({ companyId, userId, role }),
-      acceptNoContent,
-    );
+      acceptNoContent
+    )
   },
 
   async changeMemberStatus(
     companyId: string,
     userId: string,
-    status: MembershipStatus,
+    status: MembershipStatus
   ): Promise<TeamAccessResult<true>> {
     return readOperationResult(
       await memberRequests.changeMemberStatus({ companyId, userId, status }),
-      acceptNoContent,
-    );
+      acceptNoContent
+    )
   },
 
   async setMemberResourceLink(input: {
-    companyId: string;
-    userId: string;
-    resourceId: string;
-    expectedRevision: string | null;
+    companyId: string
+    userId: string
+    resourceId: string
+    expectedRevision: string | null
   }) {
     // Any 409 to a link change is an unknown outcome, so the screen re-reads the link.
     return readOperationResult(
@@ -97,8 +89,8 @@ export const teamAccessApi = {
           ? { resourceId: body.resourceId, revision: body.revision }
           : null,
       undefined,
-      409,
-    );
+      409
+    )
   },
 
   async clearMemberResourceLink(companyId: string, userId: string, expectedRevision: string) {
@@ -106,8 +98,8 @@ export const teamAccessApi = {
       await memberRequests.clearMemberResourceLink({ companyId, userId, expectedRevision }),
       acceptNoContent,
       204,
-      409,
-    );
+      409
+    )
   },
 
   /**
@@ -115,61 +107,61 @@ export const teamAccessApi = {
    * `alreadyInvited` means the address has a pending invitation and nothing was created or sent.
    */
   async createInvitation(input: {
-    companyId: string;
-    role: InvitationRole;
-    email: string;
+    companyId: string
+    role: InvitationRole
+    email: string
   }): Promise<TeamAccessResult<{ emailed: boolean }> | { kind: 'alreadyInvited'; status: 409 }> {
-    const response = await invitationRequests.createInvitation(input);
+    const response = await invitationRequests.createInvitation(input)
     if (
       response.status === 409 &&
       (await readApiErrorCode(response)) === 'E_ACCOUNT_KIT_INVITATION_PENDING'
     ) {
-      return { kind: 'alreadyInvited', status: 409 };
+      return { kind: 'alreadyInvited', status: 409 }
     }
-    return readOperationResult(response, parseDelivery, response.status === 202 ? 202 : 201);
+    return readOperationResult(response, parseDelivery, response.status === 202 ? 202 : 201)
   },
 
   async resendInvitation(
     companyId: string,
-    invitationId: string,
+    invitationId: string
   ): Promise<TeamAccessResult<{ emailed: boolean }>> {
     return readResult(
       await invitationRequests.resendInvitation(companyId, invitationId),
-      parseDelivery,
-    );
+      parseDelivery
+    )
   },
 
   /** Every pending, declined and revoked record, read page by page; pending people come first. */
   async listAdmissionRequests(signal?: AbortSignal): Promise<TeamAccessResult<AdmissionRequest[]>> {
-    const requests: AdmissionRequest[] = [];
+    const requests: AdmissionRequest[] = []
     for (const status of ['pending', 'rejected', 'revoked'] as const) {
-      let cursor: string | null = null;
+      let cursor: string | null = null
       do {
         const page: TeamAccessResult<AdmissionPage> = await readResult(
           await admissionRequests.listAdmissionRequests(status, cursor, signal),
-          parseAdmissionPage(status),
-        );
+          parseAdmissionPage(status)
+        )
         // Cancellation can arrive during decoding; another cursor or status must not start.
-        signal?.throwIfAborted();
-        if (page.kind !== 'ok') return page;
-        requests.push(...page.value.requests);
-        cursor = page.value.nextCursor;
-      } while (cursor);
+        signal?.throwIfAborted()
+        if (page.kind !== 'ok') return page
+        requests.push(...page.value.requests)
+        cursor = page.value.nextCursor
+      } while (cursor)
     }
-    return { kind: 'ok', status: 200, value: requests };
+    return { kind: 'ok', status: 200, value: requests }
   },
 
   async decideAdmission(
     userId: string,
-    decision: 'approve' | 'reject',
+    decision: 'approve' | 'reject'
   ): Promise<TeamAccessResult<true>> {
-    return readResult(await admissionRequests.decideAdmission(userId, decision), acceptNoContent);
+    return readResult(await admissionRequests.decideAdmission(userId, decision), acceptNoContent)
   },
 
   async revokeInvitation(companyId: string, invitationId: string): Promise<TeamAccessResult<true>> {
     return readOperationResult(
       await invitationRequests.revokeInvitation(companyId, invitationId),
-      acceptNoContent,
-    );
+      acceptNoContent
+    )
   },
-};
+}

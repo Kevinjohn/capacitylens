@@ -1,6 +1,6 @@
-import { appendFileSync } from 'node:fs';
+import { appendFileSync } from 'node:fs'
 
-const args = process.argv.slice(2);
+const args = process.argv.slice(2)
 appendFileSync(
   process.env.CAPACITYLENS_GATE_LOG,
   JSON.stringify({
@@ -9,10 +9,10 @@ appendFileSync(
     sentinel: process.env.CAPACITYLENS_GATE_SENTINEL,
     nodeEnv: process.env.NODE_ENV,
     publicUrl: process.env.CAPACITYLENS_PUBLIC_URL,
-  }) + '\n',
-);
+  }) + '\n'
+)
 if (JSON.stringify(args) === process.env.CAPACITYLENS_GATE_FAIL_COMMAND) {
   if (process.env.CAPACITYLENS_GATE_SIGNAL)
-    process.kill(process.pid, process.env.CAPACITYLENS_GATE_SIGNAL);
-  else process.exit(Number(process.env.CAPACITYLENS_GATE_FAIL_CODE));
+    process.kill(process.pid, process.env.CAPACITYLENS_GATE_SIGNAL)
+  else process.exit(Number(process.env.CAPACITYLENS_GATE_FAIL_CODE))
 }

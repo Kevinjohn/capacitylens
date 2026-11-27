@@ -1,7 +1,7 @@
-import { Fragment } from 'react';
-import { Plus, Users } from 'lucide-react';
-import type { Resource } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
+import { Fragment } from 'react'
+import { Plus, Users } from 'lucide-react'
+import type { Resource } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 import {
   AddButton,
   ColorSwatch,
@@ -9,19 +9,19 @@ import {
   EditButton,
   EmptyState,
   SectionHelp,
-} from '@/components/common/ui';
-import { Separator } from '@/components/ui/separator';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { getExternalExplainer } from '@/lib/externalCopy';
-import { NEUTRAL_COLOR } from '@/lib/palette';
-import { FavouriteButton } from './FavouriteButton';
+} from '@/components/common/ui'
+import { Separator } from '@/components/ui/separator'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { getExternalExplainer } from '@/lib/externalCopy'
+import { NEUTRAL_COLOR } from '@/lib/palette'
+import { FavouriteButton } from './FavouriteButton'
 
 /** External resources and handlers available in the resource list. */
 export interface ExternalResourceSectionProps {
-  externals: Resource[];
-  onAdd: () => void;
-  onEdit: (resource: Resource) => void;
-  onRequestArchive: (resource: Resource) => void;
+  externals: Resource[]
+  onAdd: () => void
+  onEdit: (resource: Resource) => void
+  onRequestArchive: (resource: Resource) => void
 }
 
 /** Lists external resources separately from people on the team. */
@@ -90,5 +90,5 @@ export function ExternalResourceSection({
         </ItemGroup>
       )}
     </section>
-  );
+  )
 }

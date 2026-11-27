@@ -1,44 +1,44 @@
-import { inject } from '@adonisjs/core';
-import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { inject } from '@adonisjs/core'
+import type { HttpContext } from '@adonisjs/core/http'
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import {
   E_INVALID_CREDENTIALS,
   E_ACCOUNT_KIT_THROTTLED,
-} from '@kevinjohn/adonisjs-account-kit/errors';
-import capacitylens from '#config/capacitylens';
-import { CurrentActorService } from '#services/auth/current_actor_service';
-import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service';
-import { buildUserProjection } from '#services/auth/user_projection';
+} from '@kevinjohn/adonisjs-account-kit/errors'
+import capacitylens from '#config/capacitylens'
+import { CurrentActorService } from '#services/auth/current_actor_service'
+import { MemberSignInTrackingService } from '#services/membership/member_sign_in_tracking_service'
+import { buildUserProjection } from '#services/auth/user_projection'
 
 /** The credentials and the request facts the controller read for one sign-in. */
 export interface PasswordSignInInput {
-  email: string;
-  password: string;
+  email: string
+  password: string
   /** The client address, as trusted by the HTTP server's proxy settings. */
-  clientAddress: string;
-  userAgent: string | undefined;
+  clientAddress: string
+  userAgent: string | undefined
 }
 
 /** Password sign-in through the Account Kit, with the observed sign-in recorded. */
 @inject()
 export class PasswordSignInService {
-  #currentActor: CurrentActorService;
-  #signInTracking: MemberSignInTrackingService;
+  #currentActor: CurrentActorService
+  #signInTracking: MemberSignInTrackingService
 
   constructor(currentActor: CurrentActorService, signInTracking: MemberSignInTrackingService) {
-    this.#currentActor = currentActor;
-    this.#signInTracking = signInTracking;
+    this.#currentActor = currentActor
+    this.#signInTracking = signInTracking
   }
 
   /** Logs the sign-in outcome when request logging is on, never changing the outcome itself. */
   #logSignInOutcome(logger: HttpContext['logger'], outcome: 'success' | 'failure' | 'throttled') {
-    if (!capacitylens.requestLogging) return;
+    if (!capacitylens.requestLogging) return
     try {
-      const fields = { event: 'auth.sign_in', outcome };
+      const fields = { event: 'auth.sign_in', outcome }
       if (outcome === 'failure' || outcome === 'throttled') {
-        logger.warn(fields, 'Authentication outcome');
+        logger.warn(fields, 'Authentication outcome')
       } else {
-        logger.info(fields, 'Authentication outcome');
+        logger.info(fields, 'Authentication outcome')
       }
     } catch {
       // Logging must not change the authentication outcome or skip member tracking. The fallback
@@ -47,7 +47,7 @@ export class PasswordSignInService {
         logger.error(
           { event: 'auth.sign_in', errorType: 'logging_failure' },
           'Authentication outcome logging failed'
-        );
+        )
       } catch {
         // The sign-in must survive when the logger and its fallback both fail.
       }
@@ -69,21 +69,21 @@ export class PasswordSignInService {
           sessionLabel: userAgent?.slice(0, 200),
         },
         auth.use('web').forRequest()
-      );
+      )
     } catch (error) {
       // Record expected credential refusals, then preserve the original package failure.
-      if (error instanceof E_INVALID_CREDENTIALS) this.#logSignInOutcome(logger, 'failure');
-      if (error instanceof E_ACCOUNT_KIT_THROTTLED) this.#logSignInOutcome(logger, 'throttled');
-      throw error;
+      if (error instanceof E_INVALID_CREDENTIALS) this.#logSignInOutcome(logger, 'failure')
+      if (error instanceof E_ACCOUNT_KIT_THROTTLED) this.#logSignInOutcome(logger, 'throttled')
+      throw error
     }
-    this.#logSignInOutcome(logger, 'success');
+    this.#logSignInOutcome(logger, 'success')
     return this.#currentActor.withActor(
       auth,
       async (actor, trx) => {
-        await this.#signInTracking.recordSignIn(actor.userId, trx);
-        return buildUserProjection(actor);
+        await this.#signInTracking.recordSignIn(actor.userId, trx)
+        return buildUserProjection(actor)
       },
       { limited: true }
-    );
+    )
   }
 }

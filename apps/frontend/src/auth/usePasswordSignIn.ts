@@ -1,9 +1,9 @@
-import { m } from '@/i18n';
-import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
-import { MAX_PASSWORD_INPUT_CODE_UNITS } from '@capacitylens/shared/domain/password';
-import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { authApi } from './authApi';
+import { m } from '@/i18n'
+import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
+import { MAX_PASSWORD_INPUT_CODE_UNITS } from '@capacitylens/shared/domain/password'
+import type { FormEvent } from 'react'
+import { useState } from 'react'
+import { authApi } from './authApi'
 
 /** Manages password sign-in, errors, and successful session handling. */
 export function usePasswordSignIn({
@@ -11,43 +11,43 @@ export function usePasswordSignIn({
   setBusy,
   onSignedIn,
 }: {
-  setError: (error: string | null) => void;
-  setBusy: (busy: boolean) => void;
-  onSignedIn: () => void;
+  setError: (error: string | null) => void
+  setBusy: (busy: boolean) => void
+  onSignedIn: () => void
 }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const signInWithPassword = async (e: FormEvent) => {
-    e.preventDefault();
-    const normalizedEmail = normalizeAccountEmail(email);
+    e.preventDefault()
+    const normalizedEmail = normalizeAccountEmail(email)
     if (!isAccountEmail(normalizedEmail)) {
-      setError(m.identity_err_email());
-      return;
+      setError(m.identity_err_email())
+      return
     }
     if (password.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
-      setError(m.sign_in_password_input_too_long());
-      return;
+      setError(m.sign_in_password_input_too_long())
+      return
     }
-    setBusy(true);
-    setError(null);
+    setBusy(true)
+    setError(null)
     try {
       const { error: failure } = await authApi.signIn.email({
         email: normalizedEmail,
         password,
-      });
+      })
       if (failure) {
-        setError(failure.message);
-        setBusy(false);
-        return;
+        setError(failure.message)
+        setBusy(false)
+        return
       }
-      onSignedIn();
+      onSignedIn()
     } catch (error) {
       // A transport failure must restore the sign-in controls and surface a generic message while logging its cause.
-      console.error('SignInScreen: password sign-in request failed', error);
-      setError(m.sign_in_network_error());
-      setBusy(false);
+      console.error('SignInScreen: password sign-in request failed', error)
+      setError(m.sign_in_network_error())
+      setBusy(false)
     }
-  };
+  }
 
-  return { email, setEmail, password, setPassword, signInWithPassword };
+  return { email, setEmail, password, setPassword, signInWithPassword }
 }

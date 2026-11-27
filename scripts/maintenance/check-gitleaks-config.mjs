@@ -16,11 +16,11 @@
 // JavaScript's engine; the patterns here are plain character classes and alternations, which both
 // engines read identically, but anything exotic added later would need a real gitleaks run.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs'
 
-const configPath = '.gitleaks.toml';
-const raw = readFileSync(configPath, 'utf8');
-const failures = [];
+const configPath = '.gitleaks.toml'
+const raw = readFileSync(configPath, 'utf8')
+const failures = []
 
 // Exact development fixtures include test app keys, the scaffold example and an idempotency key.
 const developmentValues = [
@@ -28,7 +28,7 @@ const developmentValues = [
   'capacitylens-e2e-key-0123456789abcdef',
   'zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi',
   'ownership-broken-owner-key-0001',
-];
+]
 
 // Reviewed development values must remain allowlisted so full-history scans stay actionable.
 const fixtures = [
@@ -45,13 +45,13 @@ const fixtures = [
   'unique-passphrase-2026',
   '0123456789abcdef0123456789abcdef',
   ...developmentValues,
-];
+]
 
 // Assemble high-entropy credentials from short fragments so scanner test values exist only in
 // memory and do not trigger the scan against this source file.
-const joinCredentialFragments = (...fragments) => fragments.join('');
-const randomLooking = joinCredentialFragments('Xk92mQpL', 'zR7vT4nB', '8wYcJ3fH', '6sD1gA5e');
-const alsoRandomLooking = joinCredentialFragments('Zq4vN8xR', '2mK7pL5t', 'W9yB3cF6', 'hJ1sD0gA');
+const joinCredentialFragments = (...fragments) => fragments.join('')
+const randomLooking = joinCredentialFragments('Xk92mQpL', 'zR7vT4nB', '8wYcJ3fH', '6sD1gA5e')
+const alsoRandomLooking = joinCredentialFragments('Zq4vN8xR', '2mK7pL5t', 'W9yB3cF6', 'hJ1sD0gA')
 
 // Values that must stay reportable: an ordinary high-entropy credential, then near-misses of the
 // fixture patterns that exist to catch a pattern loosened past its intent.
@@ -77,55 +77,55 @@ const credentials = [
   `capacitylens-test-key-${randomLooking}`,
   `capacitylens-e2e-key-${randomLooking}`,
   'capacitylens-prod-key-0123456789abcdef',
-];
+]
 
 // Track the current TOML table so `paths` is judged only where it would do harm.
-let inAllowlist = false;
-let globalAllowlistCount = 0;
+let inAllowlist = false
+let globalAllowlistCount = 0
 for (const line of raw.split('\n')) {
-  const text = line.includes("'''") ? line : line.replace(/#.*$/, '');
-  const header = text.match(/^\s*\[{1,2}([^\]]+)\]{1,2}\s*$/);
+  const text = line.includes("'''") ? line : line.replace(/#.*$/, '')
+  const header = text.match(/^\s*\[{1,2}([^\]]+)\]{1,2}\s*$/)
   if (header) {
-    const table = header[1].trim();
+    const table = header[1].trim()
     if (table === 'allowlists') {
       failures.push(
-        '`[[allowlists]]` is not a supported global Gitleaks 8.24 table; use the singular `[allowlist]` table.',
-      );
+        '`[[allowlists]]` is not a supported global Gitleaks 8.24 table; use the singular `[allowlist]` table.'
+      )
     }
-    inAllowlist = table === 'allowlist';
-    if (inAllowlist) globalAllowlistCount += 1;
-    continue;
+    inAllowlist = table === 'allowlist'
+    if (inAllowlist) globalAllowlistCount += 1
+    continue
   }
   if (inAllowlist && /^\s*paths\s*=/.test(text)) {
     failures.push(
       '`paths` is set inside an [[allowlists]] block. Gitleaks skips matching files before ' +
         'scanning them, so this stops reporting every secret in those files, not just the ' +
-        'allowlisted values. Scope by value pattern instead.',
-    );
+        'allowlisted values. Scope by value pattern instead.'
+    )
   }
 }
 
 if (globalAllowlistCount !== 1) {
-  failures.push(`Expected exactly one global [allowlist] table, found ${globalAllowlistCount}.`);
+  failures.push(`Expected exactly one global [allowlist] table, found ${globalAllowlistCount}.`)
 }
 
 if (!/^\s*useDefault\s*=\s*true\s*$/m.test(raw)) {
-  failures.push('[extend] useDefault must be true; without it the default rule set is discarded.');
+  failures.push('[extend] useDefault must be true; without it the default rule set is discarded.')
 }
 
 // Patterns are written as TOML literal strings so backslashes survive; collect them in order.
-const patterns = [...raw.matchAll(/'''([\s\S]*?)'''/g)].map((match) => match[1]);
+const patterns = [...raw.matchAll(/'''([\s\S]*?)'''/g)].map((match) => match[1])
 if (patterns.length === 0) {
-  failures.push('No allowlist patterns found — the config parses but allowlists nothing.');
+  failures.push('No allowlist patterns found — the config parses but allowlists nothing.')
 }
 
-const compiled = [];
+const compiled = []
 for (const pattern of patterns) {
   try {
-    compiled.push(new RegExp(pattern));
+    compiled.push(new RegExp(pattern))
   } catch (cause) {
     // Collect invalid regex diagnostics so the configuration check reports every failure before exiting.
-    failures.push(`Pattern does not compile: ${pattern} (${cause.message})`);
+    failures.push(`Pattern does not compile: ${pattern} (${cause.message})`)
   }
 }
 
@@ -133,26 +133,26 @@ if (compiled.length === patterns.length) {
   for (const value of fixtures) {
     if (!compiled.some((expression) => expression.test(value))) {
       failures.push(
-        `Reviewed fixture value is no longer allowlisted, so the scan will fail on it: ${value}`,
-      );
+        `Reviewed fixture value is no longer allowlisted, so the scan will fail on it: ${value}`
+      )
     }
   }
   for (const value of credentials) {
-    const matched = compiled.find((expression) => expression.test(value));
+    const matched = compiled.find((expression) => expression.test(value))
     if (matched) {
       failures.push(
-        `A credential-shaped value is allowlisted by ${matched.source} and would go unreported: ${value}`,
-      );
+        `A credential-shaped value is allowlisted by ${matched.source} and would go unreported: ${value}`
+      )
     }
   }
 }
 
 if (failures.length > 0) {
-  console.error(`${configPath} is unsafe:\n  ${failures.join('\n  ')}`);
-  process.exit(1);
+  console.error(`${configPath} is unsafe:\n  ${failures.join('\n  ')}`)
+  process.exit(1)
 }
 
 console.log(
   `Gitleaks allowlist: ${patterns.length} patterns cover ${fixtures.length} reviewed fixtures and ` +
-    `leave ${credentials.length} credential-shaped values reportable.`,
-);
+    `leave ${credentials.length} credential-shaped values reportable.`
+)

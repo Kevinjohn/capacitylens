@@ -1,5 +1,5 @@
-import type { Activity } from '@capacitylens/shared/types/entities';
-import { m } from '@/i18n';
+import type { Activity } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 import {
   Select,
   SelectContent,
@@ -8,26 +8,26 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/select'
 
 /** Selected activity and change handler for the activity filter. */
 export interface ToolbarActivityFilterProps {
-  activityId: string | null;
-  activityKind: 'internal' | 'allProjects' | null;
-  internalActivities: Activity[];
-  allProjectsActivities: Activity[];
+  activityId: string | null
+  activityKind: 'internal' | 'allProjects' | null
+  internalActivities: Activity[]
+  allProjectsActivities: Activity[]
   onChange: (patch: {
-    activityId: string | null;
-    activityKind: 'internal' | 'allProjects' | null;
-  }) => void;
+    activityId: string | null
+    activityKind: 'internal' | 'allProjects' | null
+  }) => void
 }
 
 function buildActivityFilterPatch(
-  value: string,
+  value: string
 ): Parameters<ToolbarActivityFilterProps['onChange']>[0] {
-  if (value === 'kind:internal') return { activityKind: 'internal', activityId: null };
-  if (value === 'kind:allProjects') return { activityKind: 'allProjects', activityId: null };
-  return { activityId: value === 'all' ? null : value, activityKind: null };
+  if (value === 'kind:internal') return { activityKind: 'internal', activityId: null }
+  if (value === 'kind:allProjects') return { activityKind: 'allProjects', activityId: null }
+  return { activityId: value === 'all' ? null : value, activityKind: null }
 }
 
 /** Selects an activity lens for the schedule. */
@@ -38,15 +38,15 @@ export function ToolbarActivityFilter({
   allProjectsActivities,
   onChange,
 }: ToolbarActivityFilterProps) {
-  const selectedValue = activityKind ? `kind:${activityKind}` : (activityId ?? 'all');
+  const selectedValue = activityKind ? `kind:${activityKind}` : (activityId ?? 'all')
   const availableValues = new Set([
     'all',
     ...internalActivities.map((activity) => activity.id),
     ...allProjectsActivities.map((activity) => activity.id),
     ...(internalActivities.length > 0 ? ['kind:internal'] : []),
     ...(allProjectsActivities.length > 0 ? ['kind:allProjects'] : []),
-  ]);
-  const selectionUnavailable = selectedValue !== 'all' && !availableValues.has(selectedValue);
+  ])
+  const selectionUnavailable = selectedValue !== 'all' && !availableValues.has(selectedValue)
 
   return (
     <Select
@@ -91,5 +91,5 @@ export function ToolbarActivityFilter({
         )}
       </SelectContent>
     </Select>
-  );
+  )
 }

@@ -1,24 +1,24 @@
-import { m } from '@/i18n';
-import type { Client, Project } from '@capacitylens/shared/types/entities';
-import type { Option } from './fields/fieldTypes';
+import { m } from '@/i18n'
+import type { Client, Project } from '@capacitylens/shared/types/entities'
+import type { Option } from './fields/fieldTypes'
 
 /** Formats a project's dropdown label as `Client / Project`, or the project name alone without a client. */
 export function formatProjectLabel(projectName: string, clientName: string | undefined): string {
-  return clientName ? `${clientName} / ${projectName}` : projectName;
+  return clientName ? `${clientName} / ${projectName}` : projectName
 }
 
 /** The lists and current selection a record's project dropdown is built from. */
 export interface ProjectOptionsInput {
   /** Active projects offered for selection. */
-  projects: Project[];
+  projects: Project[]
   /** Active clients used to label the active projects. */
-  clients: Client[];
+  clients: Client[]
   /** Every project, including archived ones, used to label an archived current project. */
-  rawProjects: Project[];
+  rawProjects: Project[]
   /** Every client, including archived ones, used to label an archived current project. */
-  rawClients: Client[];
+  rawClients: Client[]
   /** The record's current project, kept as a disabled option when it is no longer active. */
-  currentProjectId: string | null | undefined;
+  currentProjectId: string | null | undefined
 }
 
 /** Builds the project dropdown: active projects, plus a disabled entry for a current project that is archived or missing. */
@@ -30,15 +30,15 @@ export function buildProjectOptions({
   currentProjectId,
 }: ProjectOptionsInput): Option[] {
   const options = projects.map((project) => {
-    const client = clients.find((candidate) => candidate.id === project.clientId);
-    return { value: project.id, label: formatProjectLabel(project.name, client?.name) };
-  });
+    const client = clients.find((candidate) => candidate.id === project.clientId)
+    return { value: project.id, label: formatProjectLabel(project.name, client?.name) }
+  })
   if (!currentProjectId || projects.some((project) => project.id === currentProjectId)) {
-    return options;
+    return options
   }
 
-  const rawProject = rawProjects.find((project) => project.id === currentProjectId);
-  const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
+  const rawProject = rawProjects.find((project) => project.id === currentProjectId)
+  const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId)
   return [
     ...options,
     {
@@ -48,5 +48,5 @@ export function buildProjectOptions({
         : m.form_option_current_archived(),
       disabled: true,
     },
-  ];
+  ]
 }

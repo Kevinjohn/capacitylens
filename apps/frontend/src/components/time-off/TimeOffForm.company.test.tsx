@@ -1,13 +1,13 @@
-import { requireCreated } from '@/test/requireCreated';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render as renderTestingLibrary, screen } from '@testing-library/react';
-import { TimeOffForm } from './TimeOffForm';
-import { useStore } from '@/store/useStore';
-import { resetStoreWithCompany, setPlaceholdersEnabled, WORKDAYS } from '@/test/fixtures';
-import { OwnerPermissions } from '@/test/ownerPermissions';
+import { requireCreated } from '@/test/requireCreated'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render as renderTestingLibrary, screen } from '@testing-library/react'
+import { TimeOffForm } from './TimeOffForm'
+import { useStore } from '@/store/useStore'
+import { resetStoreWithCompany, setPlaceholdersEnabled, WORKDAYS } from '@/test/fixtures'
+import { OwnerPermissions } from '@/test/ownerPermissions'
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
-  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions })
 
 const personDraft = {
   kind: 'person' as const,
@@ -19,42 +19,42 @@ const personDraft = {
   workingDays: WORKDAYS,
   halfDays: [],
   color: '#111',
-};
+}
 
 beforeEach(async () => {
-  vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
-  await resetStoreWithCompany();
-  await setPlaceholdersEnabled({ on: true });
-});
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'))
+  await resetStoreWithCompany()
+  await setPlaceholdersEnabled({ on: true })
+})
 
 afterEach(() => {
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-});
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 describe('TimeOffForm personal assignee', () => {
   it('lists only resources and keeps all personal time-off types', async () => {
-    await useStore.getState().addResource(personDraft);
-    render(<TimeOffForm onClose={() => {}} />);
+    await useStore.getState().addResource(personDraft)
+    render(<TimeOffForm onClose={() => {}} />)
 
-    const resourcePicker = screen.getByLabelText('Resource');
-    expect(resourcePicker).toHaveTextContent('Select resource');
-    expect(resourcePicker).not.toHaveTextContent('Everyone');
+    const resourcePicker = screen.getByLabelText('Resource')
+    expect(resourcePicker).toHaveTextContent('Select resource')
+    expect(resourcePicker).not.toHaveTextContent('Everyone')
 
-    fireEvent.keyDown(resourcePicker, { key: 'ArrowDown' });
+    fireEvent.keyDown(resourcePicker, { key: 'ArrowDown' })
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Bruce Wayne',
-    ]);
-    fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.keyDown(screen.getByLabelText('Type'), { key: 'ArrowDown' });
+    ])
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByLabelText('Type'), { key: 'ArrowDown' })
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Holiday',
       'Sick',
       'Unpaid',
       'Other',
-    ]);
-  });
+    ])
+  })
 
   it('still rejects an external resource seeded outside the picker', async () => {
     const external = await requireCreated(
@@ -63,16 +63,16 @@ describe('TimeOffForm personal assignee', () => {
         kind: 'external',
         name: 'Kord Industries',
         jobTitle: 'Partner studio',
-      }),
-    );
-    render(<TimeOffForm defaults={{ resourceId: external.id }} onClose={() => {}} />);
+      })
+    )
+    render(<TimeOffForm defaults={{ resourceId: external.id }} onClose={() => {}} />)
 
-    fireEvent.keyDown(screen.getByLabelText('Resource'), { key: 'ArrowDown' });
-    expect(screen.queryByRole('option', { name: 'Kord Industries' })).not.toBeInTheDocument();
-    fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.keyDown(screen.getByLabelText('Resource'), { key: 'ArrowDown' })
+    expect(screen.queryByRole('option', { name: 'Kord Industries' })).not.toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/choose a resource/i);
-    expect(useStore.getState().data.timeOff).toHaveLength(0);
-  });
-});
+    expect(screen.getByRole('alert')).toHaveTextContent(/choose a resource/i)
+    expect(useStore.getState().data.timeOff).toHaveLength(0)
+  })
+})

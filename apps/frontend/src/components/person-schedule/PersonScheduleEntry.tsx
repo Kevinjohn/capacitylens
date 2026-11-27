@@ -1,18 +1,18 @@
-import { CalendarOff } from 'lucide-react';
+import { CalendarOff } from 'lucide-react'
 
-import { m } from '@/i18n';
-import { formatDayMonthRange } from '@/lib/dateDisplay';
-import { resolveTimeOffTypeLabel } from '@/lib/metadata';
+import { m } from '@/i18n'
+import { formatDayMonthRange } from '@/lib/dateDisplay'
+import { resolveTimeOffTypeLabel } from '@/lib/metadata'
 
 import type {
   PersonScheduleAllocationEntry,
   PersonScheduleEntry as PersonScheduleEntryModel,
   PersonScheduleTimeOffEntry,
-} from './personScheduleTypes';
-import { roundToHundredths } from '@/lib/roundToHundredths';
+} from './personScheduleTypes'
+import { roundToHundredths } from '@/lib/roundToHundredths'
 
 interface PersonScheduleEntryProps {
-  entry: PersonScheduleEntryModel;
+  entry: PersonScheduleEntryModel
 }
 
 function EntryNote({ note }: { note: string }) {
@@ -20,11 +20,11 @@ function EntryNote({ note }: { note: string }) {
     <p className="mt-3 whitespace-pre-wrap break-words border-t border-line pt-3 text-sm text-muted-foreground">
       {note}
     </p>
-  );
+  )
 }
 
 function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
-  const attribution = [entry.project, entry.client].filter(Boolean).join(' · ');
+  const attribution = [entry.project, entry.client].filter(Boolean).join(' · ')
   return (
     <>
       <div className="flex min-w-0 items-start gap-2">
@@ -50,7 +50,7 @@ function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
       {entry.task && <p className="mt-3 break-words text-sm text-muted-foreground">{entry.task}</p>}
       {entry.note && <EntryNote note={entry.note} />}
     </>
-  );
+  )
 }
 
 function TimeOffEntry({ entry }: { entry: PersonScheduleTimeOffEntry }) {
@@ -65,7 +65,7 @@ function TimeOffEntry({ entry }: { entry: PersonScheduleTimeOffEntry }) {
       </p>
       {entry.note && <EntryNote note={entry.note} />}
     </>
-  );
+  )
 }
 
 /** Shows one dated allocation or time-off entry in a person schedule. */
@@ -83,5 +83,5 @@ export function PersonScheduleEntry({ entry }: PersonScheduleEntryProps) {
         <TimeOffEntry entry={entry} />
       )}
     </li>
-  );
+  )
 }

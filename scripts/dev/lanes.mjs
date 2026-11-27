@@ -6,43 +6,38 @@
 //
 // with-lane.mjs never kills anything, so a server left behind by a hard-killed run (or one started
 // outside the launcher) stays up until someone stops it. This is the deliberate way to find them.
-import { execFileSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { portInUse } from '../../tooling/devProcesses.mjs';
-import {
-  portLaneDirectory,
-  listenerDirectory,
-  listenerPid,
-  readLiveClaims,
-} from './laneClaims.mjs';
-import { PORT_LANE_CEILING, portsForPortLane } from '../../tooling/ports.mjs';
+import { execFileSync } from 'node:child_process'
+import { realpathSync } from 'node:fs'
+import { resolve, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { portInUse } from '../../tooling/devProcesses.mjs'
+import { portLaneDirectory, listenerDirectory, listenerPid, readLiveClaims } from './laneClaims.mjs'
+import { PORT_LANE_CEILING, portsForPortLane } from '../../tooling/ports.mjs'
 
 /** Every worktree path of the repository this script belongs to. */
 export function repositoryWorktrees(run = execFileSync) {
-  const output = String(run('git', ['worktree', 'list', '--porcelain'], { encoding: 'utf8' }));
+  const output = String(run('git', ['worktree', 'list', '--porcelain'], { encoding: 'utf8' }))
   return output
     .split('\n')
     .filter((line) => line.startsWith('worktree '))
-    .map((line) => line.slice('worktree '.length));
+    .map((line) => line.slice('worktree '.length))
 }
 
 // lsof reports a process's resolved directory, so compare resolved paths on both sides.
 function canonical(path) {
   try {
-    return realpathSync(path);
+    return realpathSync(path)
   } catch (error) {
     // A removed worktree path can still be compared lexically; other canonicalisation failures must surface.
-    if (error.code === 'ENOENT') return resolve(path);
-    throw error;
+    if (error.code === 'ENOENT') return resolve(path)
+    throw error
   }
 }
 
 function insideAny(directory, roots) {
-  if (directory === null) return false;
-  const path = canonical(directory);
-  return roots.some((root) => path === root || path.startsWith(root + sep));
+  if (directory === null) return false
+  const path = canonical(directory)
+  return roots.some((root) => path === root || path.startsWith(root + sep))
 }
 
 /**
@@ -57,29 +52,29 @@ export async function surveyPortLanes({
   owner = listenerPid,
   directoryOf = listenerDirectory,
 } = {}) {
-  const roots = worktrees.map(canonical);
-  const listeners = [];
+  const roots = worktrees.map(canonical)
+  const listeners = []
   for (let portLane = 0; portLane < PORT_LANE_CEILING; portLane += 1) {
     for (const [service, port] of Object.entries(portsForPortLane(portLane))) {
-      if (!(await probe(port))) continue;
-      const pid = owner(port);
+      if (!(await probe(port))) continue
+      const pid = owner(port)
       listeners.push({
         portLane,
         service,
         port,
         pid,
         directory: pid === null ? null : directoryOf(pid),
-      });
+      })
     }
   }
   // Read claims only after the scan: a launcher writes its claim before its server listens, so a run
   // that started during the scan is already claimed here and never mistaken for a leftover.
-  const claims = readLiveClaims(portLaneDirectory(environment));
+  const claims = readLiveClaims(portLaneDirectory(environment))
   return listeners.map((listener) => {
-    const claim = claims.get(listener.portLane) ?? null;
-    const orphan = listener.pid !== null && claim === null && insideAny(listener.directory, roots);
-    return { ...listener, claim, orphan };
-  });
+    const claim = claims.get(listener.portLane) ?? null
+    const orphan = listener.pid !== null && claim === null && insideAny(listener.directory, roots)
+    return { ...listener, claim, orphan }
+  })
 }
 
 /**
@@ -87,56 +82,56 @@ export async function surveyPortLanes({
  * a process that also serves a claimed port lane is never touched. Each pid appears once.
  */
 export function leftoverPids(rows) {
-  const eligible = new Map();
+  const eligible = new Map()
   for (const row of rows) {
-    if (row.pid === null) continue;
-    eligible.set(row.pid, (eligible.get(row.pid) ?? true) && row.orphan);
+    if (row.pid === null) continue
+    eligible.set(row.pid, (eligible.get(row.pid) ?? true) && row.orphan)
   }
-  return [...eligible].filter(([, leftover]) => leftover).map(([pid]) => pid);
+  return [...eligible].filter(([, leftover]) => leftover).map(([pid]) => pid)
 }
 
 function describe(row) {
   const who =
     row.pid === null
       ? 'an unidentified process'
-      : `pid ${row.pid} in ${row.directory ?? 'an unknown directory'}`;
+      : `pid ${row.pid} in ${row.directory ?? 'an unknown directory'}`
   const owner = row.claim
     ? `claimed by pid ${row.claim.pid} (${row.claim.worktree})`
     : row.orphan
       ? 'no live run — leftover from this repository'
-      : 'no live run — not from this repository';
-  return `port lane ${row.portLane} ${row.service} :${row.port}  ${who}  ${owner}`;
+      : 'no live run — not from this repository'
+  return `port lane ${row.portLane} ${row.service} :${row.port}  ${who}  ${owner}`
 }
 
 async function main() {
-  const stopOrphans = process.argv.includes('--stop-orphans');
-  const rows = await surveyPortLanes();
+  const stopOrphans = process.argv.includes('--stop-orphans')
+  const rows = await surveyPortLanes()
   if (rows.length === 0) {
-    console.log('No port lane ports are in use.');
-    return;
+    console.log('No port lane ports are in use.')
+    return
   }
-  for (const row of rows) console.log(describe(row));
-  const orphans = leftoverPids(rows);
+  for (const row of rows) console.log(describe(row))
+  const orphans = leftoverPids(rows)
   if (!stopOrphans) {
     if (orphans.length > 0)
       console.log(
-        `\n${orphans.length} leftover process(es). Stop them with: pnpm run lanes --stop-orphans`,
-      );
-    return;
+        `\n${orphans.length} leftover process(es). Stop them with: pnpm run lanes --stop-orphans`
+      )
+    return
   }
-  let failed = false;
+  let failed = false
   for (const pid of orphans) {
     try {
-      process.kill(pid, 'SIGTERM');
-      console.log(`Stopped pid ${pid}.`);
+      process.kill(pid, 'SIGTERM')
+      console.log(`Stopped pid ${pid}.`)
     } catch (error) {
       // Report each stop failure and retain a failing exit status while continuing to inspect the other listeners.
-      failed = true;
-      console.error(`Could not stop pid ${pid}: ${error.message}`);
+      failed = true
+      console.error(`Could not stop pid ${pid}: ${error.message}`)
     }
   }
-  if (failed) process.exitCode = 1;
+  if (failed) process.exitCode = 1
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href)
-  await main();
+  await main()

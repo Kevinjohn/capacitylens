@@ -1,20 +1,20 @@
-import type { AppData } from '@capacitylens/shared/types/entities';
-import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
+import type { AppData } from '@capacitylens/shared/types/entities'
+import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts'
 
-type Restoration = PlanningMutationSuccess['restoration'];
+type Restoration = PlanningMutationSuccess['restoration']
 
 /** The earlier values of exactly the fields an update supplied; an absent value restores as null. */
 function buildEarlierValues(row: object | undefined, changes: object) {
-  if (!row) return null;
+  if (!row) return null
   return Object.fromEntries(
     Object.keys(changes).map((field) => [field, (Reflect.get(row, field) as unknown) ?? null])
-  );
+  )
 }
 
 function restore(restoration: Restoration): PlanningIntent | null {
   return restoration.replacementGroupId
     ? { operation: 'planning.restoreGroup', restorationGroupId: restoration.replacementGroupId }
-    : null;
+    : null
 }
 
 /**
@@ -29,106 +29,104 @@ export function buildInverseIntent(
 ): PlanningIntent | null {
   switch (intent.operation) {
     case 'allocation.create':
-      return { operation: 'allocation.delete', id: intent.allocation.id };
+      return { operation: 'allocation.delete', id: intent.allocation.id }
     case 'allocation.createGroup':
       return {
         operation: 'allocation.deleteGroup',
         ids: [intent.allocation.id, ...(intent.occurrenceIds ?? [])],
-      };
+      }
     case 'allocation.duplicate':
-      return { operation: 'allocation.delete', id: intent.occurrence.id };
+      return { operation: 'allocation.delete', id: intent.occurrence.id }
     case 'allocation.reassign': {
-      const row = before.allocations.find((item) => item.id === intent.id);
+      const row = before.allocations.find((item) => item.id === intent.id)
       const changes = buildEarlierValues(row, {
         resourceId: intent.resourceId,
         startDate: intent.startDate,
         endDate: intent.endDate,
         hoursPerDay: row?.hoursPerDay,
-      });
+      })
       return (
         changes && ({ operation: 'allocation.update', id: intent.id, changes } as PlanningIntent)
-      );
+      )
     }
     case 'allocation.update': {
       const changes = buildEarlierValues(
         before.allocations.find((row) => row.id === intent.id),
         intent.changes
-      );
+      )
       return (
         changes && ({ operation: 'allocation.update', id: intent.id, changes } as PlanningIntent)
-      );
+      )
     }
     case 'catalogue.create': {
-      const { entity, id } = intent.entity;
+      const { entity, id } = intent.entity
       return entity === 'phases' || entity === 'disciplines'
         ? { operation: 'catalogue.delete', entity: { entity, id } }
-        : { operation: 'catalogue.archive', entity: { entity, id } };
+        : { operation: 'catalogue.archive', entity: { entity, id } }
     }
     case 'catalogue.update': {
-      const { entity, id } = intent.entity;
+      const { entity, id } = intent.entity
       const changes = buildEarlierValues(
         before[entity].find((row) => row.id === id),
         intent.entity.changes
-      );
+      )
       return (
         changes &&
         ({ operation: 'catalogue.update', entity: { entity, id, changes } } as PlanningIntent)
-      );
+      )
     }
     case 'catalogue.archive':
       return {
         operation: 'catalogue.restore',
         entity: { entity: intent.entity.entity, id: intent.entity.id },
-      };
+      }
     case 'catalogue.restore':
       return {
         operation: 'catalogue.archive',
         entity: { entity: intent.entity.entity, id: intent.entity.id },
-      };
+      }
     case 'resource.create':
-      return { operation: 'resource.archive', id: intent.id };
+      return { operation: 'resource.archive', id: intent.id }
     case 'resource.update': {
       const changes = buildEarlierValues(
         before.resources.find((row) => row.id === intent.id),
         intent.changes
-      );
-      return (
-        changes && ({ operation: 'resource.update', id: intent.id, changes } as PlanningIntent)
-      );
+      )
+      return changes && ({ operation: 'resource.update', id: intent.id, changes } as PlanningIntent)
     }
     case 'resource.archive':
-      return { operation: 'resource.restore', id: intent.id };
+      return { operation: 'resource.restore', id: intent.id }
     case 'resource.restore':
-      return { operation: 'resource.archive', id: intent.id };
+      return { operation: 'resource.archive', id: intent.id }
     case 'timeOff.create':
-      return { operation: 'timeOff.delete', id: intent.timeOff.id };
+      return { operation: 'timeOff.delete', id: intent.timeOff.id }
     case 'timeOff.repeat':
       return {
         operation: 'timeOff.deleteGroup',
         ids: [intent.timeOff.id, ...intent.occurrenceIds],
-      };
+      }
     case 'timeOff.update': {
       const changes = buildEarlierValues(
         before.timeOff.find((row) => row.id === intent.id),
         intent.changes
-      );
-      return changes && ({ operation: 'timeOff.update', id: intent.id, changes } as PlanningIntent);
+      )
+      return changes && ({ operation: 'timeOff.update', id: intent.id, changes } as PlanningIntent)
     }
     case 'closure.create':
-      return { operation: 'closure.delete', id: intent.id };
+      return { operation: 'closure.delete', id: intent.id }
     case 'closure.update': {
       const changes = buildEarlierValues(
         before.closures.find((row) => row.id === intent.id),
         intent.changes
-      );
-      return changes && ({ operation: 'closure.update', id: intent.id, changes } as PlanningIntent);
+      )
+      return changes && ({ operation: 'closure.update', id: intent.id, changes } as PlanningIntent)
     }
     case 'settings.update': {
       const changes = buildEarlierValues(
         before.companies.find((row) => row.id === companyId),
         intent.changes
-      );
-      return changes && ({ operation: 'settings.update', changes } as PlanningIntent);
+      )
+      return changes && ({ operation: 'settings.update', changes } as PlanningIntent)
     }
     case 'catalogue.delete':
     case 'timeOff.delete':
@@ -136,8 +134,8 @@ export function buildInverseIntent(
     case 'closure.delete':
     case 'allocation.delete':
     case 'allocation.deleteGroup':
-      return restore(restoration);
+      return restore(restoration)
     case 'planning.restoreGroup':
-      return null;
+      return null
   }
 }

@@ -1,63 +1,63 @@
-import { test, expect } from './dbFixtures';
-import AxeBuilder from '@axe-core/playwright';
-import { freezeBrowserDate } from './browserTestKit';
+import { test, expect } from './dbFixtures'
+import AxeBuilder from '@axe-core/playwright'
+import { freezeBrowserDate } from './browserTestKit'
 
-test.use({ contextOptions: { reducedMotion: 'reduce' } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 // US-NAV-12: authenticated entry shows non-blocking guidance until it is dismissed.
 test(
   'opening the company shows guidance that can be dismissed and reopened from Help',
   { tag: '@engine' },
   async ({ page }) => {
-    await freezeBrowserDate(page);
-    await page.goto('/');
+    await freezeBrowserDate(page)
+    await page.goto('/')
 
-    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Schedule' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Schedule' })).toBeVisible()
 
-    const results = await new AxeBuilder({ page }).analyze();
+    const results = await new AxeBuilder({ page }).analyze()
     const blocking = results.violations.filter(
-      (v) => v.impact === 'serious' || v.impact === 'critical',
-    );
+      (v) => v.impact === 'serious' || v.impact === 'critical'
+    )
     expect(
       blocking,
       JSON.stringify(
         blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
         null,
-        2,
-      ),
-    ).toEqual([]);
+        2
+      )
+    ).toEqual([])
 
     // Dismissal removes the orientation itself; the surrounding app was already usable behind it,
     // so the schedule link is not evidence of the dismissal.
-    await page.getByRole('button', { name: 'Got it' }).click();
-    await expect(page.getByTestId('product-orientation')).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Got it' }).click()
+    await expect(page.getByTestId('product-orientation')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toHaveCount(0)
 
     // The reopen button lives on the Help page, not in the sidebar.
     await expect(
-      page.getByTestId('app-sidebar').getByTestId('product-orientation-reopen'),
-    ).toHaveCount(0);
-    await page.getByRole('link', { name: 'Help', exact: true }).click();
-    const reopen = page.getByTestId('product-orientation-reopen');
-    await reopen.click();
-    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeFocused();
-    await page.getByRole('button', { name: 'Got it' }).click();
-    await expect(reopen).toBeFocused();
+      page.getByTestId('app-sidebar').getByTestId('product-orientation-reopen')
+    ).toHaveCount(0)
+    await page.getByRole('link', { name: 'Help', exact: true }).click()
+    const reopen = page.getByTestId('product-orientation-reopen')
+    await reopen.click()
+    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeFocused()
+    await page.getByRole('button', { name: 'Got it' }).click()
+    await expect(reopen).toBeFocused()
 
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: 390, height: 844 })
     await page
       .getByRole('dialog', { name: 'Best in landscape' })
       .getByRole('button', { name: 'Got it' })
-      .click();
+      .click()
 
     // The button stays in the page on mobile, so no sidebar sheet is involved.
-    await expect(reopen).toBeVisible();
-    await reopen.click();
-    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeFocused();
-    await page.getByRole('button', { name: 'Got it' }).click();
-    await expect(page.getByTestId('product-orientation')).toHaveCount(0);
-    await expect(reopen).toBeFocused();
-  },
-);
+    await expect(reopen).toBeVisible()
+    await reopen.click()
+    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeFocused()
+    await page.getByRole('button', { name: 'Got it' }).click()
+    await expect(page.getByTestId('product-orientation')).toHaveCount(0)
+    await expect(reopen).toBeFocused()
+  }
+)

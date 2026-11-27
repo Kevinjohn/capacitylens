@@ -1,30 +1,30 @@
-import { useEffect } from 'react';
-import { m } from '@/i18n';
-import { ListPage } from '@/components/common/ui';
-import { ImportExport } from '@/components/ImportExport';
-import { SettingsCompanyOptions } from './SettingsCompanySections';
-import { SettingsAppearanceSection } from './SettingsAppearanceSection';
-import { SettingsDataSection } from './SettingsDataSection';
+import { useEffect } from 'react'
+import { m } from '@/i18n'
+import { ListPage } from '@/components/common/ui'
+import { ImportExport } from '@/components/ImportExport'
+import { SettingsCompanyOptions } from './SettingsCompanySections'
+import { SettingsAppearanceSection } from './SettingsAppearanceSection'
+import { SettingsDataSection } from './SettingsDataSection'
 import {
   CompanyFeaturesSection,
   ScheduleViewSection,
   SettingsCompanySetupSections,
-} from './SettingsSchedulingSection';
-import { SettingsGroup } from './SettingsGroup';
-import { SettingsSection } from './SettingsSection';
-import { useSettingsViewModel } from './useSettingsViewModel';
+} from './SettingsSchedulingSection'
+import { SettingsGroup } from './SettingsGroup'
+import { SettingsSection } from './SettingsSection'
+import { useSettingsViewModel } from './useSettingsViewModel'
 
-type ViewModel = ReturnType<typeof useSettingsViewModel>;
+type ViewModel = ReturnType<typeof useSettingsViewModel>
 
 function useSettingsGettingStartedTarget(ready: boolean) {
   useEffect(() => {
-    if (!ready) return;
-    const id = window.location.hash.slice(1);
-    if (id !== 'getting-started-import' && id !== 'getting-started-settings') return;
-    const section = document.getElementById(id);
-    section?.scrollIntoView({ block: 'start' });
-    section?.focus({ preventScroll: true });
-  }, [ready]);
+    if (!ready) return
+    const id = window.location.hash.slice(1)
+    if (id !== 'getting-started-import' && id !== 'getting-started-settings') return
+    const section = document.getElementById(id)
+    section?.scrollIntoView({ block: 'start' })
+    section?.focus({ preventScroll: true })
+  }, [ready])
 }
 
 function SettingsImportSection() {
@@ -39,11 +39,11 @@ function SettingsImportSection() {
     >
       <ImportExport />
     </SettingsSection>
-  );
+  )
 }
 
 function SettingsBottomSections({ viewModel }: { viewModel: ViewModel }) {
-  const { scheduling } = viewModel;
+  const { scheduling } = viewModel
   return (
     <>
       <SettingsImportSection />
@@ -55,15 +55,15 @@ function SettingsBottomSections({ viewModel }: { viewModel: ViewModel }) {
         />
       )}
     </>
-  );
+  )
 }
 
 /** Coordinates company, scheduling, data, and security settings for the current role. */
 export function SettingsView() {
-  const viewModel = useSettingsViewModel();
-  useSettingsGettingStartedTarget(viewModel.activeCompany !== null);
-  if (!viewModel.activeCompany) return null;
-  const { scheduling, display } = viewModel;
+  const viewModel = useSettingsViewModel()
+  useSettingsGettingStartedTarget(viewModel.activeCompany !== null)
+  if (!viewModel.activeCompany) return null
+  const { scheduling, display } = viewModel
   return (
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
@@ -107,5 +107,5 @@ export function SettingsView() {
         </SettingsGroup>
       </div>
     </ListPage>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import PlanningOperationException from '#exceptions/planning_operation_exception';
+import PlanningOperationException from '#exceptions/planning_operation_exception'
 
 /** Carries only the count required for an explicit, revision-bound cleanup decision. */
 export default abstract class RestorationConfirmationException extends PlanningOperationException {
@@ -6,10 +6,10 @@ export default abstract class RestorationConfirmationException extends PlanningO
     readonly restorableItemCount: number,
     message?: string
   ) {
-    super(message);
+    super(message)
   }
 
   override body() {
-    return { ...super.body(), restorableItemCount: this.restorableItemCount };
+    return { ...super.body(), restorableItemCount: this.restorableItemCount }
   }
 }

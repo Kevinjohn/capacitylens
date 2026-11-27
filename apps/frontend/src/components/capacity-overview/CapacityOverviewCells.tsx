@@ -1,4 +1,4 @@
-import { m } from '@/i18n';
+import { m } from '@/i18n'
 import {
   computeCapacityCellFill,
   describePeriod,
@@ -7,24 +7,24 @@ import {
   formatDays,
   TENTATIVE_HATCH,
   TONE_FILL,
-} from './capacityOverviewBar';
+} from './capacityOverviewBar'
 import type {
   CapacityDisplayMode,
   CapacityPeriodTotals,
   CapacityTotalsTone,
-} from './capacityOverviewBar';
-import { HOURS_PER_DISPLAY_DAY } from './capacityOverviewModel';
-import type { CapacityOverviewPeriodResult } from './capacityOverviewTypes';
+} from './capacityOverviewBar'
+import { HOURS_PER_DISPLAY_DAY } from './capacityOverviewModel'
+import type { CapacityOverviewPeriodResult } from './capacityOverviewTypes'
 
-const WEEK_CELL_CLASS = 'border-b border-l border-line-soft p-0 align-middle';
-const MONO_VALUE_CLASS = 'font-mono text-[12.5px] font-medium tabular-nums';
-const MONO_DETAIL_CLASS = 'font-mono text-[10.5px] tabular-nums whitespace-nowrap';
+const WEEK_CELL_CLASS = 'border-b border-l border-line-soft p-0 align-middle'
+const MONO_VALUE_CLASS = 'font-mono text-[12.5px] font-medium tabular-nums'
+const MONO_DETAIL_CLASS = 'font-mono text-[10.5px] tabular-nums whitespace-nowrap'
 
 const TOTALS_TONE_CLASS: Record<CapacityTotalsTone, string> = {
   danger: 'text-danger',
   ink: 'text-ink',
   muted: 'text-muted-foreground',
-};
+}
 
 function UnassignedValue({ result }: { result: CapacityOverviewPeriodResult }) {
   return (
@@ -37,12 +37,12 @@ function UnassignedValue({ result }: { result: CapacityOverviewPeriodResult }) {
         <span className={`${MONO_VALUE_CLASS} text-faint`}>—</span>
       )}
     </div>
-  );
+  )
 }
 
 function resolveLedgerValueInk(result: CapacityOverviewPeriodResult): string {
-  if (result.freeDays > 0) return 'text-ink';
-  return result.overDays > 0 ? 'text-danger' : 'text-faint';
+  if (result.freeDays > 0) return 'text-ink'
+  return result.overDays > 0 ? 'text-danger' : 'text-faint'
 }
 
 // Tentative capacity remains visible even when no free capacity remains; keep both fills on one bounded axis.
@@ -52,35 +52,35 @@ function CapacityTrack({
   className,
   testId,
 }: {
-  result: CapacityOverviewPeriodResult;
-  axis: 'width' | 'height';
-  className: string;
-  testId: string;
+  result: CapacityOverviewPeriodResult
+  axis: 'width' | 'height'
+  className: string
+  testId: string
 }) {
-  const fill = computeCapacityCellFill(result);
+  const fill = computeCapacityCellFill(result)
   const free = (
     <div
       data-testid="capacity-bar-free"
       data-tone={fill.tone}
       style={{ [axis]: `${fill.freeFraction * 100}%`, background: TONE_FILL[fill.tone] }}
     />
-  );
+  )
   const tentative = (
     <div
       data-testid="capacity-bar-tentative"
       style={{ [axis]: `${fill.tentativeFraction * 100}%`, background: TENTATIVE_HATCH }}
     />
-  );
+  )
   return (
     <div data-testid={testId} className={`flex overflow-hidden bg-line-soft ${className}`}>
       {axis === 'width' ? free : tentative}
       {axis === 'width' ? tentative : free}
     </div>
-  );
+  )
 }
 
 function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
-  const over = result.overDays > 0;
+  const over = result.overDays > 0
   // Show overbooked days in the detail label while the track represents free and tentative capacity.
   return (
     <div className="flex flex-col gap-[5px] px-3.5 py-[9px]">
@@ -108,15 +108,15 @@ function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; 
       />
       <span className="sr-only">{label}</span>
     </div>
-  );
+  )
 }
 
 function LoadCurveValue({
   result,
   label,
 }: {
-  result: CapacityOverviewPeriodResult;
-  label: string;
+  result: CapacityOverviewPeriodResult
+  label: string
 }) {
   return (
     <div className="px-3.5 py-2.5">
@@ -128,7 +128,7 @@ function LoadCurveValue({
       />
       <span className="sr-only">{label}</span>
     </div>
-  );
+  )
 }
 
 /** Shows a period result with the capacity state and accessible detail. */
@@ -137,18 +137,18 @@ export function PeriodCell({
   capacityDisplayMode,
   rangeLabel,
 }: {
-  result: CapacityOverviewPeriodResult;
-  capacityDisplayMode: CapacityDisplayMode;
-  rangeLabel: string;
+  result: CapacityOverviewPeriodResult
+  capacityDisplayMode: CapacityDisplayMode
+  rangeLabel: string
 }) {
   if (result.state === 'unassigned') {
     return (
       <td className={WEEK_CELL_CLASS}>
         <UnassignedValue result={result} />
       </td>
-    );
+    )
   }
-  const label = describePeriod(result, rangeLabel);
+  const label = describePeriod(result, rangeLabel)
   return (
     <td className={WEEK_CELL_CLASS} title={label}>
       {capacityDisplayMode === 'ledger' ? (
@@ -157,7 +157,7 @@ export function PeriodCell({
         <LoadCurveValue result={result} label={label} />
       )}
     </td>
-  );
+  )
 }
 
 /** The optional second header tier: committed share, free days and a committed/tentative bar. */
@@ -165,8 +165,8 @@ export function TotalsCell({
   totals,
   rangeLabel,
 }: {
-  totals: CapacityPeriodTotals;
-  rangeLabel: string;
+  totals: CapacityPeriodTotals
+  rangeLabel: string
 }) {
   return (
     <td
@@ -200,5 +200,5 @@ export function TotalsCell({
         />
       </div>
     </td>
-  );
+  )
 }

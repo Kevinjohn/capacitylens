@@ -1,22 +1,22 @@
-import { randomUUID } from 'node:crypto';
-import type { ApiClient } from '@japa/api-client';
-import db from '@adonisjs/lucid/services/db';
-import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { readState } from '#tests/helpers/state_fixture';
-import { companyId, newAllocation, intentSession } from '#tests/functional/planning/helpers';
+import { randomUUID } from 'node:crypto'
+import type { ApiClient } from '@japa/api-client'
+import db from '@adonisjs/lucid/services/db'
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
+import { readState } from '#tests/helpers/state_fixture'
+import { companyId, newAllocation, intentSession } from '#tests/functional/planning/helpers'
 
-export const note = 'Gotham night shift briefing';
+export const note = 'Gotham night shift briefing'
 
 export interface Reply {
-  revision: number;
-  restoration: { consumedGroupId: string | null; replacementGroupId: string };
+  revision: number
+  restoration: { consumedGroupId: string | null; replacementGroupId: string }
 }
 
 /** A success is wrapped in `data`; a refusal is flat. */
 interface ReplyBody {
-  data: Reply;
-  code?: string;
-  restorableItemCount?: number;
+  data: Reply
+  code?: string
+  restorableItemCount?: number
 }
 
 export async function send(
@@ -38,9 +38,9 @@ export async function send(
       intent,
       ...(confirmedRestorationCount === undefined ? {} : { confirmedRestorationCount }),
     })
-    .send();
+    .send()
   // Only the receipt fields exercised by these restoration tests are read.
-  return response as unknown as Omit<typeof response, 'body'> & { body(): ReplyBody };
+  return response as unknown as Omit<typeof response, 'body'> & { body(): ReplyBody }
 }
 
 export const deleteOne = (
@@ -50,7 +50,7 @@ export const deleteOne = (
   baseRevision: number,
   mutationId?: string
 ) =>
-  send(client, cookie, companyId, baseRevision, { operation: 'allocation.delete', id }, mutationId);
+  send(client, cookie, companyId, baseRevision, { operation: 'allocation.delete', id }, mutationId)
 
 export const deleteGroup = (
   client: ApiClient,
@@ -61,7 +61,7 @@ export const deleteGroup = (
   send(client, cookie, companyId, baseRevision, {
     operation: 'allocation.deleteGroup',
     ids,
-  });
+  })
 
 export const restore = (
   client: ApiClient,
@@ -78,12 +78,12 @@ export const restore = (
     baseRevision,
     { operation: 'planning.restoreGroup', restorationGroupId },
     mutationId
-  );
+  )
 
 /** Creates `count` allocations in one mutation: one create, or a weekly repeat of `count` occurrences. */
 export async function createAllocations(client: ApiClient, cookie: string, count: number) {
-  const data = await readState(companyId, true);
-  const allocation = { ...newAllocation(data), note, task: 'Watchtower rota' };
+  const data = await readState(companyId, true)
+  const allocation = { ...newAllocation(data), note, task: 'Watchtower rota' }
   const created =
     count === 1
       ? await send(client, cookie, companyId, 0, {
@@ -97,14 +97,14 @@ export async function createAllocations(client: ApiClient, cookie: string, count
             pattern: { kind: 'weeks', interval: 1 },
             until: addDaysISO(allocation.startDate, 7 * (count - 1)),
           },
-        });
-  created.assertStatus(200);
-  return count === 1 ? [allocation.id] : listCreatedAllocationIds(created.body().data);
+        })
+  created.assertStatus(200)
+  return count === 1 ? [allocation.id] : listCreatedAllocationIds(created.body().data)
 }
 
 export async function stored(id: string) {
-  const state = await readState(companyId, true);
-  return state.allocations.find((row) => row.id === id);
+  const state = await readState(companyId, true)
+  return state.allocations.find((row) => row.id === id)
 }
 
 /** Allocation ids in the planning read the browser replaces its slice from. */
@@ -112,44 +112,44 @@ export async function readAllocationIds(client: ApiClient, cookie: string) {
   const snapshot = await intentSession(
     client.visit('api.planning.show', { companyId }),
     cookie
-  ).send();
-  snapshot.assertStatus(200);
+  ).send()
+  snapshot.assertStatus(200)
   return (
     snapshot.body().data as { data: { allocations: Array<{ id: string }> } }
-  ).data.allocations.map((row) => row.id);
+  ).data.allocations.map((row) => row.id)
 }
 
 export async function currentRevision(client: ApiClient, cookie: string, company = companyId) {
   const snapshot = await intentSession(
     client.visit('api.planning.show', { companyId: company }),
     cookie
-  ).send();
-  snapshot.assertStatus(200);
-  return Number((snapshot.body().data as { revision: number }).revision);
+  ).send()
+  snapshot.assertStatus(200)
+  return Number((snapshot.body().data as { revision: number }).revision)
 }
 
-export const markers = () => db.from('planning_mutations').where('company_id', companyId);
+export const markers = () => db.from('planning_mutations').where('company_id', companyId)
 export const planningAudit = () =>
   db
     .from('audit_entries')
     .where({ company_id: companyId, entity: 'planning' })
-    .select('entity_id', 'action');
+    .select('entity_id', 'action')
 /** The stored restoration group `groupId`, or null once it is gone. */
 export const restorationGroup = (groupId: string) =>
-  db.from('deleted_groups').where('group_id', groupId).first();
+  db.from('deleted_groups').where('group_id', groupId).first()
 export async function consumedAt(groupId: string) {
-  const row = await restorationGroup(groupId);
-  return row?.consumed_at;
+  const row = await restorationGroup(groupId)
+  return row?.consumed_at
 }
 
 /** The allocation ids a receipt created, earliest start first; the server mints a repeat's later ids. */
 export function listCreatedAllocationIds(receipt: unknown): string[] {
   const { changes } = receipt as {
-    changes: { upserts: Array<{ entity: string; row: { id: string; startDate: string } }> };
-  };
+    changes: { upserts: Array<{ entity: string; row: { id: string; startDate: string } }> }
+  }
   return changes.upserts
     .filter((change) => change.entity === 'allocations')
     .map((change) => change.row)
     .sort((left, right) => left.startDate.localeCompare(right.startDate))
-    .map((row) => row.id);
+    .map((row) => row.id)
 }

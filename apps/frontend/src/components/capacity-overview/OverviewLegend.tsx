@@ -1,10 +1,10 @@
-import { m } from '@/i18n';
-import { buildTentativeHatch } from './capacityOverviewBar';
+import { m } from '@/i18n'
+import { buildTentativeHatch } from './capacityOverviewBar'
 
 /** Group rows and the legend strip sit a step below the card surface in both themes. */
-export const SURFACE_2_CLASS = 'bg-[color-mix(in_oklab,var(--color-ink)_4%,var(--color-surface))]';
+export const SURFACE_2_CLASS = 'bg-[color-mix(in_oklab,var(--color-ink)_4%,var(--color-surface))]'
 
-const SWATCH_HATCH = buildTentativeHatch(2);
+const SWATCH_HATCH = buildTentativeHatch(2)
 
 /** The tentative hatch at swatch size, shared by the toolbar pill and the legend. */
 export function TentativeSwatch({ size }: { size: 8 | 9 }) {
@@ -14,7 +14,7 @@ export function TentativeSwatch({ size }: { size: 8 | 9 }) {
       className="inline-block shrink-0 rounded-[2px] outline outline-1 outline-faint"
       style={{ width: size, height: size, background: SWATCH_HATCH }}
     />
-  );
+  )
 }
 
 function LegendItem({ children, swatch }: { children: string; swatch: React.ReactNode }) {
@@ -23,7 +23,7 @@ function LegendItem({ children, swatch }: { children: string; swatch: React.Reac
       {swatch}
       {children}
     </span>
-  );
+  )
 }
 
 /** Explains the capacity states and tentative pattern used by the overview. */
@@ -51,5 +51,5 @@ export function OverviewLegend() {
       </LegendItem>
       <span className="ms-auto text-faint">{m.capacity_overview_legend_note()}</span>
     </div>
-  );
+  )
 }

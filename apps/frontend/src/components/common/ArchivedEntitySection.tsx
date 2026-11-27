@@ -1,25 +1,25 @@
-import { ArchiveRecoverySection } from './ArchiveRecoverySection';
-import { Fragment, useMemo, useState } from 'react';
-import { resolveLifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
-import type { Resource } from '@capacitylens/shared/types/entities';
-import { Link } from 'react-router-dom';
-import { useInactiveCompanyData } from '@/hooks/useInactiveCompanyData';
-import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
-import { Button } from '@/components/ui/button';
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { ConfirmDialog } from './dialogs';
-import { m } from '@/i18n';
-import { useExclusiveOperation } from '@/hooks/useExclusiveOperation';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { useStore } from '@/store/useStore';
-import { useCan } from '@/auth/permissionContext';
+import { ArchiveRecoverySection } from './ArchiveRecoverySection'
+import { Fragment, useMemo, useState } from 'react'
+import { resolveLifecycleStatus } from '@capacitylens/shared/domain/lifecycle'
+import type { Resource } from '@capacitylens/shared/types/entities'
+import { Link } from 'react-router-dom'
+import { useInactiveCompanyData } from '@/hooks/useInactiveCompanyData'
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations'
+import { Button } from '@/components/ui/button'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item'
+import { ConfirmDialog } from './dialogs'
+import { m } from '@/i18n'
+import { useExclusiveOperation } from '@/hooks/useExclusiveOperation'
+import { resolveErrorMessage } from '@/lib/errorMessage'
+import { useStore } from '@/store/useStore'
+import { useCan } from '@/auth/permissionContext'
 import {
   buildArchivedRows,
   buildResourceArchivedGroups,
   entityConfig,
   resolveRowName,
-} from './archivedEntityRows';
-import type { ArchivedEntity, ArchivedRowModel, LifecycleRow } from './archivedEntityRows';
+} from './archivedEntityRows'
+import type { ArchivedEntity, ArchivedRowModel, LifecycleRow } from './archivedEntityRows'
 
 function ArchivedRow({
   entity,
@@ -29,15 +29,15 @@ function ArchivedRow({
   onAnonymise,
   mayAnonymise,
 }: {
-  entity: ArchivedEntity;
-  model: ArchivedRowModel;
-  busy: boolean;
-  onRestore: () => void;
-  onAnonymise: () => void;
-  mayAnonymise: boolean;
+  entity: ArchivedEntity
+  model: ArchivedRowModel
+  busy: boolean
+  onRestore: () => void
+  onAnonymise: () => void
+  mayAnonymise: boolean
 }) {
-  const direct = resolveLifecycleStatus(row) === 'archived';
-  const name = resolveRowName(row);
+  const direct = resolveLifecycleStatus(row) === 'archived'
+  const name = resolveRowName(row)
   return (
     <Item
       id={`archived-${row.id}`}
@@ -91,7 +91,7 @@ function ArchivedRow({
         )}
       </ItemActions>
     </Item>
-  );
+  )
 }
 
 function ArchivedRows({
@@ -102,12 +102,12 @@ function ArchivedRows({
   onAnonymise,
   mayAnonymise,
 }: {
-  entity: ArchivedEntity;
-  rows: ArchivedRowModel[];
-  busy: boolean;
-  onRestore: (model: ArchivedRowModel) => void;
-  onAnonymise: (model: ArchivedRowModel) => void;
-  mayAnonymise: boolean;
+  entity: ArchivedEntity
+  rows: ArchivedRowModel[]
+  busy: boolean
+  onRestore: (model: ArchivedRowModel) => void
+  onAnonymise: (model: ArchivedRowModel) => void
+  mayAnonymise: boolean
 }) {
   return (
     <ItemGroup className="rounded-md border bg-card">
@@ -125,7 +125,7 @@ function ArchivedRows({
         </Fragment>
       ))}
     </ItemGroup>
-  );
+  )
 }
 
 function ArchivedContent({
@@ -137,13 +137,13 @@ function ArchivedContent({
   onAnonymise,
   mayAnonymise,
 }: {
-  entity: ArchivedEntity;
-  rows: ArchivedRowModel[];
-  groups: ReturnType<typeof buildResourceArchivedGroups>;
-  busy: boolean;
-  onRestore: (model: ArchivedRowModel) => void;
-  onAnonymise: (model: ArchivedRowModel) => void;
-  mayAnonymise: boolean;
+  entity: ArchivedEntity
+  rows: ArchivedRowModel[]
+  groups: ReturnType<typeof buildResourceArchivedGroups>
+  busy: boolean
+  onRestore: (model: ArchivedRowModel) => void
+  onAnonymise: (model: ArchivedRowModel) => void
+  mayAnonymise: boolean
 }) {
   if (entity !== 'resources') {
     return (
@@ -155,7 +155,7 @@ function ArchivedContent({
         onAnonymise={onAnonymise}
         mayAnonymise={mayAnonymise}
       />
-    );
+    )
   }
   return groups.map((group) => (
     <section
@@ -175,39 +175,39 @@ function ArchivedContent({
         mayAnonymise={mayAnonymise}
       />
     </section>
-  ));
+  ))
 }
 
 /** Shows archived records only when the current role can view inactive data. */
 function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
-  const { data, mayViewInactive } = useInactiveCompanyData();
-  const actions = useLifecycleOperations();
+  const { data, mayViewInactive } = useInactiveCompanyData()
+  const actions = useLifecycleOperations()
   const [anonymising, setAnonymising] = useState<{
-    companyId: string | null;
-    row: LifecycleRow;
-  } | null>(null);
-  const mayAnonymise = useCan('resources:anonymise');
-  const setNotice = useStore((state) => state.setNotice);
-  const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const { busy, run, locked } = useExclusiveOperation();
-  const rows = useMemo(() => (data ? buildArchivedRows(data, entity) : []), [data, entity]);
+    companyId: string | null
+    row: LifecycleRow
+  } | null>(null)
+  const mayAnonymise = useCan('resources:anonymise')
+  const setNotice = useStore((state) => state.setNotice)
+  const activeCompanyId = useStore((state) => state.activeCompanyId)
+  const { busy, run, locked } = useExclusiveOperation()
+  const rows = useMemo(() => (data ? buildArchivedRows(data, entity) : []), [data, entity])
   const groups = useMemo(
     () => (entity === 'resources' ? buildResourceArchivedGroups(rows) : []),
-    [entity, rows],
-  );
+    [entity, rows]
+  )
 
   const onRestore = (model: ArchivedRowModel) =>
     run(
       () => actions.restore(entity, model.row.id),
-      (error) => setNotice(resolveErrorMessage(error), 'error'),
-    );
+      (error) => setNotice(resolveErrorMessage(error), 'error')
+    )
   const onAnonymise = (model: ArchivedRowModel) => {
     if (entity === 'resources' && mayAnonymise && !locked()) {
-      setAnonymising({ companyId: activeCompanyId, row: model.row });
+      setAnonymising({ companyId: activeCompanyId, row: model.row })
     }
-  };
+  }
 
-  if (!mayViewInactive || !data || rows.length === 0) return null;
+  if (!mayViewInactive || !data || rows.length === 0) return null
   return (
     <section
       className={`mt-8 ${entity === 'resources' ? 'space-y-8' : 'space-y-3'}`}
@@ -235,22 +235,22 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
           onConfirm={() => {
             run(
               () => actions.anonymise(anonymising.row.id),
-              (error) => setNotice(resolveErrorMessage(error), 'error'),
-            );
-            setAnonymising(null);
+              (error) => setNotice(resolveErrorMessage(error), 'error')
+            )
+            setAnonymising(null)
           }}
           onCancel={() => setAnonymising(null)}
         />
       )}
     </section>
-  );
+  )
 }
 
 /** Keeps the full inactive browser privileged while Editors receive recovery identities only. */
 export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
-  const mayViewInactive = useCan('members:manage');
-  const mayWrite = useCan('planning:write');
-  if (mayViewInactive) return <PrivilegedArchivedEntitySection entity={entity} />;
-  if (mayWrite) return <ArchiveRecoverySection entity={entity} />;
-  return null;
+  const mayViewInactive = useCan('members:manage')
+  const mayWrite = useCan('planning:write')
+  if (mayViewInactive) return <PrivilegedArchivedEntitySection entity={entity} />
+  if (mayWrite) return <ArchiveRecoverySection entity={entity} />
+  return null
 }

@@ -1,7 +1,7 @@
-import { isIsoInstant } from '@capacitylens/shared/account/types';
-import { readUnknownAccountOperationOutcome } from './operationOutcome';
-import { extractApiErrorMessage, readApiError } from '@/lib/readApiError';
-import { readApiData } from '@/api/readApiData';
+import { isIsoInstant } from '@capacitylens/shared/account/types'
+import { readUnknownAccountOperationOutcome } from './operationOutcome'
+import { extractApiErrorMessage, readApiError } from '@/lib/readApiError'
+import { readApiData } from '@/api/readApiData'
 
 /**
  * The shared shape of every account-administration answer, and the Response handling that produces
@@ -14,33 +14,33 @@ export type TeamAccessResult<T> =
   | { kind: 'ok'; status: number; value: T }
   | { kind: 'rejected'; status: number; message: string | null }
   | { kind: 'unknown'; status: number; message: string | null }
-  | { kind: 'invalid'; status: number; message: string };
+  | { kind: 'invalid'; status: number; message: string }
 
 /** Uses the server message only for a decoded refusal; ambiguous or undecodable outcomes use the operation fallback. An empty refusal message also falls back. */
 export function resolveRefusalMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
-  return result.kind === 'rejected' && result.message ? result.message : fallback;
+  return result.kind === 'rejected' && result.message ? result.message : fallback
 }
 
 /** Checks whether an input is a valid ISO instant. */
-export const isTimestamp = isIsoInstant;
+export const isTimestamp = isIsoInstant
 
 /** Narrows an input to a string or null. */
 export const isNullableString = (value: unknown): value is string | null =>
-  value === null || typeof value === 'string';
+  value === null || typeof value === 'string'
 
 async function parseOkBody<T>(
   response: Response,
-  decode: (body: unknown) => T | null,
+  decode: (body: unknown) => T | null
 ): Promise<TeamAccessResult<T>> {
-  const body: unknown = await readApiData(response).catch(() => null);
-  const value = decode(body);
+  const body: unknown = await readApiData(response).catch(() => null)
+  const value = decode(body)
   return value === null
     ? {
         kind: 'invalid',
         status: response.status,
         message: 'The server returned an invalid response.',
       }
-    : { kind: 'ok', status: response.status, value };
+    : { kind: 'ok', status: response.status, value }
 }
 
 /**
@@ -51,38 +51,38 @@ export async function readOperationResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
   expectedStatus?: number,
-  ambiguousStatus?: number,
+  ambiguousStatus?: number
 ): Promise<TeamAccessResult<T>> {
   if (!response.ok) {
-    const clonedMessage = await readApiError(response);
-    const body: unknown = await response.json().catch(() => null);
-    const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
+    const clonedMessage = await readApiError(response)
+    const body: unknown = await response.json().catch(() => null)
+    const message = clonedMessage ?? extractApiErrorMessage(body) ?? null
     const unknown =
       response.status === ambiguousStatus ||
-      (await readUnknownAccountOperationOutcome(response, body));
+      (await readUnknownAccountOperationOutcome(response, body))
     return unknown
       ? { kind: 'unknown', status: response.status, message }
-      : { kind: 'rejected', status: response.status, message };
+      : { kind: 'rejected', status: response.status, message }
   }
   if (expectedStatus !== undefined && response.status !== expectedStatus) {
     console.warn(
-      `teamAccessApi: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
-    );
+      `teamAccessApi: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`
+    )
   }
-  return parseOkBody(response, decode);
+  return parseOkBody(response, decode)
 }
 
 /** Decodes a response body into the shared account-access result shape. */
 export async function readResult<T>(
   response: Response,
-  decode: (body: unknown) => T | null,
+  decode: (body: unknown) => T | null
 ): Promise<TeamAccessResult<T>> {
   if (!response.ok) {
     return {
       kind: 'rejected',
       status: response.status,
       message: (await readApiError(response)) ?? null,
-    };
+    }
   }
-  return parseOkBody(response, decode);
+  return parseOkBody(response, decode)
 }

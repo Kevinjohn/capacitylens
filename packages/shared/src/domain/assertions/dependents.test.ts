@@ -1,16 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { addDaysISO } from '../../lib/dateMath.js';
-import { MAX_SPAN_DAYS } from '../../lib/schedulingDays.js';
-import { createEmptyAppData } from '../../types/entities.js';
-import type { Activity, AppData, ID, Resource } from '../../types/entities.js';
-import type { DomainErrorCode } from '../errors.js';
+import { describe, expect, it } from 'vitest'
+import { addDaysISO } from '../../lib/dateMath.js'
+import { MAX_SPAN_DAYS } from '../../lib/schedulingDays.js'
+import { createEmptyAppData } from '../../types/entities.js'
+import type { Activity, AppData, ID, Resource } from '../../types/entities.js'
+import type { DomainErrorCode } from '../errors.js'
 import {
   assertActivityProjectAllowsDependents,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
   assertResourceProjectAllowsDependents,
-} from './dependents.js';
+} from './dependents.js'
 import {
   A1,
   A2,
@@ -24,8 +24,8 @@ import {
   makePlaceholder,
   makeProject,
   makeTimeOff,
-} from './assertionTestKit.js';
-import type { Failure } from './assertionTestKit.js';
+} from './assertionTestKit.js'
+import type { Failure } from './assertionTestKit.js'
 
 // Each row pins the code a rule refuses with and the English message the wire carries, plus the
 // guards that decide whether a dependents check runs at all, which the UI and server both branch on.
@@ -39,47 +39,47 @@ function makeData(overrides: Partial<AppData> = {}): AppData {
     projects: [makeProject('p1'), makeProject('p2'), makeProject('p3')],
     activities: [makeActivity('t1')],
     ...overrides,
-  };
+  }
 }
 
-const pass = undefined;
-const refusal = (code: DomainErrorCode, message: string): Failure => ({ code, message });
+const pass = undefined
+const refusal = (code: DomainErrorCode, message: string): Failure => ({ code, message })
 
-const dateRequired = refusal('E_DATE_REQUIRED', 'Start and end dates are required.');
-const dateReversed = refusal('E_DATE_REVERSED', 'End date cannot be before the start date.');
-const dateSpan = refusal('E_DATE_SPAN_TOO_LONG', 'Date span cannot exceed 36,500 calendar days.');
+const dateRequired = refusal('E_DATE_REQUIRED', 'Start and end dates are required.')
+const dateReversed = refusal('E_DATE_REVERSED', 'End date cannot be before the start date.')
+const dateSpan = refusal('E_DATE_SPAN_TOO_LONG', 'Date span cannot exceed 36,500 calendar days.')
 const resourceInvalid = refusal(
   'E_TIME_OFF_RESOURCE_INVALID',
-  'Time off must reference an existing resource in this company.',
-);
+  'Time off must reference an existing resource in this company.'
+)
 const resourceInactive = refusal(
   'E_TIME_OFF_RESOURCE_INACTIVE',
-  'Time off must reference an active resource in this company.',
-);
+  'Time off must reference an active resource in this company.'
+)
 const externalTimeOff = refusal(
   'E_TIME_OFF_EXTERNAL_RESOURCE',
-  'Time off can’t be recorded for an external party.',
-);
+  'Time off can’t be recorded for an external party.'
+)
 const externalDependents = refusal(
   'E_RESOURCE_EXTERNAL_DEPENDENTS',
-  'Reassign or remove this resource’s work and time off before making it external.',
-);
+  'Reassign or remove this resource’s work and time off before making it external.'
+)
 const placeholderDependents = refusal(
   'E_PLACEHOLDER_PROJECT_DEPENDENTS',
-  'Reassign or remove this placeholder’s work before changing its bound project.',
-);
+  'Reassign or remove this placeholder’s work before changing its bound project.'
+)
 const activityDependents = refusal(
   'E_ACTIVITY_PROJECT_DEPENDENTS',
-  'Reassign placeholder work before changing this activity’s project.',
-);
+  'Reassign placeholder work before changing this activity’s project.'
+)
 
 const work = (resourceId: ID, activityId: ID, hoursPerDay = 8) =>
-  makeAllocation(`al-${resourceId}-${activityId}`, { resourceId, activityId, hoursPerDay });
+  makeAllocation(`al-${resourceId}-${activityId}`, { resourceId, activityId, hoursPerDay })
 const allProjectsActivity = (id: ID): Activity =>
-  makeActivity(id, { name: 'Shared', kind: 'allProjects', projectId: null });
+  makeActivity(id, { name: 'Shared', kind: 'allProjects', projectId: null })
 
 describe('assertDateRange', () => {
-  const start = '2026-01-01';
+  const start = '2026-01-01'
   it.each([
     ['passes for a forward range', pass, start, '2026-01-05'],
     ['refuses a reversed range', dateReversed, '2026-01-05', start],
@@ -92,12 +92,12 @@ describe('assertDateRange', () => {
       addDaysISO(start, MAX_SPAN_DAYS),
     ],
   ])('%s', (_title, expected, startDate, endDate) => {
-    expect(captureFailure(() => assertDateRange(startDate, endDate))).toEqual(expected);
-  });
-});
+    expect(captureFailure(() => assertDateRange(startDate, endDate))).toEqual(expected)
+  })
+})
 
 describe('assertResourceExists', () => {
-  const archived = makeData({ resources: [makePerson('r1', { archivedAt: TS })] });
+  const archived = makeData({ resources: [makePerson('r1', { archivedAt: TS })] })
   it.each([
     ['passes for an active person', pass, makeData({ resources: [makePerson('r1')] })],
     ['refuses a missing resource', resourceInvalid, makeData()],
@@ -130,20 +130,20 @@ describe('assertResourceExists', () => {
   ] as const)('%s', (_title, expected, data, existing?: { resourceId: ID }) => {
     expect(
       captureFailure(() =>
-        assertResourceExists({ data, companyId: A1, resourceId: 'r1', existing }),
-      ),
-    ).toEqual(expected);
-  });
-});
+        assertResourceExists({ data, companyId: A1, resourceId: 'r1', existing })
+      )
+    ).toEqual(expected)
+  })
+})
 
 describe('assertResourceKindAllowsDependents', () => {
-  const person = makePerson('r1');
-  const loaded = makeData({ resources: [person], allocations: [work('r1', 't1')] });
+  const person = makePerson('r1')
+  const loaded = makeData({ resources: [person], allocations: [work('r1', 't1')] })
   const loadedAndAway = makeData({
     resources: [person],
     allocations: [work('r1', 't1')],
     timeOff: [makeTimeOff('to1', 'r1')],
-  });
+  })
   it.each([
     ['refuses a loaded allocation', externalDependents, loaded, 'external'],
     [
@@ -199,28 +199,28 @@ describe('assertResourceKindAllowsDependents', () => {
   ] as const)('%s', (_title, expected, data, mergedKind) => {
     expect(
       captureFailure(() =>
-        assertResourceKindAllowsDependents({ data, companyId: A1, resourceId: 'r1', mergedKind }),
-      ),
-    ).toEqual(expected);
-  });
-});
+        assertResourceKindAllowsDependents({ data, companyId: A1, resourceId: 'r1', mergedKind })
+      )
+    ).toEqual(expected)
+  })
+})
 
 type EditRow<T> = [
   title: string,
   expected: Failure | undefined,
   data: AppData,
   edit: { id: ID; merged: T; existing?: T },
-];
+]
 
 describe('assertResourceProjectAllowsDependents', () => {
-  const p1Placeholder = makePlaceholder('r1', 'p1');
-  const p2Placeholder = makePlaceholder('r1', 'p2');
-  const bound = makeData({ resources: [p1Placeholder], allocations: [work('r1', 't1')] });
-  const misbound = makeData({ resources: [p2Placeholder], allocations: [work('r1', 't1')] });
+  const p1Placeholder = makePlaceholder('r1', 'p1')
+  const p2Placeholder = makePlaceholder('r1', 'p2')
+  const bound = makeData({ resources: [p1Placeholder], allocations: [work('r1', 't1')] })
+  const misbound = makeData({ resources: [p2Placeholder], allocations: [work('r1', 't1')] })
   const personWithWork = makeData({
     resources: [makePerson('r1')],
     allocations: [work('r1', 't1')],
-  });
+  })
   const rows: EditRow<Resource>[] = [
     [
       'refuses a rebind that newly invalidates work',
@@ -296,7 +296,7 @@ describe('assertResourceProjectAllowsDependents', () => {
       }),
       { id: 'r1', merged: p2Placeholder, existing: p1Placeholder },
     ],
-  ];
+  ]
   it.each(rows)('%s', (_title, expected, data, { id, merged, existing }) => {
     expect(
       captureFailure(() =>
@@ -306,37 +306,37 @@ describe('assertResourceProjectAllowsDependents', () => {
           resourceId: id,
           merged,
           existing,
-        }),
-      ),
-    ).toEqual(expected);
-  });
-});
+        })
+      )
+    ).toEqual(expected)
+  })
+})
 
 describe('assertActivityProjectAllowsDependents', () => {
-  const onP1 = makeActivity('t1');
-  const onP2 = makeActivity('t1', { projectId: 'p2' });
+  const onP1 = makeActivity('t1')
+  const onP2 = makeActivity('t1', { projectId: 'p2' })
   const bound = makeData({
     resources: [makePlaceholder('r1', 'p1')],
     allocations: [work('r1', 't1')],
-  });
-  const shared = allProjectsActivity('shared');
+  })
+  const shared = allProjectsActivity('shared')
   const sharedAttributed = makeData({
     resources: [makePlaceholder('r1', 'p1')],
     activities: [shared],
     allocations: [{ ...work('r1', 'shared'), projectId: 'p1' }],
-  });
-  const peopleOnly = makeActivity('project-work');
-  const placeholderOnly = makeActivity('placeholder-work');
+  })
+  const peopleOnly = makeActivity('project-work')
+  const placeholderOnly = makeActivity('placeholder-work')
   const mixed = makeData({
     resources: [makePerson('person'), makePlaceholder('r1', 'p1')],
     activities: [peopleOnly, placeholderOnly],
     allocations: [work('person', 'project-work'), work('r1', 'placeholder-work')],
-  });
+  })
   const misassigned = makeData({
     activities: [onP2],
     resources: [makePlaceholder('r1', 'p1')],
     allocations: [work('r1', 't1')],
-  });
+  })
   const rows: EditRow<Activity>[] = [
     [
       'refuses moving work a placeholder owns',
@@ -406,7 +406,7 @@ describe('assertActivityProjectAllowsDependents', () => {
         existing: placeholderOnly,
       },
     ],
-  ];
+  ]
   it.each(rows)('%s', (_title, expected, data, { id, merged, existing }) => {
     expect(
       captureFailure(() =>
@@ -416,8 +416,8 @@ describe('assertActivityProjectAllowsDependents', () => {
           activityId: id,
           merged,
           existing,
-        }),
-      ),
-    ).toEqual(expected);
-  });
-});
+        })
+      )
+    ).toEqual(expected)
+  })
+})

@@ -1,120 +1,120 @@
-import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, fireEvent, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { AllocationDialog } from './AllocationDialog';
-import { useStore } from '@/store/useStore';
-import { makeResourceDraft } from '@/test/fixtures';
-import { chooseOption } from '@/test/schedulerTestKit';
+import { requireCreated } from '@/test/requireCreated'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { screen, fireEvent, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { AllocationDialog } from './AllocationDialog'
+import { useStore } from '@/store/useStore'
+import { makeResourceDraft } from '@/test/fixtures'
+import { chooseOption } from '@/test/schedulerTestKit'
 import {
   required,
   person,
   resetAllocationDialogStore,
   renderAsOwner,
-} from '@/test/allocationDialogTestKit';
+} from '@/test/allocationDialogTestKit'
 
 beforeEach(async () => {
-  await resetAllocationDialogStore();
-});
+  await resetAllocationDialogStore()
+})
 
 describe('AllocationDialog create', () => {
   it('orders project scopes and activities, and exposes status as a labelled radiogroup', async () => {
-    await useStore.getState().addClient({ name: 'Zeta', color: '#123456' });
+    await useStore.getState().addClient({ name: 'Zeta', color: '#123456' })
     const zetaClient = required(
       useStore.getState().data.clients.find((client) => client.name === 'Zeta'),
-      'Expected the newly added Zeta client.',
-    );
+      'Expected the newly added Zeta client.'
+    )
     await useStore
       .getState()
-      .addProject({ name: 'Alpha', clientId: zetaClient.id, color: '#123456' });
-    await useStore.getState().addActivity({ name: 'Support', kind: 'internal' });
-    await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' });
-    await useStore.getState().addActivity({ name: 'Strategy', kind: 'allProjects' });
-    await useStore.getState().addActivity({ name: 'Retrospective', kind: 'allProjects' });
-    const barbara = person('Barbara');
+      .addProject({ name: 'Alpha', clientId: zetaClient.id, color: '#123456' })
+    await useStore.getState().addActivity({ name: 'Support', kind: 'internal' })
+    await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' })
+    await useStore.getState().addActivity({ name: 'Strategy', kind: 'allProjects' })
+    await useStore.getState().addActivity({ name: 'Retrospective', kind: 'allProjects' })
+    const barbara = person('Barbara')
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] }),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const project = screen.getByRole('combobox', { name: 'Project' });
-    expect(project).toHaveTextContent('Internal');
-    fireEvent.keyDown(project, { key: 'ArrowDown' });
+    const project = screen.getByRole('combobox', { name: 'Project' })
+    expect(project).toHaveTextContent('Internal')
+    fireEvent.keyDown(project, { key: 'ArrowDown' })
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Internal',
       'No specific project',
       'Ferris / Lightning',
       'Ferris / Other',
       'Zeta / Alpha',
-    ]);
-    fireEvent.click(screen.getByRole('option', { name: 'Internal' }));
+    ])
+    fireEvent.click(screen.getByRole('option', { name: 'Internal' }))
 
-    const activity = screen.getByRole('combobox', { name: 'Activity' });
-    fireEvent.keyDown(activity, { key: 'ArrowDown' });
+    const activity = screen.getByRole('combobox', { name: 'Activity' })
+    fireEvent.keyDown(activity, { key: 'ArrowDown' })
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Admin',
       'Support',
-    ]);
-    fireEvent.click(screen.getByRole('option', { name: 'Admin' }));
+    ])
+    fireEvent.click(screen.getByRole('option', { name: 'Admin' }))
 
-    await chooseOption(user, 'Project', 'No specific project');
-    fireEvent.keyDown(activity, { key: 'ArrowDown' });
+    await chooseOption(user, 'Project', 'No specific project')
+    fireEvent.keyDown(activity, { key: 'ArrowDown' })
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Retrospective',
       'Strategy',
-    ]);
-    await user.keyboard('{Escape}');
+    ])
+    await user.keyboard('{Escape}')
 
-    const status = screen.getByRole('radiogroup', { name: 'Status' });
+    const status = screen.getByRole('radiogroup', { name: 'Status' })
     expect(
       within(status)
         .getAllByRole('radio')
-        .map((radio) => radio.textContent),
-    ).toEqual(['Confirmed', 'Tentative', 'Completed']);
+        .map((radio) => radio.textContent)
+    ).toEqual(['Confirmed', 'Tentative', 'Completed'])
     expect(within(status).getByRole('radio', { name: 'Confirmed' })).toHaveAttribute(
       'aria-checked',
-      'true',
-    );
-    await user.click(within(status).getByRole('radio', { name: 'Tentative' }));
+      'true'
+    )
+    await user.click(within(status).getByRole('radio', { name: 'Tentative' }))
     expect(within(status).getByRole('radio', { name: 'Tentative' })).toHaveAttribute(
       'aria-checked',
-      'true',
-    );
-    expect(screen.getByLabelText('Note').tagName).toBe('INPUT');
-  });
+      'true'
+    )
+    expect(screen.getByLabelText('Note').tagName).toBe('INPUT')
+  })
 
   it('defaults hourly load to four hours when creation starts on a half day', async () => {
     const resource = await requireCreated(
       useStore
         .getState()
-        .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
-    );
+        .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] })
+    )
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
     expect(screen.getByRole('combobox', { name: 'Hours / day' })).toHaveTextContent(
-      '4 h - half day',
-    );
-  });
+      '4 h - half day'
+    )
+  })
 
   it('gives same-named activity options distinct accessible labels', async () => {
-    await useStore.getState().addActivity({ name: 'Wireframes', kind: 'project', projectId: 'p1' });
+    await useStore.getState().addActivity({ name: 'Wireframes', kind: 'project', projectId: 'p1' })
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
-    );
-    const user = userEvent.setup();
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' }))
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -124,46 +124,46 @@ describe('AllocationDialog create', () => {
           endDate: '2026-06-03',
         }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    const activity = screen.getByRole('combobox', { name: 'Activity' });
-    fireEvent.keyDown(activity, { key: 'ArrowDown' });
-    expect(screen.getByRole('option', { name: 'Wireframes / Lightning (1)' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Wireframes / Lightning (2)' })).toBeInTheDocument();
-  });
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    const activity = screen.getByRole('combobox', { name: 'Activity' })
+    fireEvent.keyDown(activity, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Wireframes / Lightning (1)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Wireframes / Lightning (2)' })).toBeInTheDocument()
+  })
 
   it('creates an allocation for a person after picking project + activity', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
-    );
-    const resourceId = resource.id;
-    const onClose = vi.fn();
-    const user = userEvent.setup();
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' }))
+    )
+    const resourceId = resource.id
+    const onClose = vi.fn()
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onClose).toHaveBeenCalled();
-    const allocs = useStore.getState().data.allocations;
-    expect(allocs).toHaveLength(1);
+    expect(onClose).toHaveBeenCalled()
+    const allocs = useStore.getState().data.allocations
+    expect(allocs).toHaveLength(1)
     expect(allocs[0]).toMatchObject({
       resourceId,
       activityId: 't1',
       startDate: '2026-06-01',
       endDate: '2026-06-03',
-    });
-    expect(allocs[0]).toHaveProperty('projectId', null);
-  });
+    })
+    expect(allocs[0]).toHaveProperty('projectId', null)
+  })
 
   it.each([
     ['Internal', 'Operations', undefined],
@@ -172,32 +172,32 @@ describe('AllocationDialog create', () => {
   ] as const)(
     'derives create attribution for the %s scope',
     async (scope, activityName, expectedProjectId) => {
-      await useStore.getState().addActivity({ name: 'Operations', kind: 'internal' });
-      await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' });
+      await useStore.getState().addActivity({ name: 'Operations', kind: 'internal' })
+      await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' })
       const resource = await requireCreated(
-        useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
-      );
-      const user = userEvent.setup();
+        useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' }))
+      )
+      const user = userEvent.setup()
       renderAsOwner(
         <AllocationDialog
           kind="create"
           create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
           onClose={vi.fn()}
-        />,
-      );
+        />
+      )
 
-      await chooseOption(user, 'Project', scope);
-      await chooseOption(user, 'Activity', activityName);
+      await chooseOption(user, 'Project', scope)
+      await chooseOption(user, 'Activity', activityName)
       if (scope === 'Ferris / Lightning') {
-        expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(scope);
+        expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(scope)
       }
-      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await user.click(screen.getByRole('button', { name: 'Save' }))
 
-      const allocation = useStore.getState().data.allocations[0];
-      if (expectedProjectId) expect(allocation).toHaveProperty('projectId', expectedProjectId);
-      else expect(allocation).toHaveProperty('projectId', null);
-    },
-  );
+      const allocation = useStore.getState().data.allocations[0]
+      if (expectedProjectId) expect(allocation).toHaveProperty('projectId', expectedProjectId)
+      else expect(allocation).toHaveProperty('projectId', null)
+    }
+  )
 
   it.each([
     ['1 h', 1],
@@ -206,59 +206,59 @@ describe('AllocationDialog create', () => {
     ['8 h - full day', 8],
   ] as const)('creates an allocation with the %s hours option', async (option, expectedHours) => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
-    );
-    const resourceId = resource.id;
-    const user = userEvent.setup();
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' }))
+    )
+    const resourceId = resource.id
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    await chooseOption(user, 'Hours / day', option);
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    await chooseOption(user, 'Hours / day', option)
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(useStore.getState().data.allocations).toHaveLength(1);
-    expect(useStore.getState().data.allocations[0]).toMatchObject({ hoursPerDay: expectedHours });
-  });
+    expect(useStore.getState().data.allocations).toHaveLength(1)
+    expect(useStore.getState().data.allocations[0]).toMatchObject({ hoursPerDay: expectedHours })
+  })
 
   it('rejects an empty date instead of saving a broken allocation', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
-    );
-    const resourceId = resource.id;
-    const user = userEvent.setup();
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' }))
+    )
+    const resourceId = resource.id
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
 
     // Clearing a date must not produce a NaN-geometry allocation.
     fireEvent.change(screen.getByLabelText('Start Date'), {
       target: { value: '' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(/start and end dates are required/i);
-    expect(screen.getByLabelText('Start Date')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByLabelText('Start Date')).toHaveFocus();
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/start and end dates are required/i)
+    expect(screen.getByLabelText('Start Date')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Start Date')).toHaveFocus()
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('books an All-projects activity for a bound placeholder under its locked project', async () => {
     const planning = await requireCreated(
-      useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' }),
-    );
+      useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' })
+    )
     const ph = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
@@ -270,10 +270,10 @@ describe('AllocationDialog create', () => {
         halfDays: [],
         color: '#a855f7',
         projectId: 'p1',
-      }),
-    );
-    const onClose = vi.fn();
-    const user = userEvent.setup();
+      })
+    )
+    const onClose = vi.fn()
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -283,42 +283,42 @@ describe('AllocationDialog create', () => {
           endDate: '2026-06-02',
         }}
         onClose={onClose}
-      />,
-    );
+      />
+    )
 
-    const projectSelect = screen.getByRole('combobox', { name: 'Project' });
-    expect(projectSelect).toHaveTextContent('Ferris / Lightning');
+    const projectSelect = screen.getByRole('combobox', { name: 'Project' })
+    expect(projectSelect).toHaveTextContent('Ferris / Lightning')
     // Invalid scopes remain visible so the lock is explicit, but cannot be selected.
-    fireEvent.keyDown(projectSelect, { key: 'ArrowDown' });
-    expect(screen.getByRole('option', { name: 'Internal' })).toHaveAttribute('data-disabled');
+    fireEvent.keyDown(projectSelect, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Internal' })).toHaveAttribute('data-disabled')
     expect(screen.getByRole('option', { name: 'No specific project' })).toHaveAttribute(
-      'data-disabled',
-    );
-    expect(screen.queryByRole('option', { name: 'Ferris / Other' })).not.toBeInTheDocument();
-    await user.keyboard('{Escape}');
+      'data-disabled'
+    )
+    expect(screen.queryByRole('option', { name: 'Ferris / Other' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
 
-    const activitySelect = screen.getByRole('combobox', { name: 'Activity' });
-    fireEvent.keyDown(activitySelect, { key: 'ArrowDown' });
-    const allProjectsGroup = screen.getByRole('group', { name: 'All projects' });
-    const projectGroup = screen.getByRole('group', { name: 'Project-specific' });
+    const activitySelect = screen.getByRole('combobox', { name: 'Activity' })
+    fireEvent.keyDown(activitySelect, { key: 'ArrowDown' })
+    const allProjectsGroup = screen.getByRole('group', { name: 'All projects' })
+    const projectGroup = screen.getByRole('group', { name: 'Project-specific' })
     expect(
-      allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(within(allProjectsGroup).getByRole('option', { name: 'Planning' })).toBeInTheDocument();
-    expect(within(projectGroup).getByRole('option', { name: 'Wireframes' })).toBeInTheDocument();
-    fireEvent.click(within(allProjectsGroup).getByRole('option', { name: 'Planning' }));
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+      allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(within(allProjectsGroup).getByRole('option', { name: 'Planning' })).toBeInTheDocument()
+    expect(within(projectGroup).getByRole('option', { name: 'Wireframes' })).toBeInTheDocument()
+    fireEvent.click(within(allProjectsGroup).getByRole('option', { name: 'Planning' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled()
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       resourceId: ph.id,
       activityId: planning.id,
       projectId: 'p1',
-    });
-  });
+    })
+  })
 
   it('cannot attribute an All-projects activity for an unbound placeholder', async () => {
-    await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' });
+    await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' })
     const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
@@ -329,46 +329,46 @@ describe('AllocationDialog create', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#a855f7',
-      }),
-    );
-    const user = userEvent.setup();
+      })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: placeholder.id, startDate: '2026-06-01', endDate: '2026-06-02' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const projectSelect = screen.getByRole('combobox', { name: 'Project' });
-    fireEvent.keyDown(projectSelect, { key: 'ArrowDown' });
-    expect(screen.getByRole('option', { name: 'Internal' })).not.toHaveAttribute('data-disabled');
+    const projectSelect = screen.getByRole('combobox', { name: 'Project' })
+    fireEvent.keyDown(projectSelect, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Internal' })).not.toHaveAttribute('data-disabled')
     expect(screen.getByRole('option', { name: 'No specific project' })).not.toHaveAttribute(
-      'data-disabled',
-    );
+      'data-disabled'
+    )
     expect(screen.getByRole('option', { name: 'Ferris / Lightning' })).not.toHaveAttribute(
-      'data-disabled',
-    );
-    await user.keyboard('{Escape}');
+      'data-disabled'
+    )
+    await user.keyboard('{Escape}')
 
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Planning');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Planning')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'This placeholder is not bound to a project yet.',
-    );
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
-});
+      'This placeholder is not bound to a project yet.'
+    )
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
+})
 
 describe('AllocationDialog date span bounds', () => {
   it('rejects an over-limit Hours-mode date span', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const onClose = vi.fn();
-    const user = userEvent.setup();
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] })
+    )
+    const onClose = vi.fn()
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -378,25 +378,25 @@ describe('AllocationDialog date span bounds', () => {
           endDate: '2026-06-03',
         }}
         onClose={onClose}
-      />,
-    );
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+      />
+    )
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
 
     fireEvent.change(screen.getByLabelText('End'), {
       target: { value: '9999-12-31' },
-    });
+    })
     fireEvent.change(screen.getByLabelText('Note'), {
       target: { value: 'Still responsive' },
-    });
+    })
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Date span cannot exceed 36,500 calendar days.',
-    );
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+      'Date span cannot exceed 36,500 calendar days.'
+    )
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('rejects the same over-limit date span for an External resource', async () => {
     const resource = await requireCreated(
@@ -410,10 +410,10 @@ describe('AllocationDialog date span bounds', () => {
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
         color: '#9ca3af',
-      }),
-    );
-    const onClose = vi.fn();
-    const user = userEvent.setup();
+      })
+    )
+    const onClose = vi.fn()
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
@@ -423,22 +423,22 @@ describe('AllocationDialog date span bounds', () => {
           endDate: '2026-06-03',
         }}
         onClose={onClose}
-      />,
-    );
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
+      />
+    )
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
 
     fireEvent.change(screen.getByLabelText('End'), {
       target: { value: '9999-12-31' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Date span cannot exceed 36,500 calendar days.',
-    );
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-  });
+      'Date span cannot exceed 36,500 calendar days.'
+    )
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
 
   it('keeps Ignore working days hidden for an External while preserving its literal calendar span', async () => {
     const resource = await requireCreated(
@@ -452,27 +452,27 @@ describe('AllocationDialog date span bounds', () => {
         workingDays: [1, 3, 5],
         halfDays: [],
         color: '#9ca3af',
-      }),
-    );
-    const user = userEvent.setup();
+      })
+    )
+    const user = userEvent.setup()
     renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-04' }}
         onClose={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    expect(screen.queryByRole('checkbox', { name: 'Ignore working days' })).not.toBeInTheDocument();
-    await chooseOption(user, 'Project', 'Ferris / Lightning');
-    await chooseOption(user, 'Activity', 'Wireframes');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.queryByRole('checkbox', { name: 'Ignore working days' })).not.toBeInTheDocument()
+    await chooseOption(user, 'Project', 'Ferris / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-04',
       hoursPerDay: 0,
       ignoreWorkingDays: true,
-    });
-  });
-});
+    })
+  })
+})

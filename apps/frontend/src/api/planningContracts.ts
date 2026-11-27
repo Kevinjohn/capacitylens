@@ -1,4 +1,4 @@
-import type { Route } from '@capacitylens/backend/registry';
+import type { Route } from '@capacitylens/backend/registry'
 
 /**
  * Planning wire types derived from the generated route registry. The backend Vine validator stays
@@ -12,13 +12,10 @@ import type { Route } from '@capacitylens/backend/registry';
  * The frontend constructs typed intents with real numbers and booleans; the server validator
  * remains authoritative for every persisted mutation.
  */
-type PlanningMutationBody = Route.Body<'api.planning_mutations.store'>;
+type PlanningMutationBody = Route.Body<'api.planning_mutations.store'>
 
 /** Execution metadata the browser only ever holds as server-issued integers. */
-type ServerIssuedIntegers = Pick<
-  PlanningMutationBody,
-  'baseRevision' | 'confirmedRestorationCount'
->;
+type ServerIssuedIntegers = Pick<PlanningMutationBody, 'baseRevision' | 'confirmedRestorationCount'>
 
 /**
  * The intents the browser sends. The server still accepts a restoration-group intent, but Undo
@@ -27,14 +24,14 @@ type ServerIssuedIntegers = Pick<
 export type PlanningIntent = Exclude<
   PlanningMutationBody['intent'],
   { operation: 'planning.restoreGroup' }
->;
+>
 
 export type PlanningExecution = Omit<
   PlanningMutationBody,
   keyof ServerIssuedIntegers | 'intent'
 > & {
-  [Field in keyof ServerIssuedIntegers]: Extract<ServerIssuedIntegers[Field], number>;
-} & { intent: PlanningIntent };
+  [Field in keyof ServerIssuedIntegers]: Extract<ServerIssuedIntegers[Field], number>
+} & { intent: PlanningIntent }
 
 /**
  * Refusals are sent through the response object, so the generated reply also admits `void`. A
@@ -43,7 +40,7 @@ export type PlanningExecution = Omit<
 export type PlanningMutationSuccess = Extract<
   Exclude<Route.Response<'api.planning_mutations.store'>, void>['data'],
   { status: 'committed' }
->;
+>
 
 /** Who the last accepted planning read was for, and what that member may do and see. */
-export type PlanningAccess = Exclude<Route.Response<'api.planning.show'>, void>['data']['access'];
+export type PlanningAccess = Exclude<Route.Response<'api.planning.show'>, void>['data']['access']

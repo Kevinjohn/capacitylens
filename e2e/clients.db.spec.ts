@@ -1,5 +1,5 @@
-import { test, expect } from './dbFixtures';
-import { openApp, showScheduleFilters } from './browserTestKit';
+import { test, expect } from './dbFixtures'
+import { openApp, showScheduleFilters } from './browserTestKit'
 
 test.describe('Clients', () => {
   // Covers US-CLI-01..03.
@@ -7,77 +7,77 @@ test.describe('Clients', () => {
     'adds a client and makes it available as a schedule filter',
     { tag: '@engine' },
     async ({ page }) => {
-      await openApp(page, '/clients');
-      await page.getByRole('button', { name: 'Add client' }).click();
-      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Kord Industries');
-      await page.getByRole('button', { name: 'Save' }).click();
+      await openApp(page, '/clients')
+      await page.getByRole('button', { name: 'Add client' }).click()
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Kord Industries')
+      await page.getByRole('button', { name: 'Save' }).click()
       await expect(
-        page.getByTestId('client-row').filter({ hasText: 'Kord Industries' }),
-      ).toBeVisible();
+        page.getByTestId('client-row').filter({ hasText: 'Kord Industries' })
+      ).toBeVisible()
 
-      await page.getByRole('link', { name: 'Schedule' }).click();
-      await showScheduleFilters(page);
-      await page.getByLabel('Filter by client').click();
-      await expect(page.getByRole('option', { name: 'Kord Industries' })).toBeVisible();
-      await page.keyboard.press('Escape');
-    },
-  );
+      await page.getByRole('link', { name: 'Schedule' }).click()
+      await showScheduleFilters(page)
+      await page.getByLabel('Filter by client').click()
+      await expect(page.getByRole('option', { name: 'Kord Industries' })).toBeVisible()
+      await page.keyboard.press('Escape')
+    }
+  )
   test('an owner can add a private client with a code name', async ({ page }) => {
-    await openApp(page, '/clients');
-    await page.getByRole('button', { name: 'Add client' }).click();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Embargoed Client Ltd');
-    await page.getByRole('switch', { name: 'Use code name' }).click();
-    await page.getByRole('textbox', { name: 'Code name', exact: true }).fill('""');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('alert')).toContainText(/name is required/i);
-    await expect(page.getByRole('dialog', { name: 'Add client' })).toBeVisible();
+    await openApp(page, '/clients')
+    await page.getByRole('button', { name: 'Add client' }).click()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Embargoed Client Ltd')
+    await page.getByRole('switch', { name: 'Use code name' }).click()
+    await page.getByRole('textbox', { name: 'Code name', exact: true }).fill('""')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('alert')).toContainText(/name is required/i)
+    await expect(page.getByRole('dialog', { name: 'Add client' })).toBeVisible()
 
-    await page.getByRole('textbox', { name: 'Code name', exact: true }).fill('"Nightwing"');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('textbox', { name: 'Code name', exact: true }).fill('"Nightwing"')
+    await page.getByRole('button', { name: 'Save' }).click()
 
-    const row = page.getByTestId('client-row').filter({ hasText: 'Embargoed Client Ltd' });
+    const row = page.getByTestId('client-row').filter({ hasText: 'Embargoed Client Ltd' })
     // The authenticated fixture user is the Owner and sees the real name.
-    await expect(row).toBeVisible();
-    await row.getByRole('button', { name: /^Edit / }).click();
+    await expect(row).toBeVisible()
+    await row.getByRole('button', { name: /^Edit / }).click()
     await expect(page.getByRole('switch', { name: 'Use code name' })).toHaveAttribute(
       'aria-checked',
-      'true',
-    );
+      'true'
+    )
     await expect(page.getByRole('textbox', { name: 'Code name', exact: true })).toHaveValue(
-      'Nightwing',
-    );
-  });
+      'Nightwing'
+    )
+  })
   test('rejects emoji / junk characters in a name and blocks the save', async ({ page }) => {
-    await openApp(page, '/clients');
-    await page.getByRole('button', { name: 'Add client' }).click();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Ferris \u{1F389} Co');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('alert')).toContainText(/emoji or special characters/i);
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Café Crème');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByTestId('client-row').filter({ hasText: 'Café Crème' })).toBeVisible();
-  });
+    await openApp(page, '/clients')
+    await page.getByRole('button', { name: 'Add client' }).click()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Ferris \u{1F389} Co')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('alert')).toContainText(/emoji or special characters/i)
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Café Crème')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByTestId('client-row').filter({ hasText: 'Café Crème' })).toBeVisible()
+  })
   test('edits a client and the rename reflects in project labels', async ({ page }) => {
-    await openApp(page, '/clients');
+    await openApp(page, '/clients')
     await page
       .getByTestId('client-row')
       .filter({ hasText: 'Queen Consolidated' })
       .getByRole('button', { name: /^Edit / })
-      .click();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Ferris Worldwide');
-    await page.getByRole('button', { name: 'Save' }).click();
+      .click()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Ferris Worldwide')
+    await page.getByRole('button', { name: 'Save' }).click()
     await expect(
-      page.getByTestId('client-row').filter({ hasText: 'Ferris Worldwide' }),
-    ).toBeVisible();
+      page.getByTestId('client-row').filter({ hasText: 'Ferris Worldwide' })
+    ).toBeVisible()
 
-    await page.getByRole('link', { name: 'Activities' }).click();
-    await page.getByRole('button', { name: 'Add activity' }).click();
-    await page.getByLabel('Project').click();
+    await page.getByRole('link', { name: 'Activities' }).click()
+    await page.getByRole('button', { name: 'Add activity' }).click()
+    await page.getByLabel('Project').click()
     await expect(
-      page.getByRole('option', { name: /Ferris Worldwide \/ Project Watchtower/ }),
-    ).toBeVisible();
-  });
+      page.getByRole('option', { name: /Ferris Worldwide \/ Project Watchtower/ })
+    ).toBeVisible()
+  })
   // The row action archives the client. It leaves the active list but remains in storage, and its
   // projects keep their own active status because archiving does not cascade. Booking-only Undo
   // leaves the archive in place.
@@ -85,24 +85,24 @@ test.describe('Clients', () => {
     'archiving a client hides it from the list, and undo leaves it archived',
     { tag: '@engine' },
     async ({ page }) => {
-      await openApp(page, '/clients');
+      await openApp(page, '/clients')
       await page
         .getByTestId('client-row')
         .filter({ hasText: 'Queen Consolidated' })
         .getByRole('button', { name: 'Archive Queen Consolidated' })
-        .click();
+        .click()
       await page
         .getByRole('alertdialog', { name: 'Archive client?' })
         .getByRole('button', { name: 'Archive', exact: true })
-        .click();
+        .click()
       await expect(
-        page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' }),
-      ).toHaveCount(0);
+        page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' })
+      ).toHaveCount(0)
 
-      await page.keyboard.press('Meta+z');
+      await page.keyboard.press('Meta+z')
       await expect(
-        page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' }),
-      ).toHaveCount(0);
-    },
-  );
-});
+        page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' })
+      ).toHaveCount(0)
+    }
+  )
+})

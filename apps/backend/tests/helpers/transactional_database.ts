@@ -1,6 +1,6 @@
-import type { Group } from '@japa/runner/core';
-import testUtils from '@adonisjs/core/services/test_utils';
-import { freshDatabase } from '#tests/helpers/fresh_database';
+import type { Group } from '@japa/runner/core'
+import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '#tests/helpers/fresh_database'
 
 /**
  * Migrate once for the group, then run each test inside a global transaction that is rolled back
@@ -9,6 +9,6 @@ import { freshDatabase } from '#tests/helpers/fresh_database';
  * pooled connection the transaction holds.
  */
 export function transactionalDatabase(group: Group) {
-  group.setup(() => freshDatabase());
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction());
+  group.setup(() => freshDatabase())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 }

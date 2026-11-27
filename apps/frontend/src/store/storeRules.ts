@@ -1,9 +1,9 @@
-import type { StoreApi } from 'zustand';
-import { getOwned as findOwnedIn } from '@capacitylens/shared/domain/mutations';
-import { m } from '@/i18n';
-import { canWritePlanning } from '@/data/planning/planningAccess';
-import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
-import type { StoreState } from './types';
+import type { StoreApi } from 'zustand'
+import { getOwned as findOwnedIn } from '@capacitylens/shared/domain/mutations'
+import { m } from '@/i18n'
+import { canWritePlanning } from '@/data/planning/planningAccess'
+import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities'
+import type { StoreState } from './types'
 
 /** Create rules that enforce company scoping and entity invariants. */
 export function createStoreRules(get: StoreApi<StoreState>['getState']) {
@@ -12,52 +12,52 @@ export function createStoreRules(get: StoreApi<StoreState>['getState']) {
   // switch is loading its set. Typed intent scope and revision checks still check writes; this
   // rule only prevents stamping an orphan companyId into the set.
   const requireCompany = (): ID => {
-    const state = get();
-    const id = state.activeCompanyId;
-    if (!id) throw new Error('No active company is selected.');
+    const state = get()
+    const id = state.activeCompanyId
+    if (!id) throw new Error('No active company is selected.')
     if (
       !state.data.companies.some((company) => company.id === id) &&
       !state.companySummaries.some((company) => company.id === id)
     ) {
-      throw new Error('The active company is not loaded — cannot mutate scoped data.');
+      throw new Error('The active company is not loaded — cannot mutate scoped data.')
     }
-    return id;
-  };
+    return id
+  }
 
   // Refuse writes during masquerade or unless the last accepted planning read may write.
   // Return a notice instead of throwing because callers use this rule for interactive mutations.
   const isBlockedByViewer = (): boolean => {
-    const state = get();
+    const state = get()
     if (state.masquerade.kind !== 'inactive') {
-      state.setNotice(m.notice_masquerade_read_only(), 'error');
-      return true;
+      state.setNotice(m.notice_masquerade_read_only(), 'error')
+      return true
     }
-    if (canWritePlanning(state.planning.access)) return false;
-    let message = m.notice_viewer_read_only();
+    if (canWritePlanning(state.planning.access)) return false
+    let message = m.notice_viewer_read_only()
     if (state.planning.access === null) {
       message =
         state.planning.phase.kind === 'failed'
           ? m.access_unavailable_summary()
-          : m.access_checking_summary();
+          : m.access_checking_summary()
     }
-    state.setNotice(message, 'error');
-    return true;
-  };
+    state.setNotice(message, 'error')
+    return true
+  }
 
-  return buildStoreRules({ requireCompany, isBlockedByViewer });
+  return buildStoreRules({ requireCompany, isBlockedByViewer })
 }
 
 interface BuildStoreRulesInput {
-  requireCompany: () => ID;
-  isBlockedByViewer: () => boolean;
+  requireCompany: () => ID
+  isBlockedByViewer: () => boolean
 }
 
 function buildStoreRules({ requireCompany, isBlockedByViewer }: BuildStoreRulesInput) {
   const resolveOwnedRow = <K extends ScopedEntityKey>(
     data: AppData,
     key: K,
-    id: ID,
-  ): AppData[K][number] | null => findOwnedIn(data, requireCompany(), key, id);
+    id: ID
+  ): AppData[K][number] | null => findOwnedIn(data, requireCompany(), key, id)
 
-  return { requireCompany, isBlockedByViewer, resolveOwnedRow };
+  return { requireCompany, isBlockedByViewer, resolveOwnedRow }
 }

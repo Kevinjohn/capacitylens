@@ -1,22 +1,22 @@
-import { m } from '@/i18n';
-import { SegmentedControl, TogglePill } from '@/components/common/ui';
-import type { CapacityDisplayMode } from './capacityOverviewBar';
-import { resolveHorizonWeekCount } from './capacityOverviewDates';
-import type { CapacityOverviewHorizon } from './capacityOverviewDates';
-import { TentativeSwatch } from './OverviewLegend';
+import { m } from '@/i18n'
+import { SegmentedControl, TogglePill } from '@/components/common/ui'
+import type { CapacityDisplayMode } from './capacityOverviewBar'
+import { resolveHorizonWeekCount } from './capacityOverviewDates'
+import type { CapacityOverviewHorizon } from './capacityOverviewDates'
+import { TentativeSwatch } from './OverviewLegend'
 
 /** Horizon and tentative-allocation state controlled by the toolbar. */
 export interface OverviewToolbarProps {
-  horizon: CapacityOverviewHorizon;
-  includeTentative: boolean;
-  hasAvailability: boolean;
-  showTotals: boolean;
-  capacityDisplayMode: CapacityDisplayMode;
-  onHorizonChange: (horizon: CapacityOverviewHorizon) => void;
-  onIncludeTentativeChange: (checked: boolean) => void;
-  onHasAvailabilityChange: (checked: boolean) => void;
-  onShowTotalsChange: (checked: boolean) => void;
-  onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
+  horizon: CapacityOverviewHorizon
+  includeTentative: boolean
+  hasAvailability: boolean
+  showTotals: boolean
+  capacityDisplayMode: CapacityDisplayMode
+  onHorizonChange: (horizon: CapacityOverviewHorizon) => void
+  onIncludeTentativeChange: (checked: boolean) => void
+  onHasAvailabilityChange: (checked: boolean) => void
+  onShowTotalsChange: (checked: boolean) => void
+  onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void
 }
 
 /** Lets users choose the visible horizon and tentative-allocation inclusion. */
@@ -73,5 +73,5 @@ export function OverviewToolbar(props: OverviewToolbarProps) {
         </TogglePill>
       </div>
     </div>
-  );
+  )
 }

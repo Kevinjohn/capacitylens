@@ -1,8 +1,8 @@
-import type { PlanningAccess } from './planningCacheTypes';
+import type { PlanningAccess } from './planningCacheTypes'
 
 /** A stable string for comparing two planning access values; never parsed. */
 export function buildAccessKey(access: PlanningAccess | null): string | null {
-  if (access === null) return null;
+  if (access === null) return null
   return JSON.stringify([
     access.actorId,
     access.effectiveActorId,
@@ -10,10 +10,10 @@ export function buildAccessKey(access: PlanningAccess | null): string | null {
     access.canWrite,
     access.canSeePrivateNames,
     access.canSeeTimeOffNote,
-  ]);
+  ])
 }
 
 /** Whether the member behind this access may write planning data. */
 export function canWritePlanning(access: PlanningAccess | null): boolean {
-  return access?.canWrite === true;
+  return access?.canWrite === true
 }

@@ -1,35 +1,35 @@
-import { test, expect } from './fixtures';
-import AxeBuilder from '@axe-core/playwright';
-import { request as playwrightRequest } from '@playwright/test';
+import { test, expect } from './fixtures'
+import AxeBuilder from '@axe-core/playwright'
+import { request as playwrightRequest } from '@playwright/test'
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   BOOTSTRAP_ADMIN,
   bootstrapOrg,
   signUpUser,
-} from './authTestKit';
+} from './authTestKit'
 
-test.use({ contextOptions: { reducedMotion: 'reduce' } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 // This spec exercises the password-mode sign-in wall; the core demo project uses cosmetic sign-in.
 
 // Shared auth helpers come from authTestKit. A fresh user has no membership, so GET /api/v1/companies
 // returns no companies. The first-company route provisions a company for the signed-in owner.
-const EMAIL = 'tester@capacitylens.dev';
-const ORG_NAME = `Sign-in Studio ${Date.now()}`;
+const EMAIL = 'tester@capacitylens.dev'
+const ORG_NAME = `Sign-in Studio ${Date.now()}`
 
 // This unconfirmed identity uses its own anonymous request context, separate from any session used
 // to create the control company. The test tolerates E_EMAIL_IN_USE (409) on a reused server.
 async function createUser(email = EMAIL) {
-  const anonymousRequest = await playwrightRequest.newContext();
+  const anonymousRequest = await playwrightRequest.newContext()
   try {
     const res = await anonymousRequest.post(`${API}/api/v1/auth/sign-up`, {
       data: { email, password: PASSWORD, name: 'Tester' },
       headers: { 'sec-fetch-site': 'same-origin' },
-    });
-    if (!res.ok()) expect(res.status()).toBe(409);
+    })
+    if (!res.ok()) expect(res.status()).toBe(409)
   } finally {
-    await anonymousRequest.dispose();
+    await anonymousRequest.dispose()
   }
 }
 
@@ -38,32 +38,32 @@ test.describe('sign-in screen (password sign-in)', () => {
     page,
     request,
   }) => {
-    await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Schedule' })).toHaveCount(0);
-    expect((await request.get(`${API}/api/v1/state`)).status()).toBe(401);
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Schedule' })).toHaveCount(0)
+    expect((await request.get(`${API}/api/v1/state`)).status()).toBe(401)
 
-    await createUser();
-    await page.getByLabel('Email').fill(EMAIL);
-    await page.getByLabel('Password').fill('not-the-password');
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('alert')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await createUser()
+    await page.getByLabel('Email').fill(EMAIL)
+    await page.getByLabel('Password').fill('not-the-password')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 
-    const results = await new AxeBuilder({ page }).analyze();
+    const results = await new AxeBuilder({ page }).analyze()
     const blocking = results.violations.filter(
-      (v) => v.impact === 'serious' || v.impact === 'critical',
-    );
+      (v) => v.impact === 'serious' || v.impact === 'critical'
+    )
     expect(
       blocking,
       JSON.stringify(
         blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
         null,
-        2,
-      ),
-    ).toEqual([]);
-  });
+        2
+      )
+    ).toEqual([])
+  })
   // Tagged for the short browser journey that runs on every main push.
   test(
     'signing in reveals the app; signing out from Account via the sidebar returns to the sign-in screen',
@@ -71,156 +71,153 @@ test.describe('sign-in screen (password sign-in)', () => {
     async ({ page, request }) => {
       // A fresh per-run user guarantees the sign-up cookie; the isolated fixture then
       // creates one company and makes that user its owner.
-      const { email, cookie } = await signUpUser(`sign-in-${Date.now()}@capacitylens.dev`);
-      await bootstrapOrg(request, cookie, ORG_NAME);
+      const { email, cookie } = await signUpUser(`sign-in-${Date.now()}@capacitylens.dev`)
+      await bootstrapOrg(request, cookie, ORG_NAME)
 
-      const unscopedStateReads: string[] = [];
+      const unscopedStateReads: string[] = []
       page.on('request', (request) => {
-        const url = new URL(request.url());
+        const url = new URL(request.url())
         if (url.pathname === '/api/v1/state' && !url.searchParams.has('companyId'))
-          unscopedStateReads.push(url.href);
-      });
+          unscopedStateReads.push(url.href)
+      })
 
-      await page.goto('/');
-      await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password').fill(PASSWORD);
+      await page.goto('/')
+      await page.getByLabel('Email').fill(email)
+      await page.getByLabel('Password').fill(PASSWORD)
       const planningResponse = page.waitForResponse(
         (response) =>
           /^\/api\/v1\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
-          response.status() === 200,
-      );
-      await page.getByRole('button', { name: 'Sign in' }).click();
-      await planningResponse;
+          response.status() === 200
+      )
+      await page.getByRole('button', { name: 'Sign in' }).click()
+      await planningResponse
 
       // The server selects this user's only company and hydrates its planning set without
       // showing a company picker.
-      await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-      await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();
-      expect(unscopedStateReads).toEqual([]);
-      await page.getByRole('button', { name: 'Got it' }).click();
-      await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+      await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible()
+      expect(unscopedStateReads).toEqual([])
+      await page.getByRole('button', { name: 'Got it' }).click()
+      await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible()
 
-      await page.getByRole('link', { name: 'Account', exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
-      await expect(page.getByText(email, { exact: true })).toBeVisible();
+      await page.getByRole('link', { name: 'Account', exact: true }).click()
+      await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+      await expect(page.getByText(email, { exact: true })).toBeVisible()
       await expect(page.getByRole('columnheader')).toHaveText([
         'Avatar',
         'Name',
         'Email',
         'Actions',
-      ]);
-      const actions = page.getByTestId('account-identity-row').locator('td').nth(3);
+      ])
+      const actions = page.getByTestId('account-identity-row').locator('td').nth(3)
       await expect(actions.getByRole('button')).toHaveText([
         'Change password',
         'Delete account',
         'Sign out',
-      ]);
-      await actions.getByRole('button', { name: 'Delete account' }).click();
-      const deleteDialog = page.getByRole('dialog', { name: 'Delete account' });
-      await expect(deleteDialog.getByLabel('Current password')).toBeFocused();
+      ])
+      await actions.getByRole('button', { name: 'Delete account' }).click()
+      const deleteDialog = page.getByRole('dialog', { name: 'Delete account' })
+      await expect(deleteDialog.getByLabel('Current password')).toBeFocused()
       await expect(deleteDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
         'Cancel',
         'Delete account',
-      ]);
-      await expect(deleteDialog.getByRole('button', { name: 'Delete account' })).toBeDisabled();
-      await deleteDialog.getByRole('button', { name: 'Cancel' }).click();
-      await expect(deleteDialog).toHaveCount(0);
-      await actions.getByRole('button', { name: 'Change password' }).click();
-      const passwordDialog = page.getByRole('dialog', { name: 'Change password' });
-      await expect(passwordDialog.locator('[data-product-layout="label-control"]')).toHaveCount(3);
+      ])
+      await expect(deleteDialog.getByRole('button', { name: 'Delete account' })).toBeDisabled()
+      await deleteDialog.getByRole('button', { name: 'Cancel' }).click()
+      await expect(deleteDialog).toHaveCount(0)
+      await actions.getByRole('button', { name: 'Change password' }).click()
+      const passwordDialog = page.getByRole('dialog', { name: 'Change password' })
+      await expect(passwordDialog.locator('[data-product-layout="label-control"]')).toHaveCount(3)
       await expect(passwordDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
         'Cancel',
         'Change password',
-      ]);
-      await expect(passwordDialog.getByLabel('Current password')).toBeFocused();
-      await passwordDialog.getByRole('button', { name: 'Cancel' }).click();
-      await expect(passwordDialog).toHaveCount(0);
-      await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+      ])
+      await expect(passwordDialog.getByLabel('Current password')).toBeFocused()
+      await passwordDialog.getByRole('button', { name: 'Cancel' }).click()
+      await expect(passwordDialog).toHaveCount(0)
+      await page.getByRole('button', { name: 'Sign out', exact: true }).click()
 
-      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-      await page.reload();
-      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    },
-  );
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+      await page.reload()
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    }
+  )
   test('direct /account/ loads for an authenticated user and keeps its route through sign-out and sign-in', async ({
     page,
     request,
   }) => {
-    const suffix = Date.now();
-    const { email, cookie } = await signUpUser(`account-route-${suffix}@capacitylens.dev`);
-    await bootstrapOrg(request, cookie, `Account Route ${suffix}`);
-    await page.goto('/account/');
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    const suffix = Date.now()
+    const { email, cookie } = await signUpUser(`account-route-${suffix}@capacitylens.dev`)
+    await bootstrapOrg(request, cookie, `Account Route ${suffix}`)
+    await page.goto('/account/')
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe('/account/');
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Password').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/account/')
 
     const planningResponse = page.waitForResponse(
       (response) =>
         /^\/api\/v1\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
-        response.status() === 200,
-    );
-    await page.reload();
-    await planningResponse;
-    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
-    await page
-      .getByTestId('account-identity-row')
-      .getByRole('button', { name: 'Sign out' })
-      .click();
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe('/account/');
+        response.status() === 200
+    )
+    await page.reload()
+    await planningResponse
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    await page.getByTestId('account-identity-row').getByRole('button', { name: 'Sign out' }).click()
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/account/')
 
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe('/account/');
-  });
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Password').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/account/')
+  })
   test('the membership-free administrator signs in through the real form', async ({
     page,
     request,
   }, testInfo) => {
     // The disposable server creates this administrator after first-company setup, without membership, to exercise access recovery.
-    const suffix = `${Date.now()}-${testInfo.workerIndex}`;
-    const controlOrgName = `Wayne Enterprises ${suffix}`;
-    const controlOwner = await signUpUser(`bootstrap-control-${suffix}@capacitylens.dev`);
-    await bootstrapOrg(request, controlOwner.cookie, controlOrgName);
+    const suffix = `${Date.now()}-${testInfo.workerIndex}`
+    const controlOrgName = `Wayne Enterprises ${suffix}`
+    const controlOwner = await signUpUser(`bootstrap-control-${suffix}@capacitylens.dev`)
+    await bootstrapOrg(request, controlOwner.cookie, controlOrgName)
 
-    await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    await page.getByLabel('Email').fill(BOOTSTRAP_ADMIN.email);
-    await page.getByLabel('Password').fill(BOOTSTRAP_ADMIN.password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await page.getByLabel('Email').fill(BOOTSTRAP_ADMIN.email)
+    await page.getByLabel('Password').fill(BOOTSTRAP_ADMIN.password)
+    await page.getByRole('button', { name: 'Sign in' }).click()
     // Admitted but not yet a member: only the explicit join step is offered, never company data.
-    await expect(page.getByTestId('access-membership')).toBeVisible();
-    await expect(page.getByText(controlOrgName)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0);
-  });
+    await expect(page.getByTestId('access-membership')).toBeVisible()
+    await expect(page.getByText(controlOrgName)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0)
+  })
   test('a user with NO memberships sees no company data (company isolation — no cross-company leak)', async ({
     page,
     request,
   }, testInfo) => {
     // An unconfirmed, unadmitted identity sees only the address-confirmation step, never company data.
-    const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
-    const controlOrgName = `Isolation Control ${isolationSuffix}`;
-    const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);
-    await bootstrapOrg(request, controlOwner.cookie, controlOrgName);
+    const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`
+    const controlOrgName = `Isolation Control ${isolationSuffix}`
+    const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`)
+    await bootstrapOrg(request, controlOwner.cookie, controlOrgName)
 
-    const lonely = `lonely-${isolationSuffix}@capacitylens.dev`;
-    await createUser(lonely);
-    await page.goto('/');
-    await page.getByLabel('Email').fill(lonely);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    const lonely = `lonely-${isolationSuffix}@capacitylens.dev`
+    await createUser(lonely)
+    await page.goto('/')
+    await page.getByLabel('Email').fill(lonely)
+    await page.getByLabel('Password').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
 
-    await expect(page.getByTestId('access-verify-email')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-    await expect(page.getByText(controlOrgName)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0);
-  });
-});
+    await expect(page.getByTestId('access-verify-email')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+    await expect(page.getByText(controlOrgName)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0)
+  })
+})

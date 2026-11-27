@@ -1,51 +1,51 @@
-import { test } from '@japa/runner';
-import { randomUUID } from 'node:crypto';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import { replaceWithSeed, resetState } from '#tests/helpers/state_fixture';
-import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
-import db from '@adonisjs/lucid/services/db';
-import { securityHeaders } from '#tests/helpers/state/http_responses';
+import { test } from '@japa/runner'
+import { randomUUID } from 'node:crypto'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import { replaceWithSeed, resetState } from '#tests/helpers/state_fixture'
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture'
+import db from '@adonisjs/lucid/services/db'
+import { securityHeaders } from '#tests/helpers/state/http_responses'
 
 test.group('HTTP contract', (group) => {
-  group.setup(() => freshDatabase());
-  group.each.setup(() => replaceWithSeed());
+  group.setup(() => freshDatabase())
+  group.each.setup(() => replaceWithSeed())
 
   test('validates state queries and scopes the company read', async ({ client, assert }) => {
-    client = await resetAuthenticatedClient(client, true);
-    const empty = await client.visit('api.company_state.show').qs({ companyId: '' });
-    assert.equal(empty.status(), 422);
-    assert.isNotEmpty((empty.body() as unknown as { errors: unknown[] }).errors);
-    const missing = await client.visit('api.company_state.show');
-    assert.equal(missing.status(), 422);
-    const refusal = missing.body() as unknown as { errors: Array<{ field: string }> };
-    assert.equal(refusal.errors[0]?.field, 'companyId');
+    client = await resetAuthenticatedClient(client, true)
+    const empty = await client.visit('api.company_state.show').qs({ companyId: '' })
+    assert.equal(empty.status(), 422)
+    assert.isNotEmpty((empty.body() as unknown as { errors: unknown[] }).errors)
+    const missing = await client.visit('api.company_state.show')
+    assert.equal(missing.status(), 422)
+    const refusal = missing.body() as unknown as { errors: Array<{ field: string }> }
+    assert.equal(refusal.errors[0]?.field, 'companyId')
     const repeated = await client
       .visit('api.company_state.show')
-      .unsafeQs('companyId=a-studio&companyId=a-loft');
-    assert.equal(repeated.status(), 422);
-    const whitespace = await client.visit('api.company_state.show').unsafeQs('companyId=%20%20');
-    assert.equal(whitespace.status(), 422);
-    assert.isNotEmpty((whitespace.body() as unknown as { errors: unknown[] }).errors);
+      .unsafeQs('companyId=a-studio&companyId=a-loft')
+    assert.equal(repeated.status(), 422)
+    const whitespace = await client.visit('api.company_state.show').unsafeQs('companyId=%20%20')
+    assert.equal(whitespace.status(), 422)
+    assert.isNotEmpty((whitespace.body() as unknown as { errors: unknown[] }).errors)
     const invalidInactive = await client
       .visit('api.company_state.show')
-      .qs({ companyId: 'a-studio', includeInactive: 'true' } as never);
-    assert.equal(invalidInactive.status(), 422);
-    assert.isNotEmpty((invalidInactive.body() as unknown as { errors: unknown[] }).errors);
+      .qs({ companyId: 'a-studio', includeInactive: 'true' } as never)
+    assert.equal(invalidInactive.status(), 422)
+    assert.isNotEmpty((invalidInactive.body() as unknown as { errors: unknown[] }).errors)
     for (const query of [
       'companyId=a-studio&unknown=1',
       'companyId=a-studio&includeInactive=1&includeInactive=1',
       'companyId[unexpected]=1',
     ]) {
-      const invalid = await client.visit('api.company_state.show').unsafeQs(query);
-      invalid.assertStatus(422);
-      assert.isNotEmpty((invalid.body() as unknown as { errors: unknown[] }).errors);
+      const invalid = await client.visit('api.company_state.show').unsafeQs(query)
+      invalid.assertStatus(422)
+      assert.isNotEmpty((invalid.body() as unknown as { errors: unknown[] }).errors)
     }
-    const scoped = await client.visit('api.company_state.show').qs({ companyId: 'a-studio' });
-    assert.equal(scoped.status(), 200);
+    const scoped = await client.visit('api.company_state.show').qs({ companyId: 'a-studio' })
+    assert.equal(scoped.status(), 200)
     assert.deepEqual(
       scoped.body().data.companies.map(({ id }: { id: string }) => id),
       ['a-studio']
-    );
+    )
     for (const key of [
       'clients',
       'disciplines',
@@ -62,8 +62,8 @@ test.group('HTTP contract', (group) => {
           key
         ].every(({ companyId }: { companyId: string }) => companyId === 'a-studio'),
         key
-      );
-  });
+      )
+  })
 
   test('disposable in-process reset works while no HTTP reset route exists', async ({
     client,
@@ -72,16 +72,16 @@ test.group('HTTP contract', (group) => {
     const anonymous = await client
       .post('/api/v1/test/reset')
       .header('sec-fetch-site', 'same-origin')
-      .json({ seed: false });
-    assert.equal(anonymous.status(), 404);
-    await resetState(false);
-    client = await resetAuthenticatedClient(client, true);
-    const signedIn = await client.post('/api/v1/test/reset').json({ seed: false });
-    assert.equal(signedIn.status(), 404);
+      .json({ seed: false })
+    assert.equal(anonymous.status(), 404)
+    await resetState(false)
+    client = await resetAuthenticatedClient(client, true)
+    const signedIn = await client.post('/api/v1/test/reset').json({ seed: false })
+    assert.equal(signedIn.status(), 404)
     // The retired metadata route is gone, not merely unadvertised.
-    const retiredMeta = await client.get('/api/v1/meta');
-    assert.equal(retiredMeta.status(), 404);
-  });
+    const retiredMeta = await client.get('/api/v1/meta')
+    assert.equal(retiredMeta.status(), 404)
+  })
 
   test('sets security headers on successful and early error responses', async ({
     client,
@@ -93,45 +93,45 @@ test.group('HTTP contract', (group) => {
         .visit('api.session.store')
         .header('content-type', 'application/json')
         .setup((request) => {
-          request.request.send('{');
+          request.request.send('{')
         }),
     ]) {
-      for (const header of securityHeaders) assert.isString(response.header(header), header);
-      assert.equal(response.header('cache-control'), 'no-store');
-      assert.equal(response.header('pragma'), 'no-cache');
-      assert.equal(response.header('x-content-type-options'), 'nosniff');
-      assert.equal(response.header('x-frame-options'), 'DENY');
+      for (const header of securityHeaders) assert.isString(response.header(header), header)
+      assert.equal(response.header('cache-control'), 'no-store')
+      assert.equal(response.header('pragma'), 'no-cache')
+      assert.equal(response.header('x-content-type-options'), 'nosniff')
+      assert.equal(response.header('x-frame-options'), 'DENY')
     }
-  });
+  })
 
   test('reflects only allowed credentialed CORS origins and gates unsafe cross-site writes', async ({
     client,
     assert,
   }) => {
-    client = await resetAuthenticatedClient(client, true);
-    const allowed = 'http://localhost:5173';
-    const accepted = await client.visit('health_checks.live').header('origin', allowed);
-    assert.equal(accepted.header('access-control-allow-origin'), allowed);
-    assert.equal(accepted.header('access-control-allow-credentials'), 'true');
+    client = await resetAuthenticatedClient(client, true)
+    const allowed = 'http://localhost:5173'
+    const accepted = await client.visit('health_checks.live').header('origin', allowed)
+    assert.equal(accepted.header('access-control-allow-origin'), allowed)
+    assert.equal(accepted.header('access-control-allow-credentials'), 'true')
 
     const disallowed = await client
       .visit('health_checks.live')
-      .header('origin', 'https://attacker.example');
-    assert.isUndefined(disallowed.header('access-control-allow-origin'));
-    assert.isUndefined(disallowed.header('access-control-allow-credentials'));
-    assert.equal(disallowed.status(), 200);
+      .header('origin', 'https://attacker.example')
+    assert.isUndefined(disallowed.header('access-control-allow-origin'))
+    assert.isUndefined(disallowed.header('access-control-allow-credentials'))
+    assert.equal(disallowed.status(), 200)
 
     const preflight = await client
       .options('/api/v1/companies/a-studio/planning/mutations')
       .header('origin', allowed)
       .header('access-control-request-method', 'POST')
-      .header('access-control-request-headers', 'content-type');
-    assert.equal(preflight.status(), 204);
-    assert.equal(preflight.header('access-control-allow-origin'), allowed);
-    assert.equal(preflight.header('access-control-allow-credentials'), 'true');
+      .header('access-control-request-headers', 'content-type')
+    assert.equal(preflight.status(), 204)
+    assert.equal(preflight.header('access-control-allow-origin'), allowed)
+    assert.equal(preflight.header('access-control-allow-credentials'), 'true')
 
-    const planning = await client.visit('api.planning.show', { companyId: 'a-studio' });
-    assert.equal(planning.status(), 200);
+    const planning = await client.visit('api.planning.show', { companyId: 'a-studio' })
+    assert.equal(planning.status(), 200)
     const write = {
       mutationId: randomUUID(),
       baseRevision: (planning.body().data as { revision: number }).revision,
@@ -143,46 +143,46 @@ test.group('HTTP contract', (group) => {
           fields: { name: 'Planning', color: '#2d75da' },
         },
       },
-    };
+    }
     const allowedWrite = await client
       .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('origin', allowed)
       .header('sec-fetch-site', 'cross-site')
-      .json(write);
-    assert.equal(allowedWrite.status(), 200);
+      .json(write)
+    assert.equal(allowedWrite.status(), 200)
 
     const disallowedWrite = await client
       .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('origin', 'https://attacker.example')
       .header('sec-fetch-site', 'cross-site')
-      .json(write);
-    assert.equal(disallowedWrite.status(), 403);
-    assert.deepEqual(disallowedWrite.body(), { error: 'Cross-site request rejected.' });
-    assert.equal(disallowedWrite.header('x-content-type-options'), 'nosniff');
-    assert.equal(disallowedWrite.header('x-frame-options'), 'DENY');
+      .json(write)
+    assert.equal(disallowedWrite.status(), 403)
+    assert.deepEqual(disallowedWrite.body(), { error: 'Cross-site request rejected.' })
+    assert.equal(disallowedWrite.header('x-content-type-options'), 'nosniff')
+    assert.equal(disallowedWrite.header('x-frame-options'), 'DENY')
 
     const originlessCrossSite = await client
       .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('sec-fetch-site', 'cross-site')
-      .json(write);
-    assert.equal(originlessCrossSite.status(), 403);
+      .json(write)
+    assert.equal(originlessCrossSite.status(), 403)
 
     const tlsTerminatedOtherHost = await client
       .visit('api.planning_mutations.store', { companyId: 'a-studio' })
       .header('host', 'capacity.example.com')
       .header('origin', 'https://other.example.com')
-      .json(write);
-    assert.equal(tlsTerminatedOtherHost.status(), 403);
-    assert.deepEqual(tlsTerminatedOtherHost.body(), { error: 'Cross-site request rejected.' });
-  });
+      .json(write)
+    assert.equal(tlsTerminatedOtherHost.status(), 403)
+    assert.deepEqual(tlsTerminatedOtherHost.body(), { error: 'Cross-site request rejected.' })
+  })
 
   test('diagnostics preserves the unavailable database projection', async ({ client, assert }) => {
-    client = await resetAuthenticatedClient(client, true);
-    const record = await db.from('adonis_schema').orderBy('id').first();
-    await db.from('adonis_schema').where('id', record!.id).delete();
+    client = await resetAuthenticatedClient(client, true)
+    const record = await db.from('adonis_schema').orderBy('id').first()
+    await db.from('adonis_schema').where('id', record!.id).delete()
     try {
-      const response = await client.visit('api.diagnostics.show');
-      assert.equal(response.status(), 503);
+      const response = await client.visit('api.diagnostics.show')
+      assert.equal(response.status(), 503)
       assert.deepEqual(response.body(), {
         server: {
           connectivity: 'ok',
@@ -190,9 +190,9 @@ test.group('HTTP contract', (group) => {
           schema: { migration: null },
           backup: { newestBackupAt: null },
         },
-      });
+      })
     } finally {
-      await db.table('adonis_schema').insert(record!);
+      await db.table('adonis_schema').insert(record!)
     }
-  });
-});
+  })
+})

@@ -1,35 +1,35 @@
-import { format } from 'date-fns/format';
-import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
-import { parseDate } from '@capacitylens/shared/lib/dateMath';
-import type { ISODate, TimeOff } from '@capacitylens/shared/types/entities';
-import { readActiveDateLocale, m } from '@/i18n';
-import { formatScheduleDateRange } from '@/lib/dateDisplay';
-import type { TimeOffRepeatChoice } from './useTimeOffRepeat';
-import type { Draft } from '@/store/useStore';
-import { DateField, SelectField } from '@/components/common/ui';
-import type { Option } from '@/components/common/ui';
+import { format } from 'date-fns/format'
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates'
+import { parseDate } from '@capacitylens/shared/lib/dateMath'
+import type { ISODate, TimeOff } from '@capacitylens/shared/types/entities'
+import { readActiveDateLocale, m } from '@/i18n'
+import { formatScheduleDateRange } from '@/lib/dateDisplay'
+import type { TimeOffRepeatChoice } from './useTimeOffRepeat'
+import type { Draft } from '@/store/useStore'
+import { DateField, SelectField } from '@/components/common/ui'
+import type { Option } from '@/components/common/ui'
 
-type RepeatExpansion = { repeatUntil: ISODate; drafts: Draft<TimeOff>[] };
+type RepeatExpansion = { repeatUntil: ISODate; drafts: Draft<TimeOff>[] }
 
 interface TimeOffRepeatFieldsProps {
-  startDate: ISODate | '';
-  repeat: TimeOffRepeatChoice;
-  repeatUntil: ISODate | '';
-  repeatUntilMaximum: ISODate | undefined;
-  expansion: RepeatExpansion | null;
-  errorField: string | null;
-  errorId: string;
-  disabled: boolean;
-  onRepeatChange: (value: string) => void;
-  onRepeatUntilChange: (value: string) => void;
+  startDate: ISODate | ''
+  repeat: TimeOffRepeatChoice
+  repeatUntil: ISODate | ''
+  repeatUntilMaximum: ISODate | undefined
+  expansion: RepeatExpansion | null
+  errorField: string | null
+  errorId: string
+  disabled: boolean
+  onRepeatChange: (value: string) => void
+  onRepeatUntilChange: (value: string) => void
 }
 
 function buildRepeatOptions(startDate: ISODate | ''): Option[] {
-  const hasDate = isValidISODate(startDate);
-  const day = hasDate ? Number(startDate.slice(8, 10)) : undefined;
+  const hasDate = isValidISODate(startDate)
+  const day = hasDate ? Number(startDate.slice(8, 10)) : undefined
   const weekday = hasDate
     ? format(parseDate(startDate), 'EEEE', { locale: readActiveDateLocale() })
-    : undefined;
+    : undefined
   return [
     { value: 'none', label: m.form_time_off_repeat_none() },
     { value: 'weekly', label: m.form_time_off_repeat_weekly() },
@@ -48,11 +48,11 @@ function buildRepeatOptions(startDate: ISODate | ''): Option[] {
         ? m.form_time_off_repeat_monthly_last_weekday({ weekday })
         : m.form_time_off_repeat_monthly_last_weekday_fallback(),
     },
-  ];
+  ]
 }
 
 function TimeOffRepeatPreview({ expansion }: { expansion: RepeatExpansion }) {
-  const finalDraft = expansion.drafts.at(-1) as (typeof expansion.drafts)[number];
+  const finalDraft = expansion.drafts.at(-1) as (typeof expansion.drafts)[number]
   return (
     <div
       className="flex flex-col gap-1 text-xs text-muted-foreground"
@@ -74,7 +74,7 @@ function TimeOffRepeatPreview({ expansion }: { expansion: RepeatExpansion }) {
       </details>
       <p>{m.form_time_off_repeat_independent_hint()}</p>
     </div>
-  );
+  )
 }
 
 /** Shows repeat cadence, cutoff, and generated date preview for a new entry. */
@@ -112,5 +112,5 @@ export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
       )}
       {props.expansion && <TimeOffRepeatPreview expansion={props.expansion} />}
     </>
-  );
+  )
 }

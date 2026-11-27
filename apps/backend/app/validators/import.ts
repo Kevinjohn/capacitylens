@@ -1,12 +1,12 @@
-import vine from '@vinejs/vine';
-import { allowedFields, isSupplied } from '#validators/request_rules';
+import vine from '@vinejs/vine'
+import { allowedFields, isSupplied } from '#validators/request_rules'
 
 // The document keeps its own parser and error type; the validator only requires the key.
 export const previewImportValidator = vine.create(
   vine
     .object({ companyId: vine.string().minLength(1), document: vine.any().nullable() })
     .use(allowedFields({ fields: ['companyId', 'document'] }))
-);
+)
 
 export const applyImportValidator = vine.create(
   vine
@@ -21,4 +21,4 @@ export const applyImportValidator = vine.create(
       confirmationId: vine.string().optional().requiredWhen(isSupplied),
     })
     .use(allowedFields({ fields: ['companyId', 'document', 'baseRevision', 'confirmationId'] }))
-);
+)

@@ -1,6 +1,6 @@
-import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
-import { NO_ACCESS } from '@/auth/permissionContext';
-import type { PermissionContextValue } from '@/auth/permissionContext';
+import type { AccessGrant, Role } from '@capacitylens/shared/domain/access'
+import { NO_ACCESS } from '@/auth/permissionContext'
+import type { PermissionContextValue } from '@/auth/permissionContext'
 
 // The grants the server sends per role, written out as literals. The backend test
 // `tests/functional/auth/access_grant.spec.ts` pins the same lists against the server.
@@ -45,17 +45,17 @@ const GRANTS: Readonly<Record<Role, AccessGrant>> = {
     canSeePrivateNames: false,
     canSeeTimeOffNote: false,
   },
-};
+}
 
 /** A fresh copy of the grant the server sends for `role`. */
 export function grantFor(role: Role): AccessGrant {
-  const grant = GRANTS[role];
-  return { ...grant, permissions: [...grant.permissions] };
+  const grant = GRANTS[role]
+  return { ...grant, permissions: [...grant.permissions] }
 }
 
 /** The grant the server sends while viewing as a member of `role`: the role's flags, read only. */
 export function masqueradeGrantFor(role: Role): AccessGrant {
-  return { ...grantFor(role), permissions: ['planning:read'] };
+  return { ...grantFor(role), permissions: ['planning:read'] }
 }
 
 /**
@@ -66,11 +66,11 @@ export function permissionValue(
   role: Role | null,
   status: NonNullable<PermissionContextValue['status']> = role === null
     ? 'not-applicable'
-    : 'resolved',
+    : 'resolved'
 ): PermissionContextValue {
   return {
     role,
     status,
     grant: role !== null && status === 'resolved' ? grantFor(role) : NO_ACCESS,
-  };
+  }
 }

@@ -1,5 +1,5 @@
 /** The name of the person the smoke schedule creates. */
-export const RESOURCE_NAME: string;
+export const RESOURCE_NAME: string
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
 export function writeSmokeSchedule(
@@ -7,5 +7,5 @@ export function writeSmokeSchedule(
   cookie: string,
   companyId: string,
   fixture: unknown,
-  masqueradeToken: string,
-): Promise<{ allocation: { id: string } }>;
+  masqueradeToken: string
+): Promise<{ allocation: { id: string } }>

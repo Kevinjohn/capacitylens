@@ -365,14 +365,14 @@ removed entry retires its number.
 26. Retired. Every product wire code is E_UPPER_SNAKE (EXC-7).
 27. Retired. Every API route is under `/api/v1`; the health probes stay at `/health/live` and
     `/health/ready`.
-28. **Aligning (#2550).** Prettier keeps semicolons (`semi: true` over the AdonisJS preset).
+28. Retired. The root `package.json` sets `@adonisjs/prettier-config` unchanged (TOOL-2).
 29. **Aligning (#2550).** The `dbAssertions` plugin is not registered; tests read rows with the
     query builder and check them with `assert`.
 30. **Aligning (#2550).** A provider connects or spawns in `start` behind an `app.getMode()`
     check.
 31. **Aligning (#2550).** `bin/test.ts` holds the test values computed per port lane; the rest are
     in `.env.test`.
-32. **Aligning (#2550).** The licence file is `LICENSE`, not `LICENSE.md`.
+32. Retired. The licence file is `LICENSE.md` (TOOL-6).
 33. **Aligning (#2553).** Ten `catch` blocks in nine controllers answer with the product's
     own error body (a status of 400 or above) instead of letting the exception reach the exception
     handler. The answers on the wire do not change when they move.

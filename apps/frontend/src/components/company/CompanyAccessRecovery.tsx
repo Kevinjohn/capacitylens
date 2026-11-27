@@ -1,11 +1,11 @@
-import { m } from '@/i18n';
-import { useStore } from '@/store/useStore';
+import { m } from '@/i18n'
+import { useStore } from '@/store/useStore'
 
 /** Shows loading or installation errors when no unambiguous active company is available. */
 export function CompanyAccessRecovery() {
-  const companies = useStore((state) => state.companySummaries);
-  const complete = useStore((state) => state.companySummariesComplete);
-  const ambiguous = useStore((state) => state.companySummariesAmbiguous);
+  const companies = useStore((state) => state.companySummaries)
+  const complete = useStore((state) => state.companySummariesComplete)
+  const ambiguous = useStore((state) => state.companySummariesAmbiguous)
 
   if (!complete && !ambiguous && companies.length <= 1) {
     return (
@@ -14,7 +14,7 @@ export function CompanyAccessRecovery() {
           {m.app_loading()}
         </p>
       </main>
-    );
+    )
   }
 
   return (
@@ -25,5 +25,5 @@ export function CompanyAccessRecovery() {
           : m.account_access_no_company_invite()}
       </p>
     </main>
-  );
+  )
 }

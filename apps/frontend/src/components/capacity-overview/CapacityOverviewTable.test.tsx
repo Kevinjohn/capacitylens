@@ -1,15 +1,15 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { AppData, Resource } from '@capacitylens/shared/types/entities';
-import type { CapacityDisplayMode } from './capacityOverviewBar';
-import { buildCapacityOverviewModel } from './capacityOverviewModel';
-import type { CapacityOverviewModel, CapacityOverviewPeriodResult } from './capacityOverviewModel';
-import { CapacityOverviewTable } from './CapacityOverviewTable';
-import { loadPlanningData, resetStoreWithCompany, makeCompany } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData, Resource } from '@capacitylens/shared/types/entities'
+import type { CapacityDisplayMode } from './capacityOverviewBar'
+import { buildCapacityOverviewModel } from './capacityOverviewModel'
+import type { CapacityOverviewModel, CapacityOverviewPeriodResult } from './capacityOverviewModel'
+import { CapacityOverviewTable } from './CapacityOverviewTable'
+import { loadPlanningData, resetStoreWithCompany, makeCompany } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
 
 const resource = (id: string, kind: Resource['kind'] = 'person'): Resource => ({
   ...NULLABLE_FIELDS.resources,
@@ -27,21 +27,21 @@ const resource = (id: string, kind: Resource['kind'] = 'person'): Resource => ({
   halfDays: [],
   color: '#2563eb',
   isFavourite: false,
-});
+})
 
 const periods = [
   { index: 0, key: 'this-week', start: '2026-09-10', end: '2026-09-13', partial: true },
   { index: 1, key: 'next-week', start: '2026-09-14', end: '2026-09-20', partial: false },
   { index: 2, key: 'week-3', start: '2026-09-21', end: '2026-09-27', partial: false },
   { index: 3, key: 'week-4', start: '2026-09-28', end: '2026-10-04', partial: false },
-] as const;
+] as const
 
 function period(
   index: number,
-  values: Partial<CapacityOverviewPeriodResult>,
+  values: Partial<CapacityOverviewPeriodResult>
 ): CapacityOverviewPeriodResult {
-  const overviewPeriod = periods[index];
-  if (!overviewPeriod) throw new Error(`Missing test period ${index}`);
+  const overviewPeriod = periods[index]
+  if (!overviewPeriod) throw new Error(`Missing test period ${index}`)
   return {
     period: overviewPeriod,
     availableHours: 40,
@@ -55,15 +55,15 @@ function period(
     unassignedDemandDays: 0,
     state: 'available',
     ...values,
-  };
+  }
 }
 
-const clarkKent = { ...resource('Clark Kent'), avatarUrl: 'https://images.example/clark.png' };
-const placeholderSlot = resource('slot', 'placeholder');
+const clarkKent = { ...resource('Clark Kent'), avatarUrl: 'https://images.example/clark.png' }
+const placeholderSlot = resource('slot', 'placeholder')
 
 // Real (if minimal) AppData, matched by id to the model's rows above, so the person schedule
 // trigger resolves the real per-resource title instead of the fallback an empty dataset produces.
-const data: AppData = { ...createEmptyAppData(), resources: [clarkKent, placeholderSlot] };
+const data: AppData = { ...createEmptyAppData(), resources: [clarkKent, placeholderSlot] }
 
 const model: CapacityOverviewModel = {
   measured: true,
@@ -101,19 +101,19 @@ const model: CapacityOverviewModel = {
       ],
     },
   ],
-};
+}
 
 function renderTable(
   overrides: Partial<{
-    model: CapacityOverviewModel;
-    showTotals: boolean;
-    capacityDisplayMode: CapacityDisplayMode;
-    includeTentative: boolean;
-    onIncludeTentativeChange: (checked: boolean) => void;
-    onHasAvailabilityChange: (checked: boolean) => void;
-    onShowTotalsChange: (checked: boolean) => void;
-    onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
-  }> = {},
+    model: CapacityOverviewModel
+    showTotals: boolean
+    capacityDisplayMode: CapacityDisplayMode
+    includeTentative: boolean
+    onIncludeTentativeChange: (checked: boolean) => void
+    onHasAvailabilityChange: (checked: boolean) => void
+    onShowTotalsChange: (checked: boolean) => void
+    onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void
+  }> = {}
 ) {
   const props = {
     model,
@@ -129,76 +129,76 @@ function renderTable(
     onShowTotalsChange: vi.fn(),
     onCapacityDisplayModeChange: vi.fn(),
     ...overrides,
-  };
-  const view = render(<CapacityOverviewTable {...props} />);
+  }
+  const view = render(<CapacityOverviewTable {...props} />)
   return {
     ...view,
     rerender: (next: typeof overrides) =>
       view.rerender(<CapacityOverviewTable {...props} {...next} />),
-  };
+  }
 }
 
 describe('CapacityOverviewTable date style', () => {
   // Unmount first: outside `CompanyDateRoute`, a mounted table cannot outlive its company's date.
   afterEach(() => {
-    cleanup();
-    return resetStoreWithCompany();
-  });
+    cleanup()
+    return resetStoreWithCompany()
+  })
 
   it('re-reads column headers when the date style changes with a stable model', async () => {
-    await resetStoreWithCompany('company');
+    await resetStoreWithCompany('company')
     loadPlanningData({
       ...data,
       companies: [makeCompany({ id: 'company', dateStyle: 'day-month' })],
-    });
-    await useStore.getState().refreshPlanning();
-    renderTable();
-    expect(screen.getByRole('columnheader', { name: /10 – 13 Sep/ })).toBeInTheDocument();
+    })
+    await useStore.getState().refreshPlanning()
+    renderTable()
+    expect(screen.getByRole('columnheader', { name: /10 – 13 Sep/ })).toBeInTheDocument()
 
     await act(async () => {
-      await useStore.getState().updateCompany('company', { dateStyle: 'month-day' });
-    });
+      await useStore.getState().updateCompany('company', { dateStyle: 'month-day' })
+    })
 
-    expect(screen.getByRole('columnheader', { name: /Sep 10 – 13/ })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: /10 – 13 Sep/ })).not.toBeInTheDocument();
-  });
-});
+    expect(screen.getByRole('columnheader', { name: /Sep 10 – 13/ })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: /10 – 13 Sep/ })).not.toBeInTheDocument()
+  })
+})
 
 describe('CapacityOverviewTable content', () => {
   it("uses a person's stored image and none without one", () => {
     class LoadedImage {
-      complete = true;
-      naturalWidth = 1;
-      src = '';
+      complete = true
+      naturalWidth = 1
+      src = ''
       addEventListener() {}
       removeEventListener() {}
     }
-    vi.stubGlobal('Image', LoadedImage);
+    vi.stubGlobal('Image', LoadedImage)
     try {
-      const { rerender } = renderTable();
+      const { rerender } = renderTable()
       const avatar = () =>
         within(screen.getByRole('row', { name: /Clark Kent/ }))
           .getByTestId('person-schedule-trigger')
-          .querySelector('img');
-      expect(avatar()).toHaveAttribute('src', 'https://images.example/clark.png');
-      const withoutStoredImage: Resource = { ...clarkKent };
-      withoutStoredImage.avatarUrl = null;
+          .querySelector('img')
+      expect(avatar()).toHaveAttribute('src', 'https://images.example/clark.png')
+      const withoutStoredImage: Resource = { ...clarkKent }
+      withoutStoredImage.avatarUrl = null
       rerender({
         model: {
           ...model,
           groups: model.groups.map((group) => ({
             ...group,
             rows: group.rows.map((row) =>
-              row.resource.id === clarkKent.id ? { ...row, resource: withoutStoredImage } : row,
+              row.resource.id === clarkKent.id ? { ...row, resource: withoutStoredImage } : row
             ),
           })),
         },
-      });
-      expect(avatar()).toBeNull();
+      })
+      expect(avatar()).toBeNull()
     } finally {
-      vi.unstubAllGlobals();
+      vi.unstubAllGlobals()
     }
-  });
+  })
 
   it('renders twelve aligned week columns and a keyboard scroll region', () => {
     const twelveWeekModel = buildCapacityOverviewModel({
@@ -207,16 +207,16 @@ describe('CapacityOverviewTable content', () => {
       horizon: '12-weeks',
       capacity: null,
       disciplinesEnabled: false,
-    });
+    })
 
-    renderTable({ model: twelveWeekModel });
+    renderTable({ model: twelveWeekModel })
 
-    const table = screen.getByRole('table', { name: 'Overview' });
-    expect(within(table).getAllByRole('columnheader')).toHaveLength(13);
-    expect(within(table).getByRole('columnheader', { name: '3 – 7 Jun' })).toBeInTheDocument();
-    expect(within(table).getByRole('columnheader', { name: '17 – 23 Aug' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Overview table' })).toHaveAttribute('tabindex', '0');
-  });
+    const table = screen.getByRole('table', { name: 'Overview' })
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(13)
+    expect(within(table).getByRole('columnheader', { name: '3 – 7 Jun' })).toBeInTheDocument()
+    expect(within(table).getByRole('columnheader', { name: '17 – 23 Aug' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Overview table' })).toHaveAttribute('tabindex', '0')
+  })
 
   it('derives an empty table span from the displayed week count', () => {
     const twelveWeekModel = buildCapacityOverviewModel({
@@ -224,202 +224,202 @@ describe('CapacityOverviewTable content', () => {
       today: '2026-06-03',
       horizon: '12-weeks',
       capacity: null,
-    });
-    renderTable({ model: twelveWeekModel });
+    })
+    renderTable({ model: twelveWeekModel })
 
-    expect(screen.getByText('No people match this view.')).toHaveAttribute('colspan', '13');
-  });
+    expect(screen.getByText('No people match this view.')).toHaveAttribute('colspan', '13')
+  })
 
   it('renders the ledger: free days out of capacity, overbooking, dashes and unassigned demand', () => {
     class LoadedImage {
-      complete = true;
-      naturalWidth = 1;
-      crossOrigin: string | null = null;
-      referrerPolicy = '';
-      src = '';
+      complete = true
+      naturalWidth = 1
+      crossOrigin: string | null = null
+      referrerPolicy = ''
+      src = ''
       addEventListener() {}
       removeEventListener() {}
     }
-    vi.stubGlobal('Image', LoadedImage);
+    vi.stubGlobal('Image', LoadedImage)
     try {
-      renderTable();
+      renderTable()
 
       expect(screen.getByRole('columnheader', { name: '10 – 13 Sep' })).not.toHaveTextContent(
-        '2026',
-      );
-      expect(screen.getByRole('columnheader', { name: '28 Sep – 4 Oct' })).toBeInTheDocument();
-      const person = screen.getByRole('row', { name: /Clark Kent/ });
+        '2026'
+      )
+      expect(screen.getByRole('columnheader', { name: '28 Sep – 4 Oct' })).toBeInTheDocument()
+      const person = screen.getByRole('row', { name: /Clark Kent/ })
       const avatar = () =>
         within(screen.getByRole('row', { name: /Clark Kent/ }))
           .getByTestId('person-schedule-trigger')
-          .querySelector('img');
-      expect(avatar()).toHaveAttribute('src', 'https://images.example/clark.png');
-      expect(avatar()).toHaveAttribute('referrerpolicy', 'no-referrer');
-      const cells = within(person).getAllByRole('cell');
-      expect(within(cells[0] as HTMLElement).getByText('1.5d')).toHaveClass('text-ink');
+          .querySelector('img')
+      expect(avatar()).toHaveAttribute('src', 'https://images.example/clark.png')
+      expect(avatar()).toHaveAttribute('referrerpolicy', 'no-referrer')
+      const cells = within(person).getAllByRole('cell')
+      expect(within(cells[0] as HTMLElement).getByText('1.5d')).toHaveClass('text-ink')
 
-      expect(within(cells[0] as HTMLElement).queryByText('/ 5d')).not.toBeInTheDocument();
-      expect(within(cells[0] as HTMLElement).getByText('+0.25d')).toHaveClass('text-danger');
-      const overbookedBar = within(cells[0] as HTMLElement).getByTestId('capacity-ledger-bar');
-      expect(overbookedBar.children).toHaveLength(2);
-      expect(within(cells[3] as HTMLElement).getByText('/ 4d')).toHaveClass('text-faint');
+      expect(within(cells[0] as HTMLElement).queryByText('/ 5d')).not.toBeInTheDocument()
+      expect(within(cells[0] as HTMLElement).getByText('+0.25d')).toHaveClass('text-danger')
+      const overbookedBar = within(cells[0] as HTMLElement).getByTestId('capacity-ledger-bar')
+      expect(overbookedBar.children).toHaveLength(2)
+      expect(within(cells[3] as HTMLElement).getByText('/ 4d')).toHaveClass('text-faint')
       expect(
         within(cells[0] as HTMLElement).getByText(
-          '10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked',
-        ),
-      ).toHaveClass('sr-only');
+          '10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked'
+        )
+      ).toHaveClass('sr-only')
       expect(cells[0]).toHaveAttribute(
         'title',
-        '10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked',
-      );
-      const emptyCapacity = within(person).getAllByText('—');
-      expect(emptyCapacity).toHaveLength(2);
-      expect(emptyCapacity.every((value) => value.classList.contains('text-faint'))).toBe(true);
-      expect(within(cells[2] as HTMLElement).getByText('/ 0d')).toBeInTheDocument();
-      expect(within(cells[3] as HTMLElement).getByText('/ 4d')).toBeInTheDocument();
-      const placeholder = screen.getByRole('row', { name: /Placeholder.*Designer/ });
-      expect(within(placeholder).getByText('2d unassigned')).toBeInTheDocument();
-      expect(within(placeholder).queryByTestId('capacity-ledger-bar')).not.toBeInTheDocument();
+        '10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked'
+      )
+      const emptyCapacity = within(person).getAllByText('—')
+      expect(emptyCapacity).toHaveLength(2)
+      expect(emptyCapacity.every((value) => value.classList.contains('text-faint'))).toBe(true)
+      expect(within(cells[2] as HTMLElement).getByText('/ 0d')).toBeInTheDocument()
+      expect(within(cells[3] as HTMLElement).getByText('/ 4d')).toBeInTheDocument()
+      const placeholder = screen.getByRole('row', { name: /Placeholder.*Designer/ })
+      expect(within(placeholder).getByText('2d unassigned')).toBeInTheDocument()
+      expect(within(placeholder).queryByTestId('capacity-ledger-bar')).not.toBeInTheDocument()
       expect(
-        within(screen.getByTestId('capacity-overview-group')).getByText('1 person'),
-      ).toBeInTheDocument();
+        within(screen.getByTestId('capacity-overview-group')).getByText('1 person')
+      ).toBeInTheDocument()
     } finally {
-      vi.unstubAllGlobals();
+      vi.unstubAllGlobals()
     }
-  });
+  })
 
   it('colours the ledger bar by the share of capacity still free and hatches tentative time', () => {
-    renderTable();
+    renderTable()
 
-    const cells = within(screen.getByRole('row', { name: /Clark Kent/ })).getAllByRole('cell');
-    const firstFree = within(cells[0] as HTMLElement).getByTestId('capacity-bar-free');
-    expect(firstFree).toHaveAttribute('data-tone', 'danger');
-    expect(firstFree).toHaveStyle({ width: '30%' });
-    const firstTentative = within(cells[0] as HTMLElement).getByTestId('capacity-bar-tentative');
-    expect(firstTentative).toHaveStyle({ width: '20%' });
-    expect(firstTentative.style.background).toContain('repeating-linear-gradient');
-    expect(firstTentative.style.background).toContain('var(--color-faint)');
+    const cells = within(screen.getByRole('row', { name: /Clark Kent/ })).getAllByRole('cell')
+    const firstFree = within(cells[0] as HTMLElement).getByTestId('capacity-bar-free')
+    expect(firstFree).toHaveAttribute('data-tone', 'danger')
+    expect(firstFree).toHaveStyle({ width: '30%' })
+    const firstTentative = within(cells[0] as HTMLElement).getByTestId('capacity-bar-tentative')
+    expect(firstTentative).toHaveStyle({ width: '20%' })
+    expect(firstTentative.style.background).toContain('repeating-linear-gradient')
+    expect(firstTentative.style.background).toContain('var(--color-faint)')
     expect(within(cells[1] as HTMLElement).getByTestId('capacity-bar-free')).toHaveStyle({
       width: '0%',
-    });
-    const fourthFree = within(cells[3] as HTMLElement).getByTestId('capacity-bar-free');
-    expect(fourthFree).toHaveAttribute('data-tone', 'ok');
-    expect(fourthFree).toHaveStyle({ width: '100%' });
-  });
+    })
+    const fourthFree = within(cells[3] as HTMLElement).getByTestId('capacity-bar-free')
+    expect(fourthFree).toHaveAttribute('data-tone', 'ok')
+    expect(fourthFree).toHaveStyle({ width: '100%' })
+  })
 
   it("names a placeholder's trigger from its job title, not the generic placeholder fallback", () => {
-    renderTable();
+    renderTable()
 
     // The schedule trigger must receive real scoped resource data so it can resolve its role-specific accessible title.
     const trigger = screen.getByRole('button', {
       name: "View Placeholder — Designer's schedule ?",
-    });
-    expect(trigger).toHaveAttribute('data-testid', 'person-schedule-trigger');
-  });
-});
+    })
+    expect(trigger).toHaveAttribute('data-testid', 'person-schedule-trigger')
+  })
+})
 
 describe('CapacityOverviewTable interactions', () => {
   it('toggles the tentative and availability pills', async () => {
-    const user = userEvent.setup();
-    const onIncludeTentativeChange = vi.fn();
-    const onHasAvailabilityChange = vi.fn();
-    renderTable({ onIncludeTentativeChange, onHasAvailabilityChange });
+    const user = userEvent.setup()
+    const onIncludeTentativeChange = vi.fn()
+    const onHasAvailabilityChange = vi.fn()
+    renderTable({ onIncludeTentativeChange, onHasAvailabilityChange })
 
-    const tentative = screen.getByRole('button', { name: 'Tentative' });
-    expect(tentative).toHaveAttribute('aria-pressed', 'true');
-    await user.click(tentative);
-    expect(onIncludeTentativeChange).toHaveBeenCalledWith(false);
-    const availability = screen.getByRole('button', { name: 'Has availability' });
-    expect(availability).toHaveAttribute('aria-pressed', 'false');
-    await user.click(availability);
-    expect(onHasAvailabilityChange).toHaveBeenCalledWith(true);
-  });
+    const tentative = screen.getByRole('button', { name: 'Tentative' })
+    expect(tentative).toHaveAttribute('aria-pressed', 'true')
+    await user.click(tentative)
+    expect(onIncludeTentativeChange).toHaveBeenCalledWith(false)
+    const availability = screen.getByRole('button', { name: 'Has availability' })
+    expect(availability).toHaveAttribute('aria-pressed', 'false')
+    await user.click(availability)
+    expect(onHasAvailabilityChange).toHaveBeenCalledWith(true)
+  })
 
   it('switches between Ledger and Load curve', async () => {
-    const user = userEvent.setup();
-    const onCapacityDisplayModeChange = vi.fn();
-    renderTable({ onCapacityDisplayModeChange });
+    const user = userEvent.setup()
+    const onCapacityDisplayModeChange = vi.fn()
+    renderTable({ onCapacityDisplayModeChange })
 
-    expect(screen.getByRole('radio', { name: 'Ledger' })).toHaveAttribute('aria-checked', 'true');
-    await user.click(screen.getByRole('radio', { name: 'Load curve' }));
-    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith('load-curve');
-  });
+    expect(screen.getByRole('radio', { name: 'Ledger' })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('radio', { name: 'Load curve' }))
+    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith('load-curve')
+  })
 
   it('hides the totals tier by default and shows visible-people totals when toggled on', async () => {
-    const user = userEvent.setup();
-    const onShowTotalsChange = vi.fn();
-    const { rerender } = renderTable({ onShowTotalsChange });
+    const user = userEvent.setup()
+    const onShowTotalsChange = vi.fn()
+    const { rerender } = renderTable({ onShowTotalsChange })
 
-    const totals = screen.getByRole('button', { name: 'Totals' });
-    expect(totals).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByTestId('capacity-overview-totals')).not.toBeInTheDocument();
-    expect(within(screen.getByRole('table')).getAllByRole('columnheader')).toHaveLength(5);
+    const totals = screen.getByRole('button', { name: 'Totals' })
+    expect(totals).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByTestId('capacity-overview-totals')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getAllByRole('columnheader')).toHaveLength(5)
 
-    await user.click(totals);
-    expect(onShowTotalsChange).toHaveBeenCalledWith(true);
+    await user.click(totals)
+    expect(onShowTotalsChange).toHaveBeenCalledWith(true)
 
-    rerender({ showTotals: true });
-    const totalsRow = screen.getByTestId('capacity-overview-totals');
-    const totalsCells = within(totalsRow).getAllByTestId('capacity-overview-totals-cell');
-    expect(totalsCells).toHaveLength(4);
+    rerender({ showTotals: true })
+    const totalsRow = screen.getByTestId('capacity-overview-totals')
+    const totalsCells = within(totalsRow).getAllByTestId('capacity-overview-totals-cell')
+    expect(totalsCells).toHaveLength(4)
 
     expect(within(totalsCells[0] as HTMLElement).getByText('50%')).toHaveClass(
-      'text-muted-foreground',
-    );
-    expect(within(totalsCells[0] as HTMLElement).queryByText('1.5d')).not.toBeInTheDocument();
-    expect(within(totalsCells[0] as HTMLElement).getByText('+0.25d')).toHaveClass('text-danger');
-    expect(within(totalsCells[3] as HTMLElement).getByText('4d')).toBeInTheDocument();
+      'text-muted-foreground'
+    )
+    expect(within(totalsCells[0] as HTMLElement).queryByText('1.5d')).not.toBeInTheDocument()
+    expect(within(totalsCells[0] as HTMLElement).getByText('+0.25d')).toHaveClass('text-danger')
+    expect(within(totalsCells[3] as HTMLElement).getByText('4d')).toBeInTheDocument()
     expect(totalsCells[0]).toHaveAttribute(
       'title',
-      '10 – 13 Sep · 2.5d committed of 5d · 1d tentative · 0.25d overbooked',
-    );
+      '10 – 13 Sep · 2.5d committed of 5d · 1d tentative · 0.25d overbooked'
+    )
     expect(
-      within(totalsCells[0] as HTMLElement).getByTestId('capacity-totals-committed'),
+      within(totalsCells[0] as HTMLElement).getByTestId('capacity-totals-committed')
     ).toHaveStyle({
       width: '50%',
-    });
+    })
     expect(
-      within(totalsCells[0] as HTMLElement).getByTestId('capacity-totals-tentative'),
+      within(totalsCells[0] as HTMLElement).getByTestId('capacity-totals-tentative')
     ).toHaveStyle({
       width: '20%',
-    });
+    })
 
-    expect(within(totalsCells[1] as HTMLElement).getByText('100%')).toHaveClass('text-danger');
-    expect(totalsCells[2]).toHaveAttribute('title', '21 – 27 Sep · 0d committed of 0d');
+    expect(within(totalsCells[1] as HTMLElement).getByText('100%')).toHaveClass('text-danger')
+    expect(totalsCells[2]).toHaveAttribute('title', '21 – 27 Sep · 0d committed of 0d')
 
-    expect(within(screen.getByRole('table')).getAllByRole('columnheader')).toHaveLength(5);
-    expect(totalsRow.firstElementChild).toBeEmptyDOMElement();
+    expect(within(screen.getByRole('table')).getAllByRole('columnheader')).toHaveLength(5)
+    expect(totalsRow.firstElementChild).toBeEmptyDOMElement()
     expect(
-      within(screen.getByTestId('capacity-overview-group')).queryByText(/committed/),
-    ).not.toBeInTheDocument();
-  });
+      within(screen.getByTestId('capacity-overview-group')).queryByText(/committed/)
+    ).not.toBeInTheDocument()
+  })
 
   it('renders Load curve with shape only, keeping the figures for assistive technology', () => {
-    renderTable({ capacityDisplayMode: 'load-curve' });
+    renderTable({ capacityDisplayMode: 'load-curve' })
 
-    const person = screen.getByRole('row', { name: /Clark Kent/ });
-    expect(within(person).queryByText('1.5d')).not.toBeInTheDocument();
-    expect(within(person).queryByText('/ 5d')).not.toBeInTheDocument();
+    const person = screen.getByRole('row', { name: /Clark Kent/ })
+    expect(within(person).queryByText('1.5d')).not.toBeInTheDocument()
+    expect(within(person).queryByText('/ 5d')).not.toBeInTheDocument()
     const accessibleValue = within(person).getByText(
-      '10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked',
-    );
-    expect(accessibleValue).toHaveClass('sr-only');
-    expect(within(person).queryByTestId('capacity-ledger-bar')).not.toBeInTheDocument();
-    const firstWeekCell = accessibleValue.closest('td') as HTMLElement;
-    const curve = within(firstWeekCell).getByTestId('capacity-load-curve');
+      '10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked'
+    )
+    expect(accessibleValue).toHaveClass('sr-only')
+    expect(within(person).queryByTestId('capacity-ledger-bar')).not.toBeInTheDocument()
+    const firstWeekCell = accessibleValue.closest('td') as HTMLElement
+    const curve = within(firstWeekCell).getByTestId('capacity-load-curve')
 
-    expect(curve.children).toHaveLength(2);
-    expect(within(curve).getByTestId('capacity-bar-free')).toHaveStyle({ height: '30%' });
-    expect(within(curve).getByTestId('capacity-bar-tentative')).toHaveStyle({ height: '20%' });
+    expect(curve.children).toHaveLength(2)
+    expect(within(curve).getByTestId('capacity-bar-free')).toHaveStyle({ height: '30%' })
+    expect(within(curve).getByTestId('capacity-bar-tentative')).toHaveStyle({ height: '20%' })
 
-    const cells = within(person).getAllByRole('cell');
-    const fourthCurve = within(cells[3] as HTMLElement).getByTestId('capacity-load-curve');
-    expect(within(fourthCurve).getByTestId('capacity-bar-free')).toHaveStyle({ height: '100%' });
-    expect(within(fourthCurve).getByTestId('capacity-bar-free')).toHaveAttribute('data-tone', 'ok');
+    const cells = within(person).getAllByRole('cell')
+    const fourthCurve = within(cells[3] as HTMLElement).getByTestId('capacity-load-curve')
+    expect(within(fourthCurve).getByTestId('capacity-bar-free')).toHaveStyle({ height: '100%' })
+    expect(within(fourthCurve).getByTestId('capacity-bar-free')).toHaveAttribute('data-tone', 'ok')
     expect(within(fourthCurve).getByTestId('capacity-bar-free').style.background).toBe(
-      'var(--color-ok)',
-    );
-  });
+      'var(--color-ok)'
+    )
+  })
 
   it('drops the tentative band when tentative work is excluded', () => {
     const withoutTentative: CapacityOverviewModel = {
@@ -435,55 +435,55 @@ describe('CapacityOverviewTable interactions', () => {
           })),
         })),
       })),
-    };
-    renderTable({ model: withoutTentative, includeTentative: false, showTotals: true });
+    }
+    renderTable({ model: withoutTentative, includeTentative: false, showTotals: true })
 
-    const cells = within(screen.getByRole('row', { name: /Clark Kent/ })).getAllByRole('cell');
+    const cells = within(screen.getByRole('row', { name: /Clark Kent/ })).getAllByRole('cell')
     expect(within(cells[0] as HTMLElement).getByTestId('capacity-bar-tentative')).toHaveStyle({
       width: '0%',
-    });
-    expect(cells[0]).toHaveAttribute('title', '10 – 13 Sep · 1.5d free of 5d · 0.25d overbooked');
-    const totalsCell = screen.getAllByTestId('capacity-overview-totals-cell')[0] as HTMLElement;
+    })
+    expect(cells[0]).toHaveAttribute('title', '10 – 13 Sep · 1.5d free of 5d · 0.25d overbooked')
+    const totalsCell = screen.getAllByTestId('capacity-overview-totals-cell')[0] as HTMLElement
     expect(totalsCell).toHaveAttribute(
       'title',
-      '10 – 13 Sep · 3.5d committed of 5d · 0.25d overbooked',
-    );
+      '10 – 13 Sep · 3.5d committed of 5d · 0.25d overbooked'
+    )
     expect(screen.getByRole('button', { name: 'Tentative' })).toHaveAttribute(
       'aria-pressed',
-      'false',
-    );
-  });
+      'false'
+    )
+  })
 
   it('never renders a bar for unassigned-demand rows in either mode', () => {
-    const { rerender } = renderTable({ capacityDisplayMode: 'load-curve' });
+    const { rerender } = renderTable({ capacityDisplayMode: 'load-curve' })
 
-    const placeholder = screen.getByRole('row', { name: /Placeholder.*Designer/ });
-    expect(within(placeholder).getByText('2d unassigned')).toBeInTheDocument();
-    expect(within(placeholder).queryByTestId('capacity-load-curve')).not.toBeInTheDocument();
-    rerender({ capacityDisplayMode: 'ledger' });
-    expect(within(placeholder).queryByTestId('capacity-ledger-bar')).not.toBeInTheDocument();
-  });
+    const placeholder = screen.getByRole('row', { name: /Placeholder.*Designer/ })
+    expect(within(placeholder).getByText('2d unassigned')).toBeInTheDocument()
+    expect(within(placeholder).queryByTestId('capacity-load-curve')).not.toBeInTheDocument()
+    rerender({ capacityDisplayMode: 'ledger' })
+    expect(within(placeholder).queryByTestId('capacity-ledger-bar')).not.toBeInTheDocument()
+  })
 
   it('collapses and expands discipline rows', async () => {
-    const user = userEvent.setup();
-    renderTable();
+    const user = userEvent.setup()
+    renderTable()
 
-    const groupToggle = screen.getByRole('button', { name: /^Design/ });
-    expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
-    await user.click(groupToggle);
-    expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('row', { name: /Clark Kent/ })).not.toBeInTheDocument();
-    await user.click(groupToggle);
-    expect(screen.getByRole('row', { name: /Clark Kent/ })).toBeInTheDocument();
-  });
+    const groupToggle = screen.getByRole('button', { name: /^Design/ })
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'true')
+    await user.click(groupToggle)
+    expect(groupToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('row', { name: /Clark Kent/ })).not.toBeInTheDocument()
+    await user.click(groupToggle)
+    expect(screen.getByRole('row', { name: /Clark Kent/ })).toBeInTheDocument()
+  })
 
   it('shows an explanation instead of figures in Blocks mode', () => {
-    renderTable({ model: { ...model, measured: false, reason: 'blocks-mode', groups: [] } });
+    renderTable({ model: { ...model, measured: false, reason: 'blocks-mode', groups: [] } })
 
     expect(
-      screen.getByRole('heading', { name: 'Overview needs measured capacity' }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('capacity-overview-legend')).not.toBeInTheDocument();
-  });
-});
+      screen.getByRole('heading', { name: 'Overview needs measured capacity' })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('capacity-overview-legend')).not.toBeInTheDocument()
+  })
+})

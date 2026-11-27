@@ -4,4 +4,4 @@
 export const plural =
   (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
   (count: number): string =>
-    count === 1 ? one({ count }) : other({ count });
+    count === 1 ? one({ count }) : other({ count })

@@ -1,9 +1,9 @@
-import { randomUUID } from 'node:crypto';
-import { test } from '@japa/runner';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import db from '@adonisjs/lucid/services/db';
-import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
-import { readState } from '#tests/helpers/state_fixture';
+import { randomUUID } from 'node:crypto'
+import { test } from '@japa/runner'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import db from '@adonisjs/lucid/services/db'
+import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities'
+import { readState } from '#tests/helpers/state_fixture'
 import {
   companyId,
   configureAuth,
@@ -13,34 +13,34 @@ import {
   loginAsMember,
   signIn,
   validationSentence,
-} from '#tests/functional/planning/helpers';
-import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers';
-import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations';
+} from '#tests/functional/planning/helpers'
+import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers'
+import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations'
 
 test.group('authenticated planning operations', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await resetPlanningFixture();
-  });
+    await resetPlanningFixture()
+  })
 
   test('Viewer writes and foreign references are refused', async ({ client, assert, cleanup }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie: viewerCookie } = await loginAsMember('viewer');
-    const allocation = newAllocation(data);
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie: viewerCookie } = await loginAsMember('viewer')
+    const allocation = newAllocation(data)
     const viewer = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       viewerCookie
     )
       .json(mutationInput(0, { operation: 'allocation.create', allocation }))
-      .send();
-    viewer.assertStatus(403);
-    assert.equal(replyBody(viewer).code, 'E_AUTHORIZATION_DENIED');
+      .send()
+    viewer.assertStatus(403)
+    assert.equal(replyBody(viewer).code, 'E_AUTHORIZATION_DENIED')
 
-    const { cookie } = await loginAsMember();
+    const { cookie } = await loginAsMember()
 
-    const fullState = await readState();
-    const foreignResource = fullState.resources.find((row) => row.companyId === 'a-loft')!;
+    const fullState = await readState()
+    const foreignResource = fullState.resources.find((row) => row.companyId === 'a-loft')!
     const foreign = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -54,31 +54,31 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    foreign.assertStatus(422);
-    assert.isString(validationSentence(foreign));
+      .send()
+    foreign.assertStatus(422)
+    assert.isString(validationSentence(foreign))
     const current = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(current).revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
-  });
+    ).send()
+    assert.equal(replyBody(current).revision, 0)
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0)
+  })
 
   test('Editor creates public catalogue rows and updates their dependent family', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await loginAsMember('editor');
-    const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
-    const clientId = randomUUID();
-    const projectId = randomUUID();
-    const phaseId = randomUUID();
-    const activityId = randomUUID();
-    const disciplineId = randomUUID();
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie } = await loginAsMember('editor')
+    const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color
+    const clientId = randomUUID()
+    const projectId = randomUUID()
+    const phaseId = randomUUID()
+    const activityId = randomUUID()
+    const disciplineId = randomUUID()
     const operations = [
       {
         entity: 'clients',
@@ -101,7 +101,7 @@ test.group('authenticated planning operations', (group) => {
         id: disciplineId,
         fields: { name: 'Strategy', color },
       },
-    ];
+    ]
     for (const [index, operation] of operations.entries()) {
       const response = await intentSession(
         client.visit('api.planning_mutations.store', { companyId }),
@@ -117,9 +117,9 @@ test.group('authenticated planning operations', (group) => {
             },
           })
         )
-        .send();
-      response.assertStatus(200);
-      assert.equal(replyBody(response).revision, index + 1);
+        .send()
+      response.assertStatus(200)
+      assert.equal(replyBody(response).revision, index + 1)
     }
     const updated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -135,33 +135,33 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    updated.assertStatus(200);
-    assert.equal(replyBody(updated).revision, 6);
-    const state = await readState(companyId, true);
-    assert.equal(state.clients.find((row) => row.id === clientId)?.isPrivate, null);
-    assert.equal(state.projects.find((row) => row.id === projectId)?.clientId, clientId);
-    assert.equal(state.activities.find((row) => row.id === activityId)?.phaseId, phaseId);
-    assert.equal(state.phases.find((row) => row.id === phaseId)?.name, 'Planning');
+      .send()
+    updated.assertStatus(200)
+    assert.equal(replyBody(updated).revision, 6)
+    const state = await readState(companyId, true)
+    assert.equal(state.clients.find((row) => row.id === clientId)?.isPrivate, null)
+    assert.equal(state.projects.find((row) => row.id === projectId)?.clientId, clientId)
+    assert.equal(state.activities.find((row) => row.id === activityId)?.phaseId, phaseId)
+    assert.equal(state.phases.find((row) => row.id === phaseId)?.name, 'Planning')
     // The server appends the new discipline after the company's highest sort order.
     const highest = Math.max(
       ...data.disciplines.filter((row) => row.companyId === companyId).map((row) => row.sortOrder)
-    );
-    assert.equal(state.disciplines.find((row) => row.id === disciplineId)?.sortOrder, highest + 1);
-  });
+    )
+    assert.equal(state.disciplines.find((row) => row.id === disciplineId)?.sortOrder, highest + 1)
+  })
 
   test('Editor creates a resource and patches its role without changing its capacity', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
     const original = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
-    )!;
-    const { cookie } = await loginAsMember('editor');
-    const id = randomUUID();
+    )!
+    const { cookie } = await loginAsMember('editor')
+    const id = randomUUID()
     const fields = {
       kind: 'person',
       name: 'Dick Grayson',
@@ -178,14 +178,14 @@ test.group('authenticated planning operations', (group) => {
       isFavourite: null,
       firstAvailableDate: null,
       lastAvailableDate: null,
-    };
+    }
     const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(0, { operation: 'resource.create', id, fields }))
-      .send();
-    created.assertStatus(200);
+      .send()
+    created.assertStatus(200)
     const updated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -197,29 +197,29 @@ test.group('authenticated planning operations', (group) => {
           changes: { jobTitle: 'Lead Designer' },
         })
       )
-      .send();
-    updated.assertStatus(200);
-    const state = await readState(companyId, true);
-    const resource = state.resources.find((row) => row.id === id);
-    assert.equal(resource?.jobTitle, 'Lead Designer');
-    assert.equal(resource?.workingHoursPerDay, original.workingHoursPerDay);
-    assert.deepEqual(resource?.workingDays, original.workingDays);
-  });
+      .send()
+    updated.assertStatus(200)
+    const state = await readState(companyId, true)
+    const resource = state.resources.find((row) => row.id === id)
+    assert.equal(resource?.jobTitle, 'Lead Designer')
+    assert.equal(resource?.workingHoursPerDay, original.workingHoursPerDay)
+    assert.deepEqual(resource?.workingDays, original.workingDays)
+  })
 
   test('refuses to change an external resource working pattern without persisting or advancing revision', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
     const external = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'external'
-    );
-    assert.isDefined(external);
-    const { cookie } = await loginAsMember();
-    const before = await readState(companyId, true);
-    const changedDays = external!.workingDays.includes(0) ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4];
+    )
+    assert.isDefined(external)
+    const { cookie } = await loginAsMember()
+    const before = await readState(companyId, true)
+    const changedDays = external!.workingDays.includes(0) ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4]
 
     const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -232,28 +232,28 @@ test.group('authenticated planning operations', (group) => {
           changes: { workingDays: changedDays },
         })
       )
-      .send();
+      .send()
 
-    refused.assertStatus(422);
-    assert.isString(validationSentence(refused));
-    assert.deepEqual(await readState(companyId, true), before);
+    refused.assertStatus(422)
+    assert.isString(validationSentence(refused))
+    assert.deepEqual(await readState(companyId, true), before)
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(snapshot.body().data.revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
-  });
+    ).send()
+    assert.equal(snapshot.body().data.revision, 0)
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0)
+  })
 
   test('an external resource refusal names the supplied reference field', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const data = await readState(companyId, true);
-    const external = data.resources.find((row) => row.kind === 'external')!;
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const data = await readState(companyId, true)
+    const external = data.resources.find((row) => row.kind === 'external')!
     for (const [field, value] of [
       ['disciplineId', data.disciplines[0]!.id],
       ['projectId', data.projects[0]!.id],
@@ -269,25 +269,25 @@ test.group('authenticated planning operations', (group) => {
             changes: { [field]: value },
           })
         )
-        .send();
-      refused.assertStatus(422);
+        .send()
+      refused.assertStatus(422)
       assert.deepEqual(refused.body(), {
         errors: [{ message: `${field} is not used by external resources.` }],
-      });
+      })
     }
-  });
+  })
 
   test('refuses a reversed closure range without persisting or advancing revision', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const id = randomUUID();
-    const before = await readState(companyId, true);
-    const auditBefore = await db.from('audit_entries').where('company_id', companyId);
-    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const id = randomUUID()
+    const before = await readState(companyId, true)
+    const auditBefore = await db.from('audit_entries').where('company_id', companyId)
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId)
 
     const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -300,34 +300,34 @@ test.group('authenticated planning operations', (group) => {
           fields: { name: 'Invalid range', startDate: '2026-12-31', endDate: '2026-01-01' },
         })
       )
-      .send();
+      .send()
 
-    refused.assertStatus(422);
-    assert.isNotEmpty(validationErrors(refused));
-    assert.deepEqual(await readState(companyId, true), before);
-    assert.isNull(await db.from('closures').where({ id, company_id: companyId }).first());
-    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditBefore);
+    refused.assertStatus(422)
+    assert.isNotEmpty(validationErrors(refused))
+    assert.deepEqual(await readState(companyId, true), before)
+    assert.isNull(await db.from('closures').where({ id, company_id: companyId }).first())
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditBefore)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
-    );
+    )
     const snapshot = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(snapshot.body().data.revision, 0);
-  });
+    ).send()
+    assert.equal(snapshot.body().data.revision, 0)
+  })
 
   test('Editor preserves confidential values and cannot change privacy controls or notes', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie: ownerCookie } = await loginAsMember();
-    const clientId = randomUUID();
-    const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie: ownerCookie } = await loginAsMember()
+    const clientId = randomUUID()
+    const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color
     const privateClient = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       ownerCookie
@@ -342,12 +342,12 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    privateClient.assertStatus(200);
-    const timeOffId = randomUUID();
+      .send()
+    privateClient.assertStatus(200)
+    const timeOffId = randomUUID()
     const resourceId = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
-    )!.id;
+    )!.id
     const timeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       ownerCookie
@@ -365,10 +365,10 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    timeOff.assertStatus(200);
+      .send()
+    timeOff.assertStatus(200)
 
-    const { cookie } = await loginAsMember('editor');
+    const { cookie } = await loginAsMember('editor')
     const nameEdit = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -379,9 +379,9 @@ test.group('authenticated planning operations', (group) => {
           entity: { entity: 'clients', id: clientId, changes: { name: 'Redacted echo', color } },
         })
       )
-      .send();
-    nameEdit.assertStatus(400);
-    assert.equal(replyBody(nameEdit).code, 'E_NO_CHANGE');
+      .send()
+    nameEdit.assertStatus(400)
+    assert.equal(replyBody(nameEdit).code, 'E_NO_CHANGE')
     const colourEdit = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -399,8 +399,8 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    colourEdit.assertStatus(200);
+      .send()
+    colourEdit.assertStatus(200)
     const notePreserved = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -408,8 +408,8 @@ test.group('authenticated planning operations', (group) => {
       .json(
         mutationInput(3, { operation: 'timeOff.update', id: timeOffId, changes: { type: 'sick' } })
       )
-      .send();
-    notePreserved.assertStatus(200);
+      .send()
+    notePreserved.assertStatus(200)
     const privacyRefused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -420,8 +420,8 @@ test.group('authenticated planning operations', (group) => {
           entity: { entity: 'clients', id: clientId, changes: { isPrivate: false } },
         })
       )
-      .send();
-    privacyRefused.assertStatus(403);
+      .send()
+    privacyRefused.assertStatus(403)
     const noteRefused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -433,34 +433,34 @@ test.group('authenticated planning operations', (group) => {
           changes: { note: 'Read it' },
         })
       )
-      .send();
-    noteRefused.assertStatus(403);
-    const state = await readState(companyId, true);
-    assert.equal(state.clients.find((row) => row.id === clientId)?.name, 'Bruce Wayne');
-    assert.equal(state.clients.find((row) => row.id === clientId)?.codeName, 'Boardroom');
-    assert.equal(state.timeOff.find((row) => row.id === timeOffId)?.note, 'Private note');
-  });
+      .send()
+    noteRefused.assertStatus(403)
+    const state = await readState(companyId, true)
+    assert.equal(state.clients.find((row) => row.id === clientId)?.name, 'Bruce Wayne')
+    assert.equal(state.clients.find((row) => row.id === clientId)?.codeName, 'Boardroom')
+    assert.equal(state.timeOff.find((row) => row.id === timeOffId)?.note, 'Private note')
+  })
 
   test("a receipt's changes turn the read before the write into the read after it", async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await loginAsMember();
-    type Read = { revision: number; data: AppData };
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie } = await loginAsMember()
+    type Read = { revision: number; data: AppData }
     type Changes = {
-      upserts: Array<{ entity: AppDataKey; row: { id: string } }>;
-      removed: Array<{ entity: AppDataKey; id: string }>;
-    };
+      upserts: Array<{ entity: AppDataKey; row: { id: string } }>
+      removed: Array<{ entity: AppDataKey; id: string }>
+    }
     const read = async () => {
       const response = await intentSession(
         client.visit('api.planning.show', { companyId }),
         cookie
-      ).send();
-      return (response.body() as { data: Read }).data;
-    };
+      ).send()
+      return (response.body() as { data: Read }).data
+    }
     // Row order is not part of the read, so both sides are compared by id.
     const byId = (rows: AppData) =>
       Object.fromEntries(
@@ -468,19 +468,19 @@ test.group('authenticated planning operations', (group) => {
           entity,
           [...(rows[entity] as Array<{ id: string }>)].sort((a, b) => a.id.localeCompare(b.id)),
         ])
-      );
+      )
     const apply = (rows: AppData, changes: Changes) => {
-      const next = structuredClone(rows) as unknown as Record<AppDataKey, Array<{ id: string }>>;
+      const next = structuredClone(rows) as unknown as Record<AppDataKey, Array<{ id: string }>>
       for (const { entity, id } of changes.removed) {
-        next[entity] = next[entity].filter((row) => row.id !== id);
+        next[entity] = next[entity].filter((row) => row.id !== id)
       }
       for (const { entity, row } of changes.upserts) {
-        next[entity] = [...next[entity].filter((existing) => existing.id !== row.id), row];
+        next[entity] = [...next[entity].filter((existing) => existing.id !== row.id), row]
       }
-      return next as unknown as AppData;
-    };
-    const allocation = newAllocation(data);
-    let groupIds: string[] = [randomUUID()];
+      return next as unknown as AppData
+    }
+    const allocation = newAllocation(data)
+    let groupIds: string[] = [randomUUID()]
     const writes: Array<
       [string, (revision: number) => Promise<{ body(): unknown; status(): number }>]
     > = [
@@ -525,10 +525,10 @@ test.group('authenticated planning operations', (group) => {
                 repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-09' },
               })
             )
-            .send();
+            .send()
           // The server minted the later occurrence; the group delete below names it.
-          groupIds = listCreatedAllocationIds((reply.body() as { data: unknown }).data);
-          return reply;
+          groupIds = listCreatedAllocationIds((reply.body() as { data: unknown }).data)
+          return reply
         },
       ],
       [
@@ -538,31 +538,31 @@ test.group('authenticated planning operations', (group) => {
             .json(mutationInput(revision, { operation: 'allocation.deleteGroup', ids: groupIds }))
             .send(),
       ],
-    ];
+    ]
     for (const [name, write] of writes) {
-      const before = await read();
-      const reply = await write(before.revision);
-      assert.equal(reply.status(), 200, name);
+      const before = await read()
+      const reply = await write(before.revision)
+      assert.equal(reply.status(), 200, name)
       const { changes, revision } = (reply.body() as { data: unknown }).data as {
-        changes: Changes;
-        revision: number;
-      };
-      assert.isNotEmpty([...changes.upserts, ...changes.removed], name);
-      const after = await read();
-      assert.equal(after.revision, revision, name);
-      assert.deepEqual(byId(apply(before.data, changes)), byId(after.data), name);
+        changes: Changes
+        revision: number
+      }
+      assert.isNotEmpty([...changes.upserts, ...changes.removed], name)
+      const after = await read()
+      assert.equal(after.revision, revision, name)
+      assert.deepEqual(byId(apply(before.data, changes)), byId(after.data), name)
     }
-  });
+  })
 
   test('a repeated allocation commits its pattern as one series that deletes and restores as a group', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
-    const allocation = newAllocation(data);
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie } = await signIn(client)
+    const allocation = newAllocation(data)
     const repeatGroup = (until: string) =>
       intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(
@@ -572,30 +572,30 @@ test.group('authenticated planning operations', (group) => {
             repeat: { pattern: { kind: 'weeks', interval: 1 }, until },
           })
         )
-        .send();
+        .send()
 
     // Six calendar months after 2 November is 2 May.
-    const tooLate = await repeatGroup('2027-05-03');
-    tooLate.assertStatus(422);
-    assert.isString(validationSentence(tooLate));
+    const tooLate = await repeatGroup('2027-05-03')
+    tooLate.assertStatus(422)
+    assert.isString(validationSentence(tooLate))
 
     // The client sends the first occurrence and the pattern; the server mints the later ids.
-    const created = await repeatGroup('2026-11-23');
-    created.assertStatus(200);
-    const ids = listCreatedAllocationIds((created.body() as { data: unknown }).data);
-    assert.lengthOf(ids, 4);
-    assert.equal(ids[0], allocation.id);
+    const created = await repeatGroup('2026-11-23')
+    created.assertStatus(200)
+    const ids = listCreatedAllocationIds((created.body() as { data: unknown }).data)
+    assert.lengthOf(ids, 4)
+    assert.equal(ids[0], allocation.id)
     const rows = () =>
       readState(companyId, true).then((state) =>
         ids.map((id) => state.allocations.find((row) => row.id === id))
-      );
-    const saved = await rows();
+      )
+    const saved = await rows()
     assert.deepEqual(
       saved.map((row) => row?.startDate),
       ['2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23']
-    );
-    assert.isNotEmpty(saved[0]!.seriesId);
-    assert.isTrue(saved.every((row) => row?.seriesId === saved[0]!.seriesId));
+    )
+    assert.isNotEmpty(saved[0]!.seriesId)
+    assert.isTrue(saved.every((row) => row?.seriesId === saved[0]!.seriesId))
 
     // Undo deletes the minted ids as one group; redo restores that group.
     const undone = await intentSession(
@@ -603,89 +603,89 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(mutationInput(1, { operation: 'allocation.deleteGroup', ids }))
-      .send();
-    undone.assertStatus(200);
-    assert.deepEqual(await rows(), [undefined, undefined, undefined, undefined]);
+      .send()
+    undone.assertStatus(200)
+    assert.deepEqual(await rows(), [undefined, undefined, undefined, undefined])
     const restorationGroupId = (
       (undone.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
-    ).restoration.replacementGroupId;
+    ).restoration.replacementGroupId
     const redone = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(2, { operation: 'planning.restoreGroup', restorationGroupId }))
-      .send();
-    redone.assertStatus(200);
-    assert.deepEqual(await rows(), saved);
-  });
+      .send()
+    redone.assertStatus(200)
+    assert.deepEqual(await rows(), saved)
+  })
 
   test('a series-tail delete resolves the selected and later occurrences on the server', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await signIn(client);
-    const allocation = newAllocation(data);
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie } = await signIn(client)
+    const allocation = newAllocation(data)
     const mutate = (revision: number, intent: Record<string, unknown>) =>
       intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(mutationInput(revision, intent))
-        .send();
+        .send()
     const created = await mutate(0, {
       operation: 'allocation.createGroup',
       allocation,
       repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-23' },
-    });
-    created.assertStatus(200);
-    const ids = listCreatedAllocationIds((created.body() as { data: unknown }).data);
-    assert.lengthOf(ids, 4);
-    const oneOff = { ...newAllocation(data), startDate: '2026-11-17', endDate: '2026-11-17' };
-    const single = await mutate(1, { operation: 'allocation.create', allocation: oneOff });
-    single.assertStatus(200);
+    })
+    created.assertStatus(200)
+    const ids = listCreatedAllocationIds((created.body() as { data: unknown }).data)
+    assert.lengthOf(ids, 4)
+    const oneOff = { ...newAllocation(data), startDate: '2026-11-17', endDate: '2026-11-17' }
+    const single = await mutate(1, { operation: 'allocation.create', allocation: oneOff })
+    single.assertStatus(200)
     const present = () =>
       readState(companyId, true).then((state) =>
         [...ids, oneOff.id].map((id) => state.allocations.some((row) => row.id === id))
-      );
+      )
 
     const refused = await mutate(2, {
       operation: 'allocation.delete',
       id: oneOff.id,
       scope: 'future',
-    });
-    refused.assertStatus(422);
-    assert.isString(validationSentence(refused));
+    })
+    refused.assertStatus(422)
+    assert.isString(validationSentence(refused))
 
     // Only the selected id is sent; the server finds the later occurrences itself.
-    const tail = await mutate(2, { operation: 'allocation.delete', id: ids[1], scope: 'future' });
-    tail.assertStatus(200);
-    assert.deepEqual(await present(), [true, false, false, false, true]);
+    const tail = await mutate(2, { operation: 'allocation.delete', id: ids[1], scope: 'future' })
+    tail.assertStatus(200)
+    assert.deepEqual(await present(), [true, false, false, false, true])
     const restorationGroupId = (
       (tail.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
-    ).restoration.replacementGroupId;
-    const restored = await mutate(3, { operation: 'planning.restoreGroup', restorationGroupId });
-    restored.assertStatus(200);
-    assert.deepEqual(await present(), [true, true, true, true, true]);
-  });
+    ).restoration.replacementGroupId
+    const restored = await mutate(3, { operation: 'planning.restoreGroup', restorationGroupId })
+    restored.assertStatus(200)
+    assert.deepEqual(await present(), [true, true, true, true, true])
+  })
 
   test('a repeated time off commits its pattern and deletes and restores as a group', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await signIn(client, 'editor');
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie } = await signIn(client, 'editor')
     const resourceId = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
-    )!.id;
+    )!.id
     const timeOff = {
       id: randomUUID(),
       resourceId,
       startDate: '2026-11-02',
       endDate: '2026-11-03',
       type: 'holiday',
-    };
+    }
     const repeatTimeOff = (until: string, occurrenceIds: string[]) =>
       intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json(
@@ -696,21 +696,21 @@ test.group('authenticated planning operations', (group) => {
             occurrenceIds,
           })
         )
-        .send();
+        .send()
 
     // Eleven calendar months after November end with October.
-    const tooLate = await repeatTimeOff('2027-11-01', [randomUUID()]);
-    tooLate.assertStatus(422);
-    assert.isString(validationSentence(tooLate));
+    const tooLate = await repeatTimeOff('2027-11-01', [randomUUID()])
+    tooLate.assertStatus(422)
+    assert.isString(validationSentence(tooLate))
 
-    const ids = [timeOff.id, randomUUID(), randomUUID()];
-    const created = await repeatTimeOff('2026-11-30', ids.slice(1));
-    created.assertStatus(200);
+    const ids = [timeOff.id, randomUUID(), randomUUID()]
+    const created = await repeatTimeOff('2026-11-30', ids.slice(1))
+    created.assertStatus(200)
     const rows = () =>
       readState(companyId, true).then((state) =>
         ids.map((id) => state.timeOff.find((row) => row.id === id))
-      );
-    const saved = await rows();
+      )
+    const saved = await rows()
     assert.deepEqual(
       saved.map((row) => [row?.startDate, row?.endDate]),
       [
@@ -718,8 +718,8 @@ test.group('authenticated planning operations', (group) => {
         ['2026-11-16', '2026-11-17'],
         ['2026-11-30', '2026-12-01'],
       ]
-    );
-    assert.isTrue(saved.every((row) => row?.resourceId === resourceId && row.type === 'holiday'));
+    )
+    assert.isTrue(saved.every((row) => row?.resourceId === resourceId && row.type === 'holiday'))
 
     // Undo deletes the minted ids as one group; redo restores that group.
     const undone = await intentSession(
@@ -727,34 +727,34 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(mutationInput(1, { operation: 'timeOff.deleteGroup', ids }))
-      .send();
-    undone.assertStatus(200);
-    assert.deepEqual(await rows(), [undefined, undefined, undefined]);
+      .send()
+    undone.assertStatus(200)
+    assert.deepEqual(await rows(), [undefined, undefined, undefined])
     const restorationGroupId = (
       (undone.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
-    ).restoration.replacementGroupId;
+    ).restoration.replacementGroupId
     const redone = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(2, { operation: 'planning.restoreGroup', restorationGroupId }))
-      .send();
-    redone.assertStatus(200);
-    assert.deepEqual(await rows(), saved);
-  });
+      .send()
+    redone.assertStatus(200)
+    assert.deepEqual(await rows(), saved)
+  })
 
   test('allocation save replies carry the capacity advisory of the rows they wrote', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await loginAsMember();
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie } = await loginAsMember()
     // Bruce works eight hours Monday to Friday and has nothing booked in November.
-    const allocation = { ...newAllocation(data), hoursPerDay: 5 };
+    const allocation = { ...newAllocation(data), hoursPerDay: 5 }
     const advisory = (response: { body(): unknown }) =>
-      (response.body() as { data: { advisory?: unknown } }).data.advisory;
+      (response.body() as { data: { advisory?: unknown } }).data.advisory
 
     // The saved row is not counted against itself.
     const created = await intentSession(
@@ -762,9 +762,9 @@ test.group('authenticated planning operations', (group) => {
       cookie
     )
       .json(mutationInput(0, { operation: 'allocation.create', allocation }))
-      .send();
-    created.assertStatus(200);
-    assert.deepEqual(advisory(created), { overDays: 0, timeOffDays: 0 });
+      .send()
+    created.assertStatus(200)
+    assert.deepEqual(advisory(created), { overDays: 0, timeOffDays: 0 })
 
     // A copy on the same days adds five hours to five: ten is over eight on each of five days.
     const duplicated = await intentSession(
@@ -778,9 +778,9 @@ test.group('authenticated planning operations', (group) => {
           occurrence: { id: randomUUID(), startDate: '2026-11-02', endDate: '2026-11-06' },
         })
       )
-      .send();
-    duplicated.assertStatus(200);
-    assert.deepEqual(advisory(duplicated), { overDays: 5, timeOffDays: 0 });
+      .send()
+    duplicated.assertStatus(200)
+    assert.deepEqual(advisory(duplicated), { overDays: 5, timeOffDays: 0 })
 
     // Three plus five is exactly eight, which is not over capacity.
     const updated = await intentSession(
@@ -794,10 +794,10 @@ test.group('authenticated planning operations', (group) => {
           changes: { hoursPerDay: 3 },
         })
       )
-      .send();
-    updated.assertStatus(200);
-    assert.deepEqual(advisory(updated), { overDays: 0, timeOffDays: 0 });
-    assert.notProperty((updated.body() as { data: unknown }).data, 'repeatAdvisory');
+      .send()
+    updated.assertStatus(200)
+    assert.deepEqual(advisory(updated), { overDays: 0, timeOffDays: 0 })
+    assert.notProperty((updated.body() as { data: unknown }).data, 'repeatAdvisory')
 
     const timeOff = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -815,9 +815,9 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    timeOff.assertStatus(200);
-    assert.notProperty((timeOff.body() as { data: unknown }).data, 'advisory');
+      .send()
+    timeOff.assertStatus(200)
+    assert.notProperty((timeOff.body() as { data: unknown }).data, 'advisory')
 
     // Monthly from Monday 2 November: 2 November meets eight booked hours, 2 December is time off,
     // 2 January is a Saturday and 2 February is clear.
@@ -837,8 +837,8 @@ test.group('authenticated planning operations', (group) => {
           repeat: { pattern: { kind: 'monthly-date' }, until: '2027-02-02' },
         })
       )
-      .send();
-    repeated.assertStatus(200);
+      .send()
+    repeated.assertStatus(200)
     assert.deepEqual(
       ((repeated.body() as { data: unknown }).data as { repeatAdvisory?: unknown }).repeatAdvisory,
       {
@@ -846,22 +846,22 @@ test.group('authenticated planning operations', (group) => {
         timeOffAllocations: 1,
         nonEffectiveStartAllocations: 1,
       }
-    );
-    assert.notProperty((repeated.body() as { data: unknown }).data, 'advisory');
-  });
+    )
+    assert.notProperty((repeated.body() as { data: unknown }).data, 'advisory')
+  })
 
   test('time-off repeat rolls back its first entry when the ids do not match; closure and settings commit with correct projection', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const data = await readState(companyId, true);
-    const { cookie } = await loginAsMember('editor');
+    configureAuth(cleanup)
+    const data = await readState(companyId, true)
+    const { cookie } = await loginAsMember('editor')
     const resourceId = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
-    )!.id;
-    const firstId = randomUUID();
+    )!.id
+    const firstId = randomUUID()
     // Weekly from 2 November to 9 November makes two occurrences, so one later id, not two.
     const repeat = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -881,13 +881,13 @@ test.group('authenticated planning operations', (group) => {
           occurrenceIds: [randomUUID(), randomUUID()],
         })
       )
-      .send();
-    repeat.assertStatus(422);
-    assert.equal(validationSentence(repeat), 'The occurrence identities do not match the repeat.');
-    const afterRepeat = await readState(companyId, true);
-    assert.isFalse(afterRepeat.timeOff.some((row) => row.id === firstId));
+      .send()
+    repeat.assertStatus(422)
+    assert.equal(validationSentence(repeat), 'The occurrence identities do not match the repeat.')
+    const afterRepeat = await readState(companyId, true)
+    assert.isFalse(afterRepeat.timeOff.some((row) => row.id === firstId))
 
-    const closureId = randomUUID();
+    const closureId = randomUUID()
     const closure = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -899,9 +899,9 @@ test.group('authenticated planning operations', (group) => {
           fields: { name: 'Gotham Founders Day', startDate: '2026-11-03', endDate: '2026-11-03' },
         })
       )
-      .send();
-    closure.assertStatus(200);
-    assert.equal(replyBody(closure).revision, 1);
+      .send()
+    closure.assertStatus(200)
+    assert.equal(replyBody(closure).revision, 1)
     const setting = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -912,64 +912,64 @@ test.group('authenticated planning operations', (group) => {
           changes: { timezone: 'Europe/London', weekStartsOn: 0 },
         })
       )
-      .send();
-    setting.assertStatus(200);
-    assert.equal(replyBody(setting).revision, 2);
+      .send()
+    setting.assertStatus(200)
+    assert.equal(replyBody(setting).revision, 2)
     const read = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    read.assertStatus(200);
+    ).send()
+    read.assertStatus(200)
     const snapshot = read.body().data as {
-      revision: number;
-      data: { companies: Array<{ id: string; weekStartsOn: number | null }> };
-    };
-    assert.equal(snapshot.revision, 2);
+      revision: number
+      data: { companies: Array<{ id: string; weekStartsOn: number | null }> }
+    }
+    assert.equal(snapshot.revision, 2)
     assert.deepEqual(
       snapshot.data.companies.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
       [{ id: companyId, weekStartsOn: 0 }]
-    );
-    const state = await readState(companyId, true);
-    assert.equal(state.companies[0]?.weekStartsOn, 0);
-    assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
-  });
+    )
+    const state = await readState(companyId, true)
+    assert.equal(state.companies[0]?.weekStartsOn, 0)
+    assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day')
+  })
 
   test('a setting set back to empty commits and reads back empty', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
     const styled = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(0, { operation: 'settings.update', changes: { dateStyle: 'month-day' } }))
-      .send();
-    styled.assertStatus(200);
+      .send()
+    styled.assertStatus(200)
     const cleared = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(1, { operation: 'settings.update', changes: { dateStyle: null } }))
-      .send();
-    cleared.assertStatus(200);
-    assert.equal(replyBody(cleared).revision, 2);
-    const state = await readState(companyId, true);
-    assert.isNull(state.companies[0]?.dateStyle);
-  });
+      .send()
+    cleared.assertStatus(200)
+    assert.equal(replyBody(cleared).revision, 2)
+    const state = await readState(companyId, true)
+    assert.isNull(state.companies[0]?.dateStyle)
+  })
 
   test('refuses phase reassignment that would invalidate its activities without committing effects', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const before = await readState(companyId, true);
-    const phase = before.phases.find((row) => row.id === 'ph-disc')!;
-    const target = before.projects.find((row) => row.id === 'p-brand')!;
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const before = await readState(companyId, true)
+    const phase = before.phases.find((row) => row.id === 'ph-disc')!
+    const target = before.projects.find((row) => row.id === 'p-brand')!
     const refused = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -980,43 +980,43 @@ test.group('authenticated planning operations', (group) => {
           entity: { entity: 'phases', id: phase.id, changes: { projectId: target.id } },
         })
       )
-      .send();
-    refused.assertStatus(422);
-    assert.isString(validationSentence(refused));
+      .send()
+    refused.assertStatus(422)
+    assert.isString(validationSentence(refused))
     const retained = await intentSession(client.post('/api/v1/batch'), cookie)
       .json({
         ops: [
           { method: 'PUT', table: 'phases', id: phase.id, row: { ...phase, projectId: target.id } },
         ],
       })
-      .send();
-    retained.assertStatus(404);
-    assert.deepEqual(await readState(companyId, true), before);
-    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
-    assert.lengthOf(await db.from('audit_entries').where('company_id', companyId), 0);
+      .send()
+    retained.assertStatus(404)
+    assert.deepEqual(await readState(companyId, true), before)
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0)
+    assert.lengthOf(await db.from('audit_entries').where('company_id', companyId), 0)
     const current = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(current).revision, 0);
-  });
+    ).send()
+    assert.equal(replyBody(current).revision, 0)
+  })
 
   test('an edit carrying an out-of-date row timestamp is refused', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const before = await readState(companyId, true);
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const before = await readState(companyId, true)
     // The browser sends the timestamp it read, so take the row from the planning read.
     const read = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
+    ).send()
     const row = (read.body() as { data: { data: AppData } }).data.data.clients.find(
       (entry) => entry.companyId === companyId && !entry.builtin
-    )!;
+    )!
     const edit = (expectedUpdatedAt: string) =>
       intentSession(client.visit('api.planning_mutations.store', { companyId }), cookie)
         .json({
@@ -1026,32 +1026,32 @@ test.group('authenticated planning operations', (group) => {
           }),
           expectedUpdatedAt,
         })
-        .send();
+        .send()
 
-    const stale = await edit('2000-01-01T00:00:00.000Z');
-    stale.assertStatus(409);
-    assert.equal(replyBody(stale).code, 'E_STALE_REVISION');
-    assert.deepEqual(await readState(companyId, true), before);
+    const stale = await edit('2000-01-01T00:00:00.000Z')
+    stale.assertStatus(409)
+    assert.equal(replyBody(stale).code, 'E_STALE_REVISION')
+    assert.deepEqual(await readState(companyId, true), before)
     const unchanged = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    assert.equal(replyBody(unchanged).revision, 0);
+    ).send()
+    assert.equal(replyBody(unchanged).revision, 0)
 
-    const current = await edit(row.updatedAt);
-    current.assertStatus(200);
-    const after = await readState(companyId, true);
-    assert.equal(after.clients.find((entry) => entry.id === row.id)?.name, 'Wayne Enterprises');
-  });
+    const current = await edit(row.updatedAt)
+    current.assertStatus(200)
+    const after = await readState(companyId, true)
+    assert.equal(after.clients.find((entry) => entry.id === row.id)?.name, 'Wayne Enterprises')
+  })
 
   test('allows moving a phase without dependent activities', async ({
     client,
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const id = randomUUID();
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const id = randomUUID()
     const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -1066,8 +1066,8 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    created.assertStatus(200);
+      .send()
+    created.assertStatus(200)
     const moved = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -1082,17 +1082,17 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    moved.assertStatus(200);
-    assert.equal(replyBody(moved).revision, 2);
-    const afterMove = await readState(companyId, true);
-    assert.equal(afterMove.phases.find((row) => row.id === id)?.projectId, 'p-brand');
-  });
+      .send()
+    moved.assertStatus(200)
+    assert.equal(replyBody(moved).revision, 2)
+    const afterMove = await readState(companyId, true)
+    assert.equal(afterMove.phases.find((row) => row.id === id)?.projectId, 'p-brand')
+  })
   test('activity kind edits remove dependent attribution', async ({ client, assert, cleanup }) => {
-    configureAuth(cleanup);
-    const { cookie } = await loginAsMember();
-    const data = await readState(companyId, true);
-    const activityId = randomUUID();
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const data = await readState(companyId, true)
+    const activityId = randomUUID()
     const created = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -1112,16 +1112,16 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    created.assertStatus(200);
-    const allocation = { ...newAllocation(data), activityId, projectId: 'p-acme' };
+      .send()
+    created.assertStatus(200)
+    const allocation = { ...newAllocation(data), activityId, projectId: 'p-acme' }
     const allocated = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json(mutationInput(1, { operation: 'allocation.create', allocation }))
-      .send();
-    allocated.assertStatus(200);
+      .send()
+    allocated.assertStatus(200)
     const changed = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -1136,14 +1136,14 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    changed.assertStatus(200);
-    assert.equal(replyBody(changed).revision, 3);
-    const afterKindChange = await readState(companyId, true);
-    assert.isNull(afterKindChange.allocations.find((row) => row.id === allocation.id)?.projectId);
+      .send()
+    changed.assertStatus(200)
+    assert.equal(replyBody(changed).revision, 3)
+    const afterKindChange = await readState(companyId, true)
+    assert.isNull(afterKindChange.allocations.find((row) => row.id === allocation.id)?.projectId)
 
-    const auditBeforeNoop = await db.from('audit_entries').where('company_id', companyId);
-    const markersBeforeNoop = await db.from('planning_mutations').where('company_id', companyId);
+    const auditBeforeNoop = await db.from('audit_entries').where('company_id', companyId)
+    const markersBeforeNoop = await db.from('planning_mutations').where('company_id', companyId)
     const sameKindOnly = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -1158,24 +1158,21 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    sameKindOnly.assertStatus(400);
-    assert.equal(replyBody(sameKindOnly).code, 'E_NO_CHANGE');
-    assert.deepEqual(await readState(companyId, true), afterKindChange);
-    assert.deepEqual(
-      await db.from('audit_entries').where('company_id', companyId),
-      auditBeforeNoop
-    );
+      .send()
+    sameKindOnly.assertStatus(400)
+    assert.equal(replyBody(sameKindOnly).code, 'E_NO_CHANGE')
+    assert.deepEqual(await readState(companyId, true), afterKindChange)
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditBeforeNoop)
     assert.deepEqual(
       await db.from('planning_mutations').where('company_id', companyId),
       markersBeforeNoop
-    );
+    )
     const afterNoop = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
-    ).send();
-    afterNoop.assertStatus(200);
-    assert.equal(replyBody(afterNoop).revision, 3);
+    ).send()
+    afterNoop.assertStatus(200)
+    assert.equal(replyBody(afterNoop).revision, 3)
 
     const sameKind = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -1191,8 +1188,8 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    sameKind.assertStatus(200);
+      .send()
+    sameKind.assertStatus(200)
     const renamed = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -1207,7 +1204,7 @@ test.group('authenticated planning operations', (group) => {
           },
         })
       )
-      .send();
-    renamed.assertStatus(200);
-  });
-});
+      .send()
+    renamed.assertStatus(200)
+  })
+})

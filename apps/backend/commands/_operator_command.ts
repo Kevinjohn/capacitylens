@@ -1,4 +1,4 @@
-import { BaseCommand } from '@adonisjs/core/ace';
+import { BaseCommand } from '@adonisjs/core/ace'
 
 /**
  * An operator command that reports a failed run as one safe line. Its `run()` lets an error
@@ -8,11 +8,11 @@ import { BaseCommand } from '@adonisjs/core/ace';
  */
 export default abstract class OperatorCommand extends BaseCommand {
   /** The one line an operator sees for a failed run. It must carry no credential material. */
-  protected abstract buildFailureMessage(error: unknown): string;
+  protected abstract buildFailureMessage(error: unknown): string
 
   async completed() {
-    if (!this.error) return false;
-    this.logger.error(this.buildFailureMessage(this.error));
-    return true;
+    if (!this.error) return false
+    this.logger.error(this.buildFailureMessage(this.error))
+    return true
   }
 }

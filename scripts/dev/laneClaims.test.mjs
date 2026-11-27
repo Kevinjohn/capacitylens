@@ -1,6 +1,6 @@
-import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
-import test from 'node:test';
+import assert from 'node:assert/strict'
+import { spawn, spawnSync } from 'node:child_process'
+import test from 'node:test'
 import {
   existsSync,
   mkdirSync,
@@ -8,15 +8,15 @@ import {
   readdirSync,
   readFileSync,
   writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   presetEnvironment,
   resolvePlaywrightRunMode,
   E2E_RUN_PRESETS,
-} from '../e2e/playwrightRunMode.mjs';
-import { nonColourEnvironment } from '../shared/childProcess.mjs';
+} from '../e2e/playwrightRunMode.mjs'
+import { nonColourEnvironment } from '../shared/childProcess.mjs'
 import {
   assertPortLaneFree,
   claimPortLane,
@@ -27,105 +27,105 @@ import {
   releaseMutex,
   resolveLaunchClaim,
   shareForClaims,
-} from './laneClaims.mjs';
+} from './laneClaims.mjs'
 import {
   PORT_LANE_CEILING,
   PORT_LANE_CLAIM_ENVIRONMENT_KEY,
   portsForPortLane,
-} from '../../tooling/ports.mjs';
+} from '../../tooling/ports.mjs'
 
 function scratch() {
-  const cache = mkdtempSync(join(tmpdir(), 'lanes-'));
-  return { XDG_CACHE_HOME: cache, HOME: cache };
+  const cache = mkdtempSync(join(tmpdir(), 'lanes-'))
+  return { XDG_CACHE_HOME: cache, HOME: cache }
 }
 
 test('the first claim takes port lane 0 and the next takes port lane 1', () => {
-  const environment = scratch();
-  const first = claimPortLane({ worktree: '/tmp/a', environment });
-  const second = claimPortLane({ worktree: '/tmp/b', environment });
-  assert.equal(first.portLane, 0);
-  assert.equal(second.portLane, 1);
-  assert.notDeepEqual(portsForPortLane(first.portLane), portsForPortLane(second.portLane));
-});
+  const environment = scratch()
+  const first = claimPortLane({ worktree: '/tmp/a', environment })
+  const second = claimPortLane({ worktree: '/tmp/b', environment })
+  assert.equal(first.portLane, 0)
+  assert.equal(second.portLane, 1)
+  assert.notDeepEqual(portsForPortLane(first.portLane), portsForPortLane(second.portLane))
+})
 
 test('an explicitly selected port lane is reserved', () => {
-  const environment = scratch();
-  const claim = claimPortLane({ worktree: '/tmp/pinned', environment, portLane: 4 });
-  assert.equal(claim.portLane, 4);
-  assert.equal(existsSync(join(portLaneDirectory(environment), '4.json')), true);
-  claim.release();
-});
+  const environment = scratch()
+  const claim = claimPortLane({ worktree: '/tmp/pinned', environment, portLane: 4 })
+  assert.equal(claim.portLane, 4)
+  assert.equal(existsSync(join(portLaneDirectory(environment), '4.json')), true)
+  claim.release()
+})
 
 test('an explicitly selected port lane held by a live claim is refused', () => {
-  const environment = scratch();
-  const held = claimPortLane({ worktree: '/tmp/holder', environment, portLane: 4 });
+  const environment = scratch()
+  const held = claimPortLane({ worktree: '/tmp/holder', environment, portLane: 4 })
   assert.throws(
     () => claimPortLane({ worktree: '/tmp/contender', environment, portLane: 4 }),
-    new RegExp(`lane 4 is held by pid ${process.pid} in /tmp/holder`),
-  );
-  held.release();
-});
+    new RegExp(`lane 4 is held by pid ${process.pid} in /tmp/holder`)
+  )
+  held.release()
+})
 
 test("a port lane whose holder has gone is reclaimed, and a live holder's is not", () => {
-  const environment = scratch();
-  const directory = portLaneDirectory(environment);
+  const environment = scratch()
+  const directory = portLaneDirectory(environment)
   // Port lane 0 is held by this live process.
-  claimPortLane({ worktree: '/tmp/a', environment });
+  claimPortLane({ worktree: '/tmp/a', environment })
   // A claim from a pid that cannot exist: the highest pid is well below this.
   writeFileSync(
     join(directory, '1.json'),
-    JSON.stringify({ pid: 2 ** 30, worktree: '/tmp/dead', share: 4 }),
-  );
-  const next = claimPortLane({ worktree: '/tmp/c', environment });
-  assert.equal(next.portLane, 1, "the dead holder's port lane is the first free one");
-});
+    JSON.stringify({ pid: 2 ** 30, worktree: '/tmp/dead', share: 4 })
+  )
+  const next = claimPortLane({ worktree: '/tmp/c', environment })
+  assert.equal(next.portLane, 1, "the dead holder's port lane is the first free one")
+})
 
 test('an unreadable claim surfaces its read error instead of being reclaimed', () => {
-  const environment = scratch();
-  const directory = portLaneDirectory(environment);
-  claimPortLane({ worktree: '/tmp/initial', environment }).release();
+  const environment = scratch()
+  const directory = portLaneDirectory(environment)
+  claimPortLane({ worktree: '/tmp/initial', environment }).release()
   // A directory in place of the claim file makes the read fail with EISDIR, portably and as root.
-  mkdirSync(join(directory, '0.json'));
-  assert.throws(() => claimPortLane({ worktree: '/tmp/b', environment }), { code: 'EISDIR' });
-  assert.throws(() => releasePortLane(directory, 0, 'token'), { code: 'EISDIR' });
-  assert.equal(existsSync(join(directory, '0.json')), true);
-});
+  mkdirSync(join(directory, '0.json'))
+  assert.throws(() => claimPortLane({ worktree: '/tmp/b', environment }), { code: 'EISDIR' })
+  assert.throws(() => releasePortLane(directory, 0, 'token'), { code: 'EISDIR' })
+  assert.equal(existsSync(join(directory, '0.json')), true)
+})
 
 test('a live mutex is not reclaimed solely because its timestamp is old', () => {
-  const environment = scratch();
-  const directory = portLaneDirectory(environment);
+  const environment = scratch()
+  const directory = portLaneDirectory(environment)
   // The directory is created by an initial claim; its claim is released before the assertion.
-  claimPortLane({ worktree: '/tmp/a', environment }).release();
-  mkdirSync(join(directory, '.mutex'));
+  claimPortLane({ worktree: '/tmp/a', environment }).release()
+  mkdirSync(join(directory, '.mutex'))
   writeFileSync(
     join(directory, '.mutex', 'owner-old.json'),
-    JSON.stringify({ pid: process.pid, at: 0 }),
-  );
-  const realNow = Date.now;
-  let now = realNow();
-  Date.now = () => (now += 31_000);
+    JSON.stringify({ pid: process.pid, at: 0 })
+  )
+  const realNow = Date.now
+  let now = realNow()
+  Date.now = () => (now += 31_000)
   try {
-    assert.throws(() => claimPortLane({ worktree: '/tmp/b', environment }), /held by pid/);
+    assert.throws(() => claimPortLane({ worktree: '/tmp/b', environment }), /held by pid/)
   } finally {
-    Date.now = realNow;
+    Date.now = realNow
   }
-});
+})
 
 test(
   'a paused real mutex publisher cannot enter the port lane scan while another owner holds the lock',
   { timeout: 15_000 },
   async () => {
-    const environment = scratch();
-    const directory = portLaneDirectory(environment);
-    claimPortLane({ worktree: '/tmp/initial', environment }).release();
+    const environment = scratch()
+    const directory = portLaneDirectory(environment)
+    claimPortLane({ worktree: '/tmp/initial', environment }).release()
     const pauseAt = async (name) => {
-      const path = join(directory, name);
+      const path = join(directory, name)
       for (let tries = 0; tries < 500; tries += 1) {
-        if (existsSync(path)) return;
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        if (existsSync(path)) return
+        await new Promise((resolve) => setTimeout(resolve, 10))
       }
-      throw new Error(`Timed out waiting for ${name}`);
-    };
+      throw new Error(`Timed out waiting for ${name}`)
+    }
     const childCode = `
     import fs from 'node:fs';
     import { syncBuiltinESMExports } from 'node:module';
@@ -167,7 +167,7 @@ test(
     fs.writeFileSync(join(directory, role + '-lane'), String(claim.portLane));
     wait('release-' + role);
     claim.release();
-  `;
+  `
     const run = (role) => {
       const child = spawn(
         process.execPath,
@@ -180,37 +180,35 @@ test(
           directory,
           environment.XDG_CACHE_HOME,
         ],
-        { stdio: ['ignore', 'ignore', 'pipe'] },
-      );
-      let stderr = '';
+        { stdio: ['ignore', 'ignore', 'pipe'] }
+      )
+      let stderr = ''
       child.stderr.on('data', (chunk) => {
-        stderr += chunk;
-      });
-      const done = new Promise((resolve) =>
-        child.once('exit', (code) => resolve({ code, stderr })),
-      );
-      return { child, done };
-    };
-    const publisher = run('publisher');
-    let contender;
+        stderr += chunk
+      })
+      const done = new Promise((resolve) => child.once('exit', (code) => resolve({ code, stderr })))
+      return { child, done }
+    }
+    const publisher = run('publisher')
+    let contender
     try {
-      await pauseAt('publisher-created');
-      contender = run('contender');
-      await pauseAt('contender-locked');
-      writeFileSync(join(directory, 'continue-publisher'), 'go');
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await pauseAt('publisher-created')
+      contender = run('contender')
+      await pauseAt('contender-locked')
+      writeFileSync(join(directory, 'continue-publisher'), 'go')
+      await new Promise((resolve) => setTimeout(resolve, 100))
       assert.equal(
         existsSync(join(directory, 'publisher-scanned')),
         false,
-        "the publisher must still wait for the contender's mutex",
-      );
-      writeFileSync(join(directory, 'continue-contender'), 'go');
-      await pauseAt('publisher-lane');
-      await pauseAt('contender-lane');
+        "the publisher must still wait for the contender's mutex"
+      )
+      writeFileSync(join(directory, 'continue-contender'), 'go')
+      await pauseAt('publisher-lane')
+      await pauseAt('contender-lane')
       assert.notEqual(
         readFileSync(join(directory, 'publisher-lane'), 'utf8'),
-        readFileSync(join(directory, 'contender-lane'), 'utf8'),
-      );
+        readFileSync(join(directory, 'contender-lane'), 'utf8')
+      )
     } finally {
       for (const name of [
         'continue-publisher',
@@ -218,107 +216,103 @@ test(
         'release-publisher',
         'release-contender',
       ])
-        writeFileSync(join(directory, name), 'go');
-      publisher.child.kill('SIGKILL');
-      contender?.child.kill('SIGKILL');
-      await publisher.done;
-      if (contender) await contender.done;
+        writeFileSync(join(directory, name), 'go')
+      publisher.child.kill('SIGKILL')
+      contender?.child.kill('SIGKILL')
+      await publisher.done
+      if (contender) await contender.done
     }
-  },
-);
+  }
+)
 
 test("racing dead-owner cleanup cannot remove a successor's mutex", () => {
-  const environment = scratch();
-  const directory = portLaneDirectory(environment);
-  claimPortLane({ worktree: '/tmp/initial', environment }).release();
-  const mutex = join(directory, '.mutex');
-  mkdirSync(mutex);
-  writeFileSync(join(mutex, 'owner-dead.json'), JSON.stringify({ pid: 2 ** 30, at: 0 }));
-  const successor = claimPortLane({ worktree: '/tmp/successor', environment });
-  mkdirSync(mutex);
+  const environment = scratch()
+  const directory = portLaneDirectory(environment)
+  claimPortLane({ worktree: '/tmp/initial', environment }).release()
+  const mutex = join(directory, '.mutex')
+  mkdirSync(mutex)
+  writeFileSync(join(mutex, 'owner-dead.json'), JSON.stringify({ pid: 2 ** 30, at: 0 }))
+  const successor = claimPortLane({ worktree: '/tmp/successor', environment })
+  mkdirSync(mutex)
   writeFileSync(
     join(mutex, 'owner-successor.json'),
-    JSON.stringify({ pid: process.pid, at: Date.now() }),
-  );
+    JSON.stringify({ pid: process.pid, at: Date.now() })
+  )
   // A delayed reaper still holds the dead owner's filename from its earlier read.
-  releaseMutex(mutex, 'owner-dead.json');
-  assert.deepEqual(readdirSync(mutex), ['owner-successor.json']);
-  releaseMutex(mutex, 'owner-successor.json');
-  assert.equal(successor.release(), true);
-});
+  releaseMutex(mutex, 'owner-dead.json')
+  assert.deepEqual(readdirSync(mutex), ['owner-successor.json'])
+  releaseMutex(mutex, 'owner-successor.json')
+  assert.equal(successor.release(), true)
+})
 
 test('explicit browser presets clear conflicting inherited mode flags', () => {
   const inherited = {
     CAPACITYLENS_WEBKIT_ONLY: '1',
     CAPACITYLENS_FIREFOX_ONLY: '1',
     KEEP_THIS: 'yes',
-  };
+  }
   for (const preset of Object.values(E2E_RUN_PRESETS)) {
-    const environment = nonColourEnvironment({}, presetEnvironment(inherited, preset.environment));
-    assert.equal(environment.KEEP_THIS, 'yes');
-    const mode = resolvePlaywrightRunMode(environment);
+    const environment = nonColourEnvironment({}, presetEnvironment(inherited, preset.environment))
+    assert.equal(environment.KEEP_THIS, 'yes')
+    const mode = resolvePlaywrightRunMode(environment)
     assert.deepEqual(
       mode.projects.filter((project) => ['webkit', 'firefox'].includes(project)),
-      preset.projects.filter((project) => ['webkit', 'firefox'].includes(project)),
-    );
+      preset.projects.filter((project) => ['webkit', 'firefox'].includes(project))
+    )
   }
-});
+})
 
 test('running out of port lanes names the holders instead of failing later on a port', () => {
-  const environment = scratch();
+  const environment = scratch()
   for (let portLane = 0; portLane < PORT_LANE_CEILING; portLane += 1)
-    claimPortLane({ worktree: `/tmp/${portLane}`, environment });
+    claimPortLane({ worktree: `/tmp/${portLane}`, environment })
   assert.throws(
     () => claimPortLane({ worktree: '/tmp/overflow', environment }),
     (error) =>
       error.message.includes(`All ${PORT_LANE_CEILING} port lanes are held`) &&
-      error.message.includes(`pid ${process.pid}`),
-  );
-});
+      error.message.includes(`pid ${process.pid}`)
+  )
+})
 
 test('release removes only our own claim', () => {
-  const environment = scratch();
-  const directory = portLaneDirectory(environment);
-  const claim = claimPortLane({ worktree: '/tmp/a', environment });
-  assert.equal(claim.release(), true);
-  assert.equal(readdirSync(directory).length, 0);
+  const environment = scratch()
+  const directory = portLaneDirectory(environment)
+  const claim = claimPortLane({ worktree: '/tmp/a', environment })
+  assert.equal(claim.release(), true)
+  assert.equal(readdirSync(directory).length, 0)
   assert.equal(
     claim.release(),
     false,
-    "releasing twice is a no-op, not a delete of a successor's claim",
-  );
+    "releasing twice is a no-op, not a delete of a successor's claim"
+  )
   writeFileSync(
     join(directory, '0.json'),
-    JSON.stringify({ pid: process.pid + 1, worktree: '/tmp/successor', share: 1 }),
-  );
-  assert.equal(
-    releasePortLane(directory, 0),
-    false,
-    "another process's claim survives our release",
-  );
-  assert.equal(readdirSync(directory).length, 1);
-});
+    JSON.stringify({ pid: process.pid + 1, worktree: '/tmp/successor', share: 1 })
+  )
+  assert.equal(releasePortLane(directory, 0), false, "another process's claim survives our release")
+  assert.equal(readdirSync(directory).length, 1)
+})
 
 test('a delayed release cannot delete a same-process successor', () => {
-  const environment = scratch();
-  const directory = portLaneDirectory(environment);
-  const first = claimPortLane({ worktree: '/tmp/a', environment });
-  const firstToken = JSON.parse(readFileSync(join(directory, '0.json'), 'utf8')).token;
-  first.release();
-  const successor = claimPortLane({ worktree: '/tmp/b', environment });
-  assert.equal(releasePortLane(directory, successor.portLane, firstToken), false);
-  assert.equal(successor.release(), true);
-});
+  const environment = scratch()
+  const directory = portLaneDirectory(environment)
+  const first = claimPortLane({ worktree: '/tmp/a', environment })
+  const firstToken = JSON.parse(readFileSync(join(directory, '0.json'), 'utf8')).token
+  first.release()
+  const successor = claimPortLane({ worktree: '/tmp/b', environment })
+  assert.equal(releasePortLane(directory, successor.portLane, firstToken), false)
+  assert.equal(successor.release(), true)
+})
 
 test('a signalled launcher exits unsuccessfully even when its child exits zero', async () => {
-  const scratchEnvironment = scratch();
+  const scratchEnvironment = scratch()
   const environment = {
     ...process.env,
     ...scratchEnvironment,
     CAPACITYLENS_PORT_LANE: '0',
     CAPACITYLENS_TEST_SHARE: '1',
     [PORT_LANE_CLAIM_ENVIRONMENT_KEY]: 'outer-claim',
-  };
+  }
   const child = spawn(
     process.execPath,
     [
@@ -327,21 +321,21 @@ test('a signalled launcher exits unsuccessfully even when its child exits zero',
       '-e',
       "process.on('SIGTERM', () => process.exit(0)); process.stdout.write('ready\\n'); setInterval(() => {}, 1000)",
     ],
-    { env: environment, stdio: ['ignore', 'pipe', 'pipe'] },
-  );
+    { env: environment, stdio: ['ignore', 'pipe', 'pipe'] }
+  )
   await new Promise((resolve, reject) => {
-    child.once('error', reject);
-    child.stdout.once('data', resolve);
-  });
-  child.kill('SIGTERM');
+    child.once('error', reject)
+    child.stdout.once('data', resolve)
+  })
+  child.kill('SIGTERM')
   const outcome = await new Promise((resolve) =>
-    child.once('exit', (code, signal) => resolve({ code, signal })),
-  );
-  assert.notEqual(outcome.code, 0);
-});
+    child.once('exit', (code, signal) => resolve({ code, signal }))
+  )
+  assert.notEqual(outcome.code, 0)
+})
 
 test('the port lane launcher reports startup failure and the backend launcher rejects an invalid flavour', () => {
-  const environment = scratch();
+  const environment = scratch()
   const withPortLane = spawnSync(
     process.execPath,
     [new URL('./with-lane.mjs', import.meta.url).pathname, '/missing-capacitylens-command'],
@@ -353,9 +347,9 @@ test('the port lane launcher reports startup failure and the backend launcher re
         [PORT_LANE_CLAIM_ENVIRONMENT_KEY]: 'outer-claim',
       },
       encoding: 'utf8',
-    },
-  );
-  assert.equal(withPortLane.status, 2);
+    }
+  )
+  assert.equal(withPortLane.status, 2)
 
   const server = spawnSync(
     process.execPath,
@@ -364,77 +358,77 @@ test('the port lane launcher reports startup failure and the backend launcher re
       env: { ...process.env, PATH: '', CAPACITYLENS_PORT_LANE: '0' },
       encoding: 'utf8',
       timeout: 10_000,
-    },
-  );
-  assert.equal(server.status, 2);
-});
+    }
+  )
+  assert.equal(server.status, 2)
+})
 
 test('a hand-selected port lane is claimed exactly and a marked child inherits without claiming', () => {
-  const pinnedEnvironment = { ...scratch(), CAPACITYLENS_PORT_LANE: '4' };
-  const pinned = resolveLaunchClaim({ worktree: '/tmp/pinned', environment: pinnedEnvironment });
+  const pinnedEnvironment = { ...scratch(), CAPACITYLENS_PORT_LANE: '4' }
+  const pinned = resolveLaunchClaim({ worktree: '/tmp/pinned', environment: pinnedEnvironment })
   try {
-    assert.equal(pinned.inherited, false);
-    assert.equal(pinned.portLane, 4);
-    assert.equal(existsSync(join(portLaneDirectory(pinnedEnvironment), '4.json')), true);
+    assert.equal(pinned.inherited, false)
+    assert.equal(pinned.portLane, 4)
+    assert.equal(existsSync(join(portLaneDirectory(pinnedEnvironment), '4.json')), true)
   } finally {
-    pinned.release();
+    pinned.release()
   }
 
   const inheritedEnvironment = {
     ...scratch(),
     CAPACITYLENS_PORT_LANE: '4',
     [PORT_LANE_CLAIM_ENVIRONMENT_KEY]: 'outer',
-  };
+  }
   const inherited = resolveLaunchClaim({
     worktree: '/tmp/nested',
     environment: inheritedEnvironment,
     claim: () => assert.fail('a marked child must not claim a port lane'),
-  });
+  })
   assert.deepEqual(
     { inherited: inherited.inherited, portLane: inherited.portLane, token: inherited.token },
     {
       inherited: true,
       portLane: 4,
       token: 'outer',
-    },
-  );
-  assert.equal(inherited.release(), false);
+    }
+  )
+  assert.equal(inherited.release(), false)
 
-  const unmarked = { ...scratch() };
-  const automatic = resolveLaunchClaim({ worktree: '/tmp/automatic', environment: unmarked });
+  const unmarked = { ...scratch() }
+  const automatic = resolveLaunchClaim({ worktree: '/tmp/automatic', environment: unmarked })
   try {
-    assert.equal(automatic.inherited, false);
-    assert.equal(existsSync(join(portLaneDirectory(unmarked), `${automatic.portLane}.json`)), true);
+    assert.equal(automatic.inherited, false)
+    assert.equal(existsSync(join(portLaneDirectory(unmarked), `${automatic.portLane}.json`)), true)
   } finally {
-    automatic.release();
+    automatic.release()
   }
-});
+})
 
 test('the reservation shrinks as the pool fills and never reaches zero', () => {
   assert.equal(
     shareForClaims(new Map(), 10),
     5,
-    'a solo run is capped at half the cores, not the whole pool',
-  );
-  assert.equal(shareForClaims(new Map([[0, { share: 5 }]]), 10), 4);
+    'a solo run is capped at half the cores, not the whole pool'
+  )
+  assert.equal(shareForClaims(new Map([[0, { share: 5 }]]), 10), 4)
   assert.equal(
     shareForClaims(
       new Map([
         [0, { share: 5 }],
         [1, { share: 4 }],
       ]),
-      10,
+      10
     ),
     1,
-    'an exhausted pool still admits a single worker',
-  );
-  assert.equal(shareForClaims(new Map([[0, { share: 9 }]]), 2), 1);
-});
+    'an exhausted pool still admits a single worker'
+  )
+  assert.equal(shareForClaims(new Map([[0, { share: 9 }]]), 2), 1)
+})
 
 test('an occupied port is reported without killing its same-worktree process', async () => {
-  const portLane = 3;
-  const port = portsForPortLane(portLane).web;
-  const killed = [];
+  const portLane = 3
+  const port = portsForPortLane(portLane).web
+  const killed = []
   await assert.rejects(
     assertPortLaneFree(portLane, {
       probe: (candidate) => Promise.resolve(candidate === port),
@@ -442,15 +436,15 @@ test('an occupied port is reported without killing its same-worktree process', a
       directoryOf: () => '/tmp/mine',
       kill: (pid) => killed.push(pid),
     }),
-    /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/,
-  );
-  assert.deepEqual(killed, []);
-});
+    /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/
+  )
+  assert.deepEqual(killed, [])
+})
 
 test('an occupied worker endpoint refuses the port lane without stopping its owner', async () => {
-  const portLane = 3;
-  const port = 10199;
-  const killed = [];
+  const portLane = 3
+  const port = 10199
+  const killed = []
   await assert.rejects(
     assertPortLaneFree(portLane, {
       probe: (candidate) => Promise.resolve(candidate === port),
@@ -458,30 +452,30 @@ test('an occupied worker endpoint refuses the port lane without stopping its own
       directoryOf: () => '/tmp/mine',
       kill: (pid) => killed.push(pid),
     }),
-    /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/,
-  );
-  assert.deepEqual(killed, []);
-});
+    /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/
+  )
+  assert.deepEqual(killed, [])
+})
 
 test('missing lsof is reported while an ordinary no-match exit returns null', () => {
   for (const inspect of [
     () =>
       listenerPid(5173, () => {
-        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' })
       }),
     () =>
       listenerDirectory(4242, () => {
-        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' })
       }),
   ]) {
     assert.throws(
       inspect,
-      /lane: lsof is required to inspect an occupied lane port; install lsof and retry\./,
-    );
+      /lane: lsof is required to inspect an occupied lane port; install lsof and retry\./
+    )
   }
   const noMatch = () => {
-    throw Object.assign(new Error('no match'), { status: 1 });
-  };
-  assert.equal(listenerPid(5173, noMatch), null);
-  assert.equal(listenerDirectory(4242, noMatch), null);
-});
+    throw Object.assign(new Error('no match'), { status: 1 })
+  }
+  assert.equal(listenerPid(5173, noMatch), null)
+  assert.equal(listenerDirectory(4242, noMatch), null)
+})

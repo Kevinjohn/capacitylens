@@ -1,167 +1,167 @@
-import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { act, render as renderTestingLibrary, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { DisciplineList } from './DisciplineList';
-import { useStore } from '@/store/useStore';
-import { resetStoreWithCompany } from '@/test/fixtures';
-import { OwnerPermissions } from '@/test/ownerPermissions';
+import { requireCreated } from '@/test/requireCreated'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { act, render as renderTestingLibrary, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { DisciplineList } from './DisciplineList'
+import { useStore } from '@/store/useStore'
+import { resetStoreWithCompany } from '@/test/fixtures'
+import { OwnerPermissions } from '@/test/ownerPermissions'
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
-  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions })
 
 beforeEach(async () => {
-  await resetStoreWithCompany();
-  useStore.getState().clearFilters();
-});
+  await resetStoreWithCompany()
+  useStore.getState().clearFilters()
+})
 
 describe('DisciplineList', () => {
   it('sorts the management view alphabetically without changing stored sort order', async () => {
-    await useStore.getState().addDiscipline({ name: 'Zulu', color: '#111111' });
-    await useStore.getState().addDiscipline({ name: 'alpha', color: '#222222' });
-    await useStore.getState().addDiscipline({ name: 'Bravo', color: '#333333' });
-    const storedIds = useStore.getState().data.disciplines.map((discipline) => discipline.id);
+    await useStore.getState().addDiscipline({ name: 'Zulu', color: '#111111' })
+    await useStore.getState().addDiscipline({ name: 'alpha', color: '#222222' })
+    await useStore.getState().addDiscipline({ name: 'Bravo', color: '#333333' })
+    const storedIds = useStore.getState().data.disciplines.map((discipline) => discipline.id)
 
-    render(<DisciplineList />);
+    render(<DisciplineList />)
 
     expect(screen.getAllByTestId('discipline-row').map((row) => row.textContent)).toEqual([
       'alpha',
       'Bravo',
       'Zulu',
-    ]);
+    ])
     expect(useStore.getState().data.disciplines.map((discipline) => discipline.id)).toEqual(
-      storedIds,
-    );
-  });
+      storedIds
+    )
+  })
 
   it('shows an empty state message when there are no disciplines', () => {
-    render(<DisciplineList />);
-    expect(screen.getByText(/no disciplines yet/i)).toBeInTheDocument();
-  });
+    render(<DisciplineList />)
+    expect(screen.getByText(/no disciplines yet/i)).toBeInTheDocument()
+  })
 
   it('lists disciplines that already exist in the store', async () => {
-    await useStore.getState().addDiscipline({ name: 'Engineering', color: '#6366f1' });
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#ec4899' });
-    render(<DisciplineList />);
-    expect(screen.getByText('Engineering')).toBeInTheDocument();
-    expect(screen.getByText('Design')).toBeInTheDocument();
-    expect(screen.getAllByTestId('discipline-row')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Edit Engineering' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Edit Design' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Delete Engineering' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Delete Design' })).toBeInTheDocument();
-  });
+    await useStore.getState().addDiscipline({ name: 'Engineering', color: '#6366f1' })
+    await useStore.getState().addDiscipline({ name: 'Design', color: '#ec4899' })
+    render(<DisciplineList />)
+    expect(screen.getByText('Engineering')).toBeInTheDocument()
+    expect(screen.getByText('Design')).toBeInTheDocument()
+    expect(screen.getAllByTestId('discipline-row')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Edit Engineering' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Design' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Engineering' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Design' })).toBeInTheDocument()
+  })
 
   it('adds a discipline via the dialog (fill Name, Save) and sees it listed', async () => {
-    const user = userEvent.setup();
-    render(<DisciplineList />);
+    const user = userEvent.setup()
+    render(<DisciplineList />)
 
-    await user.click(screen.getByRole('button', { name: 'Add discipline' }));
+    await user.click(screen.getByRole('button', { name: 'Add discipline' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Add discipline' });
-    expect(dialog).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Add discipline' })
+    expect(dialog).toBeInTheDocument()
 
-    await user.type(within(dialog).getByLabelText('Name'), 'Product');
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.type(within(dialog).getByLabelText('Name'), 'Product')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByText('Product')).toBeInTheDocument();
-    expect(useStore.getState().data.disciplines).toHaveLength(1);
-    expect(useStore.getState().data.disciplines[0]?.name).toBe('Product');
-  });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Product')).toBeInTheDocument()
+    expect(useStore.getState().data.disciplines).toHaveLength(1)
+    expect(useStore.getState().data.disciplines[0]?.name).toBe('Product')
+  })
 
   it('shows a validation error when trying to save without a name', async () => {
-    const user = userEvent.setup();
-    render(<DisciplineList />);
+    const user = userEvent.setup()
+    render(<DisciplineList />)
 
-    await user.click(screen.getByRole('button', { name: 'Add discipline' }));
-    const dialog = screen.getByRole('dialog', { name: 'Add discipline' });
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'Add discipline' }))
+    const dialog = screen.getByRole('dialog', { name: 'Add discipline' })
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/name is required/i);
-    expect(useStore.getState().data.disciplines).toHaveLength(0);
-  });
+    expect(screen.getByRole('alert')).toHaveTextContent(/name is required/i)
+    expect(useStore.getState().data.disciplines).toHaveLength(0)
+  })
 
   it('edit renames a discipline', async () => {
-    const user = userEvent.setup();
-    await useStore.getState().addDiscipline({ name: 'OldName', color: '#2d75da' });
-    render(<DisciplineList />);
+    const user = userEvent.setup()
+    await useStore.getState().addDiscipline({ name: 'OldName', color: '#2d75da' })
+    render(<DisciplineList />)
 
-    const row = screen.getByTestId('discipline-row');
-    await user.click(within(row).getByRole('button', { name: 'Edit OldName' }));
+    const row = screen.getByTestId('discipline-row')
+    await user.click(within(row).getByRole('button', { name: 'Edit OldName' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Edit discipline' });
-    expect(dialog).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Edit discipline' })
+    expect(dialog).toBeInTheDocument()
 
-    const nameInput = within(dialog).getByLabelText('Name');
-    await user.clear(nameInput);
-    await user.type(nameInput, 'NewName');
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    const nameInput = within(dialog).getByLabelText('Name')
+    await user.clear(nameInput)
+    await user.type(nameInput, 'NewName')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.queryByText('OldName')).not.toBeInTheDocument();
-    expect(screen.getByText('NewName')).toBeInTheDocument();
-    expect(useStore.getState().data.disciplines[0]?.name).toBe('NewName');
-  });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByText('OldName')).not.toBeInTheDocument()
+    expect(screen.getByText('NewName')).toBeInTheDocument()
+    expect(useStore.getState().data.disciplines[0]?.name).toBe('NewName')
+  })
 
   it('delete opens a ConfirmDialog and removes it on confirm', async () => {
-    const user = userEvent.setup();
-    await useStore.getState().addDiscipline({ name: 'ToDelete', color: '#ff0000' });
-    render(<DisciplineList />);
+    const user = userEvent.setup()
+    await useStore.getState().addDiscipline({ name: 'ToDelete', color: '#ff0000' })
+    render(<DisciplineList />)
 
-    expect(screen.getByText('ToDelete')).toBeInTheDocument();
+    expect(screen.getByText('ToDelete')).toBeInTheDocument()
 
-    const row = screen.getByTestId('discipline-row');
-    await user.click(within(row).getByRole('button', { name: 'Delete ToDelete' }));
+    const row = screen.getByTestId('discipline-row')
+    await user.click(within(row).getByRole('button', { name: 'Delete ToDelete' }))
 
-    const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toBeInTheDocument();
-    expect(dialog).toHaveTextContent(/delete discipline\?/i);
-    expect(dialog).toHaveTextContent(/ToDelete/);
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog).toBeInTheDocument()
+    expect(dialog).toHaveTextContent(/delete discipline\?/i)
+    expect(dialog).toHaveTextContent(/ToDelete/)
 
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.queryByText('ToDelete')).not.toBeInTheDocument();
-    expect(useStore.getState().data.disciplines).toHaveLength(0);
-  });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByText('ToDelete')).not.toBeInTheDocument()
+    expect(useStore.getState().data.disciplines).toHaveLength(0)
+  })
 
   it('cancel on the delete ConfirmDialog keeps the discipline', async () => {
-    const user = userEvent.setup();
-    await useStore.getState().addDiscipline({ name: 'KeepMe', color: '#00ff00' });
-    render(<DisciplineList />);
+    const user = userEvent.setup()
+    await useStore.getState().addDiscipline({ name: 'KeepMe', color: '#00ff00' })
+    render(<DisciplineList />)
 
-    const row = screen.getByTestId('discipline-row');
-    await user.click(within(row).getByRole('button', { name: 'Delete KeepMe' }));
+    const row = screen.getByTestId('discipline-row')
+    await user.click(within(row).getByRole('button', { name: 'Delete KeepMe' }))
 
-    const dialog = screen.getByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const dialog = screen.getByRole('alertdialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByText('KeepMe')).toBeInTheDocument();
-    expect(useStore.getState().data.disciplines).toHaveLength(1);
-  });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByText('KeepMe')).toBeInTheDocument()
+    expect(useStore.getState().data.disciplines).toHaveLength(1)
+  })
 
   it('keeps the edit form open when its discipline vanished during editing', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup()
     const discipline = await requireCreated(
-      useStore.getState().addDiscipline({ name: 'Design', color: '#2d75da' }),
-    );
-    render(<DisciplineList />);
+      useStore.getState().addDiscipline({ name: 'Design', color: '#2d75da' })
+    )
+    render(<DisciplineList />)
 
     await user.click(
-      within(screen.getByTestId('discipline-row')).getByRole('button', { name: 'Edit Design' }),
-    );
-    const dialog = screen.getByRole('dialog', { name: 'Edit discipline' });
+      within(screen.getByTestId('discipline-row')).getByRole('button', { name: 'Edit Design' })
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Edit discipline' })
     await act(async () => {
-      await useStore.getState().deleteDiscipline(discipline.id);
-    });
-    await user.clear(within(dialog).getByLabelText('Name'));
-    await user.type(within(dialog).getByLabelText('Name'), 'Product');
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+      await useStore.getState().deleteDiscipline(discipline.id)
+    })
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.type(within(dialog).getByLabelText('Name'), 'Product')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('dialog', { name: 'Edit discipline' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(/changed while you were editing/i);
-    expect(useStore.getState().data.disciplines).toHaveLength(0);
-  });
-});
+    expect(screen.getByRole('dialog', { name: 'Edit discipline' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/changed while you were editing/i)
+    expect(useStore.getState().data.disciplines).toHaveLength(0)
+  })
+})

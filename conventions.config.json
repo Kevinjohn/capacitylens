@@ -9,16 +9,6 @@
         "path": "apps/backend/app/controllers/masquerade_controller.ts"
       },
       {
-        "entry": 28,
-        "item": "TOOL-2",
-        "path": "package.json"
-      },
-      {
-        "entry": 32,
-        "item": "TOOL-6",
-        "path": "LICENSE.md"
-      },
-      {
         "entry": 35,
         "item": "TST-15",
         "path": "apps/backend/.env.test"

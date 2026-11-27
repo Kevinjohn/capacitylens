@@ -5,8 +5,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import type { FilterOption } from './toolbarFilterOptions';
+} from '@/components/ui/select'
+import type { FilterOption } from './toolbarFilterOptions'
 
 /** Selects a nullable entity filter through the application's all sentinel. Resolve supplied label functions during render so company locale changes update the options. */
 export function FilterSelect({
@@ -16,11 +16,11 @@ export function FilterSelect({
   allLabel,
   options,
 }: {
-  value: string | null;
-  onValueChange: (value: string | null) => void;
-  ariaLabel: () => string;
-  allLabel: () => string;
-  options: FilterOption[];
+  value: string | null
+  onValueChange: (value: string | null) => void
+  ariaLabel: () => string
+  allLabel: () => string
+  options: FilterOption[]
 }) {
   return (
     <Select
@@ -59,5 +59,5 @@ export function FilterSelect({
         </SelectGroup>
       </SelectContent>
     </Select>
-  );
+  )
 }

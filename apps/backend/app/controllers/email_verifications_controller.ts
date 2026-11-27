@@ -1,15 +1,15 @@
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+import type { HttpContext } from '@adonisjs/core/http'
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import {
   E_ACCOUNT_KIT_INVALID_TOKEN,
   isCommittedFailure,
-} from '@kevinjohn/adonisjs-account-kit/errors';
-import { invalidLinkAnswer } from '#exceptions/credential_answers';
+} from '@kevinjohn/adonisjs-account-kit/errors'
+import { invalidLinkAnswer } from '#exceptions/credential_answers'
 import {
   completeVerificationValidator,
   inspectVerificationValidator,
-} from '#validators/verification';
+} from '#validators/verification'
 
 /** Address confirmation for a signed-in identity, reachable before admission: spending the link. */
 export default class EmailVerificationsController {
@@ -17,10 +17,10 @@ export default class EmailVerificationsController {
   async show({ request, serialize }: HttpContext) {
     const body = await request.validateUsing(inspectVerificationValidator, {
       data: request.body(),
-    });
+    })
     return serialize({
       valid: await accountKit.emailVerification.inspect({ token: body.token }),
-    });
+    })
   }
 
   /**
@@ -30,17 +30,17 @@ export default class EmailVerificationsController {
   async update({ request, response, serialize }: HttpContext) {
     const body = await request.validateUsing(completeVerificationValidator, {
       data: request.body(),
-    });
+    })
     try {
       await accountKit.emailVerification.complete({
         token: body.token,
         password: body.password,
-      });
-      return serialize({ result: 'verified' });
+      })
+      return serialize({ result: 'verified' })
     } catch (error) {
       // Keeps `E_INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
       if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
-        return response.badRequest(invalidLinkAnswer);
+        return response.badRequest(invalidLinkAnswer)
       }
       if (isCommittedFailure(error)) {
         return response.serviceUnavailable({
@@ -48,9 +48,9 @@ export default class EmailVerificationsController {
             'Your address is confirmed and your password is set. Sign in with the new password.',
           code: 'E_VERIFICATION_COMMITTED',
           committed: true,
-        } satisfies ProductHttpErrorBody);
+        } satisfies ProductHttpErrorBody)
       }
-      throw error;
+      throw error
     }
   }
 }

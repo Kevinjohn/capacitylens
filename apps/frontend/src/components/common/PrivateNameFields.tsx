@@ -1,7 +1,7 @@
-import { m } from '@/i18n';
-import { SwitchField, TextField } from './ui';
-import type { ProductFieldLayout } from './ui';
-import type { PrivateNameFieldsState } from './usePrivateNameFields';
+import { m } from '@/i18n'
+import { SwitchField, TextField } from './ui'
+import type { ProductFieldLayout } from './ui'
+import type { PrivateNameFieldsState } from './usePrivateNameFields'
 
 /** Edits private name fields only when the current role may view them. */
 export function PrivateNameFields({
@@ -11,16 +11,16 @@ export function PrivateNameFields({
   layout = 'stacked',
   disabled = false,
 }: {
-  fields: PrivateNameFieldsState;
-  errorField: string | null;
-  errorId: string;
-  layout?: ProductFieldLayout;
-  disabled?: boolean;
+  fields: PrivateNameFieldsState
+  errorField: string | null
+  errorId: string
+  layout?: ProductFieldLayout
+  disabled?: boolean
 }) {
   if (!fields.canManagePrivacy) {
     return fields.protectedName ? (
       <p className="text-xs text-muted-foreground">{m.form_private_owner_only_hint()}</p>
-    ) : null;
+    ) : null
   }
 
   return (
@@ -47,5 +47,5 @@ export function PrivateNameFields({
         />
       )}
     </>
-  );
+  )
 }

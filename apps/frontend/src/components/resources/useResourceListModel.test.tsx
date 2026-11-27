@@ -1,13 +1,13 @@
-import { beforeEach, expect, it } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import { resetStoreWithCompany, makeResource, DEFAULT_COMPANY_ID } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { NEUTRAL_COLOR } from '@/lib/palette';
-import { useResourceListModel } from './useResourceListModel';
-beforeEach(() => resetStoreWithCompany());
+import { beforeEach, expect, it } from 'vitest'
+import { renderHook } from '@testing-library/react'
+import { resetStoreWithCompany, makeResource, DEFAULT_COMPANY_ID } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { NEUTRAL_COLOR } from '@/lib/palette'
+import { useResourceListModel } from './useResourceListModel'
+beforeEach(() => resetStoreWithCompany())
 it('presents an unassigned person neutrally while preserving stored blue and discipline colours', () => {
-  const person = makeResource({ id: 'bruce', color: '#2d75da', disciplineId: null });
-  const assigned = { ...person, id: 'barbara', disciplineId: 'design' };
+  const person = makeResource({ id: 'bruce', color: '#2d75da', disciplineId: null })
+  const assigned = { ...person, id: 'barbara', disciplineId: 'design' }
   useStore.setState((state) => ({
     data: {
       ...state.data,
@@ -25,9 +25,9 @@ it('presents an unassigned person neutrally while preserving stored blue and dis
         },
       ],
     },
-  }));
-  const { result } = renderHook(() => useResourceListModel());
-  expect(result.current.resolveSwatchColor(person)).toBe(NEUTRAL_COLOR);
-  expect(result.current.resolveSwatchColor(assigned)).toBe('#da2d92');
-  expect(useStore.getState().data.resources[0]?.color).toBe('#2d75da');
-});
+  }))
+  const { result } = renderHook(() => useResourceListModel())
+  expect(result.current.resolveSwatchColor(person)).toBe(NEUTRAL_COLOR)
+  expect(result.current.resolveSwatchColor(assigned)).toBe('#da2d92')
+  expect(useStore.getState().data.resources[0]?.color).toBe('#2d75da')
+})

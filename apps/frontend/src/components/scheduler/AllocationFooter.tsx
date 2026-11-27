@@ -1,11 +1,11 @@
-import { m } from '@/i18n';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/common/dialogs';
-import { RepeatedAllocationDeleteDialog } from './RepeatedAllocationDeleteDialog';
-import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
-import type { AllocationDialogState } from './useAllocationDialogState';
+import { m } from '@/i18n'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/common/dialogs'
+import { RepeatedAllocationDeleteDialog } from './RepeatedAllocationDeleteDialog'
+import { buildUndoShortcut } from '@/lib/keyboardShortcuts'
+import type { AllocationDialogState } from './useAllocationDialogState'
 
-type AllocationFooterProps = AllocationDialogState['footer'];
+type AllocationFooterProps = AllocationDialogState['footer']
 
 /** Shows allocation form actions and validation status. */
 export function AllocationFooter({
@@ -17,7 +17,7 @@ export function AllocationFooter({
   onDuplicate,
   onClose,
 }: AllocationFooterProps) {
-  let deleteDialog = null;
+  let deleteDialog = null
   if (confirmDelete && editing?.seriesId) {
     deleteDialog = (
       <RepeatedAllocationDeleteDialog
@@ -25,7 +25,7 @@ export function AllocationFooter({
         onDeleteFuture={() => onDelete('future')}
         onCancel={() => setConfirmDelete(false)}
       />
-    );
+    )
   } else if (confirmDelete) {
     deleteDialog = (
       <ConfirmDialog
@@ -34,7 +34,7 @@ export function AllocationFooter({
         onConfirm={() => onDelete('one')}
         onCancel={() => setConfirmDelete(false)}
       />
-    );
+    )
   }
   return (
     <>
@@ -66,5 +66,5 @@ export function AllocationFooter({
         </Button>
       )}
     </>
-  );
+  )
 }

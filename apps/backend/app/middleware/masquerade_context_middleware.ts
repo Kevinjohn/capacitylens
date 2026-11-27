@@ -1,6 +1,6 @@
-import type { HttpContext } from '@adonisjs/core/http';
-import type { NextFn } from '@adonisjs/core/types/http';
-import { masqueradeContext } from '@kevinjohn/adonisjs-masquerade/http';
+import type { HttpContext } from '@adonisjs/core/http'
+import type { NextFn } from '@adonisjs/core/types/http'
+import { masqueradeContext } from '@kevinjohn/adonisjs-masquerade/http'
 
 /**
  * The Masquerade package's route rules: on a member route it admits the view-as mode, requires
@@ -8,6 +8,6 @@ import { masqueradeContext } from '@kevinjohn/adonisjs-masquerade/http';
  */
 export default class MasqueradeContextMiddleware {
   handle(ctx: HttpContext, next: NextFn) {
-    return masqueradeContext(ctx, next);
+    return masqueradeContext(ctx, next)
   }
 }

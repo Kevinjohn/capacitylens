@@ -1,18 +1,18 @@
-import { describe, expect, it } from 'vitest';
-import { DomainError, throwDomainError } from './errors.js';
+import { describe, expect, it } from 'vitest'
+import { DomainError, throwDomainError } from './errors.js'
 
 describe('throwDomainError', () => {
   it('throws a DomainError carrying the code and message', () => {
-    expect(() => throwDomainError('E_DATE_INVALID', 'That date is invalid.')).toThrow(DomainError);
+    expect(() => throwDomainError('E_DATE_INVALID', 'That date is invalid.')).toThrow(DomainError)
     try {
-      throwDomainError('E_DATE_INVALID', 'That date is invalid.');
-      expect.unreachable();
+      throwDomainError('E_DATE_INVALID', 'That date is invalid.')
+      expect.unreachable()
       // Verify the surfaced domain failure retains its stable code and error type.
     } catch (err) {
-      expect(err).toBeInstanceOf(DomainError);
-      expect((err as DomainError).name).toBe('DomainError');
-      expect((err as DomainError).code).toBe('E_DATE_INVALID');
-      expect((err as DomainError).message).toBe('That date is invalid.');
+      expect(err).toBeInstanceOf(DomainError)
+      expect((err as DomainError).name).toBe('DomainError')
+      expect((err as DomainError).code).toBe('E_DATE_INVALID')
+      expect((err as DomainError).message).toBe('That date is invalid.')
     }
-  });
-});
+  })
+})

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { parseAuthUser } from './validateAuthUser';
+import { describe, expect, it } from 'vitest'
+import { parseAuthUser } from './validateAuthUser'
 
 describe('validateAuthUser', () => {
   it('accepts a complete user and preserves forward-compatible fields', () => {
@@ -9,10 +9,10 @@ describe('validateAuthUser', () => {
       email: 'ada@example.com',
       image: null,
       futureField: 'retained',
-    };
+    }
 
-    expect(parseAuthUser(value)).toBe(value);
-  });
+    expect(parseAuthUser(value)).toBe(value)
+  })
 
   it.each([
     null,
@@ -23,11 +23,11 @@ describe('validateAuthUser', () => {
     { id: 'user-1', email: 1 },
     { id: 'user-1', image: 1, email: 'user@example.test' },
   ])('rejects a malformed auth response: %j', (value) => {
-    expect(parseAuthUser(value)).toBeNull();
-  });
+    expect(parseAuthUser(value)).toBeNull()
+  })
 
   it('requires a non-blank email', () => {
-    expect(parseAuthUser({ id: 'user-1' })).toBeNull();
-    expect(parseAuthUser({ id: 'user-1', email: '   ' })).toBeNull();
-  });
-});
+    expect(parseAuthUser({ id: 'user-1' })).toBeNull()
+    expect(parseAuthUser({ id: 'user-1', email: '   ' })).toBeNull()
+  })
+})

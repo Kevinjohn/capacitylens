@@ -1,11 +1,11 @@
-import { useContext, useId, useState } from 'react';
-import type { ReactNode } from 'react';
-import { ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { SectionHelp } from '@/components/common/ui';
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SettingsGroupContext } from './settingsGroupContext';
-import { SettingsRow } from './SettingsRow';
+import { useContext, useId, useState } from 'react'
+import type { ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { SectionHelp } from '@/components/common/ui'
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SettingsGroupContext } from './settingsGroupContext'
+import { SettingsRow } from './SettingsRow'
 
 function SettingsSectionTitle({
   title,
@@ -14,13 +14,13 @@ function SettingsSectionTitle({
   contentId,
   toggleOpen,
 }: {
-  title: string;
-  collapsible: boolean;
-  open: boolean;
-  contentId: string;
-  toggleOpen: () => void;
+  title: string
+  collapsible: boolean
+  open: boolean
+  contentId: string
+  toggleOpen: () => void
 }) {
-  if (!collapsible) return title;
+  if (!collapsible) return title
 
   return (
     <button
@@ -36,7 +36,7 @@ function SettingsSectionTitle({
       />
       {title}
     </button>
-  );
+  )
 }
 
 /** Provides the shared heading and content layout for settings. */
@@ -52,21 +52,21 @@ export function SettingsSection({
   id,
   description,
 }: {
-  title: string;
-  help: ReactNode;
-  children: ReactNode;
-  danger?: boolean;
-  collapsible?: boolean;
-  defaultOpen?: boolean;
-  testId?: string;
-  contentClassName?: string;
-  id?: string;
-  description?: string;
+  title: string
+  help: ReactNode
+  children: ReactNode
+  danger?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
+  testId?: string
+  contentClassName?: string
+  id?: string
+  description?: string
 }) {
-  const grouped = useContext(SettingsGroupContext);
-  const contentId = useId();
-  const [open, setOpen] = useState(defaultOpen);
-  const expanded = !collapsible || open;
+  const grouped = useContext(SettingsGroupContext)
+  const contentId = useId()
+  const [open, setOpen] = useState(defaultOpen)
+  const expanded = !collapsible || open
 
   if (grouped) {
     return (
@@ -95,7 +95,7 @@ export function SettingsSection({
       >
         {children}
       </SettingsRow>
-    );
+    )
   }
 
   return (
@@ -131,5 +131,5 @@ export function SettingsSection({
         </CardContent>
       )}
     </Card>
-  );
+  )
 }

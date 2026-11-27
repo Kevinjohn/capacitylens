@@ -1,5 +1,5 @@
-import { createContext, useContext } from 'react';
-import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
+import { createContext, useContext } from 'react'
+import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access'
 
 // The server sends the effective member's grant: its permission keys and the field-visibility
 // flags. The browser shows or hides permission-gated controls from the grant; a view-as grant holds
@@ -11,17 +11,17 @@ export const NO_ACCESS: AccessGrant = Object.freeze({
   permissions: [],
   canSeePrivateNames: false,
   canSeeTimeOffNote: false,
-});
+})
 
 /** The resolved permission state for the active company. A null role means no membership applies. */
 export interface PermissionContextValue {
   /** For display (badge and copy) only; decisions read `grant`. */
-  role: Role | null;
+  role: Role | null
   /** Resolution state of the membership lookup. While pending or unavailable `grant` is
    * {@link NO_ACCESS}, and explanatory UI can say that access is being checked or is unavailable. */
-  status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
+  status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable'
   /** What the server allows the effective member in the active company. */
-  grant: AccessGrant;
+  grant: AccessGrant
 }
 
 /** Context for the active company role, its grant and the permission-check status. */
@@ -29,7 +29,7 @@ export const PermissionContext = createContext<PermissionContextValue>({
   role: null,
   status: 'not-applicable',
   grant: NO_ACCESS,
-});
+})
 
 /**
  * The caller's {@link Role} for the active company, or `null`, for display only.
@@ -39,18 +39,18 @@ export const PermissionContext = createContext<PermissionContextValue>({
  * @returns the active company's role, or `null` when there is no membership role.
  */
 export function useRole(): Role | null {
-  return useContext(PermissionContext).role;
+  return useContext(PermissionContext).role
 }
 
 /** Status of the active membership lookup. Providerless contexts infer status from the supplied role. */
 export function usePermissionStatus(): NonNullable<PermissionContextValue['status']> {
-  const value = useContext(PermissionContext);
-  return value.status ?? (value.role === null ? 'not-applicable' : 'resolved');
+  const value = useContext(PermissionContext)
+  return value.status ?? (value.role === null ? 'not-applicable' : 'resolved')
 }
 
 /** The grant the server sent for the active company, or {@link NO_ACCESS} until one is resolved. */
 export function useAccessGrant(): AccessGrant {
-  return useContext(PermissionContext).grant;
+  return useContext(PermissionContext).grant
 }
 
 /**
@@ -61,7 +61,7 @@ export function useAccessGrant(): AccessGrant {
  * @returns `true` when the affordance should be shown.
  */
 export function useCan(key: PermissionKey): boolean {
-  return useAccessGrant().permissions.includes(key);
+  return useAccessGrant().permissions.includes(key)
 }
 
 /**
@@ -71,5 +71,5 @@ export function useCan(key: PermissionKey): boolean {
  * @returns `true` when the grant holds `planning:write`; a view-as grant never does.
  */
 export function useCanEdit(): boolean {
-  return useCan('planning:write');
+  return useCan('planning:write')
 }

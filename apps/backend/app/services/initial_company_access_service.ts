@@ -1,5 +1,5 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import access from '#config/access_control';
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import access from '#config/access_control'
 
 /** The first membership and planning metadata of a new company. */
 export class InitialCompanyAccessService {
@@ -12,10 +12,10 @@ export class InitialCompanyAccessService {
       scopeId: input.companyId,
       userId: input.ownerId,
       trx,
-    });
+    })
     await trx
       .table('company_planning_revisions')
-      .insert({ company_id: input.companyId, revision: 1 });
+      .insert({ company_id: input.companyId, revision: 1 })
     await trx.table('audit_entries').insert({
       id: crypto.randomUUID(),
       company_id: input.companyId,
@@ -26,6 +26,6 @@ export class InitialCompanyAccessService {
       details: JSON.stringify({ changedFields: ['company', 'owner'] }),
       created_at: input.now,
       updated_at: input.now,
-    });
+    })
   }
 }

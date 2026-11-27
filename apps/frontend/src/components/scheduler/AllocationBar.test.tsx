@@ -1,33 +1,33 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { act, screen, fireEvent } from '@testing-library/react';
-import { AllocationBar } from './AllocationBar';
-import { PermissionContext } from '@/auth/permissionContext';
-import type { BarLayout } from './schedulerModel';
-import { useStore } from '@/store/useStore';
-import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { Allocation } from '@capacitylens/shared/types/entities';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { act, screen, fireEvent } from '@testing-library/react'
+import { AllocationBar } from './AllocationBar'
+import { PermissionContext } from '@/auth/permissionContext'
+import type { BarLayout } from './schedulerModel'
+import { useStore } from '@/store/useStore'
+import { createEmptyAppData } from '@capacitylens/shared/types/entities'
+import type { Allocation } from '@capacitylens/shared/types/entities'
 import {
   makeCompany,
   makeAllocation as makeAllocationBase,
   makeBar as makeBarBase,
   resetStoreWithData,
-} from '@/test/fixtures';
-import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
-import { buildAllocationBarInset } from './layout';
-import { buildVisibleSpanInsets } from './visibleSpanInsets';
-import { permissionValue } from '@/test/permissionGrants';
+} from '@/test/fixtures'
+import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit'
+import { buildAllocationBarInset } from './layout'
+import { buildVisibleSpanInsets } from './visibleSpanInsets'
+import { permissionValue } from '@/test/permissionGrants'
 
 beforeEach(async () => {
   await resetStoreWithData(
     { ...createEmptyAppData(), companies: [makeCompany({ id: 'acct-test' })] },
-    'acct-test',
-  );
-  useStore.getState().clearFilters();
+    'acct-test'
+  )
+  useStore.getState().clearFilters()
   // Device-global prefs persist across tests via localStorage, reset to defaults.
-  useStore.getState().setBarLabelPref({ key: 'showClient', value: true });
-  useStore.getState().setBarLabelPref({ key: 'showProject', value: true });
-});
+  useStore.getState().setBarLabelPref({ key: 'showClient', value: true })
+  useStore.getState().setBarLabelPref({ key: 'showProject', value: true })
+})
 
 function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
   return makeAllocationBase({
@@ -40,7 +40,7 @@ function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
     startDate: '2026-06-01',
     endDate: '2026-06-07',
     ...overrides,
-  });
+  })
 }
 
 function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
@@ -49,18 +49,18 @@ function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
     width: 336,
     color: '#ec4899',
     label: labelOverride ?? 'My Activity',
-  });
+  })
 }
 
-type SetTaskFieldVisibilityOptions = { enabled: boolean };
+type SetTaskFieldVisibilityOptions = { enabled: boolean }
 async function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
   await resetStoreWithData(
     {
       ...createEmptyAppData(),
       companies: [makeCompany({ id: 'acct-test', showTaskFieldInSchedule: enabled })],
     },
-    'acct-test',
-  );
+    'acct-test'
+  )
 }
 
 describe('AllocationBar rendering', () => {
@@ -70,75 +70,71 @@ describe('AllocationBar rendering', () => {
         ...createEmptyAppData(),
         companies: [makeCompany({ id: 'acct-test', dateStyle: 'day-month' })],
       },
-      'acct-test',
-    );
-    const bar = makeBar(makeAllocation());
-    render(
-      <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
-    const element = screen.getByTestId('allocation-bar');
-    expect(element).toHaveAccessibleName(/1 Jun to 7 Jun/);
+      'acct-test'
+    )
+    const bar = makeBar(makeAllocation())
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+    const element = screen.getByTestId('allocation-bar')
+    expect(element).toHaveAccessibleName(/1 Jun to 7 Jun/)
 
     await act(async () => {
-      await useStore.getState().updateCompany('acct-test', { dateStyle: 'month-day' });
-    });
+      await useStore.getState().updateCompany('acct-test', { dateStyle: 'month-day' })
+    })
 
-    expect(element).toHaveAccessibleName(/Jun 1 to Jun 7/);
-    expect(element).not.toHaveAccessibleName(/1 Jun to 7 Jun/);
-  });
+    expect(element).toHaveAccessibleName(/Jun 1 to Jun 7/)
+    expect(element).not.toHaveAccessibleName(/1 Jun to 7 Jun/)
+  })
 
   it('shows the label and hours and has data-status="confirmed"', () => {
-    const allocation = makeAllocation();
-    const bar = makeBar(allocation);
-    const onEdit = vi.fn();
+    const allocation = makeAllocation()
+    const bar = makeBar(allocation)
+    const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />);
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el).toHaveAttribute('data-status', 'confirmed');
-    expect(el).toHaveTextContent('My Activity');
-    expect(el).toHaveTextContent('8h');
-  });
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveAttribute('data-status', 'confirmed')
+    expect(el).toHaveTextContent('My Activity')
+    expect(el).toHaveTextContent('8h')
+  })
 
   // Labels remain clamped to the visible bar portion so an allocation beginning before the viewport still shows its identity.
   it("positions the label over the bar's visible portion rather than its start", () => {
-    const bar = makeBar(makeAllocation());
+    const bar = makeBar(makeAllocation())
 
-    render(
-      <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
-    const barElement = screen.getByTestId('allocation-bar');
-    const expectedInset = buildAllocationBarInset(bar.x, bar.width);
-    expect(barElement.style.getPropertyValue('--bar-left')).toBe(`${expectedInset.insetLeft}px`);
-    expect(barElement.style.getPropertyValue('--bar-width')).toBe(`${expectedInset.insetWidth}px`);
+    const barElement = screen.getByTestId('allocation-bar')
+    const expectedInset = buildAllocationBarInset(bar.x, bar.width)
+    expect(barElement.style.getPropertyValue('--bar-left')).toBe(`${expectedInset.insetLeft}px`)
+    expect(barElement.style.getPropertyValue('--bar-width')).toBe(`${expectedInset.insetWidth}px`)
 
-    const label = screen.getByTestId('allocation-bar-label');
-    const insets = buildVisibleSpanInsets('x', 'var(--bar-left)', 'var(--bar-width)');
-    expect(label.style.left).toBe(insets.leading);
-    expect(label.style.right).toBe(insets.trailing);
+    const label = screen.getByTestId('allocation-bar-label')
+    const insets = buildVisibleSpanInsets('x', 'var(--bar-left)', 'var(--bar-width)')
+    expect(label.style.left).toBe(insets.leading)
+    expect(label.style.right).toBe(insets.trailing)
 
-    expect(label).toHaveClass('justify-center', 'pointer-events-none');
-  });
+    expect(label).toHaveClass('justify-center', 'pointer-events-none')
+  })
 
   it('shows the label from the bar object', () => {
-    const allocation = makeAllocation();
-    const bar = makeBar(allocation, 'Sprint Planning');
-    const onEdit = vi.fn();
+    const allocation = makeAllocation()
+    const bar = makeBar(allocation, 'Sprint Planning')
+    const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />);
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el).toHaveTextContent('Sprint Planning');
-  });
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('Sprint Planning')
+  })
 
   it('shows a linked-series icon without crowding narrow bars and omits it for legacy unlinked repeats', () => {
-    const linked = makeBar(makeAllocation({ seriesId: 'series-1' }));
-    linked.seriesEnd = '2026-08-31';
+    const linked = makeBar(makeAllocation({ seriesId: 'series-1' }))
+    linked.seriesEnd = '2026-08-31'
     const { rerender } = render(
-      <AllocationBar bar={linked} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
-    expect(screen.getByTestId('allocation-series-icon')).toBeInTheDocument();
+      <AllocationBar bar={linked} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+    )
+    expect(screen.getByTestId('allocation-series-icon')).toBeInTheDocument()
 
     rerender(
       <AllocationBar
@@ -146,10 +142,10 @@ describe('AllocationBar rendering', () => {
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
-    expect(screen.queryByTestId('allocation-series-icon')).not.toBeInTheDocument();
-    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/series through 31 Aug/i);
+      />
+    )
+    expect(screen.queryByTestId('allocation-series-icon')).not.toBeInTheDocument()
+    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/series through 31 Aug/i)
 
     rerender(
       <AllocationBar
@@ -157,38 +153,34 @@ describe('AllocationBar rendering', () => {
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
-    expect(screen.queryByTestId('allocation-series-icon')).not.toBeInTheDocument();
-    expect(screen.getByTestId('allocation-bar')).not.toHaveAccessibleName(/series through/i);
-  });
+      />
+    )
+    expect(screen.queryByTestId('allocation-series-icon')).not.toBeInTheDocument()
+    expect(screen.getByTestId('allocation-bar')).not.toHaveAccessibleName(/series through/i)
+  })
 
   it('shows the last surviving series end in the hover and focus details', () => {
-    const bar = makeBar(makeAllocation({ seriesId: 'series-1' }));
-    bar.seriesEnd = '2026-08-31';
-    render(
-      <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
+    const bar = makeBar(makeAllocation({ seriesId: 'series-1' }))
+    bar.seriesEnd = '2026-08-31'
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
-    fireEvent.mouseEnter(screen.getByTestId('allocation-bar'));
-    expect(screen.getByTestId('allocation-popover')).toHaveTextContent('Series through 31 Aug');
-    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/series through 31 Aug/i);
-  });
+    fireEvent.mouseEnter(screen.getByTestId('allocation-bar'))
+    expect(screen.getByTestId('allocation-popover')).toHaveTextContent('Series through 31 Aug')
+    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/series through 31 Aug/i)
+  })
   it('carries the year on every date in the name once the booking crosses one', () => {
     const bar = makeBar(
-      makeAllocation({ seriesId: 'series-1', startDate: '2026-12-28', endDate: '2027-01-08' }),
-    );
-    bar.seriesEnd = '2027-03-02';
-    render(
-      <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
+      makeAllocation({ seriesId: 'series-1', startDate: '2026-12-28', endDate: '2027-01-08' })
+    )
+    bar.seriesEnd = '2027-03-02'
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     // The series end is measured against the booking's start, the earliest date in the label, so
     // it cannot be the one bare date among dated ones and be heard as ending before the booking
     // begins.
-    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/28 Dec 2026 to 8 Jan 2027/i);
-    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/series through 2 Mar 2027/i);
-  });
+    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/28 Dec 2026 to 8 Jan 2027/i)
+    expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/series through 2 Mar 2027/i)
+  })
 
   it('shows just the activity when the bar carries no client/project metadata', () => {
     render(
@@ -197,15 +189,15 @@ describe('AllocationBar rendering', () => {
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el.textContent).toMatch(/^My Activity/);
-  });
+    const el = screen.getByTestId('allocation-bar')
+    expect(el.textContent).toMatch(/^My Activity/)
+  })
 
   it('hides hours in blocks mode, showing the activity name only', async () => {
-    const data = createEmptyAppData();
+    const data = createEmptyAppData()
     data.companies = [
       {
         ...NULLABLE_FIELDS.companies,
@@ -216,28 +208,26 @@ describe('AllocationBar rendering', () => {
         color: '#111',
         schedulingMode: 'blocks',
       },
-    ];
-    await resetStoreWithData(data, 'acct-test');
+    ]
+    await resetStoreWithData(data, 'acct-test')
 
-    const bar = makeBar(makeAllocation());
-    render(
-      <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
+    const bar = makeBar(makeAllocation())
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el).toHaveTextContent('My Activity');
-    expect(el).not.toHaveTextContent('8h');
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('My Activity')
+    expect(el).not.toHaveTextContent('8h')
 
-    expect(el.getAttribute('aria-label')).not.toMatch(/per day/);
-  });
-});
+    expect(el.getAttribute('aria-label')).not.toMatch(/per day/)
+  })
+})
 
 describe('AllocationBar client/project context', () => {
   const barWithContext = (): BarLayout => ({
     ...makeBar(makeAllocation()),
     client: 'Queen Consolidated',
     project: 'Watchtower',
-  });
+  })
 
   it('prefixes the label with client and project by default', () => {
     render(
@@ -246,108 +236,104 @@ describe('AllocationBar client/project context', () => {
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el).toHaveTextContent('Queen Consolidated · Watchtower · My Activity');
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('Queen Consolidated · Watchtower · My Activity')
 
-    expect(el.getAttribute('aria-label')).toContain(
-      'Queen Consolidated · Watchtower · My Activity',
-    );
-  });
+    expect(el.getAttribute('aria-label')).toContain('Queen Consolidated · Watchtower · My Activity')
+  })
 
   it('omits the client when showClient is off', () => {
-    useStore.getState().setBarLabelPref({ key: 'showClient', value: false });
+    useStore.getState().setBarLabelPref({ key: 'showClient', value: false })
     render(
       <AllocationBar
         bar={barWithContext()}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el).toHaveTextContent('Watchtower · My Activity');
-    expect(el).not.toHaveTextContent('Queen Consolidated');
-  });
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('Watchtower · My Activity')
+    expect(el).not.toHaveTextContent('Queen Consolidated')
+  })
 
   it('omits the project when showProject is off', () => {
-    useStore.getState().setBarLabelPref({ key: 'showProject', value: false });
+    useStore.getState().setBarLabelPref({ key: 'showProject', value: false })
     render(
       <AllocationBar
         bar={barWithContext()}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el).toHaveTextContent('Queen Consolidated · My Activity');
-    expect(el).not.toHaveTextContent('Watchtower');
-  });
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('Queen Consolidated · My Activity')
+    expect(el).not.toHaveTextContent('Watchtower')
+  })
 
   it('shows only the activity when both toggles are off', () => {
-    useStore.getState().setBarLabelPref({ key: 'showClient', value: false });
-    useStore.getState().setBarLabelPref({ key: 'showProject', value: false });
+    useStore.getState().setBarLabelPref({ key: 'showClient', value: false })
+    useStore.getState().setBarLabelPref({ key: 'showProject', value: false })
     render(
       <AllocationBar
         bar={barWithContext()}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
+      />
+    )
 
-    const el = screen.getByTestId('allocation-bar');
-    expect(el.textContent).toMatch(/^My Activity/);
-    expect(el).not.toHaveTextContent('Queen Consolidated');
-    expect(el).not.toHaveTextContent('Watchtower');
-  });
-});
+    const el = screen.getByTestId('allocation-bar')
+    expect(el.textContent).toMatch(/^My Activity/)
+    expect(el).not.toHaveTextContent('Queen Consolidated')
+    expect(el).not.toHaveTextContent('Watchtower')
+  })
+})
 
 describe('AllocationBar accessible name (status / dates / note)', () => {
   it('speaks the HUMANISED status and FORMATTED dates, not the raw enum + ISO (WCAG 1.1.1)', () => {
     const bar = makeBar(
-      makeAllocation({ status: 'tentative', startDate: '2026-06-01', endDate: '2026-06-05' }),
-    );
-    render(
-      <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
+      makeAllocation({ status: 'tentative', startDate: '2026-06-01', endDate: '2026-06-05' })
+    )
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
-    const label = screen.getByTestId('allocation-bar').getAttribute('aria-label') ?? '';
+    const label = screen.getByTestId('allocation-bar').getAttribute('aria-label') ?? ''
 
-    expect(label).toContain('Tentative');
-    expect(label).toContain('1 Jun');
-    expect(label).toContain('5 Jun');
+    expect(label).toContain('Tentative')
+    expect(label).toContain('1 Jun')
+    expect(label).toContain('5 Jun')
 
-    expect(label).not.toContain('tentative');
-    expect(label).not.toContain('2026-06-01');
-  });
+    expect(label).not.toContain('tentative')
+    expect(label).not.toContain('2026-06-01')
+  })
 
   it('appends a "has note" cue when the allocation carries a note (WCAG 1.1.1)', () => {
-    const withNote = makeBar(makeAllocation({ note: 'Call the client first' }));
+    const withNote = makeBar(makeAllocation({ note: 'Call the client first' }))
     render(
-      <AllocationBar bar={withNote} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
-    expect(screen.getByTestId('allocation-bar').getAttribute('aria-label')).toContain('has note');
-  });
+      <AllocationBar bar={withNote} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+    )
+    expect(screen.getByTestId('allocation-bar').getAttribute('aria-label')).toContain('has note')
+  })
 
   it('omits the "has note" cue when there is no note', () => {
-    const noNote = makeBar(makeAllocation());
+    const noNote = makeBar(makeAllocation())
     render(
-      <AllocationBar bar={noNote} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
-    );
+      <AllocationBar bar={noNote} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+    )
     expect(screen.getByTestId('allocation-bar').getAttribute('aria-label')).not.toContain(
-      'has note',
-    );
-  });
+      'has note'
+    )
+  })
 
   it('announces task text to a viewer only when the company setting enables it', async () => {
-    const allocation = makeAllocation({ task: 'Review a deliberately long task description' });
-    await setTaskFieldVisibility({ enabled: true });
+    const allocation = makeAllocation({ task: 'Review a deliberately long task description' })
+    await setTaskFieldVisibility({ enabled: true })
     const { rerender } = render(
       <PermissionContext.Provider value={permissionValue('viewer', 'resolved')}>
         <AllocationBar
@@ -356,13 +342,13 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
           indexAtClientX={indexAtClientX}
           onEdit={vi.fn()}
         />
-      </PermissionContext.Provider>,
-    );
+      </PermissionContext.Provider>
+    )
     expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(
-      /task: Review a deliberately long task description/i,
-    );
+      /task: Review a deliberately long task description/i
+    )
 
-    await setTaskFieldVisibility({ enabled: false });
+    await setTaskFieldVisibility({ enabled: false })
     rerender(
       <PermissionContext.Provider value={permissionValue('viewer', 'resolved')}>
         <AllocationBar
@@ -371,59 +357,59 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
           indexAtClientX={indexAtClientX}
           onEdit={vi.fn()}
         />
-      </PermissionContext.Provider>,
-    );
-    expect(screen.getByTestId('allocation-bar')).not.toHaveAccessibleName(/task:/i);
-  });
+      </PermissionContext.Provider>
+    )
+    expect(screen.getByTestId('allocation-bar')).not.toHaveAccessibleName(/task:/i)
+  })
 
   it('wraps a long task token in the fixed-width popover', async () => {
-    await setTaskFieldVisibility({ enabled: true });
-    const task = 'a'.repeat(180);
-    const allocation = makeAllocation({ task });
+    await setTaskFieldVisibility({ enabled: true })
+    const task = 'a'.repeat(180)
+    const allocation = makeAllocation({ task })
     render(
       <AllocationBar
         bar={makeBar(allocation)}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
-      />,
-    );
-    fireEvent.mouseEnter(screen.getByTestId('allocation-bar'));
+      />
+    )
+    fireEvent.mouseEnter(screen.getByTestId('allocation-bar'))
     expect(
-      screen.getByTestId('allocation-popover').querySelector('div.break-words'),
-    ).toHaveTextContent(task);
-  });
-});
+      screen.getByTestId('allocation-popover').querySelector('div.break-words')
+    ).toHaveTextContent(task)
+  })
+})
 
 describe('AllocationBar click interaction', () => {
   it('calls onEdit when pointerDown and pointerUp occur at the same clientX (no movement)', () => {
-    const allocation = makeAllocation();
-    const bar = makeBar(allocation);
-    const onEdit = vi.fn();
+    const allocation = makeAllocation()
+    const bar = makeBar(allocation)
+    const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />);
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
-    const el = screen.getByTestId('allocation-bar');
+    const el = screen.getByTestId('allocation-bar')
 
-    fireEvent.pointerDown(el, { clientX: 100, button: 0 });
+    fireEvent.pointerDown(el, { clientX: 100, button: 0 })
 
-    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, bubbles: true }))
 
-    expect(onEdit).toHaveBeenCalledTimes(1);
-  });
+    expect(onEdit).toHaveBeenCalledTimes(1)
+  })
 
   it('does not call onEdit when pointerDown uses a non-primary button', () => {
-    const allocation = makeAllocation();
-    const bar = makeBar(allocation);
-    const onEdit = vi.fn();
+    const allocation = makeAllocation()
+    const bar = makeBar(allocation)
+    const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />);
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
-    const el = screen.getByTestId('allocation-bar');
+    const el = screen.getByTestId('allocation-bar')
 
-    fireEvent.pointerDown(el, { clientX: 100, button: 2 });
-    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, bubbles: true }));
+    fireEvent.pointerDown(el, { clientX: 100, button: 2 })
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, bubbles: true }))
 
-    expect(onEdit).not.toHaveBeenCalled();
-  });
-});
+    expect(onEdit).not.toHaveBeenCalled()
+  })
+})

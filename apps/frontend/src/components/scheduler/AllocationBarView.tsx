@@ -4,54 +4,54 @@ import type {
   KeyboardEventHandler,
   MouseEventHandler,
   PointerEventHandler,
-} from 'react';
-import { Repeat2 } from 'lucide-react';
-import { m } from '@/i18n';
-import { formatDayMonthEndpoint, formatDayMonthRange } from '@/lib/dateDisplay';
-import { resolveAllocationStatusAnnotation } from '@/lib/metadata';
-import { TooltipContent, TooltipRoot, TooltipTrigger } from '@/components/ui/tooltip';
-import { LAYOUT } from './layout';
-import type { BarLayout } from './schedulerModel';
-import { buildVisibleSpanInsets } from './visibleSpanInsets';
-import { roundToHundredths } from '@/lib/roundToHundredths';
+} from 'react'
+import { Repeat2 } from 'lucide-react'
+import { m } from '@/i18n'
+import { formatDayMonthEndpoint, formatDayMonthRange } from '@/lib/dateDisplay'
+import { resolveAllocationStatusAnnotation } from '@/lib/metadata'
+import { TooltipContent, TooltipRoot, TooltipTrigger } from '@/components/ui/tooltip'
+import { LAYOUT } from './layout'
+import type { BarLayout } from './schedulerModel'
+import { buildVisibleSpanInsets } from './visibleSpanInsets'
+import { roundToHundredths } from '@/lib/roundToHundredths'
 
 interface AllocationBarViewProps {
-  bar: BarLayout;
-  ariaLabel: string;
-  background: string;
-  ink: string;
-  canEdit: boolean;
-  cursor: CSSProperties['cursor'];
-  dragging: boolean;
-  hideHours: boolean;
-  insetLeft: number;
-  insetWidth: number;
-  labelText: string;
-  popoverFooter: string;
-  popoverOpen: boolean;
-  showSeriesIcon: boolean;
-  showTaskFieldInSchedule: boolean;
-  translateY: number;
-  onBlur: FocusEventHandler<HTMLDivElement>;
-  onFocus: FocusEventHandler<HTMLDivElement>;
-  onKeyDown: KeyboardEventHandler<HTMLDivElement>;
-  onMouseEnter: MouseEventHandler<HTMLDivElement>;
-  onMouseLeave: MouseEventHandler<HTMLDivElement>;
-  onPointerDown: PointerEventHandler<HTMLDivElement> | undefined;
+  bar: BarLayout
+  ariaLabel: string
+  background: string
+  ink: string
+  canEdit: boolean
+  cursor: CSSProperties['cursor']
+  dragging: boolean
+  hideHours: boolean
+  insetLeft: number
+  insetWidth: number
+  labelText: string
+  popoverFooter: string
+  popoverOpen: boolean
+  showSeriesIcon: boolean
+  showTaskFieldInSchedule: boolean
+  translateY: number
+  onBlur: FocusEventHandler<HTMLDivElement>
+  onFocus: FocusEventHandler<HTMLDivElement>
+  onKeyDown: KeyboardEventHandler<HTMLDivElement>
+  onMouseEnter: MouseEventHandler<HTMLDivElement>
+  onMouseLeave: MouseEventHandler<HTMLDivElement>
+  onPointerDown: PointerEventHandler<HTMLDivElement> | undefined
 }
 
-const BAR_LABEL_INSETS = buildVisibleSpanInsets('x', 'var(--bar-left)', 'var(--bar-width)');
+const BAR_LABEL_INSETS = buildVisibleSpanInsets('x', 'var(--bar-left)', 'var(--bar-width)')
 
-const buildAllocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`;
+const buildAllocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`
 
 const gripClass =
-  'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center';
+  'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center'
 const gripLine = (
   <span
     aria-hidden
     className="pointer-events-none h-4 w-0.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-60"
   />
-);
+)
 
 function BarContents({
   bar,
@@ -105,11 +105,11 @@ function BarContents({
         </span>
       )}
     </>
-  );
+  )
 }
 
 function BarTrigger(props: AllocationBarViewProps) {
-  const { bar, background, canEdit, dragging, ink, translateY } = props;
+  const { bar, background, canEdit, dragging, ink, translateY } = props
   return (
     <div
       data-testid="allocation-bar"
@@ -156,7 +156,7 @@ function BarTrigger(props: AllocationBarViewProps) {
       </TooltipTrigger>
       <BarContents {...props} />
     </div>
-  );
+  )
 }
 
 function BarPopover({
@@ -169,7 +169,7 @@ function BarPopover({
   AllocationBarViewProps,
   'background' | 'bar' | 'hideHours' | 'popoverFooter' | 'showTaskFieldInSchedule'
 >) {
-  const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
+  const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status)
   return (
     <TooltipContent
       side="bottom"
@@ -222,7 +222,7 @@ function BarPopover({
         </div>
       )}
     </TooltipContent>
-  );
+  )
 }
 
 /** Shows a dated allocation bar with its capacity and focus cues. */
@@ -235,5 +235,5 @@ export function AllocationBarView(props: AllocationBarViewProps) {
       {/* Avoid re-evaluating formatting/i18n on each pointermove; Radix permits conditional Content. */}
       {props.popoverOpen && !props.dragging && <BarPopover {...props} />}
     </TooltipRoot>
-  );
+  )
 }

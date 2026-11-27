@@ -1,7 +1,7 @@
-import { NULLABLE_FIELDS } from '../types/nullableFields.js';
-import type { AppData, Discipline, ID, ISODate, ISOTimestamp, Weekday } from '../types/entities.js';
-import { createId } from '../lib/id.js';
-import { addDaysISO, startOfWeekISO } from '../lib/dateMath.js';
+import { NULLABLE_FIELDS } from '../types/nullableFields.js'
+import type { AppData, Discipline, ID, ISODate, ISOTimestamp, Weekday } from '../types/entities.js'
+import { createId } from '../lib/id.js'
+import { addDaysISO, startOfWeekISO } from '../lib/dateMath.js'
 
 // One small company's worth of rows a new owner can add to an empty company: just enough to see a
 // schedule working (two people, a client, a project, a few bookings) and small enough to read at a
@@ -21,27 +21,27 @@ export type ExampleCompanyData = Pick<
   | 'activities'
   | 'allocations'
   | 'timeOff'
->;
+>
 
 /**
  * Supplies the company and calendar details used to create the example schedule.
  */
 export interface ExampleCompanyInput {
-  companyId: ID;
+  companyId: ID
   /** Any date in the week the schedule should open on, in the company's own time zone. */
-  referenceDate: ISODate;
+  referenceDate: ISODate
   /** The company's first weekday; defaults to Monday. The example bookings sit inside that week. */
-  weekStartsOn?: 0 | 1;
+  weekStartsOn?: 0 | 1
   /** Timestamp for generated rows; defaults to the current time. */
-  now?: ISOTimestamp;
+  now?: ISOTimestamp
 }
 
-type Stamp = { companyId: ID; createdAt: ISOTimestamp; updatedAt: ISOTimestamp };
-const WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
+type Stamp = { companyId: ID; createdAt: ISOTimestamp; updatedAt: ISOTimestamp }
+const WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5]
 
 /** Total number of rows in a generated set, for callers that report or assert what was added. */
 export function countExampleRows(data: ExampleCompanyData): number {
-  return Object.values(data).reduce((total, rows) => total + rows.length, 0);
+  return Object.values(data).reduce((total, rows) => total + rows.length, 0)
 }
 
 function buildDisciplines(stamp: Stamp) {
@@ -62,14 +62,14 @@ function buildDisciplines(stamp: Stamp) {
       sortOrder: 1,
       ...stamp,
     },
-  };
+  }
 }
 
 // A person inherits their discipline colour so example data obeys the same rule as ordinary resource writes.
 function buildPerson(
   stamp: Stamp,
   discipline: Discipline,
-  who: { name: string; jobTitle: string },
+  who: { name: string; jobTitle: string }
 ) {
   return {
     ...NULLABLE_FIELDS.resources,
@@ -84,7 +84,7 @@ function buildPerson(
     halfDays: [],
     color: discipline.color ?? '#2d75da',
     ...stamp,
-  };
+  }
 }
 
 function buildWork(stamp: Stamp) {
@@ -94,7 +94,7 @@ function buildWork(stamp: Stamp) {
     name: 'Queen Consolidated',
     color: '#e02727',
     ...stamp,
-  };
+  }
   const project = {
     ...NULLABLE_FIELDS.projects,
     id: createId(),
@@ -102,9 +102,9 @@ function buildWork(stamp: Stamp) {
     clientId: client.id,
     color: '#da2d92',
     ...stamp,
-  };
-  const phase = { id: createId(), name: 'Discovery', projectId: project.id, ...stamp };
-  const projectActivity = { projectId: project.id, kind: 'project' as const, ...stamp };
+  }
+  const phase = { id: createId(), name: 'Discovery', projectId: project.id, ...stamp }
+  const projectActivity = { projectId: project.id, kind: 'project' as const, ...stamp }
   return {
     client,
     project,
@@ -124,24 +124,24 @@ function buildWork(stamp: Stamp) {
       kind: 'internal' as const,
       ...stamp,
     },
-  };
+  }
 }
 
 interface BookingSpec {
-  resourceId: ID;
-  activityId: ID;
+  resourceId: ID
+  activityId: ID
   /** First and last working day of the fortnight, counting this week's Monday as 0. */
-  days: [number, number];
-  hoursPerDay: number;
-  status: 'confirmed' | 'tentative';
+  days: [number, number]
+  hoursPerDay: number
+  status: 'confirmed' | 'tentative'
 }
 
 interface BuildBookingsInput {
-  stamp: Stamp;
-  buildWorkday: (day: number) => ISODate;
-  dickId: ID;
-  barbaraId: ID;
-  work: ReturnType<typeof buildWork>;
+  stamp: Stamp
+  buildWorkday: (day: number) => ISODate
+  dickId: ID
+  barbaraId: ID
+  work: ReturnType<typeof buildWork>
 }
 
 function buildBookings({ stamp, buildWorkday, dickId, barbaraId, work }: BuildBookingsInput) {
@@ -152,9 +152,9 @@ function buildBookings({ stamp, buildWorkday, dickId, barbaraId, work }: BuildBo
     endDate: buildWorkday(days[1]),
     ...rest,
     ...stamp,
-  });
+  })
   const createDickBooking = (spec: Omit<BookingSpec, 'resourceId'>) =>
-    createBooking({ resourceId: dickId, ...spec });
+    createBooking({ resourceId: dickId, ...spec })
   return [
     createDickBooking({
       activityId: work.wireframes.id,
@@ -181,7 +181,7 @@ function buildBookings({ stamp, buildWorkday, dickId, barbaraId, work }: BuildBo
       hoursPerDay: 6,
       status: 'confirmed',
     }),
-  ];
+  ]
 }
 
 /** Build one company's example rows with fresh ids and a shared timestamp; omitted `now` is anchored to the current process time. */
@@ -191,18 +191,18 @@ export function buildExampleCompany({
   weekStartsOn = 1,
   now = new Date().toISOString(),
 }: ExampleCompanyInput): ExampleCompanyData {
-  const weekStart = startOfWeekISO(referenceDate, weekStartsOn);
-  const monday = weekStartsOn === 0 ? addDaysISO(weekStart, 1) : weekStart;
+  const weekStart = startOfWeekISO(referenceDate, weekStartsOn)
+  const monday = weekStartsOn === 0 ? addDaysISO(weekStart, 1) : weekStart
   // Working day `n` of the fortnight, skipping the weekend between the two weeks.
-  const buildWorkday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5));
-  const stamp = { companyId, createdAt: now, updatedAt: now };
-  const { design, development } = buildDisciplines(stamp);
-  const dick = buildPerson(stamp, design, { name: 'Dick Grayson', jobTitle: 'Designer' });
+  const buildWorkday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5))
+  const stamp = { companyId, createdAt: now, updatedAt: now }
+  const { design, development } = buildDisciplines(stamp)
+  const dick = buildPerson(stamp, design, { name: 'Dick Grayson', jobTitle: 'Designer' })
   const barbara = buildPerson(stamp, development, {
     name: 'Barbara Gordon',
     jobTitle: 'Developer',
-  });
-  const work = buildWork(stamp);
+  })
+  const work = buildWork(stamp)
 
   return {
     disciplines: [design, development],
@@ -229,5 +229,5 @@ export function buildExampleCompany({
         ...stamp,
       },
     ],
-  };
+  }
 }

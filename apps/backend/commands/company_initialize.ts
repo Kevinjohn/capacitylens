@@ -1,30 +1,30 @@
-import { inject } from '@adonisjs/core';
-import { args, flags } from '@adonisjs/core/ace';
-import type { CommandOptions } from '@adonisjs/core/types/ace';
-import OperatorCommand from '#commands/_operator_command';
-import { CompanyInitializationService } from '#services/operator/company_initialization_service';
+import { inject } from '@adonisjs/core'
+import { args, flags } from '@adonisjs/core/ace'
+import type { CommandOptions } from '@adonisjs/core/types/ace'
+import OperatorCommand from '#commands/_operator_command'
+import { CompanyInitializationService } from '#services/operator/company_initialization_service'
 
 /** Initialise company access for an existing identity on an empty stopped installation. */
 export default class CompanyInitialize extends OperatorCommand {
-  static commandName = 'company:initialize';
-  static description = 'Initialize the first company and Owner for an existing identity';
-  static options: CommandOptions = { startApp: true };
-  @args.string({ description: 'Existing Owner email address' }) declare email: string;
-  @args.string({ description: 'Company name' }) declare companyName: string;
+  static commandName = 'company:initialize'
+  static description = 'Initialize the first company and Owner for an existing identity'
+  static options: CommandOptions = { startApp: true }
+  @args.string({ description: 'Existing Owner email address' }) declare email: string
+  @args.string({ description: 'Company name' }) declare companyName: string
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
-  declare confirmServerStopped: boolean;
+  declare confirmServerStopped: boolean
 
   @inject()
   async run(companyInitialization: CompanyInitializationService) {
-    this.logger.log(JSON.stringify(await companyInitialization.initialize(this)));
+    this.logger.log(JSON.stringify(await companyInitialization.initialize(this)))
   }
 
   protected buildFailureMessage(error: unknown) {
-    const message = error instanceof Error ? error.message : '';
+    const message = error instanceof Error ? error.message : ''
     return /^(Refusing|Operator commands|Another process)/.test(message)
       ? message
       : /^Database /.test(message)
         ? 'Database schema is not current'
-        : 'Company initialization failed; no company access was created';
+        : 'Company initialization failed; no company access was created'
   }
 }

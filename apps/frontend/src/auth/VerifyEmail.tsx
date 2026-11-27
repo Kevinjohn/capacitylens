@@ -1,21 +1,21 @@
-import { useEffect, useId, useState } from 'react';
-import type { FormEvent } from 'react';
-import { useParams } from 'react-router-dom';
-import { APP_NAME } from '@capacitylens/shared/brand';
+import { useEffect, useId, useState } from 'react'
+import type { FormEvent } from 'react'
+import { useParams } from 'react-router-dom'
+import { APP_NAME } from '@capacitylens/shared/brand'
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   getPasswordLengthFailure,
-} from '@capacitylens/shared/domain/password';
-import { m } from '@/i18n';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { authApi } from './authApi';
+} from '@capacitylens/shared/domain/password'
+import { m } from '@/i18n'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { authApi } from './authApi'
 
 /** `unavailable`: the link could not be checked; `uncertain`: the outcome of confirming is unknown. */
-type State = 'checking' | 'unavailable' | 'form' | 'working' | 'done' | 'invalid' | 'uncertain';
+type State = 'checking' | 'unavailable' | 'form' | 'working' | 'done' | 'invalid' | 'uncertain'
 
 /**
  * Spends an emailed address-confirmation link. Confirming also sets the password the person
@@ -23,76 +23,76 @@ type State = 'checking' | 'unavailable' | 'form' | 'working' | 'done' | 'invalid
  * every sign-in, so the page returns to sign-in through a full reload.
  */
 export function VerifyEmail() {
-  const { token } = useParams<{ token: string }>();
-  const [state, setState] = useState<State>(token ? 'checking' : 'invalid');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const passwordId = useId();
-  const errorId = useId();
+  const { token } = useParams<{ token: string }>()
+  const [state, setState] = useState<State>(token ? 'checking' : 'invalid')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const passwordId = useId()
+  const errorId = useId()
 
   useEffect(() => {
-    document.title = `${m.verify_title()} · ${APP_NAME}`;
-  }, []);
+    document.title = `${m.verify_title()} · ${APP_NAME}`
+  }, [])
 
-  const [inspection, setInspection] = useState(0);
+  const [inspection, setInspection] = useState(0)
   useEffect(() => {
-    if (!token) return;
-    let current = true;
+    if (!token) return
+    let current = true
     authApi
       .inspectEmailVerification(token)
       .then(({ data, error: failure }) => {
         // Only the server's answer about the link is authoritative; an outage is not an invalid link.
         // A refused link answers 400, or 422 when request validation rejects the token.
-        const refused = failure && (failure.status === 400 || failure.status === 422);
+        const refused = failure && (failure.status === 400 || failure.status === 422)
         if (current) {
-          setState(failure && !refused ? 'unavailable' : data?.valid ? 'form' : 'invalid');
+          setState(failure && !refused ? 'unavailable' : data?.valid ? 'form' : 'invalid')
         }
       })
       .catch((failure: unknown) => {
-        console.warn('VerifyEmail: link inspection failed', failure);
-        if (current) setState('unavailable');
-      });
+        console.warn('VerifyEmail: link inspection failed', failure)
+        if (current) setState('unavailable')
+      })
     return () => {
-      current = false;
-    };
-  }, [token, inspection]);
+      current = false
+    }
+  }, [token, inspection])
 
   /** A terminal or unknown outcome leaves nothing to retype, so the password is not kept. */
   const finish = (next: State) => {
-    setPassword('');
-    setState(next);
-  };
+    setPassword('')
+    setState(next)
+  }
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!token) return;
-    const lengthFailure = getPasswordLengthFailure(password);
+    event.preventDefault()
+    if (!token) return
+    const lengthFailure = getPasswordLengthFailure(password)
     if (lengthFailure) {
       setError(
         lengthFailure === 'too-short'
           ? m.reset_err_short({ min: MIN_PASSWORD_LENGTH })
-          : m.reset_err_long({ max: MAX_PASSWORD_LENGTH }),
-      );
-      return;
+          : m.reset_err_long({ max: MAX_PASSWORD_LENGTH })
+      )
+      return
     }
-    setError(null);
-    setState('working');
+    setError(null)
+    setState('working')
     try {
-      const { error: failure } = await authApi.completeEmailVerification({ token, password });
+      const { error: failure } = await authApi.completeEmailVerification({ token, password })
       // E_VERIFICATION_COMMITTED: the address is confirmed and only a later step failed.
-      if (!failure || failure.code === 'E_VERIFICATION_COMMITTED') finish('done');
-      else if (failure.code === 'E_INVALID_TOKEN') finish('invalid');
-      else if (failure.status >= 500) finish('uncertain');
+      if (!failure || failure.code === 'E_VERIFICATION_COMMITTED') finish('done')
+      else if (failure.code === 'E_INVALID_TOKEN') finish('invalid')
+      else if (failure.status >= 500) finish('uncertain')
       else {
-        setError(failure.message || m.verify_failed());
-        setState('form');
+        setError(failure.message || m.verify_failed())
+        setState('form')
       }
     } catch (failure) {
       // The link may already be spent and the password set, so repeating could only mislead.
-      console.error('VerifyEmail: confirmation failed', failure);
-      finish('uncertain');
+      console.error('VerifyEmail: confirmation failed', failure)
+      finish('uncertain')
     }
-  };
+  }
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
@@ -123,8 +123,8 @@ export function VerifyEmail() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setState('checking');
-                      setInspection((count) => count + 1);
+                      setState('checking')
+                      setInspection((count) => count + 1)
                     }}
                   >
                     {m.verify_retry()}
@@ -190,5 +190,5 @@ export function VerifyEmail() {
         </Card>
       </main>
     </div>
-  );
+  )
 }

@@ -1,30 +1,30 @@
-import { inject } from '@adonisjs/core';
-import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { inject } from '@adonisjs/core'
+import type { HttpContext } from '@adonisjs/core/http'
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import {
   E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
   isCommittedFailure,
-} from '@kevinjohn/adonisjs-account-kit/errors';
-import capacitylens from '#config/capacitylens';
-import FirstCompanyPendingException from '#exceptions/first_company_pending_exception';
-import { PasswordSignInService } from '#services/auth/password_sign_in_service';
-import { signUpValidator } from '#validators/auth_requests';
-import { requestData } from '#validators/request_rules';
-import { emailInUseAnswer } from '#exceptions/credential_answers';
-import { InstallationCompanyService } from '#services/installation_company_service';
+} from '@kevinjohn/adonisjs-account-kit/errors'
+import capacitylens from '#config/capacitylens'
+import FirstCompanyPendingException from '#exceptions/first_company_pending_exception'
+import { PasswordSignInService } from '#services/auth/password_sign_in_service'
+import { signUpValidator } from '#validators/auth_requests'
+import { requestData } from '#validators/request_rules'
+import { emailInUseAnswer } from '#exceptions/credential_answers'
+import { InstallationCompanyService } from '#services/installation_company_service'
 
 /** Open sign-up of a new account. */
 @inject()
 export default class NewAccountController {
-  #passwordSignIn: PasswordSignInService;
-  #installationCompany: InstallationCompanyService;
+  #passwordSignIn: PasswordSignInService
+  #installationCompany: InstallationCompanyService
 
   constructor(
     passwordSignIn: PasswordSignInService,
     installationCompany: InstallationCompanyService
   ) {
-    this.#passwordSignIn = passwordSignIn;
-    this.#installationCompany = installationCompany;
+    this.#passwordSignIn = passwordSignIn
+    this.#installationCompany = installationCompany
   }
 
   /**
@@ -34,29 +34,29 @@ export default class NewAccountController {
   async store({ auth, request, response, logger, serialize }: HttpContext) {
     const body = await request.validateUsing(signUpValidator, {
       data: requestData(request, request.body()),
-    });
-    const { email, name } = body;
+    })
+    const { email, name } = body
     if (!capacitylens.allowOpenSignUp || (await this.#installationCompany.hasNoCompany())) {
-      return response.forbidden({ error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' });
+      return response.forbidden({ error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' })
     }
     try {
       await accountKit.registration.register({
         email,
         password: body.password,
         registrationData: { name },
-      });
+      })
     } catch (error) {
       // Keeps the product codes `E_SIGN_UP_CLOSED` and `E_EMAIL_IN_USE`, which the Kit's own codes
       // do not carry and the browser reads.
       if (error instanceof FirstCompanyPendingException) {
-        return response.forbidden({ error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' });
+        return response.forbidden({ error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' })
       }
       if (error instanceof E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED) {
-        return response.conflict(emailInUseAnswer);
+        return response.conflict(emailInUseAnswer)
       }
       // The account exists; only the confirmation email may be missing, and it can be resent.
-      if (!isCommittedFailure(error)) throw error;
-      logger.warn({ code: 'SIGN_UP_FOLLOW_UP_FAILED' }, 'Sign-up follow-up failed');
+      if (!isCommittedFailure(error)) throw error
+      logger.warn({ code: 'SIGN_UP_FOLLOW_UP_FAILED' }, 'Sign-up follow-up failed')
     }
     try {
       return response.created(
@@ -68,12 +68,12 @@ export default class NewAccountController {
             userAgent: body.headers['user-agent'],
           }),
         })
-      );
+      )
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
-      logger.warn({ err: error }, 'Sign-in after registration failed');
-      return response.accepted(await serialize({ accountCreated: true, signInRequired: true }));
+      logger.warn({ err: error }, 'Sign-in after registration failed')
+      return response.accepted(await serialize({ accountCreated: true, signInRequired: true }))
     }
   }
 }

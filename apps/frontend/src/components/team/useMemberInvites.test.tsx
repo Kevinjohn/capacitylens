@@ -1,15 +1,15 @@
-import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { teamAccessApi } from '@/account/teamAccessApi';
-import { useMemberInvites } from './useMemberInvites';
+import { act, renderHook } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { teamAccessApi } from '@/account/teamAccessApi'
+import { useMemberInvites } from './useMemberInvites'
 
 function renderInvites(email: string) {
-  const fail = vi.fn();
-  const setNotice = vi.fn();
-  const reloadInvites = vi.fn(async () => {});
-  const reconcileUnknownMutation = vi.fn(async () => {});
-  const { result } = renderHook(() => useMemberInvites());
-  act(() => result.current.setInvitationPreauthorizedEmail(email));
+  const fail = vi.fn()
+  const setNotice = vi.fn()
+  const reloadInvites = vi.fn(async () => {})
+  const reconcileUnknownMutation = vi.fn(async () => {})
+  const { result } = renderHook(() => useMemberInvites())
+  act(() => result.current.setInvitationPreauthorizedEmail(email))
   const submit = () =>
     result.current
       .createActions({
@@ -22,22 +22,22 @@ function renderInvites(email: string) {
         reloadInvites,
         reconcileUnknownMutation,
       })
-      .submitInvite();
-  return { fail, setNotice, reloadInvites, reconcileUnknownMutation, submit };
+      .submitInvite()
+  return { fail, setNotice, reloadInvites, reconcileUnknownMutation, submit }
 }
 
 describe('useMemberInvites', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks())
 
   it('refuses an invitation without an address', async () => {
-    const createInvitation = vi.spyOn(teamAccessApi, 'createInvitation');
-    const { fail, submit } = renderInvites('  ');
+    const createInvitation = vi.spyOn(teamAccessApi, 'createInvitation')
+    const { fail, submit } = renderInvites('  ')
 
-    await act(async () => submit());
+    await act(async () => submit())
 
-    expect(fail).toHaveBeenCalledWith('invite', "Enter the invitee's email address.");
-    expect(createInvitation).not.toHaveBeenCalled();
-  });
+    expect(fail).toHaveBeenCalledWith('invite', "Enter the invitee's email address.")
+    expect(createInvitation).not.toHaveBeenCalled()
+  })
 
   it.each([
     [true, 'Invitation emailed to diana@example.com', undefined],
@@ -49,35 +49,35 @@ describe('useMemberInvites', () => {
   ])('says whether the invitation was emailed (%s)', async (emailed, notice, tone) => {
     const createInvitation = vi
       .spyOn(teamAccessApi, 'createInvitation')
-      .mockResolvedValue({ kind: 'ok', status: emailed ? 201 : 202, value: { emailed } });
-    const { setNotice, submit } = renderInvites(' diana@example.com ');
+      .mockResolvedValue({ kind: 'ok', status: emailed ? 201 : 202, value: { emailed } })
+    const { setNotice, submit } = renderInvites(' diana@example.com ')
 
-    await act(async () => submit());
+    await act(async () => submit())
 
     expect(createInvitation).toHaveBeenCalledWith({
       companyId: 'company-1',
       role: 'editor',
       email: 'diana@example.com',
-    });
-    expect(setNotice).toHaveBeenCalledWith(notice, ...(tone ? [tone] : []));
-  });
+    })
+    expect(setNotice).toHaveBeenCalledWith(notice, ...(tone ? [tone] : []))
+  })
 
   it('says the address already has a pending invitation and reloads the list', async () => {
     vi.spyOn(teamAccessApi, 'createInvitation').mockResolvedValue({
       kind: 'alreadyInvited',
       status: 409,
-    });
+    })
     const { fail, setNotice, reloadInvites, reconcileUnknownMutation, submit } =
-      renderInvites('diana@example.com');
+      renderInvites('diana@example.com')
 
-    await act(async () => submit());
+    await act(async () => submit())
 
     expect(fail).toHaveBeenCalledWith(
       'invite',
-      'diana@example.com already has a pending invitation. Use Resend under Outstanding invites to send a new link.',
-    );
-    expect(reloadInvites).toHaveBeenCalledOnce();
-    expect(reconcileUnknownMutation).not.toHaveBeenCalled();
-    expect(setNotice).not.toHaveBeenCalled();
-  });
-});
+      'diana@example.com already has a pending invitation. Use Resend under Outstanding invites to send a new link.'
+    )
+    expect(reloadInvites).toHaveBeenCalledOnce()
+    expect(reconcileUnknownMutation).not.toHaveBeenCalled()
+    expect(setNotice).not.toHaveBeenCalled()
+  })
+})

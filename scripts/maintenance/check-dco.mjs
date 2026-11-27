@@ -1,20 +1,20 @@
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
-const SIGN_OFF_PATTERN = /^Signed-off-by:\s+(.+?)\s+<([^<>\s]+)>\s*$/gim;
-const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
-const EMAIL_PATTERN = /^[^<>\s@]+@[^<>\s@]+$/;
-const RATIFICATIONS_URL = new URL('./dco-ratifications.json', import.meta.url);
+const SIGN_OFF_PATTERN = /^Signed-off-by:\s+(.+?)\s+<([^<>\s]+)>\s*$/gim
+const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/
+const EMAIL_PATTERN = /^[^<>\s@]+@[^<>\s@]+$/
+const RATIFICATIONS_URL = new URL('./dco-ratifications.json', import.meta.url)
 
 function normalizedEmail(email) {
-  return email.trim().toLowerCase();
+  return email.trim().toLowerCase()
 }
 
 // Dependabot authors its commits under GitHub's bot address and GitHub commits them, so the
 // exemption follows each commit rather than whoever pushed or merged it.
-const DEPENDABOT_AUTHOR_EMAIL = '49699333+dependabot[bot]@users.noreply.github.com';
-const GITHUB_COMMITTER_EMAIL = 'noreply@github.com';
+const DEPENDABOT_AUTHOR_EMAIL = '49699333+dependabot[bot]@users.noreply.github.com'
+const GITHUB_COMMITTER_EMAIL = 'noreply@github.com'
 
 /**
  * Returns whether the commit uses the Dependabot DCO exemption.
@@ -23,32 +23,32 @@ export function isDcoExemptCommit({ authorEmail, committerEmail }) {
   return (
     normalizedEmail(authorEmail) === DEPENDABOT_AUTHOR_EMAIL &&
     normalizedEmail(committerEmail) === GITHUB_COMMITTER_EMAIL
-  );
+  )
 }
 
 /**
  * Returns whether the commit has more than one parent.
  */
 export function isMergeCommit(parents) {
-  return parents.trim().split(/\s+/).filter(Boolean).length > 1;
+  return parents.trim().split(/\s+/).filter(Boolean).length > 1
 }
 
 /**
  * Checks whether a commit message is signed off by its author or committer.
  */
 export function evaluateDcoCommit({ authorEmail, committerEmail, message }) {
-  const permittedEmails = new Set([authorEmail, committerEmail].map(normalizedEmail));
+  const permittedEmails = new Set([authorEmail, committerEmail].map(normalizedEmail))
   const signatories = [...message.matchAll(SIGN_OFF_PATTERN)]
     .map((match) => ({
       name: match[1].trim(),
       email: normalizedEmail(match[2]),
     }))
-    .filter(({ name }) => name.length > 0);
+    .filter(({ name }) => name.length > 0)
 
   return {
     valid: signatories.some(({ email }) => permittedEmails.has(email)),
     signatories,
-  };
+  }
 }
 
 /**
@@ -57,7 +57,7 @@ export function evaluateDcoCommit({ authorEmail, committerEmail, message }) {
  */
 export function parseDcoRatifications(ratifications) {
   if (!ratifications || typeof ratifications !== 'object' || Array.isArray(ratifications)) {
-    throw new TypeError('DCO ratifications must be an object keyed by full commit SHA');
+    throw new TypeError('DCO ratifications must be an object keyed by full commit SHA')
   }
 
   for (const [commit, ratification] of Object.entries(ratifications)) {
@@ -70,55 +70,55 @@ export function parseDcoRatifications(ratifications) {
       !COMMIT_SHA_PATTERN.test(ratification.attestationCommit ?? '')
     ) {
       throw new TypeError(
-        'Each DCO ratification must name a ratifier email and the full lowercase SHA of its attestation commit',
-      );
+        'Each DCO ratification must name a ratifier email and the full lowercase SHA of its attestation commit'
+      )
     }
   }
 
-  return ratifications;
+  return ratifications
 }
 
 /**
  * Checks whether a ratification is supported by its attestation commit.
  */
 export function evaluateDcoRatification(target, ratification, attestation) {
-  const ratifierEmail = normalizedEmail(ratification.ratifierEmail);
-  const targetEmails = [target.authorEmail, target.committerEmail].map(normalizedEmail);
+  const ratifierEmail = normalizedEmail(ratification.ratifierEmail)
+  const targetEmails = [target.authorEmail, target.committerEmail].map(normalizedEmail)
   const attestationEmails = [attestation.authorEmail, attestation.committerEmail].map(
-    normalizedEmail,
-  );
+    normalizedEmail
+  )
 
   return (
     targetEmails.includes(ratifierEmail) &&
     attestationEmails.includes(ratifierEmail) &&
     evaluateDcoCommit(attestation).valid &&
     new RegExp(`^\\+\\s*"${target.commit}"\\s*:`, 'm').test(attestation.patch)
-  );
+  )
 }
 
 function loadDcoRatifications() {
-  return parseDcoRatifications(JSON.parse(readFileSync(RATIFICATIONS_URL, 'utf8')));
+  return parseDcoRatifications(JSON.parse(readFileSync(RATIFICATIONS_URL, 'utf8')))
 }
 
 function git(args) {
-  return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+  return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
 }
 
 function isAncestor(commit, head) {
   try {
-    execFileSync('git', ['merge-base', '--is-ancestor', commit, head], { stdio: 'ignore' });
-    return true;
+    execFileSync('git', ['merge-base', '--is-ancestor', commit, head], { stdio: 'ignore' })
+    return true
   } catch {
     // Unproven attestation reachability must not authorize a DCO ratification.
-    return false;
+    return false
   }
 }
 
 function isDcoRatifiedCommit(target, ratifications, head) {
-  if (!Object.hasOwn(ratifications, target.commit)) return false;
+  if (!Object.hasOwn(ratifications, target.commit)) return false
 
-  const ratification = ratifications[target.commit];
-  if (!isAncestor(ratification.attestationCommit, head)) return false;
+  const ratification = ratifications[target.commit]
+  if (!isAncestor(ratification.attestationCommit, head)) return false
 
   const [authorEmail, committerEmail, message, patch] = git([
     'show',
@@ -128,14 +128,14 @@ function isDcoRatifiedCommit(target, ratifications, head) {
     ratification.attestationCommit,
     '--',
     'scripts/maintenance/dco-ratifications.json',
-  ]).split('\0');
+  ]).split('\0')
 
   return evaluateDcoRatification(target, ratification, {
     authorEmail,
     committerEmail,
     message,
     patch,
-  });
+  })
 }
 
 /**
@@ -146,16 +146,16 @@ export function verifyDcoRange(base, head) {
   const commits = git(['rev-list', `${base}..${head}`])
     .trim()
     .split('\n')
-    .filter(Boolean);
-  const ratifications = loadDcoRatifications();
-  let valid = true;
+    .filter(Boolean)
+  const ratifications = loadDcoRatifications()
+  let valid = true
 
   for (const commit of commits) {
     if (isMergeCommit(git(['show', '-s', '--format=%P', commit]))) {
       console.log(
-        `Skipping generated merge commit ${commit}; its feature commits carry the DCO sign-offs.`,
-      );
-      continue;
+        `Skipping generated merge commit ${commit}; its feature commits carry the DCO sign-offs.`
+      )
+      continue
     }
     // Uppercase placeholders apply .mailmap, so contributors can use an established canonical
     // address without weakening the identity comparison.
@@ -165,38 +165,38 @@ export function verifyDcoRange(base, head) {
       '--use-mailmap',
       '--format=%aE%x00%cE%x00%B',
       commit,
-    ]).split('\0');
+    ]).split('\0')
     if (isDcoExemptCommit({ authorEmail, committerEmail })) {
       console.log(
-        `Skipping Dependabot commit ${commit}; Dependabot commits are exempt from DCO sign-off.`,
-      );
-      continue;
+        `Skipping Dependabot commit ${commit}; Dependabot commits are exempt from DCO sign-off.`
+      )
+      continue
     }
-    const result = evaluateDcoCommit({ authorEmail, committerEmail, message });
+    const result = evaluateDcoCommit({ authorEmail, committerEmail, message })
     if (
       !result.valid &&
       isDcoRatifiedCommit({ commit, authorEmail, committerEmail }, ratifications, head)
     ) {
-      console.log(`Accepting ratified DCO commit ${commit}.`);
+      console.log(`Accepting ratified DCO commit ${commit}.`)
     } else if (!result.valid) {
       console.error(
-        `::error::Commit ${commit} needs a Signed-off-by trailer matching its author or committer email`,
-      );
-      valid = false;
+        `::error::Commit ${commit} needs a Signed-off-by trailer matching its author or committer email`
+      )
+      valid = false
     }
   }
 
-  return valid;
+  return valid
 }
 
 function main() {
-  const [base, head] = process.argv.slice(2);
+  const [base, head] = process.argv.slice(2)
   if (!base || !head) {
-    console.error('Usage: node scripts/maintenance/check-dco.mjs <base-sha> <head-sha>');
-    process.exitCode = 2;
-    return;
+    console.error('Usage: node scripts/maintenance/check-dco.mjs <base-sha> <head-sha>')
+    process.exitCode = 2
+    return
   }
-  if (!verifyDcoRange(base, head)) process.exitCode = 1;
+  if (!verifyDcoRange(base, head)) process.exitCode = 1
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()

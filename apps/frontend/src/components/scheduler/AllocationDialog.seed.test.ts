@@ -1,30 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { makeAllocation } from '@/test/fixtures';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { buildAllocationDialogSeed } from './buildAllocationDialogSeed';
-import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
-import { ACC, base, resetAllocationDialogStore } from '@/test/allocationDialogTestKit';
+import { describe, it, expect, beforeEach } from 'vitest'
+import { makeAllocation } from '@/test/fixtures'
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays'
+import { buildAllocationDialogSeed } from './buildAllocationDialogSeed'
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek'
+import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot'
+import { ACC, base, resetAllocationDialogStore } from '@/test/allocationDialogTestKit'
 
 type IsExact<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 
 beforeEach(async () => {
-  await resetAllocationDialogStore();
-});
+  await resetAllocationDialogStore()
+})
 
 describe('buildAllocationDialogSeed', () => {
   it('represents a missing selected effective week with undefined', () => {
     const selectedEffectiveWeekUsesUndefined: IsExact<
       AllocationDialogSnapshot['selectedEffectiveWeek'],
       EffectiveWorkingWeek | undefined
-    > = true;
+    > = true
 
-    expect(selectedEffectiveWeekUsesUndefined).toBe(true);
-  });
+    expect(selectedEffectiveWeekUsesUndefined).toBe(true)
+  })
 
   it('uses the injected calendar date when no create or edit date exists', () => {
-    const data = base();
+    const data = base()
 
     const seed = buildAllocationDialogSeed({
       editing: undefined,
@@ -34,13 +34,13 @@ describe('buildAllocationDialogSeed', () => {
       resourceById: new Map(),
       companyWorkingDays: normalizeCompanyWorkingDays(undefined, 1),
       today: '2040-01-02',
-    });
+    })
 
-    expect(seed.initialStart).toBe('2040-01-02');
-  });
+    expect(seed.initialStart).toBe('2040-01-02')
+  })
 
   it('keeps an edited allocation date ahead of create and injected dates', () => {
-    const data = base();
+    const data = base()
     const editing = makeAllocation({
       companyId: ACC,
       id: 'allocation-edit',
@@ -52,7 +52,7 @@ describe('buildAllocationDialogSeed', () => {
       status: 'tentative',
       note: '',
       ignoreWorkingDays: false,
-    });
+    })
 
     const seed = buildAllocationDialogSeed({
       editing,
@@ -62,9 +62,9 @@ describe('buildAllocationDialogSeed', () => {
       resourceById: new Map(),
       companyWorkingDays: normalizeCompanyWorkingDays(undefined, 1),
       today: '2040-01-02',
-    });
+    })
 
-    expect(seed.initialStart).toBe('2026-06-01');
-    expect(seed.initialResourceId).toBe('resource-edit');
-  });
-});
+    expect(seed.initialStart).toBe('2026-06-01')
+    expect(seed.initialResourceId).toBe('resource-edit')
+  })
+})

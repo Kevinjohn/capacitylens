@@ -1,14 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import type { Role } from '@capacitylens/shared/domain/access';
-import { m } from '@/i18n';
+import { describe, expect, it } from 'vitest'
+import type { Role } from '@capacitylens/shared/domain/access'
+import { m } from '@/i18n'
 import {
   resolveAccessLabel,
   resolveAccessSummary,
   resolveRoleLabel,
   resolveRoleSummary,
-} from './accessCopy';
+} from './accessCopy'
 
-const roles: Role[] = ['owner', 'admin', 'editor', 'viewer'];
+const roles: Role[] = ['owner', 'admin', 'editor', 'viewer']
 
 const localizedRoleCopy = (role: Role) => ({
   label: {
@@ -23,7 +23,7 @@ const localizedRoleCopy = (role: Role) => ({
     editor: m.access_role_editor_summary(),
     viewer: m.access_role_viewer_summary(),
   }[role],
-});
+})
 
 const accessPrecedenceCases = () =>
   [
@@ -47,19 +47,19 @@ const accessPrecedenceCases = () =>
       m.settings_role_viewer(),
       m.access_role_viewer_summary(),
     ],
-  ] as const;
+  ] as const
 
 describe('access copy', () => {
   it.each(roles)('maps the %s role to its localized label and summary', (role) => {
-    const copy = localizedRoleCopy(role);
-    expect(resolveRoleLabel(role)).toBe(copy.label);
-    expect(resolveRoleSummary(role)).toBe(copy.summary);
-  });
+    const copy = localizedRoleCopy(role)
+    expect(resolveRoleLabel(role)).toBe(copy.label)
+    expect(resolveRoleSummary(role)).toBe(copy.summary)
+  })
 
   it('applies pending, unavailable and role precedence consistently', () => {
     for (const [input, label, summary] of accessPrecedenceCases()) {
-      expect(resolveAccessLabel(input)).toBe(label);
-      expect(resolveAccessSummary(input)).toBe(summary);
+      expect(resolveAccessLabel(input)).toBe(label)
+      expect(resolveAccessSummary(input)).toBe(summary)
     }
-  });
-});
+  })
+})

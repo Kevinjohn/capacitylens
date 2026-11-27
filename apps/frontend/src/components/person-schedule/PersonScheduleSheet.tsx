@@ -1,17 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect } from 'react'
 
-import { m } from '@/i18n';
-import { formatDayMonthRange } from '@/lib/dateDisplay';
+import { m } from '@/i18n'
+import { formatDayMonthRange } from '@/lib/dateDisplay'
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
+} from '@/components/ui/sheet'
 
-import { PersonScheduleEntry } from './PersonScheduleEntry';
-import type { PersonScheduleSheetProps } from './personScheduleTypes';
+import { PersonScheduleEntry } from './PersonScheduleEntry'
+import type { PersonScheduleSheetProps } from './personScheduleTypes'
 
 /** Displays a resource schedule with focus restoration when the sheet closes. */
 export function PersonScheduleSheet({
@@ -20,12 +20,12 @@ export function PersonScheduleSheet({
   onOpenChange,
   onRestoreFocus,
 }: PersonScheduleSheetProps) {
-  const available = schedule.kind === 'available';
+  const available = schedule.kind === 'available'
 
   useEffect(() => {
-    if (!open || available) return;
-    onOpenChange(false);
-  }, [available, onOpenChange, open]);
+    if (!open || available) return
+    onOpenChange(false)
+  }, [available, onOpenChange, open])
 
   return (
     <Sheet open={open && available} onOpenChange={onOpenChange}>
@@ -36,8 +36,8 @@ export function PersonScheduleSheet({
           data-testid="person-schedule-sheet"
           className="w-full max-w-[400px] gap-0 p-0 sm:max-w-[400px]"
           onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            onRestoreFocus();
+            event.preventDefault()
+            onRestoreFocus()
           }}
         >
           <SheetHeader
@@ -51,7 +51,7 @@ export function PersonScheduleSheet({
               {m.scheduler_person_schedule_description({
                 range: formatDayMonthRange(
                   schedule.model.window.startDate,
-                  schedule.model.window.endDate,
+                  schedule.model.window.endDate
                 ),
               })}
             </SheetDescription>
@@ -75,5 +75,5 @@ export function PersonScheduleSheet({
         </SheetContent>
       )}
     </Sheet>
-  );
+  )
 }

@@ -16,8 +16,8 @@ export function createId(): string {
   if (typeof crypto === 'undefined' || typeof crypto.randomUUID !== 'function') {
     throw new Error(
       'createId(): crypto.randomUUID is unavailable. CapacityLens needs a secure context (HTTPS or localhost) ' +
-        'in the browser, or Node 19+ / a modern runtime, to generate unique ids.',
-    );
+        'in the browser, or Node 19+ / a modern runtime, to generate unique ids.'
+    )
   }
-  return crypto.randomUUID();
+  return crypto.randomUUID()
 }

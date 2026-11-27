@@ -1,5 +1,5 @@
-import { Exception } from '@adonisjs/core/exceptions';
-import type { HttpContext } from '@adonisjs/core/http';
+import { Exception } from '@adonisjs/core/exceptions'
+import type { HttpContext } from '@adonisjs/core/http'
 
 /**
  * A product exception carries its own status, code and a message that is safe to send and to log.
@@ -9,10 +9,10 @@ import type { HttpContext } from '@adonisjs/core/http';
 export default class ProductException extends Exception {
   /** The response body: the message, the code when there is one, and any field a subclass adds. */
   body(): Record<string, unknown> {
-    return { error: this.message, ...(this.code ? { code: this.code } : {}) };
+    return { error: this.message, ...(this.code ? { code: this.code } : {}) }
   }
 
   async handle(error: this, ctx: HttpContext) {
-    ctx.response.status(error.status).send(error.body());
+    ctx.response.status(error.status).send(error.body())
   }
 }

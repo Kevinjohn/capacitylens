@@ -1,12 +1,12 @@
-import js from '@eslint/js';
-import globals from 'globals';
-import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
-import tseslint from 'typescript-eslint';
-import unicorn from 'eslint-plugin-unicorn';
-import { defineConfig, globalIgnores } from 'eslint/config';
-import { readFileSync } from 'node:fs';
-import { builtinModules } from 'node:module';
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import unicorn from 'eslint-plugin-unicorn'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import { readFileSync } from 'node:fs'
+import { builtinModules } from 'node:module'
 
 // Standard web types preserve the existing Headers contract and UTF-8/UUID capabilities.
 // Their ambient declarations must not grant shared production access to a browser or Node runtime.
@@ -15,19 +15,19 @@ const sharedRuntimeGlobals = new Set([
   'console',
   'crypto',
   'TextEncoder',
-]);
+])
 const forbiddenSharedGlobals = [
   ...Object.keys({ ...globals.browser, ...globals.node }).filter(
-    (name) => !sharedRuntimeGlobals.has(name),
+    (name) => !sharedRuntimeGlobals.has(name)
   ),
   // Passing or destructuring the entire global object would bypass named capability restrictions.
   'globalThis',
-];
+]
 
 const sharedTestFiles = [
   'packages/shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}',
   'packages/shared/src/**/__tests__/**/*.{ts,tsx,mts,cts}',
-];
+]
 // `@/` maps only to src/, so it cannot name a repository file outside it. These files read one,
 // and each may import only the specifiers listed against it.
 const parentImportAllowances = {
@@ -40,19 +40,19 @@ const parentImportAllowances = {
     '../../../../docs-src/.vitepress/generateDocumentationComponentId.mts',
     '../../../../docs-src/.vitepress/config.mts',
   ],
-};
+}
 
 const inlineTypeImportGuard = {
   selector: "ImportSpecifier[importKind='type']",
   message: 'Use a separate `import type` declaration for type-only imports.',
-};
+}
 
 const recordGuard = {
   selector:
     'FunctionDeclaration[id.name=/^is(Unknown)?Record$/], VariableDeclarator[id.name=/^is(Unknown)?Record$/]',
   message:
     'Import isRecord from @capacitylens/shared/lib/isRecord instead of defining another copy.',
-};
+}
 
 /**
  * Rejects parent-relative app module specifiers (`..` or `../…`) in static imports, `import()`,
@@ -61,14 +61,14 @@ const recordGuard = {
  */
 function parentImportRules(allowedSpecifiers) {
   const allowed = allowedSpecifiers.map((specifier) =>
-    specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-  );
-  const lookahead = allowed.length ? `(?!(?:${allowed.join('|')})$)` : '';
-  const regex = `^${lookahead}\\.\\.(?:/|$)`.replaceAll('/', '\\x2F');
+    specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  )
+  const lookahead = allowed.length ? `(?!(?:${allowed.join('|')})$)` : ''
+  const regex = `^${lookahead}\\.\\.(?:/|$)`.replaceAll('/', '\\x2F')
   const message =
-    "Import from another folder with `@/…`; use `./` only within the importing file's folder.";
+    "Import from another folder with `@/…`; use `./` only within the importing file's folder."
   const vitestModuleCall =
-    "CallExpression[callee.object.name='vi'][callee.property.name=/^(mock|doMock|unmock|doUnmock|importActual|importMock)$/]";
+    "CallExpression[callee.object.name='vi'][callee.property.name=/^(mock|doMock|unmock|doUnmock|importActual|importMock)$/]"
   return {
     'no-restricted-imports': ['error', { patterns: [{ regex, message }] }],
     'no-restricted-syntax': [
@@ -82,14 +82,14 @@ function parentImportRules(allowedSpecifiers) {
         message,
       },
     ],
-  };
+  }
 }
 
 const gitIgnoredPaths = readFileSync(new URL('.gitignore', import.meta.url), 'utf8')
   .split(/\r?\n/)
   .map((line) => line.trim())
   .filter((line) => line && !line.startsWith('#') && !line.startsWith('!'))
-  .map((line) => line.replace(/^\//, '').replace(/\/$/, '/**'));
+  .map((line) => line.replace(/^\//, '').replace(/\/$/, '/**'))
 
 /** Defines repository lint policies with runtime and TypeScript boundaries scoped to their owning packages. */
 export default defineConfig([
@@ -312,8 +312,8 @@ export default defineConfig([
     ignores: ['apps/frontend/src/components/ui/**'],
     plugins: { unicorn },
     rules: {
-      curly: ['error', 'multi-line'],
-      eqeqeq: ['error', 'always', { null: 'ignore' }],
+      'curly': ['error', 'multi-line'],
+      'eqeqeq': ['error', 'always', { null: 'ignore' }],
       'one-var': ['error', 'never'],
       // ignoreOnInitialization keeps `const row = requireValue(rows.find((row) => …))`, where the
       // inner name only exists while the outer binding is being created.
@@ -355,4 +355,4 @@ export default defineConfig([
     ignores: ['apps/frontend/src/components/ui/**'],
     rules: { 'object-shorthand': ['error', 'properties'] },
   },
-]);
+])

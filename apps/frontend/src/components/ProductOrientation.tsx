@@ -1,34 +1,34 @@
-import { useEffect, useId, useRef } from 'react';
-import { APP_NAME } from '@capacitylens/shared/brand';
-import { m } from '@/i18n';
-import { Button } from './ui/button';
+import { useEffect, useId, useRef } from 'react'
+import { APP_NAME } from '@capacitylens/shared/brand'
+import { m } from '@/i18n'
+import { Button } from './ui/button'
 
 /** Guides the user to the requested product area. */
 export function ProductOrientation({
   focusRequest,
   onDismiss,
 }: {
-  focusRequest: { sequence: number; delayMs: number };
-  onDismiss: () => void;
+  focusRequest: { sequence: number; delayMs: number }
+  onDismiss: () => void
 }) {
-  const headingId = useId();
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const headingId = useId()
+  const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
     const focusHeading = () => {
-      const heading = headingRef.current;
-      if (!heading) return;
-      const scrollIntoView = heading.scrollIntoView as typeof heading.scrollIntoView | undefined;
-      scrollIntoView?.call(heading, { block: 'nearest' });
-      heading.focus();
-    };
-    if (focusRequest.delayMs === 0) {
-      focusHeading();
-      return;
+      const heading = headingRef.current
+      if (!heading) return
+      const scrollIntoView = heading.scrollIntoView as typeof heading.scrollIntoView | undefined
+      scrollIntoView?.call(heading, { block: 'nearest' })
+      heading.focus()
     }
-    const timeout = window.setTimeout(focusHeading, focusRequest.delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [focusRequest.delayMs, focusRequest.sequence]);
+    if (focusRequest.delayMs === 0) {
+      focusHeading()
+      return
+    }
+    const timeout = window.setTimeout(focusHeading, focusRequest.delayMs)
+    return () => window.clearTimeout(timeout)
+  }, [focusRequest.delayMs, focusRequest.sequence])
 
   return (
     <section
@@ -56,5 +56,5 @@ export function ProductOrientation({
         </Button>
       </div>
     </section>
-  );
+  )
 }

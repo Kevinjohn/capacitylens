@@ -1,32 +1,32 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { m } from '@/i18n';
-import { AuthContext } from '@/auth/authContext';
-import type { AuthContextValue } from '@/auth/authContext';
-import { PermissionContext } from '@/auth/permissionContext';
-import type { TeamMember } from '@/account/teamAccessApi';
-import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
-import { useStore } from '@/store/useStore';
-import { OwnershipTransferCard } from './OwnershipTransferCard';
-import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { m } from '@/i18n'
+import { AuthContext } from '@/auth/authContext'
+import type { AuthContextValue } from '@/auth/authContext'
+import { PermissionContext } from '@/auth/permissionContext'
+import type { TeamMember } from '@/account/teamAccessApi'
+import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures'
+import { useStore } from '@/store/useStore'
+import { OwnershipTransferCard } from './OwnershipTransferCard'
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants'
 
-const client = vi.hoisted(() => ({ listMembers: vi.fn(), transferOwnership: vi.fn() }));
-const reproject = vi.hoisted(() => vi.fn(async () => true));
+const client = vi.hoisted(() => ({ listMembers: vi.fn(), transferOwnership: vi.fn() }))
+const reproject = vi.hoisted(() => vi.fn(async () => true))
 
-vi.mock('@/account/teamAccessApi', () => ({ teamAccessApi: client }));
-vi.mock('@/auth/reprojectAccess', () => ({ reprojectAccess: reproject }));
+vi.mock('@/account/teamAccessApi', () => ({ teamAccessApi: client }))
+vi.mock('@/auth/reprojectAccess', () => ({ reprojectAccess: reproject }))
 vi.mock('@/auth/PasswordConfirmationDialog', () => ({
   PasswordConfirmationDialog: ({
     onConfirmed,
   }: {
-    onConfirmed: (confirmationId: string) => void;
+    onConfirmed: (confirmationId: string) => void
   }) => (
     <button type="button" onClick={() => onConfirmed('proof-1')}>
       Confirm action
     </button>
   ),
-}));
+}))
 
 function member({
   userId,
@@ -34,10 +34,10 @@ function member({
   name,
   status = 'active',
 }: {
-  userId: string;
-  role: TeamMember['role'];
-  name: string;
-  status?: TeamMember['status'];
+  userId: string
+  role: TeamMember['role']
+  name: string
+  status?: TeamMember['status']
 }): TeamMember {
   return {
     userId,
@@ -49,31 +49,31 @@ function member({
     email: `${userId}@wayne.test`,
     signInConfirmed: null,
     isSelf: userId === 'bruce',
-  };
+  }
 }
 
-const OWNER = member({ userId: 'bruce', role: 'owner', name: 'Bruce Wayne' });
-const ADMIN = member({ userId: 'selina', role: 'admin', name: 'Selina Kyle' });
+const OWNER = member({ userId: 'bruce', role: 'owner', name: 'Bruce Wayne' })
+const ADMIN = member({ userId: 'selina', role: 'admin', name: 'Selina Kyle' })
 const INACTIVE_ADMIN = member({
   userId: 'alfred',
   role: 'admin',
   name: 'Alfred Pennyworth',
   status: 'suspended',
-});
+})
 
 function renderAs({
   role = 'owner',
   refreshAuth = vi.fn(async () => {}),
 }: {
-  role?: 'owner' | 'admin' | 'editor' | 'viewer';
-  refreshAuth?: () => Promise<void>;
+  role?: 'owner' | 'admin' | 'editor' | 'viewer'
+  refreshAuth?: () => Promise<void>
 } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const auth: AuthContextValue = {
     user: { id: 'bruce', email: 'bruce@wayne.test' },
     refreshAuth,
     signOut: async () => {},
-  };
+  }
   return {
     refreshAuth,
     ...render(
@@ -83,88 +83,88 @@ function renderAs({
             <OwnershipTransferCard />
           </PermissionContext.Provider>
         </AuthContext.Provider>
-      </QueryClientProvider>,
+      </QueryClientProvider>
     ),
-  };
+  }
 }
 
 async function openOwnershipDialog(): Promise<void> {
-  fireEvent.click(await screen.findByTestId('ownership-transfer-open'));
-  await screen.findByRole('dialog', { name: m.ownership_transfer_heading() });
+  fireEvent.click(await screen.findByTestId('ownership-transfer-open'))
+  await screen.findByRole('dialog', { name: m.ownership_transfer_heading() })
 }
 
 async function selectNextOwner(): Promise<void> {
   fireEvent.click(
-    await screen.findByRole('combobox', { name: m.ownership_transfer_nominee_label() }),
-  );
-  fireEvent.click(await screen.findByRole('option', { name: ADMIN.name ?? '' }));
+    await screen.findByRole('combobox', { name: m.ownership_transfer_nominee_label() })
+  )
+  fireEvent.click(await screen.findByRole('option', { name: ADMIN.name ?? '' }))
 }
 
 beforeEach(async () => {
-  vi.clearAllMocks();
+  vi.clearAllMocks()
   client.listMembers.mockResolvedValue({
     kind: 'ok',
     status: 200,
     value: { members: [OWNER, ADMIN, INACTIVE_ADMIN] },
-  });
+  })
   client.transferOwnership.mockResolvedValue({
     kind: 'ok',
     status: 200,
     value: { fromUserId: OWNER.userId, toUserId: ADMIN.userId },
-  });
-  reproject.mockResolvedValue(true);
-  await resetStoreWithCompany(DEFAULT_COMPANY_ID);
-});
+  })
+  reproject.mockResolvedValue(true)
+  await resetStoreWithCompany(DEFAULT_COMPANY_ID)
+})
 
 describe('OwnershipTransferCard', () => {
   it('lets the Owner confirm an immediate transfer to an active Admin', async () => {
-    const refreshAuth = vi.fn(async () => {});
-    renderAs({ refreshAuth });
-    await openOwnershipDialog();
-    await selectNextOwner();
+    const refreshAuth = vi.fn(async () => {})
+    renderAs({ refreshAuth })
+    await openOwnershipDialog()
+    await selectNextOwner()
 
     expect(screen.getByTestId('ownership-transfer-confirmation')).toHaveTextContent(
-      m.ownership_transfer_confirmation(),
-    );
-    const transfer = screen.getByTestId('ownership-transfer-complete');
-    expect(transfer).toHaveTextContent(m.ownership_transfer_submit());
-    fireEvent.click(transfer);
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }));
+      m.ownership_transfer_confirmation()
+    )
+    const transfer = screen.getByTestId('ownership-transfer-complete')
+    expect(transfer).toHaveTextContent(m.ownership_transfer_submit())
+    fireEvent.click(transfer)
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }))
 
     await waitFor(() => {
       expect(client.transferOwnership).toHaveBeenCalledWith({
         companyId: DEFAULT_COMPANY_ID,
         targetUserId: ADMIN.userId,
         confirmationId: 'proof-1',
-      });
-    });
-    await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_COMPANY_ID));
-    expect(refreshAuth).toHaveBeenCalledOnce();
-  });
+      })
+    })
+    await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_COMPANY_ID))
+    expect(refreshAuth).toHaveBeenCalledOnce()
+  })
 
   it('excludes suspended Admins', async () => {
-    renderAs();
-    await openOwnershipDialog();
-    fireEvent.click(screen.getByRole('combobox', { name: m.ownership_transfer_nominee_label() }));
+    renderAs()
+    await openOwnershipDialog()
+    fireEvent.click(screen.getByRole('combobox', { name: m.ownership_transfer_nominee_label() }))
 
-    expect(await screen.findByRole('option', { name: ADMIN.name ?? '' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: INACTIVE_ADMIN.name ?? '' })).toBeNull();
-  });
+    expect(await screen.findByRole('option', { name: ADMIN.name ?? '' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: INACTIVE_ADMIN.name ?? '' })).toBeNull()
+  })
 
   it('shows a clear empty state when there are no eligible Admins', async () => {
     client.listMembers.mockResolvedValue({
       kind: 'ok',
       status: 200,
       value: { members: [OWNER, INACTIVE_ADMIN] },
-    });
-    renderAs();
-    await openOwnershipDialog();
+    })
+    renderAs()
+    await openOwnershipDialog()
 
     expect(await screen.findByTestId('ownership-transfer-no-candidates')).toHaveTextContent(
-      m.ownership_transfer_no_candidates(),
-    );
-    expect(screen.queryByTestId('ownership-transfer-complete')).toBeNull();
-  });
+      m.ownership_transfer_no_candidates()
+    )
+    expect(screen.queryByTestId('ownership-transfer-complete')).toBeNull()
+  })
 
   it('retains the same target after an uncertain response and refreshes access', async () => {
     client.transferOwnership
@@ -173,19 +173,19 @@ describe('OwnershipTransferCard', () => {
         kind: 'ok',
         status: 200,
         value: { fromUserId: 'bruce', toUserId: 'selina' },
-      });
-    renderAs();
-    await openOwnershipDialog();
-    await selectNextOwner();
+      })
+    renderAs()
+    await openOwnershipDialog()
+    await selectNextOwner()
 
-    fireEvent.click(await screen.findByTestId('ownership-transfer-complete'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }));
-    expect(await screen.findByText(m.ownership_transfer_uncertain())).toBeInTheDocument();
-    await waitFor(() => expect(reproject).toHaveBeenCalledOnce());
+    fireEvent.click(await screen.findByTestId('ownership-transfer-complete'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }))
+    expect(await screen.findByText(m.ownership_transfer_uncertain())).toBeInTheDocument()
+    await waitFor(() => expect(reproject).toHaveBeenCalledOnce())
 
-    fireEvent.click(await screen.findByTestId('ownership-transfer-complete'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }));
-    await waitFor(() => expect(client.transferOwnership).toHaveBeenCalledTimes(2));
+    fireEvent.click(await screen.findByTestId('ownership-transfer-complete'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }))
+    await waitFor(() => expect(client.transferOwnership).toHaveBeenCalledTimes(2))
     expect(client.transferOwnership.mock.calls).toEqual([
       [
         {
@@ -201,26 +201,26 @@ describe('OwnershipTransferCard', () => {
           confirmationId: 'proof-1',
         },
       ],
-    ]);
-  });
+    ])
+  })
 
   it('closes the active company if authoritative access cannot be reconciled', async () => {
-    reproject.mockResolvedValue(false);
-    renderAs();
-    await openOwnershipDialog();
-    await selectNextOwner();
-    fireEvent.click(screen.getByTestId('ownership-transfer-complete'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }));
+    reproject.mockResolvedValue(false)
+    renderAs()
+    await openOwnershipDialog()
+    await selectNextOwner()
+    fireEvent.click(screen.getByTestId('ownership-transfer-complete'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }))
 
-    await waitFor(() => expect(useStore.getState().activeCompanyId).toBeNull());
-    expect(useStore.getState().notice?.message).toBe(m.settings_members_access_refresh_failed());
-  });
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBeNull())
+    expect(useStore.getState().notice?.message).toBe(m.settings_members_access_refresh_failed())
+  })
 
   it('does not render transfer controls for a non-Owner or masqueraded view', () => {
-    const nonOwner = renderAs({ role: 'admin' });
-    expect(screen.queryByTestId('ownership-transfer-card')).toBeNull();
-    expect(client.listMembers).not.toHaveBeenCalled();
-    nonOwner.unmount();
+    const nonOwner = renderAs({ role: 'admin' })
+    expect(screen.queryByTestId('ownership-transfer-card')).toBeNull()
+    expect(client.listMembers).not.toHaveBeenCalled()
+    nonOwner.unmount()
 
     useStore.setState({
       masquerade: {
@@ -237,9 +237,9 @@ describe('OwnershipTransferCard', () => {
         },
         generation: 1,
       },
-    });
-    renderAs();
-    expect(screen.queryByTestId('ownership-transfer-card')).toBeNull();
-    expect(client.listMembers).not.toHaveBeenCalled();
-  });
-});
+    })
+    renderAs()
+    expect(screen.queryByTestId('ownership-transfer-card')).toBeNull()
+    expect(client.listMembers).not.toHaveBeenCalled()
+  })
+})

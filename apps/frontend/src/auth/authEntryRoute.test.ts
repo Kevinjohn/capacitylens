@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { resolvePublicAuthEntry } from './authEntryRoute';
+import { describe, expect, it } from 'vitest'
+import { resolvePublicAuthEntry } from './authEntryRoute'
 
 describe('publicAuthEntryForPath', () => {
   it.each([
@@ -17,6 +17,6 @@ describe('publicAuthEntryForPath', () => {
     ['/invitation/token/extra', null],
     ['/settings', null],
   ] as const)('classifies %s', (pathname, expected) => {
-    expect(resolvePublicAuthEntry(pathname)).toBe(expected);
-  });
-});
+    expect(resolvePublicAuthEntry(pathname)).toBe(expected)
+  })
+})

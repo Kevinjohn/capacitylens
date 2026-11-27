@@ -1,11 +1,11 @@
-import type { HttpContext } from '@adonisjs/core/http';
-import type { NextFn } from '@adonisjs/core/types/http';
-import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control';
-import ScopeMiddleware from '@kevinjohn/adonisjs-access-control/middleware';
-import IdentityAuthorizationException from '#exceptions/identity_authorization_exception';
-import MembershipLostException from '#exceptions/membership_lost_exception';
+import type { HttpContext } from '@adonisjs/core/http'
+import type { NextFn } from '@adonisjs/core/types/http'
+import { errors as accessControlErrors } from '@kevinjohn/adonisjs-access-control'
+import ScopeMiddleware from '@kevinjohn/adonisjs-access-control/middleware'
+import IdentityAuthorizationException from '#exceptions/identity_authorization_exception'
+import MembershipLostException from '#exceptions/membership_lost_exception'
 
-const scope = new ScopeMiddleware();
+const scope = new ScopeMiddleware()
 
 /**
  * Refuses a company route before its handler unless the route's user holds an active membership
@@ -23,15 +23,15 @@ export default class CompanyScopeMiddleware {
     try {
       await scope.handle(ctx, async () => undefined, {
         resolveScope: (request) => request.params.companyId,
-      });
+      })
     } catch (error) {
       // Translates the package's `E_ACCESS_CONTROL_FORBIDDEN` into the product's class; the handler answers it.
       if (!(error instanceof accessControlErrors.E_ACCESS_CONTROL_FORBIDDEN)) {
-        throw error;
+        throw error
       }
-      if (!options.planning) throw new IdentityAuthorizationException();
-      throw new MembershipLostException();
+      if (!options.planning) throw new IdentityAuthorizationException()
+      throw new MembershipLostException()
     }
-    return next();
+    return next()
   }
 }

@@ -6,22 +6,22 @@
 // becoming an idempotent no-op. Callers can use the exported `can*` predicates to enable affordances
 // without catching transition errors.
 
-export type { LifecycleState, LifecycleFields, LifecycleEntityKey } from './lifecycle/types.js';
+export type { LifecycleState, LifecycleFields, LifecycleEntityKey } from './lifecycle/types.js'
 export {
   LIFECYCLE_ENTITY_KEYS,
   isLifecycleEntityKey,
   resolveLifecycleStatus,
-} from './lifecycle/types.js';
+} from './lifecycle/types.js'
 export type {
   LifecycleAncestryRow,
   LifecycleAncestryLookup,
   LifecycleAncestryResult,
-} from './lifecycle/ancestry.js';
-export { inspectLifecycleAncestry } from './lifecycle/ancestry.js';
-export { buildActiveData } from './lifecycle/projection.js';
-export type { ArchiveImpact } from './lifecycle/impact.js';
-export { archiveImpact } from './lifecycle/impact.js';
-export type { LifecycleTransitionErrorCode } from './lifecycle/transitions.js';
+} from './lifecycle/ancestry.js'
+export { inspectLifecycleAncestry } from './lifecycle/ancestry.js'
+export { buildActiveData } from './lifecycle/projection.js'
+export type { ArchiveImpact } from './lifecycle/impact.js'
+export { archiveImpact } from './lifecycle/impact.js'
+export type { LifecycleTransitionErrorCode } from './lifecycle/transitions.js'
 export {
   canArchive,
   canRestore,
@@ -29,11 +29,11 @@ export {
   archive,
   restore,
   obfuscateResource,
-} from './lifecycle/transitions.js';
+} from './lifecycle/transitions.js'
 
 export type {
   ArchiveRecovery,
   ArchiveRecoveryRow,
   ArchivedParent,
-} from './lifecycle/archiveRecovery.js';
-export { archiveRecovery } from './lifecycle/archiveRecovery.js';
+} from './lifecycle/archiveRecovery.js'
+export { archiveRecovery } from './lifecycle/archiveRecovery.js'

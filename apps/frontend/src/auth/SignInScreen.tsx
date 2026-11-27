@@ -1,23 +1,23 @@
-import { ForgotPassword } from './ForgotPassword';
-import { m } from '@/i18n';
-import { APP_NAME } from '@capacitylens/shared/brand';
-import { useEffect, useId, useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
-import { SignInForm } from './SignInForm';
-import { usePasswordSignIn } from './usePasswordSignIn';
+import { ForgotPassword } from './ForgotPassword'
+import { m } from '@/i18n'
+import { APP_NAME } from '@capacitylens/shared/brand'
+import { useEffect, useId, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Card, CardContent } from '@/components/ui/card'
+import { SignInForm } from './SignInForm'
+import { usePasswordSignIn } from './usePasswordSignIn'
 
 type SignInScreenProps = {
-  needsSetup?: boolean;
-  passwordResetEmail?: boolean;
-  degraded?: boolean;
-  hadUnsavedChanges?: boolean;
-  onSignedIn: () => void;
-};
+  needsSetup?: boolean
+  passwordResetEmail?: boolean
+  degraded?: boolean
+  hadUnsavedChanges?: boolean
+  onSignedIn: () => void
+}
 
 function useSignInIds() {
-  return { email: useId(), password: useId(), error: useId() };
+  return { email: useId(), password: useId(), error: useId() }
 }
 
 /** Renders the public password sign-in screen. */
@@ -28,18 +28,18 @@ export function SignInScreen({
   hadUnsavedChanges = false,
   onSignedIn,
 }: SignInScreenProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const passwordSignIn = usePasswordSignIn({
     setError,
     setBusy,
     onSignedIn,
-  });
-  const ids = useSignInIds();
+  })
+  const ids = useSignInIds()
 
   useEffect(() => {
-    document.title = `${m.sign_in_button()} · ${APP_NAME}`;
-  }, []);
+    document.title = `${m.sign_in_button()} · ${APP_NAME}`
+  }, [])
 
   return (
     <SignInView
@@ -53,20 +53,20 @@ export function SignInScreen({
       ids={ids}
       passwordSignIn={passwordSignIn}
     />
-  );
+  )
 }
 
 type SignInViewProps = {
-  needsSetup: boolean;
-  passwordResetEmail: boolean;
-  degraded: boolean;
-  hadUnsavedChanges: boolean;
-  busy: boolean;
-  error: string | null;
-  setError: Dispatch<SetStateAction<string | null>>;
-  ids: { email: string; password: string; error: string };
-  passwordSignIn: ReturnType<typeof usePasswordSignIn>;
-};
+  needsSetup: boolean
+  passwordResetEmail: boolean
+  degraded: boolean
+  hadUnsavedChanges: boolean
+  busy: boolean
+  error: string | null
+  setError: Dispatch<SetStateAction<string | null>>
+  ids: { email: string; password: string; error: string }
+  passwordSignIn: ReturnType<typeof usePasswordSignIn>
+}
 
 function SignInView(props: SignInViewProps) {
   return (
@@ -92,7 +92,7 @@ function SignInView(props: SignInViewProps) {
         </Card>
       </main>
     </div>
-  );
+  )
 }
 
 function SignInHeading() {
@@ -102,10 +102,10 @@ function SignInHeading() {
       <h1 className="text-lg font-semibold text-ink">{m.sign_in_button()}</h1>
       <p className="text-sm text-muted-foreground">{m.sign_in_subtitle()}</p>
     </div>
-  );
+  )
 }
 
-type SignInNoticesProps = { degraded: boolean; hadUnsavedChanges: boolean; needsSetup: boolean };
+type SignInNoticesProps = { degraded: boolean; hadUnsavedChanges: boolean; needsSetup: boolean }
 
 function SignInNotices({ degraded, hadUnsavedChanges, needsSetup }: SignInNoticesProps) {
   return (
@@ -132,5 +132,5 @@ function SignInNotices({ degraded, hadUnsavedChanges, needsSetup }: SignInNotice
         </div>
       )}
     </>
-  );
+  )
 }

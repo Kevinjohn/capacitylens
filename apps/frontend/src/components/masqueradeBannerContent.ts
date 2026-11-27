@@ -1,13 +1,13 @@
-import type { useStore } from '@/store/useStore';
-import { m } from '@/i18n';
+import type { useStore } from '@/store/useStore'
+import { m } from '@/i18n'
 
 /** The banner shown while viewing as a member, or null when no masquerade is in progress. */
 export function buildMasqueradeBannerContent(
-  masquerade: ReturnType<typeof useStore.getState>['masquerade'],
+  masquerade: ReturnType<typeof useStore.getState>['masquerade']
 ) {
   switch (masquerade.kind) {
     case 'inactive':
-      return null;
+      return null
     case 'starting':
       return {
         label: m.app_masquerade_starting(),
@@ -15,7 +15,7 @@ export function buildMasqueradeBannerContent(
         showControls: masquerade.state !== undefined,
         showRetryProjection: true,
         endLabel: m.app_masquerade_end_now(),
-      };
+      }
     case 'active':
       return {
         label: m.app_masquerading_as({ name: masquerade.state.targetName }),
@@ -23,7 +23,7 @@ export function buildMasqueradeBannerContent(
         showControls: true,
         showRetryProjection: false,
         endLabel: m.app_masquerade_end_now(),
-      };
+      }
     case 'ending':
       return {
         label: m.app_masquerade_ending(),
@@ -31,6 +31,6 @@ export function buildMasqueradeBannerContent(
         showControls: true,
         showRetryProjection: false,
         endLabel: m.app_masquerade_retry(),
-      };
+      }
   }
 }

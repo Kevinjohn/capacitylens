@@ -1,19 +1,19 @@
-import { describe, expect, it } from 'vitest';
-import { createTestPlanningTransport } from '@/test/createTestPlanningTransport';
-import { createCompanySlice } from './companySlice';
-import { createAllocationSlice } from './allocationSlice';
-import { createPlanningSessionSlice } from './planningSessionSlice';
-import { createRuntimeSlice } from './runtimeSlice';
-import { createSchedulerSlice } from './schedulerSlice';
-import { createStoreInternals } from '@/store/storeInternal';
-import { buildEmptyFilters, useStore } from '@/store/useStore';
-import { createTypedPlanningActions } from '@/store/typedPlanningActions';
+import { describe, expect, it } from 'vitest'
+import { createTestPlanningTransport } from '@/test/createTestPlanningTransport'
+import { createCompanySlice } from './companySlice'
+import { createAllocationSlice } from './allocationSlice'
+import { createPlanningSessionSlice } from './planningSessionSlice'
+import { createRuntimeSlice } from './runtimeSlice'
+import { createSchedulerSlice } from './schedulerSlice'
+import { createStoreInternals } from '@/store/storeInternal'
+import { buildEmptyFilters, useStore } from '@/store/useStore'
+import { createTypedPlanningActions } from '@/store/typedPlanningActions'
 
 describe('store slice composition', () => {
   it('owns every store key exactly once', () => {
-    const set = useStore.setState;
-    const get = useStore.getState;
-    const internals = createStoreInternals(get);
+    const set = useStore.setState
+    const get = useStore.getState
+    const internals = createStoreInternals(get)
     const slices = [
       createCompanySlice()(set, get, useStore),
       createRuntimeSlice(set, get, useStore),
@@ -21,27 +21,27 @@ describe('store slice composition', () => {
       createPlanningSessionSlice(internals.isBlockedByViewer, createTestPlanningTransport())(
         set,
         get,
-        useStore,
+        useStore
       ),
       createAllocationSlice(internals)(set, get, useStore),
       createTypedPlanningActions(get, internals),
-    ];
+    ]
 
-    const keySets = slices.map((slice) => new Set(Object.keys(slice)));
+    const keySets = slices.map((slice) => new Set(Object.keys(slice)))
     for (const [left, leftKeys] of keySets.entries()) {
       for (const rightKeys of keySets.slice(left + 1)) {
-        expect([...leftKeys].filter((key) => rightKeys.has(key))).toEqual([]);
+        expect([...leftKeys].filter((key) => rightKeys.has(key))).toEqual([])
       }
     }
 
-    const composedKeys = [...new Set(slices.flatMap((slice) => Object.keys(slice)))].sort();
-    expect(composedKeys).toEqual(Object.keys(useStore.getState()).sort());
-  });
+    const composedKeys = [...new Set(slices.flatMap((slice) => Object.keys(slice)))].sort()
+    expect(composedKeys).toEqual(Object.keys(useStore.getState()).sort())
+  })
 
   it('keeps every StoreState action in the composed store', () => {
     const actionNames = Object.entries(useStore.getState())
       .filter(([, value]) => typeof value === 'function')
-      .map(([name]) => name);
+      .map(([name]) => name)
 
     expect(actionNames).toEqual(
       expect.arrayContaining([
@@ -102,7 +102,7 @@ describe('store slice composition', () => {
         'toggleGroup',
         'jumpToResource',
         'consumeResourceJump',
-      ]),
-    );
-  });
-});
+      ])
+    )
+  })
+})

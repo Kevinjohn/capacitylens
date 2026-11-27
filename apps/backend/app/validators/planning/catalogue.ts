@@ -1,6 +1,6 @@
-import vine from '@vinejs/vine';
-import { writableFields } from '@capacitylens/shared/types/entityFields';
-import { ACTIVITY_KINDS } from '@capacitylens/shared/types/entities';
+import vine from '@vinejs/vine'
+import { writableFields } from '@capacitylens/shared/types/entityFields'
+import { ACTIVITY_KINDS } from '@capacitylens/shared/types/entities'
 import {
   boolean,
   entityId,
@@ -13,13 +13,13 @@ import {
   presetColor,
   requireChanges,
   uuid,
-} from '#validators/planning/fields';
+} from '#validators/planning/fields'
 
-const nameAndColor = { name: nameText(), color: presetColor() };
+const nameAndColor = { name: nameText(), color: presetColor() }
 const privateName = {
   isPrivate: boolean().nullable().optional(),
   codeName: nullableUserText().optional(),
-};
+}
 
 const catalogueCreate = vine.union([
   vine.union.if(
@@ -67,7 +67,7 @@ const catalogueCreate = vine.union([
       fields: vine.object({ name: nameText(), color: presetColor().nullable() }),
     })
   ),
-]);
+])
 
 export const clientChanges = vine
   .object({
@@ -77,7 +77,7 @@ export const clientChanges = vine
     codeName: nullableUserText().optional(),
   })
   // `builtin` is set only by the server, so a client change cannot name it.
-  .use(requireChanges(['name', 'color', 'isPrivate', 'codeName']));
+  .use(requireChanges(['name', 'color', 'isPrivate', 'codeName']))
 
 export const projectChanges = vine
   .object({
@@ -87,14 +87,14 @@ export const projectChanges = vine
     isPrivate: boolean().nullable().optional(),
     codeName: nullableUserText().optional(),
   })
-  .use(requireChanges(writableFields('projects')));
+  .use(requireChanges(writableFields('projects')))
 
 export const phaseChanges = vine
   .object({
     name: nameText().optional(),
     projectId: entityId().optional(),
   })
-  .use(requireChanges(writableFields('phases')));
+  .use(requireChanges(writableFields('phases')))
 
 export const activityChanges = vine
   .object({
@@ -103,7 +103,7 @@ export const activityChanges = vine
     projectId: nullableId().optional(),
     phaseId: nullableId().optional(),
   })
-  .use(requireChanges(writableFields('activities')));
+  .use(requireChanges(writableFields('activities')))
 
 export const disciplineChanges = vine
   .object({
@@ -112,13 +112,13 @@ export const disciplineChanges = vine
     sortOrder: number()
       .use(
         vine.createRule((value, _options, field) => {
-          if (Number.isSafeInteger(value)) return;
-          field.report('Sort order must be a safe integer.', 'safeInteger', field);
+          if (Number.isSafeInteger(value)) return
+          field.report('Sort order must be a safe integer.', 'safeInteger', field)
         })()
       )
       .optional(),
   })
-  .use(requireChanges(writableFields('disciplines')));
+  .use(requireChanges(writableFields('disciplines')))
 
 const catalogueChanges = vine.union([
   vine.union.if(
@@ -160,7 +160,7 @@ const catalogueChanges = vine.union([
       changes: disciplineChanges,
     })
   ),
-]);
+])
 
 const catalogueDelete = vine.union([
   vine.union.if(
@@ -168,7 +168,7 @@ const catalogueDelete = vine.union([
     vine.object({ entity: vine.literal('phases'), id: entityId() })
   ),
   vine.union.else(vine.object({ entity: vine.literal('disciplines'), id: entityId() })),
-]);
+])
 
 const catalogueLifecycleEntity = vine.union([
   vine.union.if(
@@ -180,7 +180,7 @@ const catalogueLifecycleEntity = vine.union([
     vine.object({ entity: vine.literal('projects'), id: entityId() })
   ),
   vine.union.else(vine.object({ entity: vine.literal('activities'), id: entityId() })),
-]);
+])
 
 export const catalogueIntent = vine.union([
   vine.union.if(
@@ -201,4 +201,4 @@ export const catalogueIntent = vine.union([
   vine.union.else(
     vine.object({ operation: vine.literal('catalogue.delete'), entity: catalogueDelete })
   ),
-]);
+])

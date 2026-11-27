@@ -39,4 +39,4 @@ export const expected = {
     canSeePrivateNames: false,
     canSeeTimeOffNote: false,
   },
-} as const;
+} as const

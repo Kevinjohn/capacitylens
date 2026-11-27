@@ -1,28 +1,28 @@
-import { test } from '@japa/runner';
-import { freshDatabase } from '#tests/helpers/fresh_database';
-import db from '@adonisjs/lucid/services/db';
-import User from '#models/user';
+import { test } from '@japa/runner'
+import { freshDatabase } from '#tests/helpers/fresh_database'
+import db from '@adonisjs/lucid/services/db'
+import User from '#models/user'
 import {
   asLoggedInDataOwner,
   createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture';
-import { resetState } from '#tests/helpers/state_fixture';
-import { signUpAndIn } from '#tests/helpers/identities';
-import { CompanyFactory } from '#database/factories/company_factory';
-import { UserFactory } from '#database/factories/user_factory';
-import { DateTime } from 'luxon';
-import { password } from '#tests/helpers/auth/admission_resource_links';
+} from '#tests/helpers/authenticated_data_fixture'
+import { resetState } from '#tests/helpers/state_fixture'
+import { signUpAndIn } from '#tests/helpers/identities'
+import { CompanyFactory } from '#database/factories/company_factory'
+import { UserFactory } from '#database/factories/user_factory'
+import { DateTime } from 'luxon'
+import { password } from '#tests/helpers/auth/admission_resource_links'
 
 test.group('direct member resource association', (group) => {
-  group.setup(() => freshDatabase());
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await resetState(false);
-    await db.from('account_admissions').delete();
-    await db.from('account_invitations').delete();
-    await db.from('adonis_sessions').delete();
-    await db.from('memberships').delete();
-    await db.from('users').delete();
-  });
+    await resetState(false)
+    await db.from('account_admissions').delete()
+    await db.from('account_invitations').delete()
+    await db.from('adonis_sessions').delete()
+    await db.from('memberships').delete()
+    await db.from('users').delete()
+  })
 
   test('member directory preserves selected link labels, order, nulls and company scope', async ({
     client,
@@ -32,30 +32,30 @@ test.group('direct member resource association', (group) => {
       email: 'bruce.wayne@wayne.example',
       name: 'Bruce Wayne',
       password,
-    });
-    const ownerId = (owner.body().data as { user: { id: string } }).user.id;
-    const ownerUser = await User.findOrFail(ownerId);
-    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
+    })
+    const ownerId = (owner.body().data as { user: { id: string } }).user.id
+    const ownerUser = await User.findOrFail(ownerId)
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
     const clark = await signUpAndIn(client, {
       email: 'clark.kent@wayne.example',
       name: 'Clark Kent',
       password,
-    });
-    const clarkId = (clark.body().data as { user: { id: string } }).user.id;
+    })
+    const clarkId = (clark.body().data as { user: { id: string } }).user.id
     const diana = await signUpAndIn(client, {
       email: 'diana.prince@wayne.example',
       name: 'Diana Prince',
       password,
-    });
-    const dianaId = (diana.body().data as { user: { id: string } }).user.id;
+    })
+    const dianaId = (diana.body().data as { user: { id: string } }).user.id
     const barbara = await signUpAndIn(client, {
       email: 'barbara.gordon@wayne.example',
       name: 'Barbara Gordon',
       password,
-    });
-    const barbaraId = (barbara.body().data as { user: { id: string } }).user.id;
-    const now = new Date().toISOString();
-    const orderedAt = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
+    })
+    const barbaraId = (barbara.body().data as { user: { id: string } }).user.id
+    const now = new Date().toISOString()
+    const orderedAt = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString()
     await db.table('memberships').insert([
       {
         scope_id: 'a-studio',
@@ -81,12 +81,12 @@ test.group('direct member resource association', (group) => {
         created_at: orderedAt(3),
         updated_at: now,
       },
-    ]);
+    ])
     await CompanyFactory.merge({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
-    }).create();
+    }).create()
     const person = (id: string, companyId: string, archivedAt: string | null = null) => ({
       id,
       company_id: companyId,
@@ -102,14 +102,14 @@ test.group('direct member resource association', (group) => {
       archived_at: archivedAt,
       created_at: now,
       updated_at: now,
-    });
+    })
     await db
       .table('resources')
       .insert([
         person('r-active', 'a-studio'),
         person('r-archived', 'a-studio', now),
         person('r-stark', 'a-loft'),
-      ]);
+      ])
     await db.table('account_member_resources').insert([
       {
         id: 'link-clark',
@@ -129,7 +129,7 @@ test.group('direct member resource association', (group) => {
         created_at: now,
         updated_at: now,
       },
-    ]);
+    ])
     await db.table('account_member_resources').insert({
       id: 'link-stark',
       company_id: 'a-loft',
@@ -138,35 +138,33 @@ test.group('direct member resource association', (group) => {
       revision: 'rev-stark',
       created_at: now,
       updated_at: now,
-    });
+    })
 
     const response = await asLoggedInDataOwner(
       client.visit('api.members.index', { companyId: 'a-studio' }),
       ownerUser
-    ).send();
-    response.assertStatus(200);
+    ).send()
+    response.assertStatus(200)
     const body = response.body().data as {
-      members: Array<{ userId: string; resourceLink: null | Record<string, unknown> }>;
-      resourceCandidates: Array<{ resourceId: string; label: string }>;
-    };
+      members: Array<{ userId: string; resourceLink: null | Record<string, unknown> }>
+      resourceCandidates: Array<{ resourceId: string; label: string }>
+    }
     assert.deepEqual(
       body.members.map((member) => member.userId),
       [ownerId, clarkId, dianaId, barbaraId]
-    );
-    assert.isNull(body.members[0]!.resourceLink);
+    )
+    assert.isNull(body.members[0]!.resourceLink)
     assert.deepEqual(body.members[1]!.resourceLink, {
       resourceId: 'r-active',
       revision: 'rev-clark',
       resourceName: 'r-active',
       resourceStatus: 'active',
-    });
-    assert.equal(body.members[2]!.resourceLink?.resourceStatus, 'archived');
-    assert.isNull(body.members[3]!.resourceLink);
-    assert.sameDeepMembers(body.resourceCandidates, [
-      { resourceId: 'r-active', label: 'r-active' },
-    ]);
-    assert.notInclude(JSON.stringify(body), 'r-stark');
-  });
+    })
+    assert.equal(body.members[2]!.resourceLink?.resourceStatus, 'archived')
+    assert.isNull(body.members[3]!.resourceLink)
+    assert.sameDeepMembers(body.resourceCandidates, [{ resourceId: 'r-active', label: 'r-active' }])
+    assert.notInclude(JSON.stringify(body), 'r-stark')
+  })
 
   test('direct links enforce company, person, occupancy and current-revision constraints', async ({
     client,
@@ -176,17 +174,17 @@ test.group('direct member resource association', (group) => {
       email: 'bruce.wayne@wayne.example',
       name: 'Bruce Wayne',
       password,
-    });
-    owner.assertStatus(200);
-    const ownerId = (owner.body().data as { user: { id: string } }).user.id;
-    const ownerUser = await User.findOrFail(ownerId);
-    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
-    const now = new Date().toISOString();
+    })
+    owner.assertStatus(200)
+    const ownerId = (owner.body().data as { user: { id: string } }).user.id
+    const ownerUser = await User.findOrFail(ownerId)
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
+    const now = new Date().toISOString()
     await CompanyFactory.merge({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
-    }).create();
+    }).create()
     const person = (id: string, companyId: string, kind = 'person') => ({
       id,
       company_id: companyId,
@@ -201,7 +199,7 @@ test.group('direct member resource association', (group) => {
       color: '#6366f1',
       created_at: now,
       updated_at: now,
-    });
+    })
     await db
       .table('resources')
       .insert([
@@ -209,7 +207,7 @@ test.group('direct member resource association', (group) => {
         person('r-barry', 'a-studio'),
         person('r-external', 'a-studio', 'external'),
         person('r-stark', 'a-loft'),
-      ]);
+      ])
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
       asLoggedInDataOwner(
         client
@@ -218,21 +216,21 @@ test.group('direct member resource association', (group) => {
         ownerUser
       )
         .json({ resourceId, expectedRevision })
-        .send();
-    const outside = await put(ownerId, 'r-stark', null);
-    outside.assertStatus(409);
-    const wrongKind = await put(ownerId, 'r-external', null);
-    wrongKind.assertStatus(409);
+        .send()
+    const outside = await put(ownerId, 'r-stark', null)
+    outside.assertStatus(409)
+    const wrongKind = await put(ownerId, 'r-external', null)
+    wrongKind.assertStatus(409)
     const revisionRowBeforeLink = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
-      .first();
-    const revisionBeforeLink = Number(revisionRowBeforeLink?.revision);
+      .first()
+    const revisionBeforeLink = Number(revisionRowBeforeLink?.revision)
     const auditCountBeforeLink = await db
       .from('audit_entries')
       .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
-      .count('* as total');
-    assert.equal(Number(auditCountBeforeLink[0].total), 0);
+      .count('* as total')
+    assert.equal(Number(auditCountBeforeLink[0].total), 0)
     const createLinkOperation = () =>
       asLoggedInDataOwner(
         client
@@ -245,24 +243,24 @@ test.group('direct member resource association', (group) => {
           'idempotency-key': 'member-link-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: null })
-        .send();
-    const linked = await createLinkOperation();
-    linked.assertStatus(200);
-    const replayLinked = await createLinkOperation();
-    replayLinked.assertStatus(200);
-    assert.deepEqual(replayLinked.body().data, linked.body().data);
-    const revision = (linked.body().data as { revision: string }).revision;
+        .send()
+    const linked = await createLinkOperation()
+    linked.assertStatus(200)
+    const replayLinked = await createLinkOperation()
+    replayLinked.assertStatus(200)
+    assert.deepEqual(replayLinked.body().data, linked.body().data)
+    const revision = (linked.body().data as { revision: string }).revision
     const revisionRowAfterLink = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
-      .first();
-    const revisionAfterLink = Number(revisionRowAfterLink?.revision);
-    assert.equal(revisionAfterLink, revisionBeforeLink + 1);
+      .first()
+    const revisionAfterLink = Number(revisionRowAfterLink?.revision)
+    assert.equal(revisionAfterLink, revisionBeforeLink + 1)
     const auditCountAfterLink = await db
       .from('audit_entries')
       .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
-      .count('* as total');
-    assert.equal(Number(auditCountAfterLink[0].total), 1);
+      .count('* as total')
+    assert.equal(Number(auditCountAfterLink[0].total), 1)
     const repeatLink = () =>
       asLoggedInDataOwner(
         client
@@ -275,28 +273,28 @@ test.group('direct member resource association', (group) => {
           'idempotency-key': 'member-link-noop-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: revision })
-        .send();
-    const unchanged = await repeatLink();
-    unchanged.assertStatus(200);
-    assert.deepEqual(unchanged.body().data, linked.body().data);
-    const replay = await repeatLink();
-    replay.assertStatus(200);
-    assert.deepEqual(replay.body().data, linked.body().data);
+        .send()
+    const unchanged = await repeatLink()
+    unchanged.assertStatus(200)
+    assert.deepEqual(unchanged.body().data, linked.body().data)
+    const replay = await repeatLink()
+    replay.assertStatus(200)
+    assert.deepEqual(replay.body().data, linked.body().data)
     const revisionRowAfterNoop = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
-      .first();
-    assert.equal(Number(revisionRowAfterNoop?.revision), revisionAfterLink);
+      .first()
+    assert.equal(Number(revisionRowAfterNoop?.revision), revisionAfterLink)
     const auditCountAfterNoop = await db
       .from('audit_entries')
       .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
-      .count('* as total');
-    assert.equal(Number(auditCountAfterNoop[0].total), Number(auditCountAfterLink[0].total));
-    const stale = await put(ownerId, 'r-barry', null);
-    stale.assertStatus(409);
-    await db.from('resources').where('id', 'r-clark').update({ archived_at: now });
-    const archivedCurrent = await put(ownerId, 'r-barry', revision);
-    archivedCurrent.assertStatus(409);
+      .count('* as total')
+    assert.equal(Number(auditCountAfterNoop[0].total), Number(auditCountAfterLink[0].total))
+    const stale = await put(ownerId, 'r-barry', null)
+    stale.assertStatus(409)
+    await db.from('resources').where('id', 'r-clark').update({ archived_at: now })
+    const archivedCurrent = await put(ownerId, 'r-barry', revision)
+    archivedCurrent.assertStatus(409)
     const unlink = () =>
       asLoggedInDataOwner(
         client
@@ -309,16 +307,16 @@ test.group('direct member resource association', (group) => {
           'idempotency-key': 'member-unlink-idempotency-0001',
         })
         .json({ expectedRevision: revision })
-        .send();
-    const cleared = await unlink();
-    cleared.assertStatus(204);
-    const replayCleared = await unlink();
-    replayCleared.assertStatus(204);
+        .send()
+    const cleared = await unlink()
+    cleared.assertStatus(204)
+    const replayCleared = await unlink()
+    replayCleared.assertStatus(204)
     const revisionRowAfterClear = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
-      .first();
-    assert.equal(Number(revisionRowAfterClear?.revision), revisionAfterLink + 1);
+      .first()
+    assert.equal(Number(revisionRowAfterClear?.revision), revisionAfterLink + 1)
     assert.lengthOf(
       await db.from('audit_entries').where({
         company_id: 'a-studio',
@@ -326,9 +324,9 @@ test.group('direct member resource association', (group) => {
         entity_id: ownerId,
       }),
       1
-    );
-    const second = await put(ownerId, 'r-barry', null);
-    second.assertStatus(200);
+    )
+    const second = await put(ownerId, 'r-barry', null)
+    second.assertStatus(200)
     const { id: otherId } = await db.transaction((trx) =>
       UserFactory.client(trx)
         .merge({
@@ -337,7 +335,7 @@ test.group('direct member resource association', (group) => {
           emailVerifiedAt: DateTime.now(),
         })
         .create()
-    );
+    )
     await db.table('memberships').insert({
       scope_id: 'a-studio',
       user_id: otherId,
@@ -345,9 +343,9 @@ test.group('direct member resource association', (group) => {
       status: 'active',
       created_at: now,
       updated_at: now,
-    });
-    const occupied = await put(otherId, 'r-barry', null);
-    occupied.assertStatus(409);
+    })
+    const occupied = await put(otherId, 'r-barry', null)
+    occupied.assertStatus(409)
     const clear = (userId: string, expectedRevision: string) =>
       asLoggedInDataOwner(
         client
@@ -356,29 +354,29 @@ test.group('direct member resource association', (group) => {
         ownerUser
       )
         .json({ expectedRevision })
-        .send();
-    const ownerCleared = await clear(ownerId, second.body().data.revision);
-    ownerCleared.assertStatus(204);
+        .send()
+    const ownerCleared = await clear(ownerId, second.body().data.revision)
+    ownerCleared.assertStatus(204)
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: ownerId })
-      .update({ role: 'admin' });
+      .update({ role: 'admin' })
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: otherId })
-      .update({ status: 'active' });
-    const link = await put(otherId, 'r-barry', null);
-    link.assertStatus(200);
-    const expected = link.body().data.revision;
+      .update({ status: 'active' })
+    const link = await put(otherId, 'r-barry', null)
+    link.assertStatus(200)
+    const expected = link.body().data.revision
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: otherId })
-      .update({ status: 'suspended' });
-    const refusedSet = await put(otherId, 'r-barry', expected);
-    refusedSet.assertStatus(409);
-    const clearedUnavailable = await clear(otherId, expected);
-    clearedUnavailable.assertStatus(204);
-    const clearedMissing = await clear(otherId, expected);
-    clearedMissing.assertStatus(409);
-  });
-});
+      .update({ status: 'suspended' })
+    const refusedSet = await put(otherId, 'r-barry', expected)
+    refusedSet.assertStatus(409)
+    const clearedUnavailable = await clear(otherId, expected)
+    clearedUnavailable.assertStatus(204)
+    const clearedMissing = await clear(otherId, expected)
+    clearedMissing.assertStatus(409)
+  })
+})
