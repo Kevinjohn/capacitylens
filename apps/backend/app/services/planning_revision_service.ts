@@ -75,10 +75,10 @@ export class PlanningRevisionService {
   assertPlanningBaseRevision(
     baseRevision: number,
     currentRevision: number,
-    mutationId: string
+    _mutationId: string
   ): void {
     if (baseRevision !== currentRevision) {
-      throw new StalePlanningRevisionException(mutationId, baseRevision, currentRevision)
+      throw new StalePlanningRevisionException()
     }
   }
 }

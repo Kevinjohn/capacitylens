@@ -1,8 +1,8 @@
 import { ClientSchema } from '#database/schema'
 import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm'
-import { booleanColumn, timestampColumn } from '#models_support/scalar_column'
+import { booleanColumn, timestampColumn } from '#services/models/scalar_column'
 import type { DateTime } from 'luxon'
-import { CompanyScope, requireRowCompany } from '#models_support/scoped_model'
+import { CompanyScope, requireRowCompany } from '#services/models/scoped_model'
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
 export default class Client extends ClientSchema {

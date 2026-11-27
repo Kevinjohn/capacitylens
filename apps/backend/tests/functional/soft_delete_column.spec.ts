@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import Closure from '#models/closure'
 import Company from '#models/company'
-import { rowAttributes } from '#models_support/row_attributes'
+import { rowAttributes } from '#services/models/row_attributes'
 import { transformRow } from '#transformers/row_transformer'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 

@@ -6,7 +6,8 @@ import {
   E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors'
-import { emailInUseAnswer, invalidLinkAnswer } from '#exceptions/credential_answers'
+import EmailInUseException from '#exceptions/email_in_use_exception'
+import InvalidLinkException from '#exceptions/invalid_link_exception'
 import { PasswordSignInService } from '#services/auth/password_sign_in_service'
 import { acceptInvitationSignUpValidator } from '#validators/invitations'
 import { requestData } from '#validators/request_rules'
@@ -39,13 +40,11 @@ export default class InvitationAcceptancesController {
       })
       email = user.email
     } catch (error) {
-      // Keeps the product codes `E_INVALID_TOKEN` and `E_EMAIL_IN_USE`, which the browser reads and
-      // the Kit's own codes do not carry.
       if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
-        return response.badRequest(invalidLinkAnswer)
+        throw new InvalidLinkException()
       }
       if (error instanceof E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED) {
-        return response.conflict(emailInUseAnswer)
+        throw new EmailInUseException()
       }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
       if (isCommittedFailure(error)) {

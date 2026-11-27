@@ -1,4 +1,3 @@
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main'
@@ -6,13 +5,9 @@ import {
   E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors'
+import AccountDeletionCommittedException from '#exceptions/account_deletion_committed_exception'
+import CurrentPasswordIncorrectException from '#exceptions/current_password_incorrect_exception'
 import { deleteAccountValidator } from '#validators/credentials'
-
-const deletionCommitted = {
-  error: 'Your account was deleted, but a follow-up step failed. You are signed out.',
-  code: 'E_ACCOUNT_DELETION_COMMITTED',
-  committed: true,
-} satisfies ProductHttpErrorBody
 
 /** The signed-in identity's own account. */
 export default class AccountController {
@@ -24,7 +19,7 @@ export default class AccountController {
    * Kit's own current-password check stays because it cannot be turned off. An Owner transfers
    * ownership first.
    */
-  async destroy({ auth, request, response, serialize }: HttpContext) {
+  async destroy({ auth, request, serialize }: HttpContext) {
     const body = await request.validateUsing(deleteAccountValidator, {
       data: request.body(),
     })
@@ -39,25 +34,21 @@ export default class AccountController {
       { ...confirmation, confirmationId },
       async () => {}
     )
-    let outcome: 'deleted' | 'committed' = 'deleted'
     try {
       await accountKit.accountData.delete({
         actorId: input.userId,
         currentPassword: body.currentPassword,
       })
     } catch (error) {
-      // Does work: a committed deletion is recorded before the session ends.
       if (error instanceof E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED) {
-        return response.forbidden({
-          error: 'Current password is incorrect.',
-          code: 'E_CURRENT_PASSWORD_INCORRECT',
-        })
+        throw new CurrentPasswordIncorrectException()
       }
       if (!isCommittedFailure(error)) throw error
-      outcome = 'committed'
+      // Does work: a committed deletion still ends the session before reporting 503.
+      await auth.use('web').forRequest().terminate()
+      throw new AccountDeletionCommittedException()
     }
     await auth.use('web').forRequest().terminate()
-    if (outcome === 'committed') return response.serviceUnavailable(deletionCommitted)
     return serialize({ ok: true, signedOut: true })
   }
 }

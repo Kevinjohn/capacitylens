@@ -1,10 +1,10 @@
 import { PhaseSchema } from '#database/schema'
 import { compose } from '@adonisjs/core/helpers'
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
-import { timestampColumn } from '#models_support/scalar_column'
+import { timestampColumn } from '#services/models/scalar_column'
 import type { DateTime } from 'luxon'
 import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm'
-import { CompanyScope, requireRowCompany } from '#models_support/scoped_model'
+import { CompanyScope, requireRowCompany } from '#services/models/scoped_model'
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 /** A company-scoped project phase; deletion metadata stays internal to restoration. */
 export default class Phase extends compose(PhaseSchema, SoftDeletes) {

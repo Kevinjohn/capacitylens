@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { isWeekday } from '#models_support/scalar_column'
+import { isWeekday } from '#services/models/scalar_column'
 
 test.group('weekday type guard', () => {
   test('the weekday type guard accepts each weekday from 0 to 6', ({ assert }) => {

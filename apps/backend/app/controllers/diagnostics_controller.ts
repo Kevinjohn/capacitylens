@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import capacitylens from '#config/capacitylens'
+import DiagnosticsUnavailableException from '#exceptions/diagnostics_unavailable_exception'
 import { CurrentActorService } from '#services/auth/current_actor_service'
 import { DiagnosticsService } from '#services/diagnostics_service'
 
@@ -30,14 +31,7 @@ export default class DiagnosticsController {
     } catch (error) {
       // The `err` serializer logs the error's class, never its message, which can carry a database path.
       logger.warn({ err: error }, 'Diagnostics could not read database state')
-      return response.serviceUnavailable({
-        server: {
-          connectivity: 'ok',
-          database: { status: 'unavailable' },
-          schema: { migration: null },
-          backup: { newestBackupAt: null },
-        },
-      })
+      throw new DiagnosticsUnavailableException()
     }
   }
 }

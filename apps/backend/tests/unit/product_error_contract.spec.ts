@@ -23,12 +23,15 @@ import {
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception'
 import PasswordConfirmationException from '#exceptions/password_confirmation_exception'
 import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception'
-import { refuseConflictingAdmission, refuseMissingAdmission } from '#exceptions/admission_errors'
+import {
+  refuseConflictingAdmission,
+  refuseMissingAdmission,
+} from '#services/errors/admission_errors'
 import {
   credentialUpdateCommitted,
   emailInUseAnswer,
   invalidLinkAnswer,
-} from '#exceptions/credential_answers'
+} from '#services/errors/credential_answers'
 import { signUpValidator } from '#validators/auth_requests'
 import { acceptInvitationSignUpValidator, createInvitationValidator } from '#validators/invitations'
 import { inspectResetValidator } from '#validators/credentials'
@@ -375,7 +378,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'StalePlanningRevisionException',
-    () => answered(new StalePlanningRevisionException('mutation', 1, 2)),
+    () => answered(new StalePlanningRevisionException()),
     409,
     {
       error: 'The planning revision changed before this mutation was applied.',

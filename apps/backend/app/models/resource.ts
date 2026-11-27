@@ -2,9 +2,9 @@ import { ResourceSchema } from '#database/schema'
 import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm'
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities'
 import type { DateTime } from 'luxon'
-import { CompanyScope, requireRowCompany } from '#models_support/scoped_model'
+import { CompanyScope, requireRowCompany } from '#services/models/scoped_model'
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
-import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scalar_column'
+import { booleanColumn, isWeekday, timestampColumn } from '#services/models/scalar_column'
 import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns'
 
 /** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */
