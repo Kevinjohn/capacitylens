@@ -122,7 +122,7 @@ configuration files supply the options for those same operations.
 
 1. An editable Settings control calls
    [`useSettingsViewModel.updateSetting`](../apps/frontend/src/components/settings/useSettingsViewModel.ts#L55).
-   It passes the patch to [`updateCompany`](../apps/frontend/src/store/typedPlanningActions.ts#L331)
+   It passes the patch to [`updateCompany`](../apps/frontend/src/store/typedPlanningActions.ts#L330)
    for the active company. The store stops a read-only write with a notice and rejects invalid
    working days. [`buildSettingsUpdate`](../apps/frontend/src/data/planning/planningIntents.ts#L568)
    limits the patch to settings fields and returns no intent when the supplied values have not changed.
