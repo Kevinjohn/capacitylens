@@ -13,7 +13,7 @@ import type { LucidModel, LucidRow, ModelQueryBuilderContract } from '@adonisjs/
  * Model reads that applied an explicit company scope. The record is private to this class, so only
  * `forCompany` marks a query and a read without it fails closed.
  */
-export class CompanyScope {
+class CompanyScope {
   static #scopedQueries = new WeakSet<object>()
 
   /** Restricts a model read to a nonblank company and marks its explicit scope. */
@@ -36,7 +36,7 @@ export class CompanyScope {
  * Refuses a model save or delete of a row without a nonblank company, and a save that moves a
  * stored row to another company. Product ids are UUIDs, so scoped models also self-assign them.
  */
-export function requireRowCompany(row: LucidRow & { companyId: unknown }) {
+function requireRowCompany(row: LucidRow & { companyId: unknown }) {
   if (typeof row.companyId !== 'string' || row.companyId.trim() === '') {
     throw new Error('A company scope is required for model writes')
   }
