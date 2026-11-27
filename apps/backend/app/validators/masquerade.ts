@@ -6,9 +6,9 @@ const masqueradeContextHeaders = () =>
   vine.object({ 'x-masquerade-context': vine.string().optional() })
 
 /** The view-as status query: the company the page is in, when it is in one. Other fields are ignored. */
-export const showMasqueradeValidator = vine.create(
-  vine.object({ companyId: vine.string().minLength(1).optional() })
-)
+export const showMasqueradeValidator = vine.create({
+  companyId: vine.string().minLength(1).optional(),
+})
 
 export const startMasqueradeValidator = vine.create(
   vine

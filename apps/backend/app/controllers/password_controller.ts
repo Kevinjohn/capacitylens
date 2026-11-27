@@ -7,7 +7,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import { CurrentActorService } from '#services/auth/current_actor_service'
 import { credentialUpdateCommitted } from '#exceptions/credential_answers'
-import { changePasswordValidator } from '#validators/credentials'
+import { changePasswordValidator } from '#validators/credential'
 
 /** The signed-in identity's password. */
 @inject()

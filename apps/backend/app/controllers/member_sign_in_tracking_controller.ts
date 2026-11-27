@@ -3,7 +3,7 @@ import { MemberSignInTrackingService } from '#services/membership/member_sign_in
 import type { HttpContext } from '@adonisjs/core/http'
 import { AuthorizationService } from '#services/auth/authorization_service'
 import { CurrentActorService } from '#services/auth/current_actor_service'
-import { updateMemberTrackingValidator } from '#validators/members'
+import { updateMemberTrackingValidator } from '#validators/member'
 import { requestData } from '#validators/request_rules'
 
 /** Whether the company records its members' sign-ins. */

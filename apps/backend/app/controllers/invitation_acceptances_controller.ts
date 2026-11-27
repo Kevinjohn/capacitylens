@@ -8,7 +8,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import { emailInUseAnswer, invalidLinkAnswer } from '#exceptions/credential_answers'
 import { PasswordSignInService } from '#services/auth/password_sign_in_service'
-import { acceptInvitationSignUpValidator } from '#validators/invitations'
+import { acceptInvitationSignUpValidator } from '#validators/invitation'
 import { requestData } from '#validators/request_rules'
 
 /** Accepting an invitation by creating the invited identity. */

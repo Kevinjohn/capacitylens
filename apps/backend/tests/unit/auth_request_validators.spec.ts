@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
-import { signInValidator, signUpValidator } from '#validators/auth_requests'
-import { admissionQueryValidator } from '#validators/admission_query'
+import { signInValidator, signUpValidator } from '#validators/auth'
+import { admissionQueryValidator } from '#validators/admission'
 
 test.group('ordinary request validator normalization', () => {
   test('normalizes account email without adding password transformations', async ({ assert }) => {

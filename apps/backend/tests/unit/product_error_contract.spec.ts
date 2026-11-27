@@ -29,9 +29,9 @@ import {
   emailInUseAnswer,
   invalidLinkAnswer,
 } from '#exceptions/credential_answers'
-import { signUpValidator } from '#validators/auth_requests'
-import { acceptInvitationSignUpValidator, createInvitationValidator } from '#validators/invitations'
-import { inspectResetValidator } from '#validators/credentials'
+import { signUpValidator } from '#validators/auth'
+import { acceptInvitationSignUpValidator, createInvitationValidator } from '#validators/invitation'
+import { inspectResetValidator } from '#validators/credential'
 import MembershipLostException from '#exceptions/membership_lost_exception'
 import MutationIdReusedException from '#exceptions/mutation_id_reused_exception'
 import NoChangeException from '#exceptions/no_change_exception'

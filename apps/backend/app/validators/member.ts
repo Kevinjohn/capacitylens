@@ -11,7 +11,7 @@ import {
 const companyParams = () => vine.object({ companyId: companyIdParam() })
 const memberParams = () => vine.object({ companyId: companyIdParam(), userId: userIdParam() })
 
-export const listMembersValidator = vine.create(vine.object({ params: companyParams() }))
+export const listMembersValidator = vine.create({ params: companyParams() })
 
 export const updateMemberTrackingValidator = vine.create(
   vine
