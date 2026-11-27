@@ -358,10 +358,9 @@ removed entry retires its number.
 24. **Aligning (#2352, waiting on package releases).** Account Kit checks credentials. The
     `User` model does not compose `withAuthFinder`, and no product code calls
     `verifyCredentials`: sign-in, sessions and password checks are the kit's.
-25. **Aligning (#2550).** The view-as control actions (`store`, `show`, `destroy` in `masquerade_controller.ts`) take the
-    whole HTTP context and pass it to the Masquerade service. The service treats the context as the
-    request: it admits each request once, authenticates through its guard and reads its route
-    parameters. Every other controller action destructures.
+25. Retired. Every controller action destructures the HTTP context (CTL-4); the view-as control
+    actions delegate to the request-scoped `MasqueradeControlService`, which receives `HttpContext`
+    from the container to pass to the Masquerade package.
 26. Retired. Every product wire code is E_UPPER_SNAKE (EXC-7).
 27. Retired. Every API route is under `/api/v1`; the health probes stay at `/health/live` and
     `/health/ready`.

@@ -34,7 +34,7 @@ flowchart TD
   dialog -->|Cancel| close["Close without starting"]
   dialog -->|Confirm| flush["masqueradeModel flushes pending saves and claims the transition"]
   flush -->|Cannot start| refused["Show start error"]
-  flush -->|Ready| start["MasqueradeController.store passes the HTTP context and expected token to startMasquerade"]
+  flush -->|Ready| start["MasqueradeController.store passes targetUserId and expected token to MasqueradeControlService.startMasquerade"]
   start --> policy["Package checks current Account Kit credentials and masqueradePolicy for company and rank"]
   policy -->|Refused| refused
   policy -->|View-only context returned| load["Load target grant and canonical read-only projection"]
@@ -48,7 +48,7 @@ flowchart TD
   scope -->|Eligible| access["resolvePlanningAccess checks the effective member’s planning:read permission"]
   access -->|Refused| denied
   access -->|Allowed| view["Serve target's read projection"]
-  banner -->|End now| stop["MasqueradeController.destroy validates matching context and passes the request to endMasquerade"]
+  banner -->|End now| stop["MasqueradeController.destroy validates matching context and calls MasqueradeControlService.endMasquerade"]
   transition["Retained company transition handler"] -->|company_switch| stop
   stop -->|Stopped| real["Reload real or destination projection"]
   stop -->|Failed| endError["Show close failure and retain recovery"]
@@ -57,4 +57,4 @@ flowchart TD
 
 The current one-company interface offers no company switcher. See [signed-in requests](../REFERENCE.md#signed-in-requests) for how an admitted view-as context reaches the actor transaction.
 
-**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx#L98) · [MasqueradeBanner.tsx](../../apps/frontend/src/components/MasqueradeBanner.tsx#L24) · [masqueradeModel.ts](../../apps/frontend/src/auth/masqueradeModel.ts#L190) · [masqueradeModel.ts](../../apps/frontend/src/auth/masqueradeModel.ts#L311) · [masquerade_controller.ts](../../apps/backend/app/controllers/masquerade_controller.ts#L42) · [masquerade_controller.ts](../../apps/backend/app/controllers/masquerade_controller.ts#L48) · [masquerade.ts](../../apps/backend/app/validators/masquerade.ts#L12) · [package_callbacks_provider.ts](../../apps/backend/providers/package_callbacks_provider.ts#L56) · [masquerade_authority_service.ts](../../apps/backend/app/services/auth/masquerade_authority_service.ts#L15) · [route_middleware.ts](../../apps/backend/start/route_middleware.ts#L17) · [masquerade_mode_service.ts](../../apps/backend/app/services/auth/masquerade_mode_service.ts#L150) · [planning_access_service.ts](../../apps/backend/app/services/planning/planning_access_service.ts#L31) · [masquerade.spec.ts](../../apps/backend/tests/functional/auth/masquerade.spec.ts#L278)
+**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx#L98) · [MasqueradeBanner.tsx](../../apps/frontend/src/components/MasqueradeBanner.tsx#L24) · [masqueradeModel.ts](../../apps/frontend/src/auth/masqueradeModel.ts#L190) · [masqueradeModel.ts](../../apps/frontend/src/auth/masqueradeModel.ts#L311) · [masquerade_controller.ts](../../apps/backend/app/controllers/masquerade_controller.ts#L39) · [masquerade_controller.ts](../../apps/backend/app/controllers/masquerade_controller.ts#L88) · [masquerade.ts](../../apps/backend/app/validators/masquerade.ts#L12) · [package_callbacks_provider.ts](../../apps/backend/providers/package_callbacks_provider.ts#L56) · [masquerade_authority_service.ts](../../apps/backend/app/services/auth/masquerade_authority_service.ts#L15) · [route_middleware.ts](../../apps/backend/start/route_middleware.ts#L17) · [masquerade_control_service.ts](../../apps/backend/app/services/auth/masquerade_control_service.ts#L123) · [masquerade_mode_service.ts](../../apps/backend/app/services/auth/masquerade_mode_service.ts#L39) · [planning_access_service.ts](../../apps/backend/app/services/planning/planning_access_service.ts#L31) · [masquerade.spec.ts](../../apps/backend/tests/functional/auth/masquerade.spec.ts#L278)

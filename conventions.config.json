@@ -4,11 +4,6 @@
     "heading": "AdonisJS framework departures",
     "entries": [
       {
-        "entry": 25,
-        "item": "CTL-4",
-        "path": "apps/backend/app/controllers/masquerade_controller.ts"
-      },
-      {
         "entry": 35,
         "item": "TST-15",
         "path": "apps/backend/.env.test"
