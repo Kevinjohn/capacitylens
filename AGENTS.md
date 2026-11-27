@@ -22,7 +22,7 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - Keep one Owner per company; ownership transfer is one atomic transaction. View as member is a read-only projection; every write under it is refused server-side.
 - Never weaken server authorisation because the UI hides an action. Never persist, log or replay password-reset or invitation bearers.
 - Surface data-path errors. Never add empty catches or silently replace API failures with browser persistence.
-- The unreleased fork has one complete baseline; released migrations remain append-only and run through Lucid; `app:upgrade` backs up before migrating. There is no checksum ledger and no fixture compatibility suite. Retain the privacy, anonymisation and backup behaviour recorded in `DECISIONS.md`.
+- Before the first release the migrations, one per table, are edited in place; released migrations remain append-only and run through Lucid; `app:upgrade` backs up before migrating. There is no checksum ledger and no fixture compatibility suite. Retain the privacy, anonymisation and backup behaviour recorded in `DECISIONS.md`.
 
 ## Frontend and documentation
 
