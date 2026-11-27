@@ -53,10 +53,7 @@ test.group('database contract', (group) => {
       .filter((name) => name.endsWith('.ts'))
       .sort()
       .map((name) => `database/migrations/${name.slice(0, -'.ts'.length)}`);
-    assert.equal(
-      shipped[0],
-      'database/migrations/1791763200000_create_capacitylens_baseline_table'
-    );
+    assert.equal(shipped[0], 'database/migrations/1791763200000_create_companies_table');
     assert.deepEqual(
       journal.map((row) => row.name),
       shipped

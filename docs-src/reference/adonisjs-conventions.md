@@ -109,7 +109,7 @@ apps/backend/
   bin/              console.ts, server.ts, test.ts
   commands/         Ace commands
   config/           one file per package
-  database/         migrations/, seeders/, schema.ts, schema_rules.ts
+  database/         migrations/, seeders/, schema.ts, schema_rules.ts, migration_helpers.ts
   providers/        service providers
   start/            env.ts, the preload files, routes.ts and routes/<area>.ts
   tests/            bootstrap.ts, unit/, functional/, helpers/, types/
@@ -403,8 +403,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
 - A released migration is never edited. A fix is a new migration.
 - Put data changes in `this.defer()` and raw DDL in `this.schema.raw()`.
 - Declare a foreign key with `.references().inTable()` and an explicit `.onDelete()`.
-- Production never rolls back: set `disableRollbacksInProduction: true`. The single baseline
-  migration has no `down()` (departure 21).
+- Production never rolls back: set `disableRollbacksInProduction: true` (departure 21).
 - A seeder extends `BaseSeeder`, lives in `database/seeders`, uses `this.client`, and limits itself
   with `static environment`.
 - A model factory lives in `database/factories` and is made with `node ace make:factory`.
