@@ -10,7 +10,7 @@ import type {
   TeamMember,
 } from '@/account/teamAccessApi'
 import type { FieldError } from '@/hooks/useFieldError'
-import { api, buildScopeQueryKey } from '@/api/queryClient'
+import { api, buildScopeQueryKey, scopedRouteQuery } from '@/api/queryClient'
 import type { ApiQueryScope } from '@/api/queryClient'
 import { useQueryScope } from '@/api/useQueryScope'
 import { useStore } from '@/store/useStore'
@@ -56,10 +56,28 @@ async function readOk<T>(read: Promise<TeamAccessResult<T>>): Promise<T> {
 
 /** The one members query key for a scope and company; every reader of the members list shares it. */
 export function teamMembersQueryKey(scope: ApiQueryScope, companyId: string | null) {
-  return buildScopeQueryKey(scope, [
-    'team-members',
-    ...api.api.members.index.queryKey({ params: { companyId: companyId ?? '' } }),
-  ])
+  return buildScopeQueryKey(
+    scope,
+    api.api.members.index.queryKey({ params: { companyId: companyId ?? '' } })
+  )
+}
+
+/** Shared query options for the company members list, scoped to the active identity. */
+export function teamMembersQueryOptions(
+  scope: ApiQueryScope,
+  companyId: string | null,
+  enabled: boolean
+) {
+  return scopedRouteQuery(
+    api.api.members.index.queryOptions({ params: { companyId: companyId ?? '' } }),
+    scope,
+    ({ signal }) => readTeamMembers(companyId ?? '', signal),
+    {
+      enabled,
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  )
 }
 
 /** Reads the members list for the shared members query. */
@@ -120,27 +138,31 @@ function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope
     const keyScope = { userId, companyId: activeCompanyId, masqueradeGeneration }
     return {
       membersKey: teamMembersQueryKey(keyScope, activeCompanyId),
-      invitesKey: buildScopeQueryKey(keyScope, [
-        'team-invitations',
-        ...api.api.invitations.index.queryKey({ params: { companyId } }),
-      ]),
+      invitesKey: buildScopeQueryKey(
+        keyScope,
+        api.api.invitations.index.queryKey({ params: { companyId } })
+      ),
     }
   }, [userId, activeCompanyId, masqueradeGeneration, companyId])
-  const membersQuery = useQuery<TeamDirectory>({
-    queryKey: membersKey,
-    enabled: enabled && !!activeCompanyId,
-    refetchOnWindowFocus: false,
-    // An answer is final: a refusal or failure shows at once rather than after retries.
-    retry: false,
-    queryFn: ({ signal }) => readTeamMembers(companyId, signal),
-  })
-  const invitationsQuery = useQuery<TeamInvitation[]>({
-    queryKey: invitesKey,
-    enabled: enabled && !!activeCompanyId && membersQuery.isSuccess,
-    refetchOnWindowFocus: false,
-    retry: false,
-    queryFn: ({ signal }) => readOk(teamAccessApi.listInvitations(companyId, signal)),
-  })
+  const membersQuery = useQuery<TeamDirectory>(
+    teamMembersQueryOptions(
+      { userId, companyId: activeCompanyId, masqueradeGeneration },
+      activeCompanyId,
+      enabled && !!activeCompanyId
+    )
+  )
+  const invitationsQuery = useQuery<TeamInvitation[]>(
+    scopedRouteQuery(
+      api.api.invitations.index.queryOptions({ params: { companyId } }),
+      { userId, companyId: activeCompanyId, masqueradeGeneration },
+      ({ signal }) => readOk(teamAccessApi.listInvitations(companyId, signal)),
+      {
+        enabled: enabled && !!activeCompanyId && membersQuery.isSuccess,
+        refetchOnWindowFocus: false,
+        retry: false,
+      }
+    )
+  )
   return { membersKey, membersQuery, invitesKey, invitationsQuery }
 }
 

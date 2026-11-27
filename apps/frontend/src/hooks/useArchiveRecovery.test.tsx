@@ -6,6 +6,7 @@ import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle'
 import { AuthContext } from '@/auth/authContext'
 import { PermissionContext } from '@/auth/permissionContext'
 import { useStore } from '@/store/useStore'
+import { createTuyauReactQueryClient } from '@tuyau/react-query'
 import { invalidateInactiveReads } from '@/api/queryClient'
 import { QueryCacheLifecycle } from '@/api/QueryCacheLifecycle'
 import { useArchiveRecovery } from './useArchiveRecovery'
@@ -13,10 +14,14 @@ import { permissionValue } from '@/test/permissionGrants'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 import { createDeferred } from '@/test/createDeferred'
 const { request } = vi.hoisted(() => ({ request: vi.fn() }))
-vi.mock('@/api/queryClient', async (original) => ({
-  ...(await original<typeof import('@/api/queryClient')>()),
-  client: { request },
-}))
+vi.mock('@/api/queryClient', async (original) => {
+  const actual = await original<typeof import('@/api/queryClient')>()
+  return {
+    ...actual,
+    client: { request },
+    api: createTuyauReactQueryClient({ client: { request } as never }),
+  }
+})
 function payload(companyId: string, label: string): ArchiveRecovery {
   return {
     companyId,
