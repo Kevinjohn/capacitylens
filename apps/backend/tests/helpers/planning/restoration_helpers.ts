@@ -3,7 +3,7 @@ import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { readState } from '#tests/helpers/state_fixture'
-import { companyId, newAllocation, intentSession } from '#tests/functional/planning/helpers'
+import { companyId, newAllocation, intentSession } from '#tests/helpers/planning/functional_helpers'
 
 export const note = 'Gotham night shift briefing'
 

@@ -389,7 +389,7 @@ removed entry retires its number.
     `company_settings` and `company_planning_revisions` (#2572).
 38. Tests that write a stored row on purpose insert it raw, not through a model factory (#2572):
     - schema CHECK constraints and encoded rows read back: `tests/functional/state/database_contract.spec.ts`;
-    - database triggers fed invalid cross-company references: `tests/functional/state/database_contract_cases.ts`;
+    - database triggers fed invalid cross-company references: `tests/helpers/state/database_contract_cases.ts`;
     - the operator command's own SQLite file, which a child process opens:
       `tests/helpers/operator_command_helpers.ts`, `tests/helpers/unit/operator_databases.ts` and
       `tests/unit/owner_reset_command.spec.ts`;

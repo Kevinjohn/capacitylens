@@ -4,7 +4,7 @@ import Allocation from '#models/allocation'
 import { ClosureFactory } from '#database/factories/closure_factory'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { fixtureSession } from '#tests/helpers/identities'
-import { resetPlanningFixture } from '#tests/functional/planning/helpers'
+import { resetPlanningFixture } from '#tests/helpers/planning/functional_helpers'
 import { retainedModels, createDeletionGroup } from '#tests/helpers/planning/retained_rows'
 
 test.group('planning deletion ownership', (suite) => {

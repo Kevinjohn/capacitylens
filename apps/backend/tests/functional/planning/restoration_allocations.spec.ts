@@ -15,7 +15,7 @@ import {
   resetPlanningFixture,
   signIn,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   note,
   deleteOne,
@@ -28,7 +28,7 @@ import {
   markers,
   planningAudit,
   consumedAt,
-} from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/restoration_helpers'
 
 const restoration = await app.container.make(RestorationService)
 

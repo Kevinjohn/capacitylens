@@ -8,7 +8,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture'
 import Company from '#models/company'
 import { ClientFactory } from '#database/factories/client_factory'
-import { insertTwoCompanyFixture } from '#tests/functional/state/database_contract_fixtures'
+import { insertTwoCompanyFixture } from '#tests/helpers/state/database_contract_fixtures'
 import {
   ACTIVITY_KINDS,
   ALLOCATION_STATUSES,
@@ -28,7 +28,7 @@ import {
   foreignKeyIndexes,
   fullFixtureRows,
   insertInvalidReference,
-} from '#tests/functional/state/database_contract_cases'
+} from '#tests/helpers/state/database_contract_cases'
 import app from '@adonisjs/core/services/app'
 import { DatabaseHealthService } from '#services/database_health_service'
 import { SchemaIntegrityService } from '#services/schema_integrity_service'

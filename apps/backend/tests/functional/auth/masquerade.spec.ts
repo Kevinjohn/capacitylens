@@ -461,10 +461,10 @@ test.group('native read-only masquerade', (group) => {
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
-        client.post<string>('/api/v1/auth/sign-in').header('sec-fetch-site', 'same-origin'),
+        client.visit('api.session.store').header('sec-fetch-site', 'same-origin'),
         owner,
         (started.body().data as { masqueradeToken: string }).masqueradeToken
-      ).json({}),
+      ).json({} as never),
       asSession(
         client.post('/api/v1/auth/register').header('sec-fetch-site', 'same-origin'),
         owner,

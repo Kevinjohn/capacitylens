@@ -10,7 +10,7 @@ import {
   intentSession,
   loginAsMember,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import { mutationInput } from '#tests/helpers/planning/mutations'
 
 test.group('typed resource availability', (group) => {

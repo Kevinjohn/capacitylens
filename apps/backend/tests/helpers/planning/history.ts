@@ -8,8 +8,8 @@ import {
   intentSession,
   signIn,
   type Credential,
-} from '#tests/functional/planning/helpers'
-import { stored } from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/functional_helpers'
+import { stored } from '#tests/helpers/planning/restoration_helpers'
 
 export interface Reply {
   revision: number
