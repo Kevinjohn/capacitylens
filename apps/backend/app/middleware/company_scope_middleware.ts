@@ -25,7 +25,7 @@ export default class CompanyScopeMiddleware {
         resolveScope: (request) => request.params.companyId,
       });
     } catch (error) {
-      // Translates the package's FORBIDDEN into the product's class; the handler answers it.
+      // Translates the package's `E_ACCESS_CONTROL_FORBIDDEN` into the product's class; the handler answers it.
       if (!(error instanceof accessControlErrors.E_ACCESS_CONTROL_FORBIDDEN)) {
         throw error;
       }
