@@ -1,14 +1,7 @@
-import type { InvitationRole } from '@capacitylens/shared/account/types'
+import type { Route } from '@capacitylens/backend/registry'
 
 /** Fields sent when creating a company invitation. */
-export interface CreateInvitationBody {
-  companyId: string
-  role: InvitationRole
-  email: string
-}
+export type CreateInvitationBody = Route.Body<'api.invitations.store'>
 
 /** The name and password an invitee chooses; the invitation fixes the address. */
-export interface InvitationSignUpBody {
-  name: string
-  password: string
-}
+export type InvitationSignUpBody = Route.Body<'api.invitation_acceptances.store'>

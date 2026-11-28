@@ -17,9 +17,17 @@ import type { User } from './MembersSectionTestKit'
 type MembersRead = Awaited<ReturnType<typeof teamAccessApi.listMembers>>
 type LinkWrite = Awaited<ReturnType<typeof teamAccessApi.setMemberResourceLink>>
 type UnlinkWrite = Awaited<ReturnType<typeof teamAccessApi.clearMemberResourceLink>>
-type ResourceLink = TeamMember['resourceLink']
+type ResourceLinkInput = { resourceId: string; revision: string } | null
 
-function makeMember(userId: string, name: string, resourceLink: ResourceLink = null): TeamMember {
+function normalizeLink(link: ResourceLinkInput = null): TeamMember['resourceLink'] {
+  return link ? { resourceName: null, resourceStatus: 'active', ...link } : null
+}
+
+function makeMember(
+  userId: string,
+  name: string,
+  resourceLink: ResourceLinkInput = null
+): TeamMember {
   return {
     userId,
     role: userId === 'me' ? 'owner' : 'editor',
@@ -30,12 +38,12 @@ function makeMember(userId: string, name: string, resourceLink: ResourceLink = n
     email: `${userId}@x.io`,
     signInConfirmed: null,
     isSelf: userId === 'me',
-    resourceLink,
+    resourceLink: normalizeLink(resourceLink),
   }
 }
 
 function makeRead(
-  links: { ed?: ResourceLink; bea?: ResourceLink; sam?: ResourceLink } = {}
+  links: { ed?: ResourceLinkInput; bea?: ResourceLinkInput; sam?: ResourceLinkInput } = {}
 ): MembersRead {
   // Sam is suspended, so his row lives in the collapsible inactive group.
   const suspended =

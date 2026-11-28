@@ -49,6 +49,7 @@ function member({
     email: `${userId}@wayne.test`,
     signInConfirmed: null,
     isSelf: userId === 'bruce',
+    resourceLink: null,
   }
 }
 

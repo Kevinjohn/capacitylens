@@ -1,3 +1,4 @@
+import type { Route } from '@capacitylens/backend/registry'
 import { requestApiResponse } from '@/api/queryClient'
 import { readApiData } from '@/api/readApiData'
 import { isRecord } from '@capacitylens/shared/lib/isRecord'
@@ -13,7 +14,7 @@ export const gettingStartedApi = {
   async read(
     companyId: string,
     signal?: AbortSignal
-  ): Promise<{ dismissed: boolean; steps: GettingStartedSteps }> {
+  ): Promise<Route.Response<'api.getting_started.show'>['data']> {
     const response = await requestApiResponse('api.getting_started.show', {
       params: { companyId },
       ...(signal ? { signal } : {}),

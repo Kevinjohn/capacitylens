@@ -1,11 +1,6 @@
+import type { Route } from '@capacitylens/backend/registry'
 import { readApiData } from '@/api/readApiData'
-import type {
-  ClientMasqueradeEndReason,
-  EndMasqueradePayload,
-  MasqueradeState,
-  MasqueradeStatus,
-  StartMasqueradePayload,
-} from '@capacitylens/shared/domain/masquerade'
+import type { ClientMasqueradeEndReason } from '@capacitylens/shared/domain/masquerade'
 import { isRole } from '@capacitylens/shared/account/types'
 import { isRecord } from '@capacitylens/shared/lib/isRecord'
 import { isTimestamp } from '@/account/accessResult'
@@ -13,7 +8,17 @@ import { masqueradeRequests } from './masqueradeRequests'
 import { extractApiErrorMessage } from '@/lib/readApiError'
 import { parseAccessGrant } from './accessGrant'
 
-function parseMasqueradeState(value: unknown, companyIdFallback?: string): MasqueradeState | null {
+type MasqueradeStartState = Extract<
+  Route.Response<'api.masquerade.store'>['data'],
+  { active: true }
+>
+type StartMasqueradeBody = Route.Body<'api.masquerade.store'>
+type EndMasqueradeBody = Route.Body<'api.masquerade.destroy'>
+
+function parseMasqueradeState(
+  value: unknown,
+  companyIdFallback?: string
+): MasqueradeStartState | null {
   if (!isRecord(value)) return null
   const state = value
   const companyId = typeof state.companyId === 'string' ? state.companyId : companyIdFallback
@@ -32,12 +37,12 @@ function parseMasqueradeState(value: unknown, companyIdFallback?: string): Masqu
   ) {
     return null
   }
-  return { ...(state as unknown as MasqueradeState), companyId }
+  return { ...(state as unknown as MasqueradeStartState), companyId }
 }
 
 function parseBootstrapActor(
   value: unknown
-): { id: string; name?: string | null; email: string } | null {
+): { id: string; name: string | null; email: string } | null {
   if (
     !isRecord(value) ||
     typeof value.id !== 'string' ||
@@ -54,12 +59,10 @@ function parseBootstrapActor(
     id: value.id,
     ...(typeof value.name === 'string' || value.name === null ? { name: value.name } : {}),
     email: value.email,
-  }
+  } as { id: string; name: string | null; email: string }
 }
 
-export type MasqueradeBootstrapStatus = MasqueradeStatus & {
-  actor?: { id: string; name?: string | null; email: string }
-}
+export type MasqueradeBootstrapStatus = Route.Response<'api.masquerade.show'>['data']
 
 async function readMasqueradeBody(response: Response, fallback: string): Promise<unknown> {
   if (!response.ok) {
@@ -69,7 +72,7 @@ async function readMasqueradeBody(response: Response, fallback: string): Promise
   return readApiData(response)
 }
 
-async function assertMasqueradeState(response: Response): Promise<MasqueradeState> {
+async function assertMasqueradeState(response: Response): Promise<MasqueradeStartState> {
   const body = await readMasqueradeBody(
     response,
     `View as member request failed (${response.status}).`
@@ -124,16 +127,16 @@ export const masqueradeApi = {
     if (!actor) {
       throw new Error('The server returned an invalid masquerade actor.')
     }
-    return { active: true, ...state, masqueradeToken, actor }
+    return { ...state, active: true as const, masqueradeToken, actor }
   },
 
-  async start(companyId: string, targetUserId: string): Promise<MasqueradeState> {
-    const body: StartMasqueradePayload = { targetUserId }
+  async start(companyId: string, targetUserId: string): Promise<MasqueradeStartState> {
+    const body: StartMasqueradeBody = { targetUserId }
     return assertMasqueradeState(await masqueradeRequests.startMasquerade(companyId, body))
   },
 
   async end(token: string, reason: ClientMasqueradeEndReason): Promise<void> {
-    const body: EndMasqueradePayload = { token, reason }
+    const body: EndMasqueradeBody = { token, reason }
     const response = await masqueradeRequests.endMasquerade(body)
     await readMasqueradeBody(response, `View as member could not be ended (${response.status}).`)
   },
