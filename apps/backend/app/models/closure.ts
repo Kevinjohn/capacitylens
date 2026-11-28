@@ -1,11 +1,11 @@
 import { ClosureSchema } from '#database/schema'
 import { compose } from '@adonisjs/core/helpers'
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
-import { timestampColumn } from '#models_support/scalar_column'
+import { timestampColumn } from '#services/models/scalar_column'
 import type { DateTime } from 'luxon'
 import { column } from '@adonisjs/lucid/orm'
 import type { ISODate } from '@capacitylens/shared/types/entities'
-import { withCompanyScope } from '#models_support/scoped_model'
+import { withCompanyScope } from '#services/models/scoped_model'
 import { isoDateColumn } from '@kevinjohn/adonisjs-lucid-checked-columns'
 /** A company-scoped closure; deletion metadata stays internal to restoration. */
 export default class Closure extends compose(ClosureSchema, SoftDeletes, withCompanyScope) {

@@ -311,7 +311,7 @@ Luxon `deletedAt` attribute is the package's own Lucid date-time column, stored 
 format, and stays on the server. Client, Project, Activity and Resource have no
 deletion state: archive and restore are their only lifecycle. Product
 `createdAt`, `updatedAt` and `archivedAt` are Luxon attributes too, declared with
-`timestampColumn` (`app/models_support/scalar_column.ts`), which stores and serialises the same canonical
+`timestampColumn` (`app/services/models/scalar_column.ts`), which stores and serialises the same canonical
 UTC ISO string. `database/schema_rules.ts` leaves every date-time column on Lucid's default
 `DateTime` type except `users.created_at` and `users.updated_at`, which the `User` model writes as
 strings.

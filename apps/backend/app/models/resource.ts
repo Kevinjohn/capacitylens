@@ -3,8 +3,8 @@ import { compose } from '@adonisjs/core/helpers'
 import { column } from '@adonisjs/lucid/orm'
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities'
 import type { DateTime } from 'luxon'
-import { withCompanyScope } from '#models_support/scoped_model'
-import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scalar_column'
+import { withCompanyScope } from '#services/models/scoped_model'
+import { booleanColumn, isWeekday, timestampColumn } from '#services/models/scalar_column'
 import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns'
 
 /** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */

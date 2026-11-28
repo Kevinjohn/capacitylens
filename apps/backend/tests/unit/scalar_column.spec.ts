@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
-import { booleanColumn, timestampColumn } from '#models_support/scalar_column'
+import { booleanColumn, timestampColumn } from '#services/models/scalar_column'
 
 test.group('booleanColumn', () => {
   const column = booleanColumn('clients', 'is_private')

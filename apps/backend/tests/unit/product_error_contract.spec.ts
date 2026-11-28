@@ -23,12 +23,13 @@ import {
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception'
 import PasswordConfirmationException from '#exceptions/password_confirmation_exception'
 import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception'
-import { refuseConflictingAdmission, refuseMissingAdmission } from '#exceptions/admission_errors'
 import {
-  credentialUpdateCommitted,
-  emailInUseAnswer,
-  invalidLinkAnswer,
-} from '#exceptions/credential_answers'
+  refuseConflictingAdmission,
+  refuseMissingAdmission,
+} from '#services/errors/admission_errors'
+import CredentialUpdateCommittedException from '#exceptions/credential_update_committed_exception'
+import EmailInUseException from '#exceptions/email_in_use_exception'
+import InvalidLinkException from '#exceptions/invalid_link_exception'
 import { signUpValidator } from '#validators/auth'
 import { acceptInvitationSignUpValidator, createInvitationValidator } from '#validators/invitation'
 import { inspectResetValidator } from '#validators/credential'
@@ -375,7 +376,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'StalePlanningRevisionException',
-    () => answered(new StalePlanningRevisionException('mutation', 1, 2)),
+    () => answered(new StalePlanningRevisionException()),
     409,
     {
       error: 'The planning revision changed before this mutation was applied.',
@@ -449,10 +450,10 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     422,
     { errors: [{ message: 'Invalid token.' }] },
   ],
-  // The controllers that spend a link, create an account or change a password send these bodies.
+  // The exceptions that controllers spending a link, creating an account or changing a password throw.
   [
     'invalid or expired link',
-    () => ({ status: 400, body: invalidLinkAnswer }),
+    () => answered(new InvalidLinkException()),
     400,
     {
       error: 'This link is invalid or expired.',
@@ -461,7 +462,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'email in use',
-    () => ({ status: 409, body: emailInUseAnswer }),
+    () => answered(new EmailInUseException()),
     409,
     {
       error: 'An account already uses this email. Sign in or reset your password.',
@@ -470,7 +471,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'committed password change',
-    () => ({ status: 503, body: credentialUpdateCommitted }),
+    () => answered(new CredentialUpdateCommittedException()),
     503,
     {
       error:
