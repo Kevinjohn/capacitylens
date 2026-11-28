@@ -186,10 +186,8 @@ export class AllocationSchema extends BaseModel {
 }
 
 export class AuditEntrySchema extends BaseModel {
-  static $columns = ['action', 'actorId', 'companyId', 'createdAt', 'details', 'entity', 'entityId', 'id', 'updatedAt'] as const
+  static $columns = ['actorId', 'companyId', 'createdAt', 'details', 'entity', 'entityId', 'id', 'operation', 'updatedAt'] as const
   $columns = AuditEntrySchema.$columns
-  @column()
-  declare action: string
   @column()
   declare actorId: string | null
   @column()
@@ -204,6 +202,8 @@ export class AuditEntrySchema extends BaseModel {
   declare entityId: string | null
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare operation: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -334,9 +334,11 @@ export class CompanySettingSchema extends BaseModel {
   declare value: unknown | null
 }
 
-export class DeletedGroupSchema extends BaseModel {
-  static $columns = ['actorId', 'companyId', 'consumedAt', 'createdAt', 'groupId', 'mutationId', 'sessionId'] as const
-  $columns = DeletedGroupSchema.$columns
+export class DeletedBatchSchema extends BaseModel {
+  static $columns = ['accountSessionId', 'actorId', 'companyId', 'consumedAt', 'createdAt', 'id', 'mutationId'] as const
+  $columns = DeletedBatchSchema.$columns
+  @column()
+  declare accountSessionId: number
   @column()
   declare actorId: string
   @column()
@@ -346,20 +348,18 @@ export class DeletedGroupSchema extends BaseModel {
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column({ isPrimary: true })
-  declare groupId: string
+  declare id: string
   @column()
   declare mutationId: string
-  @column()
-  declare sessionId: number
 }
 
 export class DeletedRowSchema extends BaseModel {
-  static $columns = ['entity', 'groupId', 'id', 'payloadJson', 'rowId'] as const
+  static $columns = ['deletedBatchId', 'entity', 'id', 'payloadJson', 'rowId'] as const
   $columns = DeletedRowSchema.$columns
   @column()
-  declare entity: string
+  declare deletedBatchId: string
   @column()
-  declare groupId: string
+  declare entity: string
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -586,8 +586,10 @@ export class PhaseSchema extends BaseModel {
 }
 
 export class PlanningHistorySchema extends BaseModel {
-  static $columns = ['actorId', 'companyId', 'entriesJson', 'historyId', 'revision', 'sessionId'] as const
+  static $columns = ['accountSessionId', 'actorId', 'companyId', 'entriesJson', 'historyId', 'revision'] as const
   $columns = PlanningHistorySchema.$columns
+  @column()
+  declare accountSessionId: number
   @column()
   declare actorId: string
   @column({ isPrimary: true })
@@ -598,8 +600,6 @@ export class PlanningHistorySchema extends BaseModel {
   declare historyId: string
   @column()
   declare revision: number
-  @column()
-  declare sessionId: number
 }
 
 export class PlanningMutationSchema extends BaseModel {
