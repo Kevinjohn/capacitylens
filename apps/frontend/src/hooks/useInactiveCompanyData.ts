@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { AppData } from '@capacitylens/shared/types/entities'
-import { buildScopeQueryKey } from '@/api/queryClient'
+import { api, scopedRouteQuery } from '@/api/queryClient'
 import { useQueryScope } from '@/api/useQueryScope'
 import { useCan, useRole } from '@/auth/permissionContext'
 import {
@@ -27,18 +27,21 @@ export function useInactiveCompanyData(): {
   const setNotice = useStore((state) => state.setNotice)
   const scope = useQueryScope()
   const enabled = mayViewInactive && !!activeCompanyId
-  const query = useQuery<AppData>({
-    queryKey: buildScopeQueryKey(scope, [
-      'inactive-company-data',
-      role,
-      buildAccessKey(planning.access),
-      planning.revision,
-    ]),
-    enabled,
-    retry: false,
-    refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => fetchInactiveRecords(activeCompanyId ?? '', signal),
-  })
+  const query = useQuery<AppData>(
+    scopedRouteQuery(
+      api.api.companyState.show.queryOptions({
+        query: { companyId: activeCompanyId ?? '', includeInactive: '1' },
+      }),
+      scope,
+      ({ signal }) => fetchInactiveRecords(activeCompanyId ?? '', signal),
+      {
+        enabled,
+        retry: false,
+        refetchOnWindowFocus: false,
+        extraKey: [role, buildAccessKey(planning.access), planning.revision],
+      }
+    )
+  )
 
   const { error } = query
   useEffect(() => {

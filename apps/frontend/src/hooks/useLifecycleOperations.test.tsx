@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStore } from '@/store/useStore'
+import { api, buildScopeQueryKey } from '@/api/queryClient'
 import {
   loadPlanningData,
   DEFAULT_COMPANY_ID,
@@ -58,15 +59,22 @@ describe('named lifecycle actions', () => {
 
   it('marks the inactive-row reads stale after an archive, and no other query', async () => {
     useStore.setState({ sendPlanningIntent: vi.fn(async () => undefined) })
-    const key = (route: string) => ['capacitylens', 'bruce', DEFAULT_COMPANY_ID, 0, route]
-    for (const route of ['archive-recovery', 'inactive-company-data', 'team-directory']) {
-      queryCache.setQueryData(key(route), route)
-    }
+    const scope = { userId: 'bruce', companyId: DEFAULT_COMPANY_ID, masqueradeGeneration: 0 }
+    const params = { params: { companyId: DEFAULT_COMPANY_ID } }
+    const archive = buildScopeQueryKey(scope, api.api.planningArchive.show.queryKey(params))
+    const inactive = buildScopeQueryKey(
+      scope,
+      api.api.companyState.show.queryKey({
+        query: { companyId: DEFAULT_COMPANY_ID, includeInactive: '1' },
+      })
+    )
+    const members = buildScopeQueryKey(scope, api.api.members.index.queryKey(params))
+    for (const key of [archive, inactive, members]) queryCache.setQueryData(key, 'cached')
     const { result } = renderHook(() => useLifecycleOperations(), { wrapper })
     await act(async () => result.current.archive('clients', 'c-1'))
-    const stale = (route: string) => queryCache.getQueryState(key(route))?.isInvalidated
-    expect([stale('archive-recovery'), stale('inactive-company-data')]).toEqual([true, true])
-    expect(stale('team-directory')).toBe(false)
+    const stale = (key: readonly unknown[]) => queryCache.getQueryState(key)?.isInvalidated
+    expect([stale(archive), stale(inactive)]).toEqual([true, true])
+    expect(stale(members)).toBe(false)
   })
 
   it('reports what the server says a client archive hid', async () => {

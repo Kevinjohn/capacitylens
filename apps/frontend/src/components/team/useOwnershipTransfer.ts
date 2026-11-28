@@ -10,7 +10,7 @@ import { useQueryScope } from '@/api/useQueryScope'
 import { useAuth } from '@/auth/authContext'
 import { useCan, usePermissionStatus } from '@/auth/permissionContext'
 import { reprojectAccess } from '@/auth/reprojectAccess'
-import { readTeamMembers, TeamReadError, teamMembersQueryKey } from './useTeamDirectory'
+import { teamMembersQueryOptions, TeamReadError } from './useTeamDirectory'
 import { useStore } from '@/store/useStore'
 
 interface OwnershipTransferState {
@@ -42,13 +42,7 @@ function useOwnerDirectory({
   userId: string | null
 }) {
   // The same members query the team directory reads, so the list is held once.
-  const query = useQuery({
-    queryKey: teamMembersQueryKey(scope, companyId),
-    enabled: available && companyId !== null,
-    refetchOnWindowFocus: false,
-    retry: false,
-    queryFn: ({ signal }) => readTeamMembers(companyId ?? '', signal),
-  })
+  const query = useQuery(teamMembersQueryOptions(scope, companyId, available && companyId !== null))
   const members = query.isSuccess ? query.data.members : EMPTY_MEMBERS
   const candidates = useMemo(
     () =>

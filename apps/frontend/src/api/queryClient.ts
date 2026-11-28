@@ -117,13 +117,63 @@ export function clearQueryCacheForScopeChange(
   return true
 }
 
+/**
+ * Wraps a Tuyau `api.<route>.queryOptions(...)` object with the active identity scope key so
+ * cached results never leak across users, companies, roles, or masquerade states.
+ */
+export function scopedQueryOptions<TOptions extends { queryKey: readonly unknown[] }>(
+  options: TOptions,
+  scope: ApiQueryScope,
+  extraKey: readonly unknown[] = []
+): TOptions {
+  return {
+    ...options,
+    queryKey: buildScopeQueryKey(scope, [...options.queryKey, ...extraKey]),
+  }
+}
+
+/**
+ * Combines a Tuyau `api.<route>.queryOptions(...)` key with a custom `queryFn` and identity scope
+ * key for reads that perform multi-page loops or custom error classification.
+ */
+export function scopedRouteQuery<TData>(
+  options: { queryKey: readonly unknown[] },
+  scope: ApiQueryScope,
+  queryFn: (context: { signal: AbortSignal }) => Promise<TData>,
+  extra: {
+    enabled?: boolean
+    gcTime?: number
+    retry?: boolean | number
+    refetchOnWindowFocus?: boolean
+    refetchOnReconnect?: boolean
+    extraKey?: readonly unknown[]
+  } = {}
+) {
+  const { extraKey = [], ...queryOptions } = extra
+  return {
+    ...queryOptions,
+    queryKey: buildScopeQueryKey(scope, [...options.queryKey, ...extraKey]),
+    queryFn,
+  }
+}
+
+const routeKeyId = (segment: unknown): string | null =>
+  typeof segment === 'string'
+    ? segment
+    : Array.isArray(segment)
+      ? segment.map(String).join('.')
+      : null
+
 /** Route keys of the reads that show rows hidden from the planning cache (archived rows). */
-const INACTIVE_READ_ROUTES = ['archive-recovery', 'inactive-company-data'] as const
+const INACTIVE_READ_ROUTES = new Set<string | null>([
+  routeKeyId(api.api.planningArchive.show.queryKey({ params: { companyId: '' } })[0]),
+  routeKeyId(api.api.companyState.show.queryKey({ query: { companyId: '' } })[0]),
+])
 
 /** Mark every inactive-row read stale after a lifecycle change so mounted readers refetch. */
 export function invalidateInactiveReads(cache: QueryClient): Promise<void> {
   // The route key follows the four scope segments of buildScopeQueryKey.
   return cache.invalidateQueries({
-    predicate: ({ queryKey }) => (INACTIVE_READ_ROUTES as readonly unknown[]).includes(queryKey[4]),
+    predicate: ({ queryKey }) => INACTIVE_READ_ROUTES.has(routeKeyId(queryKey[4])),
   })
 }

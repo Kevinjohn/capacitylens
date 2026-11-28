@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createTuyauReactQueryClient } from '@tuyau/react-query'
 import type { Role } from '@capacitylens/shared/account/types'
 import { createEmptyAppData } from '@capacitylens/shared/types/entities'
 import { QueryCacheLifecycle } from '@/api/QueryCacheLifecycle'
@@ -21,6 +22,7 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }))
 vi.mock('@/api/queryClient', async (original) => ({
   ...(await original<typeof import('@/api/queryClient')>()),
   client: { request },
+  api: createTuyauReactQueryClient({ client: { request } as never }),
 }))
 
 let version = 1

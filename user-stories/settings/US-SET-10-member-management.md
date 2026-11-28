@@ -42,4 +42,4 @@ flowchart TD
 
 See the [Team actions](../team/US-TEAM-01-check-access.md#code-flow) and [admission decisions](US-SET-19-company-admission.md#code-flow) for write boundaries.
 
-**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L131) · [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L188) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L28) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L260) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L74)
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L131) · [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx#L188) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L28) · [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx#L260) · [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx#L75)
