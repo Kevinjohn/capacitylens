@@ -83,6 +83,7 @@ export async function insertOtherCompanyRestoration(actorId: string) {
     revision,
     restoration_group_id: groupId,
     origin_session_id: sessionId,
+    created_at: createdAt,
   })
   await db.from('company_planning_revisions').where('company_id', 'a-loft').update({ revision })
   await db.table('audit_entries').insert({

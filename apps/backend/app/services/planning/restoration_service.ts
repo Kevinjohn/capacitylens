@@ -419,7 +419,8 @@ export class RestorationService {
       revision: number
       restorationGroupId: string | null
       originSessionId: number | null
-    }
+    },
+    now = new Date().toISOString()
   ) {
     // The commitment marker, not a product row.
     await trx.table('planning_mutations').insert({
@@ -429,6 +430,7 @@ export class RestorationService {
       revision: marker.revision,
       restoration_group_id: marker.restorationGroupId,
       origin_session_id: marker.originSessionId,
+      created_at: now,
     })
   }
 

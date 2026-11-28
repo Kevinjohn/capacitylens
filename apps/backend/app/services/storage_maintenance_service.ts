@@ -5,10 +5,22 @@ import { pruneReceipts } from '@kevinjohn/adonisjs-duplicate-request-guard'
 /** Completed request receipts are kept this long; a client retries an operation within seconds. */
 export const REQUEST_RECEIPT_RETENTION_MS = 24 * 60 * 60_000
 
+/**
+ * Committed planning-mutation markers are kept this long, so a reused mutation id is refused for
+ * at least this window. A marker whose restoration group is still pending stays regardless.
+ */
+export const PLANNING_MUTATION_RETENTION_MS = 30 * 24 * 60 * 60_000
+
+/** Audit entries are kept this long, the same window as view-as events. */
+export const AUDIT_ENTRY_RETENTION_MS = 365 * 24 * 60 * 60_000
+
 /** One named maintenance task; `report` receives its failure. */
 export type MaintenanceTask = readonly [name: string, run: () => Promise<unknown>]
 
-/** Background upkeep: receipt and view-as pruning, and the task runner that schedules them. */
+/**
+ * Background upkeep: receipt, planning-mutation, audit and view-as pruning, and the task runner
+ * that schedules them.
+ */
 export class StorageMaintenanceService {
   /**
    * Deletes completed request receipts older than the retention window. Pending receipts stay.
@@ -18,6 +30,37 @@ export class StorageMaintenanceService {
     return pruneReceipts(db.connection(), {
       olderThan: new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS),
     })
+  }
+
+  /**
+   * Deletes committed planning-mutation markers older than the retention window. A marker whose
+   * restoration group is still pending stays while that group can still be restored.
+   * @returns the number of markers deleted.
+   */
+  async prunePlanningMutations(now = new Date()): Promise<number> {
+    const cutoff = new Date(now.getTime() - PLANNING_MUTATION_RETENTION_MS).toISOString()
+    // Restoration bookkeeping, not a product row.
+    return Number(
+      await db
+        .from('planning_mutations')
+        .where('created_at', '<', cutoff)
+        .whereNotExists((pending) =>
+          pending
+            .from('deleted_batches')
+            .whereColumn('deleted_batches.id', 'planning_mutations.restoration_group_id')
+            .whereNull('deleted_batches.consumed_at')
+        )
+        .delete()
+    )
+  }
+
+  /**
+   * Deletes audit entries older than the retention window.
+   * @returns the number of entries deleted.
+   */
+  async pruneAuditEntries(now = new Date()): Promise<number> {
+    const cutoff = new Date(now.getTime() - AUDIT_ENTRY_RETENTION_MS).toISOString()
+    return Number(await db.from('audit_entries').where('created_at', '<', cutoff).delete())
   }
 
   /**

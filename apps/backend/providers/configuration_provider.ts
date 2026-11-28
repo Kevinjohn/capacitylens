@@ -73,7 +73,8 @@ export default class ConfigurationProvider {
   /**
    * Expired sign-ins fail at once; pruning removes them at start and hourly, and with them the
    * session-bound proofs and restoration rows that cascade from each one. The same pass removes
-   * completed request receipts and expired view-as modes and events.
+   * completed request receipts, planning-mutation markers older than 30 days, audit entries older
+   * than 365 days and expired view-as modes and events.
    */
   async ready() {
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return
@@ -86,6 +87,8 @@ export default class ConfigurationProvider {
       [
         ['Account sign-in pruning', () => accountKit.maintenance.prune()],
         ['Request receipt pruning', () => storageMaintenance.pruneRequestReceipts()],
+        ['Planning mutation pruning', () => storageMaintenance.prunePlanningMutations()],
+        ['Audit entry pruning', () => storageMaintenance.pruneAuditEntries()],
         ['Masquerade pruning', () => storageMaintenance.pruneExpiredMasquerades()],
       ],
       (task, error) => logger.error({ task, err: error }, `${task} failed`)
