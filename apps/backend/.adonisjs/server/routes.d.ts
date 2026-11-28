@@ -16,7 +16,7 @@ export type ScannedRoutes = {
     'api.import_previews.store': { paramsTuple?: []; params?: {} }
     'api.imports.store': { paramsTuple?: []; params?: {} }
     'api.company_state.show': { paramsTuple?: []; params?: {} }
-    'api.company_exports.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.company_export.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.company_anonymisations.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.resource_anonymisations.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.example_data.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -25,15 +25,15 @@ export type ScannedRoutes = {
     'api.session.show': { paramsTuple?: []; params?: {} }
     'api.new_account.store': { paramsTuple?: []; params?: {} }
     'api.session.store': { paramsTuple?: []; params?: {} }
-    'api.password_confirmations.store': { paramsTuple?: []; params?: {} }
     'api.password_reset_requests.store': { paramsTuple?: []; params?: {} }
     'api.password_resets.show': { paramsTuple?: []; params?: {} }
     'api.password_resets.update': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.show': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.update': { paramsTuple?: []; params?: {} }
+    'api.password_confirmations.store': { paramsTuple?: []; params?: {} }
     'api.password.update': { paramsTuple?: []; params?: {} }
     'api.account.destroy': { paramsTuple?: []; params?: {} }
     'api.email_verification_requests.store': { paramsTuple?: []; params?: {} }
-    'api.email_verifications.show': { paramsTuple?: []; params?: {} }
-    'api.email_verifications.update': { paramsTuple?: []; params?: {} }
     'api.session.destroy': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.member_sign_in_tracking.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -52,8 +52,8 @@ export type ScannedRoutes = {
     'api.admission_rejections.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.admission_revocations.store': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.memberships.store': { paramsTuple?: []; params?: {} }
-    'api.member_resource_links.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.member_resource_links.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_resource_link.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_resource_link.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
     'api.masquerade.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.masquerade.destroy': { paramsTuple?: []; params?: {} }
     'api.masquerade.show': { paramsTuple?: []; params?: {} }
@@ -69,7 +69,7 @@ export type ScannedRoutes = {
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
     'api.company_state.show': { paramsTuple?: []; params?: {} }
-    'api.company_exports.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.company_export.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.getting_started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.session.show': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -89,7 +89,7 @@ export type ScannedRoutes = {
     'api.planning_archive.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
     'api.company_state.show': { paramsTuple?: []; params?: {} }
-    'api.company_exports.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.company_export.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.getting_started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.session.show': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -114,15 +114,15 @@ export type ScannedRoutes = {
     'api.example_data.store': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.new_account.store': { paramsTuple?: []; params?: {} }
     'api.session.store': { paramsTuple?: []; params?: {} }
-    'api.password_confirmations.store': { paramsTuple?: []; params?: {} }
     'api.password_reset_requests.store': { paramsTuple?: []; params?: {} }
     'api.password_resets.show': { paramsTuple?: []; params?: {} }
     'api.password_resets.update': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.show': { paramsTuple?: []; params?: {} }
+    'api.email_verifications.update': { paramsTuple?: []; params?: {} }
+    'api.password_confirmations.store': { paramsTuple?: []; params?: {} }
     'api.password.update': { paramsTuple?: []; params?: {} }
     'api.account.destroy': { paramsTuple?: []; params?: {} }
     'api.email_verification_requests.store': { paramsTuple?: []; params?: {} }
-    'api.email_verifications.show': { paramsTuple?: []; params?: {} }
-    'api.email_verifications.update': { paramsTuple?: []; params?: {} }
     'api.session.destroy': { paramsTuple?: []; params?: {} }
     'api.invitations.store': { paramsTuple?: []; params?: {} }
     'api.invitation_deliveries.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
@@ -138,7 +138,7 @@ export type ScannedRoutes = {
   PUT: {
     'api.getting_started.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.member_sign_in_tracking.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.member_resource_links.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_resource_link.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
   }
   PATCH: {
     'api.members.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
@@ -146,7 +146,7 @@ export type ScannedRoutes = {
   }
   DELETE: {
     'api.invitations.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.member_resource_links.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_resource_link.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
     'api.masquerade.destroy': { paramsTuple?: []; params?: {} }
   }
 }

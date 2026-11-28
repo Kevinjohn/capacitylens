@@ -44,7 +44,12 @@ export class ExampleDataService {
    * Adds the example company's rows to a company that has no people, clients, projects or
    * allocations, records the audit entry and advances the planning revision. Returns the row count.
    */
-  async addExampleData(trx: TransactionClientContract, companyId: string, actorId: string) {
+  async addExampleData(
+    trx: TransactionClientContract,
+    companyId: string,
+    actorId: string,
+    requestLogger: Pick<typeof logger, 'warn'> = logger
+  ) {
     const state = await this.#stateRepository.readStateWithClient(trx, companyId, true)
     const company = state.companies.at(0)
     if (!company) throw new EntityNotFoundException('Company not found.')
@@ -59,7 +64,7 @@ export class ExampleDataService {
     const today = resolveCalendarToday(company.timezone ?? undefined)
     if (today.kind === 'invalid-time-zone') {
       // The example still lands around the server's local date; the operator log names the zone.
-      logger.warn(
+      requestLogger.warn(
         { timeZone: today.timeZone, err: today.cause },
         'Example data used the local date because the company time zone is invalid'
       )

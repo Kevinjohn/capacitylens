@@ -35,7 +35,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   gate["AuthProvider renders AccessScreen with the confirmation gate"] --> send["authApi.sendEmailVerification calls EmailVerificationRequestsController.store"]
-  send --> check["EmailVerificationRequestsController.store checks mail setup and verifies the account through readCurrentAccount(auth)"]
+  send --> check["EmailVerificationRequestsController.store checks mail setup and reads the signed-in account through auth.use(web).getUserOrFail()"]
   check -->|Mail configured and account verified| kitMail["Account Kit issues and sends the verification link"]
   check -->|Mail unavailable| admin
   check -->|Session refused| sendError
@@ -58,4 +58,4 @@ flowchart TD
 
 See [Signed-in requests](../REFERENCE.md#signed-in-requests) for the raw guard and account check used to send the link.
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L257) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L115) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L37) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L66) · [email_verification_requests_controller.ts](../../apps/backend/app/controllers/email_verification_requests_controller.ts#L18) · [email_verifications_controller.ts](../../apps/backend/app/controllers/email_verifications_controller.ts#L14) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L296)
+**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx#L257) · [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx#L115) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L37) · [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx#L66) · [email_verification_requests_controller.ts](../../apps/backend/app/controllers/email_verification_requests_controller.ts#L14) · [email_verifications_controller.ts](../../apps/backend/app/controllers/email_verifications_controller.ts#L14) · [admission.spec.ts](../../apps/backend/tests/functional/auth/admission.spec.ts#L296)

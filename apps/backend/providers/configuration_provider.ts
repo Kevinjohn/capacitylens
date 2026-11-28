@@ -89,11 +89,7 @@ export default class ConfigurationProvider {
         ['Request receipt pruning', () => storageMaintenance.pruneRequestReceipts()],
         ['Masquerade pruning', () => storageMaintenance.pruneExpiredMasquerades(this.app)],
       ],
-      (task, error) =>
-        logger.error(
-          { task, errorName: error instanceof Error ? error.name : 'unknown' },
-          `${task} failed`
-        )
+      (task, error) => logger.error({ task, err: error }, `${task} failed`)
     )
     // A pass still in flight would reopen the database after shutdown closed it.
     this.app.terminating(() => maintenance.stop())

@@ -1,26 +1,11 @@
 import { ProjectSchema } from '#database/schema'
-import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm'
+import { compose } from '@adonisjs/core/helpers'
+import { column } from '@adonisjs/lucid/orm'
 import { booleanColumn, timestampColumn } from '#services/models/scalar_column'
 import type { DateTime } from 'luxon'
-import { CompanyScope, requireRowCompany } from '#services/models/scoped_model'
-import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
+import { withCompanyScope } from '#services/models/scoped_model'
 /** A company-scoped project; `isPrivate` protects its name in member projections. */
-export default class Project extends ProjectSchema {
-  static forCompany = CompanyScope.forCompany
-  static selfAssignPrimaryKey = true
-  @beforeFind()
-  static requireFindScope(query: ModelQueryBuilderContract<typeof Project>) {
-    CompanyScope.requireCompanyScope(query)
-  }
-  @beforeFetch()
-  static requireFetchScope(query: ModelQueryBuilderContract<typeof Project>) {
-    CompanyScope.requireCompanyScope(query)
-  }
-  @beforeSave()
-  @beforeDelete()
-  static requireWriteScope(row: Project) {
-    requireRowCompany(row)
-  }
+export default class Project extends compose(ProjectSchema, withCompanyScope) {
   @column(booleanColumn('projects', 'is_private'))
   declare isPrivate: boolean | null
 

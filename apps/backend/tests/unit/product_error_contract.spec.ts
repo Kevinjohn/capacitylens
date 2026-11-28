@@ -583,8 +583,8 @@ test.group('product error adapters', () => {
   const routeNames = [
     'api.companies.index',
     'api.planning.show',
-    'api.member_resource_links.update',
-    'api.company_exports.show',
+    'api.member_resource_link.update',
+    'api.company_export.show',
   ]
   /** Answers `error` on every route name and returns the one status and body they share. */
   async function answerOnEveryRoute(error: () => unknown) {
