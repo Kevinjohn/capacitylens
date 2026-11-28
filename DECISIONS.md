@@ -317,13 +317,13 @@ removed entry retires its number.
    date-time format drops milliseconds, and `updatedAt` is an edit token compared for equality.
    Flags keep `booleanColumn` because the SQLite driver reads them back as 0 and 1. Soft-delete
    markers use the package's own Lucid column and format (#2442).
-5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
-   framework's names.
+5. Retired. Product environment variables sharing one prefix and framework variables keeping the
+   framework's names follows the checklist (CFG-9).
 6. The backend serves the SPA with the product security headers and a history fallback rather than
    a separate static-file proxy.
-7. The SQLite pool is one connection, configured when it is created. A mutating service receives
-   its transaction as a method argument. Network, mail and password hashing stay outside
-   transactions.
+7. Retired. Single-connection SQLite is recorded under Data and company separation; passing
+   transactions explicitly (DB-3) and keeping network, mail and password hashing outside
+   transactions (DB-5) follow the checklist.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
 9. Retired. See Browser data.
 10. Retired (#2458). Product services are container-resolved `*Service` classes.
@@ -335,23 +335,23 @@ removed entry retires its number.
 14. Retired. See Data design.
 15. The Node server is created by `bin/server.ts` with fixed connection limits, and a
     client-supplied request id is discarded (`start/resource_limits.ts`).
-16. The backend's runtime framework packages are pinned to exact versions; it is not published.
+16. Retired. Exact dependency versions in a private application are not a departure (PKG-7
+    applies to published packages).
 17. Every database test group starts from wipe and migrate. Groups that send no HTTP request and
     never reach Account Kit then run each test inside a global transaction; the rest reset rows
     through fixture helpers, because Account Kit refuses a connection already in a transaction and
     the rate limiter's database store waits for the one pooled connection the transaction holds.
 18. Retired. One routes file per area is not a departure, and formatting belongs to the
     Prettier configuration.
-19. The exception handler shows debug output in development only (`debug = app.inDev`), so the
-    test environment answers with the same error bodies as production.
-20. A type used by one file stays in it. A type shared across files goes in the feature's
-    `types.ts` or `app/types/`; there is no `types/` folder for every declaration.
+19. Retired (#2613). The exception handler uses `protected debug = !app.inProduction` (EXC-3).
+20. Retired. Keeping single-file types in-file and shared types beside their feature is not a
+    departure.
 21. Before the first release the migrations are edited in place: no installed database exists,
     and the alpha tags that carried them do not make them released (#2345 decision D4). Released
     migrations are append-only. Production refuses rollbacks (`disableRollbacksInProduction`).
-22. A validator reads one request source: the body for a write and the query string for a read,
-    passed as `validateUsing(validator, { data })`. It never validates the merged `request.all()`,
-    so a credential is never accepted from a URL.
+22. Credential and bearer-token routes read the request body alone via
+    `validateUsing(validator, { data })`, so passwords and tokens are never accepted from a URL
+    query string; all other routes use `request.validateUsing(validator)` (#2614).
 23. Operator commands are tested by starting the CLI in its own process, with its own database
     file, environment and exit code, because their lock and exit-code contract is a process
     boundary. They are not tested in process with `ace.create`.
@@ -402,11 +402,13 @@ removed entry retires its number.
     `config/mail.ts` passes when the file is imported, a call that neither the container `swap`
     nor `mail.fake()` can observe (#2572).
 
-41. `config/masquerade.ts` resolves `lucid.db`, and `providers/backup_provider.ts` resolves
+41. **Aligning (Kevinjohn/oss-adonisjs-masquerade#527, Kevinjohn/oss-adonisjs-sqlite-backup#154).**
+    `config/masquerade.ts` resolves `lucid.db`, and `providers/backup_provider.ts` resolves
     `sqlite.backup`, from the container instead of importing their `services` modules (IMP-6). The
     masquerade package opens its store while providers boot, before the `db` service import
     resolves, and the backup provider's tests bind a fake backup in the container.
-42. Tests replace methods of the Account Kit, confirm-action and masquerade services by assignment
+42. **Aligning (Kevinjohn/oss-adonisjs-account-kit#1069, Kevinjohn/oss-adonisjs-confirm-action-with-password#122, Kevinjohn/oss-adonisjs-masquerade#527).**
+    Tests replace methods of the Account Kit, confirm-action and masquerade services by assignment
     and restore them in `finally` (SVC-4, TST-9), because those packages resolve their services once
     at boot and controllers import them directly, so a container `swap` does not reach them. This
     covers `tests/functional/auth/masquerade.spec.ts`, `authentication_events.spec.ts`,
@@ -422,10 +424,8 @@ removed entry retires its number.
 46. **Aligning (Kevinjohn/oss-adonisjs-masquerade#501).** Routes are marked for view-as mode with
     the masquerade package's `sensitive()` marker inside `.use(...)`, not a named middleware
     (RTE-5).
-47. `config/logger.ts` imports the `err` serializer's dependencies from the application
-    (`#exceptions/unexpected_exception`, `#services/logging_safety`) (CFG-4): Pino serializers are
-    part of the logger configuration, and the error classification they use is shared with the
-    services that report failures.
+47. Retired (#2615). `config/logger.ts` owns its error-sanitising helpers and matches unexpected
+    exceptions by symbol without importing application code (CFG-4).
 
 ## Installation
 

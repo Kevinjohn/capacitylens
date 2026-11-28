@@ -4,7 +4,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { MemberResourceLinkService } from '#services/member_resources/member_resource_link_service'
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resource'
 import { AccountOperationService } from '#services/account_operation_service'
-import { requestData } from '#validators/request_rules'
 
 /** Scoped member/person association. */
 @inject()
@@ -24,9 +23,7 @@ export default class MemberResourceLinkController {
   }
 
   async update({ auth, request, serialize }: HttpContext) {
-    const { params, headers, ...body } = await request.validateUsing(setLinkValidator, {
-      data: requestData(request, request.body()),
-    })
+    const { params, headers, ...body } = await request.validateUsing(setLinkValidator)
     const command = this.#accountOperations.resolveAccountOperation(
       headers['x-account-operation-id'],
       headers['idempotency-key']
@@ -52,9 +49,7 @@ export default class MemberResourceLinkController {
   }
 
   async destroy({ auth, request, response }: HttpContext) {
-    const { params, headers, ...body } = await request.validateUsing(clearLinkValidator, {
-      data: requestData(request, request.body()),
-    })
+    const { params, headers, ...body } = await request.validateUsing(clearLinkValidator)
     const command = this.#accountOperations.resolveAccountOperation(
       headers['x-account-operation-id'],
       headers['idempotency-key']

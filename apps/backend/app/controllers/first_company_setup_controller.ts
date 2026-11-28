@@ -30,9 +30,7 @@ export default class FirstCompanySetupController {
   }
 
   async store({ auth, request, response, serialize }: HttpContext) {
-    const body = await request.validateUsing(createFirstCompanyValidator, {
-      data: request.body(),
-    })
+    const body = await request.validateUsing(createFirstCompanyValidator)
     const input = this.#firstCompanySetup.parseFirstCompanyInput(body)
     if (input === null) {
       throw new ValidationRefusalException(firstCompanySetupMessage)

@@ -4,6 +4,18 @@ import loggerConfig from '#config/logger'
 import PlanningController from '#controllers/planning_controller'
 import HttpExceptionHandler from '#exceptions/handler'
 
+/** Runs `run` with `app.inProduction` set, where a 500 answers with its fixed sentence. */
+export async function inProduction<T>(run: () => Promise<T>): Promise<T> {
+  const descriptor = Object.getOwnPropertyDescriptor(app, 'inProduction')
+  Object.defineProperty(app, 'inProduction', { configurable: true, value: true })
+  try {
+    return await run()
+  } finally {
+    if (descriptor) Object.defineProperty(app, 'inProduction', descriptor)
+    else Reflect.deleteProperty(app, 'inProduction')
+  }
+}
+
 /** The `err` field as the logger writes it. */
 export const serializeErr = (error: unknown) => loggerConfig.loggers.app.serializers!.err!(error)
 
@@ -51,7 +63,10 @@ export function context(error: unknown, routeName?: string) {
         id: () => undefined,
         accepts: () => 'json',
         qs: () => ({}),
-        // The planning read's first step reads the route parameters; that is where `error` is thrown.
+        // The planning read's first step validates the request; that is where `error` is thrown.
+        validateUsing() {
+          throw error
+        },
         params() {
           throw error
         },

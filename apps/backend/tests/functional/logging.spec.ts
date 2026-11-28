@@ -336,10 +336,6 @@ test.group('general HTTP logging privacy', (group) => {
       )
       assert.notInclude(captured.output, privateError)
       assert.equal(captured.result.status(), 500)
-      assert.deepEqual(captured.result.body(), {
-        error: 'Internal server error.',
-        code: 'E_INTERNAL_SERVER_ERROR',
-      })
       assert.include(captured.output, 'GET')
       assert.include(captured.output, '/api/v1/state')
       assert.include(captured.output, '500')

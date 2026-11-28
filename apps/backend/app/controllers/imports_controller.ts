@@ -24,9 +24,7 @@ export default class ImportsController {
   }
 
   async store({ auth, request, response, serialize }: HttpContext) {
-    const body = await request.validateUsing(applyImportValidator, {
-      data: request.body(),
-    })
+    const body = await request.validateUsing(applyImportValidator)
     const { companyId, baseRevision, confirmationId = '' } = body
     const document = this.#companyImports.parseRequestDocument(body.document)
     if (!document) return response.badRequest({ error: 'Invalid beta import request.' })

@@ -22,7 +22,7 @@ export default class AdmissionRequestsController {
   }
 
   async index({ auth, request, serialize }: HttpContext) {
-    const query = await request.validateUsing(admissionQueryValidator, { data: request.qs() })
+    const query = await request.validateUsing(admissionQueryValidator)
     const { status, cursor } = query
     const actor = auth.getUserOrFail()
     const page = await this.#admission.list({ actorId: actor.id, status, cursor, limit: 100 })

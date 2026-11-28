@@ -23,9 +23,7 @@ export default class ImportPreviewsController {
   }
 
   async store({ auth, request, serialize }: HttpContext) {
-    const body = await request.validateUsing(previewImportValidator, {
-      data: request.body(),
-    })
+    const body = await request.validateUsing(previewImportValidator)
     const companyId = body.companyId
     // The preview names why a document is refused, so the browser never validates it itself.
     const document = this.#companyImports.readRequestDocument(body.document)

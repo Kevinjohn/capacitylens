@@ -118,13 +118,13 @@ test.group('private diagnostics', () => {
   })
 
   for (const environment of ['development', 'test', 'production'] as const) {
-    test(`unexpected failures expose details only in development: ${environment}`, async ({
+    test(`unexpected failures expose details outside production: ${environment}`, async ({
       assert,
     }) => {
-      const descriptor = Object.getOwnPropertyDescriptor(app, 'inDev')
-      Object.defineProperty(app, 'inDev', {
+      const descriptor = Object.getOwnPropertyDescriptor(app, 'inProduction')
+      Object.defineProperty(app, 'inProduction', {
         configurable: true,
-        value: environment === 'development',
+        value: environment === 'production',
       })
       const failure = new Error('PRIVATE_UNEXPECTED_MESSAGE')
       let body: unknown
@@ -144,13 +144,13 @@ test.group('private diagnostics', () => {
         await new HttpExceptionHandler().handle(failure, ctx)
         assert.deepEqual(
           body,
-          environment === 'development'
-            ? { error: failure.message, stack: failure.stack }
-            : { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' }
+          environment === 'production'
+            ? { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' }
+            : { error: failure.message, stack: failure.stack }
         )
       } finally {
-        if (descriptor) Object.defineProperty(app, 'inDev', descriptor)
-        else Reflect.deleteProperty(app, 'inDev')
+        if (descriptor) Object.defineProperty(app, 'inProduction', descriptor)
+        else Reflect.deleteProperty(app, 'inProduction')
       }
     })
   }

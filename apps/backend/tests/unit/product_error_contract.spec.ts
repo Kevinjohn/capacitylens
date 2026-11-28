@@ -66,6 +66,7 @@ import {
   answeredThrown,
   answerOnPlanning,
   context,
+  inProduction,
   routeValidationAnswer,
   serializeErr,
 } from '#tests/helpers/unit/error_answers'
@@ -522,7 +523,10 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'database constraint',
-    () => answered(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' })),
+    () =>
+      inProduction(() =>
+        answered(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' }))
+      ),
     500,
     { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' },
   ],
@@ -703,8 +707,10 @@ test.group('product error adapters', () => {
       payload: 'SENTINEL_PAYLOAD',
     })
     const { ctx, result, diagnostics } = context(error)
-    await new HttpExceptionHandler().handle(error, ctx)
-    await new HttpExceptionHandler().report(error, ctx)
+    await inProduction(async () => {
+      await new HttpExceptionHandler().handle(error, ctx)
+      await new HttpExceptionHandler().report(error, ctx)
+    })
     assert.equal(result.status, 500)
     assert.deepEqual(result.body, {
       error: 'Internal server error.',

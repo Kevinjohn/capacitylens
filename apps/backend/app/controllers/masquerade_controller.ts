@@ -32,9 +32,7 @@ export default class MasqueradeController {
   }
 
   async store({ request, serialize }: HttpContext) {
-    const body = await request.validateUsing(startMasqueradeValidator, {
-      data: requestData(request, request.body()),
-    })
+    const body = await request.validateUsing(startMasqueradeValidator)
     const { companyId } = body.params
     const started = await this.#masqueradeControl.startMasquerade(
       body.targetUserId,
@@ -48,9 +46,7 @@ export default class MasqueradeController {
   }
 
   async show({ auth, request, session, serialize }: HttpContext) {
-    const { companyId } = await request.validateUsing(showMasqueradeValidator, {
-      data: request.qs(),
-    })
+    const { companyId } = await request.validateUsing(showMasqueradeValidator)
     try {
       const signIn = await this.#currentActor.getSignedInSession(auth, session)
       if (!signIn) return serialize({ active: false as const, masqueradeToken: null })
