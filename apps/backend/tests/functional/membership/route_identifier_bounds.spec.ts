@@ -33,7 +33,7 @@ test.group('company route identifier bounds', (group) => {
         .visit('api.members.update', { companyId: 'a-studio', userId: tooLong })
         .json({ role: 'editor' }),
       client
-        .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: tooLong })
+        .visit('api.member_resource_link.update', { companyId: 'a-studio', userId: tooLong })
         .json({} as never),
       client
         .visit('api.resource_anonymisations.store', { companyId: 'a-studio', id: 'a'.repeat(129) })
@@ -77,13 +77,13 @@ test.group('company route identifier bounds', (group) => {
       ],
       [
         client
-          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: 'bad.id' })
+          .visit('api.member_resource_link.update', { companyId: 'a-studio', userId: 'bad.id' })
           .json({ resourceId: 'r-1', expectedRevision: null }),
         'userId',
       ],
       [
         client
-          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: 'bad.id' })
+          .visit('api.member_resource_link.destroy', { companyId: 'a-studio', userId: 'bad.id' })
           .json({ expectedRevision: '1' }),
         'userId',
       ],

@@ -33,7 +33,7 @@ flowchart TD
   route -->|Denied| redirect["Replace route with the root"]
   route -->|Allowed| page["DiagnosticsView calls useDiagnosticsViewModel"]
   page --> request["Send authenticated diagnostics read"]
-  request --> gate["Diagnostics routes require account admission and asMemberOnly blocks view-as reads"]
+  request --> gate["Diagnostics routes require account admission and sensitive() blocks view-as reads"]
   gate -->|Allowed| authorize["DiagnosticsController checks live Owner or Admin via withActor(auth)"]
   gate -->|Refused| fallback
   authorize -->|Allowed| response["Read permitted server facts"]
