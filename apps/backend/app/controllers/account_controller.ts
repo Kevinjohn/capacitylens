@@ -7,7 +7,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import AccountDeletionCommittedException from '#exceptions/account_deletion_committed_exception'
 import CurrentPasswordIncorrectException from '#exceptions/current_password_incorrect_exception'
-import { deleteAccountValidator } from '#validators/credentials'
+import { deleteAccountValidator } from '#validators/credential'
 
 /** The signed-in identity's own account. */
 export default class AccountController {

@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
-import { admissionQueryValidator } from '#validators/admission_query'
+import { admissionQueryValidator } from '#validators/admission'
 
 /**
  * The caller's own admission request, reachable before admission, and the requests an Owner or

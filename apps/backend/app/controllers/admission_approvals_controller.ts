@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { AdmissionDecisionService } from '#services/admission/admission_decision_service'
-import { decideAdmissionValidator } from '#validators/admission_query'
+import { decideAdmissionValidator } from '#validators/admission'
 import { requestData } from '#validators/request_rules'
 
 /**

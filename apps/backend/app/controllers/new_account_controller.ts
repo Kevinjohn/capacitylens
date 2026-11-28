@@ -10,7 +10,7 @@ import EmailInUseException from '#exceptions/email_in_use_exception'
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception'
 import SignUpClosedException from '#exceptions/sign_up_closed_exception'
 import { PasswordSignInService } from '#services/auth/password_sign_in_service'
-import { signUpValidator } from '#validators/auth_requests'
+import { signUpValidator } from '#validators/auth'
 import { requestData } from '#validators/request_rules'
 import { InstallationCompanyService } from '#services/installation_company_service'
 

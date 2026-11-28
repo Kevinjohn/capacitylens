@@ -6,7 +6,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import CredentialUpdateCommittedException from '#exceptions/credential_update_committed_exception'
 import CurrentPasswordIncorrectException from '#exceptions/current_password_incorrect_exception'
-import { changePasswordValidator } from '#validators/credentials'
+import { changePasswordValidator } from '#validators/credential'
 
 /** The signed-in identity's password. */
 export default class PasswordController {

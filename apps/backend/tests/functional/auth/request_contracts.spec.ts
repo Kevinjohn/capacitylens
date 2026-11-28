@@ -1,5 +1,5 @@
 import { planningMutationValidator } from '#validators/planning'
-import { signUpValidator } from '#validators/auth_requests'
+import { signUpValidator } from '#validators/auth'
 import { AccountUserService } from '#services/account_kit/account_user_service'
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
