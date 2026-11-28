@@ -107,7 +107,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: internal.id },
     })
     assert.equal(protectedArchive.status, 409)
-    assert.isUndefined(protectedArchive.code)
+    assert.equal(protectedArchive.code, 'E_PLANNING_CONFLICT')
 
     await executeInStudio({
       operation: 'catalogue.archive',
