@@ -33,7 +33,7 @@ flowchart TD
   route -->|Denied| redirect["Replace route with the root"]
   route -->|Allowed| page["DiagnosticsView calls useDiagnosticsViewModel"]
   page --> request["Send authenticated diagnostics read"]
-  request --> gate["Diagnostics routes require account admission and asMemberOnly blocks view-as reads"]
+  request --> gate["Diagnostics routes require account admission and sensitive() blocks view-as reads"]
   gate -->|Allowed| authorize["DiagnosticsController checks live Owner or Admin via withActor(auth)"]
   gate -->|Refused| fallback
   authorize -->|Allowed| response["Read permitted server facts"]
@@ -48,4 +48,4 @@ flowchart TD
   copy -->|Unavailable or failed| retry["Show copy failure and retain the control"]
 ```
 
-**Code references:** [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx#L50) · [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts#L158) · [buildPaletteItems.ts](../../apps/frontend/src/components/buildPaletteItems.ts#L88) · [router.tsx](../../apps/frontend/src/router.tsx#L144) · [DiagnosticsView.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsView.tsx#L9) · [useDiagnosticsViewModel.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsViewModel.ts#L15) · [diagnostics.ts](../../apps/backend/start/routes/diagnostics.ts#L11) · [diagnostics_controller.ts](../../apps/backend/app/controllers/diagnostics_controller.ts#L10) · [serverDiagnostics.ts](../../apps/frontend/src/data/serverDiagnostics.ts#L17) · [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts#L160)
+**Code references:** [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx#L50) · [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts#L158) · [buildPaletteItems.ts](../../apps/frontend/src/components/buildPaletteItems.ts#L88) · [router.tsx](../../apps/frontend/src/router.tsx#L144) · [DiagnosticsView.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsView.tsx#L9) · [useDiagnosticsViewModel.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsViewModel.ts#L15) · [diagnostics.ts](../../apps/backend/start/routes/diagnostics.ts#L11) · [diagnostics_controller.ts](../../apps/backend/app/controllers/diagnostics_controller.ts#L9) · [serverDiagnostics.ts](../../apps/frontend/src/data/serverDiagnostics.ts#L17) · [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts#L160)

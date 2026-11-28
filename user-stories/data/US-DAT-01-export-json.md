@@ -28,7 +28,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   entry["Export JSON in ImportExport calls useExportOperation.exportData"] --> request["Request the active company's server export"]
-  request --> scope["CompanyExportsController.show uses withActor and resolvePlanningAccess"]
+  request --> scope["CompanyExportController.show uses withActor and resolvePlanningAccess"]
   scope -->|Verified effective reader| read["Read scoped rows in the transaction; members:manage includes inactive rows"]
   read --> exportDoc["transformState projects private fields; serialize version 2 as full for Owner or redacted for other roles"]
   exportDoc --> download["downloadTextFile saves capacitylens-data.json"]
@@ -38,4 +38,4 @@ flowchart TD
   download -->|Download failure| error
 ```
 
-**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts#L17) · [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts#L35) · [export.ts](../../apps/backend/start/routes/export.ts#L13) · [state_repository_service.ts](../../apps/backend/app/services/state_repository_service.ts#L27) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L14) · [company_export.spec.ts](../../apps/backend/tests/functional/company_export.spec.ts#L40) · [planning_access_service.ts](../../apps/backend/app/services/planning/planning_access_service.ts#L31)
+**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts#L17) · [company_exports_controller.ts](../../apps/backend/app/controllers/company_export_controller.ts#L35) · [export.ts](../../apps/backend/start/routes/export.ts#L12) · [state_repository_service.ts](../../apps/backend/app/services/state_repository_service.ts#L27) · [companyExport.ts](../../packages/shared/src/data/companyExport.ts#L14) · [company_export.spec.ts](../../apps/backend/tests/functional/company_export.spec.ts#L40) · [planning_access_service.ts](../../apps/backend/app/services/planning/planning_access_service.ts#L31)
