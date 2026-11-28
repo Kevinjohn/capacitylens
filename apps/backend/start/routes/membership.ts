@@ -10,9 +10,12 @@ router
   .group(() => {
     router
       .group(() => {
-        router.get('/members', [controllers.Members, 'index']).use(sensitive())
+        router
+          .resource('members', controllers.Members)
+          .only(['index', 'update'])
+          .params({ members: 'userId' })
+          .use('index', sensitive())
         router.put('/member-sign-in-tracking', [controllers.MemberSignInTracking, 'update'])
-        router.patch('/members/:userId', [controllers.Members, 'update'])
         router.patch('/members/:userId/status', [controllers.MemberStatus, 'update'])
       })
       .prefix('/companies/:companyId')

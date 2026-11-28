@@ -161,7 +161,7 @@ describe('browser account api', () => {
       '/api/v1/invitations',
       '/api/v1/companies/company%20%2F%20one/invitations/invite%20%2F%20one',
     ])
-    const methods = ['PATCH', 'PATCH', 'POST', 'DELETE']
+    const methods = ['PUT', 'PATCH', 'POST', 'DELETE']
     methods.forEach((method, index) => expectPlainRequest(sent[index], method))
     expect(sent[0]?.body).toBe(JSON.stringify({ role: 'editor' }))
     expect(sent[1]?.body).toBe(JSON.stringify({ status: 'suspended' }))

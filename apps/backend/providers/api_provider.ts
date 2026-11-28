@@ -7,20 +7,35 @@ import type {
   PaginatorContract,
 } from '@adonisjs/core/types/transformers'
 
+type CursorPaginationMetaData = { nextCursor: string | null }
+type PaginationMetaData = SimplePaginatorMetaKeys | CursorPaginationMetaData
+
+function isCursorPaginationMetaData(value: unknown): value is CursorPaginationMetaData {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'nextCursor' in value &&
+    (value.nextCursor === null || typeof value.nextCursor === 'string')
+  )
+}
+
 /** Wraps every serialised answer in `data`, as the AdonisJS API starter kit does. */
 class ApiSerializer extends BaseSerializer<{
   Wrap: 'data'
-  PaginationMetaData: SimplePaginatorMetaKeys
+  PaginationMetaData: PaginationMetaData
 }> {
   wrap: 'data' = 'data'
 
-  definePaginationMetaData(metaData: unknown): SimplePaginatorMetaKeys {
-    if (!this.isLucidPaginatorMetaData(metaData)) {
-      throw new Error(
-        'Invalid pagination metadata. Expected metadata to contain Lucid pagination keys'
-      )
+  definePaginationMetaData(metaData: unknown): PaginationMetaData {
+    if (this.isLucidPaginatorMetaData(metaData)) {
+      return metaData as SimplePaginatorMetaKeys
     }
-    return metaData as SimplePaginatorMetaKeys
+    if (isCursorPaginationMetaData(metaData)) {
+      return metaData
+    }
+    throw new Error(
+      'Invalid pagination metadata. Expected metadata to contain Lucid or cursor pagination keys'
+    )
   }
 }
 

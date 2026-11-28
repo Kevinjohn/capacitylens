@@ -108,7 +108,7 @@ describe('requestApiResponse', () => {
         query: { companyId: 'wayne', includeInactive: '1' },
       })
       const [update, state] = requests
-      expect(update?.request.method).toBe('PATCH')
+      expect(update?.request.method).toBe('PUT')
       expect(new URL(update?.request.url ?? '').pathname).toBe(
         '/api/v1/companies/wayne/members/bruce'
       )

@@ -24,6 +24,11 @@ test.group('view-as route classification', () => {
     )
     assert.isAbove(memberRoutes.length, 0)
     for (const line of memberRoutes) assert.match(line, /\[BUSINESS (READ|MUTATION)\]$/)
+    // The resourceful member route answers PUT and PATCH; both are refused under view-as.
+    assert.include(
+      memberRoutes,
+      'PUT,PATCH /api/v1/companies/:companyId/members/:userId [BUSINESS MUTATION]'
+    )
   })
 
   test('own-account routes carry the account blocker, and only sign-out is exempt', async ({

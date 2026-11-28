@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
+import AdmissionRequestTransformer from '#transformers/admission_request_transformer'
 import { admissionQueryValidator } from '#validators/admission'
 
 /**
@@ -25,6 +26,8 @@ export default class AdmissionRequestsController {
     const { status, cursor } = query
     const actor = auth.getUserOrFail()
     const page = await this.#admission.list({ actorId: actor.id, status, cursor, limit: 100 })
-    return serialize(page)
+    return serialize(
+      AdmissionRequestTransformer.paginate(page.items, { nextCursor: page.nextCursor })
+    )
   }
 }

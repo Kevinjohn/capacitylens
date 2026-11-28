@@ -74,9 +74,11 @@ test.group('admission and membership completion', (group) => {
     )
     pending.assertStatus(200)
     assert.deepEqual(
-      pending.body().data.items.map((item: { userId: string }) => String(item.userId)),
+      pending.body().data.map((item: { userId: string }) => String(item.userId)),
       [userId]
     )
+    // The SPA reads the cursor from `metadata`; a single page ends with a null cursor.
+    assert.deepEqual(pending.body().metadata, { nextCursor: null })
     const approved = await as(ownerSession.cookie).post(
       api.visit('api.admission_approvals.store', { userId })
     )
