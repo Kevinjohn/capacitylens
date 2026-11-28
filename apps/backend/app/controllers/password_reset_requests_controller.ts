@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import { E_ACCOUNT_KIT_THROTTLED } from '@kevinjohn/adonisjs-account-kit/errors'
-import { requestResetValidator } from '#validators/credentials'
+import { requestResetValidator } from '#validators/credential'
 import { MailDeliveryService } from '#services/mail_delivery_service'
 
 /** Requests a password reset link by email. */

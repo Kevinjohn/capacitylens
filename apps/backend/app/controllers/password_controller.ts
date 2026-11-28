@@ -5,7 +5,7 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import { credentialUpdateCommitted } from '#exceptions/credential_answers'
-import { changePasswordValidator } from '#validators/credentials'
+import { changePasswordValidator } from '#validators/credential'
 
 /** The signed-in identity's password. */
 export default class PasswordController {

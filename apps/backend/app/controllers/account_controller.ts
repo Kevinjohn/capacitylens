@@ -6,7 +6,7 @@ import {
   E_ACCOUNT_KIT_IDENTITY_NOT_CONFIRMED,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors'
-import { deleteAccountValidator } from '#validators/credentials'
+import { deleteAccountValidator } from '#validators/credential'
 
 const deletionCommitted = {
   error: 'Your account was deleted, but a follow-up step failed. You are signed out.',
