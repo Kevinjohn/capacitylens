@@ -53,7 +53,6 @@ const initialMetadata = (context: PlanningSessionScope | null = null): PlanningC
   access: null,
   revision: null,
   today: null,
-  capacity: null,
   phase: context ? { kind: 'loading', lastWrite: null } : { kind: 'idle' },
   history: buildEmptyHistory(),
 })
@@ -196,7 +195,6 @@ export function createPlanningCache(options: PlanningCacheOptions) {
           access: older ? null : snapshot.access,
           revision: older ? null : snapshot.revision,
           today: older ? null : snapshot.today,
-          capacity: older ? null : snapshot.capacity,
           phase: older
             ? {
                 kind: 'failed',
@@ -241,7 +239,6 @@ export function createPlanningCache(options: PlanningCacheOptions) {
         access: snapshot.access,
         revision: snapshot.revision,
         today: snapshot.today,
-        capacity: snapshot.capacity,
         phase: phaseAfterRead(state.planning.phase),
         history,
       },
@@ -250,8 +247,8 @@ export function createPlanningCache(options: PlanningCacheOptions) {
   }
 
   /**
-   * Reads the canonical snapshot. A quiet read from a settled state, such as the one that follows
-   * a move of the capacity window, leaves a ready phase alone so writes stay allowed meanwhile. Any
+   * Reads the canonical snapshot. A quiet read from a settled state, such as the freshness check
+   * when the tab becomes visible, leaves a ready phase alone so writes stay allowed meanwhile. Any
    * other read shows as loading, except while a write is pending, when the phase stays writing.
    * A newer read aborts this one, and this one then resolves with the newer read's outcome.
    * A read names the revision the cache holds, unless `full` asks for the complete data.
@@ -291,9 +288,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
       })
     }
     try {
-      const window = options.readCapacityWindow?.()
       const snapshot = await transport.read(withMasqueradeToken(context), controller.signal, {
-        ...(window ? { window } : {}),
         historyId,
         ...(full || revision === null ? {} : { ifRevision: revision }),
       })

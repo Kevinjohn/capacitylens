@@ -1,6 +1,5 @@
 import { resetSchedulerView } from '@/store/storeConstants'
 import { readCurrentWeekAnchor } from './schedulerSlice'
-import { buildVisibleRange } from '@/store/selectors'
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError'
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation'
 import type { StateCreator } from 'zustand'
@@ -19,12 +18,16 @@ type PlanningSessionSlice = Pick<
   | 'planning'
   | 'sendPlanningIntent'
   | 'refreshPlanning'
+  | 'revalidatePlanning'
   | 'clearPlanning'
   | 'suspendPlanningIntents'
   | 'planningReadyForReplacement'
   | 'undoPlanning'
   | 'redoPlanning'
 >
+
+/** The shortest gap between two freshness checks of a ready planning view. */
+export const PLANNING_REVALIDATION_INTERVAL_MS = 30_000
 
 // Planning identity is page-local: sign-in and sign-out reload the page, and access changes
 // within it arrive through the transport's access key.
@@ -90,18 +93,13 @@ export function createPlanningSessionSlice(
       onAuthLoss: () => clearPrivatePlanning(true),
       confirmRestorationCleanup: requestRestorationCleanup,
       readMasqueradeToken: getMasqueradeToken,
-      // The grid holds a placeholder week until the first read anchors it, so that read asks for
-      // the server's default window, which is the anchored grid's window.
-      readCapacityWindow: () => {
-        if (get().planning.today === null) return undefined
-        const { start, end } = buildVisibleRange(get().ui)
-        return { from: start, to: end }
-      },
     })
     let tokenEpoch = 0
     let contextCompanyId: string | null = null
     const intentLocks = new Set<symbol>()
     let activeRead: { companyId: string; promise: Promise<boolean> } | null = null
+    // When the current context's last freshness check started; null before its first.
+    let lastRevalidation: number | null = null
     const syncContext = (companyId: string | null) => {
       const current = get().planning.context
       if (contextCompanyId === companyId && current?.companyId === (companyId ?? undefined)) return
@@ -109,6 +107,7 @@ export function createPlanningSessionSlice(
       tokenEpoch += 1
       intentLocks.clear()
       activeRead = null
+      lastRevalidation = null
       cache.setContext(companyId === null ? null : { identity: PAGE_IDENTITY, companyId })
     }
     const clearPrivatePlanning = (authLost = false) => {
@@ -153,28 +152,46 @@ export function createPlanningSessionSlice(
       return receipt
     }
 
+    const refreshPlanning: StoreState['refreshPlanning'] = (options) => {
+      const companyId = get().activeCompanyId
+      if (companyId === null) {
+        syncContext(null)
+        return Promise.resolve(false)
+      }
+      syncContext(companyId)
+      if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise
+      const promise = cache
+        .refresh({ quiet: options?.quiet === true })
+        .then(
+          (accepted) =>
+            accepted && get().activeCompanyId === companyId && contextCompanyId === companyId
+        )
+      activeRead = { companyId, promise }
+      void promise.finally(() => {
+        if (activeRead?.promise === promise) activeRead = null
+      })
+      return promise
+    }
+
     return {
       planning: createPlanningCacheState().planning,
       sendPlanningIntent: send,
-      refreshPlanning: (options) => {
-        const companyId = get().activeCompanyId
-        if (companyId === null) {
-          syncContext(null)
+      refreshPlanning,
+      // A ready view only checks its revision, quietly and not more often than the interval; the
+      // server then leaves the rows out unless another change was committed. A failed read is
+      // retried as before, so the read error clears once the server answers again.
+      revalidatePlanning: () => {
+        const { phase } = get().planning
+        if (phase.kind === 'failed') return refreshPlanning()
+        const now = Date.now()
+        if (
+          phase.kind !== 'ready' ||
+          (lastRevalidation !== null && now - lastRevalidation < PLANNING_REVALIDATION_INTERVAL_MS)
+        ) {
           return Promise.resolve(false)
         }
-        syncContext(companyId)
-        if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise
-        const promise = cache
-          .refresh({ quiet: options?.quiet === true })
-          .then(
-            (accepted) =>
-              accepted && get().activeCompanyId === companyId && contextCompanyId === companyId
-          )
-        activeRead = { companyId, promise }
-        void promise.finally(() => {
-          if (activeRead?.promise === promise) activeRead = null
-        })
-        return promise
+        lastRevalidation = now
+        return refreshPlanning({ quiet: true })
       },
       clearPlanning: () => clearPrivatePlanning(),
       suspendPlanningIntents: () => {

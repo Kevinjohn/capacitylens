@@ -1,5 +1,5 @@
 // The date ranges the scheduler and the Capacity Overview cover. The browser lays out its views with
-// them and the server computes the planning read's capacity section over the same ranges.
+// them and builds their capacity section over the same ranges.
 
 /** How many days the timeline spans forward from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120

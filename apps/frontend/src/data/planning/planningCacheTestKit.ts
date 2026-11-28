@@ -7,7 +7,6 @@ import { createPlanningCache, createPlanningCacheState } from './planningCache'
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes'
 import { getMasqueradeToken } from '@/api/masqueradeToken'
 import { makeCompany } from '@/test/fixtures'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makeReceipt } from '@/test/planning/makeReceipt'
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
@@ -44,7 +43,6 @@ export function createHarness(
     access: makePlanningAccess(),
     data: makeCanonicalData(),
     today: companyToday,
-    capacity: emptyCapacity(),
   }
   const history = createServerHistoryModel()
   const applyHistory = (snapshot: PlanningSnapshot, historyId: string | undefined) =>

@@ -28,7 +28,7 @@ As a company member, I want to compare available capacity across the selected we
 flowchart TD
   A["Authorized member opens Overview"]
   B["Member changes horizon or display controls"]
-  C["Table redraws locally from the capacity figures in the last planning read"]
+  C["Table redraws locally from capacity figures built from the last planning read"]
   D["Blocks mode: explanation appears instead of capacity figures"]
   A --> B
   B --> C
@@ -63,7 +63,7 @@ The horizon covers the remainder of the company week and subsequent full weeks. 
 
 - [router.tsx](../../apps/frontend/src/router.tsx#L120)
 - [planning_service.ts](../../apps/backend/app/services/planning_service.ts#L130)
-- [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L56)
+- [capacity.ts](../../packages/shared/src/lib/capacity.ts#L183)
 - [CapacityOverviewView.tsx](../../apps/frontend/src/components/capacity-overview/CapacityOverviewView.tsx#L17)
 - [capacityOverviewModel.ts](../../apps/frontend/src/components/capacity-overview/capacityOverviewModel.ts#L69)
 - [capacityOverviewModel.ts](../../apps/frontend/src/components/capacity-overview/capacityOverviewModel.ts#L207)

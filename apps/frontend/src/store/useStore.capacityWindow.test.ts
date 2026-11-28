@@ -1,112 +1,178 @@
-import { readPlanningError } from '@/data/planning/planningNotices'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
-import { useStore, WINDOW_READ_DELAY_MS } from './useStore'
+import { buildCapacitySection } from '@capacitylens/shared/lib/capacity'
+import { useStore } from './useStore'
+import { buildPlanningCapacity } from './planningCapacity'
+import { PLANNING_REVALIDATION_INTERVAL_MS } from './slices/planningSessionSlice'
 import { buildVisibleRange } from './selectors'
-import { makeCompany, makeAppData, resetStoreWithData } from '@/test/fixtures'
-import { getStubPlanningTransport } from '@/test/planningTransportHandle'
-import { capacityDays } from '@/test/capacityFixtures'
+import {
+  DEFAULT_COMPANY_ID,
+  makeActivity,
+  makeAllocation,
+  makeAppData,
+  makeResource,
+  resetStoreWithData,
+} from '@/test/fixtures'
+import {
+  getPlanningTransportHandle,
+  getStubPlanningTransport,
+} from '@/test/planningTransportHandle'
 
 const gridWindow = () => {
   const { start, end } = buildVisibleRange(useStore.getState().ui)
   return { from: start, to: end }
 }
 
-describe('planning read capacity window', () => {
+// One eight-hour weekday person, booked over capacity on Wednesday 3 June 2026.
+const seed = () =>
+  makeAppData({
+    resources: [makeResource({ companyId: DEFAULT_COMPANY_ID })],
+    activities: [makeActivity({ companyId: DEFAULT_COMPANY_ID })],
+    allocations: [
+      makeAllocation({
+        companyId: DEFAULT_COMPANY_ID,
+        startDate: '2026-06-03',
+        endDate: '2026-06-03',
+        hoursPerDay: 9,
+      }),
+    ],
+  })
+
+describe('planning capacity in the browser', () => {
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
-  it('asks for the default window until a read anchors the grid, then for the grid window', async () => {
-    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }))
+  it('moving and zooming a ready grid reads nothing and builds the figures for the new window', async () => {
+    await resetStoreWithData(seed())
     const transport = getStubPlanningTransport()
-    // The first read's anchoring moves the grid onto the server's default window, so no second read.
-    await Promise.resolve()
-    expect(transport.readWindows.length).toBeGreaterThan(0)
-    expect(transport.readWindows.every((window) => window === undefined)).toBe(true)
-    const anchoredReads = transport.readWindows.length
+    const reads = transport.reads.length
+    const before = buildPlanningCapacity(useStore.getState())
+    expect(before?.window).toEqual(gridWindow())
 
     useStore.getState().panDays(7)
-    await expect.poll(() => transport.readWindows.length).toBe(anchoredReads + 1)
-    expect(transport.readWindows.at(-1)).toEqual(gridWindow())
+    useStore.getState().setZoom(8)
+    useStore.getState().panDays(-14)
+    await new Promise((resolve) => setTimeout(resolve, 300))
 
-    await useStore.getState().refreshPlanning({ fresh: true })
-    expect(transport.readWindows.at(-1)).toEqual(gridWindow())
-  })
-
-  it('keeps the figures of the read it accepts', async () => {
-    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }))
-    const window = gridWindow()
-    const horizon = { from: window.from, to: addDaysISO(window.from, 6) }
-    const capacity = {
-      window,
-      horizon,
-      resources: {
-        'r-bruce': {
-          overSoon: true,
-          window: capacityDays(window, {}, { [window.from]: { allocated: 9, over: true } }),
-          horizon: capacityDays(horizon),
-        },
-      },
-    }
-    getStubPlanningTransport().setCapacity(capacity)
-
-    await useStore.getState().refreshPlanning({ fresh: true })
-
-    expect(useStore.getState().planning.capacity).toEqual(capacity)
-  })
-
-  it('reads once, for the last window, after several quick moves', async () => {
-    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }))
-    const transport = getStubPlanningTransport()
-    const reads = transport.readWindows.length
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-
-    useStore.getState().panDays(7)
-    useStore.getState().panDays(7)
-    useStore.getState().panDays(7)
-    await vi.advanceTimersByTimeAsync(WINDOW_READ_DELAY_MS - 1)
-    expect(transport.readWindows).toHaveLength(reads)
-    await vi.advanceTimersByTimeAsync(1)
-
-    expect(transport.readWindows).toHaveLength(reads + 1)
-    expect(transport.readWindows.at(-1)).toEqual(gridWindow())
-  })
-
-  it('keeps planning ready while the moved window is read', async () => {
-    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }))
-    const transport = getStubPlanningTransport()
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const release = transport.holdNextRead()
-    const reads = transport.readWindows.length
-
-    useStore.getState().panDays(7)
-    await vi.advanceTimersByTimeAsync(WINDOW_READ_DELAY_MS)
-    expect(transport.readWindows).toHaveLength(reads + 1)
+    expect(transport.reads).toHaveLength(reads)
     expect(useStore.getState().planning.phase.kind).toBe('ready')
-
-    release()
-    await vi.waitFor(() =>
-      expect(useStore.getState().planning.capacity?.window).toEqual(gridWindow())
+    const { data, planning } = useStore.getState()
+    const after = buildPlanningCapacity(useStore.getState())
+    expect(after?.window).toEqual(gridWindow())
+    expect(after).toEqual(
+      buildCapacitySection({
+        data,
+        company: data.companies[0],
+        today: planning.today ?? '',
+        window: gridWindow(),
+      })
     )
   })
 
-  it('reads the moved window during a read in flight, which then resolves with the newer read', async () => {
-    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }))
-    const transport = getStubPlanningTransport()
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const release = transport.holdNextRead()
-    const first = useStore.getState().refreshPlanning({ fresh: true })
-    const reads = transport.readWindows.length
-
+  it('returns the same figures while nothing they depend on changes', async () => {
+    await resetStoreWithData(seed())
+    const first = buildPlanningCapacity(useStore.getState())
+    useStore.getState().setNotice('Unrelated', 'info')
+    expect(buildPlanningCapacity(useStore.getState())).toBe(first)
     useStore.getState().panDays(7)
-    await vi.advanceTimersByTimeAsync(WINDOW_READ_DELAY_MS)
-    expect(transport.readWindows).toHaveLength(reads + 1)
-    expect(transport.readWindows.at(-1)).toEqual(gridWindow())
+    expect(buildPlanningCapacity(useStore.getState())).not.toBe(first)
+  })
 
+  it('has no figures before a read has supplied the company date', () => {
+    expect(
+      buildPlanningCapacity({
+        ...useStore.getState(),
+        planning: { ...useStore.getState().planning, today: null },
+      })
+    ).toBeNull()
+  })
+})
+
+describe('planning freshness check', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('names the held revision and keeps the rows when nothing changed, at most once per interval', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    await resetStoreWithData(seed())
+    const transport = getStubPlanningTransport()
+    const rows = useStore.getState().data
+    const reads = transport.reads.length
+
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(true)
+    expect(transport.reads).toHaveLength(reads + 1)
+    expect(transport.reads.at(-1)?.ifRevision).toBe(useStore.getState().planning.revision)
+    expect(useStore.getState().data).toBe(rows)
+
+    vi.advanceTimersByTime(PLANNING_REVALIDATION_INTERVAL_MS - 1)
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(false)
+    expect(transport.reads).toHaveLength(reads + 1)
+
+    vi.advanceTimersByTime(1)
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(true)
+    expect(transport.reads).toHaveLength(reads + 2)
+  })
+
+  it("takes another member's committed change", async () => {
+    await resetStoreWithData(seed())
+    const transport = getStubPlanningTransport()
+    const revision = useStore.getState().planning.revision
+    const changed = seed()
+    changed.allocations = changed.allocations.map((row) => ({ ...row, hoursPerDay: 4 }))
+    transport.updateSource(changed)
+
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(true)
+
+    expect(transport.reads.at(-1)?.ifRevision).toBe(revision)
+    expect(useStore.getState().planning.revision).toBe((revision ?? 0) + 1)
+    expect(useStore.getState().data.allocations[0]?.hoursPerDay).toBe(4)
+    const capacity = buildPlanningCapacity(useStore.getState())
+    expect(capacity?.resources['r1']?.window.over).not.toContain(true)
+  })
+
+  it('takes a new company date and rebuilds the figures from it', async () => {
+    await resetStoreWithData(seed())
+    const transport = getStubPlanningTransport()
+    transport.setToday('2026-06-02')
+    await useStore.getState().refreshPlanning({ fresh: true })
+    expect(buildPlanningCapacity(useStore.getState())?.resources['r1']?.overSoon).toBe(true)
+
+    // The day after the over-capacity day rolls it out of the two weeks from today.
+    transport.setToday('2026-06-04')
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(true)
+
+    expect(transport.reads.at(-1)?.ifRevision).toBe(useStore.getState().planning.revision)
+    expect(useStore.getState().planning.today).toBe('2026-06-04')
+    const capacity = buildPlanningCapacity(useStore.getState())
+    expect(capacity?.horizon.from).toBe('2026-06-04')
+    expect(capacity?.resources['r1']?.overSoon).toBe(false)
+  })
+
+  it('reads nothing while a read or write is in flight', async () => {
+    await resetStoreWithData(seed())
+    const transport = getStubPlanningTransport()
+    const release = transport.holdNextRead()
+    const loading = useStore.getState().refreshPlanning({ fresh: true })
+    const reads = transport.reads.length
+
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(false)
+    expect(transport.reads).toHaveLength(reads)
     release()
-    await expect(first).resolves.toBe(true)
+    await loading
+  })
+
+  it('retries a failed read whenever it is asked', async () => {
+    await resetStoreWithData(seed())
+    vi.spyOn(getPlanningTransportHandle(), 'read').mockRejectedValueOnce(
+      new TypeError('read unavailable')
+    )
+    await useStore.getState().refreshPlanning({ fresh: true })
+    expect(useStore.getState().planning.phase.kind).toBe('failed')
+
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(true)
     expect(useStore.getState().planning.phase.kind).toBe('ready')
-    expect(readPlanningError(useStore.getState().planning.phase)).toBeNull()
   })
 })

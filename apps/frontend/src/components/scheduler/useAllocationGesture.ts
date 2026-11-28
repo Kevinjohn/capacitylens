@@ -14,6 +14,7 @@ import { buildUndoShortcut } from '@/lib/keyboardShortcuts'
 import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy'
 import { buildVisibleRange, listCompanyWorkingDays, resolveSchedulingMode } from '@/store/selectors'
 import { useStore } from '@/store/useStore'
+import { buildPlanningCapacity } from '@/store/planningCapacity'
 import { resolveGesture, resolveVolumePreservingHours } from './allocationDrag'
 import type { ColumnGeometry } from './columnGeometry'
 import { buildCapacityAnnouncement } from './gestureAnnouncements'
@@ -317,14 +318,14 @@ function commitPointerGesture({ subject, mode, deltaDays, target }: PointerCommi
 /** Focus action that locates an allocation within the active company. */
 type ScheduleAllocationFocus = (allocationId: ID, companyId: ID | null) => void
 
-// Reads the figures the store holds now; the caller checks they come from a read after the write.
+// Derives the figures from the rows the store holds now; the caller checks they include the write.
 function readCapacityAnnouncement(resourceId: ID): string {
-  const { data, planning, ui } = useStore.getState()
+  const state = useStore.getState()
   return buildCapacityAnnouncement({
-    resources: data.resources,
-    capacity: planning.capacity,
+    resources: state.data.resources,
+    capacity: buildPlanningCapacity(state),
     resourceId,
-    visibleRange: buildVisibleRange(ui),
+    visibleRange: buildVisibleRange(state.ui),
   })
 }
 

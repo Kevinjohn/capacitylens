@@ -60,22 +60,10 @@ useStore.subscribe((state) => {
   setActiveDateStyle(resolveDateStyle(state.data, state.activeCompanyId))
 })
 
-/** How long the grid's window must rest before its capacity figures are read. */
-export const WINDOW_READ_DELAY_MS = 200
-let windowRead: ReturnType<typeof setTimeout> | undefined
-
 // Entering a company opens its planning context and loads its canonical planning snapshot. Moving
-// the grid's window reads the capacity figures for the new window once the window rests, quietly
-// so writes stay allowed meanwhile; the first read's own anchoring needs no second read, because
-// that read already covered the anchored window.
+// the grid's window reads nothing: its capacity figures are built from the rows already held.
 useStore.subscribe((state, previous) => {
   if (state.activeCompanyId !== previous.activeCompanyId) {
-    clearTimeout(windowRead)
     void state.refreshPlanning()
-  } else if (state.ui.originDate !== previous.ui.originDate && previous.planning.today !== null) {
-    clearTimeout(windowRead)
-    windowRead = setTimeout(() => {
-      void useStore.getState().refreshPlanning({ fresh: true, quiet: true })
-    }, WINDOW_READ_DELAY_MS)
   }
 })

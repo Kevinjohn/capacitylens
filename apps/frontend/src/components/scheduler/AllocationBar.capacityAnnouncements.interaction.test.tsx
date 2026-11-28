@@ -1,15 +1,15 @@
 import { requireCreated } from '@/test/requireCreated'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { act, screen, fireEvent } from '@testing-library/react'
+import { screen, fireEvent } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
-import { useStore, WINDOW_READ_DELAY_MS } from '@/store/useStore'
+import { useStore } from '@/store/useStore'
+import { buildPlanningCapacity } from '@/store/planningCapacity'
 import { resetStoreWithCompany, makeResourceDraft } from '@/test/fixtures'
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit'
 import {
   getPlanningTransportHandle,
   getStubPlanningTransport,
 } from '@/test/planningTransportHandle'
-import { capacityOver } from '@/test/capacityFixtures'
 
 import {
   barFor,
@@ -50,21 +50,13 @@ async function createConflictPair() {
 }
 
 describe('AllocationBar capacity announcement interactions', () => {
-  describe('keyboard edit announces the server capacity after the reply (a11y live region)', () => {
-    // The announcement reads the figures of the canonical read that follows the write. Each case
-    // sets the stub's figures after seeding, so only that read carries them.
+  describe('keyboard edit announces the capacity after the reply (a11y live region)', () => {
+    // The announcement reads the figures built from the rows the write's reply and read confirmed.
     it('announces the over-capacity outcome from the reply, and "no conflicts" when the next reply resolves it', async () => {
       // Anchor the visible window to the fixed fixture dates so capacity announcements remain deterministic as today advances.
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }))
       const b = await createConflictPair()
       await settlePlanning()
-      const transport = getStubPlanningTransport()
-      const range = { from: '2026-06-01', to: '2026-06-14' }
-      transport.setCapacity(
-        capacityOver(range, {
-          [b.resourceId]: { byDate: { '2026-06-03': { allocated: 16, over: true } } },
-        })
-      )
       const { rerender } = render(
         <AllocationBar
           bar={barFor(b)}
@@ -74,8 +66,10 @@ describe('AllocationBar capacity announcement interactions', () => {
         />
       )
       expect(useStore.getState().srAnnouncement).toBeNull()
-      // Before the write the store holds the figures of an earlier read, with no over day.
-      expect(useStore.getState().planning.capacity?.resources[b.resourceId]).toBeUndefined()
+      // Before the write no day is over.
+      expect(
+        buildPlanningCapacity(useStore.getState())?.resources[b.resourceId]?.window.over
+      ).not.toContain(true)
 
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
       await settlePlanning()
@@ -84,7 +78,6 @@ describe('AllocationBar capacity announcement interactions', () => {
       const over = getSrAnnouncement()
       expect(over.text).toBe('Ty now over capacity on 1 day.')
 
-      transport.setCapacity(capacityOver(range, { [b.resourceId]: {} }))
       rerender(
         <AllocationBar
           bar={barFor(moved)}
@@ -102,18 +95,10 @@ describe('AllocationBar capacity announcement interactions', () => {
       expect(clear.seq).toBeGreaterThan(over.seq)
     })
 
-    it('stays silent when the read after the write fails, as the store still holds older figures', async () => {
+    it('stays silent when the read after the write fails, as the write is still pending', async () => {
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }))
       const b = await createConflictPair()
-      // Let the pan's delayed read run now, so it cannot land after the failed read and clear it.
-      await act(() => new Promise((resolve) => setTimeout(resolve, WINDOW_READ_DELAY_MS)))
       await settlePlanning()
-      getStubPlanningTransport().setCapacity(
-        capacityOver(
-          { from: '2026-06-01', to: '2026-06-14' },
-          { [b.resourceId]: { byDate: { '2026-06-03': { allocated: 16, over: true } } } }
-        )
-      )
       vi.spyOn(getPlanningTransportHandle(), 'read').mockRejectedValueOnce(
         new TypeError('read unavailable')
       )
@@ -128,21 +113,43 @@ describe('AllocationBar capacity announcement interactions', () => {
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
       await settlePlanning()
 
-      // The write committed but its read failed, so the store keeps the rows and figures from before.
+      // The write committed but its read failed, so the write stays pending and nothing is said.
       const { phase } = useStore.getState().planning
       expect(phase.kind === 'writing' && phase.readError).toBeTruthy()
       expect(useStore.getState().srAnnouncement).toBeNull()
     })
 
-    // The follow-up read asks for the visible window, so the count follows the zoom. Clamping
-    // figures that reach past the window is covered by the gestureAnnouncements unit tests.
-    it('counts over days from the read for the visible window, which the zoom widens', async () => {
+    // The figures cover the visible window, so the count follows the zoom. Clamping figures that
+    // reach past the window is covered by the gestureAnnouncements unit tests.
+    it('counts over days in the visible window, which the zoom widens', async () => {
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }))
-      const b = await createConflictPair()
+      const st = useStore.getState()
+      const { activity } = await createActivityScaffold()
+      const resource = await requireCreated(
+        st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' }))
+      )
+      const booking = {
+        resourceId: resource.id,
+        activityId: activity.id,
+        status: 'confirmed' as const,
+      }
+      const b = requireCreated(
+        await st.addAllocation({
+          ...booking,
+          startDate: '2026-06-01',
+          endDate: '2026-06-02',
+          hoursPerDay: 8,
+        })
+      )
+      // Over capacity on a day the narrow window does not include.
+      await st.addAllocation({
+        ...booking,
+        startDate: '2026-09-02',
+        endDate: '2026-09-02',
+        hoursPerDay: 9,
+      })
       await settlePlanning()
-      const transport = getStubPlanningTransport()
-      const narrow = { from: '2026-06-01', to: '2026-06-14' }
-      transport.setCapacity(capacityOver(narrow, { [b.resourceId]: {} }))
+      const reads = getStubPlanningTransport().reads.length
       const { rerender } = render(
         <AllocationBar
           bar={barFor(b)}
@@ -153,17 +160,11 @@ describe('AllocationBar capacity announcement interactions', () => {
       )
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
       await settlePlanning()
-      expect(transport.readWindows.at(-1)).toEqual(narrow)
       expect(getSrAnnouncement().text).toBe('Ty: no capacity conflicts.')
 
-      // The wider window reaches an over day the narrow one did not include.
-      const wide = { from: '2026-06-01', to: '2026-09-28' }
-      transport.setCapacity(
-        capacityOver(wide, {
-          [b.resourceId]: { byDate: { '2026-09-02': { allocated: 16, over: true } } },
-        })
-      )
+      // Widening the window reads nothing; the over day comes into the figures built locally.
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 120 } }))
+      expect(getStubPlanningTransport().reads).toHaveLength(reads + 1)
       rerender(
         <AllocationBar
           bar={barFor(getStoredAllocation(b.id))}
@@ -174,7 +175,6 @@ describe('AllocationBar capacity announcement interactions', () => {
       )
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowLeft' })
       await settlePlanning()
-      expect(transport.readWindows.at(-1)).toEqual(wide)
       expect(getSrAnnouncement().text).toBe('Ty now over capacity on 1 day.')
     })
     it('does NOT announce on a pointer drag (sighted feedback — would be noise)', async () => {

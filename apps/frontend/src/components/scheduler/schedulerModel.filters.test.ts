@@ -83,7 +83,7 @@ describe('buildSchedulerModel', () => {
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     })
 
-  it("hideTentative removes tentative bars, but utilisation still draws the server's figures", () => {
+  it('hideTentative removes tentative bars, but utilisation still draws the capacity figures', () => {
     // The server counts the hidden tentative work: 24 of 56 hours.
     const capacity = capacityOver(
       { from: start, to: end },

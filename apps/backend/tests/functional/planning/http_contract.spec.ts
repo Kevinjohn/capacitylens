@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import db from '@adonisjs/lucid/services/db'
-import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
+import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath'
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle'
+import { buildCapacitySection } from '@capacitylens/shared/lib/capacity'
 import env from '#start/env'
 import { PlanningWriterService } from '#services/planning/planning_writer_service'
 import { RowValidationService } from '#services/planning/row_validation_service'
@@ -73,51 +75,118 @@ test.group('authenticated typed planning transactions', (group) => {
     anonymous.assertStatus(401)
   })
 
-  test('read carries capacity for the default or the requested window', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
+  test('read carries no capacity figures', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup)
-    // The default window and the horizon follow today, so the date is pinned.
-    const pinned = env.get('CAPACITYLENS_FIXED_TODAY')
-    cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''))
-    env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03')
     const { cookie } = await loginAsMember('viewer')
-    const data = await readState(companyId, false)
-
     const read = await intentSession(
       client.visit('api.planning.show', { companyId }),
       cookie
     ).send()
     read.assertStatus(200)
-    const { capacity } = read.body().data
-    assert.deepEqual(capacity.window, { from: '2026-05-04', to: '2026-09-28' })
-    assert.deepEqual(capacity.horizon, { from: '2026-06-03', to: '2026-08-23' })
-    assert.sameMembers(
-      Object.keys(capacity.resources),
-      data.resources.filter((row) => row.kind !== 'external').map((row) => row.id)
-    )
-    const [first] = Object.values(capacity.resources) as Array<{
-      window: { over: boolean[] }
-      horizon: { over: boolean[] }
-    }>
-    assert.lengthOf(first!.window.over, 148)
-    assert.lengthOf(first!.horizon.over, 82)
-
-    const requested = await intentSession(
-      client.visit('api.planning.show', { companyId }).qs({ from: '2026-01-05', to: '2026-01-11' }),
-      cookie
-    ).send()
-    requested.assertStatus(200)
-    assert.deepEqual(requested.body().data.capacity.window, {
-      from: '2026-01-05',
-      to: '2026-01-11',
-    })
-    assert.deepEqual(requested.body().data.capacity.horizon, capacity.horizon)
+    assert.equal(read.body().data.content, 'full')
+    // The browser derives capacity from these rows and today with the shared rule.
+    assert.notProperty(read.body().data, 'capacity')
   })
 
-  test('read capacity leaves deleted allocations and those of an archived activity out', async ({
+  test('capacity derived from each role’s read equals capacity from the stored rows', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const pinned = env.get('CAPACITYLENS_FIXED_TODAY')
+    cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''))
+    env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03')
+    // A private client gives the non-Owner reads a projection that differs from the stored rows.
+    await db
+      .from('clients')
+      .where({ company_id: companyId })
+      .whereNull('builtin')
+      .update({ is_private: true, code_name: 'Nightwing' })
+    // Time off with a note only an Owner reads, and a closure, both inside the windows.
+    const owner = await loginAsMember('owner')
+    const { resourceId } = newAllocation(await readState(companyId, true))
+    const intents = [
+      {
+        operation: 'timeOff.create',
+        timeOff: {
+          id: randomUUID(),
+          resourceId,
+          startDate: '2026-06-04',
+          endDate: '2026-06-04',
+          type: 'holiday',
+          note: 'Arkham visit',
+        },
+      },
+      {
+        operation: 'closure.create',
+        id: randomUUID(),
+        fields: { name: 'Wayne anniversary', startDate: '2026-06-05', endDate: '2026-06-05' },
+      },
+    ]
+    for (const [baseRevision, intent] of intents.entries()) {
+      const created = await intentSession(
+        client.visit('api.planning_mutations.store', { companyId }),
+        owner.cookie
+      )
+        .json({ mutationId: randomUUID(), baseRevision, intent })
+        .send()
+      created.assertStatus(200)
+    }
+    const stored = buildActiveData(await readState(companyId, true))
+    const company = stored.companies.find((row) => row.id === companyId)
+    assert.isNotEmpty(stored.timeOff)
+    assert.isNotEmpty(stored.closures)
+    const today = '2026-06-03'
+    const weekStart = startOfWeekISO(today, company?.weekStartsOn ?? 1)
+    // The scheduler's default window, then each Weeks visible choice from the current week.
+    const windows = [
+      undefined,
+      ...[1, 2, 4, 6, 8].map((weeks) => ({
+        from: weekStart,
+        to: addDaysISO(weekStart, weeks * 7 - 1),
+      })),
+    ]
+    const expected = windows.map((window) =>
+      buildCapacitySection({ data: stored, company, today, window })
+    )
+    assert.isTrue(
+      Object.values(expected[0]!.resources).some((days) => days.window.over.includes(true))
+    )
+    for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
+      const { cookie } = role === 'owner' ? owner : await loginAsMember(role)
+      const response = await intentSession(
+        client.visit('api.planning.show', { companyId }),
+        cookie
+      ).send()
+      response.assertStatus(200)
+      const read = response.body().data
+      assert.equal(read.today, today)
+      // Every role but the Owner receives the private client under its code name.
+      assert.equal(
+        read.data.clients.some(
+          (row: { isPrivate: boolean; codeName: string | null }) =>
+            row.isPrivate && row.codeName === 'Nightwing'
+        ),
+        role === 'owner',
+        role
+      )
+      for (const [index, window] of windows.entries()) {
+        assert.deepEqual(
+          buildCapacitySection({
+            data: read.data,
+            company: read.data.companies[0],
+            today: read.today,
+            window,
+          }),
+          expected[index],
+          `${role} ${JSON.stringify(window)}`
+        )
+      }
+    }
+  })
+
+  test('capacity derived from the read leaves deleted allocations and those of an archived activity out', async ({
     client,
     assert,
     cleanup,
@@ -142,7 +211,13 @@ test.group('authenticated typed planning transactions', (group) => {
         cookie
       ).send()
       response.assertStatus(200)
-      const { capacity } = response.body().data
+      const read = response.body().data
+      // The figures the browser derives from the rows and date this read carries.
+      const capacity = buildCapacitySection({
+        data: read.data,
+        company: read.data.companies[0],
+        today: read.today,
+      })
       return {
         from: capacity.window.from as string,
         days: capacity.resources[resourceId] as { window: Days },
@@ -211,7 +286,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(unchanged.body().data.content, 'unchanged')
     assert.equal(unchanged.body().data.revision, 1)
     assert.notProperty(unchanged.body().data, 'data')
-    assert.property(unchanged.body().data, 'capacity')
+    assert.notProperty(unchanged.body().data, 'capacity')
     assert.equal(unchanged.body().data.access.role, 'editor')
 
     const fullQueries: Array<Record<string, number>> = [{ ifRevision: 0 }, { ifRevision: 2 }, {}]
@@ -239,50 +314,6 @@ test.group('authenticated typed planning transactions', (group) => {
     afterRoleChange.assertStatus(200)
     assert.equal(afterRoleChange.body().data.content, 'full')
     assert.equal(afterRoleChange.body().data.access.role, 'viewer')
-  })
-
-  test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup)
-    const { cookie } = await loginAsMember('viewer')
-    const refusals: Array<[Record<string, string>, string]> = [
-      [{ from: '2026-06-02', to: '2026-06-01' }, 'The to date must be on or after the from date.'],
-      [{ from: '2026-01-01', to: '2027-01-02' }, 'The range may cover at most 366 days.'],
-      // 2028 is a leap year: from the last day of 2027 to its last day is 367 days.
-      [{ from: '2027-12-31', to: '2028-12-31' }, 'The range may cover at most 366 days.'],
-      [{ from: '2026-06-01' }, 'Send both from and to, or neither.'],
-      [{ to: '2026-06-01' }, 'Send both from and to, or neither.'],
-      [{ from: '2026-02-30', to: '2026-03-01' }, 'The from field must be a datetime value'],
-    ]
-    for (const [query, error] of refusals) {
-      const response = await intentSession(
-        client.visit('api.planning.show', { companyId }).qs(query),
-        cookie
-      ).send()
-      response.assertStatus(422)
-      assert.equal(response.body().errors[0]?.message, error, JSON.stringify(query))
-    }
-    const longest = await intentSession(
-      client.visit('api.planning.show', { companyId }).qs({ from: '2026-01-01', to: '2027-01-01' }),
-      cookie
-    ).send()
-    longest.assertStatus(200)
-    const [resource] = Object.values(longest.body().data.capacity.resources) as Array<{
-      window: { over: boolean[] }
-    }>
-    assert.lengthOf(resource!.window.over, 366)
-    const leapYear = await intentSession(
-      client.visit('api.planning.show', { companyId }).qs({ from: '2028-01-01', to: '2028-12-31' }),
-      cookie
-    ).send()
-    leapYear.assertStatus(200)
-    assert.deepEqual(leapYear.body().data.capacity.window, {
-      from: '2028-01-01',
-      to: '2028-12-31',
-    })
   })
 
   test('create and move commit once, stale and duplicate identities never commit again', async ({

@@ -7,6 +7,7 @@ import { useStore } from '@/store/useStore'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import {
   DEFAULT_COMPANY_ID,
+  makeAllocation,
   makeClosure,
   makeResource,
   makeTimeOff,
@@ -14,8 +15,6 @@ import {
 } from '@/test/fixtures'
 import { schedulerDataset } from '@/test/schedulerTestKit'
 import { getStubPlanningTransport } from '@/test/planningTransportHandle'
-import { capacityOver } from '@/test/capacityFixtures'
-import { listDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { LAYOUT, SCHEDULER_LANE_LAYOUT } from './layout'
 import { resolveRowHeightForLanes } from '@/lib/lanePacking'
 import { buildVisibleSpanInsets } from './visibleSpanInsets'
@@ -217,15 +216,7 @@ describe('SchedulerGrid', () => {
       type: 'holiday',
     })
     useStore.getState().setUtilisationPref({ key: 'showPersonal', value: true })
-    // The server flags the booked block on that holiday as a time-off conflict.
-    getStubPlanningTransport().setCapacity(
-      capacityOver(
-        { from: '2026-06-01', to: '2026-06-07' },
-        { r1: { byDate: { '2026-06-01': { timeOffConflict: true } } } }
-      )
-    )
-    await act(() => useStore.getState().refreshPlanning({ fresh: true }))
-
+    // The block booked on that holiday is a time-off conflict.
     renderGrid()
 
     const row = screen.getByTestId('scheduler-row')
@@ -362,20 +353,8 @@ describe('SchedulerGrid', () => {
 })
 
 describe('SchedulerGrid visible-window utilisation', () => {
-  // The server's figures for a single Mon–Fri resource: eight hours each weekday, booked in full in
-  // the first week and not at all after it, so the drawn overall % follows the visible span.
-  const span = { from: '2026-06-01', to: '2026-07-26' }
-  const capacity = capacityOver(span, {
-    'r-diana': {
-      byDate: Object.fromEntries(
-        listDaysISO(span.from, span.to).map((date, index) => [
-          date,
-          index % 7 >= 5 ? { available: 0 } : { allocated: date <= '2026-06-05' ? 8 : 0 },
-        ])
-      ),
-    },
-  })
-
+  // A single Mon–Fri resource of eight hours a day, booked in full in the first week and not at all
+  // after it, so the drawn overall % follows the visible span.
   // Pin origin and focus dates because jsdom leaves the container unmeasured and the visible window otherwise falls back to the current focus date.
   const renderAtZoom = async (zoom: 1 | 8) => {
     await resetStoreWithData(
@@ -389,11 +368,19 @@ describe('SchedulerGrid visible-window utilisation', () => {
             color: '#111',
           }),
         ],
+        allocations: [
+          makeAllocation({
+            id: 'a-diana',
+            companyId: ACC,
+            resourceId: 'r-diana',
+            startDate: '2026-06-01',
+            endDate: '2026-06-05',
+          }),
+        ],
       }),
       ACC
     )
     useStore.getState().clearFilters()
-    getStubPlanningTransport().setCapacity(capacity)
     useStore.setState((st) => ({
       ui: {
         ...st.ui,
@@ -403,14 +390,12 @@ describe('SchedulerGrid visible-window utilisation', () => {
         collapsedGroups: [],
       },
     }))
-    // Moving the grid reads the figures for its new window.
-    await useStore.getState().refreshPlanning()
     return renderGrid()
   }
   const overallPct = () =>
     Number.parseInt(screen.getByTestId('overall-utilisation').textContent, 10)
 
-  it("the week-range toggle redraws the overall % from the server's figures for the visible span", async () => {
+  it('the week-range toggle redraws the overall % for the visible span', async () => {
     const v1 = await renderAtZoom(1)
     expect(overallPct()).toBe(100)
     v1.unmount()
@@ -430,7 +415,18 @@ describe('SchedulerGrid company day rollover', () => {
     }))
   })
 
-  it('moves the today marker and draws the over-soon flag when a read brings them', async () => {
+  it('moves the today marker and draws the over-soon flag when a read brings a new date', async () => {
+    // Over capacity on the first day after the two weeks from 1 June.
+    await act(() =>
+      useStore.getState().addAllocation({
+        resourceId: 'r1',
+        activityId: 't1',
+        startDate: '2026-06-15',
+        endDate: '2026-06-15',
+        hoursPerDay: 9,
+        status: 'confirmed',
+      })
+    )
     const view = renderGrid()
     const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft')
     expect(currentHeader()).toHaveTextContent('1')
@@ -438,10 +434,11 @@ describe('SchedulerGrid company day rollover', () => {
     expect(screen.queryByText(/Overbooked in the next two weeks/)).not.toBeInTheDocument()
 
     getStubPlanningTransport().setToday('2026-06-02')
-    getStubPlanningTransport().setCapacity(
-      capacityOver({ from: '2026-06-01', to: '2026-06-07' }, { r1: { overSoon: true } })
-    )
     await act(() => useStore.getState().refreshPlanning({ fresh: true }))
+    // The read named the revision already held, so only the date came back.
+    expect(getStubPlanningTransport().reads.at(-1)?.ifRevision).toBe(
+      useStore.getState().planning.revision
+    )
 
     expect(currentHeader()).toHaveTextContent('2')
     expect(screen.getByTestId('today-line').style.left).not.toBe(lineBefore)

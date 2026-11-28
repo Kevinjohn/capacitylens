@@ -2,8 +2,8 @@ import { test, expect } from './dbFixtures'
 import type { Page } from './dbFixtures'
 import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from './browserTestKit'
 
-// Covers US-SCH-09: the grid draws the server's per-day over-capacity flags. Which days are over is
-// the server's rule (apps/backend/tests/unit/planning/capacity_section.spec.ts); this spec checks
+// Covers US-SCH-09: the grid draws the per-day over-capacity flags. Which days are over is the
+// shared capacity rule (apps/backend/tests/unit/planning/capacity_section.spec.ts); this spec checks
 // that a change which makes days over draws their markers.
 //
 // Seed bars live 1–9 June 2026 (clock frozen to 2026-06-03), so a fresh allocation Fri 12 → Mon 15
@@ -21,7 +21,7 @@ async function openScheduleWithInlineActivityCreation(page: Page) {
 }
 
 test.describe('Weekend over-marker', { tag: '@engine' }, () => {
-  test('draws the over-capacity markers the server reports', async ({ page }) => {
+  test('draws the over-capacity markers the shared rule reports', async ({ page }) => {
     await openScheduleWithInlineActivityCreation(page)
 
     await expect(clarkOverMarkers(page)).toHaveCount(0)

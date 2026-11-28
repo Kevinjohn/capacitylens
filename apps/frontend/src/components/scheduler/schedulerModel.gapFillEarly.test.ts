@@ -306,7 +306,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         geom,
         days,
         visibleWindow: { start, end },
-        // The server's figures: no capacity on the holiday Monday or past the four-day week, and an
+        // The capacity figures: no capacity on the holiday Monday or past the four-day week, and an
         // over-booked half-day Tuesday.
         capacity: capacityOver(
           { from: start, to: end },

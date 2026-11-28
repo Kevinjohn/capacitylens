@@ -12,7 +12,6 @@ import {
   snapshot,
   readyWithHistory,
 } from '@/test/planningTransitionHarness'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 import { createDeferred } from '@/test/createDeferred'
 
@@ -22,7 +21,6 @@ const unchanged = (revision: number): PlanningSnapshot => ({
   access: makePlanningAccess(),
   content: 'unchanged',
   today: '2026-06-03',
-  capacity: emptyCapacity(),
 })
 
 // Pins the coordinator transitions that no other cache test asserts directly.

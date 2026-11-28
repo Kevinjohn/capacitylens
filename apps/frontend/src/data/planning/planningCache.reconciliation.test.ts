@@ -12,7 +12,6 @@ import {
   makeReceipt,
   createHarness,
 } from './planningCacheTestKit'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 afterEach(() => setMasqueradeToken(null))
@@ -36,7 +35,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const draft = h.cache.begin()
     const write = h.cache.execute(draft, intent)
@@ -45,7 +43,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     expect(h.state().planning.history.canUndo).toBe(false)
     release(makeReceipt('mutation-1', 2))
@@ -56,7 +53,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     expect(h.state().planning.history.canUndo).toBe(false)
   })
@@ -68,20 +64,17 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: { ...createEmptyAppData(), companies: [{ id: 'other-company' }] },
       today: companyToday,
-      capacity: emptyCapacity(),
     },
     {
       revision: 3,
       data: { ...createEmptyAppData(), companies: [{ id: 'company-1', name: 'Unverified' }] },
       today: companyToday,
-      capacity: emptyCapacity(),
     },
     {
       revision: 4,
       access: makePlanningAccess(),
       data: { ...makeCanonicalData(), companies: [] },
       today: companyToday,
-      capacity: emptyCapacity(),
     },
     {
       revision: 5,
@@ -91,7 +84,6 @@ describe('planning cache', () => {
         companies: [...makeCanonicalData().companies, ...makeCanonicalData().companies],
       },
       today: companyToday,
-      capacity: emptyCapacity(),
     },
     {
       revision: 6,

@@ -72,14 +72,13 @@ async function sendOperation(
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
 export function createPlanningTransport(apiClient: PlanningClient = client): PlanningTransport {
   return {
-    async read(context, signal, { window, historyId, ifRevision } = {}) {
+    async read(context, signal, { historyId, ifRevision } = {}) {
       try {
         const scopedClient = applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context))
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { companyId: context.companyId },
             query: {
-              ...(window ? { from: window.from, to: window.to } : {}),
               ...(historyId === undefined ? {} : { historyId }),
               ...(ifRevision === undefined ? {} : { ifRevision }),
             },
@@ -111,7 +110,6 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             canSeeTimeOffNote: access.canSeeTimeOffNote,
           },
           today: snapshot.today,
-          capacity: snapshot.capacity,
           history: snapshot.history,
         }
         return snapshot.content === 'unchanged'

@@ -10,7 +10,6 @@ import {
   makeReceipt,
   createHarness,
 } from './planningCacheTestKit'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 afterEach(() => setMasqueradeToken(null))
@@ -31,7 +30,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const first = h.cache.begin()
     await expect(h.cache.execute(first, intent)).rejects.toMatchObject({
@@ -62,7 +60,6 @@ describe('planning cache', () => {
       revision: 1,
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
       access: makePlanningAccess(),
     })
     await h.cache.execute(h.cache.begin(), intent)
@@ -73,7 +70,6 @@ describe('planning cache', () => {
         revision: 2,
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
         access: makePlanningAccess({ role: 'editor' }),
       })
     ).resolves.toBe(true)
@@ -94,7 +90,6 @@ describe('planning cache', () => {
         revision: 4,
         data: cached,
         today: companyToday,
-        capacity: emptyCapacity(),
         access: makePlanningAccess(),
       })
     ).resolves.toBe(true)
@@ -104,7 +99,6 @@ describe('planning cache', () => {
         revision: 3,
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
         access: makePlanningAccess({ role: 'viewer' }),
       })
     ).resolves.toBe(false)
@@ -121,7 +115,6 @@ describe('planning cache', () => {
         access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
       })
       .mockRejectedValueOnce({ status: 403, code: 'E_AUTHORIZATION_DENIED' })
       .mockRejectedValueOnce({ status: 403, code: 'E_ACCOUNT_MEMBERSHIP_LOST' })
@@ -156,7 +149,6 @@ describe('canonical planning write permission', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     await h.cache.execute(h.cache.begin(), intent)
     expect(h.state().planning.history.canUndo).toBe(true)
@@ -166,7 +158,6 @@ describe('canonical planning write permission', () => {
       access: makePlanningAccess({ canWrite: false }),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     expect(h.state().planning.history.canUndo).toBe(false)
     expect(() => h.cache.begin()).toThrow(/read-only/)

@@ -290,37 +290,6 @@ describe('generated planning transport', () => {
     )
   })
 
-  it('asks for the capacity window it is given and returns the server figures', async () => {
-    const capacity = {
-      window: { from: '2026-05-04', to: '2026-09-28' },
-      horizon: { from: '2026-06-03', to: '2026-08-23' },
-      resources: {},
-    }
-    const access = {
-      actorId: 'bruce',
-      effectiveActorId: 'bruce',
-      role: 'owner',
-      canWrite: true,
-      canSeePrivateNames: true,
-      canSeeTimeOffNote: true,
-    }
-    const reply = {
-      companyId: 'wayne',
-      revision: 5,
-      access,
-      data: createEmptyAppData(),
-      capacity,
-    }
-    const { transport, requests } = harness(reply)
-
-    const result = await transport.read(context, signal, { window: capacity.window })
-    await transport.read(context, signal)
-
-    expect(result.capacity).toEqual(capacity)
-    expect(new URL(requests[0]?.url ?? '').search).toBe('?from=2026-05-04&to=2026-09-28')
-    expect(new URL(requests[1]?.url ?? '').search).toBe('')
-  })
-
   it("names the page's history on a read and returns the availability the server reports", async () => {
     const historyId = '4c0b5e0e-8f53-4d5b-9a4c-2f7f1e9d6a10'
     const history = { canUndo: true, canRedo: false }

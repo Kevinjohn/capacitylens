@@ -142,6 +142,69 @@ db.exec('COMMIT')`,
     assert.equal(reads, 1)
   })
 
+  test('a read naming the current revision queries no planning entity table', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await loginAsMember()
+    const entityTables = [
+      'allocations',
+      'resources',
+      'projects',
+      'clients',
+      'activities',
+      'phases',
+      'disciplines',
+      'time_off',
+      'closures',
+    ]
+    const queries: string[] = []
+    const record = (query: { sql?: unknown }) => {
+      if (typeof query.sql === 'string') queries.push(query.sql)
+    }
+    const clients = new Set([db.connection().getReadClient(), db.connection().getWriteClient()])
+    for (const knex of clients) knex.on('query', record)
+    cleanup(() => {
+      for (const knex of clients) knex.off('query', record)
+    })
+    const read = async (query: Record<string, string | number>) => {
+      queries.length = 0
+      const response = await intentSession(
+        client.visit('api.planning.show', { companyId }).qs(query),
+        cookie
+      ).send()
+      response.assertStatus(200)
+      return { body: response.body().data, tables: listReadTables(queries) }
+    }
+    const listReadTables = (sql: string[]) =>
+      entityTables.filter((table) =>
+        sql.some((text) => new RegExp(`from [\`"]${table}[\`"]`).test(text))
+      )
+
+    // The capture sees every entity table when the rows are read.
+    const full = await read({ ifRevision: 1 })
+    assert.equal(full.body.content, 'full')
+    assert.sameMembers(full.tables, entityTables)
+
+    const historyId = randomUUID()
+    const unchanged = await read({ ifRevision: 0, historyId })
+    assert.equal(unchanged.body.content, 'unchanged')
+    assert.deepEqual(unchanged.tables, [])
+    assert.notProperty(unchanged.body, 'data')
+    assert.equal(unchanged.body.companyId, companyId)
+    assert.equal(unchanged.body.revision, 0)
+    assert.equal(unchanged.body.access.role, 'owner')
+    assert.equal(unchanged.body.today, full.body.today)
+    assert.deepEqual(unchanged.body.history, { canUndo: false, canRedo: false })
+    // The company date needs only the company's time zone.
+    assert.isTrue(
+      queries.some((sql) => /select [`"]timezone[`"] from [`"]companies[`"]/.test(sql)),
+      queries.join('\n')
+    )
+  })
+
   test('audit failure rolls back rows, revision and commitment identity together', async ({
     client,
     assert,

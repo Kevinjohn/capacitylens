@@ -1,4 +1,3 @@
-import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity'
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities'
 import type {
   PlanningAccess,
@@ -15,8 +14,6 @@ interface PlanningSnapshotBase {
   access: PlanningAccess
   /** The company's calendar date, resolved by the server in the company time zone. */
   today: ISODate
-  /** The server's per-day capacity figures for the requested window and the overview horizon. */
-  capacity: CapacitySection
   /** Whether the reading page's server-held history can step back or forward; absent means neither. */
   history?: PlanningHistory
 }
@@ -32,13 +29,11 @@ export type PlanningSnapshot =
 /** A read that carries the complete company data. */
 export type FullPlanningSnapshot = PlanningSnapshotBase & { content?: 'full'; data: AppData }
 
-/** What a planning read asks for: the capacity window, absent for the server's default, and the
- * page's history id, so the server reports that history's undo and redo availability. The planning
- * cache always names its history; a read outside it names none and is told neither is available.
- * `ifRevision` names the revision the reader already holds; the server then leaves the rows out if
- * that revision is current. */
+/** What a planning read asks for: the page's history id, so the server reports that history's undo
+ * and redo availability. The planning cache always names its history; a read outside it names none
+ * and is told neither is available. `ifRevision` names the revision the reader already holds; the
+ * server then leaves the rows out if that revision is current. */
 export interface PlanningReadRequest {
-  window?: CapacityRange
   historyId?: string
   ifRevision?: number
 }
@@ -128,8 +123,6 @@ export interface PlanningCacheMetadata {
   revision: number | null
   /** The company's calendar date from the last accepted read; null until a read is accepted. */
   today: ISODate | null
-  /** The capacity figures from the last accepted read; null until a read is accepted. */
-  capacity: CapacitySection | null
   phase: PlanningPhase
   history: PlanningHistory
 }
@@ -159,8 +152,6 @@ export interface PlanningCacheOptions {
   transport: PlanningTransport
   /** The current masquerade context proof, captured into each request when it is dispatched. */
   readMasqueradeToken: () => string | null
-  /** The capacity window each read asks for, captured when the read is sent. */
-  readCapacityWindow?: () => CapacityRange | undefined
   createMutationId?: () => string
   /** Mints the page's in-memory history id; a new id starts a new, empty history. */
   createHistoryId?: () => string

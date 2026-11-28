@@ -28,7 +28,7 @@ interface CapacityContext {
   closuresByDate: Map<ISODate, Closure[]>
 }
 
-/** The server's figures for one resource on one date of its read window. Undefined when the read
+/** The capacity figures for one resource on one date of its window. Undefined when the window
  * did not cover the date, as when the grid has moved and the read for its new window is pending. */
 export function readServerDayCapacity(
   capacity: CapacitySection | null,
@@ -45,7 +45,7 @@ export function readServerDayCapacity(
   return { date, allocated, available, over }
 }
 
-/** One of the server's per-day flags for a resource; undefined when the read did not cover the date. */
+/** One of the per-day capacity flags for a resource; undefined when the window did not cover the date. */
 function readServerDayFlag(
   capacity: CapacitySection | null,
   resourceId: string,
@@ -57,7 +57,7 @@ function readServerDayFlag(
   return days[flag][calculateDayIndex(date, capacity.window.from)]
 }
 
-/** Visible utilisation summed from the server's figures; dates the read did not cover are left out. */
+/** Visible utilisation summed from the capacity figures; dates the window did not cover are left out. */
 export function resolveServerUtilisation(
   capacity: CapacitySection | null,
   resourceId: string,
@@ -98,7 +98,7 @@ function createTrackedCapacitySource(
   }
 }
 
-/** Reads each resource's capacity cues from the server's figures and its dated exceptions. */
+/** Reads each resource's capacity cues from the capacity figures and its dated exceptions. */
 export function createCapacitySource({
   days,
   visibleWindow,

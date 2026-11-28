@@ -5,7 +5,6 @@ import { PlanningCacheError } from './planningErrors'
 import { readPlanningProblem } from './planningNotices'
 import type { PlanningSnapshot } from './planningCacheTypes'
 import { context, ready, readyWithHistory, setup, snapshot } from '@/test/planningTransitionHarness'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 import { createDeferred } from '@/test/createDeferred'
 
@@ -17,7 +16,6 @@ const unchanged = (revision: number): PlanningSnapshot => ({
   access: makePlanningAccess(),
   content: 'unchanged',
   today: '2026-06-03',
-  capacity: emptyCapacity(),
 })
 
 /** What the server reports to this page after its one change. */
@@ -118,11 +116,11 @@ describe('planning read transitions', () => {
     h.read.mockImplementationOnce(() => first.promise)
     h.read.mockImplementationOnce(() => second.promise)
     const fresh = h.cache.refresh()
-    const pan = h.cache.refresh({ quiet: true })
+    const check = h.cache.refresh({ quiet: true })
     first.resolve(snapshot(2, 'Stale Wayne name'))
     second.resolve(snapshot(2))
     await expect(fresh).resolves.toBe(true)
-    await expect(pan).resolves.toBe(true)
+    await expect(check).resolves.toBe(true)
     expect(h.state().data.clients[0]?.name).toBe('Wayne Enterprises')
   })
 
@@ -139,27 +137,25 @@ describe('planning read transitions', () => {
     )
     h.read.mockImplementationOnce(() => second.promise)
     const fresh = h.cache.refresh()
-    const pan = h.cache.refresh({ quiet: true })
+    const check = h.cache.refresh({ quiet: true })
     expect(firstSignal?.aborted).toBe(true)
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(h.state().planning.phase.kind).toBe('loading')
     expect(readPlanningError(h.state().planning.phase)).toBeNull()
     second.resolve(snapshot(2))
     await expect(fresh).resolves.toBe(true)
-    await expect(pan).resolves.toBe(true)
+    await expect(check).resolves.toBe(true)
     expect(h.state().planning.phase.kind).toBe('ready')
   })
 
-  it('keeps the cached rows on an unchanged read and takes its capacity', async () => {
+  it('keeps the cached rows on an unchanged read and takes its date', async () => {
     const h = await ready()
     const rows = h.state().data
-    const capacity = emptyCapacity({ from: '2026-06-04', to: '2026-06-04' })
-    h.read.mockResolvedValueOnce({ ...unchanged(1), capacity, today: '2026-06-04' })
+    h.read.mockResolvedValueOnce({ ...unchanged(1), today: '2026-06-04' })
     await expect(h.cache.refresh({ quiet: true })).resolves.toBe(true)
     expect(h.read.mock.lastCall?.[2]?.ifRevision).toBe(1)
     expect(h.state().data).toBe(rows)
     expect(h.state().data.clients[0]).toBe(rows.clients[0])
-    expect(h.state().planning.capacity).toBe(capacity)
     expect(h.state().planning.today).toBe('2026-06-04')
   })
 

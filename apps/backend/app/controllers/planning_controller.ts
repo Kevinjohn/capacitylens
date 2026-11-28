@@ -16,13 +16,11 @@ export default class PlanningController {
   }
 
   async show({ auth, request, serialize }: HttpContext) {
-    const { from, to, historyId, ifRevision, params } =
-      await request.validateUsing(planningReadValidator)
+    const { historyId, ifRevision, params } = await request.validateUsing(planningReadValidator)
     const { companyId } = params
-    const window = from !== undefined && to !== undefined ? { from, to } : undefined
     return serialize(
       await this.#currentActor.withActor(auth, (actor, trx) =>
-        this.#planning.readPlanning(trx, companyId, window, {
+        this.#planning.readPlanning(trx, companyId, {
           sessionId: actor.sessionId,
           historyId,
           ifRevision,

@@ -203,7 +203,7 @@ export function createRowBuilder({
       .filter(hasTimelineIntersection)
       .map((entry) => buildTimeOffBlock(entry, geometry))
     const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS
-    // Visible utilisation sums the server's figures over the visible dates; overSoon is the server's flag. Untracked externals report neither signal.
+    // Visible utilisation sums the capacity figures over the visible dates; overSoon is the section's flag. Untracked externals report neither signal.
     const utilisation = capacity.resolveUtilisationOver(visibleDays)
     return {
       resource,

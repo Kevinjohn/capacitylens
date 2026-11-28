@@ -50,7 +50,7 @@ function data(resources: Resource[]): AppData {
   return { ...createEmptyAppData(), resources }
 }
 
-/** The server's figures over the twelve-week horizon from `today`: eight hours on each weekday and
+/** The capacity figures over the twelve-week horizon from `today`: eight hours on each weekday and
  * none at weekends, nothing allocated, then each resource's figures for the dates it names. */
 function horizonCapacity(
   today: ISODate,

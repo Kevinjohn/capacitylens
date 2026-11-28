@@ -30,8 +30,6 @@ import { reconcileReassignedHours } from '@capacitylens/shared/domain/placement'
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays'
 import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek'
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
-import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from './planningAccessFixtures'
 import { makeReceipt } from './makeReceipt'
 import { createServerHistoryModel } from './serverHistoryModel'
@@ -90,9 +88,8 @@ export class StubPlanningTransport implements PlanningTransport {
   #data = createEmptyAppData()
   #access = makePlanningAccess()
   #today: ISODate | null = null
-  #capacity: CapacitySection | null = null
-  /** The capacity window each read asked for; undefined for a read that asked for the default. */
-  readonly readWindows: (CapacityRange | undefined)[] = []
+  /** Every read, in order, with the revision it named. */
+  readonly reads: Array<{ ifRevision: number | undefined }> = []
   #revisions = new Map<string, number>()
   #queued: Queued[] = []
   #readLatch: Promise<void> | null = null
@@ -103,8 +100,7 @@ export class StubPlanningTransport implements PlanningTransport {
     this.#data = structuredClone(data)
     this.#access = makePlanningAccess()
     this.#today = null
-    this.#capacity = null
-    this.readWindows.length = 0
+    this.reads.length = 0
     this.#revisions.clear()
     this.#revisions.set(companyId, 0)
     this.calls.length = 0
@@ -114,7 +110,7 @@ export class StubPlanningTransport implements PlanningTransport {
     this.#histories.clear()
   }
 
-  /** Hold the next read, after it records its window, until the returned release is called. */
+  /** Hold the next read, after it is recorded, until the returned release is called. */
   holdNextRead(): () => void {
     let release = () => {}
     this.#readLatch = new Promise((resolve) => {
@@ -162,11 +158,6 @@ export class StubPlanningTransport implements PlanningTransport {
     this.#today = today
   }
 
-  /** Set the capacity figures returned by subsequent reads, in place of a section with no resources. */
-  setCapacity(capacity: CapacitySection): void {
-    this.#capacity = capacity
-  }
-
   /** The company date a read returns: the set value, or the clock's date in the company's zone. */
   todayFor(companyId: string): ISODate {
     if (this.#today !== null) return this.#today
@@ -177,10 +168,10 @@ export class StubPlanningTransport implements PlanningTransport {
   async read(
     context: PlanningSessionScope,
     signal: AbortSignal,
-    { window, historyId, ifRevision }: PlanningReadRequest = {}
+    { historyId, ifRevision }: PlanningReadRequest = {}
   ): Promise<PlanningSnapshot> {
     signal.throwIfAborted()
-    this.readWindows.push(window)
+    this.reads.push({ ifRevision })
     const latch = this.#readLatch
     this.#readLatch = null
     if (latch) {
@@ -193,7 +184,6 @@ export class StubPlanningTransport implements PlanningTransport {
       revision,
       access: this.#access,
       today: this.todayFor(context.companyId),
-      capacity: this.#capacity ?? emptyCapacity(window),
       history: {
         canUndo: this.#access.canWrite && history.canUndo,
         canRedo: this.#access.canWrite && history.canRedo,

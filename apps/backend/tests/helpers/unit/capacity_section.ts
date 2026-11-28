@@ -8,7 +8,7 @@ import type {
   TimeOff,
 } from '@capacitylens/shared/types/entities'
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
-import { buildCapacitySection } from '#services/planning/capacity_section'
+import { buildCapacitySection } from '@capacitylens/shared/lib/capacity'
 
 const COMPANY = 'a-themyscira'
 const stamp = { companyId: COMPANY, createdAt: 't', updatedAt: 't' }

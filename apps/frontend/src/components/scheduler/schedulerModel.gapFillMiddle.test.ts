@@ -166,7 +166,7 @@ function buildCompanyClosureModel({ blocksMode = false }: BuildCompanyClosureMod
     geom,
     days,
     visibleWindow: { start, end },
-    // The server's figures: Wednesday's closure leaves no capacity, and r1 is over on Wednesday and
+    // The capacity figures: Wednesday's closure leaves no capacity, and r1 is over on Wednesday and
     // r2 on Saturday.
     capacity: capacityOver(
       { from: start, to: end },
@@ -200,7 +200,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     const companyData: () => AppData = buildCompanyClosureData
     const buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[] =
       buildCompanyClosureModel
-    it('draws closure conflict cells on every tracked row from the server figures', () => {
+    it('draws closure conflict cells on every tracked row from the capacity figures', () => {
       const rows = buildCompany().flatMap((group) => group.rows)
       const r1 = requireValue(
         rows.find((row) => row.resource.id === 'r1'),

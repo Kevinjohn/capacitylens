@@ -8,8 +8,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities'
 import capacitylens from '#config/capacitylens'
 import { readCompanyToday } from '#services/company_today'
-import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity'
-import { buildCapacitySection } from '#services/planning/capacity_section'
+import Company from '#models/company'
 import { StateRepositoryService } from '#services/state_repository_service'
 import { transformState } from '#transformers/state_transformer'
 import type { CurrentActor } from '#services/auth/current_actor_service'
@@ -75,7 +74,6 @@ interface PlanningReadBase {
   access: PlanningAccess
   /** The company's current calendar date in its own time zone. */
   today: ISODate
-  capacity: CapacitySection
   /** Whether the reading page can undo or redo; both false when it named no history. */
   history: PlanningHistoryState
 }
@@ -128,28 +126,29 @@ export class PlanningService {
     this.#history = history
   }
 
-  /** Resolves current planning access, revision, rows and their capacity from the same database
-   * snapshot. Capacity covers `window`, or the scheduler's default window when it is absent. The rows
-   * are left out only when `page.ifRevision` is exactly the current revision. */
+  /** Resolves current planning access, revision and rows from the same database snapshot. When
+   * `page.ifRevision` is exactly the current revision the rows are neither read nor sent: the reply
+   * carries only the access, revision, company date and history. */
   async readPlanning(
     trx: TransactionClientContract,
     companyId: string,
-    window?: CapacityRange,
     page?: { sessionId: number; historyId?: string; ifRevision?: number }
   ): Promise<PlanningRead> {
     const { planningAccess } = await this.#access.resolvePlanningAccess(trx, companyId)
     const revision = await this.#planningRevisions.getPlanningRevision(trx, companyId)
-    const data = await this.#stateRepository.readStateWithClient(trx, companyId, true)
-    const company = data.companies.find((row) => row.id === companyId)
-    const today = readCompanyToday(company?.timezone ?? null, capacitylens.fixedToday, Date.now())
-    const visible = transformState(buildActiveData(data), companyId, planningAccess.role)
+    const unchanged = page?.ifRevision === revision
+    const data = unchanged
+      ? null
+      : await this.#stateRepository.readStateWithClient(trx, companyId, true)
+    // An unchanged read needs only the company's time zone for its date.
+    const company = data
+      ? data.companies.find((row) => row.id === companyId)
+      : await Company.query({ client: trx }).where('id', companyId).select('timezone').first()
     const base: PlanningReadBase = {
       companyId,
       revision,
       access: planningAccess,
-      today,
-      // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
-      capacity: buildCapacitySection({ data: visible, company, today, window }),
+      today: readCompanyToday(company?.timezone ?? null, capacitylens.fixedToday, Date.now()),
       history:
         page?.historyId === undefined || !planningAccess.canWrite
           ? NO_HISTORY
@@ -164,9 +163,13 @@ export class PlanningService {
               revision
             ),
     }
-    return page?.ifRevision === revision
-      ? { ...base, content: 'unchanged' }
-      : { ...base, content: 'full', data: visible }
+    return data
+      ? {
+          ...base,
+          content: 'full',
+          data: transformState(buildActiveData(data), companyId, planningAccess.role),
+        }
+      : { ...base, content: 'unchanged' }
   }
 
   /** Read only recoverable identities under the current transactional write permission. */

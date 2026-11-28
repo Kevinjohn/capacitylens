@@ -12,7 +12,6 @@ import {
   makeReceipt,
   createHarness,
 } from './planningCacheTestKit'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 import { createDeferred } from '@/test/createDeferred'
 
@@ -31,7 +30,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
 
     const draft = h.cache.begin()
@@ -50,7 +48,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const h = createHarness({ execute: vi.fn(), read })
     h.cache.setContext(context)
@@ -84,7 +81,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: { ...createEmptyAppData(), companies: [{ id: 'leak' } as never] },
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     await readPromise
     expect(h.state().data).toEqual(createEmptyAppData())
@@ -112,7 +108,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const write = h.cache.execute(h.cache.begin(), intent).catch(() => undefined)
     h.cache.setContext({ identity: anonymousIdentity, companyId: 'company-2' })
@@ -122,7 +117,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     release(makeReceipt('mutation-1', 2))
     await write
@@ -158,7 +152,6 @@ describe('planning receipt completion context', () => {
           revision: 1,
           data: makeCanonicalData(),
           today: companyToday,
-          capacity: emptyCapacity(),
           access: makePlanningAccess(),
         })
         await h.cache.execute(h.cache.begin(), intent)
@@ -187,7 +180,6 @@ describe('planning receipt completion context', () => {
           }),
           data: makeCanonicalData(),
           today: companyToday,
-          capacity: emptyCapacity(),
         })
         await expect(completion).resolves.toBe(action === 'execute' ? null : false)
         expect(h.state().planning.phase).toEqual(
