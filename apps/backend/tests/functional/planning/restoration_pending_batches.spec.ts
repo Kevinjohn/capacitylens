@@ -10,14 +10,14 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   send,
   deleteOne,
   createAllocations,
   currentRevision,
   restorationBatch,
-} from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/restoration_helpers'
 
 test.group('typed catalogue and time-off restoration', (suite) => {
   suite.setup(() => freshDatabase())

@@ -13,8 +13,8 @@ import {
   loginAsMember,
   signIn,
   validationSentence,
-} from '#tests/functional/planning/helpers'
-import { listCreatedAllocationIds } from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/functional_helpers'
+import { listCreatedAllocationIds } from '#tests/helpers/planning/restoration_helpers'
 import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations'
 
 test.group('authenticated planning operations', (group) => {

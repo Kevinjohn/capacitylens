@@ -17,7 +17,7 @@ import {
   signIn,
   trusted,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import PlanningOperationException from '#exceptions/planning_operation_exception'
 import { PlanningRevisionService } from '#services/planning_revision_service'
 

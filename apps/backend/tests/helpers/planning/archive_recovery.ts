@@ -3,7 +3,11 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 import type { ArchiveRecovery, ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle'
 import db from '@adonisjs/lucid/services/db'
 import { readState } from '#tests/helpers/state_fixture'
-import { companyId, intentSession, type Credential } from '#tests/functional/planning/helpers'
+import {
+  companyId,
+  intentSession,
+  type Credential,
+} from '#tests/helpers/planning/functional_helpers'
 import { mutationInput } from '#tests/helpers/planning/mutations'
 
 export const stamp = '2026-10-01T00:00:00.000Z'
