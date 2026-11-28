@@ -115,17 +115,19 @@ test.group('planning deletion ownership', (suite) => {
     assert.lengthOf(rows, 2)
     await rows[0]!.delete()
     await db.from('allocations').where('id', rows[0]!.id).update({ deleted_batch_id: cleanGroup })
-    await assert.rejects(() =>
-      db.transaction(async (trx) => {
-        // Simulate historical corruption while retaining the production guard on group deletion.
-        await trx.rawQuery('DROP TRIGGER allocations_deleted_batch_update')
-        await trx
-          .from('allocations')
-          .where('id', rows[1]!.id)
-          .update({ deleted_batch_id: blockedGroup })
-        await trx.from('deleted_batches').where('id', cleanGroup).delete()
-        await trx.from('deleted_batches').where('id', blockedGroup).delete()
-      })
+    await assert.rejects(
+      () =>
+        db.transaction(async (trx) => {
+          // Simulate historical corruption while retaining the production guard on group deletion.
+          await trx.rawQuery('DROP TRIGGER allocations_deleted_batch_update')
+          await trx
+            .from('allocations')
+            .where('id', rows[1]!.id)
+            .update({ deleted_batch_id: blockedGroup })
+          await trx.from('deleted_batches').where('id', cleanGroup).delete()
+          await trx.from('deleted_batches').where('id', blockedGroup).delete()
+        }),
+      /active row cannot belong to deletion group/
     )
     assert.exists(await db.from('deleted_batches').where('id', cleanGroup).first())
     assert.exists(await db.from('allocations').where('id', rows[0]!.id).first())
