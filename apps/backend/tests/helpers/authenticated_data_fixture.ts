@@ -6,6 +6,7 @@ import { insertProductRows } from '#tests/helpers/product_rows'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 import { createIdentity, sessionCookieHeader, signIn } from '#tests/helpers/identities'
+import { loggedInDataClient } from '#tests/helpers/data/logged_in_client'
 import User from '#models/user'
 
 const ownerEmail = 'bruce.wayne@wayne.example'
@@ -104,16 +105,7 @@ export function authenticatedDataClient(client: ApiClient, cookie: string): ApiC
 
 /** Resets disposable company data and returns a client signed in as the owner with `loginAs`. */
 export async function resetAuthenticatedClient(client: ApiClient, seed: boolean | 'single' = true) {
-  const user = await seedDataOwner(seed)
-  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'visit'])
-  return new Proxy(client, {
-    get(target, key) {
-      const value = Reflect.get(target, key)
-      if (typeof key !== 'string' || !methods.has(key) || typeof value !== 'function')
-        return typeof value === 'function' ? value.bind(target) : value
-      return (...args: unknown[]) => asLoggedInDataOwner(value.apply(target, args), user)
-    },
-  })
+  return loggedInDataClient(client, await seedDataOwner(seed))
 }
 
 /** Gives a fixture user explicit standing in a company inserted directly by a test. */
