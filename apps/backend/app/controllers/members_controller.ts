@@ -5,7 +5,7 @@ import { MemberMutationRequestService } from '#services/membership/member_mutati
 import type { HttpContext } from '@adonisjs/core/http'
 import { AuthorizationService } from '#services/auth/authorization_service'
 import { CurrentActorService } from '#services/auth/current_actor_service'
-import { changeRoleValidator, listMembersValidator } from '#validators/members'
+import { changeRoleValidator, listMembersValidator } from '#validators/member'
 import { requestData } from '#validators/request_rules'
 import { AccountOperationService } from '#services/account_operation_service'
 

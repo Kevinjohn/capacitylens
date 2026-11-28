@@ -428,7 +428,9 @@ describe('MembersSection — member lifecycle', () => {
                   userId: 'ed',
                   role: 'editor',
                   name: 'Clark Kent',
-                  resourceLink: linked ? { resourceId: resource.id, revision: 'rev-2' } : null,
+                  resourceLink: linked
+                    ? { resourceId: resource.id, revision: 'rev-2', resourceStatus: 'active' }
+                    : null,
                 }),
               ],
               resourceCandidates: [{ resourceId: resource.id, label: 'Bruce Wayne' }],
@@ -463,7 +465,12 @@ describe('MembersSection — member lifecycle', () => {
         userId: 'ed',
         role: 'editor',
         name: 'Clark Kent',
-        resourceLink: { resourceId: resource.id, resourceName: 'Bruce Wayne', revision: 'rev-1' },
+        resourceLink: {
+          resourceId: resource.id,
+          resourceName: 'Bruce Wayne',
+          revision: 'rev-1',
+          resourceStatus: 'active',
+        },
       },
     ])
     vi.stubGlobal('fetch', fetchMock)
@@ -509,6 +516,7 @@ describe('MembersSection — member lifecycle', () => {
             resourceId: 'r-server-only',
             resourceName: 'Barry Allen',
             revision: 'rev-1',
+            resourceStatus: 'active',
           },
         },
       ],
@@ -526,6 +534,7 @@ describe('MembersSection — member lifecycle', () => {
                     resourceId: 'r-server-only',
                     resourceName: 'Barry Allen',
                     revision: 'rev-1',
+                    resourceStatus: 'active',
                   },
                 }),
               ],

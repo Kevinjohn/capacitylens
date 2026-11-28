@@ -143,11 +143,11 @@ export function checkBodyContracts() {
       expectedRevision: null,
       // @ts-expect-error The linked resource is named by id.
       resourceId: 42,
-    } satisfies Route.Body<'api.member_resource_links.update'>,
+    } satisfies Route.Body<'api.member_resource_link.update'>,
     {
       // @ts-expect-error Clearing a link needs the revision it replaces.
       expectedRevision: null,
-    } satisfies Route.Body<'api.member_resource_links.destroy'>,
+    } satisfies Route.Body<'api.member_resource_link.destroy'>,
     {
       // @ts-expect-error The viewed member is named by id.
       targetUserId: 42,

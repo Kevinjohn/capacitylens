@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import { resetState } from '#tests/helpers/state_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { clearIdentities } from '#tests/helpers/identities'
-import { configureAuth, session, loginAsMember } from '#tests/functional/planning/helpers'
+import { configureAuth, session, loginAsMember } from '#tests/helpers/planning/functional_helpers'
 import { limitedRead, withServer } from '#tests/helpers/data/raw_http'
 
 // Proxy trust, HSTS and cookie security are read once at boot, so each case starts its own server.

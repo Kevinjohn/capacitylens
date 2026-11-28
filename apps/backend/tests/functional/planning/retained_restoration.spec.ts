@@ -9,7 +9,7 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import app from '@adonisjs/core/services/app'
 import { RestorationService } from '#services/planning/restoration_service'
 import { insertProductRows } from '#tests/helpers/product_rows'

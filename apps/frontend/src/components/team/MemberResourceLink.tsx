@@ -21,7 +21,7 @@ type MemberResourceView = ReturnType<typeof buildMemberResourceView>
 type IsLinkedPersonInactiveOptions = { link: TeamMember['resourceLink']; listed: boolean }
 function isLinkedPersonInactive({ link, listed }: IsLinkedPersonInactiveOptions): boolean {
   if (!link) return false
-  return !listed || link.resourceStatus === 'archived' || link.resourceStatus === 'disabled'
+  return !listed || link.resourceStatus === 'archived'
 }
 
 function isMemberLinkEditable(member: TeamMember): boolean {

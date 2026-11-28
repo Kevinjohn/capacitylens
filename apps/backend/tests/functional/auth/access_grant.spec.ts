@@ -3,7 +3,7 @@ import { expected } from '#tests/helpers/auth/access_grant'
 import { resetState } from '#tests/helpers/state_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { clearIdentities } from '#tests/helpers/identities'
-import { configureAuth, loginAsMember, session } from '#tests/functional/planning/helpers'
+import { configureAuth, loginAsMember, session } from '#tests/helpers/planning/functional_helpers'
 
 test.group('company directory access grant', (group) => {
   group.setup(() => freshDatabase())

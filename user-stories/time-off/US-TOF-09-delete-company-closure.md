@@ -52,7 +52,7 @@ flowchart TD
 - [CompanyClosureSection.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.tsx#L114)
 - [dialogs.tsx](../../apps/frontend/src/components/common/dialogs.tsx#L219)
 - [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts#L4)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L326)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L325)
 - [planning_execution_service.ts](../../apps/backend/app/services/planning/planning_execution_service.ts#L389)
 - [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L92)
 - [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts#L9)

@@ -38,7 +38,7 @@ flowchart TD
   validate -->|Invalid| error["Current dialog shows the field error"]
   validate -->|Valid| request["authApi.changePassword"]
   request --> guard["Auth route refuses own-account writes in View as member"]
-  guard -->|Allowed| current["PasswordController.update validates the request and verifies the account through readCurrentAccount(auth)"]
+  guard -->|Allowed| current["PasswordController.update validates the request and reads the signed-in account through auth.use(web).getUserOrFail()"]
   current -->|Verified| kit["Account Kit checks the current password, sets the new password and revokes all registered sign-ins"]
   current -->|Refused| error
   guard -->|Refused| error
@@ -51,4 +51,4 @@ flowchart TD
 
 See [Signed-in requests](../REFERENCE.md#signed-in-requests) for the raw guard and account check.
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx#L88) · [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx#L75) · [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts#L36) · [password_controller.ts](../../apps/backend/app/controllers/password_controller.ts#L22) · [route_middleware.ts](../../apps/backend/start/route_middleware.ts#L50) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L153)
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx#L88) · [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx#L75) · [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts#L36) · [password_controller.ts](../../apps/backend/app/controllers/password_controller.ts#L14) · [auth.ts](../../apps/backend/start/routes/auth.ts#L34) · [password_sessions.spec.ts](../../apps/backend/tests/functional/auth/password_sessions.spec.ts#L153)

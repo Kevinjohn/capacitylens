@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { ApiClient } from '@japa/api-client'
-import { companyId, intentSession, type Credential } from '#tests/functional/planning/helpers'
+import {
+  companyId,
+  intentSession,
+  type Credential,
+} from '#tests/helpers/planning/functional_helpers'
 
 /** The company a planning test writes to when it means some company other than its own. */
 export const otherCompanyId = 'a-loft'

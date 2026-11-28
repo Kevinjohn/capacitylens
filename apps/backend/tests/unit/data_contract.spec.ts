@@ -1,7 +1,7 @@
 import { test } from '@japa/runner'
 import { seed } from '@capacitylens/shared/data/seed'
 import Resource from '#models/resource'
-import { rowAttributes } from '#models_support/row_attributes'
+import { rowAttributes } from '#services/models/row_attributes'
 import { insertProductRows } from '#tests/helpers/product_rows'
 import { readState } from '#tests/helpers/state_fixture'
 import { transactionalDatabase } from '#tests/helpers/transactional_database'

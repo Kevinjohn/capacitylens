@@ -11,12 +11,12 @@ import {
   resetPlanningFixture,
   signIn,
   signInAgain,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   listCreatedAllocationIds,
   planningAudit,
   stored,
-} from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/restoration_helpers'
 import {
   Page,
   histories,

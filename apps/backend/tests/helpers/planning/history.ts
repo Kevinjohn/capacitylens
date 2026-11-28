@@ -8,8 +8,8 @@ import {
   intentSession,
   signIn,
   type Credential,
-} from '#tests/functional/planning/helpers'
-import { stored } from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/functional_helpers'
+import { stored } from '#tests/helpers/planning/restoration_helpers'
 
 export interface Reply {
   revision: number
@@ -20,17 +20,21 @@ export interface Reply {
 /** One page's view of the server: its cookie, its history id and the revision it last saw. */
 export class Page {
   revision = 0
-  constructor(
-    private client: ApiClient,
-    private cookie: Credential,
-    readonly historyId: string | null = randomUUID()
-  ) {}
+  #client: ApiClient
+  #cookie: Credential
+  readonly historyId: string | null
 
-  private async post(
+  constructor(client: ApiClient, cookie: Credential, historyId: string | null = randomUUID()) {
+    this.#client = client
+    this.#cookie = cookie
+    this.historyId = historyId
+  }
+
+  async #post(
     route: 'api.planning_mutations.store' | 'api.planning_undo.store' | 'api.planning_redo.store',
     body: Record<string, unknown>
   ) {
-    const response = await intentSession(this.client.visit(route, { companyId }), this.cookie)
+    const response = await intentSession(this.#client.visit(route, { companyId }), this.#cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: this.revision,
@@ -45,22 +49,22 @@ export class Page {
   }
 
   write(intent: Record<string, unknown>) {
-    return this.post('api.planning_mutations.store', { intent })
+    return this.#post('api.planning_mutations.store', { intent })
   }
 
   undo() {
-    return this.post('api.planning_undo.store', {})
+    return this.#post('api.planning_undo.store', {})
   }
 
   redo() {
-    return this.post('api.planning_redo.store', {})
+    return this.#post('api.planning_redo.store', {})
   }
 
   async read() {
     const query = this.historyId === null ? {} : { historyId: this.historyId }
     const response = await intentSession(
-      this.client.visit('api.planning.show', { companyId }).qs(query),
-      this.cookie
+      this.#client.visit('api.planning.show', { companyId }).qs(query),
+      this.#cookie
     ).send()
     response.assertStatus(200)
     const reply = response.body().data as Reply & {
