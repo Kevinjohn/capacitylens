@@ -46,7 +46,7 @@ export class PlanningHistoryService {
     const row = await trx.from('planning_histories').where('company_id', owner.companyId).first()
     if (
       !row ||
-      row.session_id !== owner.sessionId ||
+      row.account_session_id !== owner.sessionId ||
       row.actor_id !== owner.actorId ||
       row.history_id !== owner.historyId ||
       row.revision !== revision
@@ -85,7 +85,7 @@ export class PlanningHistoryService {
     // Undo history, not a product row.
     await trx.table('planning_histories').insert({
       company_id: owner.companyId,
-      session_id: owner.sessionId,
+      account_session_id: owner.sessionId,
       actor_id: owner.actorId,
       history_id: owner.historyId,
       revision,

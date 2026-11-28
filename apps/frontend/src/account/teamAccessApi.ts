@@ -4,7 +4,7 @@ import type { Role } from '@capacitylens/shared/domain/access'
 import { admissionRequests } from './admissionRequests'
 import { invitationRequests } from './invitationRequests'
 import { memberRequests } from './memberRequests'
-import { readOperationResult, readResult } from './accessResult'
+import { readOperationResult, readPaginatedResult, readResult } from './accessResult'
 import {
   parseAdmissionPage,
   parseDelivery,
@@ -137,7 +137,7 @@ export const teamAccessApi = {
     for (const status of ['pending', 'rejected', 'revoked'] as const) {
       let cursor: string | null = null
       do {
-        const page: TeamAccessResult<AdmissionPage> = await readResult(
+        const page: TeamAccessResult<AdmissionPage> = await readPaginatedResult(
           await admissionRequests.listAdmissionRequests(status, cursor, signal),
           parseAdmissionPage(status)
         )

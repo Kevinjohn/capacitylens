@@ -43,10 +43,10 @@ test.group('retained planning cleanup', (suite) => {
     const signedOut = await session(client.visit('api.session.destroy'), owner.cookie).send()
     signedOut.assertStatus(200)
 
-    assert.isNull(await db.from('deleted_groups').where('group_id', first.groupId).first())
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', first.groupId), 0)
+    assert.isNull(await db.from('deleted_batches').where('id', first.groupId).first())
+    assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', first.groupId), 0)
     assert.isNull(await db.from('allocations').where('id', first.allocationId).first())
-    assert.exists(await db.from('deleted_groups').where('group_id', second.groupId).first())
+    assert.exists(await db.from('deleted_batches').where('id', second.groupId).first())
     assert.exists(await db.from('allocations').where('id', second.allocationId).first())
     assert.exists(
       await db.from('planning_mutations').where('mutation_id', firstMutation!.mutation_id).first()
@@ -54,7 +54,7 @@ test.group('retained planning cleanup', (suite) => {
     assert.exists(await db.from('allocations').where('id', activeId).first())
     const active = await db.from('allocations').where('id', activeId).first()
     assert.isNull(active.deleted_at)
-    assert.isNull(active.deletion_group_id)
+    assert.isNull(active.deleted_batch_id)
   })
 
   test('sign-out clears a consumed generation and the newer deletion without touching another session', async ({
@@ -78,14 +78,14 @@ test.group('retained planning cleanup', (suite) => {
     const signedOut = await session(client.visit('api.session.destroy'), owner.cookie).send()
     signedOut.assertStatus(200)
 
-    assert.isNull(await db.from('deleted_groups').where('group_id', first.groupId).first())
-    assert.isNull(await db.from('deleted_groups').where('group_id', redone.groupId).first())
+    assert.isNull(await db.from('deleted_batches').where('id', first.groupId).first())
+    assert.isNull(await db.from('deleted_batches').where('id', redone.groupId).first())
     assert.lengthOf(
-      await db.from('deleted_rows').whereIn('group_id', [first.groupId, redone.groupId]),
+      await db.from('deleted_rows').whereIn('deleted_batch_id', [first.groupId, redone.groupId]),
       0
     )
     assert.isNull(await db.from('allocations').where('id', first.allocationId).first())
-    assert.exists(await db.from('deleted_groups').where('group_id', other.groupId).first())
+    assert.exists(await db.from('deleted_batches').where('id', other.groupId).first())
     assert.exists(await db.from('allocations').where('id', other.allocationId).first())
     assert.lengthOf(
       await db.from('planning_mutations').whereIn(
@@ -107,25 +107,25 @@ test.group('retained planning cleanup', (suite) => {
     const liveCookie = await signInAgain(client, owner.email)
     const live = await deleteAllocation(client, liveCookie)
     const activeId = await createActiveAllocation(client, liveCookie)
-    const expiredGroup = await db.from('deleted_groups').where('group_id', expired.groupId).first()
+    const expiredGroup = await db.from('deleted_batches').where('id', expired.groupId).first()
     assert.exists(expiredGroup)
     await db
       .from('account_sessions')
-      .where('id', expiredGroup!.session_id)
+      .where('id', expiredGroup!.account_session_id)
       .update({ expires_at: '2000-01-01T00:00:00.000Z' })
 
     const pruned = await accountKit.maintenance.prune()
 
     assert.equal(pruned.sessions, 1)
-    assert.isNull(await db.from('deleted_groups').where('group_id', expired.groupId).first())
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', expired.groupId), 0)
+    assert.isNull(await db.from('deleted_batches').where('id', expired.groupId).first())
+    assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', expired.groupId), 0)
     assert.isNull(await db.from('allocations').where('id', expired.allocationId).first())
-    assert.exists(await db.from('deleted_groups').where('group_id', live.groupId).first())
+    assert.exists(await db.from('deleted_batches').where('id', live.groupId).first())
     assert.exists(await db.from('allocations').where('id', live.allocationId).first())
     const active = await db.from('allocations').where('id', activeId).first()
     assert.exists(active)
     assert.isNull(active.deleted_at)
-    assert.isNull(active.deletion_group_id)
+    assert.isNull(active.deleted_batch_id)
   })
 
   test('password change clears pending rows from every session for the identity', async ({
@@ -146,14 +146,14 @@ test.group('retained planning cleanup', (suite) => {
     changed.assertStatus(200)
 
     for (const deletion of [first, second]) {
-      assert.isNull(await db.from('deleted_groups').where('group_id', deletion.groupId).first())
-      assert.lengthOf(await db.from('deleted_rows').where('group_id', deletion.groupId), 0)
+      assert.isNull(await db.from('deleted_batches').where('id', deletion.groupId).first())
+      assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', deletion.groupId), 0)
       assert.isNull(await db.from('allocations').where('id', deletion.allocationId).first())
     }
     const active = await db.from('allocations').where('id', activeId).first()
     assert.exists(active)
     assert.isNull(active.deleted_at)
-    assert.isNull(active.deletion_group_id)
+    assert.isNull(active.deleted_batch_id)
   })
 
   test('password reset clears pending rows from every session for the identity', async ({
@@ -184,14 +184,14 @@ test.group('retained planning cleanup', (suite) => {
     reset.assertStatus(200)
 
     for (const deletion of [first, second]) {
-      assert.isNull(await db.from('deleted_groups').where('group_id', deletion.groupId).first())
-      assert.lengthOf(await db.from('deleted_rows').where('group_id', deletion.groupId), 0)
+      assert.isNull(await db.from('deleted_batches').where('id', deletion.groupId).first())
+      assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', deletion.groupId), 0)
       assert.isNull(await db.from('allocations').where('id', deletion.allocationId).first())
     }
     const active = await db.from('allocations').where('id', activeId).first()
     assert.exists(active)
     assert.isNull(active.deleted_at)
-    assert.isNull(active.deletion_group_id)
+    assert.isNull(active.deleted_batch_id)
   })
 
   test('Kit revoke, revokeOthers and revoke-current clean their own retained rows', async ({
@@ -206,8 +206,8 @@ test.group('retained planning cleanup', (suite) => {
     const other = await deleteAllocation(client, otherCookie)
     const anotherCookie = await signInAgain(client, owner.email)
     const another = await deleteAllocation(client, anotherCookie)
-    const currentGroup = await db.from('deleted_groups').where('group_id', current.groupId).first()
-    const otherGroup = await db.from('deleted_groups').where('group_id', other.groupId).first()
+    const currentGroup = await db.from('deleted_batches').where('id', current.groupId).first()
+    const otherGroup = await db.from('deleted_batches').where('id', other.groupId).first()
     const currentHandle = `fixture-session-${randomUUID()}`
     const user = await db.from('users').where('id', owner.userId).first()
     const credentialRevision = user.credentials_changed_at
@@ -220,35 +220,35 @@ test.group('retained planning cleanup', (suite) => {
     }
     await db
       .from('account_sessions')
-      .where('id', currentGroup.session_id)
+      .where('id', currentGroup.account_session_id)
       .update({
         handle_hash: createHash('sha256').update(currentHandle).digest('hex'),
       })
 
     const revokedOther = await accountKit.authentication.sessions.revoke({
       current: currentInput,
-      id: otherGroup.session_id,
+      id: otherGroup.account_session_id,
     })
     assert.isFalse(revokedOther.current)
-    assert.isNull(await db.from('deleted_groups').where('group_id', other.groupId).first())
+    assert.isNull(await db.from('deleted_batches').where('id', other.groupId).first())
     assert.isNull(await db.from('allocations').where('id', other.allocationId).first())
-    assert.exists(await db.from('deleted_groups').where('group_id', current.groupId).first())
-    assert.exists(await db.from('deleted_groups').where('group_id', another.groupId).first())
+    assert.exists(await db.from('deleted_batches').where('id', current.groupId).first())
+    assert.exists(await db.from('deleted_batches').where('id', another.groupId).first())
 
     const revokedOthers = await accountKit.authentication.sessions.revokeOthers({
       current: currentInput,
     })
     assert.equal(revokedOthers.count, 1)
-    assert.isNull(await db.from('deleted_groups').where('group_id', another.groupId).first())
+    assert.isNull(await db.from('deleted_batches').where('id', another.groupId).first())
     assert.isNull(await db.from('allocations').where('id', another.allocationId).first())
-    assert.exists(await db.from('deleted_groups').where('group_id', current.groupId).first())
+    assert.exists(await db.from('deleted_batches').where('id', current.groupId).first())
 
     const revokedCurrent = await accountKit.authentication.sessions.revoke({
       current: currentInput,
-      id: currentGroup.session_id,
+      id: currentGroup.account_session_id,
     })
     assert.isTrue(revokedCurrent.current)
-    assert.isNull(await db.from('deleted_groups').where('group_id', current.groupId).first())
+    assert.isNull(await db.from('deleted_batches').where('id', current.groupId).first())
     assert.isNull(await db.from('allocations').where('id', current.allocationId).first())
   })
 
@@ -268,18 +268,19 @@ test.group('retained planning cleanup', (suite) => {
 
     await db.from('users').where('id', owner.userId).delete()
 
-    assert.isNull(
-      await db.from('deleted_groups').where('group_id', deletedWithIdentity.groupId).first()
+    assert.isNull(await db.from('deleted_batches').where('id', deletedWithIdentity.groupId).first())
+    assert.lengthOf(
+      await db.from('deleted_rows').where('deleted_batch_id', deletedWithIdentity.groupId),
+      0
     )
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', deletedWithIdentity.groupId), 0)
     assert.isNull(
       await db.from('allocations').where('id', deletedWithIdentity.allocationId).first()
     )
-    assert.exists(await db.from('deleted_groups').where('group_id', retained.groupId).first())
+    assert.exists(await db.from('deleted_batches').where('id', retained.groupId).first())
     assert.exists(await db.from('allocations').where('id', retained.allocationId).first())
     const active = await db.from('allocations').where('id', ownerActive).first()
     assert.exists(active)
     assert.isNull(active.deleted_at)
-    assert.isNull(active.deletion_group_id)
+    assert.isNull(active.deleted_batch_id)
   })
 })

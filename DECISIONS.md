@@ -365,8 +365,7 @@ removed entry retires its number.
 27. Retired. Every API route is under `/api/v1`; the health probes stay at `/health/live` and
     `/health/ready`.
 28. Retired. The root `package.json` sets `@adonisjs/prettier-config` unchanged (TOOL-2).
-29. **Aligning (#2550).** The `dbAssertions` plugin is not registered; tests read rows with the
-    query builder and check them with `assert`.
+29. Retired (#2550). The `dbAssertions` plugin is registered in `tests/bootstrap.ts`.
 30. **Aligning (#2550).** A provider connects or spawns in `start` behind an `app.getMode()`
     check.
 31. **Aligning (#2550).** `bin/test.ts` holds the test values computed per port lane; the rest are
@@ -384,7 +383,7 @@ removed entry retires its number.
     factory needs a model. This covers `db.table(...).insert` and `multiInsert` under
     `apps/backend/tests` into any table without a model in `app/models`: today `memberships`,
     the Account Kit tables (`account_*`, `password_reset_tokens`), `adonis_schema`,
-    `deleted_groups`, `deleted_rows`, `planning_mutations`, `audit_entries`, `request_receipts`,
+    `deleted_batches`, `deleted_rows`, `planning_mutations`, `audit_entries`, `request_receipts`,
     `company_settings` and `company_planning_revisions` (#2572).
 38. Tests that write a stored row on purpose insert it raw, not through a model factory (#2572):
     - schema CHECK constraints and encoded rows read back: `tests/functional/state/database_contract.spec.ts`;

@@ -60,7 +60,10 @@ test.group('member directory malformed storage', (group) => {
       )
       const failed = await ownerGet({ client, ownerCookie, masqueradeToken }).send()
       failed.assertStatus(500)
-      assert.deepEqual(failed.body(), { error: 'Internal server error.' })
+      assert.deepEqual(failed.body(), {
+        error: 'Internal server error.',
+        code: 'E_INTERNAL_SERVER_ERROR',
+      })
       assert.notInclude(JSON.stringify(failed.body()), corruption.invalidValue)
       assert.notInclude(JSON.stringify(failed.body()), 'stack')
       assert.deepEqual(

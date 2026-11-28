@@ -69,7 +69,7 @@ export const baselineTables = [
   'company_planning_revisions',
   'planning_mutations',
   'planning_histories',
-  'deleted_groups',
+  'deleted_batches',
   'deleted_rows',
   'password_confirmations',
   'company_getting_started_dismissals',

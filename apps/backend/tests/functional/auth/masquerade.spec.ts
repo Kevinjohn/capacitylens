@@ -353,7 +353,7 @@ test.group('native read-only masquerade', (group) => {
       secondSession.cookie
     ).send()
     secondProjected.assertStatus(200)
-    const anonymiseAudits = await db.from('audit_entries').where('action', 'anonymise')
+    const anonymiseAudits = await db.from('audit_entries').where('operation', 'anonymise')
     const auditCount = anonymiseAudits.length
     const deniedAnonymise = await asSession(
       client
@@ -365,7 +365,7 @@ test.group('native read-only masquerade', (group) => {
       .json({})
       .send()
     deniedAnonymise.assertStatus(403)
-    assert.lengthOf(await db.from('audit_entries').where('action', 'anonymise'), auditCount)
+    assert.lengthOf(await db.from('audit_entries').where('operation', 'anonymise'), auditCount)
     const read = await asSession(
       client.visit('api.company_state.show').qs({ companyId: 'a-studio' }),
       owner

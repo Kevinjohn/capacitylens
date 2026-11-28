@@ -1,10 +1,10 @@
 import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import type { Role } from '@capacitylens/shared/domain/access'
-import User from '#models/user'
 import {
   authenticatedDataClient,
   resetAuthenticatedData,
+  seedDataOwner,
 } from '#tests/helpers/authenticated_data_fixture'
 import { loggedInDataClient } from '#tests/helpers/data/logged_in_client'
 
@@ -26,10 +26,9 @@ export async function resetCookieDataOwner(client: ApiClient, seeded = true) {
 }
 
 /** Resets the seeded data and returns a client signed in as the Owner with `loginAs`. */
-export async function resetLoggedInDataOwner(client: ApiClient) {
-  const session = await resetAuthenticatedData(client, true)
-  const user = await User.findOrFail(session.userId)
-  return { client: loggedInDataClient(client, user), userId: session.userId }
+export async function resetLoggedInDataOwner(client: ApiClient, seeded: boolean | 'single' = true) {
+  const user = await seedDataOwner(seeded)
+  return { client: loggedInDataClient(client, user), userId: user.id }
 }
 
 /** Archives one a-studio resource so that only an Owner or Admin export carries it. */

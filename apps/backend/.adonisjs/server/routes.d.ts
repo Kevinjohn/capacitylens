@@ -36,8 +36,8 @@ export type ScannedRoutes = {
     'api.email_verification_requests.store': { paramsTuple?: []; params?: {} }
     'api.session.destroy': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.member_sign_in_tracking.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.members.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.member_sign_in_tracking.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.member_status.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
     'api.invitations.store': { paramsTuple?: []; params?: {} }
     'api.invitations.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -137,6 +137,7 @@ export type ScannedRoutes = {
   }
   PUT: {
     'api.getting_started.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.members.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
     'api.member_sign_in_tracking.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.member_resource_link.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
   }

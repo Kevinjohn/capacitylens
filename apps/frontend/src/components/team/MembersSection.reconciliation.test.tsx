@@ -47,7 +47,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
-        'PATCH /members/ed': () => {
+        'PUT /members/ed': () => {
           mutationSent = true
           return jsonResponse({ error: 'Unknown.' }, 503)
         },
@@ -73,7 +73,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
-        'PATCH /members/ed': () => {
+        'PUT /members/ed': () => {
           useStore.setState({ activeCompanyId: nextCompanyId })
           return new Response(null, { status: 204 })
         },
@@ -92,7 +92,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
-        'PATCH /members/ed': () => {
+        'PUT /members/ed': () => {
           mutationSent = true
           return jsonResponse({}, 503)
         },
@@ -132,7 +132,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
               data: { members: ownerAndEditor.map((member) => makeRawMember(member)) },
             })
           },
-          'PATCH /members/ed': () => jsonResponse(body, status),
+          'PUT /members/ed': () => jsonResponse(body, status),
         })
       )
       renderSection()

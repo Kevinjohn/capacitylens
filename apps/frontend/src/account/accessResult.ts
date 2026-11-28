@@ -86,3 +86,26 @@ export async function readResult<T>(
   }
   return parseOkBody(response, decode)
 }
+
+/** Decodes a paginated `{ data, metadata }` response envelope without stripping `metadata`. */
+export async function readPaginatedResult<T>(
+  response: Response,
+  decode: (envelope: unknown) => T | null
+): Promise<TeamAccessResult<T>> {
+  if (!response.ok) {
+    return {
+      kind: 'rejected',
+      status: response.status,
+      message: (await readApiError(response)) ?? null,
+    }
+  }
+  const envelope: unknown = await response.json().catch(() => null)
+  const value = decode(envelope)
+  return value === null
+    ? {
+        kind: 'invalid',
+        status: response.status,
+        message: 'The server returned an invalid response.',
+      }
+    : { kind: 'ok', status: response.status, value }
+}

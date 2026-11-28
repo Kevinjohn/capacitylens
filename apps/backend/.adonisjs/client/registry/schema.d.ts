@@ -424,6 +424,19 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
     }
   }
+  'api.members.update': {
+    methods: ["PUT","PATCH"]
+    pattern: '/api/v1/companies/:companyId/members/:userId'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/member').changeRoleValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { companyId: ParamValue; userId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/member').changeRoleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
+    }
+  }
   'api.member_sign_in_tracking.update': {
     methods: ["PUT"]
     pattern: '/api/v1/companies/:companyId/member-sign-in-tracking'
@@ -435,19 +448,6 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_sign_in_tracking_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_sign_in_tracking_controller').default['update']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_sign_in_tracking_controller').default['update']>>>
-    }
-  }
-  'api.members.update': {
-    methods: ["PATCH"]
-    pattern: '/api/v1/companies/:companyId/members/:userId'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/member').changeRoleValidator)>>
-      paramsTuple: [ParamValue, ParamValue]
-      params: { companyId: ParamValue; userId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/member').changeRoleValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
     }
   }
   'api.member_status.update': {

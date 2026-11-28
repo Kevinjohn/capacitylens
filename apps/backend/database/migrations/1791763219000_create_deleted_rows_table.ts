@@ -7,15 +7,15 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table
-        .string('group_id')
+        .string('deleted_batch_id')
         .notNullable()
-        .references('group_id')
-        .inTable('deleted_groups')
+        .references('id')
+        .inTable('deleted_batches')
         .onDelete('CASCADE')
       table.string('entity').notNullable()
       table.string('row_id').notNullable()
       table.text('payload_json').notNullable()
-      table.unique(['group_id', 'entity', 'row_id'])
+      table.unique(['deleted_batch_id', 'entity', 'row_id'])
     })
   }
 

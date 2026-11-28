@@ -47,19 +47,18 @@ test.group('backup diagnostics', (group) => {
     )
   })
 
-  test('readiness issues one query per probe', async ({ client, assert }) => {
+  test('readiness issues one query per probe', async ({ client, assert, cleanup }) => {
     await schemaIntegrity.rememberSchemaIntegrity()
     const queries: string[] = []
     const record = (query: { sql: string }) => queries.push(query.sql)
     const knex = db.connection().getWriteClient()
     knex.on('query', record)
-    try {
-      for (const probe of [1, 2]) {
-        const response = await client.visit('health_checks.ready')
-        assert.equal(response.status(), 200, `probe ${probe}`)
-      }
-    } finally {
+    cleanup(() => {
       knex.off('query', record)
+    })
+    for (const probe of [1, 2]) {
+      const response = await client.visit('health_checks.ready')
+      assert.equal(response.status(), 200, `probe ${probe}`)
     }
     // The session middleware reads the caller's session row; every other query is the check's.
     assert.deepEqual(
@@ -71,10 +70,19 @@ test.group('backup diagnostics', (group) => {
   test('readiness fails safely when a shipped migration is unrecorded', async ({
     client,
     assert,
+    cleanup,
   }) => {
     const record = await db.from('adonis_schema').orderBy('id').first()
     assert.isDefined(record)
     await db.from('adonis_schema').where('id', record!.id).delete()
+    let restored = false
+    const restoreSchema = async () => {
+      if (restored) return
+      restored = true
+      await db.table('adonis_schema').insert(record!)
+      await schemaIntegrity.rememberSchemaIntegrity()
+    }
+    cleanup(restoreSchema)
     // Readiness reports what boot recorded; re-running the check stands in for a restart.
     await assert.rejects(() => schemaIntegrity.rememberSchemaIntegrity())
     const errors: unknown[][] = []
@@ -82,30 +90,28 @@ test.group('backup diagnostics', (group) => {
     logger.error = ((...args: unknown[]) => {
       errors.push(args)
     }) as typeof logger.error
-    try {
-      const response = await client.visit('health_checks.ready')
-      assert.lengthOf(errors, 1)
-      const [fields, message] = errors[0] as [{ err: unknown; reason: string }, string]
-      assert.equal(message, 'Database readiness check failed')
-      assert.instanceOf(fields.err, Error)
-      assert.equal(
-        fields.reason,
-        `Database schema drift: shipped migrations are not recorded (${String(record!.name)})`
-      )
-      assert.equal(response.status(), 503)
-      assert.isFalse(response.body().isHealthy)
-      const check = response
-        .body()
-        .checks.find((item: { name: string }) => item.name === 'Database health check (sqlite)')
-      assert.equal(check!.status, 'error')
-      assert.equal(check!.message, 'Database readiness check failed')
-      assert.notInclude(JSON.stringify(response.body()), 'database/migrations/')
-      assert.notInclude(JSON.stringify(response.body()), 'adonis_schema')
-    } finally {
+    cleanup(() => {
       logger.error = originalError
-      await db.table('adonis_schema').insert(record!)
-      await schemaIntegrity.rememberSchemaIntegrity()
-    }
+    })
+    const response = await client.visit('health_checks.ready')
+    assert.lengthOf(errors, 1)
+    const [fields, message] = errors[0] as [{ err: unknown; reason: string }, string]
+    assert.equal(message, 'Database readiness check failed')
+    assert.instanceOf(fields.err, Error)
+    assert.equal(
+      fields.reason,
+      `Database schema drift: shipped migrations are not recorded (${String(record!.name)})`
+    )
+    assert.equal(response.status(), 503)
+    assert.isFalse(response.body().isHealthy)
+    const check = response
+      .body()
+      .checks.find((item: { name: string }) => item.name === 'Database health check (sqlite)')
+    assert.equal(check!.status, 'error')
+    assert.equal(check!.message, 'Database readiness check failed')
+    assert.notInclude(JSON.stringify(response.body()), 'database/migrations/')
+    assert.notInclude(JSON.stringify(response.body()), 'adonis_schema')
+    await restoreSchema()
     const healthy = await client.visit('health_checks.ready')
     assert.equal(healthy.status(), 200)
   })

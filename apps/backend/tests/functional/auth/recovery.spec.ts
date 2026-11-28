@@ -92,7 +92,7 @@ test.group('password recovery', (group) => {
     assert.isNotNull(
       await db
         .from('audit_entries')
-        .where({ action: 'identity.credentials_changed', actor_id: editorId })
+        .where({ operation: 'identity.credentials_changed', actor_id: editorId })
         .first()
     )
   })

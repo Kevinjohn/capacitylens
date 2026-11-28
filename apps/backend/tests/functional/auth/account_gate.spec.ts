@@ -74,7 +74,7 @@ test.group('account gate', (group) => {
       'POST /api/v1/companies/:companyId/invitations/:id/resend': 'admitted',
       'PUT /api/v1/companies/:companyId/member-sign-in-tracking': 'admitted',
       'GET,HEAD /api/v1/companies/:companyId/members': 'admitted',
-      'PATCH /api/v1/companies/:companyId/members/:userId': 'admitted',
+      'PUT,PATCH /api/v1/companies/:companyId/members/:userId': 'admitted',
       'DELETE /api/v1/companies/:companyId/members/:userId/resource-link': 'admitted',
       'PUT /api/v1/companies/:companyId/members/:userId/resource-link': 'admitted',
       'PATCH /api/v1/companies/:companyId/members/:userId/status': 'admitted',

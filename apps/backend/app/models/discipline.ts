@@ -9,6 +9,6 @@ import { withCompanyScope } from '#services/models/scoped_model'
 export default class Discipline extends compose(DisciplineSchema, SoftDeletes, withCompanyScope) {
   @column.dateTime(timestampColumn('disciplines', 'created_at')) declare createdAt: DateTime
   @column.dateTime({ serializeAs: null }) declare deletedAt: DateTime | null
-  @column({ serializeAs: null }) declare deletionGroupId: string | null
+  @column({ serializeAs: null }) declare deletedBatchId: string | null
   @column.dateTime(timestampColumn('disciplines', 'updated_at')) declare updatedAt: DateTime
 }

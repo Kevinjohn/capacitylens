@@ -183,7 +183,7 @@ test.group('beta import apply', (group) => {
     again.assertStatus(403)
     assert.equal(await revision(), baseRevision)
     assert.lengthOf(
-      await db.from('audit_entries').where({ company_id: companyId, action: 'import' }),
+      await db.from('audit_entries').where({ company_id: companyId, operation: 'import' }),
       0
     )
   })
@@ -228,7 +228,7 @@ test.group('beta import apply', (group) => {
       .first()
     assert.equal(memberResource?.resource_id, linkedPerson.id)
     assert.lengthOf(
-      await db.from('audit_entries').where({ company_id: companyId, action: 'import' }),
+      await db.from('audit_entries').where({ company_id: companyId, operation: 'import' }),
       1
     )
     assert.equal(await revision(), baseRevision + 1)
@@ -268,13 +268,14 @@ test.group('beta import apply', (group) => {
     const result = await apply(client, cookie, selected, baseRevision, confirmationId)
     result.assertStatus(200)
     assert.deepInclude(result.body().data, { changed: true, revision: baseRevision + 1 })
-    assert.isNull(await db.from('deleted_groups').where('group_id', selectedDelete.groupId).first())
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', selectedDelete.groupId), 0)
+    assert.isNull(await db.from('deleted_batches').where('id', selectedDelete.groupId).first())
+    assert.lengthOf(
+      await db.from('deleted_rows').where('deleted_batch_id', selectedDelete.groupId),
+      0
+    )
     assert.lengthOf(await db.from('planning_histories').where('company_id', companyId), 0)
     assert.lengthOf(await db.from('planning_histories').where('company_id', 'a-loft'), 1)
-    assert.isDefined(
-      await db.from('deleted_groups').where('group_id', foreignDelete.groupId).first()
-    )
+    assert.isDefined(await db.from('deleted_batches').where('id', foreignDelete.groupId).first())
     assert.deepEqual(await readState('a-loft', true), foreignBefore)
     for (const [index, table] of preservedTables.entries())
       assert.deepEqual(await db.from(table).select('*'), before[index])
@@ -310,7 +311,7 @@ test.group('beta import apply', (group) => {
       .first()
     assert.isDefined(importedRow)
     assert.isNull(importedRow.deleted_at)
-    assert.isNull(importedRow.deletion_group_id)
+    assert.isNull(importedRow.deleted_batch_id)
   })
 
   test('wrong document, revision, company and action cannot spend the proof', async ({
@@ -473,8 +474,8 @@ test.group('beta import apply', (group) => {
     const full = await document()
     full.data.companies[0]!.name += ' changed'
     const before = await readState(companyId, true)
-    const groupBefore = await db.from('deleted_groups').where('group_id', deletion.groupId).first()
-    const rowsBefore = await db.from('deleted_rows').where('group_id', deletion.groupId)
+    const groupBefore = await db.from('deleted_batches').where('id', deletion.groupId).first()
+    const rowsBefore = await db.from('deleted_rows').where('deleted_batch_id', deletion.groupId)
     const retainedBefore = await db.from('allocations').where('id', deletion.allocationId).first()
     const markerBefore = await db
       .from('planning_mutations')
@@ -485,24 +486,24 @@ test.group('beta import apply', (group) => {
       .first()
     const baseRevision = await revision()
     assert.isNotNull(retainedBefore.deleted_at)
-    assert.equal(retainedBefore.deletion_group_id, deletion.groupId)
+    assert.equal(retainedBefore.deleted_batch_id, deletion.groupId)
     const confirmationId = await proof(client, cookie, {
       baseRevision,
       document: full,
     })
     await db.rawQuery(
-      "CREATE TRIGGER fail_transfer_audit BEFORE INSERT ON audit_entries WHEN NEW.action = 'import' BEGIN SELECT RAISE(ABORT, 'forced transfer failure'); END"
+      "CREATE TRIGGER fail_transfer_audit BEFORE INSERT ON audit_entries WHEN NEW.operation = 'import' BEGIN SELECT RAISE(ABORT, 'forced transfer failure'); END"
     )
     try {
       const failed = await apply(client, cookie, full, baseRevision, confirmationId)
       assert.isAtLeast(failed.status(), 500)
       assert.deepEqual(await readState(companyId, true), before)
       assert.deepEqual(
-        await db.from('deleted_groups').where('group_id', deletion.groupId).first(),
+        await db.from('deleted_batches').where('id', deletion.groupId).first(),
         groupBefore
       )
       assert.deepEqual(
-        await db.from('deleted_rows').where('group_id', deletion.groupId),
+        await db.from('deleted_rows').where('deleted_batch_id', deletion.groupId),
         rowsBefore
       )
       assert.deepEqual(
@@ -521,7 +522,7 @@ test.group('beta import apply', (group) => {
       )
       assert.equal(await revision(), baseRevision)
       assert.lengthOf(
-        await db.from('audit_entries').where({ company_id: companyId, action: 'import' }),
+        await db.from('audit_entries').where({ company_id: companyId, operation: 'import' }),
         0
       )
       const failedProofRow = await db
