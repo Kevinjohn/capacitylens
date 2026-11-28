@@ -4,8 +4,8 @@ import Allocation from '#models/allocation'
 import { ClosureFactory } from '#database/factories/closure_factory'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { fixtureSession } from '#tests/helpers/identities'
-import { resetPlanningFixture } from '#tests/functional/planning/helpers'
-import { retainedModels, createDeletionGroup } from '#tests/helpers/planning/retained_rows'
+import { resetPlanningFixture } from '#tests/helpers/planning/functional_helpers'
+import { retainedModels, createDeletionBatch } from '#tests/helpers/planning/retained_rows'
 
 test.group('planning deletion ownership', (suite) => {
   suite.setup(() => freshDatabase())
@@ -29,7 +29,7 @@ test.group('planning deletion ownership', (suite) => {
         .withScopes((scopes) => scopes.forCompany('a-studio'))
         .firstOrFail()
       const id = row.id
-      const groupId = await createDeletionGroup('a-studio', sessionId)
+      const groupId = await createDeletionBatch('a-studio', sessionId)
       await row.delete()
       await db.from(table).where('id', id).update({ deleted_batch_id: groupId })
       const deleted = await (modelClass as typeof Allocation)
@@ -52,8 +52,8 @@ test.group('planning deletion ownership', (suite) => {
     assert,
   }) => {
     const sessionId = await fixtureSession('u-bruce')
-    const foreignGroupId = await createDeletionGroup('a-loft', sessionId)
-    const ownGroupId = await createDeletionGroup('a-studio', sessionId)
+    const foreignGroupId = await createDeletionBatch('a-loft', sessionId)
+    const ownGroupId = await createDeletionBatch('a-studio', sessionId)
     const row = await Allocation.query()
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .firstOrFail()
@@ -81,8 +81,8 @@ test.group('planning deletion ownership', (suite) => {
     assert,
   }) => {
     const sessionId = await fixtureSession('u-bruce')
-    const oldGroup = await createDeletionGroup('a-studio', sessionId)
-    const currentGroup = await createDeletionGroup('a-studio', sessionId)
+    const oldGroup = await createDeletionBatch('a-studio', sessionId)
+    const currentGroup = await createDeletionBatch('a-studio', sessionId)
     const first = await Allocation.query()
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .firstOrFail()
@@ -107,8 +107,8 @@ test.group('planning deletion ownership', (suite) => {
     assert,
   }) => {
     const sessionId = await fixtureSession('u-bruce')
-    const cleanGroup = await createDeletionGroup('a-studio', sessionId)
-    const blockedGroup = await createDeletionGroup('a-studio', sessionId)
+    const cleanGroup = await createDeletionBatch('a-studio', sessionId)
+    const blockedGroup = await createDeletionBatch('a-studio', sessionId)
     const rows = await Allocation.query()
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .limit(2)

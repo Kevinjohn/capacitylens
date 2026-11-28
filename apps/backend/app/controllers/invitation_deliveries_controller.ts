@@ -4,7 +4,7 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import { isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors'
 import { InvitationAnswerService } from '#services/admission/invitation_answer_service'
 import { MailDeliveryService } from '#services/mail_delivery_service'
-import { resendInvitationValidator } from '#validators/invitations'
+import { resendInvitationValidator } from '#validators/invitation'
 import { requestData } from '#validators/request_rules'
 
 /** Sends an open invitation again with a new link. */

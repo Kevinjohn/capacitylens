@@ -5,12 +5,12 @@ import { CurrentActorService } from '#services/auth/current_actor_service'
 import { PlanningAccessService } from '#services/planning/planning_access_service'
 import { buildCompanyExport, serializeCompanyExport } from '@capacitylens/shared/data/companyExport'
 import { StateRepositoryService } from '#services/state_repository_service'
-import { showCompanyExportValidator } from '#validators/export_query'
+import { showCompanyExportValidator } from '#validators/export'
 import { requestData } from '#validators/request_rules'
 
 /** The company's export document. */
 @inject()
-export default class CompanyExportsController {
+export default class CompanyExportController {
   #currentActor: CurrentActorService
   #stateRepository: StateRepositoryService
   #planningAccess: PlanningAccessService

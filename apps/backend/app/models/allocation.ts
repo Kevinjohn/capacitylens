@@ -1,30 +1,14 @@
 import { AllocationSchema } from '#database/schema'
 import { compose } from '@adonisjs/core/helpers'
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
-import { booleanColumn, timestampColumn } from '#models_support/scalar_column'
+import { booleanColumn, timestampColumn } from '#services/models/scalar_column'
 import type { DateTime } from 'luxon'
-import { beforeDelete, beforeFetch, beforeFind, beforeSave, column } from '@adonisjs/lucid/orm'
+import { column } from '@adonisjs/lucid/orm'
 import type { ISODate } from '@capacitylens/shared/types/entities'
-import { CompanyScope, requireRowCompany } from '#models_support/scoped_model'
-import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
+import { withCompanyScope } from '#services/models/scoped_model'
 import { isoDateColumn } from '@kevinjohn/adonisjs-lucid-checked-columns'
 /** A company-scoped allocation; deletion metadata never serializes. */
-export default class Allocation extends compose(AllocationSchema, SoftDeletes) {
-  static forCompany = CompanyScope.forCompany
-  static selfAssignPrimaryKey = true
-  @beforeFind()
-  static requireFindScope(query: ModelQueryBuilderContract<typeof Allocation>) {
-    CompanyScope.requireCompanyScope(query)
-  }
-  @beforeFetch()
-  static requireFetchScope(query: ModelQueryBuilderContract<typeof Allocation>) {
-    CompanyScope.requireCompanyScope(query)
-  }
-  @beforeSave()
-  @beforeDelete()
-  static requireWriteScope(row: Allocation) {
-    requireRowCompany(row)
-  }
+export default class Allocation extends compose(AllocationSchema, SoftDeletes, withCompanyScope) {
   @column(booleanColumn('allocations', 'ignore_working_days'))
   declare ignoreWorkingDays: boolean | null
 

@@ -100,7 +100,7 @@ use the existing tests and [testing guide](../docs-src/reference/how-it-is-teste
   provider. `web_effective` wraps that guard for member routes. It can supply the viewed-as member
   and a request context while keeping the raw sign-in available for account operations.
   [Guard configuration](../apps/backend/config/auth.ts#L8)
-- [`withActor(auth, …)`](../apps/backend/app/services/auth/current_actor_service.ts#L66) gets the registered
+- [`withActor(auth, …)`](../apps/backend/app/services/auth/current_actor_service.ts#L61) gets the registered
   sign-in from `web.current()`, then reads `web_effective.context`, authenticating that guard if it
   has yet to attempt authentication. It captures the view-as context before opening Account Kit's
   `authentication.withCurrent` transaction. Inside that transaction it requires a sign-in ID,
@@ -122,7 +122,7 @@ configuration files supply the options for those same operations.
 
 1. An editable Settings control calls
    [`useSettingsViewModel.updateSetting`](../apps/frontend/src/components/settings/useSettingsViewModel.ts#L55).
-   It passes the patch to [`updateCompany`](../apps/frontend/src/store/typedPlanningActions.ts#L331)
+   It passes the patch to [`updateCompany`](../apps/frontend/src/store/typedPlanningActions.ts#L330)
    for the active company. The store stops a read-only write with a notice and rejects invalid
    working days. [`buildSettingsUpdate`](../apps/frontend/src/data/planning/planningIntents.ts#L568)
    limits the patch to settings fields and returns no intent when the supplied values have not changed.

@@ -15,11 +15,11 @@ import {
   resetPlanningFixture,
   signIn,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   note,
   deleteOne,
-  deleteGroup,
+  deleteAllocationBatch,
   restore,
   createAllocations,
   stored,
@@ -28,7 +28,7 @@ import {
   markers,
   planningAudit,
   consumedAt,
-} from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/restoration_helpers'
 
 const restoration = await app.container.make(RestorationService)
 
@@ -219,7 +219,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const { cookie } = await signIn(client)
     const [first, second, kept] = await createAllocations(client, cookie, 3)
     const keptRow = await stored(kept!)
-    const deleted = await deleteGroup(client, cookie, [first!, second!], 1)
+    const deleted = await deleteAllocationBatch(client, cookie, [first!, second!], 1)
     deleted.assertStatus(200)
     const readIds = await readAllocationIds(client, cookie)
     assert.notInclude(readIds, first!)
@@ -229,7 +229,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.isUndefined(await stored(second!))
     assert.deepEqual(await stored(kept!), keptRow)
     const before = await readState(companyId, true)
-    const partial = await deleteGroup(client, cookie, [kept!, randomUUID()], 2)
+    const partial = await deleteAllocationBatch(client, cookie, [kept!, randomUUID()], 2)
     partial.assertStatus(422)
     assert.isString(validationSentence(partial))
     assert.deepEqual(await readState(companyId, true), before)
@@ -264,7 +264,7 @@ test.group('session-bound allocation restoration', (suite) => {
       listed.map((id) => ({ ...allocation, id }))
     )
     const before = await readState(companyId, true)
-    const deleted = await deleteGroup(client, cookie, listed, 1)
+    const deleted = await deleteAllocationBatch(client, cookie, listed, 1)
     deleted.assertStatus(200)
     assert.equal(deleted.body().data.revision, 2)
     const readIds = await readAllocationIds(client, cookie)
@@ -433,7 +433,7 @@ test.group('session-bound allocation restoration', (suite) => {
     configureAuth(cleanup)
     const { cookie } = await signIn(client)
     const [first, second] = await createAllocations(client, cookie, 2)
-    const deleted = await deleteGroup(client, cookie, [first!, second!], 1)
+    const deleted = await deleteAllocationBatch(client, cookie, [first!, second!], 1)
     deleted.assertStatus(200)
     const groupId = deleted.body().data.restoration.replacementGroupId
     const before = await readState(companyId, true)

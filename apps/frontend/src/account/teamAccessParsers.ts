@@ -52,11 +52,8 @@ function parseMember(row: unknown): TeamMember | null {
   }
 }
 
-function parseMemberResourceStatus(
-  value: unknown
-): 'active' | 'disabled' | 'archived' | null | undefined {
-  if (value === undefined || value === null) return null
-  if (value === 'active' || value === 'disabled' || value === 'archived') return value
+function parseMemberResourceStatus(value: unknown): 'active' | 'archived' | undefined {
+  if (value === 'active' || value === 'archived') return value
   return undefined
 }
 

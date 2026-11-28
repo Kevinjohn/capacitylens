@@ -15,7 +15,7 @@ import {
   loginAsMember,
   trusted,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations'
 
 test.group('independent typed planning operations', (group) => {

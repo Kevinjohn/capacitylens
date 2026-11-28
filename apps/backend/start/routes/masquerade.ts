@@ -1,7 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { apiPrefix } from '#start/api'
 import { throttle } from '#start/limiter'
-import { asCompanySignedInPerson, asSignedInPerson } from '#start/route_middleware'
 import { middleware } from '#start/kernel'
 import { controllers } from '#generated/controllers'
 
@@ -13,10 +12,10 @@ router
         // gets E_MASQUERADE_CONTEXT_CHANGED rather than a blocker's E_MASQUERADE_READ_ONLY.
         router
           .post('/companies/:companyId/masquerade', [controllers.Masquerade, 'store'])
-          .use(asCompanySignedInPerson())
-        router.delete('/masquerade', [controllers.Masquerade, 'destroy']).use(asSignedInPerson())
+          .use(middleware.companyScope())
+        router.delete('/masquerade', [controllers.Masquerade, 'destroy'])
       })
-      .use(middleware.accountGate({ access: 'limited' }))
+      .use([middleware.accountGate({ access: 'limited' }), middleware.auth({ guards: ['web'] })])
     router.get('/masquerade', [controllers.Masquerade, 'show'])
   })
   .prefix(apiPrefix)

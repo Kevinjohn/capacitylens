@@ -1,11 +1,11 @@
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import {
   E_ACCOUNT_KIT_INVALID_TOKEN,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors'
-import { invalidLinkAnswer } from '#exceptions/credential_answers'
+import InvalidLinkException from '#exceptions/invalid_link_exception'
+import VerificationCommittedException from '#exceptions/verification_committed_exception'
 import {
   completeVerificationValidator,
   inspectVerificationValidator,
@@ -27,7 +27,7 @@ export default class EmailVerificationsController {
    * Spends the link, confirms the address and sets the chosen password. Holding the link already
    * proves the mailbox, which could reset the password anyway.
    */
-  async update({ request, response, serialize }: HttpContext) {
+  async update({ request, serialize }: HttpContext) {
     const body = await request.validateUsing(completeVerificationValidator, {
       data: request.body(),
     })
@@ -38,17 +38,11 @@ export default class EmailVerificationsController {
       })
       return serialize({ result: 'verified' })
     } catch (error) {
-      // Keeps `E_INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
       if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
-        return response.badRequest(invalidLinkAnswer)
+        throw new InvalidLinkException()
       }
       if (isCommittedFailure(error)) {
-        return response.serviceUnavailable({
-          error:
-            'Your address is confirmed and your password is set. Sign in with the new password.',
-          code: 'E_VERIFICATION_COMMITTED',
-          committed: true,
-        } satisfies ProductHttpErrorBody)
+        throw new VerificationCommittedException()
       }
       throw error
     }

@@ -46,11 +46,6 @@ export class CurrentActorService {
     this.#admission = admission
   }
 
-  /** The signed-in Account Kit account, checked in the Kit's own transaction. */
-  async readCurrentAccount(auth: HttpContext['auth']) {
-    return accountKit.authentication.current(await auth.use('web').current())
-  }
-
   /** The Kit's admission decision for an account, read under the lock `trx` already holds. */
   async requireAdmissionDecision(userId: string | number, trx: Trx) {
     const user = await users.findById(userId, trx)

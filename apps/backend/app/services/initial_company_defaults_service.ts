@@ -6,7 +6,7 @@ import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
 import Client from '#models/client'
 import Company from '#models/company'
-import { rowAttributes } from '#models_support/row_attributes'
+import { rowAttributes } from '#services/models/row_attributes'
 import { InitialCompanyAccessService } from '#services/initial_company_access_service'
 
 /** The complete first company and its defaults. */
