@@ -1,11 +1,9 @@
 import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client'
 import app from '@adonisjs/core/services/app'
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
-import {
-  asDataOwner,
-  createFixtureCompanyForOwner,
-} from '#tests/helpers/authenticated_data_fixture'
-import { createIdentity, signIn } from '#tests/helpers/identities'
+import User from '#models/user'
+import { asActor, createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture'
+import { createIdentity } from '#tests/helpers/identities'
 
 export const companyId = 'a-studio'
 export const owner = 'bruce.wayne@wayne.example'
@@ -17,19 +15,20 @@ export const decisionRoutes = {
   revoke: 'api.admission_revocations.store',
 } as const
 
-export const as = (cookie: string) => ({
-  get: (request: ApiRequest): Promise<ApiResponse> => asDataOwner(request, cookie).send(),
+/** A user signs in afresh on every request; a session cookie is reused as is. */
+export const as = (actor: User | string) => ({
+  get: (request: ApiRequest): Promise<ApiResponse> => asActor(request, actor).send(),
   post: (request: ApiRequest, body: object = {}): Promise<ApiResponse> =>
-    asDataOwner(request, cookie).json(body).send(),
+    asActor(request, actor).json(body).send(),
 })
 
-export const planning = (client: ApiClient, cookie: string) =>
-  as(cookie).get(client.visit('api.planning.show', { companyId }))
+export const planning = (client: ApiClient, actor: User | string) =>
+  as(actor).get(client.visit('api.planning.show', { companyId }))
 
-export async function company(api: ApiClient) {
+export async function company() {
   const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' })
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId)
-  return signIn(api, owner)
+  return User.findOrFail(ownerId)
 }
 
 /** A confirmed identity with operator invitation evidence for `role`, waiting for approval. */

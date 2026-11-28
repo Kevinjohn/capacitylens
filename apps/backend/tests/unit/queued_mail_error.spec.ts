@@ -4,7 +4,10 @@ import logger from '@adonisjs/core/services/logger'
 import loggerConfig from '#config/logger'
 
 test.group('queued mail failures', () => {
-  test('are logged under err, serialized without the message', async ({ assert, cleanup }) => {
+  test('queued mail failures are logged under err and serialized without the message', async ({
+    assert,
+    cleanup,
+  }) => {
     const logged: unknown[][] = []
     const original = logger.error
     logger.error = ((...args: unknown[]) => {

@@ -7,6 +7,7 @@ import {
   asLoggedInDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
+  seedDataOwner,
 } from '#tests/helpers/authenticated_data_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { randomUUID } from 'node:crypto'
@@ -30,8 +31,7 @@ test.group('company anonymisation', (group) => {
   group.setup(() => freshDatabase())
 
   test('retired generic lifecycle routes are absent', async ({ client }) => {
-    const { userId } = await resetAuthenticatedData(client, true)
-    const user = await User.findOrFail(userId)
+    const user = await seedDataOwner(true)
     for (const path of [
       '/api/v1/resources/r-tyler/delete',
       '/api/v1/resources/r-tyler/purge',
@@ -45,10 +45,11 @@ test.group('company anonymisation', (group) => {
   test('resource anonymisation scrubs only its person and notes with one audit and revision', async ({
     client,
     assert,
+    db: dbAssert,
   }) => {
-    const { cookie, userId } = await resetAuthenticatedData(client, true)
+    const user = await seedDataOwner(true)
     const otherCompanyId = await createFixtureCompanyForOwner(
-      userId,
+      user.id,
       'Stark Industries',
       'a-anonymise-other'
     )
@@ -76,7 +77,7 @@ test.group('company anonymisation', (group) => {
       .first()
     assert.isDefined(timeOff)
     await db.from('time_off').where({ id: timeOff!.id }).update({ note: 'Private time off note' })
-    const deleted = await deleteAllocation(client, cookie, other.id)
+    const deleted = await deleteAllocation(client, user, other.id)
     const savedRows = await db.from('deleted_rows').where('deleted_batch_id', deleted.groupId)
     assert.isAbove(savedRows.length, 0)
     const before = await db.transaction((trx) =>
@@ -84,7 +85,7 @@ test.group('company anonymisation', (group) => {
     )
     const changed = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
-      await User.findOrFail(userId)
+      user
     )
       .json({})
       .send()
@@ -113,14 +114,11 @@ test.group('company anonymisation', (group) => {
         .whereNotNull('note'),
       0
     )
-    assert.isNull(await db.from('deleted_batches').where('id', deleted.groupId).first())
-    assert.lengthOf(await db.from('planning_histories').where('company_id', companyId), 0)
-    assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', deleted.groupId), 0)
-    assert.isNull(await db.from('allocations').where('id', deleted.allocation.id).first())
-    assert.lengthOf(
-      await db.from('audit_entries').where({ company_id: companyId, operation: 'anonymise' }),
-      1
-    )
+    await dbAssert.assertMissing('deleted_batches', { id: deleted.groupId })
+    await dbAssert.assertMissing('planning_histories', { company_id: companyId })
+    await dbAssert.assertMissing('deleted_rows', { deleted_batch_id: deleted.groupId })
+    await dbAssert.assertMissing('allocations', { id: deleted.allocation.id })
+    await dbAssert.assertHas('audit_entries', { company_id: companyId, operation: 'anonymise' }, 1)
     assert.equal(
       await db.transaction((trx) => planningRevisions.getPlanningRevision(trx, companyId)),
       before + 1
@@ -131,7 +129,7 @@ test.group('company anonymisation', (group) => {
     client,
     assert,
   }) => {
-    const { userId } = await resetAuthenticatedData(client, true)
+    const user = await seedDataOwner(true)
     // A soft-delete marker as the package stores it, in Lucid's date-time format.
     const deletedAt = '2026-11-24 10:11:12'
     const noted = { note: 'Arkham visit', deleted_at: deletedAt }
@@ -148,7 +146,7 @@ test.group('company anonymisation', (group) => {
         companyId,
         id: allocation.resource_id,
       }),
-      await User.findOrFail(userId)
+      user
     )
       .json({})
       .send()
@@ -164,15 +162,15 @@ test.group('company anonymisation', (group) => {
   })
 
   test('an Editor cannot anonymise an individual resource', async ({ client, assert }) => {
-    const { userId } = await resetAuthenticatedData(client, true)
+    const user = await seedDataOwner(true)
     const target = await db.from('resources').where('company_id', companyId).first()
     await db
       .from('memberships')
-      .where({ scope_id: companyId, user_id: userId })
+      .where({ scope_id: companyId, user_id: user.id })
       .update({ role: 'editor' })
     const refused = await asLoggedInDataOwner(
       client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
-      await User.findOrFail(userId)
+      user
     )
       .json({})
       .send()

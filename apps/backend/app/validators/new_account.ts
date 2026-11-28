@@ -9,17 +9,6 @@ import {
   userAgentHeaders,
 } from '#validators/request_rules'
 
-/** Retains the product's email shape, normalisation and strict authentication field rules. */
-export const signInValidator = vine.create(
-  vine
-    .object({
-      email: vine.string().use(accountEmail()).transform(normalizeAccountEmail),
-      password: vine.string(),
-      headers: userAgentHeaders(),
-    })
-    .use(allowedFields({ fields: ['email', 'password', ...REQUEST_CONTEXT_FIELDS] }))
-)
-
 /** Counts password code points and display-name code points, matching the established boundaries. */
 export const signUpValidator = vine.create(
   vine

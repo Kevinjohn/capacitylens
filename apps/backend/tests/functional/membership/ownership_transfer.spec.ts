@@ -25,6 +25,7 @@ test.group('atomic ownership transfer', (group) => {
   test('a wrong-action password confirmation cannot authorize ownership transfer', async ({
     client,
     assert,
+    db: dbAssert,
   }) => {
     const { ownerId, adminId, ownerCookie } = await ownershipFixture(client)
     const issued = await asDataOwner(client.visit('api.password_confirmations.store'), ownerCookie)
@@ -47,7 +48,7 @@ test.group('atomic ownership transfer', (group) => {
       .where({ scope_id: 'a-studio', user_id: ownerId })
       .firstOrFail()
     assert.equal(owner.role, 'owner')
-    assert.lengthOf(await db.from('audit_entries').where('operation', 'ownership.transferred'), 0)
+    await dbAssert.assertMissing('audit_entries', { operation: 'ownership.transferred' })
   })
 
   test('retired and unknown lifecycle actions return 404 before body validation', async ({

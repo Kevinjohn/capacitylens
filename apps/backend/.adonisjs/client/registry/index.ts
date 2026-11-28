@@ -230,17 +230,17 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"invitations"]],
     types: placeholder as Registry['api.invitations.index']['types'],
   },
-  'api.invitation_deliveries.store': {
-    methods: ["POST"],
-    pattern: '/api/v1/companies/:companyId/invitations/:id/resend',
-    tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"invitations"],[1,"id"],[0,"resend"]],
-    types: placeholder as Registry['api.invitation_deliveries.store']['types'],
-  },
   'api.invitations.destroy': {
     methods: ["DELETE"],
     pattern: '/api/v1/companies/:companyId/invitations/:id',
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"invitations"],[1,"id"]],
     types: placeholder as Registry['api.invitations.destroy']['types'],
+  },
+  'api.invitation_deliveries.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/companies/:companyId/invitations/:id/resend',
+    tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"invitations"],[1,"id"],[0,"resend"]],
+    types: placeholder as Registry['api.invitation_deliveries.store']['types'],
   },
   'api.invitation_links.show': {
     methods: ["GET","HEAD"],

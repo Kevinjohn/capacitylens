@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
-import { signInValidator, signUpValidator } from '#validators/auth'
+import { signInValidator } from '#validators/session'
+import { signUpValidator } from '#validators/new_account'
 import { admissionQueryValidator } from '#validators/admission'
 
 test.group('ordinary request validator normalization', () => {

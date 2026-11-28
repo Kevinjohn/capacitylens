@@ -40,12 +40,14 @@ export function formatBackupStartupFailure(dir: string, error: unknown): string 
   return `CAPACITYLENS_BACKUP_DIR=${JSON.stringify(dir)} could not be initialized: ${detail}. Fix the path and permissions, or set CAPACITYLENS_BACKUP_DIR= to disable scheduled backups.`
 }
 
+export const backupConfigWarnings: string[] = []
+
 const backupConfig = parseBackupConfig(
   {
     CAPACITYLENS_BACKUP_DIR: env.get('CAPACITYLENS_BACKUP_DIR'),
     CAPACITYLENS_BACKUP_KEEP: env.get('CAPACITYLENS_BACKUP_KEEP'),
   },
-  (message) => console.warn(message)
+  (message) => backupConfigWarnings.push(message)
 )
 
 export default backupConfig

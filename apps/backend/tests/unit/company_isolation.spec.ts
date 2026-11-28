@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import db from '@adonisjs/lucid/services/db'
 import { transactionalDatabase } from '#tests/helpers/transactional_database'
 import Client from '#models/client'
 import { ClientFactory } from '#database/factories/client_factory'
@@ -27,12 +26,12 @@ test.group('company isolation', (group) => {
 test.group('transactional database helper', (group) => {
   transactionalDatabase(group)
 
-  test('a test may leave a row behind', async ({ assert }) => {
+  test('a test may leave a row behind', async ({ db }) => {
     await CompanyFactory.merge({ id: 'a-gotham', name: 'Gotham', color: '#333' }).create()
-    assert.exists(await db.from('companies').where('id', 'a-gotham').first())
+    await db.assertHas('companies', { id: 'a-gotham' })
   })
 
-  test('the next test starts without it', async ({ assert }) => {
-    assert.notExists(await db.from('companies').where('id', 'a-gotham').first())
+  test('the next test starts without it', async ({ db }) => {
+    await db.assertMissing('companies', { id: 'a-gotham' })
   })
 })

@@ -33,6 +33,7 @@ import { createServerRevision } from '#services/planning/server_timestamp'
 import type { PlanningAccessGrant } from '#services/planning/access_grant'
 import PlanningAuthorizationException from '#exceptions/planning_authorization_exception'
 import EntityWriteException from '#exceptions/entity_write_exception'
+import ClosureNameRequiredException from '#exceptions/closure_name_required_exception'
 import EntityNotFoundException from '#exceptions/entity_not_found_exception'
 import FrozenCompanyFieldException from '#exceptions/frozen_company_field_exception'
 import ResourceAvatarUrlForbiddenException from '#exceptions/resource_avatar_url_forbidden_exception'
@@ -359,7 +360,7 @@ export function completeEntityWrite<K extends ScopedEntityKey>(
     table === 'closures' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
   ) {
-    throw new EntityWriteException('Closure name is required.')
+    throw new ClosureNameRequiredException('Closure name is required.')
   }
   for (const field of ['name', 'jobTitle', 'codeName', 'note', 'task'] as const) {
     if (typeof candidate[field] === 'string') {

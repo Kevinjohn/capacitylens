@@ -3,9 +3,8 @@ import { freshDatabase } from '#tests/helpers/fresh_database'
 import db from '@adonisjs/lucid/services/db'
 import { resetState } from '#tests/helpers/state_fixture'
 import { seed } from '@capacitylens/shared/data/seed'
-import { expectStatus } from '#tests/helpers/identities'
+import { expectStatus, signIn } from '#tests/helpers/identities'
 import { asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
-import User from '#models/user'
 import {
   companyId,
   otherCompanyId,
@@ -24,6 +23,7 @@ import {
   importSeed,
   anonymiseResource,
   preparePrivateProjection,
+  password,
 } from '#tests/helpers/auth/native_authorization'
 
 test.group('native authorization and role projections', (group) => {
@@ -45,7 +45,7 @@ test.group('native authorization and role projections', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup)
-    const { cookie, userId } = await createMember(client, 'editor')
+    const { user, userId } = await createMember('editor')
 
     const anonymous = await trusted(client.visit('api.company_state.show').qs({ companyId })).send()
     anonymous.assertStatus(401)
@@ -53,9 +53,9 @@ test.group('native authorization and role projections', (group) => {
     openHealth.assertStatus(200)
 
     await db.from('memberships').where({ user_id: userId }).delete()
-    const nonMember = await stateFor(client, cookie)
+    const nonMember = await stateFor(client, user)
     nonMember.assertStatus(403)
-    const nonMemberProjection = await currentUser(client, cookie)
+    const nonMemberProjection = await currentUser(client, user)
     nonMemberProjection.assertStatus(200)
 
     await db.table('memberships').insert({
@@ -66,14 +66,14 @@ test.group('native authorization and role projections', (group) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    const foreignRead = await stateFor(client, cookie, otherCompanyId)
+    const foreignRead = await stateFor(client, user, otherCompanyId)
     foreignRead.assertStatus(403)
 
     const foreignClient = seed().clients.find((row) => row.companyId === otherCompanyId)
     assert.isDefined(foreignClient)
     const concealed = await asLoggedInDataOwner(
       trusted(client.post(`/api/v1/clients/${foreignClient!.id}/archive`)),
-      await User.findOrFail(userId)
+      user
     )
       .json({ companyId })
       .send()
@@ -89,14 +89,13 @@ test.group('native authorization and role projections', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup)
-    const { cookie, userId } = await createMember(client, 'viewer')
-    const user = await User.findOrFail(userId)
+    const { user, userId } = await createMember('viewer')
     const anonymiseCandidates = seed().resources.filter((row) => row.companyId === companyId)
     assert.isAtLeast(anonymiseCandidates.length, 2)
 
     for (const role of roles) {
       await setRole(userId, role)
-      const read = await stateFor(client, cookie)
+      const read = await stateFor(client, user)
       read.assertStatus(200)
       const body = read.body().data as {
         companies: Array<{ id: string }>
@@ -108,7 +107,7 @@ test.group('native authorization and role projections', (group) => {
       )
       assert.isTrue(body.clients.every((row) => row.companyId === companyId))
 
-      const me = await currentUser(client, cookie)
+      const me = await currentUser(client, user)
       me.assertStatus(200)
 
       const currentPlanning = await asLoggedInDataOwner(
@@ -128,7 +127,7 @@ test.group('native authorization and role projections', (group) => {
         .send()
       assert.equal(setting.status(), role === 'viewer' ? 403 : 200, `${role} ordinary write`)
 
-      const dismissal = await writeDismissal(client, cookie)
+      const dismissal = await writeDismissal(client, user)
       assert.equal(
         dismissal.status(),
         role === 'admin' || role === 'owner' ? 200 : 403,
@@ -144,14 +143,14 @@ test.group('native authorization and role projections', (group) => {
       }
 
       const target = role === 'owner' ? anonymiseCandidates[1]! : anonymiseCandidates[0]!
-      const anonymised = await anonymiseResource(client, cookie, target.id)
+      const anonymised = await anonymiseResource(client, user, target.id)
       assert.equal(
         anonymised.status(),
         role === 'admin' || role === 'owner' ? 204 : 403,
         `${role} resource anonymisation`
       )
 
-      const importing = await importSeed(client, cookie)
+      const importing = await importSeed(client, user)
       assert.equal(importing.status(), 403, `${role} import without password confirmation`)
     }
   })
@@ -162,12 +161,12 @@ test.group('native authorization and role projections', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup)
-    const { cookie, userId } = await createMember(client, 'owner')
+    const { user, userId } = await createMember('owner')
     const fixture = await preparePrivateProjection()
 
     for (const role of roles) {
       await setRole(userId, role)
-      const response = await stateFor(client, cookie)
+      const response = await stateFor(client, user)
       response.assertStatus(200)
       const serialized = JSON.stringify(response.body().data)
       const body = response.body().data as {
@@ -216,7 +215,9 @@ test.group('native authorization and role projections', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup)
-    const { cookie, userId } = await createMember(client, 'owner')
+    const { user, userId } = await createMember('owner')
+    // A fresh sign-in per request would never be 16 minutes old, so reuse one session.
+    const { cookie } = await signIn(client, user.email, password)
     for (const ageMinutes of [0, 16]) {
       await db
         .from('account_sessions')
@@ -236,7 +237,9 @@ test.group('native authorization and role projections', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup)
-    const { cookie, userId } = await createMember(client, 'admin')
+    const { user, userId } = await createMember('admin')
+    // One session throughout: the downgrade must reach a sign-in that already exists.
+    const { cookie } = await signIn(client, user.email, password)
     const before = await writeDismissal(client, cookie)
     before.assertStatus(200)
 
@@ -260,9 +263,9 @@ test.group('native authorization and role projections', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup)
-    const { cookie } = await createMember(client, 'owner')
+    const { user } = await createMember('owner')
     for (const body of [{}, { dismissed: false }, { dismissed: 'yes' }]) {
-      const refused = await writeDismissal(client, cookie, body)
+      const refused = await writeDismissal(client, user, body)
       refused.assertStatus(422)
       assert.isNotEmpty((refused.body() as { errors?: unknown[] }).errors, JSON.stringify(body))
     }

@@ -1,7 +1,8 @@
 import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
+import type User from '#models/user'
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture'
 import { createIdentity } from '#tests/helpers/identities'
@@ -31,8 +32,8 @@ export async function member(email: string, role: 'admin' | 'editor' | 'viewer')
   return userId
 }
 
-export const invite = (client: ApiClient, cookie: string, email: string, role = 'editor') =>
-  asDataOwner(client.visit('api.invitations.store'), cookie)
+export const invite = (client: ApiClient, user: User, email: string, role = 'editor') =>
+  asLoggedInDataOwner(client.visit('api.invitations.store'), user)
     .timeout({ response: 10000, deadline: 15000 })
     // The role is deliberately untyped so a test can send `owner` and reach the refusal.
     .json({ companyId, email, role } as never)

@@ -12,11 +12,10 @@ import { resetState } from '#tests/helpers/state_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
 import { bootstrapInvitation, rememberSessionCookie } from '#tests/helpers/identities'
-import { captureMail, clearIdentities, signIn, expectStatus } from '#tests/helpers/identities'
+import { captureMail, clearIdentities, expectStatus } from '#tests/helpers/identities'
 import { requestBarrier } from '#tests/helpers/request_barrier'
 import {
   companyId,
-  owner,
   invitee,
   company,
   member,
@@ -41,8 +40,7 @@ test.group('company invitations', (group) => {
   }) => {
     const mail = captureMail(cleanup)
     const ownerUser = await User.findOrFail(await company())
-    const { cookie } = await signIn(client, owner)
-    const sent = await invite(client, cookie, 'Clark.Kent@Wayne.example')
+    const sent = await invite(client, ownerUser, 'Clark.Kent@Wayne.example')
     sent.assertStatus(201)
     assert.include(sent.body().data, { role: 'editor', preauthEmail: invitee, emailed: true })
     const listed = await asLoggedInDataOwner(
@@ -106,8 +104,8 @@ test.group('company invitations', (group) => {
   }) => {
     captureMail(cleanup)
     const ownerId = await company()
-    const { cookie } = await signIn(client, owner)
-    const sent = await invite(client, cookie, invitee)
+    const ownerUser = await User.findOrFail(ownerId)
+    const sent = await invite(client, ownerUser, invitee)
     sent.assertStatus(201)
     const stored = await db.from('account_invitations').where('email', invitee)
     assert.lengthOf(stored, 1)
@@ -137,9 +135,8 @@ test.group('company invitations', (group) => {
     cleanup,
   }) => {
     const mail = captureMail(cleanup)
-    await company()
-    const { cookie } = await signIn(client, owner)
-    const sent = await invite(client, cookie, invitee, 'admin')
+    const ownerUser = await User.findOrFail(await company())
+    const sent = await invite(client, ownerUser, invitee, 'admin')
     sent.assertStatus(201)
     const token = mail.tokenFor(invitee)
     // The operator's invitation carries no company; one acceptance spends both.
@@ -174,20 +171,17 @@ test.group('company invitations', (group) => {
     assert,
     cleanup,
   }) => {
-    await company()
-    await member('diana.prince@wayne.example', 'admin')
-    await member('barry.allen@wayne.example', 'editor')
-    const { cookie: ownerCookie } = await signIn(client, owner)
-    const unavailable = await invite(client, ownerCookie, invitee)
+    const ownerUser = await User.findOrFail(await company())
+    const adminUser = await User.findOrFail(await member('diana.prince@wayne.example', 'admin'))
+    const editorUser = await User.findOrFail(await member('barry.allen@wayne.example', 'editor'))
+    const unavailable = await invite(client, ownerUser, invitee)
     unavailable.assertStatus(503)
     assert.equal((unavailable.body() as { code?: string }).code, 'E_MAIL_UNAVAILABLE')
     captureMail(cleanup)
-    await expectStatus(invite(client, ownerCookie, invitee, 'owner'), 422)
-    const { cookie: editorCookie } = await signIn(client, 'barry.allen@wayne.example')
-    await expectStatus(invite(client, editorCookie, invitee), 403)
-    const { cookie: adminCookie } = await signIn(client, 'diana.prince@wayne.example')
-    await expectStatus(invite(client, adminCookie, invitee, 'admin'), 201)
-    await expectStatus(invite(client, ownerCookie, 'diana.prince@wayne.example'), 409)
+    await expectStatus(invite(client, ownerUser, invitee, 'owner'), 422)
+    await expectStatus(invite(client, editorUser, invitee), 403)
+    await expectStatus(invite(client, adminUser, invitee, 'admin'), 201)
+    await expectStatus(invite(client, ownerUser, 'diana.prince@wayne.example'), 409)
     assert.lengthOf(await db.from('account_invitations'), 1)
   })
 
@@ -198,11 +192,10 @@ test.group('company invitations', (group) => {
   }) => {
     const { mailer } = captureMail(cleanup)
     const ownerUser = await User.findOrFail(await company())
-    const { cookie } = await signIn(client, owner)
     mailer.sendLater = async () => {
       throw new Error('The mail transport refused the message.')
     }
-    const sent = await invite(client, cookie, invitee)
+    const sent = await invite(client, ownerUser, invitee)
     sent.assertStatus(202)
     assert.deepEqual(sent.body().data, { committed: true, emailed: false })
     assert.lengthOf(await db.from('account_invitations'), 1)
@@ -292,8 +285,7 @@ test.group('company invitations', (group) => {
   }) => {
     const mail = captureMail(cleanup)
     const ownerUser = await User.findOrFail(await company())
-    const { cookie } = await signIn(client, owner)
-    const sent = await invite(client, cookie, invitee)
+    const sent = await invite(client, ownerUser, invitee)
     const first = mail.tokenFor(invitee)
     const { id } = sent.body().data as { id: number }
     const resent = await asLoggedInDataOwner(
@@ -328,9 +320,8 @@ test.group('company invitations', (group) => {
     cleanup,
   }) => {
     const mail = captureMail(cleanup)
-    await company()
-    const { cookie } = await signIn(client, owner)
-    await invite(client, cookie, invitee)
+    const ownerUser = await User.findOrFail(await company())
+    await invite(client, ownerUser, invitee)
     const token = mail.tokenFor(invitee)
     const results = await Promise.all([accept(client, token), accept(client, token)])
     assert.deepEqual(results.map((result) => result.status()).sort(), [201, 400])
@@ -346,7 +337,7 @@ test.group('company invitations', (group) => {
     const mail = captureMail(cleanup)
     await company()
     const adminId = await member('diana.prince@wayne.example', 'admin')
-    const { cookie } = await signIn(client, 'diana.prince@wayne.example')
+    const adminUser = await User.findOrFail(adminId)
     const original = accountKit.invitations.send.bind(accountKit.invitations)
     const barrier = requestBarrier()
     accountKit.invitations.send = async (...args) => {
@@ -355,7 +346,7 @@ test.group('company invitations', (group) => {
     }
     const audits = await db.from('audit_entries')
     const before = await revision()
-    const pending = invite(client, cookie, invitee)
+    const pending = invite(client, adminUser, invitee)
     try {
       await barrier.entered()
       await db.from('memberships').where('user_id', adminId).update({ role: 'viewer' })

@@ -1,12 +1,14 @@
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
+import User from '#models/user'
 import limiter from '@adonisjs/limiter/services/main'
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
 import { E_ACCOUNT_KIT_POST_COMMIT } from '@kevinjohn/adonisjs-account-kit/errors'
 import { resetState } from '#tests/helpers/state_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
+import { asDataOwner } from '#tests/helpers/authenticated_data_fixture'
 import {
   captureMail,
   clearIdentities,
@@ -58,18 +60,18 @@ test.group('admission and membership completion', (group) => {
     client: api,
     assert,
   }) => {
-    const ownerSession = await company(api)
+    const ownerUser = await company()
     const userId = await invitedIdentity('editor')
-    const { cookie } = await signIn(api, person, password)
-    const status = await as(cookie).get(api.visit('api.admission.show'))
+    const user = await User.findOrFail(userId)
+    const status = await as(user).get(api.visit('api.admission.show'))
     status.assertStatus(200)
     assert.isFalse(status.body().data.decision.admitted)
-    await expectStatus(planning(api, cookie), 403)
-    await expectStatus(as(cookie).post(api.visit('api.memberships.store')), 403)
-    const requested = await as(cookie).post(api.visit('api.admission_requests.store'))
+    await expectStatus(planning(api, user), 403)
+    await expectStatus(as(user).post(api.visit('api.memberships.store')), 403)
+    const requested = await as(user).post(api.visit('api.admission_requests.store'))
     requested.assertStatus(200)
     assert.isString(requested.body().data.requestedAt)
-    const pending = await as(ownerSession.cookie).get(
+    const pending = await as(ownerUser).get(
       api.visit('api.admission_requests.index').qs({ status: 'pending' })
     )
     pending.assertStatus(200)
@@ -79,7 +81,7 @@ test.group('admission and membership completion', (group) => {
     )
     // The SPA reads the cursor from `metadata`; a single page ends with a null cursor.
     assert.deepEqual(pending.body().metadata, { nextCursor: null })
-    const approved = await as(ownerSession.cookie).post(
+    const approved = await as(ownerUser).post(
       api.visit('api.admission_approvals.store', { userId })
     )
     approved.assertStatus(200)
@@ -89,19 +91,19 @@ test.group('admission and membership completion', (group) => {
       return Number(row?.revision)
     }
     const membershipRequired = async () => {
-      const me = await as(cookie).get(api.visit('api.session.show'))
+      const me = await as(user).get(api.visit('api.session.show'))
       return me.body().data.membershipRequired
     }
     assert.isTrue(await membershipRequired())
     const before = await revision()
-    const completed = await as(cookie).post(api.visit('api.memberships.store'))
+    const completed = await as(user).post(api.visit('api.memberships.store'))
     completed.assertStatus(200)
     assert.deepEqual(completed.body().data, { companyId, role: 'editor', created: true })
     assert.equal(await revision(), before + 1)
-    const again = await as(cookie).post(api.visit('api.memberships.store'))
+    const again = await as(user).post(api.visit('api.memberships.store'))
     assert.deepEqual(again.body().data, { companyId, role: 'editor', created: false })
     assert.isFalse(await membershipRequired())
-    await expectStatus(planning(api, cookie), 200)
+    await expectStatus(planning(api, user), 200)
   })
 
   test('operator admission recovery preserves credentials after bootstrap stops partway', async ({
@@ -109,23 +111,27 @@ test.group('admission and membership completion', (group) => {
     assert,
   }) => {
     const recoveryEmail = 'admin@admin.admin'
-    await createIdentity(recoveryEmail, { name: 'Bruce Wayne', password, admitted: false })
-    const firstSignIn = await signIn(api, recoveryEmail, password)
-    const pending = await as(firstSignIn.cookie).get(api.visit('api.admission.show'))
+    const recoveryUserId = await createIdentity(recoveryEmail, {
+      name: 'Bruce Wayne',
+      password,
+      admitted: false,
+    })
+    const recoveryUser = await User.findOrFail(recoveryUserId)
+    const pending = await as(recoveryUser).get(api.visit('api.admission.show'))
     pending.assertStatus(200)
     assert.isFalse(pending.body().data.decision.admitted)
     assert.isFalse(pending.body().data.decision.requirements.invitation.met)
 
     const admission = await app.container.make(AccountAdmission)
     await admission.operator.grantInvitation({ email: recoveryEmail, role: 'admin' })
-    const invited = await as(firstSignIn.cookie).get(api.visit('api.admission.show'))
+    const invited = await as(recoveryUser).get(api.visit('api.admission.show'))
     invited.assertStatus(200)
     assert.isFalse(invited.body().data.decision.admitted)
     assert.isTrue(invited.body().data.decision.requirements.invitation.met)
     await admission.operator.approve({ email: recoveryEmail })
 
     const secondSignIn = await signIn(api, recoveryEmail, password)
-    const admitted = await as(secondSignIn.cookie).get(api.visit('api.admission.show'))
+    const admitted = await asDataOwner(api.visit('api.admission.show'), secondSignIn.cookie).send()
     admitted.assertStatus(200)
     assert.isTrue(admitted.body().data.decision.admitted)
     const recoveryUsers = await db.from('users').where('email', recoveryEmail).select('id')
@@ -136,22 +142,23 @@ test.group('admission and membership completion', (group) => {
     client: api,
     assert,
   }) => {
-    const ownerSession = await company(api)
+    const ownerUser = await company()
     const userId = await invitedIdentity('owner')
-    await as(ownerSession.cookie).post(api.visit('api.admission_approvals.store', { userId }))
-    const { cookie } = await signIn(api, person, password)
-    const completed = await as(cookie).post(api.visit('api.memberships.store'))
+    await as(ownerUser).post(api.visit('api.admission_approvals.store', { userId }))
+    const user = await User.findOrFail(userId)
+    const completed = await as(user).post(api.visit('api.memberships.store'))
     assert.deepEqual(completed.body().data, { companyId, role: 'viewer', created: true })
   })
 
   test('rejection and revocation deny company data on the next request', async ({
     client: api,
   }) => {
-    const ownerSession = await company(api)
+    const ownerUser = await company()
     const userId = await invitedIdentity('viewer')
     const decide = (decision: keyof typeof decisionRoutes) =>
-      as(ownerSession.cookie).post(api.visit(decisionRoutes[decision], { userId }))
+      as(ownerUser).post(api.visit(decisionRoutes[decision], { userId }))
     await expectStatus(decide('reject'), 200)
+    // One session throughout: each decision must reach a sign-in that already exists.
     const { cookie } = await signIn(api, person, password)
     await expectStatus(planning(api, cookie), 403)
     await expectStatus(decide('approve'), 200)
@@ -162,7 +169,7 @@ test.group('admission and membership completion', (group) => {
   })
 
   test('completion never restores a suspended membership', async ({ client: api, assert }) => {
-    await company(api)
+    await company()
     const userId = await createIdentity(person, { password })
     const now = new Date().toISOString()
     await db.table('memberships').insert({
@@ -173,8 +180,8 @@ test.group('admission and membership completion', (group) => {
       created_at: now,
       updated_at: now,
     })
-    const { cookie } = await signIn(api, person, password)
-    const refused = await as(cookie).post(api.visit('api.memberships.store'))
+    const user = await User.findOrFail(userId)
+    const refused = await as(user).post(api.visit('api.memberships.store'))
     refused.assertStatus(409)
     assert.equal(refused.body().code, 'E_MEMBERSHIP_SUSPENDED')
     const membership = await db.from('memberships').where('user_id', userId).first()
@@ -184,7 +191,7 @@ test.group('admission and membership completion', (group) => {
   test('an Admin whose admission was revoked can no longer list or decide admission', async ({
     client: api,
   }) => {
-    const ownerSession = await company(api)
+    const ownerUser = await company()
     const userId = await invitedIdentity('viewer')
     const adminId = await createIdentity('diana.prince@wayne.example', { password })
     const now = new Date().toISOString()
@@ -196,12 +203,11 @@ test.group('admission and membership completion', (group) => {
       created_at: now,
       updated_at: now,
     })
+    // The Admin's session predates the revocation, which must still reach it.
     const { cookie } = await signIn(api, 'diana.prince@wayne.example', password)
     await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 200)
     await expectStatus(
-      as(ownerSession.cookie).post(
-        api.visit('api.admission_revocations.store', { userId: adminId })
-      ),
+      as(ownerUser).post(api.visit('api.admission_revocations.store', { userId: adminId })),
       200
     )
     await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 403)
@@ -212,9 +218,9 @@ test.group('admission and membership completion', (group) => {
     client: api,
     assert,
   }) => {
-    const ownerSession = await company(api)
+    const ownerUser = await company()
     for (const route of Object.values(decisionRoutes)) {
-      const response = await as(ownerSession.cookie).post(api.visit(route, { userId: 'bad.id' }))
+      const response = await as(ownerUser).post(api.visit(route, { userId: 'bad.id' }))
       response.assertStatus(422)
       const { errors } = response.body() as { errors: Array<{ field: string; rule: string }> }
       assert.deepEqual(
@@ -225,7 +231,7 @@ test.group('admission and membership completion', (group) => {
   })
 
   test('Editors and Viewers cannot list or decide admission', async ({ client: api }) => {
-    await company(api)
+    await company()
     const userId = await invitedIdentity('viewer')
     const editorId = await createIdentity('barry.allen@wayne.example', { password })
     const now = new Date().toISOString()
@@ -237,9 +243,12 @@ test.group('admission and membership completion', (group) => {
       created_at: now,
       updated_at: now,
     })
-    const { cookie } = await signIn(api, 'barry.allen@wayne.example', password)
-    await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 403)
-    await expectStatus(as(cookie).post(api.visit('api.admission_approvals.store', { userId })), 403)
+    const editorUser = await User.findOrFail(editorId)
+    await expectStatus(as(editorUser).get(api.visit('api.admission_requests.index')), 403)
+    await expectStatus(
+      as(editorUser).post(api.visit('api.admission_approvals.store', { userId })),
+      403
+    )
   })
 })
 
@@ -256,16 +265,16 @@ test.group('address confirmation', (group) => {
     assert,
     cleanup,
   }) => {
-    await company(api)
-    await createIdentity(person, { password, verified: false })
-    const { cookie } = await signIn(api, person, password)
-    const unavailable = await as(cookie).post(api.visit('api.email_verification_requests.store'))
+    await company()
+    const userId = await createIdentity(person, { password, verified: false })
+    const user = await User.findOrFail(userId)
+    const unavailable = await as(user).post(api.visit('api.email_verification_requests.store'))
     unavailable.assertStatus(503)
     const mail = captureMail(cleanup)
-    await expectStatus(as(cookie).post(api.visit('api.email_verification_requests.store')), 200)
+    await expectStatus(as(user).post(api.visit('api.email_verification_requests.store')), 200)
     const token = mail.tokenFor(person)
     const inspect = async () => {
-      const response = await as(cookie).post(api.visit('api.email_verifications.show'), { token })
+      const response = await as(user).post(api.visit('api.email_verifications.show'), { token })
       return (response.body() as { data: { valid: boolean } }).data.valid
     }
     assert.isTrue(await inspect())
@@ -274,17 +283,17 @@ test.group('address confirmation', (group) => {
     // Eight emoji are sixteen UTF-16 units but eight characters, under the fifteen-character minimum.
     for (const refused of ['😀'.repeat(8), 'a'.repeat(129)])
       await expectStatus(
-        as(cookie).post(api.visit('api.email_verifications.update'), { token, password: refused }),
+        as(user).post(api.visit('api.email_verifications.update'), { token, password: refused }),
         422
       )
-    const confirmed = await as(cookie).post(api.visit('api.email_verifications.update'), {
+    const confirmed = await as(user).post(api.visit('api.email_verifications.update'), {
       token,
       password: chosen,
     })
     confirmed.assertStatus(200)
     assert.isFalse(await inspect())
     const signedIn = await signIn(api, person, chosen)
-    const me = await as(signedIn.cookie).get(api.visit('api.session.show'))
+    const me = await asDataOwner(api.visit('api.session.show'), signedIn.cookie).send()
     assert.isTrue(me.body().data.emailVerified)
     const old = await api
       .visit('api.session.store')
@@ -306,12 +315,16 @@ test.group('address confirmation', (group) => {
     cleanup(() => {
       accountKit.emailVerification.complete = original
     })
-    const confirmed = await as('').post(api.visit('api.email_verifications.update'), {
-      token: 'committed-token',
-      password: 'confirmed-password-2026',
-    })
+    const confirmed = await api
+      .visit('api.email_verifications.update')
+      .header('sec-fetch-site', 'same-origin')
+      .json({
+        token: 'committed-token',
+        password: 'confirmed-password-2026',
+      })
+      .send()
     confirmed.assertStatus(503)
-    assert.equal(confirmed.body().code, 'E_VERIFICATION_COMMITTED')
+    assert.equal((confirmed.body() as { code?: string }).code, 'E_VERIFICATION_COMMITTED')
   })
 
   test('a database holding two companies refuses membership completion and the company list', async ({
@@ -319,12 +332,12 @@ test.group('address confirmation', (group) => {
     assert,
   }) => {
     await resetState(true)
-    await createIdentity(person, { password })
-    const { cookie } = await signIn(api, person, password)
-    const completed = await as(cookie).post(api.visit('api.memberships.store'))
+    const userId = await createIdentity(person, { password })
+    const user = await User.findOrFail(userId)
+    const completed = await as(user).post(api.visit('api.memberships.store'))
     completed.assertStatus(409)
     assert.equal(completed.body().code, 'E_MULTIPLE_COMPANIES')
-    const companies = await as(cookie).get(api.visit('api.companies.index'))
+    const companies = await as(user).get(api.visit('api.companies.index'))
     companies.assertStatus(409)
     assert.deepEqual(companies.body(), {
       error:

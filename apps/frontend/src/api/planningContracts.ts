@@ -42,5 +42,11 @@ export type PlanningMutationSuccess = Extract<
   { status: 'committed' }
 >
 
+/** One undo or redo of the page's server-held history; the server holds the intent it applies. */
+type PlanningHistoryBody = Route.Body<'api.planning_undo.store'>
+export type PlanningHistoryStep = Omit<PlanningHistoryBody, 'baseRevision'> & {
+  baseRevision: Extract<PlanningHistoryBody['baseRevision'], number>
+}
+
 /** Who the last accepted planning read was for, and what that member may do and see. */
 export type PlanningAccess = Exclude<Route.Response<'api.planning.show'>, void>['data']['access']

@@ -47,6 +47,7 @@ test.group('SQLite transaction faults', (group) => {
 
   test('rolls back a nested savepoint without rolling back the outer transaction', async ({
     assert,
+    db: dbAssert,
   }) => {
     await db.transaction(async (outer) => {
       await ClientFactory.client(outer).merge({ id: 'm2a-savepoint-outer', companyId }).create()
@@ -65,8 +66,8 @@ test.group('SQLite transaction faults', (group) => {
       assert.isNull(await outer.from('clients').where('id', 'm2a-savepoint-inner').first())
     })
 
-    assert.isNotNull(await db.from('clients').where('id', 'm2a-savepoint-outer').first())
-    assert.isNull(await db.from('clients').where('id', 'm2a-savepoint-inner').first())
+    await dbAssert.assertHas('clients', { id: 'm2a-savepoint-outer' })
+    await dbAssert.assertMissing('clients', { id: 'm2a-savepoint-inner' })
   })
 
   test('bounds acquisition of a second root transaction while another remains open', async ({

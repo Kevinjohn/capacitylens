@@ -13,11 +13,14 @@ router
         router.post('/invitations', [controllers.Invitations, 'store'])
         router
           .group(() => {
-            router.get('/', [controllers.Invitations, 'index']).use(sensitive())
-            router.post('/:id/resend', [controllers.InvitationDeliveries, 'store'])
-            router.delete('/:id', [controllers.Invitations, 'destroy'])
+            router
+              .resource('invitations', controllers.Invitations)
+              .apiOnly()
+              .only(['index', 'destroy'])
+              .use('index', sensitive())
+            router.post('/invitations/:id/resend', [controllers.InvitationDeliveries, 'store'])
           })
-          .prefix('/companies/:companyId/invitations')
+          .prefix('/companies/:companyId')
           .use(middleware.companyScope())
       })
       .use([
@@ -30,6 +33,7 @@ router
         router.post('/sign-up', [controllers.InvitationAcceptances, 'store'])
       })
       .prefix('/invitations/:token')
+      .where('token', /^[^/\s]+$/)
       .use(middleware.accountKitAccountBlocker())
 
     router

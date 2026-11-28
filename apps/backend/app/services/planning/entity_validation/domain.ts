@@ -28,6 +28,8 @@ import {
 import { isUnavailable } from '@capacitylens/shared/lib/capacity'
 import ValidationRefusalException from '#exceptions/validation_refusal_exception'
 import EntityWriteException from '#exceptions/entity_write_exception'
+import DateInvalidException from '#exceptions/date_invalid_exception'
+import DateReversedException from '#exceptions/date_reversed_exception'
 import ActivityPhaseProjectMismatchException from '#exceptions/activity_phase_project_mismatch_exception'
 
 /** One prepared row of a table and the stored row it replaces, if any. */
@@ -134,10 +136,11 @@ export function assertEntityDomain(
       resource.lastAvailableDate ?? undefined
     )
     if (!availability.ok) {
-      throw new EntityWriteException(
-        availability.codes[0] === 'E_DATE_REVERSED'
-          ? 'First available date cannot be after last available date.'
-          : 'Availability dates must be valid calendar dates (YYYY-MM-DD).'
+      if (availability.codes[0] === 'E_DATE_REVERSED') {
+        throw new DateReversedException('First available date cannot be after last available date.')
+      }
+      throw new DateInvalidException(
+        'Availability dates must be valid calendar dates (YYYY-MM-DD).'
       )
     }
   } else if (write.table === 'activities') {

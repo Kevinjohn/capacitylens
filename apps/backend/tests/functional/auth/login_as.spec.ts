@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import db from '@adonisjs/lucid/services/db'
 import User from '#models/user'
 import { resetState } from '#tests/helpers/state_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
@@ -13,12 +12,12 @@ test.group('loginAs through the Account Kit session guard', (group) => {
   })
 
   test('loginAs signs an admitted identity in through the session registry', async ({
-    assert,
     client,
+    db,
   }) => {
     const user = await User.findOrFail(await createIdentity('diana@themyscira.example'))
     const response = await client.visit('api.companies.index').loginAs(user).send()
-    assert.exists(await db.from('account_sessions').where('user_id', user.id).first())
+    await db.assertHas('account_sessions', { user_id: user.id })
     response.assertStatus(200)
   })
 
