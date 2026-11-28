@@ -211,7 +211,7 @@ test.group('direct member resource association', (group) => {
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
+          .visit('api.member_resource_link.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -234,7 +234,7 @@ test.group('direct member resource association', (group) => {
     const createLinkOperation = () =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
+          .visit('api.member_resource_link.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -264,7 +264,7 @@ test.group('direct member resource association', (group) => {
     const repeatLink = () =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
+          .visit('api.member_resource_link.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -298,7 +298,7 @@ test.group('direct member resource association', (group) => {
     const unlink = () =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
+          .visit('api.member_resource_link.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -349,7 +349,7 @@ test.group('direct member resource association', (group) => {
     const clear = (userId: string, expectedRevision: string) =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
+          .visit('api.member_resource_link.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )

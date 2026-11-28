@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types'
 import { AuthorizationService } from '#services/auth/authorization_service'
 import { CurrentActorService } from '#services/auth/current_actor_service'
-import { refuseMissingAdmission } from '#exceptions/admission_errors'
+import { refuseMissingAdmission } from '#services/errors/admission_errors'
 import { InstallationCompanyService } from '#services/installation_company_service'
 
 /** The checks and shapes the invitation controllers share. */

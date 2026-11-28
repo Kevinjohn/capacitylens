@@ -10,6 +10,11 @@ import { test } from '@japa/runner'
 import { PasswordConfirmationRequiredException } from '@kevinjohn/adonisjs-confirm-action-with-password'
 import type { HttpContext } from '@adonisjs/core/http'
 import HttpExceptionHandler from '#exceptions/handler'
+import AccountDeletionCommittedException from '#exceptions/account_deletion_committed_exception'
+import CredentialUpdateCommittedException from '#exceptions/credential_update_committed_exception'
+import DiagnosticsUnavailableException from '#exceptions/diagnostics_unavailable_exception'
+import VerificationCommittedException from '#exceptions/verification_committed_exception'
+import VerificationDeliveryFailedException from '#exceptions/verification_delivery_failed_exception'
 test.group('private diagnostics', () => {
   test('error reporting survives a failed diagnostic logger', async ({ assert }) => {
     const ctx = {
@@ -70,6 +75,23 @@ test.group('private diagnostics', () => {
       await handler.report(error, captured.context)
       assert.equal(captured.status(), status)
       assert.deepEqual(captured.records, [])
+    }
+  })
+
+  test('expected 503 outcomes answer without a report', async ({ assert }) => {
+    const handler = new HttpExceptionHandler()
+    for (const error of [
+      new AccountDeletionCommittedException(),
+      new CredentialUpdateCommittedException(),
+      new DiagnosticsUnavailableException(),
+      new VerificationCommittedException(),
+      new VerificationDeliveryFailedException(),
+    ]) {
+      const captured = diagnosticContext()
+      await handler.handle(error, captured.context)
+      await handler.report(error, captured.context)
+      assert.equal(captured.status(), 503, error.name)
+      assert.deepEqual(captured.records, [], error.name)
     }
   })
 

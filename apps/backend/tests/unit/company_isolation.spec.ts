@@ -28,10 +28,7 @@ test.group('transactional database helper', (group) => {
   transactionalDatabase(group)
 
   test('a test may leave a row behind', async ({ assert }) => {
-    const now = new Date().toISOString()
-    await db
-      .table('companies')
-      .insert({ id: 'a-gotham', name: 'Gotham', color: '#333', created_at: now, updated_at: now })
+    await CompanyFactory.merge({ id: 'a-gotham', name: 'Gotham', color: '#333' }).create()
     assert.exists(await db.from('companies').where('id', 'a-gotham').first())
   })
 

@@ -8,7 +8,7 @@ import {
   resetPlanningFixture,
   session,
   loginAsMember,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 
 test.group('typed company calendar settings', (group) => {
   group.setup(() => freshDatabase())

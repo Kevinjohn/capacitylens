@@ -11,7 +11,7 @@ import {
   session,
   loginAsMember,
   signIn,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import { mutationInput, otherCompanyId } from '#tests/helpers/planning/mutations'
 
 test.group('typed bulk writer company isolation', (group) => {

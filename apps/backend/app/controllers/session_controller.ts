@@ -7,10 +7,12 @@ import {
   E_ACCOUNT_KIT_INVALID_SESSION,
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types'
+import InvalidCredentialsException from '#exceptions/invalid_credentials_exception'
+import SignInRequiredException from '#exceptions/sign_in_required_exception'
 import { PasswordSignInService } from '#services/auth/password_sign_in_service'
 import { buildUserProjection } from '#services/auth/user_projection'
 import { CurrentActorService } from '#services/auth/current_actor_service'
-import { signInValidator } from '#validators/auth_requests'
+import { signInValidator } from '#validators/auth'
 import { requestData } from '#validators/request_rules'
 import { FirstCompanySetupService } from '#services/first_company_setup_service'
 import { InstallationCompanyService } from '#services/installation_company_service'
@@ -46,7 +48,7 @@ export default class SessionController {
    * The signed-in identity and what it may reach: a confirmed address, admission, company setup
    * and membership decide between the limited screens and the schedule.
    */
-  async show({ auth, response, serialize }: HttpContext) {
+  async show({ auth, serialize }: HttpContext) {
     try {
       return serialize(
         await this.#currentActor.withActor(
@@ -74,16 +76,14 @@ export default class SessionController {
       // Does work: a missing session reads whether any identity exists for the 401 body.
       if (!(error instanceof E_ACCOUNT_KIT_INVALID_SESSION)) throw error
       const hasUsers = await this.#installationCompany.hasAnyIdentity()
-      return response.unauthorized({
-        error: 'Sign-in required.',
-        code: 'E_SIGN_IN_REQUIRED',
+      throw new SignInRequiredException({
         passwordResetEmail: this.#mailDelivery.isMailConfigured(),
-        ...(!hasUsers ? { needsSetup: true } : {}),
+        needsSetup: !hasUsers,
       })
     }
   }
 
-  async store({ auth, request, response, logger, serialize }: HttpContext) {
+  async store({ auth, request, logger, serialize }: HttpContext) {
     const body = await request.validateUsing(signInValidator, {
       data: requestData(request, request.body()),
     })
@@ -97,10 +97,8 @@ export default class SessionController {
       })
       return serialize({ user })
     } catch (error) {
-      // Keeps the 401 without a code and the actionable sentence: the Kit's code for this failure
-      // is one the browser's error reader does not list, and its sentence names nothing to fix.
       if (error instanceof E_INVALID_CREDENTIALS) {
-        return response.unauthorized({ error: 'Invalid email or password.' })
+        throw new InvalidCredentialsException()
       }
       throw error
     }

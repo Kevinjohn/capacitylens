@@ -53,7 +53,7 @@ export default class MasqueradeController {
     })
     try {
       const signIn = await this.#currentActor.getSignedInSession(auth, session)
-      if (!signIn) return serialize({ active: false, masqueradeToken: null })
+      if (!signIn) return serialize({ active: false as const, masqueradeToken: null })
       if (companyId) {
         const mode = await this.#masqueradeControl.readCurrentMasquerade(db.connection(), companyId)
         if (mode.active) return serialize(mode)
@@ -70,7 +70,7 @@ export default class MasqueradeController {
     } catch (error) {
       // Does work: no session is the inactive status, not a refusal.
       if (error instanceof E_ACCOUNT_KIT_INVALID_SESSION) {
-        return serialize({ active: false, masqueradeToken: null })
+        return serialize({ active: false as const, masqueradeToken: null })
       }
       throw error
     }
@@ -86,6 +86,6 @@ export default class MasqueradeController {
     }
     if (header !== body.token) throw new masqueradeErrors.E_MASQUERADE_CONTEXT_CHANGED()
     const mode = await this.#masqueradeControl.endMasquerade(header)
-    return serialize({ active: false, masqueradeToken: mode.contextToken })
+    return serialize({ active: false as const, masqueradeToken: mode.contextToken })
   }
 }

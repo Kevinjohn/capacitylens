@@ -37,7 +37,7 @@ flowchart TD
   row["MemberResourceDialog shows eligible choices and any retained link"] -->|Close| close["Dismiss dialog; a request or reread in progress continues"]
   row -->|Select active person for active member| set["Send link PUT with userId and expected link revision"]
   row -->|Remove retained link| remove["Send link DELETE with userId and expected link revision"]
-  set --> tx["MemberResourceLinksController runs operation in a company transaction"]
+  set --> tx["MemberResourceLinkController runs operation in a company transaction"]
   remove --> tx
   tx --> checks["Require company authorization and check link revision; setting also checks member and Resource eligibility"]
   checks -->|Changed| write["Write or delete the link, advance planning revision and record membership audit"]
@@ -52,4 +52,4 @@ flowchart TD
   retry --> reread
 ```
 
-**Code references:** [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx#L27) · [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx#L89) · [useMemberResourceLinkRequest.ts](../../apps/frontend/src/components/team/useMemberResourceLinkRequest.ts#L100) · [useTeamDirectory.ts](../../apps/frontend/src/components/team/useTeamDirectory.ts#L206) · [member_resource_links_controller.ts](../../apps/backend/app/controllers/member_resource_links_controller.ts#L27) · [member_resource_link_service.ts](../../apps/backend/app/services/member_resources/member_resource_link_service.ts#L55) · [admission_resource_links.spec.ts](../../apps/backend/tests/functional/auth/admission_resource_links.spec.ts#L187)
+**Code references:** [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx#L27) · [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx#L89) · [useMemberResourceLinkRequest.ts](../../apps/frontend/src/components/team/useMemberResourceLinkRequest.ts#L100) · [useTeamDirectory.ts](../../apps/frontend/src/components/team/useTeamDirectory.ts#L206) · [member_resource_links_controller.ts](../../apps/backend/app/controllers/member_resource_link_controller.ts#L27) · [member_resource_link_service.ts](../../apps/backend/app/services/member_resources/member_resource_link_service.ts#L55) · [admission_resource_links.spec.ts](../../apps/backend/tests/functional/auth/admission_resource_links.spec.ts#L187)

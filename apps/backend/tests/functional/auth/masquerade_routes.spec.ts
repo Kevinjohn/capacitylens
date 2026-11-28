@@ -40,7 +40,7 @@ test.group('view-as route classification', () => {
         )
       )
       .map((route) => route.pattern)
-    const ownAccount = reviewedUnclassified
+    const ownAccount = [...reviewedUnclassified, ...signedInPersonRoutes]
       .map((line) => line.split(' ')[1]!)
       .filter(
         (pattern) =>

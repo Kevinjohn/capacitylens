@@ -6,11 +6,12 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import capacitylens from '#config/capacitylens'
+import EmailInUseException from '#exceptions/email_in_use_exception'
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception'
+import SignUpClosedException from '#exceptions/sign_up_closed_exception'
 import { PasswordSignInService } from '#services/auth/password_sign_in_service'
-import { signUpValidator } from '#validators/auth_requests'
+import { signUpValidator } from '#validators/auth'
 import { requestData } from '#validators/request_rules'
-import { emailInUseAnswer } from '#exceptions/credential_answers'
 import { InstallationCompanyService } from '#services/installation_company_service'
 
 /** Open sign-up of a new account. */
@@ -46,13 +47,11 @@ export default class NewAccountController {
         registrationData: { name },
       })
     } catch (error) {
-      // Keeps the product codes `E_SIGN_UP_CLOSED` and `E_EMAIL_IN_USE`, which the Kit's own codes
-      // do not carry and the browser reads.
       if (error instanceof FirstCompanyPendingException) {
-        return response.forbidden({ error: 'Sign-up is closed.', code: 'E_SIGN_UP_CLOSED' })
+        throw new SignUpClosedException()
       }
       if (error instanceof E_ACCOUNT_KIT_REGISTRATION_EMAIL_ALREADY_REGISTERED) {
-        return response.conflict(emailInUseAnswer)
+        throw new EmailInUseException()
       }
       // The account exists; only the confirmation email may be missing, and it can be resent.
       if (!isCommittedFailure(error)) throw error

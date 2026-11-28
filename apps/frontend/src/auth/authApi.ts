@@ -17,10 +17,7 @@ export interface AuthApiResult<T> {
 
 type PasswordCredentials = RequestArgs<(typeof registry.routes)['api.session.store']>['body']
 
-interface PasswordChangeInput {
-  currentPassword: string
-  newPassword: string
-}
+type PasswordChangeInput = Route.Body<'api.password.update'>
 
 function readErrorMessage(value: unknown, status: number): AuthApiError {
   const { error: message, ...metadata } = readHttpErrorBody(
@@ -103,16 +100,16 @@ export const authApi = {
   signOut: () => post('api.session.destroy', {}),
   requestPasswordReset: (email: string) => post('api.password_reset_requests.store', { email }),
   inspectPasswordReset: (token: string) => post('api.password_resets.show', { token }),
-  resetPassword: (input: { token: string; newPassword: string }) =>
+  resetPassword: (input: Route.Body<'api.password_resets.update'>) =>
     post('api.password_resets.update', input),
   /** Ends every sign-in, this one included, once the password changes. */
   changePassword: (input: PasswordChangeInput) => post('api.password.update', input),
   /** Deletes the signed-in identity after re-entering its password; the server ends the sign-in. */
-  deleteAccount: (input: { currentPassword: string }) => post('api.account.destroy', input),
+  deleteAccount: (input: Route.Body<'api.account.destroy'>) => post('api.account.destroy', input),
   sendEmailVerification: () => post('api.email_verification_requests.store', {}),
   inspectEmailVerification: (token: string) => post('api.email_verifications.show', { token }),
   /** Confirms the address and sets the password the person chose. */
-  completeEmailVerification: (input: { token: string; password: string }) =>
+  completeEmailVerification: (input: Route.Body<'api.email_verifications.update'>) =>
     post('api.email_verifications.update', input),
   admissionStatus: () => request('api.admission.show', {}),
   requestAdmission: () => post('api.admission_requests.store', {}),
