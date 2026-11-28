@@ -13,8 +13,9 @@ import {
   userAgentHeaders,
 } from '#validators/request_rules'
 
-const invitationParams = () =>
-  vine.object({ params: vine.object({ companyId: companyIdParam(), id: positiveIdParam() }) })
+const invitationParams = () => ({
+  params: vine.object({ companyId: companyIdParam(), id: positiveIdParam() }),
+})
 
 export const createInvitationValidator = vine.create(
   vine
@@ -41,13 +42,13 @@ export const acceptInvitationSignUpValidator = vine.create(
 )
 
 /** What an invitation link offers; the token is the route's. */
-export const showInvitationLinkValidator = vine.create(
-  vine.object({ params: vine.object({ token: tokenParam() }) })
-)
+export const showInvitationLinkValidator = vine.create({
+  params: vine.object({ token: tokenParam() }),
+})
 
-export const listInvitationsValidator = vine.create(
-  vine.object({ params: vine.object({ companyId: companyIdParam() }) })
-)
+export const listInvitationsValidator = vine.create({
+  params: vine.object({ companyId: companyIdParam() }),
+})
 
 export const resendInvitationValidator = vine.create(invitationParams())
 

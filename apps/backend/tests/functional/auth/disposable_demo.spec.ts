@@ -9,6 +9,7 @@ import { seedForCurrentWeek } from '@capacitylens/shared/data/seed'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { createIdentity, signIn } from '#tests/helpers/identities'
 import { assertSafeFailure, operatorFixture } from '#tests/helpers/operator_command_helpers'
+import { DisposableDemoService } from '#services/disposable_demo_service'
 import { InstallationCompanyService } from '#services/installation_company_service'
 import { disposableDemo, email, password } from '#tests/helpers/auth/disposable_demo'
 
@@ -83,7 +84,7 @@ test.group('disposable development demo', (group) => {
     const revision = await db.from('company_planning_revisions').firstOrFail()
     assert.equal(revision.revision, 1)
     const audit = await db.from('audit_entries').firstOrFail()
-    assert.equal(audit.action, 'company.initialized')
+    assert.equal(audit.operation, 'company.initialized')
     assert.equal(audit.actor_id, owner.id)
     assert.lengthOf(
       await db.from('clients').where('company_id', 'a-studio').where('builtin', true),
@@ -109,25 +110,24 @@ test.group('disposable development demo', (group) => {
     assert.equal(directory.body().data[0].role, 'owner')
   })
 
-  test('existing membership independently refuses preparation and seed', async ({ assert }) => {
+  test('existing membership independently refuses preparation and seed', async ({
+    assert,
+    cleanup,
+  }) => {
     const owner = await createIdentity(email, { password })
     await disposableDemo.seedDisposableDemo(app)
     // Keep a membership while making the company existence probe report empty. This stages the
     // independent membership check without manufacturing an invalid persisted foreign key.
-    const originalHasNoCompany = InstallationCompanyService.prototype.hasNoCompany
-    InstallationCompanyService.prototype.hasNoCompany = async () => true
-    try {
-      await assert.rejects(
-        () => disposableDemo.prepareDisposableDemo(app),
-        /memberships already exist/
-      )
-      await assert.rejects(
-        () => disposableDemo.seedDisposableDemo(app),
-        /memberships already exist/
-      )
-    } finally {
-      InstallationCompanyService.prototype.hasNoCompany = originalHasNoCompany
+    class EmptyCompanyProbe extends InstallationCompanyService {
+      override async hasNoCompany() {
+        return true
+      }
     }
+    app.container.swap(InstallationCompanyService, () => new EmptyCompanyProbe())
+    cleanup(() => app.container.restore(InstallationCompanyService))
+    const demo = await app.container.make(DisposableDemoService)
+    await assert.rejects(() => demo.prepareDisposableDemo(app), /memberships already exist/)
+    await assert.rejects(() => demo.seedDisposableDemo(app), /memberships already exist/)
     const membership = await db.from('memberships').firstOrFail()
     assert.equal(membership.user_id, owner)
   })

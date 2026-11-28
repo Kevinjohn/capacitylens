@@ -20,7 +20,7 @@ export class InitialCompanyAccessService {
       id: crypto.randomUUID(),
       company_id: input.companyId,
       actor_id: input.actorId,
-      action: 'company.initialized',
+      operation: 'company.initialized',
       entity: 'company',
       entity_id: input.companyId,
       details: JSON.stringify({ changedFields: ['company', 'owner'] }),

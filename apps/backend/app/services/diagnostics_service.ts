@@ -31,7 +31,11 @@ export class DiagnosticsService {
    * Reads database, schema and backup state; throws when the database cannot be read. `backupDir`
    * is absent when backups are not configured.
    */
-  async readServerDiagnostics(database: Pick<typeof db, 'from'>, backupDir?: string) {
+  async readServerDiagnostics(
+    database: Pick<typeof db, 'from'>,
+    backupDir?: string,
+    requestLogger: Pick<typeof logger, 'warn'> = logger
+  ) {
     await this.#databaseHealth.checkDatabase()
     const lastMigration = await database
       .from('adonis_schema')
@@ -44,7 +48,7 @@ export class DiagnosticsService {
         const times = listBundles(backupDir).map((bundle) => Date.parse(bundle.createdAt))
         newestBackupAt = times.length ? new Date(Math.max(...times)).toISOString() : null
       } catch {
-        logger.warn('Diagnostics could not inspect completed backups')
+        requestLogger.warn('Diagnostics could not inspect completed backups')
       }
     }
     return {

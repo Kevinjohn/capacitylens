@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { CurrentActorService } from '#services/auth/current_actor_service'
 import { PasswordConfirmationService } from '#services/auth/password_confirmation_service'
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main'
-import { anonymiseCompanyValidator } from '#validators/anonymise'
+import { anonymiseCompanyValidator } from '#validators/anonymisation'
 import { AnonymisationService } from '#services/anonymisation_service'
 
 /** Anonymises every person in the company after a password confirmation. */

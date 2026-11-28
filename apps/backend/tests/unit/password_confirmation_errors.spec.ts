@@ -44,9 +44,13 @@ test.group('password confirmation errors', () => {
     [
       new InvalidPasswordConfirmationsConfigException('PRIVATE_CONFIG'),
       500,
-      { error: 'Internal server error.' },
+      { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' },
     ],
-    [new SessionRegistryRequiredException(), 500, { error: 'Internal server error.' }],
+    [
+      new SessionRegistryRequiredException(),
+      500,
+      { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' },
+    ],
   ] as const) {
     test(`proof error ${error.code} preserves its complete response and reporting classification`, async ({
       assert,

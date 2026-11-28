@@ -77,7 +77,7 @@ test.group('company invitations', (group) => {
     assert.isNotNull(
       await db
         .from('audit_entries')
-        .where({ action: 'invitation.accepted', actor_id: userId })
+        .where({ operation: 'invitation.accepted', actor_id: userId })
         .first()
     )
     // Acceptance confirms the address; company data still waits for an Owner or Admin approval.
@@ -165,7 +165,7 @@ test.group('company invitations', (group) => {
     const userId = (accepted.body().data as { user: { id: string } }).user.id
     assert.isEmpty(await db.from('memberships').where('user_id', userId))
     assert.isEmpty(
-      await db.from('audit_entries').where({ actor_id: userId, action: 'invitation.accepted' })
+      await db.from('audit_entries').where({ actor_id: userId, operation: 'invitation.accepted' })
     )
   })
 

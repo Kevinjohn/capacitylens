@@ -9,7 +9,7 @@ import type { Allocation, Weekday } from '@capacitylens/shared/types/entities'
 import { buildCapacitySection } from '#services/planning/capacity_section'
 import { readState } from '#tests/helpers/state_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
-import { resetPlanningFixture } from '#tests/functional/planning/helpers'
+import { resetPlanningFixture } from '#tests/helpers/planning/functional_helpers'
 
 // Each Scheduling-invariants rule (DECISIONS.md) is one case against the read's capacity section.
 // 2026-06-01 is a Monday.
@@ -207,9 +207,11 @@ test.group('capacity section', () => {
 
 test.group('capacity section on the example company', (group) => {
   group.setup(() => freshDatabase())
+  group.each.setup(async () => {
+    await resetPlanningFixture()
+  })
 
   test('equals the shared straight-line capacity window for every resource', async ({ assert }) => {
-    await resetPlanningFixture()
     const stored = buildActiveData(await readState('a-studio', true))
     const company = stored.companies[0]!
     const today = '2026-06-03'

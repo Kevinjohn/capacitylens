@@ -80,11 +80,11 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"state"]],
     types: placeholder as Registry['api.company_state.show']['types'],
   },
-  'api.company_exports.show': {
+  'api.company_export.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/companies/:companyId/export',
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"export"]],
-    types: placeholder as Registry['api.company_exports.show']['types'],
+    types: placeholder as Registry['api.company_export.show']['types'],
   },
   'api.company_anonymisations.store': {
     methods: ["POST"],
@@ -134,12 +134,6 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"sign-in"]],
     types: placeholder as Registry['api.session.store']['types'],
   },
-  'api.password_confirmations.store': {
-    methods: ["POST"],
-    pattern: '/api/v1/auth/password-confirmation',
-    tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"password-confirmation"]],
-    types: placeholder as Registry['api.password_confirmations.store']['types'],
-  },
   'api.password_reset_requests.store': {
     methods: ["POST"],
     pattern: '/api/v1/auth/request-reset',
@@ -157,6 +151,24 @@ const routes = {
     pattern: '/api/v1/auth/reset-password',
     tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"reset-password"]],
     types: placeholder as Registry['api.password_resets.update']['types'],
+  },
+  'api.email_verifications.show': {
+    methods: ["POST"],
+    pattern: '/api/v1/auth/verification/inspect',
+    tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"verification"],[0,"inspect"]],
+    types: placeholder as Registry['api.email_verifications.show']['types'],
+  },
+  'api.email_verifications.update': {
+    methods: ["POST"],
+    pattern: '/api/v1/auth/verification/complete',
+    tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"verification"],[0,"complete"]],
+    types: placeholder as Registry['api.email_verifications.update']['types'],
+  },
+  'api.password_confirmations.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/auth/password-confirmation',
+    tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"password-confirmation"]],
+    types: placeholder as Registry['api.password_confirmations.store']['types'],
   },
   'api.password.update': {
     methods: ["POST"],
@@ -176,18 +188,6 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"verification"],[0,"send"]],
     types: placeholder as Registry['api.email_verification_requests.store']['types'],
   },
-  'api.email_verifications.show': {
-    methods: ["POST"],
-    pattern: '/api/v1/auth/verification/inspect',
-    tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"verification"],[0,"inspect"]],
-    types: placeholder as Registry['api.email_verifications.show']['types'],
-  },
-  'api.email_verifications.update': {
-    methods: ["POST"],
-    pattern: '/api/v1/auth/verification/complete',
-    tokens: [[0,"api"],[0,"v1"],[0,"auth"],[0,"verification"],[0,"complete"]],
-    types: placeholder as Registry['api.email_verifications.update']['types'],
-  },
   'api.session.destroy': {
     methods: ["POST"],
     pattern: '/api/v1/auth/sign-out',
@@ -200,17 +200,17 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"]],
     types: placeholder as Registry['api.members.index']['types'],
   },
+  'api.members.update': {
+    methods: ["PUT","PATCH"],
+    pattern: '/api/v1/companies/:companyId/members/:userId',
+    tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"],[1,"userId"]],
+    types: placeholder as Registry['api.members.update']['types'],
+  },
   'api.member_sign_in_tracking.update': {
     methods: ["PUT"],
     pattern: '/api/v1/companies/:companyId/member-sign-in-tracking',
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"member-sign-in-tracking"]],
     types: placeholder as Registry['api.member_sign_in_tracking.update']['types'],
-  },
-  'api.members.update': {
-    methods: ["PATCH"],
-    pattern: '/api/v1/companies/:companyId/members/:userId',
-    tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"],[1,"userId"]],
-    types: placeholder as Registry['api.members.update']['types'],
   },
   'api.member_status.update': {
     methods: ["PATCH"],
@@ -296,17 +296,17 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"admission"],[0,"complete"]],
     types: placeholder as Registry['api.memberships.store']['types'],
   },
-  'api.member_resource_links.update': {
+  'api.member_resource_link.update': {
     methods: ["PUT"],
     pattern: '/api/v1/companies/:companyId/members/:userId/resource-link',
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"],[1,"userId"],[0,"resource-link"]],
-    types: placeholder as Registry['api.member_resource_links.update']['types'],
+    types: placeholder as Registry['api.member_resource_link.update']['types'],
   },
-  'api.member_resource_links.destroy': {
+  'api.member_resource_link.destroy': {
     methods: ["DELETE"],
     pattern: '/api/v1/companies/:companyId/members/:userId/resource-link',
     tokens: [[0,"api"],[0,"v1"],[0,"companies"],[1,"companyId"],[0,"members"],[1,"userId"],[0,"resource-link"]],
-    types: placeholder as Registry['api.member_resource_links.destroy']['types'],
+    types: placeholder as Registry['api.member_resource_link.destroy']['types'],
   },
   'api.masquerade.store': {
     methods: ["POST"],

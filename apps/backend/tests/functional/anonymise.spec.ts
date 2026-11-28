@@ -77,7 +77,7 @@ test.group('company anonymisation', (group) => {
     assert.isDefined(timeOff)
     await db.from('time_off').where({ id: timeOff!.id }).update({ note: 'Private time off note' })
     const deleted = await deleteAllocation(client, cookie, other.id)
-    const savedRows = await db.from('deleted_rows').where('group_id', deleted.groupId)
+    const savedRows = await db.from('deleted_rows').where('deleted_batch_id', deleted.groupId)
     assert.isAbove(savedRows.length, 0)
     const before = await db.transaction((trx) =>
       planningRevisions.getPlanningRevision(trx, companyId)
@@ -113,12 +113,12 @@ test.group('company anonymisation', (group) => {
         .whereNotNull('note'),
       0
     )
-    assert.isNull(await db.from('deleted_groups').where('group_id', deleted.groupId).first())
+    assert.isNull(await db.from('deleted_batches').where('id', deleted.groupId).first())
     assert.lengthOf(await db.from('planning_histories').where('company_id', companyId), 0)
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', deleted.groupId), 0)
+    assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', deleted.groupId), 0)
     assert.isNull(await db.from('allocations').where('id', deleted.allocation.id).first())
     assert.lengthOf(
-      await db.from('audit_entries').where({ company_id: companyId, action: 'anonymise' }),
+      await db.from('audit_entries').where({ company_id: companyId, operation: 'anonymise' }),
       1
     )
     assert.equal(
@@ -247,12 +247,12 @@ test.group('company anonymisation', (group) => {
     assert.lengthOf(commandCommitmentsBefore, 1)
     const auditBefore = await db.from('audit_entries').where('company_id', companyId).select('*')
     const foreignGroupBefore = await db
-      .from('deleted_groups')
-      .where('group_id', foreignDelete.groupId)
+      .from('deleted_batches')
+      .where('id', foreignDelete.groupId)
       .first()
     const foreignPayloadBefore = await db
       .from('deleted_rows')
-      .where('group_id', foreignDelete.groupId)
+      .where('deleted_batch_id', foreignDelete.groupId)
       .select('*')
     const foreignCommitmentsBefore = await db
       .from('planning_mutations')
@@ -298,9 +298,12 @@ test.group('company anonymisation', (group) => {
       assert.equal(savedResource.job_title, 'Removed resource')
       assert.isNull(savedResource.avatar_url)
     }
-    assert.lengthOf(await db.from('deleted_groups').where('company_id', companyId), 0)
+    assert.lengthOf(await db.from('deleted_batches').where('company_id', companyId), 0)
     assert.lengthOf(await db.from('planning_histories').where('company_id', companyId), 0)
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', selectedDelete.groupId), 0)
+    assert.lengthOf(
+      await db.from('deleted_rows').where('deleted_batch_id', selectedDelete.groupId),
+      0
+    )
     assert.isNull(await db.from('allocations').where('id', selectedDelete.allocation.id).first())
     assert.isDefined(
       await db
@@ -308,15 +311,13 @@ test.group('company anonymisation', (group) => {
         .where({ company_id: companyId, mutation_id: selectedDelete.mutationId })
         .first()
     )
-    assert.isDefined(
-      await db.from('deleted_groups').where('group_id', foreignDelete.groupId).first()
-    )
+    assert.isDefined(await db.from('deleted_batches').where('id', foreignDelete.groupId).first())
     assert.deepEqual(
-      await db.from('deleted_groups').where('group_id', foreignDelete.groupId).first(),
+      await db.from('deleted_batches').where('id', foreignDelete.groupId).first(),
       foreignGroupBefore
     )
     assert.deepEqual(
-      await db.from('deleted_rows').where('group_id', foreignDelete.groupId).select('*'),
+      await db.from('deleted_rows').where('deleted_batch_id', foreignDelete.groupId).select('*'),
       foreignPayloadBefore
     )
     assert.deepEqual(
@@ -366,7 +367,7 @@ test.group('company anonymisation', (group) => {
     const auditAfter = await db.from('audit_entries').where('company_id', companyId).select('*')
     assert.lengthOf(auditAfter, auditBefore.length + 1)
     assert.deepEqual(auditAfter.slice(0, auditBefore.length), auditBefore)
-    assert.equal(auditAfter.at(-1)?.action, 'anonymise')
+    assert.equal(auditAfter.at(-1)?.operation, 'anonymise')
     assert.equal(auditAfter.at(-1)?.entity_id, companyId)
     assert.equal(
       await db.transaction((trx) => planningRevisions.getPlanningRevision(trx, companyId)),
@@ -388,8 +389,11 @@ test.group('company anonymisation', (group) => {
     await db.from('allocations').where({ id: allocation!.id }).update({ note: 'Private note' })
     const deleted = await deleteAllocation(client, cookie, resource.id)
     const groupId = deleted.groupId
-    const groupBefore = await db.from('deleted_groups').where('group_id', groupId).first()
-    const payloadBefore = await db.from('deleted_rows').where('group_id', groupId).select('*')
+    const groupBefore = await db.from('deleted_batches').where('id', groupId).first()
+    const payloadBefore = await db
+      .from('deleted_rows')
+      .where('deleted_batch_id', groupId)
+      .select('*')
     const commitmentBefore = await db
       .from('planning_mutations')
       .where({ company_id: companyId, mutation_id: deleted.mutationId })
@@ -402,7 +406,7 @@ test.group('company anonymisation', (group) => {
     )
     const confirmationId = await proof(client, cookie)
     await db.rawQuery(`CREATE TRIGGER fail_anonymise_audit BEFORE INSERT ON audit_entries
-      WHEN NEW.action = 'anonymise' BEGIN SELECT RAISE(ABORT, 'injected failure'); END`)
+      WHEN NEW.operation = 'anonymise' BEGIN SELECT RAISE(ABORT, 'injected failure'); END`)
     try {
       const failed = await asDataOwner(
         client.visit('api.company_anonymisations.store', { companyId }),
@@ -416,12 +420,9 @@ test.group('company anonymisation', (group) => {
     }
     const restoredResource = await db.from('resources').where('id', resource.id).first()
     assert.equal(restoredResource.name, resource.name)
+    assert.deepEqual(await db.from('deleted_batches').where('id', groupId).first(), groupBefore)
     assert.deepEqual(
-      await db.from('deleted_groups').where('group_id', groupId).first(),
-      groupBefore
-    )
-    assert.deepEqual(
-      await db.from('deleted_rows').where('group_id', groupId).select('*'),
+      await db.from('deleted_rows').where('deleted_batch_id', groupId).select('*'),
       payloadBefore
     )
     assert.deepEqual(
@@ -446,10 +447,10 @@ test.group('company anonymisation', (group) => {
     restored.assertStatus(200)
     const restoredAllocation = await db.from('allocations').where('id', allocation!.id).first()
     assert.equal(restoredAllocation?.note, 'Private note')
-    const consumedGroup = await db.from('deleted_groups').where('group_id', groupId).first()
+    const consumedGroup = await db.from('deleted_batches').where('id', groupId).first()
     assert.isDefined(consumedGroup?.consumed_at)
     assert.deepEqual(
-      await db.from('deleted_rows').where('group_id', groupId).select('*'),
+      await db.from('deleted_rows').where('deleted_batch_id', groupId).select('*'),
       payloadBefore
     )
     const applied = await asDataOwner(
@@ -494,7 +495,7 @@ test.group('company anonymisation', (group) => {
     const unchangedAfter = await db.from('resources').where('id', before.id).first()
     assert.equal(unchangedAfter.name, before.name)
     assert.lengthOf(
-      await db.from('audit_entries').where({ company_id: companyId, action: 'anonymise' }),
+      await db.from('audit_entries').where({ company_id: companyId, operation: 'anonymise' }),
       1
     )
   })
@@ -556,8 +557,8 @@ test.group('company anonymisation', (group) => {
       .json({ confirmationId })
       .send()
     scrubbed.assertStatus(204)
-    assert.lengthOf(await db.from('deleted_groups').where('group_id', groupId), 0)
-    assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 0)
+    assert.lengthOf(await db.from('deleted_batches').where('id', groupId), 0)
+    assert.lengthOf(await db.from('deleted_rows').where('deleted_batch_id', groupId), 0)
     const commitment = await db
       .from('planning_mutations')
       .where({ company_id: companyId, restoration_group_id: groupId })

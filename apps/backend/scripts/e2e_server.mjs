@@ -94,11 +94,18 @@ function bootstrapToken() {
 
 const baselineToken = flavour === 'auth' ? bootstrapToken() : undefined
 
-const child = spawn(process.execPath, ['ace.js', 'serve'], {
-  cwd: serverDirectory,
-  stdio: 'inherit',
-  env,
-})
+// Boot bin/server.ts directly rather than `ace serve` so parallel E2E workers do not run
+// assembler init hooks (such as registry generation) concurrently against the shared workspace.
+// The node flags are the ones `ace serve` passes, so stack traces keep TypeScript line numbers.
+const child = spawn(
+  process.execPath,
+  ['--import=@poppinss/ts-exec', '--enable-source-maps', 'bin/server.ts'],
+  {
+    cwd: serverDirectory,
+    stdio: 'inherit',
+    env,
+  }
+)
 let stopping = false
 let childExited = false
 const startupController = new AbortController()

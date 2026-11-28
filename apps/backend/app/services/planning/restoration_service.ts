@@ -12,11 +12,11 @@ import { DomainError } from '@capacitylens/shared/domain/errors'
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays'
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities'
 import { StateRepositoryService } from '#services/state_repository_service'
-import { parseAffectedRows } from '#models_support/affected_rows'
+import { parseAffectedRows } from '#services/models/affected_rows'
 import { RetainedRowService, type RetainedTable } from '#services/planning/retained_row_service'
-import { tables } from '#models_support/product_tables'
-import { companyRows, productModels } from '#models_support/product_models'
-import { rowAttributes } from '#models_support/row_attributes'
+import { tables } from '#services/models/product_tables'
+import { companyRows, productModels } from '#services/models/product_models'
+import { rowAttributes } from '#services/models/row_attributes'
 import { transformRow } from '#transformers/row_transformer'
 import { createServerRevision } from '#services/planning/server_timestamp'
 import { asRecord, requireExistingRow, type WrittenRow } from '#services/planning/writer'
@@ -75,11 +75,11 @@ export class RestorationService {
     const rows = ids.map((id) => requireExistingRow(data, table, id))
     const groupId = randomUUID()
     // Restoration bookkeeping, not a product row.
-    await trx.table('deleted_groups').insert({
-      group_id: groupId,
+    await trx.table('deleted_batches').insert({
+      id: groupId,
       company_id: companyId,
       actor_id: identity.actorId,
-      session_id: identity.sessionId,
+      account_session_id: identity.sessionId,
       mutation_id: identity.mutationId,
       created_at: now,
       consumed_at: null,
@@ -101,13 +101,13 @@ export class RestorationService {
     )
     const saved = [
       ...rows.map((row) => ({
-        group_id: groupId,
+        deleted_batch_id: groupId,
         entity: table,
         row_id: row.id,
         payload_json: JSON.stringify({ kind: 'row' } satisfies SavedRow),
       })),
       ...links.map((link) => ({
-        group_id: groupId,
+        deleted_batch_id: groupId,
         entity: link.entity,
         row_id: link.rowId,
         payload_json: JSON.stringify({ kind: 'link', parentId: link.parentId } satisfies SavedLink),
@@ -148,7 +148,7 @@ export class RestorationService {
       if (live.length !== selected.length) refuseRestorationConflict()
       // Marks each row deleted in its group in one statement; their entries are recorded below.
       for (const row of live) {
-        row.deletionGroupId = groupId
+        row.deletedBatchId = groupId
         await row.delete()
       }
     }
@@ -186,22 +186,22 @@ export class RestorationService {
     now = new Date().toISOString()
   ) {
     const owner = {
-      group_id: groupId,
+      id: groupId,
       company_id: companyId,
       actor_id: identity.actorId,
-      session_id: identity.sessionId,
+      account_session_id: identity.sessionId,
     }
     // Lucid types the update result as rows; SQLite reports the affected count. Restoration
     // bookkeeping, not a product row.
     const consumed = Number(
       await trx
-        .from('deleted_groups')
+        .from('deleted_batches')
         .where(owner)
         .whereNull('consumed_at')
         .update({ consumed_at: now })
     )
     if (consumed === 0) {
-      if (await trx.from('deleted_groups').where(owner).select('group_id').first()) {
+      if (await trx.from('deleted_batches').where(owner).select('id').first()) {
         throw new PlanningConflictException('This deletion has already been restored.')
       }
       const origin = await trx
@@ -221,7 +221,7 @@ export class RestorationService {
     }
     const saved = await trx
       .from('deleted_rows')
-      .where({ group_id: groupId })
+      .where({ deleted_batch_id: groupId })
       .select('entity', 'row_id', 'payload_json')
     const rows: Array<{
       entity: DeletableTable
@@ -239,7 +239,7 @@ export class RestorationService {
           .buildRetainedQuery(trx, companyId, entity)
           .onlyTrashed()
           .where('id', String(item.row_id))
-          .where('deletion_group_id', groupId)
+          .where('deleted_batch_id', groupId)
           .first()
         if (!stored) refuseRestorationConflict()
         // A retained row serializes to the same fields the snapshot reads for its table.
@@ -301,7 +301,7 @@ export class RestorationService {
     for (const { entity, id, row, stored } of rows) {
       if (row.companyId !== companyId || row.id !== id) refuseRestorationConflict()
       // Loaded above as this group's deleted row; one statement clears its group and deletion.
-      stored.deletionGroupId = null
+      stored.deletedBatchId = null
       await stored.restore()
       const restoredRows: AppData[DeletableTable][number][] = data[entity]
       restoredRows.push({ ...row })
@@ -348,15 +348,15 @@ export class RestorationService {
   ) {
     const prior = await trx
       .from(tables[table])
-      .select('company_id', 'deleted_at', 'deletion_group_id')
+      .select('company_id', 'deleted_at', 'deleted_batch_id')
       .where('id', id)
       .first()
     if (!prior) return
-    if (prior.company_id !== companyId || !prior.deleted_at || !prior.deletion_group_id) {
+    if (prior.company_id !== companyId || !prior.deleted_at || !prior.deleted_batch_id) {
       throw new ValidationRefusalException('The record already exists.')
     }
     if (
-      !(await this.hasOwnUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))
+      !(await this.hasOwnUnconsumedGroup(trx, companyId, String(prior.deleted_batch_id), identity))
     ) {
       throw new ValidationRefusalException('The record already exists.')
     }
@@ -365,7 +365,7 @@ export class RestorationService {
       .buildRetainedQuery(trx, companyId, table)
       .onlyTrashed()
       .where('id', id)
-      .where('deletion_group_id', String(prior.deletion_group_id))
+      .where('deleted_batch_id', String(prior.deleted_batch_id))
       .forceDelete()
     if (purged !== 1) {
       throw new ValidationRefusalException('The record already exists.')
@@ -380,15 +380,15 @@ export class RestorationService {
     identity: Pick<RestorationIdentity, 'actorId' | 'sessionId'>
   ) {
     const group = await trx
-      .from('deleted_groups')
+      .from('deleted_batches')
       .where({
-        group_id: groupId,
+        id: groupId,
         company_id: companyId,
         actor_id: identity.actorId,
-        session_id: identity.sessionId,
+        account_session_id: identity.sessionId,
       })
       .whereNull('consumed_at')
-      .select('group_id')
+      .select('id')
       .first()
     return Boolean(group)
   }
@@ -396,7 +396,7 @@ export class RestorationService {
   /** Ends every restoration group the company holds; their saved rows are deleted with them. */
   async discardRestorationGroups(trx: TransactionClientContract, companyId: string) {
     // Restoration bookkeeping, not a product row.
-    await trx.from('deleted_groups').where('company_id', companyId).delete()
+    await trx.from('deleted_batches').where('company_id', companyId).delete()
   }
 
   /** Whether this company already committed a mutation with this identity. */
@@ -443,13 +443,13 @@ export class RestorationService {
   ) {
     const markers = await trx
       .from('deleted_rows')
-      .join('deleted_groups', 'deleted_groups.group_id', 'deleted_rows.group_id')
-      .join('account_sessions', 'account_sessions.id', 'deleted_groups.session_id')
-      .where('deleted_groups.company_id', companyId)
-      .whereNull('deleted_groups.consumed_at')
+      .join('deleted_batches', 'deleted_batches.id', 'deleted_rows.deleted_batch_id')
+      .join('account_sessions', 'account_sessions.id', 'deleted_batches.account_session_id')
+      .where('deleted_batches.company_id', companyId)
+      .whereNull('deleted_batches.consumed_at')
       .where('account_sessions.expires_at', '>', now)
       .whereRaw("json_extract(deleted_rows.payload_json, '$.kind') = ?", ['row'])
-      .select('deleted_rows.entity', 'deleted_rows.row_id', 'deleted_rows.group_id')
+      .select('deleted_rows.entity', 'deleted_rows.row_id', 'deleted_rows.deleted_batch_id')
     let total = 0
     for (const marker of markers) {
       if (!this.#retainedRows.isRetainedTable(marker.entity)) continue
@@ -457,7 +457,7 @@ export class RestorationService {
         .buildRetainedQuery(trx, companyId, marker.entity)
         .onlyTrashed()
         .where('id', marker.row_id)
-        .where('deletion_group_id', marker.group_id)
+        .where('deleted_batch_id', marker.deleted_batch_id)
         .first()
       if (row) total++
     }

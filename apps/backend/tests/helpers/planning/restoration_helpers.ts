@@ -3,7 +3,7 @@ import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { readState } from '#tests/helpers/state_fixture'
-import { companyId, newAllocation, intentSession } from '#tests/functional/planning/helpers'
+import { companyId, newAllocation, intentSession } from '#tests/helpers/planning/functional_helpers'
 
 export const note = 'Gotham night shift briefing'
 
@@ -52,7 +52,7 @@ export const deleteOne = (
 ) =>
   send(client, cookie, companyId, baseRevision, { operation: 'allocation.delete', id }, mutationId)
 
-export const deleteGroup = (
+export const deleteAllocationBatch = (
   client: ApiClient,
   cookie: string,
   ids: string[],
@@ -133,12 +133,12 @@ export const planningAudit = () =>
   db
     .from('audit_entries')
     .where({ company_id: companyId, entity: 'planning' })
-    .select('entity_id', 'action')
+    .select('entity_id', 'operation')
 /** The stored restoration group `groupId`, or null once it is gone. */
-export const restorationGroup = (groupId: string) =>
-  db.from('deleted_groups').where('group_id', groupId).first()
+export const restorationBatch = (groupId: string) =>
+  db.from('deleted_batches').where('id', groupId).first()
 export async function consumedAt(groupId: string) {
-  const row = await restorationGroup(groupId)
+  const row = await restorationBatch(groupId)
   return row?.consumed_at
 }
 

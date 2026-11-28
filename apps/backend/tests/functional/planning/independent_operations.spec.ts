@@ -15,7 +15,7 @@ import {
   loginAsMember,
   trusted,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import { mutationInput, replyBody, validationErrors } from '#tests/helpers/planning/mutations'
 
 test.group('independent typed planning operations', (group) => {
@@ -218,7 +218,7 @@ test.group('independent typed planning operations', (group) => {
         .from('audit_entries')
         .where({ company_id: companyId, entity: 'planning', entity_id: marker!.mutation_id })
         .first()
-      assert.equal(audit?.action, transition.operation)
+      assert.equal(audit?.operation, transition.operation)
     }
 
     const final = await readState(companyId, true)
@@ -486,7 +486,7 @@ test.group('independent typed planning operations', (group) => {
       .where({ company_id: companyId, entity: 'planning' })
     assert.lengthOf(createdAudit, 1)
     assert.equal(createdAudit[0].entity_id, createInput.mutationId)
-    assert.equal(createdAudit[0].action, 'catalogue.create')
+    assert.equal(createdAudit[0].operation, 'catalogue.create')
 
     const renameInput = mutationInput(1, {
       operation: 'catalogue.update',
@@ -552,7 +552,7 @@ test.group('independent typed planning operations', (group) => {
     assert.deepInclude(
       audits.find((row) => row.entity_id === renameInput.mutationId)!,
       {
-        action: 'catalogue.update',
+        operation: 'catalogue.update',
       }
     )
   })

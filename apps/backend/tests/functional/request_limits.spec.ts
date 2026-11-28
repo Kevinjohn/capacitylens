@@ -9,6 +9,7 @@ test.group('request infrastructure', (group) => {
 
   test('applies the configured Node connection and request timeouts and rate-limits drop logs', async ({
     assert,
+    cleanup,
   }) => {
     const nodeServer = server.getNodeServer()
     assert.exists(nodeServer)
@@ -21,17 +22,16 @@ test.group('request infrastructure', (group) => {
     logger.warn = ((...args: unknown[]) => {
       warnings.push(args)
     }) as typeof logger.warn
-    try {
-      nodeServer!.emit('drop')
-      nodeServer!.emit('drop')
-      assert.lengthOf(warnings, 1)
-      assert.deepEqual(warnings[0]?.[0], {
-        event: 'connection_limit',
-        outcome: 'blocked',
-        limit: MAX_SERVER_CONNECTIONS,
-      })
-    } finally {
+    cleanup(() => {
       logger.warn = originalWarn
-    }
+    })
+    nodeServer!.emit('drop')
+    nodeServer!.emit('drop')
+    assert.lengthOf(warnings, 1)
+    assert.deepEqual(warnings[0]?.[0], {
+      event: 'connection_limit',
+      outcome: 'blocked',
+      limit: MAX_SERVER_CONNECTIONS,
+    })
   })
 })

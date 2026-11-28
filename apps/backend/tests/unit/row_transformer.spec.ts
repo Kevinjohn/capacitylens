@@ -17,7 +17,7 @@ test('produces a stored row in its wire shape and key order, without deletion me
     type: FIXTURE_TIME_OFF.type,
     updated_at: FIXTURE_TIME_OFF.updatedAt,
     deleted_at: null,
-    deletion_group_id: 'group-1',
+    deleted_batch_id: 'group-1',
   })
   if (!stored) throw new Error('The stored row did not load')
   const row = transformRow(stored)

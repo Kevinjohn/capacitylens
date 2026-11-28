@@ -1,6 +1,7 @@
 import { indexEntities } from '@adonisjs/core/generators'
 import { defineConfig } from '@adonisjs/core/app'
 import { defineCommands } from '@kevinjohn/adonisjs-account-kit/define_commands'
+import { generateRegistry } from '@tuyau/core/hooks'
 
 export default defineConfig({
   /*
@@ -133,7 +134,7 @@ export default defineConfig({
       indexEntities({
         transformers: { enabled: true },
       }),
-      () => import('./hooks/generate_registry.js'),
+      generateRegistry({ validationErrorType: false }),
     ],
   },
 })

@@ -4,7 +4,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import access from '#config/access_control'
 import { insertProductRows } from '#tests/helpers/product_rows'
-import { tables } from '#models_support/product_tables'
+import { tables } from '#services/models/product_tables'
 import { StateRepositoryService } from '#services/state_repository_service'
 
 const stateRepository = new StateRepositoryService()

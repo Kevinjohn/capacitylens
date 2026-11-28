@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { CurrentActorService } from '#services/auth/current_actor_service'
-import { anonymiseResourceValidator } from '#validators/anonymise'
+import { anonymiseResourceValidator } from '#validators/anonymisation'
 import { AuthorizationService } from '#services/auth/authorization_service'
 import { AnonymisationService } from '#services/anonymisation_service'
 

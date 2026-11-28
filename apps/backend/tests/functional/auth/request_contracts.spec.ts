@@ -1,5 +1,5 @@
 import { planningMutationValidator } from '#validators/planning'
-import { signUpValidator } from '#validators/auth_requests'
+import { signUpValidator } from '#validators/auth'
 import { AccountUserService } from '#services/account_kit/account_user_service'
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
@@ -90,9 +90,9 @@ test.group('ordinary authentication request contracts', (group) => {
       { email: 'clark@wayne.example', password: 123 },
     ] as const) {
       const response = await client
-        .post<string>('/api/v1/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
-        .json(body)
+        .json(body as never)
         .send()
       response.assertStatus(422)
       assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors)
@@ -234,9 +234,9 @@ test.group('ordinary authentication request contracts', (group) => {
       { email: 'clark@wayne.example', password: 'a'.repeat(15), name: '  ' },
     ] as const) {
       const response = await client
-        .post<string>('/api/v1/auth/sign-up')
+        .visit('api.new_account.store')
         .header('sec-fetch-site', 'same-origin')
-        .json(body)
+        .json(body as never)
         .send()
       response.assertStatus(422)
       assert.isNotEmpty((response.body() as { errors?: unknown[] }).errors)

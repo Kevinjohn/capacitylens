@@ -102,8 +102,8 @@ apps/backend/
     exceptions/     the exception handler and custom exceptions
     middleware/     one class per file
     models/         one model per table
-    models_support/ model scopes, hooks and column helpers
-    services/       business logic
+    services/       business logic; models/ holds model scopes, hooks and column
+                    helpers, errors/ the helpers that build error answers
     transformers/   response shapes
     validators/     VineJS validators
   bin/              console.ts, server.ts, test.ts
@@ -424,8 +424,8 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
   `@inject()` `run` method. Package services are injected the same way. A test resolves it with
   `app.container.make` or constructs it.
 - A file of pure functions, with no database, container or HTTP context, is not a service: it
-  stays a module, in `app/exceptions/` or `app/models_support/` when it builds error answers or
-  table helpers, otherwise beside the services that use it.
+  stays a module, in `app/services/errors/` or `app/services/models/` when it builds error answers
+  or table helpers, otherwise beside the services that use it.
 - Two package services are resolved with `app.container.make` when they are used. The services
   the Account Kit's admission callbacks build (`AdmissionRuleService`, `CurrentActorService`)
   resolve `AccountAdmission` that way, because building `AccountAdmission` builds those
@@ -520,8 +520,9 @@ Source: [Testing](https://docs.adonisjs.com/guides/testing/introduction),
   place plugins are registered.
 - Tests use the real database and fake only what leaves the process, such as mail with
   `mail.fake()`.
-- Assert on rows by reading them with the query builder (`db.from(table).where(...)`) and
-  checking the result with `assert`. The `dbAssertions` plugin is not registered.
+- Assert on rows with the `dbAssertions` plugin, registered in `tests/bootstrap.ts`
+  (`({ db }) => db.assertHas(table, row)`), or by reading them with the query builder
+  (`db.from(table).where(...)`) and checking the result with `assert`.
 - The framework tests a command with `ace.create(Command, args)` and `command.assertSucceeded()`.
   CapacityLens operator commands are tested by starting the CLI (departure 23).
 - An API test calls a route by its name with `client.visit('members.index')`.

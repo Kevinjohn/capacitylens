@@ -11,11 +11,11 @@ import {
 
 test.group('typed allocation group and lifecycle operations', (group) => {
   group.setup(() => freshDatabase())
+  group.each.setup(() => resetState('single'))
 
   test('creates one allocation series and allows only later occurrences to start on a nonworking day', async ({
     assert,
   }) => {
-    await resetState('single')
     const before = await readState('a-studio', true)
     const source = before.allocations.find((allocation) => {
       const resource = before.resources.find((row) => row.id === allocation.resourceId)
@@ -63,7 +63,6 @@ test.group('typed allocation group and lifecycle operations', (group) => {
   test('archives and restores catalogue and resource rows through shared lifecycle rules', async ({
     assert,
   }) => {
-    await resetState('single')
     const before = await readState('a-studio', true)
     const client = before.clients.find((row) => row.builtin !== true)!
     const resource = before.resources.find((row) => row.kind === 'person')!
@@ -90,7 +89,6 @@ test.group('typed allocation group and lifecycle operations', (group) => {
   })
 
   test('refuses repeated archive, active restore and built-in archive', async ({ assert }) => {
-    await resetState('single')
     const before = await readState('a-studio', true)
     const client = before.clients.find((row) => row.builtin !== true)!
     const internal = before.clients.find((row) => row.builtin === true)!
@@ -107,7 +105,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: internal.id },
     })
     assert.equal(protectedArchive.status, 409)
-    assert.isUndefined(protectedArchive.code)
+    assert.equal(protectedArchive.code, 'E_PLANNING_CONFLICT')
 
     await executeInStudio({
       operation: 'catalogue.archive',

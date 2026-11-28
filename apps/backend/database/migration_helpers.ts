@@ -52,12 +52,12 @@ export function guardCompany(
 export function retainDeletedRows(schema: SchemaBuilder, table: string) {
   schema.raw(`ALTER TABLE ${table} ADD COLUMN deleted_at TIMESTAMP`)
   schema.raw(
-    `ALTER TABLE ${table} ADD COLUMN deletion_group_id VARCHAR REFERENCES deleted_groups(group_id) ON DELETE CASCADE`
+    `ALTER TABLE ${table} ADD COLUMN deleted_batch_id VARCHAR REFERENCES deleted_batches(id) ON DELETE CASCADE`
   )
-  schema.raw(`CREATE INDEX ${table}_deletion_group_id_index ON ${table}(deletion_group_id)`)
+  schema.raw(`CREATE INDEX ${table}_deleted_batch_id_index ON ${table}(deleted_batch_id)`)
   for (const operation of ['INSERT', 'UPDATE'] as const) {
     schema.raw(
-      `CREATE TRIGGER ${table}_deletion_group_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND company_id = NEW.company_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
+      `CREATE TRIGGER ${table}_deleted_batch_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.deleted_batch_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_batches WHERE id = NEW.deleted_batch_id AND company_id = NEW.company_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
     )
   }
 }

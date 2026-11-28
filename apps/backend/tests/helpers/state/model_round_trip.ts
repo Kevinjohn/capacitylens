@@ -5,8 +5,8 @@ import type { LucidModel } from '@adonisjs/lucid/types/model'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppDataKey } from '@capacitylens/shared/types/entities'
 import Company from '#models/company'
-import { companyRows, productModels } from '#models_support/product_models'
-import { tables } from '#models_support/product_tables'
+import { companyRows, productModels } from '#services/models/product_models'
+import { tables } from '#services/models/product_tables'
 
 export type Row = Record<string, unknown>
 

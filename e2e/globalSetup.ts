@@ -30,7 +30,6 @@ export default function globalSetup(): void {
       CAPACITYLENS_PUBLIC_URL: 'http://localhost',
       CAPACITYLENS_CREATE_ADMIN_ADMIN: '0',
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
-      CAPACITYLENS_E2E_WORKER_API: '0',
     },
   })
   run('Paraglide compilation', 'pnpm', ['run', 'paraglide:compile'])

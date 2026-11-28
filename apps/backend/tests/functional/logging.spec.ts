@@ -21,7 +21,7 @@ import {
   resetPlanningFixture,
   session as withPlanningSession,
   loginAsMember,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
@@ -199,7 +199,7 @@ test.group('general HTTP logging privacy', (group) => {
     )
     const committed = await db
       .from('audit_entries')
-      .where({ company_id: 'a-studio', action: 'exampleData' })
+      .where({ company_id: 'a-studio', operation: 'exampleData' })
       .first()
 
     assert.isDefined(committed)

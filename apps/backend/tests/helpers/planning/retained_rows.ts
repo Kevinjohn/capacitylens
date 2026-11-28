@@ -8,7 +8,7 @@ import Phase from '#models/phase'
 import TimeOff from '#models/time_off'
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts'
 import { readState } from '#tests/helpers/state_fixture'
-import { companyId, newAllocation, session } from '#tests/functional/planning/helpers'
+import { companyId, newAllocation, session } from '#tests/helpers/planning/functional_helpers'
 
 export interface SendPlanningOptions {
   client: ApiClient
@@ -31,8 +31,8 @@ export async function sendPlanning({ client, cookie, baseRevision, intent }: Sen
 export async function readPlanningStorage() {
   return {
     allocations: await db.from('allocations').orderBy('id'),
-    groups: await db.from('deleted_groups').orderBy('group_id'),
-    rows: await db.from('deleted_rows').orderBy('group_id').orderBy('row_id'),
+    groups: await db.from('deleted_batches').orderBy('id'),
+    rows: await db.from('deleted_rows').orderBy('deleted_batch_id').orderBy('row_id'),
     revisions: await db.from('company_planning_revisions').orderBy('company_id'),
     receipts: await db.from('planning_mutations').orderBy('mutation_id'),
     audit: await db.from('audit_entries').where('entity', 'planning').orderBy('id'),
@@ -154,13 +154,13 @@ export const retainedModels = {
 } as const
 
 /** Inserts one pending deletion group of `company`, owned by Bruce's session `sessionId`. */
-export async function createDeletionGroup(company: string, sessionId: number) {
+export async function createDeletionBatch(company: string, sessionId: number) {
   const groupId = randomUUID()
-  await db.table('deleted_groups').insert({
-    group_id: groupId,
+  await db.table('deleted_batches').insert({
+    id: groupId,
     company_id: company,
     actor_id: 'u-bruce',
-    session_id: sessionId,
+    account_session_id: sessionId,
     mutation_id: randomUUID(),
     created_at: new Date().toISOString(),
   })

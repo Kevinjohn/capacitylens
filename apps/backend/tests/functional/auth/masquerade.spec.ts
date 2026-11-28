@@ -353,7 +353,7 @@ test.group('native read-only masquerade', (group) => {
       secondSession.cookie
     ).send()
     secondProjected.assertStatus(200)
-    const anonymiseAudits = await db.from('audit_entries').where('action', 'anonymise')
+    const anonymiseAudits = await db.from('audit_entries').where('operation', 'anonymise')
     const auditCount = anonymiseAudits.length
     const deniedAnonymise = await asSession(
       client
@@ -365,7 +365,7 @@ test.group('native read-only masquerade', (group) => {
       .json({})
       .send()
     deniedAnonymise.assertStatus(403)
-    assert.lengthOf(await db.from('audit_entries').where('action', 'anonymise'), auditCount)
+    assert.lengthOf(await db.from('audit_entries').where('operation', 'anonymise'), auditCount)
     const read = await asSession(
       client.visit('api.company_state.show').qs({ companyId: 'a-studio' }),
       owner
@@ -461,10 +461,10 @@ test.group('native read-only masquerade', (group) => {
         (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
-        client.post<string>('/api/v1/auth/sign-in').header('sec-fetch-site', 'same-origin'),
+        client.visit('api.session.store').header('sec-fetch-site', 'same-origin'),
         owner,
         (started.body().data as { masqueradeToken: string }).masqueradeToken
-      ).json({}),
+      ).json({} as never),
       asSession(
         client.post('/api/v1/auth/register').header('sec-fetch-site', 'same-origin'),
         owner,
@@ -807,7 +807,7 @@ test.group('native read-only masquerade', (group) => {
       [
         ['planning', () => client.visit('api.planning.show', { companyId: 'a-studio' })],
         ['state', () => client.visit('api.company_state.show').qs({ companyId: 'a-studio' })],
-        ['export', () => client.visit('api.company_exports.show', { companyId: 'a-studio' })],
+        ['export', () => client.visit('api.company_export.show', { companyId: 'a-studio' })],
       ] as const
     ).entries()) {
       await db

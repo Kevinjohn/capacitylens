@@ -1,8 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { AdmissionDecisionService } from '#services/admission/admission_decision_service'
-import { CurrentActorService } from '#services/auth/current_actor_service'
-import { decideAdmissionValidator } from '#validators/admission_query'
+import { decideAdmissionValidator } from '#validators/admission'
 
 /**
  * An Owner or Admin approves a person's admission. The Account Kit authorises every decision; it
@@ -10,18 +9,16 @@ import { decideAdmissionValidator } from '#validators/admission_query'
  */
 @inject()
 export default class AdmissionApprovalsController {
-  #currentActor: CurrentActorService
   #decisions: AdmissionDecisionService
 
-  constructor(decisions: AdmissionDecisionService, currentActor: CurrentActorService) {
+  constructor(decisions: AdmissionDecisionService) {
     this.#decisions = decisions
-    this.#currentActor = currentActor
   }
 
   async store({ auth, request, serialize }: HttpContext) {
     const { params } = await request.validateUsing(decideAdmissionValidator)
     const { userId } = params
-    const actor = await this.#currentActor.readCurrentAccount(auth)
+    const actor = auth.getUserOrFail()
     return serialize(
       await this.#decisions.decide({ actorId: actor.id, userId, decision: 'approve' })
     )

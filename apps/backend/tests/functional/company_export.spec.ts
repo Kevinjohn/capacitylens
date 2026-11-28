@@ -22,7 +22,7 @@ test.group('company export download', (group) => {
     for (const role of roles) {
       await setRole(signedIn.userId, role)
       const response = await client
-        .visit('api.company_exports.show', { companyId: 'a-studio' })
+        .visit('api.company_export.show', { companyId: 'a-studio' })
         .send()
       response.assertStatus(200)
       assert.equal(
@@ -51,7 +51,7 @@ test.group('company export download', (group) => {
     for (const role of roles) {
       await setRole(signedIn.userId, role)
       const response = await client
-        .visit('api.company_exports.show', { companyId: 'a-studio' })
+        .visit('api.company_export.show', { companyId: 'a-studio' })
         .send()
       response.assertStatus(200)
       const document = JSON.parse(response.text()) as { completeness: string }
@@ -66,7 +66,7 @@ test.group('company export download', (group) => {
     for (const role of roles) {
       await setRole(signedIn.userId, role)
       const response = await client
-        .visit('api.company_exports.show', { companyId: 'a-studio' })
+        .visit('api.company_export.show', { companyId: 'a-studio' })
         .send()
       response.assertStatus(200)
       const document = JSON.parse(response.text()) as { data: { resources: { id: string }[] } }
@@ -79,7 +79,7 @@ test.group('company export download', (group) => {
     const signedIn = await resetLoggedInDataOwner(client)
     client = signedIn.client
     await db.from('memberships').where({ user_id: signedIn.userId, scope_id: 'a-loft' }).delete()
-    const response = await client.visit('api.company_exports.show', { companyId: 'a-loft' }).send()
+    const response = await client.visit('api.company_export.show', { companyId: 'a-loft' }).send()
     response.assertStatus(403)
     assert.equal((response.body() as unknown as { code: string }).code, 'E_ACCOUNT_MEMBERSHIP_LOST')
   })
@@ -96,9 +96,7 @@ test.group('company export download', (group) => {
       .from('resources')
       .where('id', placeholder.id)
       .update({ avatar_url: 'https://example.test/oracle.png' })
-    const response = await client
-      .visit('api.company_exports.show', { companyId: 'a-studio' })
-      .send()
+    const response = await client.visit('api.company_export.show', { companyId: 'a-studio' }).send()
     response.assertStatus(400)
     assert.match(
       (response.body() as unknown as { error: string }).error,

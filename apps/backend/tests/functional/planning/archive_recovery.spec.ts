@@ -10,7 +10,7 @@ import {
   signIn,
   trusted,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   privateClientName,
   privateProjectName,

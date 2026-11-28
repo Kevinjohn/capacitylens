@@ -211,7 +211,7 @@ test.group('direct member resource association', (group) => {
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
+          .visit('api.member_resource_link.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -228,13 +228,13 @@ test.group('direct member resource association', (group) => {
     const revisionBeforeLink = Number(revisionRowBeforeLink?.revision)
     const auditCountBeforeLink = await db
       .from('audit_entries')
-      .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
+      .where({ company_id: 'a-studio', operation: 'member-resource.linked', entity_id: ownerId })
       .count('* as total')
     assert.equal(Number(auditCountBeforeLink[0].total), 0)
     const createLinkOperation = () =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
+          .visit('api.member_resource_link.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -258,13 +258,13 @@ test.group('direct member resource association', (group) => {
     assert.equal(revisionAfterLink, revisionBeforeLink + 1)
     const auditCountAfterLink = await db
       .from('audit_entries')
-      .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
+      .where({ company_id: 'a-studio', operation: 'member-resource.linked', entity_id: ownerId })
       .count('* as total')
     assert.equal(Number(auditCountAfterLink[0].total), 1)
     const repeatLink = () =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
+          .visit('api.member_resource_link.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -287,7 +287,7 @@ test.group('direct member resource association', (group) => {
     assert.equal(Number(revisionRowAfterNoop?.revision), revisionAfterLink)
     const auditCountAfterNoop = await db
       .from('audit_entries')
-      .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
+      .where({ company_id: 'a-studio', operation: 'member-resource.linked', entity_id: ownerId })
       .count('* as total')
     assert.equal(Number(auditCountAfterNoop[0].total), Number(auditCountAfterLink[0].total))
     const stale = await put(ownerId, 'r-barry', null)
@@ -298,7 +298,7 @@ test.group('direct member resource association', (group) => {
     const unlink = () =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
+          .visit('api.member_resource_link.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )
@@ -320,7 +320,7 @@ test.group('direct member resource association', (group) => {
     assert.lengthOf(
       await db.from('audit_entries').where({
         company_id: 'a-studio',
-        action: 'member-resource.unlinked',
+        operation: 'member-resource.unlinked',
         entity_id: ownerId,
       }),
       1
@@ -349,7 +349,7 @@ test.group('direct member resource association', (group) => {
     const clear = (userId: string, expectedRevision: string) =>
       asLoggedInDataOwner(
         client
-          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
+          .visit('api.member_resource_link.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerUser
       )

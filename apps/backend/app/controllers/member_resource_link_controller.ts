@@ -2,12 +2,12 @@ import { MemberMutationRequestService } from '#services/membership/member_mutati
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { MemberResourceLinkService } from '#services/member_resources/member_resource_link_service'
-import { clearLinkValidator, setLinkValidator } from '#validators/member_resources'
+import { clearLinkValidator, setLinkValidator } from '#validators/member_resource'
 import { AccountOperationService } from '#services/account_operation_service'
 
 /** Scoped member/person association. */
 @inject()
-export default class MemberResourceLinksController {
+export default class MemberResourceLinkController {
   #memberMutationRequests: MemberMutationRequestService
   #links: MemberResourceLinkService
   #accountOperations: AccountOperationService

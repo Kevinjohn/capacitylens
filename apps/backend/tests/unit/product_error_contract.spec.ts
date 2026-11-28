@@ -23,15 +23,16 @@ import {
 import FirstCompanyPendingException from '#exceptions/first_company_pending_exception'
 import PasswordConfirmationException from '#exceptions/password_confirmation_exception'
 import StalePlanningRevisionException from '#exceptions/stale_planning_revision_exception'
-import { refuseConflictingAdmission, refuseMissingAdmission } from '#exceptions/admission_errors'
 import {
-  credentialUpdateCommitted,
-  emailInUseAnswer,
-  invalidLinkAnswer,
-} from '#exceptions/credential_answers'
-import { signUpValidator } from '#validators/auth_requests'
-import { acceptInvitationSignUpValidator, createInvitationValidator } from '#validators/invitations'
-import { inspectResetValidator } from '#validators/credentials'
+  refuseConflictingAdmission,
+  refuseMissingAdmission,
+} from '#services/errors/admission_errors'
+import CredentialUpdateCommittedException from '#exceptions/credential_update_committed_exception'
+import EmailInUseException from '#exceptions/email_in_use_exception'
+import InvalidLinkException from '#exceptions/invalid_link_exception'
+import { signUpValidator } from '#validators/auth'
+import { acceptInvitationSignUpValidator, createInvitationValidator } from '#validators/invitation'
+import { inspectResetValidator } from '#validators/credential'
 import MembershipLostException from '#exceptions/membership_lost_exception'
 import MutationIdReusedException from '#exceptions/mutation_id_reused_exception'
 import NoChangeException from '#exceptions/no_change_exception'
@@ -212,25 +213,25 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'PlanningConflictException',
     () => answered(new PlanningConflictException('In use.')),
     409,
-    { error: 'In use.' },
+    { error: 'In use.', code: 'E_PLANNING_CONFLICT' },
   ],
   [
     'EmptyHistoryException',
     () => answered(new EmptyHistoryException('Nothing to undo.')),
     409,
-    { error: 'Nothing to undo.' },
+    { error: 'Nothing to undo.', code: 'E_EMPTY_HISTORY' },
   ],
   [
     'EntityWriteException',
     () => answered(new EntityWriteException('Name is required.')),
     400,
-    { error: 'Name is required.' },
+    { error: 'Name is required.', code: 'E_ENTITY_WRITE' },
   ],
   [
     'EntityNotFoundException',
     () => answered(new EntityNotFoundException('Not found.')),
     404,
-    { error: 'Not found.' },
+    { error: 'Not found.', code: 'E_ENTITY_NOT_FOUND' },
   ],
   [
     'FrozenCompanyFieldException',
@@ -239,6 +240,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     {
       error:
         'Language, week start and time zone are set when the company is created and cannot be changed.',
+      code: 'E_FROZEN_COMPANY_FIELD',
     },
   ],
   [
@@ -376,7 +378,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'StalePlanningRevisionException',
-    () => answered(new StalePlanningRevisionException('mutation', 1, 2)),
+    () => answered(new StalePlanningRevisionException()),
     409,
     {
       error: 'The planning revision changed before this mutation was applied.',
@@ -450,10 +452,10 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     422,
     { errors: [{ message: 'Invalid token.' }] },
   ],
-  // The controllers that spend a link, create an account or change a password send these bodies.
+  // The exceptions that controllers spending a link, creating an account or changing a password throw.
   [
     'invalid or expired link',
-    () => ({ status: 400, body: invalidLinkAnswer }),
+    () => answered(new InvalidLinkException()),
     400,
     {
       error: 'This link is invalid or expired.',
@@ -462,7 +464,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'email in use',
-    () => ({ status: 409, body: emailInUseAnswer }),
+    () => answered(new EmailInUseException()),
     409,
     {
       error: 'An account already uses this email. Sign in or reset your password.',
@@ -471,7 +473,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
   ],
   [
     'committed password change',
-    () => ({ status: 503, body: credentialUpdateCommitted }),
+    () => answered(new CredentialUpdateCommittedException()),
     503,
     {
       error:
@@ -526,7 +528,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
         answered(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' }))
       ),
     500,
-    { error: 'Internal server error.' },
+    { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' },
   ],
   [
     'E_TOO_MANY_REQUESTS',
@@ -586,8 +588,8 @@ test.group('product error adapters', () => {
   const routeNames = [
     'api.companies.index',
     'api.planning.show',
-    'api.member_resource_links.update',
-    'api.company_exports.show',
+    'api.member_resource_link.update',
+    'api.company_export.show',
   ]
   /** Answers `error` on every route name and returns the one status and body they share. */
   async function answerOnEveryRoute(error: () => unknown) {
@@ -710,7 +712,10 @@ test.group('product error adapters', () => {
       await new HttpExceptionHandler().report(error, ctx)
     })
     assert.equal(result.status, 500)
-    assert.deepEqual(result.body, { error: 'Internal server error.' })
+    assert.deepEqual(result.body, {
+      error: 'Internal server error.',
+      code: 'E_INTERNAL_SERVER_ERROR',
+    })
     assert.lengthOf(diagnostics, 1)
     const { err, ...fields } = diagnostics[0]!.fields
     assert.deepEqual(fields, {
@@ -737,7 +742,10 @@ test.group('product error adapters', () => {
   }) => {
     const conflict = await answerOnPlanning(new PlanningConflictException('The record is in use.'))
     assert.equal(conflict.status, 409)
-    assert.deepEqual(conflict.body, { error: 'The record is in use.' })
+    assert.deepEqual(conflict.body, {
+      error: 'The record is in use.',
+      code: 'E_PLANNING_CONFLICT',
+    })
 
     const stale = await answerOnPlanning(new RecordChangedException('Reload first.'))
     assert.equal(stale.status, 409)

@@ -8,7 +8,7 @@ import {
   createInvitationValidator,
   listInvitationsValidator,
   revokeInvitationValidator,
-} from '#validators/invitations'
+} from '#validators/invitation'
 
 /**
  * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.

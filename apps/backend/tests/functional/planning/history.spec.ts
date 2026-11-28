@@ -11,12 +11,12 @@ import {
   resetPlanningFixture,
   signIn,
   signInAgain,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   listCreatedAllocationIds,
   planningAudit,
   stored,
-} from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/restoration_helpers'
 import {
   Page,
   histories,
@@ -75,7 +75,7 @@ test.group('server-held undo and redo', (suite) => {
 
     const audit = await planningAudit()
     assert.deepEqual(
-      audit.map((row) => row.action),
+      audit.map((row) => row.operation),
       [
         'allocation.create',
         'allocation.update',
@@ -131,7 +131,7 @@ test.group('server-held undo and redo', (suite) => {
     assert.deepEqual(await historyOf(owner.read()), { canUndo: false, canRedo: false })
     const refused = await owner.undo()
     assert.equal(refused.status, 409)
-    assert.isUndefined(refused.code)
+    assert.equal(refused.code, 'E_EMPTY_HISTORY')
     assert.equal(await noteOf(id), 'Oracle was here')
     assert.deepEqual(await historyOf(editor.read()), { canUndo: true, canRedo: false })
   })

@@ -10,14 +10,14 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   send,
   deleteOne,
   createAllocations,
   currentRevision,
-  restorationGroup,
-} from '#tests/functional/planning/restoration_helpers'
+  restorationBatch,
+} from '#tests/helpers/planning/restoration_helpers'
 
 test.group('typed catalogue and time-off restoration', (suite) => {
   suite.setup(() => freshDatabase())
@@ -39,11 +39,11 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const before = await readState(companyId, true)
     const target = before.projects.find((row) => !row.isPrivate)!
     const foreignGroup = randomUUID()
-    await db.table('deleted_groups').insert({
-      group_id: foreignGroup,
+    await db.table('deleted_batches').insert({
+      id: foreignGroup,
       company_id: 'a-loft',
       actor_id: 'other-actor',
-      session_id: await fixtureSession('other-actor'),
+      account_session_id: await fixtureSession('other-actor'),
       mutation_id: randomUUID(),
       created_at: new Date().toISOString(),
       consumed_at: null,
@@ -60,7 +60,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     )
     settings.assertStatus(200)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const ordinary = await send(
       client,
       cookie,
@@ -77,7 +77,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     )
     ordinary.assertStatus(200)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const changed = await send(
       client,
       cookie,
@@ -96,7 +96,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     changed.assertStatus(409)
     assert.equal(changed.body().code, 'E_RESTORATION_CONFIRMATION_REQUIRED')
     assert.equal(changed.body().restorableItemCount, 1)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const confirmed = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -116,8 +116,8 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       })
       .send()
     confirmed.assertStatus(200)
-    assert.isNull(await restorationGroup(groupId))
-    assert.isNotNull(await restorationGroup(foreignGroup))
+    assert.isNull(await restorationBatch(groupId))
+    assert.isNotNull(await restorationBatch(foreignGroup))
     assert.isNull(await db.from('allocations').where('id', allocationId!).first())
   })
 
@@ -150,7 +150,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID()
     )
     renamed.assertStatus(200)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const changed = await send(
       client,
       cookie,
@@ -165,7 +165,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     changed.assertStatus(409)
     assert.equal(changed.body().code, 'E_RESTORATION_CONFIRMATION_REQUIRED')
     assert.equal(changed.body().restorableItemCount, 1)
-    assert.isNotNull(await restorationGroup(groupId))
+    assert.isNotNull(await restorationBatch(groupId))
     const confirmed = await session(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
@@ -181,7 +181,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       })
       .send()
     confirmed.assertStatus(200)
-    assert.isNull(await restorationGroup(groupId))
+    assert.isNull(await restorationBatch(groupId))
     assert.isNull(await db.from('allocations').where('id', allocationId!).first())
   })
 
@@ -207,30 +207,30 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       [other, null],
       [consumed, new Date().toISOString()],
     ] as const) {
-      await db.table('deleted_groups').insert({
-        group_id: id,
+      await db.table('deleted_batches').insert({
+        id,
         company_id: companyId,
         actor_id: 'another-actor',
-        session_id: await fixtureSession('another-actor'),
+        account_session_id: await fixtureSession('another-actor'),
         mutation_id: randomUUID(),
         created_at: new Date().toISOString(),
         consumed_at: consumedInstant,
       })
       await db.table('deleted_rows').multiInsert([
         {
-          group_id: id,
+          deleted_batch_id: id,
           entity: 'allocations',
           row_id: id === other ? otherRowIds[0]! : consumedRowId,
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
-          group_id: id,
+          deleted_batch_id: id,
           entity: 'allocations',
           row_id: id === other ? otherRowIds[1]! : randomUUID(),
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
-          group_id: id,
+          deleted_batch_id: id,
           entity: 'activities',
           row_id: randomUUID(),
           payload_json: JSON.stringify({ kind: 'link', parentId: 'gotham' }),
@@ -240,7 +240,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const retainedFixtureRow = (id: string, groupId: string) => ({
       ...retainedAllocation,
       id,
-      deletion_group_id: groupId,
+      deleted_batch_id: groupId,
     })
     await db
       .table('allocations')
@@ -277,10 +277,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.isNull(await db.from('planning_mutations').where('mutation_id', mutationId).first())
     // An expired sign-in's groups stop counting before pruning removes them, and neither changes
     // the planning revision.
-    const otherGroup = await db.from('deleted_groups').where('group_id', other).first()
+    const otherGroup = await db.from('deleted_batches').where('id', other).first()
     await db
       .from('account_sessions')
-      .where('id', otherGroup.session_id)
+      .where('id', otherGroup.account_session_id)
       .update({ expires_at: '2000-01-01T00:00:00.000Z' })
     const stale = await request(3)
     stale.assertStatus(409)
@@ -314,7 +314,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .update({ role: 'owner' })
     const confirmed = await request(1)
     confirmed.assertStatus(200)
-    assert.isNull(await restorationGroup(deletion.body().data.restoration.replacementGroupId))
+    assert.isNull(await restorationBatch(deletion.body().data.restoration.replacementGroupId))
   })
 
   test('a failed privacy transaction retains its data and restoration group', async ({
@@ -351,7 +351,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         1
       )
       refused.assertStatus(500)
-      assert.isNotNull(await restorationGroup(groupId))
+      assert.isNotNull(await restorationBatch(groupId))
       const afterRefusal = await readState(companyId, true)
       assert.equal(
         afterRefusal.projects.find((row) => row.id === target.id)?.codeName,

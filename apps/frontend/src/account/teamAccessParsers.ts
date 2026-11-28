@@ -52,11 +52,8 @@ function parseMember(row: unknown): TeamMember | null {
   }
 }
 
-function parseMemberResourceStatus(
-  value: unknown
-): 'active' | 'disabled' | 'archived' | null | undefined {
-  if (value === undefined || value === null) return null
-  if (value === 'active' || value === 'disabled' || value === 'archived') return value
+function parseMemberResourceStatus(value: unknown): 'active' | 'archived' | undefined {
+  if (value === 'active' || value === 'archived') return value
   return undefined
 }
 
@@ -180,13 +177,14 @@ export function parseAdmissionPage(status: AdmissionStatus) {
   return (value: unknown): AdmissionPage | null => {
     if (
       !isRecord(value) ||
-      !Array.isArray(value.items) ||
-      !isNullableString(value.nextCursor ?? null)
+      !Array.isArray(value.data) ||
+      !isRecord(value.metadata) ||
+      !isNullableString(value.metadata.nextCursor ?? null)
     ) {
       return null
     }
     const requests: AdmissionRequest[] = []
-    for (const item of value.items as unknown[]) {
+    for (const item of value.data as unknown[]) {
       if (!isRecord(item) || (typeof item.userId !== 'string' && typeof item.userId !== 'number')) {
         return null
       }
@@ -201,6 +199,7 @@ export function parseAdmissionPage(status: AdmissionStatus) {
         approval: status,
       })
     }
-    return { requests, nextCursor: typeof value.nextCursor === 'string' ? value.nextCursor : null }
+    const nextCursor = value.metadata.nextCursor
+    return { requests, nextCursor: typeof nextCursor === 'string' ? nextCursor : null }
   }
 }

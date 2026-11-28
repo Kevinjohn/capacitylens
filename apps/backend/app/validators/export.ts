@@ -21,6 +21,6 @@ export const exportQueryValidator = vine.create(
 )
 
 /** The company export names its company in the route. */
-export const showCompanyExportValidator = vine.create(
-  vine.object({ params: vine.object({ companyId: companyIdParam() }) })
-)
+export const showCompanyExportValidator = vine.create({
+  params: vine.object({ companyId: companyIdParam() }),
+})

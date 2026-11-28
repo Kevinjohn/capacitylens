@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import { MemberMutationService } from '#services/membership/member_mutation_service'
 import { MemberMutationRequestService } from '#services/membership/member_mutation_request_service'
 import type { HttpContext } from '@adonisjs/core/http'
-import { changeStatusValidator } from '#validators/members'
+import { changeStatusValidator } from '#validators/member'
 import { AccountOperationService } from '#services/account_operation_service'
 
 /** A member's status, changed under live management permission. */

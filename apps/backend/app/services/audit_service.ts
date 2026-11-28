@@ -19,7 +19,7 @@ export class AuditService {
       id: crypto.randomUUID(),
       company_id: input.companyId,
       actor_id: input.actorId,
-      action: input.action,
+      operation: input.action,
       entity: input.entity,
       entity_id: input.entityId,
       details: JSON.stringify({

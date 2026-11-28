@@ -187,7 +187,7 @@ describe('MembersSection — admin affordances', () => {
       expect(fetchMock.requests).toContainEqual(
         expect.objectContaining({
           path: `/api/v1/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
-          method: 'PATCH',
+          method: 'PUT',
           body: JSON.stringify({ role: 'viewer' }),
         })
       )
@@ -200,7 +200,7 @@ describe('MembersSection — admin affordances', () => {
     const patchResponse = new Promise<Response>((resolve) => {
       releasePatch = () => resolve(new Response(null, { status: 204 }))
     })
-    vi.stubGlobal('fetch', mockApi(members, { 'PATCH /members/theeditor': () => patchResponse }))
+    vi.stubGlobal('fetch', mockApi(members, { 'PUT /members/theeditor': () => patchResponse }))
     renderSection({}, 'admin')
     const editorRow = await waitForMemberRow(/theeditor@x\.io/)
 
@@ -315,7 +315,7 @@ describe('MembersSection — owner affordances', () => {
         {
           userId: 'ed',
           role: 'editor',
-          resourceLink: { resourceId: resource.id, revision: 'rev-1' },
+          resourceLink: { resourceId: resource.id, revision: 'rev-1', resourceStatus: 'active' },
         },
       ])
     )

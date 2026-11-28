@@ -4,8 +4,9 @@ import {
   E_ACCOUNT_KIT_INVALID_TOKEN,
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors'
-import { credentialUpdateCommitted, invalidLinkAnswer } from '#exceptions/credential_answers'
-import { inspectResetValidator, resetPasswordValidator } from '#validators/credentials'
+import CredentialUpdateCommittedException from '#exceptions/credential_update_committed_exception'
+import InvalidLinkException from '#exceptions/invalid_link_exception'
+import { inspectResetValidator, resetPasswordValidator } from '#validators/credential'
 
 /** A password reset link: whether it is still usable, and spending it to set a new password. */
 export default class PasswordResetsController {
@@ -20,7 +21,7 @@ export default class PasswordResetsController {
   }
 
   /** Every sign-in, including any on this device, ends with the old password. */
-  async update({ request, response, serialize }: HttpContext) {
+  async update({ request, serialize }: HttpContext) {
     const body = await request.validateUsing(resetPasswordValidator, {
       data: request.body(),
     })
@@ -28,11 +29,10 @@ export default class PasswordResetsController {
       await accountKit.passwordReset.reset({ token: body.token, password: body.newPassword })
       return serialize({ ok: true })
     } catch (error) {
-      // Keeps `E_INVALID_TOKEN`, which the browser reads, where the handler sends the Kit's own code.
       if (error instanceof E_ACCOUNT_KIT_INVALID_TOKEN) {
-        return response.badRequest(invalidLinkAnswer)
+        throw new InvalidLinkException()
       }
-      if (isCommittedFailure(error)) return response.serviceUnavailable(credentialUpdateCommitted)
+      if (isCommittedFailure(error)) throw new CredentialUpdateCommittedException()
       throw error
     }
   }

@@ -62,7 +62,7 @@ The pending form disables its fields and buttons during Save. Resource and Repea
 - [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx#L74)
 - [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx#L103)
 - [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L293)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L292)
 - [planning_execution_service.ts](../../apps/backend/app/services/planning/planning_execution_service.ts#L379)
 - [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts#L24)
 - [availability.ts](../../packages/shared/src/lib/capacity/availability.ts#L83)

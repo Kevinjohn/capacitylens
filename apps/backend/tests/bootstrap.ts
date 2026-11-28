@@ -1,11 +1,12 @@
 import { assert } from '@japa/assert'
 import { apiClient } from '@japa/api-client'
 import { authApiClient } from '@adonisjs/auth/plugins/api_client'
+import { dbAssertions } from '@adonisjs/lucid/plugins/db'
 import app from '@adonisjs/core/services/app'
 import type { Config } from '@japa/runner/types'
 import { pluginAdonisJS } from '@japa/plugin-adonisjs'
 import testUtils from '@adonisjs/core/services/test_utils'
-import type { Registry } from '../.adonisjs/client/registry/schema.d.ts'
+import type { Registry } from '#generated_client/registry/schema'
 import { createServer } from 'node:http'
 import { configureNodeServer } from '#start/resource_limits'
 import { loginAsSession } from '#tests/helpers/login_as_session'
@@ -29,6 +30,7 @@ declare module '@japa/api-client/types' {
 export const plugins: Config['plugins'] = [
   assert(),
   pluginAdonisJS(app),
+  dbAssertions(app),
   apiClient(),
   loginAsSession(app),
   authApiClient(app),

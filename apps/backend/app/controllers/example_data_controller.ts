@@ -30,7 +30,7 @@ export default class ExampleDataController {
         'members:manage',
         trx
       )
-      return this.#exampleData.addExampleData(trx, companyId, actor.actorId)
+      return this.#exampleData.addExampleData(trx, companyId, actor.actorId, logger)
     })
     try {
       logger.info({ companyId, added }, 'Example data committed')
