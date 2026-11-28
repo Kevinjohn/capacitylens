@@ -2,9 +2,9 @@ import { seed } from '@capacitylens/shared/data/seed'
 import db from '@adonisjs/lucid/services/db'
 import type { LucidModel } from '@adonisjs/lucid/types/model'
 import type { AppDataKey } from '@capacitylens/shared/types/entities'
-import { productModels } from '#models_support/product_models'
-import { rowAttributes } from '#models_support/row_attributes'
-import { tables } from '#models_support/product_tables'
+import { productModels } from '#services/models/product_models'
+import { rowAttributes } from '#services/models/row_attributes'
+import { tables } from '#services/models/product_tables'
 
 /** The development and test seed rows. */
 export class SeedRowService {

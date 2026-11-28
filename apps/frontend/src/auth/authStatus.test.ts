@@ -149,7 +149,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'mode-token',
       masqueradeToken: 'mode-token',
-      actor: { id: '', email: 'real@example.test' },
+      actor: { id: '', name: null, email: 'real@example.test' },
     })
     const adopt = vi.spyOn(masqueradeModel, 'adoptStatus')
     try {
@@ -180,7 +180,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'stale-mode-token',
       masqueradeToken: 'stale-mode-token',
-      actor: { id: 'real-user', email: 'real@example.test' },
+      actor: { id: 'real-user', name: null, email: 'real@example.test' },
     }
     try {
       const pending = fetchAuthStatus(() => true)

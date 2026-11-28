@@ -128,74 +128,82 @@ test.group('backup diagnostics', (group) => {
 
   test('an unreadable backup directory does not erase verified database diagnostics', async ({
     assert,
+    cleanup,
   }) => {
     const root = mkdtempSync(join(tmpdir(), 'capacitylens-diagnostics-'))
     const original = env.get('CAPACITYLENS_BACKUP_DIR')
     const warnings: unknown[][] = []
-    const originalWarn = logger.warn
-    logger.warn = ((...args: unknown[]) => {
-      warnings.push(args)
-    }) as typeof logger.warn
-    try {
-      env.set('CAPACITYLENS_BACKUP_DIR', join(root, 'PRIVATE_BACKUP_TOKEN'))
-      const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
-      const response = await owner.visit('api.diagnostics.show')
-      assert.equal(response.status(), 200)
-      assert.deepEqual(warnings, [['Diagnostics could not inspect completed backups']])
-      const output = JSON.stringify(warnings)
-      assert.notInclude(output, root)
-      assert.notInclude(output, 'ENOENT')
-      assert.notInclude(output, 'PRIVATE_BACKUP_TOKEN')
-      assert.deepEqual(response.body().data, {
-        server: {
-          connectivity: 'ok',
-          database: { status: 'ok' },
-          schema: { migration: latest!.name },
-          backup: { newestBackupAt: null },
-        },
-      })
-    } finally {
-      logger.warn = originalWarn
+    const originalChild = logger.child
+    logger.child = ((...args: Parameters<typeof logger.child>) => {
+      const child = originalChild.apply(logger, args)
+      child.warn = ((...warnArgs: unknown[]) => {
+        warnings.push(warnArgs)
+      }) as typeof child.warn
+      return child
+    }) as typeof logger.child
+    cleanup(() => {
+      logger.child = originalChild
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '')
       rmSync(root, { recursive: true, force: true })
-    }
+    })
+    env.set('CAPACITYLENS_BACKUP_DIR', join(root, 'PRIVATE_BACKUP_TOKEN'))
+    const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
+    const response = await owner.visit('api.diagnostics.show')
+    assert.equal(response.status(), 200)
+    assert.deepEqual(warnings, [['Diagnostics could not inspect completed backups']])
+    const output = JSON.stringify(warnings)
+    assert.notInclude(output, root)
+    assert.notInclude(output, 'ENOENT')
+    assert.notInclude(output, 'PRIVATE_BACKUP_TOKEN')
+    assert.deepEqual(response.body().data, {
+      server: {
+        connectivity: 'ok',
+        database: { status: 'ok' },
+        schema: { migration: latest!.name },
+        backup: { newestBackupAt: null },
+      },
+    })
   })
 
   test('database inspection warnings omit private failures and preserve unavailable diagnostics', async ({
     assert,
+    cleanup,
   }) => {
     const warnings: unknown[][] = []
-    const originalWarn = logger.warn
+    const originalChild = logger.child
     const originalFrom = db.from
-    logger.warn = ((...args: unknown[]) => {
-      warnings.push(args)
-    }) as typeof logger.warn
+    logger.child = ((...args: Parameters<typeof logger.child>) => {
+      const child = originalChild.apply(logger, args)
+      child.warn = ((...warnArgs: unknown[]) => {
+        warnings.push(warnArgs)
+      }) as typeof child.warn
+      return child
+    }) as typeof logger.child
     db.from = ((...args: Parameters<typeof db.from>) => {
       if (args[0] === 'adonis_schema') throw new Error('PRIVATE_DATABASE_PATH_TOKEN')
       return originalFrom.apply(db, args)
     }) as typeof db.from
-    try {
-      const response = await owner.visit('api.diagnostics.show')
-      assert.equal(response.status(), 503)
-      assert.deepEqual(response.body(), {
-        server: {
-          connectivity: 'ok',
-          database: { status: 'unavailable' },
-          schema: { migration: null },
-          backup: { newestBackupAt: null },
-        },
-      })
-      assert.lengthOf(warnings, 1)
-      const [fields, message] = warnings[0] as [{ err: unknown }, string]
-      assert.equal(message, 'Diagnostics could not read database state')
-      const logged = loggerConfig.loggers.app.serializers!.err!(fields.err)
-      assert.deepEqual(logged, { category: 'unexpected', errorName: 'Error' })
-      assert.notInclude(JSON.stringify(logged), 'PRIVATE_DATABASE_PATH_TOKEN')
-      assert.notInclude(JSON.stringify(response.body()), 'PRIVATE_DATABASE_PATH_TOKEN')
-    } finally {
-      logger.warn = originalWarn
+    cleanup(() => {
+      logger.child = originalChild
       db.from = originalFrom
-    }
+    })
+    const response = await owner.visit('api.diagnostics.show')
+    assert.equal(response.status(), 503)
+    assert.deepEqual(response.body(), {
+      server: {
+        connectivity: 'ok',
+        database: { status: 'unavailable' },
+        schema: { migration: null },
+        backup: { newestBackupAt: null },
+      },
+    })
+    assert.lengthOf(warnings, 1)
+    const [fields, message] = warnings[0] as [{ err: unknown }, string]
+    assert.equal(message, 'Diagnostics could not read database state')
+    const logged = loggerConfig.loggers.app.serializers!.err!(fields.err)
+    assert.deepEqual(logged, { category: 'unexpected', errorName: 'Error' })
+    assert.notInclude(JSON.stringify(logged), 'PRIVATE_DATABASE_PATH_TOKEN')
+    assert.notInclude(JSON.stringify(response.body()), 'PRIVATE_DATABASE_PATH_TOKEN')
   })
 
   test('diagnostics uses the maximum READY manifest time despite name order and file mtime', async ({

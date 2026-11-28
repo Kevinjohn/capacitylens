@@ -16,6 +16,7 @@ const { failUnsettledStart } = await import('#bin/unsettled_start')
 
 process.env.NODE_ENV = 'test'
 
+import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { ports } from '@capacitylens/tooling/ports'
 
@@ -29,8 +30,9 @@ for (const key of [
   'CAPACITYLENS_FIXED_TODAY',
 ])
   delete process.env[key]
-// What stays here is computed from the port lane.
+// What stays here is computed from the port lane or generated per run.
 Object.assign(process.env, {
+  APP_KEY: process.env.APP_KEY || randomBytes(32).toString('hex'),
   PORT: String(testHttpPort),
   APP_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${testHttpPort}`,

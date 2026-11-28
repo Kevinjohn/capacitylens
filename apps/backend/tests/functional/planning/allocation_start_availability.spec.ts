@@ -9,7 +9,7 @@ import {
   resetPlanningFixture,
   loginAsMember,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import { mutate } from '#tests/helpers/planning/mutations'
 
 test.group('allocation start availability', (group) => {

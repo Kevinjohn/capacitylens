@@ -33,7 +33,12 @@ export interface RawMember {
   name?: string | null
   email?: string | null
   isSelf?: boolean
-  resourceLink?: { resourceId: string; revision: string; resourceName?: string | null } | null
+  resourceLink?: {
+    resourceId: string
+    revision: string
+    resourceName?: string | null
+    resourceStatus: 'active' | 'archived'
+  } | null
 }
 
 /** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. `manage` defaults to the server's answer for an Owner or Admin reader: anyone but themselves and the Owner. */

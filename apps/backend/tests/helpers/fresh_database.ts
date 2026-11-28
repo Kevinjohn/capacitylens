@@ -1,11 +1,10 @@
-import app from '@adonisjs/core/services/app'
+import ace from '@adonisjs/core/services/ace'
 
 /**
  * Give a suite a newly migrated database. Migrations are forward-only, so this wipes and re-runs
  * them like `migration:fresh`, which cannot skip schema-class generation.
  */
 export async function freshDatabase() {
-  const ace = await app.container.make('ace')
   for (const [name, args] of [
     ['db:wipe', ['--force']],
     ['migration:run', ['--force', '--compact-output', '--no-schema-generate']],

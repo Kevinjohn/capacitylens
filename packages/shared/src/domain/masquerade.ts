@@ -30,17 +30,6 @@ export interface MasqueradeState extends AccessGrant {
   token: string
 }
 
-/** Validated request body for starting a masquerade. */
-export interface StartMasqueradePayload {
-  targetUserId: UserId
-}
-
-/** Validated request body for ending a masquerade. */
-export interface EndMasqueradePayload {
-  token: string
-  reason: ClientMasqueradeEndReason
-}
-
 /** Identity-wide mode status plus the proof for requests captured in that context. */
 export type MasqueradeStatus =
   | { active: false; masqueradeToken: string | null }

@@ -10,7 +10,7 @@ import {
   intentSession,
   loginAsMember,
   validationSentence,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import { mutationInput, replyBody } from '#tests/helpers/planning/mutations'
 
 test.group('reassignment working-day override', (group) => {

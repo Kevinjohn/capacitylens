@@ -8,7 +8,7 @@ import {
   createInvitationValidator,
   listInvitationsValidator,
   revokeInvitationValidator,
-} from '#validators/invitations'
+} from '#validators/invitation'
 import { requestData } from '#validators/request_rules'
 
 /**

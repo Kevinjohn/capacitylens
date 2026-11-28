@@ -63,7 +63,7 @@ flowchart TD
 - [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx#L74)
 - [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx#L103)
 - [useEditSubmit.ts](../../apps/frontend/src/hooks/useEditSubmit.ts#L44)
-- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L308)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts#L307)
 - [planningIntents.ts](../../apps/frontend/src/data/planning/planningIntents.ts#L292)
 - [entity_write_service.ts](../../apps/backend/app/services/planning/entity_write_service.ts#L75)
 - [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts#L24)

@@ -9,7 +9,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main'
 import { PasswordConfirmationService } from '#services/auth/password_confirmation_service'
 import { CurrentActorService } from '#services/auth/current_actor_service'
-import { confirmPasswordValidator } from '#validators/password_confirmations'
+import { confirmPasswordValidator } from '#validators/password_confirmation'
 import { CompanyImportService } from '#services/company_import_service'
 
 @inject()

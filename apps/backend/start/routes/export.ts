@@ -1,7 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { apiPrefix } from '#start/api'
 import { throttle } from '#start/limiter'
-import { asMember, asPlanningMember } from '#start/route_middleware'
 import { middleware } from '#start/kernel'
 import { controllers } from '#generated/controllers'
 
@@ -9,12 +8,15 @@ router
   .group(() => {
     router
       .group(() => {
-        router.get('/state', [controllers.CompanyState, 'show']).use(asMember())
+        router.get('/state', [controllers.CompanyState, 'show'])
         router
-          .get('/companies/:companyId/export', [controllers.CompanyExports, 'show'])
-          .use(asPlanningMember())
+          .get('/companies/:companyId/export', [controllers.CompanyExport, 'show'])
+          .use(middleware.companyScope({ planning: true }))
       })
-      .use(middleware.accountGate({ access: 'admitted' }))
+      .use([
+        middleware.accountGate({ access: 'admitted' }),
+        middleware.auth({ guards: ['web_effective'] }),
+      ])
   })
   .prefix(apiPrefix)
   .as('api')

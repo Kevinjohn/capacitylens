@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import { exportQueryValidator } from '#validators/export_query'
+import { exportQueryValidator } from '#validators/export'
 import type { HttpContext } from '@adonisjs/core/http'
 import { transformState } from '#transformers/state_transformer'
 import { AuthorizationService } from '#services/auth/authorization_service'

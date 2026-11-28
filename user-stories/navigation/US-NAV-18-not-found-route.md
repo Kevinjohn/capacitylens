@@ -54,4 +54,4 @@ flowchart TD
   link --> root["AppShell and CompanyDateRoute gate SchedulerView"]
 ```
 
-**Code references:** [routes.ts:62](../../apps/backend/start/routes.ts#L62) · [main.tsx:30](../../apps/frontend/src/main.tsx#L30) · [AuthProvider.tsx:245](../../apps/frontend/src/auth/AuthProvider.tsx#L245) · [router.tsx:172](../../apps/frontend/src/router.tsx#L172) · [router.tsx:206](../../apps/frontend/src/router.tsx#L206) · [router.tsx:238](../../apps/frontend/src/router.tsx#L238) · [NotFound.tsx:1](../../apps/frontend/src/components/common/NotFound.tsx#L1)
+**Code references:** [routes.ts:62](../../apps/backend/start/routes.ts#L67) · [main.tsx:30](../../apps/frontend/src/main.tsx#L30) · [AuthProvider.tsx:245](../../apps/frontend/src/auth/AuthProvider.tsx#L245) · [router.tsx:172](../../apps/frontend/src/router.tsx#L172) · [router.tsx:206](../../apps/frontend/src/router.tsx#L206) · [router.tsx:238](../../apps/frontend/src/router.tsx#L238) · [NotFound.tsx:1](../../apps/frontend/src/components/common/NotFound.tsx#L1)
