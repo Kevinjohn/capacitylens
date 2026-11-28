@@ -365,8 +365,7 @@ removed entry retires its number.
 27. Retired. Every API route is under `/api/v1`; the health probes stay at `/health/live` and
     `/health/ready`.
 28. Retired. The root `package.json` sets `@adonisjs/prettier-config` unchanged (TOOL-2).
-29. **Aligning (#2550).** The `dbAssertions` plugin is not registered; tests read rows with the
-    query builder and check them with `assert`.
+29. Retired (#2550). The `dbAssertions` plugin is registered in `tests/bootstrap.ts`.
 30. **Aligning (#2550).** A provider connects or spawns in `start` behind an `app.getMode()`
     check.
 31. **Aligning (#2550).** `bin/test.ts` holds the test values computed per port lane; the rest are

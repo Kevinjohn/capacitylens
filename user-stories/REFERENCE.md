@@ -116,7 +116,7 @@ registration mapping, Access Control invitation and membership callbacks, and th
 transactional effects. The provider also registers admission approval authority, the Masquerade
 adapter and policy, and the authorisation callback for password confirmations. The package
 configuration files supply the options for those same operations.
-[Provider order](../apps/backend/adonisrc.ts#L61) · [Account boundary](../docs-src/decisions/account-boundary.md)
+[Provider order](../apps/backend/adonisrc.ts#L62) · [Account boundary](../docs-src/decisions/account-boundary.md)
 
 ### Company setting writes
 

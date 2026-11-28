@@ -73,7 +73,6 @@ type CapacityLensEnvironmentSchema = {
   APP_KEY: SecretValidator
   APP_URL: StringValidator
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: OptionalSecretValidator
-  CAPACITYLENS_E2E_WORKER_API: OptionalBooleanValidator
   CAPACITYLENS_LOG: ReturnType<typeof Env.schema.enum.optional<'0' | '1'>>
   CAPACITYLENS_MAIL_PASSWORD: OptionalSecretValidator
   CAPACITYLENS_TRUST_PROXY_HEADERS: ProxyTrustValidator
@@ -109,8 +108,6 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_CORS_ORIGIN: optional,
   CAPACITYLENS_CREATE_ADMIN_ADMIN: optionalBoolean,
   CAPACITYLENS_DB: optional,
-  // Set by scripts/e2e/e2eWorkerRuntime.mjs; read by hooks/generate_registry.ts in the dev server.
-  CAPACITYLENS_E2E_WORKER_API: optionalBoolean,
   // Set by scripts/dev/dev-fullstack.mjs to its port lane's Vite origins; ignored outside development.
   CAPACITYLENS_DEV_WEB_ORIGINS: optional,
   // Set by scripts/e2e_server.mjs so the server's today matches the browser tests' frozen date.

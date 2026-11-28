@@ -316,7 +316,6 @@ export async function startE2eWorkerServer(target, portLane = resolvePortLane(),
         env: {
           ...process.env,
           CAPACITYLENS_PORT_LANE: String(portLane),
-          CAPACITYLENS_E2E_WORKER_API: '1',
         },
       }
     )
