@@ -8,7 +8,7 @@ import Phase from '#models/phase'
 import TimeOff from '#models/time_off'
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts'
 import { readState } from '#tests/helpers/state_fixture'
-import { companyId, newAllocation, session } from '#tests/functional/planning/helpers'
+import { companyId, newAllocation, session } from '#tests/helpers/planning/functional_helpers'
 
 export interface SendPlanningOptions {
   client: ApiClient

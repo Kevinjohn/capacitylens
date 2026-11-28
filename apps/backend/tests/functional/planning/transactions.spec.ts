@@ -18,7 +18,7 @@ import {
   intentSession,
   loginAsMember,
   signIn,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 
 test.group('planning snapshot and commit boundaries', (group) => {
   group.setup(() => freshDatabase())

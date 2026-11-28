@@ -10,7 +10,7 @@ import {
   session,
   signIn,
   signInAgain,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   deleteOne,
   restore,
@@ -21,7 +21,7 @@ import {
   planningAudit,
   restorationBatch,
   consumedAt,
-} from '#tests/functional/planning/restoration_helpers'
+} from '#tests/helpers/planning/restoration_helpers'
 
 test.group('session-bound allocation restoration', (suite) => {
   suite.setup(() => freshDatabase())

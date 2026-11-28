@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
-import { companyId, session } from '#tests/functional/planning/helpers'
+import { companyId, session } from '#tests/helpers/planning/functional_helpers'
 import { readPlanningRevision } from '#tests/helpers/data/planning_revision'
 
 // Every named route is classified by whether its reply can carry a restricted value. Routes that can

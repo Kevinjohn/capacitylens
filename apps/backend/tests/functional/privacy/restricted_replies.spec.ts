@@ -6,7 +6,7 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import {
   codeNamesByMarker,
   type Fixture,
