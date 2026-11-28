@@ -194,7 +194,7 @@ in the browser, and nothing is persisted.
   panning and zooming send no request.
 - `revalidatePlanning` in the session slice is the tab check: when the page becomes visible, and
   each minute while it is, a `ready` cache reads quietly with `ifRevision`, at most once every 30
-  seconds; an `error` cache retries its read.
+  seconds; a `failed` cache, or a write whose read failed, retries its read.
 - Runtime planning uses HTTP in `apps/frontend/src/data/planning/planningTransport.ts`. Unit tests
   use an explicit response stub without planning rules; shared domain, backend and browser tests
   cover scheduling and mutation rules against the server.

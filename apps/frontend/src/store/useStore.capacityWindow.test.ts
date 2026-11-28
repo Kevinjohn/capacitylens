@@ -175,4 +175,26 @@ describe('planning freshness check', () => {
     await expect(useStore.getState().revalidatePlanning()).resolves.toBe(true)
     expect(useStore.getState().planning.phase.kind).toBe('ready')
   })
+
+  it('retries the read after a committed write whose read failed, so editing resumes', async () => {
+    await resetStoreWithData(seed())
+    const [allocation] = useStore.getState().data.allocations
+    if (!allocation) throw new Error('The seed holds one allocation.')
+    vi.spyOn(getPlanningTransportHandle(), 'read').mockRejectedValueOnce(
+      new TypeError('read unavailable')
+    )
+    await useStore.getState().sendPlanningIntent({
+      intent: {
+        operation: 'allocation.update',
+        id: allocation.id,
+        changes: { hoursPerDay: 4 },
+      },
+    })
+    const { phase } = useStore.getState().planning
+    expect(phase.kind === 'writing' && phase.readError).toBeInstanceOf(TypeError)
+
+    await expect(useStore.getState().revalidatePlanning()).resolves.toBe(true)
+    expect(useStore.getState().planning.phase.kind).toBe('ready')
+    expect(useStore.getState().data.allocations[0]?.hoursPerDay).toBe(4)
+  })
 })

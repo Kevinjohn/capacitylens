@@ -178,11 +178,14 @@ export function createPlanningSessionSlice(
       sendPlanningIntent: send,
       refreshPlanning,
       // A ready view only checks its revision, quietly and not more often than the interval; the
-      // server then leaves the rows out unless another change was committed. A failed read is
-      // retried as before, so the read error clears once the server answers again.
+      // server then leaves the rows out unless another change was committed. A failed read, or a
+      // committed write whose read failed, is retried as before, so the read error clears and
+      // editing resumes once the server answers again.
       revalidatePlanning: () => {
         const { phase } = get().planning
-        if (phase.kind === 'failed') return refreshPlanning()
+        if (phase.kind === 'failed' || (phase.kind === 'writing' && phase.readError !== null)) {
+          return refreshPlanning()
+        }
         const now = Date.now()
         if (
           phase.kind !== 'ready' ||
