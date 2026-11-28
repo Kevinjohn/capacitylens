@@ -10,7 +10,7 @@ import { requestData } from '#validators/request_rules'
 
 /** The company's export document. */
 @inject()
-export default class CompanyExportsController {
+export default class CompanyExportController {
   #currentActor: CurrentActorService
   #stateRepository: StateRepositoryService
   #planningAccess: PlanningAccessService

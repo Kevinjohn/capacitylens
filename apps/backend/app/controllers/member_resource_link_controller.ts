@@ -8,7 +8,7 @@ import { requestData } from '#validators/request_rules'
 
 /** Scoped member/person association. */
 @inject()
-export default class MemberResourceLinksController {
+export default class MemberResourceLinkController {
   #memberMutationRequests: MemberMutationRequestService
   #links: MemberResourceLinkService
   #accountOperations: AccountOperationService

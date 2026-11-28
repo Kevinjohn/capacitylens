@@ -30,7 +30,12 @@ router.where('id', /^.{1,128}$/)
 // The catch-alls are registered after every area file, so they match only what no route does.
 router
   .group(() => {
-    router.get('/*', [controllers.NotFound]).use(middleware.accountGate({ access: 'limited' }))
+    router
+      .get('/*', [controllers.NotFound])
+      .use([
+        middleware.accountGate({ access: 'limited' }),
+        middleware.auth({ guards: ['web_effective'] }),
+      ])
   })
   .prefix(apiPrefix)
   .as('api')

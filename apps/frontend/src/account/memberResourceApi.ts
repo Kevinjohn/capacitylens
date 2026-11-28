@@ -10,7 +10,7 @@ export interface MemberResourceLinkRequestInput {
 
 /** Send a link or change operation. */
 export function setMemberResourceLink(input: MemberResourceLinkRequestInput): Promise<Response> {
-  return requestApiResponse('api.member_resource_links.update', {
+  return requestApiResponse('api.member_resource_link.update', {
     params: { companyId: input.companyId, userId: input.userId },
     body: { resourceId: input.resourceId, expectedRevision: input.expectedRevision },
   })
@@ -22,7 +22,7 @@ export function clearMemberResourceLink(input: {
   userId: string
   expectedRevision: string
 }): Promise<Response> {
-  return requestApiResponse('api.member_resource_links.destroy', {
+  return requestApiResponse('api.member_resource_link.destroy', {
     params: { companyId: input.companyId, userId: input.userId },
     body: { expectedRevision: input.expectedRevision },
   })
