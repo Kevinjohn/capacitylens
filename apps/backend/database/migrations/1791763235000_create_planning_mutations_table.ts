@@ -19,6 +19,8 @@ export default class extends BaseSchema {
       table.string('restoration_group_id').nullable()
       // The sign-in that may restore; no foreign key, so the marker outlives that sign-in.
       table.integer('origin_session_id').nullable()
+      table.timestamp('created_at').notNullable()
+      table.index(['created_at'])
       table.index(['company_id', 'actor_id', 'origin_session_id', 'restoration_group_id'])
     })
   }

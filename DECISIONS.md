@@ -104,7 +104,9 @@ and the tests, not here.
   that changes planning data, planning projection or membership access; session activity, mail
   and configuration edits that change neither do not advance it.
 - A planning mutation is identified by a client-minted UUID recorded with the audit row in the
-  same transaction; reusing a committed identity returns 409. When a write's reply is lost, the
+  same transaction; reusing a committed identity returns 409. The identity's commitment marker is
+  pruned 30 days after the commit, never while the restoration group it created can still be
+  restored; a reused identity is refused at least that long. When a write's reply is lost, the
   browser refetches, shows the server's state, clears undo history and asks the person to check
   that their change is there. It never replays the write.
 - Undo and redo are held on the server, per company, for its last writer. Stored inverses never
@@ -272,6 +274,7 @@ and the tests, not here.
   still carries the security headers. HSTS is sent only when the public URL is HTTPS. There is no
   CSP report route.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
+  Audit entries are pruned 365 days after they are written, the same window as view-as events.
 - Every request gets a server-generated id for log correlation; no client text becomes the id.
 - Domain errors use one flat error contract, and the browser presents them by code. Validation
   failures, request or domain, take the framework's 422 answer `{ errors }` (#2457, #2490).

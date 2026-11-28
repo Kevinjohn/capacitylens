@@ -20,6 +20,10 @@ import {
 } from '#tests/helpers/planning/functional_helpers'
 import PlanningOperationException from '#exceptions/planning_operation_exception'
 import { PlanningRevisionService } from '#services/planning_revision_service'
+import {
+  PLANNING_MUTATION_RETENTION_MS,
+  StorageMaintenanceService,
+} from '#services/storage_maintenance_service'
 
 const planningRevisions = new PlanningRevisionService()
 const writer = new PlanningWriterService(new RowValidationService())
@@ -343,6 +347,18 @@ test.group('authenticated typed planning transactions', (group) => {
       .send()
     duplicate.assertStatus(409)
     assert.equal((duplicate.body() as unknown as { code: string }).code, 'E_MUTATION_ID_REUSED')
+    // Pruning keeps a marker inside the retention window, so the identity stays refused.
+    await new StorageMaintenanceService().prunePlanningMutations(
+      new Date(Date.now() + PLANNING_MUTATION_RETENTION_MS - 60_000)
+    )
+    const retained = await intentSession(
+      client.visit('api.planning_mutations.store', { companyId }),
+      cookie
+    )
+      .json(input as never)
+      .send()
+    retained.assertStatus(409)
+    assert.equal((retained.body() as unknown as { code: string }).code, 'E_MUTATION_ID_REUSED')
     const stale = await intentSession(
       client.visit('api.planning_mutations.store', { companyId }),
       cookie
