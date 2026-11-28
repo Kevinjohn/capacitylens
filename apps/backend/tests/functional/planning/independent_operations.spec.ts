@@ -486,7 +486,7 @@ test.group('independent typed planning operations', (group) => {
       .where({ company_id: companyId, entity: 'planning' })
     assert.lengthOf(createdAudit, 1)
     assert.equal(createdAudit[0].entity_id, createInput.mutationId)
-    assert.equal(createdAudit[0].action, 'catalogue.create')
+    assert.equal(createdAudit[0].operation, 'catalogue.create')
 
     const renameInput = mutationInput(1, {
       operation: 'catalogue.update',
@@ -552,7 +552,7 @@ test.group('independent typed planning operations', (group) => {
     assert.deepInclude(
       audits.find((row) => row.entity_id === renameInput.mutationId)!,
       {
-        action: 'catalogue.update',
+        operation: 'catalogue.update',
       }
     )
   })

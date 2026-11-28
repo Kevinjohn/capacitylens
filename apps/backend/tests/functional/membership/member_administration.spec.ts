@@ -217,7 +217,7 @@ test.group('company member administration', (group) => {
       await db
         .from('audit_entries')
         .where({ company_id: 'a-studio' })
-        .whereIn('action', ['member.role_changed', 'member.status_changed']),
+        .whereIn('operation', ['member.role_changed', 'member.status_changed']),
       2
     )
     const receipts = await db

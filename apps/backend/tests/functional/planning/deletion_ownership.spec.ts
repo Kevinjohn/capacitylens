@@ -118,7 +118,7 @@ test.group('planning deletion ownership', (suite) => {
     await assert.rejects(() =>
       db.transaction(async (trx) => {
         // Simulate historical corruption while retaining the production guard on group deletion.
-        await trx.rawQuery('DROP TRIGGER allocations_deletion_group_update')
+        await trx.rawQuery('DROP TRIGGER allocations_deleted_batch_update')
         await trx
           .from('allocations')
           .where('id', rows[1]!.id)
