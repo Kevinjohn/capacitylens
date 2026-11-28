@@ -146,7 +146,7 @@ test.group('private diagnostics', () => {
           body,
           environment === 'development'
             ? { error: failure.message, stack: failure.stack }
-            : { error: 'Internal server error.' }
+            : { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' }
         )
       } finally {
         if (descriptor) Object.defineProperty(app, 'inDev', descriptor)

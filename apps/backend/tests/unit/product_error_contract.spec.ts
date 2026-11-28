@@ -212,25 +212,25 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'PlanningConflictException',
     () => answered(new PlanningConflictException('In use.')),
     409,
-    { error: 'In use.' },
+    { error: 'In use.', code: 'E_PLANNING_CONFLICT' },
   ],
   [
     'EmptyHistoryException',
     () => answered(new EmptyHistoryException('Nothing to undo.')),
     409,
-    { error: 'Nothing to undo.' },
+    { error: 'Nothing to undo.', code: 'E_EMPTY_HISTORY' },
   ],
   [
     'EntityWriteException',
     () => answered(new EntityWriteException('Name is required.')),
     400,
-    { error: 'Name is required.' },
+    { error: 'Name is required.', code: 'E_ENTITY_WRITE' },
   ],
   [
     'EntityNotFoundException',
     () => answered(new EntityNotFoundException('Not found.')),
     404,
-    { error: 'Not found.' },
+    { error: 'Not found.', code: 'E_ENTITY_NOT_FOUND' },
   ],
   [
     'FrozenCompanyFieldException',
@@ -239,6 +239,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     {
       error:
         'Language, week start and time zone are set when the company is created and cannot be changed.',
+      code: 'E_FROZEN_COMPANY_FIELD',
     },
   ],
   [
@@ -523,7 +524,7 @@ const refusals: Array<[string, () => unknown, number, Record<string, unknown>]> 
     'database constraint',
     () => answered(Object.assign(new Error('constraint'), { code: 'SQLITE_CONSTRAINT_UNIQUE' })),
     500,
-    { error: 'Internal server error.' },
+    { error: 'Internal server error.', code: 'E_INTERNAL_SERVER_ERROR' },
   ],
   [
     'E_TOO_MANY_REQUESTS',
@@ -705,7 +706,10 @@ test.group('product error adapters', () => {
     await new HttpExceptionHandler().handle(error, ctx)
     await new HttpExceptionHandler().report(error, ctx)
     assert.equal(result.status, 500)
-    assert.deepEqual(result.body, { error: 'Internal server error.' })
+    assert.deepEqual(result.body, {
+      error: 'Internal server error.',
+      code: 'E_INTERNAL_SERVER_ERROR',
+    })
     assert.lengthOf(diagnostics, 1)
     const { err, ...fields } = diagnostics[0]!.fields
     assert.deepEqual(fields, {
@@ -732,7 +736,10 @@ test.group('product error adapters', () => {
   }) => {
     const conflict = await answerOnPlanning(new PlanningConflictException('The record is in use.'))
     assert.equal(conflict.status, 409)
-    assert.deepEqual(conflict.body, { error: 'The record is in use.' })
+    assert.deepEqual(conflict.body, {
+      error: 'The record is in use.',
+      code: 'E_PLANNING_CONFLICT',
+    })
 
     const stale = await answerOnPlanning(new RecordChangedException('Reload first.'))
     assert.equal(stale.status, 409)

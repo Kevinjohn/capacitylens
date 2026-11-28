@@ -131,7 +131,7 @@ test.group('server-held undo and redo', (suite) => {
     assert.deepEqual(await historyOf(owner.read()), { canUndo: false, canRedo: false })
     const refused = await owner.undo()
     assert.equal(refused.status, 409)
-    assert.isUndefined(refused.code)
+    assert.equal(refused.code, 'E_EMPTY_HISTORY')
     assert.equal(await noteOf(id), 'Oracle was here')
     assert.deepEqual(await historyOf(editor.read()), { canUndo: true, canRedo: false })
   })

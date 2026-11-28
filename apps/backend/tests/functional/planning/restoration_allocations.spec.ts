@@ -203,7 +203,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const before = await readState(companyId, true)
     const again = await restore(client, cookie, groupId, 3)
     again.assertStatus(409)
-    assert.isUndefined(again.body().code)
+    assert.equal(again.body().code, 'E_PLANNING_CONFLICT')
     assert.deepEqual(await readState(companyId, true), before)
     assert.equal(await currentRevision(client, cookie), 3)
     assert.lengthOf(await markers(), 3)
