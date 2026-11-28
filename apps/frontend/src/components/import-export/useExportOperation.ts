@@ -21,7 +21,7 @@ export function useExportOperation() {
     try {
       if (!activeCompanyId) throw new Error('An active company is required before exporting.')
       const response = await requestApiResponse(
-        'api.company_exports.show',
+        'api.company_export.show',
         { params: { companyId: activeCompanyId } },
         API_BULK_TIMEOUT_MS
       )

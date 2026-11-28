@@ -271,19 +271,18 @@ export function createTypedPlanningActions(
       const companyId = requireCompany()
       if (blocked()) return
       const original = owned('timeOff', id, companyId)
-      if (original) {
-        await send(
-          applyExpectedUpdatedAt(
-            buildTimeOffUpdate({
-              data: get().data,
-              companyId,
-              original,
-              args: { id, changes },
-            }),
-            expectedUpdatedAt
-          )
+      if (!original) return
+      await send(
+        applyExpectedUpdatedAt(
+          buildTimeOffUpdate({
+            data: get().data,
+            companyId,
+            original,
+            args: { id, changes },
+          }),
+          expectedUpdatedAt
         )
-      }
+      )
     },
     deleteTimeOff: async (id: string) => {
       const companyId = requireCompany()

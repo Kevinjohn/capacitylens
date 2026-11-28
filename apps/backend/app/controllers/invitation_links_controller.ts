@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main'
-import { invalidLinkAnswer } from '#exceptions/credential_answers'
+import { invalidLinkAnswer } from '#services/errors/credential_answers'
 import { InstallationCompanyService } from '#services/installation_company_service'
-import { showInvitationLinkValidator } from '#validators/invitations'
+import { showInvitationLinkValidator } from '#validators/invitation'
 import { requestData } from '#validators/request_rules'
 
 /** What an invitation link offers. */

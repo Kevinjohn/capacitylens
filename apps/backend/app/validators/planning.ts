@@ -1,9 +1,6 @@
 import vine from '@vinejs/vine'
 import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath'
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates'
-import type { AppDataKey } from '@capacitylens/shared/types/entities'
-import { ENTITY_FIELDS, type FieldSpec } from '@capacitylens/shared/types/entityFields'
-import { findFieldProblem, type RowRuleContext } from '@capacitylens/shared/types/entityFieldRules'
 import { allocationIntent } from '#validators/planning/allocation'
 import { catalogueIntent } from '#validators/planning/catalogue'
 import { closureIntent } from '#validators/planning/closure'
@@ -38,14 +35,6 @@ const readRange = vine.createRule((value, _options, field) => {
   }
 })
 
-const rowField = vine.createRule<{ field: string; spec: FieldSpec; context: RowRuleContext }>(
-  (value, { field, spec, context }, ctx) => {
-    const problem = findFieldProblem(field, spec, value, context)
-    if (problem) ctx.report(problem.message, problem.rule, ctx)
-  },
-  { name: 'entityField', implicit: true }
-)
-
 const planningIntent = vine.union([
   vine.union.if(
     (value) => hasOperation(value, 'planning.restoreGroup'),
@@ -75,9 +64,9 @@ export const planningReadValidator = vine.create(
 )
 
 /** The planning archive recovery read names only its company, in the route. */
-export const planningArchiveValidator = vine.create(
-  vine.object({ params: vine.object({ companyId: companyIdParam() }) })
-)
+export const planningArchiveValidator = vine.create({
+  params: vine.object({ companyId: companyIdParam() }),
+})
 
 /**
  * Validate a planning intent. Company scope and authorization come from the authenticated server
@@ -85,37 +74,16 @@ export const planningArchiveValidator = vine.create(
  * resize and reassignment in one patch. Vine strips unknown/server-owned fields. This is input
  * validation only; the write transaction owns authorization and integrity.
  */
-export const planningMutationValidator = vine.create(
-  vine.object({
-    ...meta(),
-    intent: planningIntent,
-    params: vine.object({ companyId: companyIdParam() }),
-  })
-)
+export const planningMutationValidator = vine.create({
+  ...meta(),
+  intent: planningIntent,
+  params: vine.object({ companyId: companyIdParam() }),
+})
 
 /** One undo or redo: the server holds the intent, so the body names only the page's history. */
-export const planningHistoryStepValidator = vine.create(
-  vine.object({
-    mutationId: uuid(),
-    baseRevision: revision(),
-    historyId: uuid(),
-    params: vine.object({ companyId: companyIdParam() }),
-  })
-)
-
-/**
- * Compiles the validator for one complete stored row of `table` under `context`. It checks each
- * field the table lists without coercing supplied scalar values and drops fields the table does
- * not list. The fields come from the shared `ENTITY_FIELDS` table, so this stays a builder rather
- * than one hand-written `vine.create` per table.
- */
-export function buildRowValidator(table: AppDataKey, context: RowRuleContext) {
-  const specs: Record<string, FieldSpec> = ENTITY_FIELDS[table]
-  const properties = Object.fromEntries(
-    Object.entries(specs).map(([field, spec]) => [
-      field,
-      vine.any().optional().use(rowField({ field, spec, context })),
-    ])
-  )
-  return vine.create(vine.object(properties))
-}
+export const planningHistoryStepValidator = vine.create({
+  mutationId: uuid(),
+  baseRevision: revision(),
+  historyId: uuid(),
+  params: vine.object({ companyId: companyIdParam() }),
+})

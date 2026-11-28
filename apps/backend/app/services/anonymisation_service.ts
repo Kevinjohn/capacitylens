@@ -5,7 +5,7 @@ import type { Resource as ResourceRow } from '@capacitylens/shared/types/entitie
 import Allocation from '#models/allocation'
 import Resource from '#models/resource'
 import TimeOff from '#models/time_off'
-import { rowAttributes } from '#models_support/row_attributes'
+import { rowAttributes } from '#services/models/row_attributes'
 import { StateRepositoryService } from '#services/state_repository_service'
 import { AuditService } from '#services/audit_service'
 import { PlanningRevisionService } from '#services/planning_revision_service'

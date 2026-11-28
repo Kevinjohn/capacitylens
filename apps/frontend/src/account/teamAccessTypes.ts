@@ -1,33 +1,11 @@
-import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types'
-import type { Role } from '@capacitylens/shared/domain/access'
-
-/** A company member and the resource-link state shown in team access. */
-export interface TeamMember {
-  userId: string
-  role: Role
-  status: MembershipStatus
-  /** Whether the reader may change this member's role or status, as the server decides. */
-  manage: boolean
-  createdAt: string
-  name: string | null
-  email: string | null
-  /** Coarse, company-opted-in observation. Null means tracking is off; no timestamp is collected. */
-  signInConfirmed: boolean | null
-  isSelf: boolean
-  resourceLink?: {
-    resourceId: string
-    revision: string
-    resourceName?: string | null
-    resourceStatus?: 'active' | 'disabled' | 'archived' | null
-  } | null
-}
+import type { InvitationRole } from '@capacitylens/shared/account/types'
+import type { Route } from '@capacitylens/backend/registry'
 
 /** Members, sign-in tracking state, and resource candidates for a company. */
-export interface TeamDirectory {
-  members: TeamMember[]
-  signInTrackingEnabled: boolean
-  resourceCandidates: { resourceId: string; label: string }[]
-}
+export type TeamDirectory = Route.Response<'api.members.index'>['data']
+
+/** A company member and the resource-link state shown in team access. */
+export type TeamMember = TeamDirectory['members'][number]
 
 /** A pending invitation for one address. */
 export interface TeamInvitation {

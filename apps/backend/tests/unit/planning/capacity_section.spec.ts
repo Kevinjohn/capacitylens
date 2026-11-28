@@ -9,7 +9,7 @@ import type { Allocation, Weekday } from '@capacitylens/shared/types/entities'
 import { buildCapacitySection } from '#services/planning/capacity_section'
 import { readState } from '#tests/helpers/state_fixture'
 import { freshDatabase } from '#tests/helpers/fresh_database'
-import { resetPlanningFixture } from '#tests/functional/planning/helpers'
+import { resetPlanningFixture } from '#tests/helpers/planning/functional_helpers'
 
 // Each Scheduling-invariants rule (DECISIONS.md) is one case against the read's capacity section.
 // 2026-06-01 is a Monday.

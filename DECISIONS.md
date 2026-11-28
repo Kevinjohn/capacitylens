@@ -371,9 +371,8 @@ removed entry retires its number.
 31. **Aligning (#2550).** `bin/test.ts` holds the test values computed per port lane; the rest are
     in `.env.test`.
 32. Retired. The licence file is `LICENSE.md` (TOOL-6).
-33. **Aligning (#2553).** Ten `catch` blocks in nine controllers answer with the product's
-    own error body (a status of 400 or above) instead of letting the exception reach the exception
-    handler. The answers on the wire do not change when they move.
+33. Retired (#2553). Controller `catch` blocks throw product exceptions so every error response
+    reaches the exception handler.
 34. Retired (#2554). The health check controllers are single action controllers.
 35. Sessions use the database store in every environment, tests included; `.env.test` does not
     set `SESSION_DRIVER=memory`, because the Account Kit session protection in
@@ -388,7 +387,7 @@ removed entry retires its number.
     `company_settings` and `company_planning_revisions` (#2572).
 38. Tests that write a stored row on purpose insert it raw, not through a model factory (#2572):
     - schema CHECK constraints and encoded rows read back: `tests/functional/state/database_contract.spec.ts`;
-    - database triggers fed invalid cross-company references: `tests/functional/state/database_contract_cases.ts`;
+    - database triggers fed invalid cross-company references: `tests/helpers/state/database_contract_cases.ts`;
     - the operator command's own SQLite file, which a child process opens:
       `tests/helpers/operator_command_helpers.ts`, `tests/helpers/unit/operator_databases.ts` and
       `tests/unit/owner_reset_command.spec.ts`;

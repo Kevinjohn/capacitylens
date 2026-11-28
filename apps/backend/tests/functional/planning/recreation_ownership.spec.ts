@@ -10,7 +10,7 @@ import {
   session,
   signIn,
   signInAgain,
-} from '#tests/functional/planning/helpers'
+} from '#tests/helpers/planning/functional_helpers'
 import { sendPlanning, readPlanningStorage } from '#tests/helpers/planning/retained_rows'
 
 test.group('retained id recreation ownership', (suite) => {

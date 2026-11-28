@@ -1,7 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { apiPrefix } from '#start/api'
 import { throttle } from '#start/limiter'
-import { asPlanningMember } from '#start/route_middleware'
 import { middleware } from '#start/kernel'
 import { sensitive } from '@kevinjohn/adonisjs-masquerade/http'
 import { controllers } from '#generated/controllers'
@@ -19,7 +18,11 @@ router
         router.post('/redo', [controllers.PlanningRedo, 'store'])
       })
       .prefix('/companies/:companyId/planning')
-      .use([middleware.accountGate({ access: 'admitted' }), ...asPlanningMember()])
+      .use([
+        middleware.accountGate({ access: 'admitted' }),
+        middleware.auth({ guards: ['web_effective'] }),
+        middleware.companyScope({ planning: true }),
+      ])
   })
   .prefix(apiPrefix)
   .as('api')

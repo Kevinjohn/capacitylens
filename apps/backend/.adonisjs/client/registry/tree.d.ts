@@ -37,8 +37,8 @@ export interface ApiDefinition {
     companyState: {
       show: typeof routes['api.company_state.show']
     }
-    companyExports: {
-      show: typeof routes['api.company_exports.show']
+    companyExport: {
+      show: typeof routes['api.company_export.show']
     }
     companyAnonymisations: {
       store: typeof routes['api.company_anonymisations.store']
@@ -61,15 +61,19 @@ export interface ApiDefinition {
     newAccount: {
       store: typeof routes['api.new_account.store']
     }
-    passwordConfirmations: {
-      store: typeof routes['api.password_confirmations.store']
-    }
     passwordResetRequests: {
       store: typeof routes['api.password_reset_requests.store']
     }
     passwordResets: {
       show: typeof routes['api.password_resets.show']
       update: typeof routes['api.password_resets.update']
+    }
+    emailVerifications: {
+      show: typeof routes['api.email_verifications.show']
+      update: typeof routes['api.email_verifications.update']
+    }
+    passwordConfirmations: {
+      store: typeof routes['api.password_confirmations.store']
     }
     password: {
       update: typeof routes['api.password.update']
@@ -79,10 +83,6 @@ export interface ApiDefinition {
     }
     emailVerificationRequests: {
       store: typeof routes['api.email_verification_requests.store']
-    }
-    emailVerifications: {
-      show: typeof routes['api.email_verifications.show']
-      update: typeof routes['api.email_verifications.update']
     }
     members: {
       index: typeof routes['api.members.index']
@@ -127,9 +127,9 @@ export interface ApiDefinition {
     memberships: {
       store: typeof routes['api.memberships.store']
     }
-    memberResourceLinks: {
-      update: typeof routes['api.member_resource_links.update']
-      destroy: typeof routes['api.member_resource_links.destroy']
+    memberResourceLink: {
+      update: typeof routes['api.member_resource_link.update']
+      destroy: typeof routes['api.member_resource_link.destroy']
     }
     masquerade: {
       store: typeof routes['api.masquerade.store']
