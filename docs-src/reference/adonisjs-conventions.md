@@ -521,8 +521,9 @@ Source: [Testing](https://docs.adonisjs.com/guides/testing/introduction),
   place plugins are registered.
 - Tests use the real database and fake only what leaves the process, such as mail with
   `mail.fake()`.
-- Assert on rows by reading them with the query builder (`db.from(table).where(...)`) and
-  checking the result with `assert`. The `dbAssertions` plugin is not registered.
+- Assert on rows with the `dbAssertions` plugin, registered in `tests/bootstrap.ts`
+  (`({ db }) => db.assertHas(table, row)`), or by reading them with the query builder
+  (`db.from(table).where(...)`) and checking the result with `assert`.
 - The framework tests a command with `ace.create(Command, args)` and `command.assertSucceeded()`.
   CapacityLens operator commands are tested by starting the CLI (departure 23).
 - An API test calls a route by its name with `client.visit('members.index')`.

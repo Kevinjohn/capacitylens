@@ -23,9 +23,16 @@ test.group('data routes', (group) => {
   test('inactive export follows effective member role and a default read stays active-only', async ({
     client,
     assert,
+    db: rows,
   }) => {
     const dataOwner = await resetLoggedInDataOwner(client, true)
     client = dataOwner.client
+    await rows.assertHas('memberships', {
+      user_id: dataOwner.userId,
+      scope_id: 'a-studio',
+      role: 'owner',
+      status: 'active',
+    })
     const candidate = await db.from('resources').where('company_id', 'a-studio').first()
     await db
       .from('resources')
