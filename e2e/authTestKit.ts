@@ -276,7 +276,7 @@ function insertAuthE2ECompany(
     db.prepare('INSERT INTO auth_e2e_fixture_companies (company_id) VALUES (?)').run(companyId)
   if (recordInitialization) {
     db.prepare(
-      `INSERT INTO audit_entries (id, company_id, actor_id, action, entity, entity_id, details, created_at, updated_at)
+      `INSERT INTO audit_entries (id, company_id, actor_id, operation, entity, entity_id, details, created_at, updated_at)
        VALUES (?, ?, ?, 'company.initialized', 'company', ?, ?, ?, ?)`
     ).run(
       crypto.randomUUID(),
@@ -382,7 +382,7 @@ export function readAuthE2EBaselineSnapshot(): {
       .get() as { id: string; email: string; memberships: number } | undefined
     const history = db
       .prepare(
-        "SELECT COUNT(*) AS count FROM audit_entries WHERE company_id = ? AND action = 'company.initialized'"
+        "SELECT COUNT(*) AS count FROM audit_entries WHERE company_id = ? AND operation = 'company.initialized'"
       )
       .get(company.id) as { count: number } | undefined
     if (

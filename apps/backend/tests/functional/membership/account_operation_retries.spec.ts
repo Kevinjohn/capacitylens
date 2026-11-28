@@ -107,7 +107,7 @@ test.group('account operation retries', (group) => {
     assert.lengthOf(
       await db
         .from('audit_entries')
-        .where({ action: 'member.status_changed', entity_id: admin.id }),
+        .where({ operation: 'member.status_changed', entity_id: admin.id }),
       1
     )
   })
@@ -153,6 +153,6 @@ test.group('account operation retries', (group) => {
       .send()
     fresh.assertStatus(403)
     assert.equal(codeOf(fresh), 'E_IDENTITY_AUTHORIZATION_DENIED')
-    assert.lengthOf(await db.from('audit_entries').where('action', 'ownership.transferred'), 1)
+    assert.lengthOf(await db.from('audit_entries').where('operation', 'ownership.transferred'), 1)
   })
 })

@@ -51,7 +51,7 @@ test.group('account deletion', (group) => {
     await expectStatus(companies(client, cookie), 401)
     const audit = await db
       .from('audit_entries')
-      .where({ company_id: companyId, action: 'identity.deleted', actor_id: userId })
+      .where({ company_id: companyId, operation: 'identity.deleted', actor_id: userId })
     assert.lengthOf(audit, 1)
     // The company and its Owner are untouched.
     assert.lengthOf(await db.from('memberships').where('scope_id', companyId), 1)

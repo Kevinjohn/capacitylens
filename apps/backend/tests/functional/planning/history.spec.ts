@@ -75,7 +75,7 @@ test.group('server-held undo and redo', (suite) => {
 
     const audit = await planningAudit()
     assert.deepEqual(
-      audit.map((row) => row.action),
+      audit.map((row) => row.operation),
       [
         'allocation.create',
         'allocation.update',

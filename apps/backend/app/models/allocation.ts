@@ -14,7 +14,7 @@ export default class Allocation extends compose(AllocationSchema, SoftDeletes, w
 
   @column.dateTime(timestampColumn('allocations', 'created_at')) declare createdAt: DateTime
   @column.dateTime({ serializeAs: null }) declare deletedAt: DateTime | null
-  @column({ serializeAs: null }) declare deletionGroupId: string | null
+  @column({ serializeAs: null }) declare deletedBatchId: string | null
   @column(isoDateColumn('allocations', 'end_date')) declare endDate: ISODate
   @column(isoDateColumn('allocations', 'start_date')) declare startDate: ISODate
   @column.dateTime(timestampColumn('allocations', 'updated_at')) declare updatedAt: DateTime

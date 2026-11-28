@@ -133,10 +133,10 @@ export const planningAudit = () =>
   db
     .from('audit_entries')
     .where({ company_id: companyId, entity: 'planning' })
-    .select('entity_id', 'action')
+    .select('entity_id', 'operation')
 /** The stored restoration group `groupId`, or null once it is gone. */
 export const restorationBatch = (groupId: string) =>
-  db.from('deleted_groups').where('group_id', groupId).first()
+  db.from('deleted_batches').where('id', groupId).first()
 export async function consumedAt(groupId: string) {
   const row = await restorationBatch(groupId)
   return row?.consumed_at

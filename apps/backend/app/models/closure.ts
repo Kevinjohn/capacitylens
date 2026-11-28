@@ -11,7 +11,7 @@ import { isoDateColumn } from '@kevinjohn/adonisjs-lucid-checked-columns'
 export default class Closure extends compose(ClosureSchema, SoftDeletes, withCompanyScope) {
   @column.dateTime(timestampColumn('closures', 'created_at')) declare createdAt: DateTime
   @column.dateTime({ serializeAs: null }) declare deletedAt: DateTime | null
-  @column({ serializeAs: null }) declare deletionGroupId: string | null
+  @column({ serializeAs: null }) declare deletedBatchId: string | null
   @column(isoDateColumn('closures', 'end_date')) declare endDate: ISODate
   @column(isoDateColumn('closures', 'start_date')) declare startDate: ISODate
   @column.dateTime(timestampColumn('closures', 'updated_at')) declare updatedAt: DateTime

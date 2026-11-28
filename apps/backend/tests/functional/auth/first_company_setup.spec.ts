@@ -61,7 +61,7 @@ test.group('authenticated first company setup', (group) => {
     assert.equal((await db.from('company_planning_revisions').first())!.revision, 1)
     assert.deepInclude((await db.from('audit_entries').first())!, {
       actor_id: userId,
-      action: 'company.initialized',
+      operation: 'company.initialized',
     })
     const state = await asLoggedInDataOwner(
       client.visit('api.company_state.show').qs({ companyId }),

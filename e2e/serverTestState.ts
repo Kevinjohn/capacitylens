@@ -113,7 +113,7 @@ const companyTables = [
   'audit_entries',
   'company_planning_revisions',
   'planning_mutations',
-  'deleted_groups',
+  'deleted_batches',
   'deleted_rows',
   'account_member_resources',
   'company_settings',

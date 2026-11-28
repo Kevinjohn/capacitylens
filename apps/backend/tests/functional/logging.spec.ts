@@ -199,7 +199,7 @@ test.group('general HTTP logging privacy', (group) => {
     )
     const committed = await db
       .from('audit_entries')
-      .where({ company_id: 'a-studio', action: 'exampleData' })
+      .where({ company_id: 'a-studio', operation: 'exampleData' })
       .first()
 
     assert.isDefined(committed)

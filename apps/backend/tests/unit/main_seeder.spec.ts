@@ -24,7 +24,7 @@ test.group('main seeder', () => {
         .run('Wayne Operations', company.id)
       database
         .prepare(
-          'INSERT INTO audit_entries (id,company_id,action,entity,created_at,updated_at) VALUES (?,?,?,?,?,?)'
+          'INSERT INTO audit_entries (id,company_id,operation,entity,created_at,updated_at) VALUES (?,?,?,?,?,?)'
         )
         .run('seed-survival', company.id, 'operator.note', 'installation', now, now)
       const before = Object.fromEntries(

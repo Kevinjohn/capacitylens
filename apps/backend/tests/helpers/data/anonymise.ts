@@ -58,17 +58,17 @@ export async function insertOtherCompanyRestoration(actorId: string) {
   const sessionId = await fixtureSession(actorId)
   const createdAt = new Date().toISOString()
   const revision = (await readPlanningRevision('a-loft')) + 1
-  await db.table('deleted_groups').insert({
-    group_id: groupId,
+  await db.table('deleted_batches').insert({
+    id: groupId,
     company_id: 'a-loft',
     actor_id: actorId,
-    session_id: sessionId,
+    account_session_id: sessionId,
     mutation_id: mutationId,
     created_at: createdAt,
     consumed_at: null,
   })
   await db.table('deleted_rows').insert({
-    group_id: groupId,
+    deleted_batch_id: groupId,
     entity: 'allocations',
     row_id: 'fixture-other-company-allocation',
     payload_json: JSON.stringify({ kind: 'row' }),
@@ -86,7 +86,7 @@ export async function insertOtherCompanyRestoration(actorId: string) {
     id: randomUUID(),
     company_id: 'a-loft',
     actor_id: actorId,
-    action: 'allocation.delete',
+    operation: 'allocation.delete',
     entity: 'planning',
     entity_id: mutationId,
     details: JSON.stringify({ changedFields: ['allocations'] }),
