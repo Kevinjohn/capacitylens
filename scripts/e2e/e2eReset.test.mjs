@@ -185,7 +185,7 @@ test(
         .run()
       database
         .prepare(
-          'INSERT INTO deleted_groups (group_id, company_id, actor_id, session_id, mutation_id, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+          'INSERT INTO deleted_batches (id, company_id, actor_id, account_session_id, mutation_id, created_at) VALUES (?, ?, ?, ?, ?, ?)'
         )
         .run(
           'pending-group',
@@ -197,7 +197,7 @@ test(
         )
       database
         .prepare(
-          'INSERT INTO deleted_rows (group_id, entity, row_id, payload_json) VALUES (?, ?, ?, ?)'
+          'INSERT INTO deleted_rows (deleted_batch_id, entity, row_id, payload_json) VALUES (?, ?, ?, ?)'
         )
         .run('pending-group', 'resources', 'saved-row', '{"kind":"link"}')
       database
@@ -315,7 +315,7 @@ test(
         0
       )
       for (const table of [
-        'deleted_groups',
+        'deleted_batches',
         'deleted_rows',
         'request_receipts',
         'company_getting_started_dismissals',
