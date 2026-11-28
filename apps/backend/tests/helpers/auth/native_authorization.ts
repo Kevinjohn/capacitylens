@@ -5,8 +5,9 @@ import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
 import { buildCompanyExport } from '@capacitylens/shared/data/companyExport'
 import { readState } from '#tests/helpers/state_fixture'
-import { signUpAndIn } from '#tests/helpers/identities'
-import { asDataOwner } from '#tests/helpers/authenticated_data_fixture'
+import { createIdentity } from '#tests/helpers/identities'
+import { asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
+import User from '#models/user'
 
 export const companyId = 'a-studio'
 export const otherCompanyId = 'a-loft'
@@ -39,13 +40,9 @@ export function configureAuth(cleanup: (callback: () => void) => void) {
   })
 }
 
-export async function createMember(client: ApiClient, role: Role) {
+export async function createMember(role: Role) {
   const email = `wayne-${randomUUID()}@example.test`
-  const signUp = await signUpAndIn(client, { email, password, name: 'Bruce Wayne' })
-  signUp.assertStatus(200)
-  const cookie = signUp.cookie('adonis-session')?.value
-  if (!cookie) throw new Error('Sign-up did not return a native session cookie')
-  const userId = String((signUp.body().data as { user: { id: string } }).user.id)
+  const userId = await createIdentity(email, { password, name: 'Bruce Wayne' })
   const timestamp = new Date().toISOString()
   await db.table('memberships').insert({
     scope_id: companyId,
@@ -55,48 +52,51 @@ export async function createMember(client: ApiClient, role: Role) {
     created_at: timestamp,
     updated_at: timestamp,
   })
-  return { cookie, userId }
+  return { user: await User.findOrFail(userId), userId }
 }
 
 export async function setRole(userId: string, role: Role) {
   await db.from('memberships').where({ scope_id: companyId, user_id: userId }).update({ role })
 }
 
-export async function stateFor(client: ApiClient, cookie: string, targetCompanyId = companyId) {
-  return asDataOwner(
+export async function stateFor(client: ApiClient, user: User, targetCompanyId = companyId) {
+  return asLoggedInDataOwner(
     trusted(client.visit('api.company_state.show').qs({ companyId: targetCompanyId })),
-    cookie
+    user
   ).send()
 }
 
-export async function currentUser(client: ApiClient, cookie: string) {
-  return asDataOwner(trusted(client.visit('api.session.show')), cookie).send()
+export async function currentUser(client: ApiClient, user: User) {
+  return asLoggedInDataOwner(trusted(client.visit('api.session.show')), user).send()
 }
 
 export async function writeDismissal(
   client: ApiClient,
-  cookie: string,
+  user: User,
   body: Record<string, unknown> = { dismissed: true }
 ) {
-  return asDataOwner(trusted(client.visit('api.getting_started.update', { companyId })), cookie)
+  return asLoggedInDataOwner(
+    trusted(client.visit('api.getting_started.update', { companyId })),
+    user
+  )
     .json(body as never)
     .send()
 }
 
-export async function importSeed(client: ApiClient, cookie: string) {
+export async function importSeed(client: ApiClient, user: User) {
   const document = buildCompanyExport(await readState(companyId, true), {
     companyId,
     completeness: 'full',
   })
-  return asDataOwner(trusted(client.visit('api.imports.store')), cookie)
+  return asLoggedInDataOwner(trusted(client.visit('api.imports.store')), user)
     .json({ companyId, document, baseRevision: 0 })
     .send()
 }
 
-export async function anonymiseResource(client: ApiClient, cookie: string, id: string) {
-  return asDataOwner(
+export async function anonymiseResource(client: ApiClient, user: User, id: string) {
+  return asLoggedInDataOwner(
     trusted(client.visit('api.resource_anonymisations.store', { companyId, id })),
-    cookie
+    user
   )
     .json({})
     .send()

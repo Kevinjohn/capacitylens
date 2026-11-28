@@ -9,6 +9,7 @@ import {
 import { resetState } from '#tests/helpers/state_fixture'
 import { signUpAndIn } from '#tests/helpers/identities'
 import { CompanyFactory } from '#database/factories/company_factory'
+import { ResourceFactory } from '#database/factories/resource_factory'
 import { UserFactory } from '#database/factories/user_factory'
 import { DateTime } from 'luxon'
 import { password } from '#tests/helpers/auth/admission_resource_links'
@@ -87,29 +88,31 @@ test.group('direct member resource association', (group) => {
       name: 'Stark Industries',
       color: '#6366f1',
     }).create()
-    const person = (id: string, companyId: string, archivedAt: string | null = null) => ({
-      id,
-      company_id: companyId,
-      kind: 'person',
-      name: id,
-      job_title: 'Designer',
-      employment_type: 'permanent',
-      engagement: 'studio',
-      working_hours_per_day: 8,
-      working_days: '[1,2,3,4,5]',
-      half_days: '[]',
-      color: '#6366f1',
-      archived_at: archivedAt,
-      created_at: now,
-      updated_at: now,
-    })
-    await db
-      .table('resources')
-      .insert([
-        person('r-active', 'a-studio'),
-        person('r-archived', 'a-studio', now),
-        person('r-stark', 'a-loft'),
-      ])
+    const archivedAt = DateTime.fromISO(now)
+    await ResourceFactory.merge([
+      {
+        id: 'r-active',
+        companyId: 'a-studio',
+        name: 'r-active',
+        jobTitle: 'Designer',
+        color: '#6366f1',
+      },
+      {
+        id: 'r-archived',
+        companyId: 'a-studio',
+        name: 'r-archived',
+        jobTitle: 'Designer',
+        color: '#6366f1',
+        archivedAt,
+      },
+      {
+        id: 'r-stark',
+        companyId: 'a-loft',
+        name: 'r-stark',
+        jobTitle: 'Designer',
+        color: '#6366f1',
+      },
+    ]).createMany(3)
     await db.table('account_member_resources').insert([
       {
         id: 'link-clark',
@@ -185,29 +188,37 @@ test.group('direct member resource association', (group) => {
       name: 'Stark Industries',
       color: '#6366f1',
     }).create()
-    const person = (id: string, companyId: string, kind = 'person') => ({
-      id,
-      company_id: companyId,
-      kind,
-      name: id,
-      job_title: 'Designer',
-      employment_type: 'permanent',
-      engagement: 'studio',
-      working_hours_per_day: 8,
-      working_days: '[1,2,3,4,5]',
-      half_days: '[]',
-      color: '#6366f1',
-      created_at: now,
-      updated_at: now,
-    })
-    await db
-      .table('resources')
-      .insert([
-        person('r-clark', 'a-studio'),
-        person('r-barry', 'a-studio'),
-        person('r-external', 'a-studio', 'external'),
-        person('r-stark', 'a-loft'),
-      ])
+    await ResourceFactory.merge([
+      {
+        id: 'r-clark',
+        companyId: 'a-studio',
+        name: 'r-clark',
+        jobTitle: 'Designer',
+        color: '#6366f1',
+      },
+      {
+        id: 'r-barry',
+        companyId: 'a-studio',
+        name: 'r-barry',
+        jobTitle: 'Designer',
+        color: '#6366f1',
+      },
+      {
+        id: 'r-external',
+        companyId: 'a-studio',
+        name: 'r-external',
+        kind: 'external',
+        jobTitle: 'Designer',
+        color: '#6366f1',
+      },
+      {
+        id: 'r-stark',
+        companyId: 'a-loft',
+        name: 'r-stark',
+        jobTitle: 'Designer',
+        color: '#6366f1',
+      },
+    ]).createMany(4)
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
       asLoggedInDataOwner(
         client

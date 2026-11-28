@@ -43,15 +43,14 @@ export default class ConfigurationProvider {
 
   constructor(protected app: ApplicationService) {}
   async boot() {
-    if (this.app.inProduction) {
-      assertProductionPosture({
-        allowReset: capacitylens.allowReset,
-        createAdmin: capacitylens.createAdmin,
-        bootstrapPassword: capacitylens.bootstrapAdminPassword,
-        rateLimit: capacitylens.rateLimit,
-        fixedToday: capacitylens.fixedToday,
-      })
-    }
+    if (!this.app.inProduction) return
+    assertProductionPosture({
+      allowReset: capacitylens.allowReset,
+      createAdmin: capacitylens.createAdmin,
+      bootstrapPassword: capacitylens.bootstrapAdminPassword,
+      rateLimit: capacitylens.rateLimit,
+      fixedToday: capacitylens.fixedToday,
+    })
   }
 
   async start() {
@@ -87,7 +86,7 @@ export default class ConfigurationProvider {
       [
         ['Account sign-in pruning', () => accountKit.maintenance.prune()],
         ['Request receipt pruning', () => storageMaintenance.pruneRequestReceipts()],
-        ['Masquerade pruning', () => storageMaintenance.pruneExpiredMasquerades(this.app)],
+        ['Masquerade pruning', () => storageMaintenance.pruneExpiredMasquerades()],
       ],
       (task, error) => logger.error({ task, err: error }, `${task} failed`)
     )

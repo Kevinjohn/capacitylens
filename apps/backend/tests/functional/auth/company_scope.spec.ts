@@ -18,6 +18,7 @@ test.group('company scope middleware', (group) => {
   test('refuses a non-member and a suspended member with the route’s usual refusal', async ({
     client,
     assert,
+    db: dbAssert,
   }) => {
     const { user, userId } = await outsider(client)
     const expectRefused = async () => {
@@ -45,9 +46,7 @@ test.group('company scope middleware', (group) => {
       updated_at: now,
     })
     await expectRefused()
-    assert.notExists(
-      await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
-    )
+    await dbAssert.assertMissing('company_getting_started_dismissals', { company_id: 'a-studio' })
   })
 
   test('every route with a company id in its path carries the company scope', ({ assert }) => {

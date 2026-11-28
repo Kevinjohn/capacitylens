@@ -3,10 +3,11 @@ import type { AppData, ISODate } from '@capacitylens/shared/types/entities'
 import type {
   PlanningAccess,
   PlanningExecution,
+  PlanningHistoryStep,
   PlanningMutationSuccess,
 } from '@/api/planningContracts'
 
-export type { PlanningAccess }
+export type { PlanningAccess, PlanningHistoryStep }
 
 interface PlanningSnapshotBase {
   revision: number
@@ -40,13 +41,6 @@ export interface PlanningReadRequest {
   window?: CapacityRange
   historyId?: string
   ifRevision?: number
-}
-
-/** One undo or redo of the page's server-held history; the server holds the intent it applies. */
-export interface PlanningHistoryStep {
-  mutationId: string
-  baseRevision: number
-  historyId: string
 }
 
 /** Client identity is deliberately opaque; company id distinguishes its planning projection. */

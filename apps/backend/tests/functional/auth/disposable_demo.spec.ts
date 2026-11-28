@@ -112,7 +112,7 @@ test.group('disposable development demo', (group) => {
 
   test('existing membership independently refuses preparation and seed', async ({
     assert,
-    cleanup,
+    swap,
   }) => {
     const owner = await createIdentity(email, { password })
     await disposableDemo.seedDisposableDemo(app)
@@ -123,8 +123,7 @@ test.group('disposable development demo', (group) => {
         return true
       }
     }
-    app.container.swap(InstallationCompanyService, () => new EmptyCompanyProbe())
-    cleanup(() => app.container.restore(InstallationCompanyService))
+    swap(InstallationCompanyService, new EmptyCompanyProbe())
     const demo = await app.container.make(DisposableDemoService)
     await assert.rejects(() => demo.prepareDisposableDemo(app), /memberships already exist/)
     await assert.rejects(() => demo.seedDisposableDemo(app), /memberships already exist/)

@@ -16,7 +16,7 @@ import { UserFactory } from '#database/factories/user_factory'
 test.group('Model factories', (group) => {
   group.each.setup(() => freshDatabase())
 
-  test('build one row of every product model in one company', async ({ assert }) => {
+  test('build one row of every product model in one company', async ({ assert, db: dbAssert }) => {
     const company = await CompanyFactory.create()
     const companyId = company.id
     const client = await ClientFactory.merge({ companyId }).create()
@@ -58,8 +58,7 @@ test.group('Model factories', (group) => {
       'time_off',
       'users',
     ]) {
-      const [{ total }] = await db.from(table).count('* as total')
-      assert.equal(Number(total), 1, table)
+      await dbAssert.assertCount(table, 1)
     }
   })
 })

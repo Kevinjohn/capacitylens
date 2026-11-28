@@ -1,11 +1,12 @@
 import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client'
 import app from '@adonisjs/core/services/app'
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission'
+import User from '#models/user'
 import {
-  asDataOwner,
+  asLoggedInDataOwner,
   createFixtureCompanyForOwner,
 } from '#tests/helpers/authenticated_data_fixture'
-import { createIdentity, signIn } from '#tests/helpers/identities'
+import { createIdentity } from '#tests/helpers/identities'
 
 export const companyId = 'a-studio'
 export const owner = 'bruce.wayne@wayne.example'
@@ -17,19 +18,19 @@ export const decisionRoutes = {
   revoke: 'api.admission_revocations.store',
 } as const
 
-export const as = (cookie: string) => ({
-  get: (request: ApiRequest): Promise<ApiResponse> => asDataOwner(request, cookie).send(),
+export const as = (user: User) => ({
+  get: (request: ApiRequest): Promise<ApiResponse> => asLoggedInDataOwner(request, user).send(),
   post: (request: ApiRequest, body: object = {}): Promise<ApiResponse> =>
-    asDataOwner(request, cookie).json(body).send(),
+    asLoggedInDataOwner(request, user).json(body).send(),
 })
 
-export const planning = (client: ApiClient, cookie: string) =>
-  as(cookie).get(client.visit('api.planning.show', { companyId }))
+export const planning = (client: ApiClient, user: User) =>
+  as(user).get(client.visit('api.planning.show', { companyId }))
 
-export async function company(api: ApiClient) {
+export async function company() {
   const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' })
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId)
-  return signIn(api, owner)
+  return User.findOrFail(ownerId)
 }
 
 /** A confirmed identity with operator invitation evidence for `role`, waiting for approval. */

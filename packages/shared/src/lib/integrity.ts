@@ -130,18 +130,19 @@ export function validateAllocationAssignment(
   const issues: ValidationIssue[] = []
   // Only placeholders are project-restricted. `person` and `external` are intentionally
   // unrestricted (an external party can be assigned any activity), don't add a guard here.
-  if (resource.kind === 'placeholder' && projectId !== undefined) {
-    if (!resource.projectId) {
-      issues.push({
-        code: 'E_PLACEHOLDER_PROJECT_MISSING',
-        message: 'This placeholder is not bound to a project yet.',
-      })
-    } else if (resource.projectId !== projectId) {
-      issues.push({
-        code: 'E_PLACEHOLDER_PROJECT_MISMATCH',
-        message: 'A placeholder can only be assigned to activities from its bound project.',
-      })
-    }
+  if (resource.kind !== 'placeholder' || projectId === undefined) {
+    return buildValidationResult(issues)
+  }
+  if (!resource.projectId) {
+    issues.push({
+      code: 'E_PLACEHOLDER_PROJECT_MISSING',
+      message: 'This placeholder is not bound to a project yet.',
+    })
+  } else if (resource.projectId !== projectId) {
+    issues.push({
+      code: 'E_PLACEHOLDER_PROJECT_MISMATCH',
+      message: 'A placeholder can only be assigned to activities from its bound project.',
+    })
   }
   return buildValidationResult(issues)
 }

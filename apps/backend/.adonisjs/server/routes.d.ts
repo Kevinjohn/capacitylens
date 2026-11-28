@@ -41,8 +41,8 @@ export type ScannedRoutes = {
     'api.member_status.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
     'api.invitations.store': { paramsTuple?: []; params?: {} }
     'api.invitations.index': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.invitation_deliveries.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.invitations.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
+    'api.invitation_deliveries.store': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.invitation_links.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.invitation_acceptances.store': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }

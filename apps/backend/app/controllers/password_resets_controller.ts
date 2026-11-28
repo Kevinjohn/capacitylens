@@ -6,7 +6,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors'
 import CredentialUpdateCommittedException from '#exceptions/credential_update_committed_exception'
 import InvalidLinkException from '#exceptions/invalid_link_exception'
-import { inspectResetValidator, resetPasswordValidator } from '#validators/credential'
+import { inspectResetValidator, resetPasswordValidator } from '#validators/password_reset'
 
 /** A password reset link: whether it is still usable, and spending it to set a new password. */
 export default class PasswordResetsController {

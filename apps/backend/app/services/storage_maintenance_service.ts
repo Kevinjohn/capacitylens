@@ -1,5 +1,4 @@
-import { Kernel } from '@adonisjs/core/ace'
-import type { ApplicationService } from '@adonisjs/core/types'
+import ace from '@adonisjs/core/services/ace'
 import db from '@adonisjs/lucid/services/db'
 import { pruneReceipts } from '@kevinjohn/adonisjs-duplicate-request-guard'
 
@@ -23,14 +22,11 @@ export class StorageMaintenanceService {
 
   /**
    * Runs one pass of the Masquerade package's own `masquerade:prune` command: expired view-as modes
-   * end and events older than the configured retention are deleted. The command runs on a kernel
-   * holding only that package's commands, so a pass does not load every application command.
+   * end and events older than the configured retention are deleted.
    * @throws the command's error when the pass fails.
    */
-  async pruneExpiredMasquerades(app: ApplicationService): Promise<void> {
-    const kernel = new Kernel(app)
-    kernel.addLoader(() => import('@kevinjohn/adonisjs-masquerade/commands'))
-    const command = await kernel.exec('masquerade:prune', [])
+  async pruneExpiredMasquerades(): Promise<void> {
+    const command = await ace.exec('masquerade:prune', [])
     if (command.exitCode) throw command.error ?? new Error('masquerade:prune failed')
   }
 

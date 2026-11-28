@@ -28,6 +28,7 @@ test.group('account deletion', (group) => {
   test('a member deletes their account with their memberships and member link', async ({
     client,
     assert,
+    db: dbAssert,
   }) => {
     await company()
     const userId = await editorMember()
@@ -49,12 +50,13 @@ test.group('account deletion', (group) => {
     assert.lengthOf(after.admissions, 0)
     assert.lengthOf(after.sessions, 0)
     await expectStatus(companies(client, cookie), 401)
-    const audit = await db
-      .from('audit_entries')
-      .where({ company_id: companyId, operation: 'identity.deleted', actor_id: userId })
-    assert.lengthOf(audit, 1)
+    await dbAssert.assertHas(
+      'audit_entries',
+      { company_id: companyId, operation: 'identity.deleted', actor_id: userId },
+      1
+    )
     // The company and its Owner are untouched.
-    assert.lengthOf(await db.from('memberships').where('scope_id', companyId), 1)
+    await dbAssert.assertHas('memberships', { scope_id: companyId }, 1)
     // Invitations the person sent stay acceptable without naming them.
     const invitations = await db.from('account_invitations').select('inviter_id')
     assert.lengthOf(invitations, 1)

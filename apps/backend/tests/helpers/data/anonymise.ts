@@ -1,7 +1,8 @@
 import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
-import { asDataOwner } from '#tests/helpers/authenticated_data_fixture'
+import type User from '#models/user'
+import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
 import { fixtureSession } from '#tests/helpers/identities'
 import { readPlanningRevision } from '#tests/helpers/data/planning_revision'
 
@@ -15,7 +16,11 @@ export async function proof(client: ApiClient, cookie: string) {
   return (issued.body().data as { confirmationId: string }).confirmationId
 }
 
-export async function deleteAllocation(client: ApiClient, cookie: string, resourceId: string) {
+export async function deleteAllocation(
+  client: ApiClient,
+  actor: string | User,
+  resourceId: string
+) {
   const allocation = await db
     .from('allocations')
     .where({ company_id: companyId, resource_id: resourceId })
@@ -23,9 +28,9 @@ export async function deleteAllocation(client: ApiClient, cookie: string, resour
   if (!allocation) throw new Error(`Missing allocation for resource ${resourceId}`)
   const baseRevision = await readPlanningRevision(companyId)
   const mutationId = randomUUID()
-  const removed = await asDataOwner(
-    client.visit('api.planning_mutations.store', { companyId }),
-    cookie
+  const request = client.visit('api.planning_mutations.store', { companyId })
+  const removed = await (
+    typeof actor === 'string' ? asDataOwner(request, actor) : asLoggedInDataOwner(request, actor)
   )
     .json({
       mutationId,

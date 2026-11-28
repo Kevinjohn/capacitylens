@@ -6,6 +6,14 @@ export type AdmissionRequestItem = Awaited<ReturnType<AccountAdmission['list']>>
 /** The wire shape of one admission request in the paginated directory. */
 export default class AdmissionRequestTransformer extends BaseTransformer<AdmissionRequestItem> {
   toObject() {
-    return this.resource
+    return this.pick(this.resource, [
+      'userId',
+      'email',
+      'requestedAt',
+      'invitation',
+      'approval',
+      'createdAt',
+      'updatedAt',
+    ])
   }
 }

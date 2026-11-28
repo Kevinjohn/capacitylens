@@ -657,7 +657,7 @@ test.group('native read-only masquerade', (group) => {
       .where({ actor_id: ownerId, kind: 'started' })
       .update({ at: new Date(Date.now() - 366 * 24 * 60 * 60_000).toISOString() })
 
-    await storageMaintenance.pruneExpiredMasquerades(app)
+    await storageMaintenance.pruneExpiredMasquerades()
 
     assert.isEmpty(await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'started' }))
   })

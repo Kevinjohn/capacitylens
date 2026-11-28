@@ -259,10 +259,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/auth/sign-up'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/auth').signUpValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/new_account').signUpValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/auth').signUpValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/new_account').signUpValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
@@ -272,10 +272,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/auth/sign-in'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/auth').signInValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/session').signInValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/auth').signInValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/session').signInValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
@@ -285,10 +285,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/auth/request-reset'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/credential').requestResetValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/password_reset_request').requestResetValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/credential').requestResetValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/password_reset_request').requestResetValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_reset_requests_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_reset_requests_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_reset_requests_controller').default['store']>>>
@@ -298,10 +298,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/auth/inspect-reset'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/credential').inspectResetValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/password_reset').inspectResetValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/credential').inspectResetValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/password_reset').inspectResetValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['show']>>>
@@ -311,10 +311,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/auth/reset-password'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/credential').resetPasswordValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/password_reset').resetPasswordValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/credential').resetPasswordValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/password_reset').resetPasswordValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['update']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['update']>>>
@@ -363,10 +363,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/auth/change-password'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/credential').changePasswordValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/password').changePasswordValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/credential').changePasswordValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/password').changePasswordValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_controller').default['update']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_controller').default['update']>>>
@@ -376,10 +376,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/auth/delete-account'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/credential').deleteAccountValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/account').deleteAccountValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/credential').deleteAccountValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/account').deleteAccountValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/account_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/account_controller').default['destroy']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/account_controller').default['destroy']>>>
@@ -489,19 +489,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
     }
   }
-  'api.invitation_deliveries.store': {
-    methods: ["POST"]
-    pattern: '/api/v1/companies/:companyId/invitations/:id/resend'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/invitation').resendInvitationValidator)>>
-      paramsTuple: [ParamValue, ParamValue]
-      params: { companyId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/invitation').resendInvitationValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
-    }
-  }
   'api.invitations.destroy': {
     methods: ["DELETE"]
     pattern: '/api/v1/companies/:companyId/invitations/:id'
@@ -513,6 +500,19 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
+    }
+  }
+  'api.invitation_deliveries.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/companies/:companyId/invitations/:id/resend'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/invitation').resendInvitationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { companyId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/invitation').resendInvitationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
     }
   }
   'api.invitation_links.show': {

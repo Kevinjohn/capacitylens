@@ -6,7 +6,7 @@ import { isAbsolute, relative, sep } from 'node:path'
 import type { ApplicationService } from '@adonisjs/core/types'
 import logger from '@adonisjs/core/services/logger'
 import type { CreateResult, SqliteBackup } from '@kevinjohn/adonisjs-sqlite-backup'
-import { formatBackupStartupFailure, type BackupConfig } from '#config/backup'
+import { backupConfigWarnings, formatBackupStartupFailure, type BackupConfig } from '#config/backup'
 
 const DAY_MS = 24 * 60 * 60_000
 
@@ -29,7 +29,13 @@ export default class BackupProvider {
   #cancelSchedule?: () => void
   #stopping = false
 
-  constructor(protected application: ApplicationService) {}
+  constructor(protected app: ApplicationService) {}
+
+  boot() {
+    for (const warning of backupConfigWarnings.splice(0)) {
+      this.log(warning, 'warn')
+    }
+  }
 
   /** Failures and warnings log above `info`, so a quieter `LOG_LEVEL` still shows them. */
   protected log(message: string, level: 'info' | 'warn' | 'error' = 'info', err?: unknown): void {
@@ -44,11 +50,11 @@ export default class BackupProvider {
   }
 
   async ready() {
-    if (this.application.getEnvironment() !== 'web' || this.#backup || this.#stopping) return
-    const config = this.application.config.get<BackupConfig>('backup')
+    if (this.app.getEnvironment() !== 'web' || this.#backup || this.#stopping) return
+    const config = this.app.config.get<BackupConfig>('backup')
     if (!config.directory) return
     try {
-      const backup = await this.application.container.make('sqlite.backup')
+      const backup = await this.app.container.make('sqlite.backup')
       backup.checkSource()
       assertOutsideLiveDatabase(config.directory, backup.livePath())
       backup.prepareDirectory()

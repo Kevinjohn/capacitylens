@@ -1,6 +1,8 @@
 import { fixtureSession } from '#tests/helpers/identities'
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
+import { DateTime } from 'luxon'
+import { AllocationFactory } from '#database/factories/allocation_factory'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import db from '@adonisjs/lucid/services/db'
 import { readState } from '#tests/helpers/state_fixture'
@@ -237,17 +239,28 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         },
       ])
     }
+    const parsedDeletedAt = DateTime.fromSQL(retainedAllocation.deleted_at, { zone: 'utc' })
+    const deletedAt = parsedDeletedAt.isValid
+      ? parsedDeletedAt
+      : DateTime.fromISO(retainedAllocation.deleted_at)
     const retainedFixtureRow = (id: string, groupId: string) => ({
-      ...retainedAllocation,
       id,
-      deleted_batch_id: groupId,
+      companyId: retainedAllocation.company_id,
+      resourceId: retainedAllocation.resource_id,
+      activityId: retainedAllocation.activity_id,
+      projectId: retainedAllocation.project_id,
+      startDate: retainedAllocation.start_date,
+      endDate: retainedAllocation.end_date,
+      hoursPerDay: retainedAllocation.hours_per_day,
+      status: retainedAllocation.status,
+      note: retainedAllocation.note,
+      deletedAt,
+      deletedBatchId: groupId,
     })
-    await db
-      .table('allocations')
-      .insert([
-        ...otherRowIds.map((id) => retainedFixtureRow(id, other)),
-        retainedFixtureRow(consumedRowId, consumed),
-      ])
+    await AllocationFactory.merge([
+      ...otherRowIds.map((id) => retainedFixtureRow(id, other)),
+      retainedFixtureRow(consumedRowId, consumed),
+    ]).createMany(3)
     const mutationId = randomUUID()
     const intent = {
       operation: 'catalogue.update',

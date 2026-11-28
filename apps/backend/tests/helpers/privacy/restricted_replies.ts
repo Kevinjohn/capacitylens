@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto'
 import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
+import Client from '#models/client'
+import Project from '#models/project'
+import TimeOff from '#models/time_off'
 import { companyId, session } from '#tests/helpers/planning/functional_helpers'
 import { readPlanningRevision } from '#tests/helpers/data/planning_revision'
 
@@ -407,17 +410,26 @@ export async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   const projectRow = fixture.projects.find((row) => row.clientId === clientRow?.id)
   const timeOffRow = fixture.timeOff.find((row) => row.companyId === companyId)
   if (!clientRow || !projectRow || !timeOffRow) throw new Error('Seed data lacks the marker rows')
-  await db.from('clients').where({ id: clientRow.id }).update({
-    name: MARKER_CLIENT,
-    is_private: true,
-    code_name: codeNamesByMarker[MARKER_CLIENT],
-  })
-  await db.from('projects').where({ id: projectRow.id }).update({
-    name: MARKER_PROJECT,
-    is_private: true,
-    code_name: codeNamesByMarker[MARKER_PROJECT],
-  })
-  await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE })
+  await Client.query()
+    .withScopes((scopes) => scopes.forCompany(companyId))
+    .where('id', clientRow.id)
+    .update({
+      name: MARKER_CLIENT,
+      isPrivate: true,
+      codeName: codeNamesByMarker[MARKER_CLIENT],
+    })
+  await Project.query()
+    .withScopes((scopes) => scopes.forCompany(companyId))
+    .where('id', projectRow.id)
+    .update({
+      name: MARKER_PROJECT,
+      isPrivate: true,
+      codeName: codeNamesByMarker[MARKER_PROJECT],
+    })
+  await TimeOff.query()
+    .withScopes((scopes) => scopes.forCompany(companyId))
+    .where('id', timeOffRow.id)
+    .update({ note: MARKER_NOTE })
   const archivedId = randomUUID()
   const created = await send(
     client.visit('api.planning_mutations.store', { companyId }),
