@@ -3,7 +3,7 @@ import { freshDatabase } from '#tests/helpers/fresh_database'
 import db from '@adonisjs/lucid/services/db'
 import { resetState } from '#tests/helpers/state_fixture'
 import { seed } from '@capacitylens/shared/data/seed'
-import { expectStatus } from '#tests/helpers/identities'
+import { expectStatus, signIn } from '#tests/helpers/identities'
 import { asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
 import {
   companyId,
@@ -23,6 +23,7 @@ import {
   importSeed,
   anonymiseResource,
   preparePrivateProjection,
+  password,
 } from '#tests/helpers/auth/native_authorization'
 
 test.group('native authorization and role projections', (group) => {
@@ -215,16 +216,18 @@ test.group('native authorization and role projections', (group) => {
   }) => {
     configureAuth(cleanup)
     const { user, userId } = await createMember('owner')
+    // A fresh sign-in per request would never be 16 minutes old, so reuse one session.
+    const { cookie } = await signIn(client, user.email, password)
     for (const ageMinutes of [0, 16]) {
       await db
         .from('account_sessions')
         .where('user_id', userId)
         .update({ created_at: new Date(Date.now() - ageMinutes * 60_000).toISOString() })
-      const imported = await importSeed(client, user)
+      const imported = await importSeed(client, cookie)
       imported.assertStatus(403)
       assert.equal((imported.body() as { code?: string }).code, 'E_PASSWORD_CONFIRMATION_REQUIRED')
-      await expectStatus(stateFor(client, user), 200)
-      await expectStatus(writeDismissal(client, user), 200)
+      await expectStatus(stateFor(client, cookie), 200)
+      await expectStatus(writeDismissal(client, cookie), 200)
     }
   })
 
@@ -235,13 +238,15 @@ test.group('native authorization and role projections', (group) => {
   }) => {
     configureAuth(cleanup)
     const { user, userId } = await createMember('admin')
-    const before = await writeDismissal(client, user)
+    // One session throughout: the downgrade must reach a sign-in that already exists.
+    const { cookie } = await signIn(client, user.email, password)
+    const before = await writeDismissal(client, cookie)
     before.assertStatus(200)
 
     await setRole(userId, 'viewer')
-    const denied = await writeDismissal(client, user)
+    const denied = await writeDismissal(client, cookie)
     denied.assertStatus(403)
-    const stillReadable = await stateFor(client, user)
+    const stillReadable = await stateFor(client, cookie)
     stillReadable.assertStatus(200)
     assert.deepEqual(
       await db

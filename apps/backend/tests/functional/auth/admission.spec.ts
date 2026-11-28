@@ -155,16 +155,17 @@ test.group('admission and membership completion', (group) => {
   }) => {
     const ownerUser = await company()
     const userId = await invitedIdentity('viewer')
-    const user = await User.findOrFail(userId)
     const decide = (decision: keyof typeof decisionRoutes) =>
       as(ownerUser).post(api.visit(decisionRoutes[decision], { userId }))
     await expectStatus(decide('reject'), 200)
-    await expectStatus(planning(api, user), 403)
+    // One session throughout: each decision must reach a sign-in that already exists.
+    const { cookie } = await signIn(api, person, password)
+    await expectStatus(planning(api, cookie), 403)
     await expectStatus(decide('approve'), 200)
-    await expectStatus(as(user).post(api.visit('api.memberships.store')), 200)
-    await expectStatus(planning(api, user), 200)
+    await expectStatus(as(cookie).post(api.visit('api.memberships.store')), 200)
+    await expectStatus(planning(api, cookie), 200)
     await expectStatus(decide('revoke'), 200)
-    await expectStatus(planning(api, user), 403)
+    await expectStatus(planning(api, cookie), 403)
   })
 
   test('completion never restores a suspended membership', async ({ client: api, assert }) => {
@@ -202,17 +203,15 @@ test.group('admission and membership completion', (group) => {
       created_at: now,
       updated_at: now,
     })
-    const adminUser = await User.findOrFail(adminId)
-    await expectStatus(as(adminUser).get(api.visit('api.admission_requests.index')), 200)
+    // The Admin's session predates the revocation, which must still reach it.
+    const { cookie } = await signIn(api, 'diana.prince@wayne.example', password)
+    await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 200)
     await expectStatus(
       as(ownerUser).post(api.visit('api.admission_revocations.store', { userId: adminId })),
       200
     )
-    await expectStatus(as(adminUser).get(api.visit('api.admission_requests.index')), 403)
-    await expectStatus(
-      as(adminUser).post(api.visit('api.admission_approvals.store', { userId })),
-      403
-    )
+    await expectStatus(as(cookie).get(api.visit('api.admission_requests.index')), 403)
+    await expectStatus(as(cookie).post(api.visit('api.admission_approvals.store', { userId })), 403)
   })
 
   test('a decision on a malformed account id answers the framework validation failure', async ({

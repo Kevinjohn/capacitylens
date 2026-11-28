@@ -2,7 +2,7 @@ import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
 import type User from '#models/user'
-import { asDataOwner, asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
+import { asActor, asDataOwner } from '#tests/helpers/authenticated_data_fixture'
 import { fixtureSession } from '#tests/helpers/identities'
 import { readPlanningRevision } from '#tests/helpers/data/planning_revision'
 
@@ -29,9 +29,7 @@ export async function deleteAllocation(
   const baseRevision = await readPlanningRevision(companyId)
   const mutationId = randomUUID()
   const request = client.visit('api.planning_mutations.store', { companyId })
-  const removed = await (
-    typeof actor === 'string' ? asDataOwner(request, actor) : asLoggedInDataOwner(request, actor)
-  )
+  const removed = await asActor(request, actor)
     .json({
       mutationId,
       baseRevision,

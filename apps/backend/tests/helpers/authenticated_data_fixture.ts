@@ -90,6 +90,16 @@ export function asLoggedInDataOwner<T extends ApiRequest>(request: T, user: User
     .header('sec-fetch-site', 'same-origin') as T
 }
 
+/**
+ * Authenticates with a reused native session cookie, or with a fresh `loginAs` sign-in for a
+ * user. Pass a cookie when a test must prove a decision reaches a session that already exists.
+ */
+export function asActor<T extends ApiRequest>(request: T, actor: string | User): T {
+  return typeof actor === 'string'
+    ? asDataOwner(request, actor)
+    : asLoggedInDataOwner(request, actor)
+}
+
 /** Preserves an API client's normal request methods while adding a proved native session. */
 export function authenticatedDataClient(client: ApiClient, cookie: string): ApiClient {
   const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'visit'])

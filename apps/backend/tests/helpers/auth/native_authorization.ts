@@ -6,7 +6,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 import { buildCompanyExport } from '@capacitylens/shared/data/companyExport'
 import { readState } from '#tests/helpers/state_fixture'
 import { createIdentity } from '#tests/helpers/identities'
-import { asLoggedInDataOwner } from '#tests/helpers/authenticated_data_fixture'
+import { asActor } from '#tests/helpers/authenticated_data_fixture'
 import User from '#models/user'
 
 export const companyId = 'a-studio'
@@ -59,44 +59,45 @@ export async function setRole(userId: string, role: Role) {
   await db.from('memberships').where({ scope_id: companyId, user_id: userId }).update({ role })
 }
 
-export async function stateFor(client: ApiClient, user: User, targetCompanyId = companyId) {
-  return asLoggedInDataOwner(
+export async function stateFor(
+  client: ApiClient,
+  actor: User | string,
+  targetCompanyId = companyId
+) {
+  return asActor(
     trusted(client.visit('api.company_state.show').qs({ companyId: targetCompanyId })),
-    user
+    actor
   ).send()
 }
 
-export async function currentUser(client: ApiClient, user: User) {
-  return asLoggedInDataOwner(trusted(client.visit('api.session.show')), user).send()
+export async function currentUser(client: ApiClient, actor: User | string) {
+  return asActor(trusted(client.visit('api.session.show')), actor).send()
 }
 
 export async function writeDismissal(
   client: ApiClient,
-  user: User,
+  actor: User | string,
   body: Record<string, unknown> = { dismissed: true }
 ) {
-  return asLoggedInDataOwner(
-    trusted(client.visit('api.getting_started.update', { companyId })),
-    user
-  )
+  return asActor(trusted(client.visit('api.getting_started.update', { companyId })), actor)
     .json(body as never)
     .send()
 }
 
-export async function importSeed(client: ApiClient, user: User) {
+export async function importSeed(client: ApiClient, actor: User | string) {
   const document = buildCompanyExport(await readState(companyId, true), {
     companyId,
     completeness: 'full',
   })
-  return asLoggedInDataOwner(trusted(client.visit('api.imports.store')), user)
+  return asActor(trusted(client.visit('api.imports.store')), actor)
     .json({ companyId, document, baseRevision: 0 })
     .send()
 }
 
-export async function anonymiseResource(client: ApiClient, user: User, id: string) {
-  return asLoggedInDataOwner(
+export async function anonymiseResource(client: ApiClient, actor: User | string, id: string) {
+  return asActor(
     trusted(client.visit('api.resource_anonymisations.store', { companyId, id })),
-    user
+    actor
   )
     .json({})
     .send()
