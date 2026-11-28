@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { buildScopeQueryKey } from '@/api/queryClient'
+import { api, scopedRouteQuery } from '@/api/queryClient'
 import { useQueryScope } from '@/api/useQueryScope'
 import { isRole } from '@capacitylens/shared/account/types'
 import { m } from '@/i18n'
@@ -28,13 +28,14 @@ async function fetchRequests(signal: AbortSignal): Promise<AdmissionRequest[]> {
 export function AdmissionRequestsPanel() {
   const scope = useQueryScope()
   const queryClient = useQueryClient()
-  const queryKey = buildScopeQueryKey(scope, ['admission-requests'])
-  const query = useQuery({
-    queryKey,
-    retry: false,
-    refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => fetchRequests(signal),
-  })
+  const options = scopedRouteQuery(
+    api.api.admissionRequests.index.queryOptions(),
+    scope,
+    ({ signal }) => fetchRequests(signal),
+    { retry: false, refetchOnWindowFocus: false }
+  )
+  const queryKey = options.queryKey
+  const query = useQuery(options)
   const [busy, setBusy] = useState(false)
   // A retired panel must not surface a late decision outcome in a successor context.
   const live = useRef(true)

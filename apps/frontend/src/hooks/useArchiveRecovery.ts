@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle'
-import { client, buildScopeQueryKey } from '@/api/queryClient'
+import { api, scopedQueryOptions } from '@/api/queryClient'
 import { useQueryScope } from '@/api/useQueryScope'
+import { getMasqueradeToken } from '@/api/masqueradeToken'
 import { useAuth } from '@/auth/authContext'
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext'
-import { getMasqueradeToken } from '@/api/masqueradeToken'
 import { buildAccessKey } from '@/data/planning/planningAccess'
 import { useStore } from '@/store/useStore'
 import { m } from '@/i18n'
@@ -32,27 +31,30 @@ export function useArchiveRecovery() {
     planning.context?.companyId === companyId &&
     planning.phase.kind === 'ready'
   const scope = useQueryScope()
-  const masqueradeToken = getMasqueradeToken()
-  const query = useQuery<ArchiveRecovery>({
-    queryKey: buildScopeQueryKey(scope, ['archive-recovery', role, accessKey, planning.revision]),
-    enabled,
-    retry: false,
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      const { data: recovery } = await client.request('api.planning_archive.show', {
-        params: { companyId: companyId ?? '' },
-        signal,
-        headers: { 'X-Masquerade-Context': masqueradeToken ?? '' },
-      })
-      if (recovery.companyId !== companyId) {
-        throw new Error(m.settings_archived_err_incomplete())
-      }
-      return recovery
-    },
-  })
+  const query = useQuery(
+    scopedQueryOptions(
+      api.api.planningArchive.show.queryOptions(
+        { params: { companyId: companyId ?? '' } },
+        {
+          enabled,
+          retry: false,
+          refetchOnWindowFocus: false,
+          tuyau: {
+            abortOnUnmount: true,
+            // The proof captured for this view; an empty one is explicit, never a newer context.
+            headers: { 'X-Masquerade-Context': getMasqueradeToken() ?? '' },
+          },
+        }
+      ),
+      scope,
+      [role, accessKey, planning.revision]
+    )
+  )
   if (!enabled) return { data: null, error: null }
-  return {
-    data: query.isError ? null : (query.data ?? null),
-    error: query.error ? resolveErrorMessage(query.error) : null,
+  if (query.isError) return { data: null, error: resolveErrorMessage(query.error) }
+  const recovery = query.data?.data ?? null
+  if (recovery && recovery.companyId !== companyId) {
+    return { data: null, error: m.settings_archived_err_incomplete() }
   }
+  return { data: recovery, error: null }
 }

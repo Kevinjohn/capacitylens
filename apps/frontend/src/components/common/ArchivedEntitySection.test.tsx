@@ -3,6 +3,7 @@ import { screen, within, waitFor } from '@testing-library/react'
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createTuyauReactQueryClient } from '@tuyau/react-query'
 import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import type { ReactNode } from 'react'
@@ -25,6 +26,7 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }))
 vi.mock('@/api/queryClient', async (original) => ({
   ...(await original<typeof import('@/api/queryClient')>()),
   client: { request },
+  api: createTuyauReactQueryClient({ client: { request } as never }),
 }))
 
 let serverData = makeAppData()
