@@ -1,3 +1,4 @@
+import type { Route } from '@capacitylens/backend/registry'
 import { requestApiResponse } from '@/api/queryClient'
 import { readApiData } from '@/api/readApiData'
 import { API_BULK_TIMEOUT_MS } from '@/data/requestTimeout'
@@ -15,12 +16,7 @@ export interface ImportPreviewSummary {
 }
 
 /** The confirmed import of one transfer document into one company. */
-export interface ApplyImportInput {
-  companyId: string
-  document: unknown
-  baseRevision: number
-  confirmationId: string
-}
+export type ApplyImportInput = Route.Body<'api.imports.store'>
 
 /**
  * The counts a committed import reports. `imported` is null for an off-spec success body; the
@@ -92,17 +88,8 @@ export const companyDataRequests = {
   },
 
   /** Sends a confirmed whole-company import. */
-  applyImport({
-    companyId,
-    document,
-    baseRevision,
-    confirmationId,
-  }: ApplyImportInput): Promise<Response> {
-    return requestApiResponse(
-      'api.imports.store',
-      { body: { companyId, document, baseRevision, confirmationId } },
-      API_BULK_TIMEOUT_MS
-    )
+  applyImport(body: ApplyImportInput): Promise<Response> {
+    return requestApiResponse('api.imports.store', { body }, API_BULK_TIMEOUT_MS)
   },
 
   /** Sends the password-confirmed anonymisation of every person in one company. */

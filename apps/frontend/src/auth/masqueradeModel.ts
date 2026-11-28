@@ -48,7 +48,10 @@ export interface MasqueradeModelDependencies {
   reproject: (companyId: string, includeCompanySummaries?: boolean) => Promise<boolean>
   switchCompany: (companyId: string | null) => Promise<RefreshOutcome>
   readBootstrapCompany: (companyId: string) => Promise<string | null>
-  api: typeof masqueradeApi
+  api: Pick<typeof masqueradeApi, 'end'> & {
+    status(companyId?: string): Promise<MasqueradeStatus>
+    start(companyId: string, targetUserId: string): Promise<MasqueradeState>
+  }
   /** The store state this model reads and writes; the model reaches no other state. */
   readState: () => StoreState
   /** The one writer of the masquerade context proof the data layer sends with each request. */
