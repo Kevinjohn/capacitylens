@@ -2,7 +2,10 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import { freshDatabase } from '#tests/helpers/fresh_database'
 import { resetState } from '#tests/helpers/state_fixture'
+import { createIdentity, fixtureSession } from '#tests/helpers/identities'
 import {
+  AUDIT_ENTRY_RETENTION_MS,
+  PLANNING_MUTATION_RETENTION_MS,
   REQUEST_RECEIPT_RETENTION_MS,
   StorageMaintenanceService,
 } from '#services/storage_maintenance_service'
@@ -47,6 +50,86 @@ test.group('storage maintenance', (group) => {
     assert.deepEqual(
       kept.map((row) => row.id),
       ['completed-at-window', 'pending-past-window']
+    )
+  })
+  test('planning-mutation markers past the window go unless their restoration group is pending', async ({
+    assert,
+  }) => {
+    const now = new Date('2026-11-13T12:00:00.000Z')
+    const past = new Date(now.getTime() - PLANNING_MUTATION_RETENTION_MS - 1).toISOString()
+    const atWindow = new Date(now.getTime() - PLANNING_MUTATION_RETENTION_MS).toISOString()
+    const company = await db.from('companies').select('id').firstOrFail()
+    const companyId = company.id as string
+    const actorId = await createIdentity('bruce@wayne.example', { admitted: false })
+    const sessionId = await fixtureSession(actorId)
+    const batch = (id: string, consumedAt: string | null) => ({
+      id,
+      company_id: companyId,
+      actor_id: actorId,
+      account_session_id: sessionId,
+      mutation_id: `${id}-mutation`,
+      created_at: past,
+      consumed_at: consumedAt,
+    })
+    await db
+      .table('deleted_batches')
+      .multiInsert([batch('pending-group', null), batch('consumed-group', past)])
+    const marker = (id: string, createdAt: string, restorationGroupId: string | null) => ({
+      company_id: companyId,
+      mutation_id: id,
+      actor_id: actorId,
+      revision: 1,
+      restoration_group_id: restorationGroupId,
+      origin_session_id: restorationGroupId ? sessionId : null,
+      created_at: createdAt,
+    })
+    await db
+      .table('planning_mutations')
+      .multiInsert([
+        marker('past-without-group', past, null),
+        marker('past-consumed-group', past, 'consumed-group'),
+        marker('past-ended-group', past, 'ended-group'),
+        marker('past-pending-group', past, 'pending-group'),
+        marker('at-window-without-group', atWindow, null),
+      ])
+
+    assert.equal(await storageMaintenance.prunePlanningMutations(now), 3)
+
+    const kept = await db.from('planning_mutations').orderBy('mutation_id').select('mutation_id')
+    assert.deepEqual(
+      kept.map((row) => row.mutation_id),
+      ['at-window-without-group', 'past-pending-group']
+    )
+  })
+
+  test('audit entries past the window are deleted and newer ones kept', async ({ assert }) => {
+    const now = new Date('2026-11-13T12:00:00.000Z')
+    const past = new Date(now.getTime() - AUDIT_ENTRY_RETENTION_MS - 1).toISOString()
+    const atWindow = new Date(now.getTime() - AUDIT_ENTRY_RETENTION_MS).toISOString()
+    const company = await db.from('companies').select('id').firstOrFail()
+    const companyId = company.id as string
+    await db.from('audit_entries').delete()
+    const entry = (id: string, createdAt: string) => ({
+      id,
+      company_id: companyId,
+      actor_id: null,
+      operation: 'allocation.update',
+      entity: 'planning',
+      entity_id: null,
+      details: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+    })
+    await db
+      .table('audit_entries')
+      .multiInsert([entry('entry-past-window', past), entry('entry-at-window', atWindow)])
+
+    assert.equal(await storageMaintenance.pruneAuditEntries(now), 1)
+
+    const kept = await db.from('audit_entries').select('id')
+    assert.deepEqual(
+      kept.map((row) => row.id),
+      ['entry-at-window']
     )
   })
 })

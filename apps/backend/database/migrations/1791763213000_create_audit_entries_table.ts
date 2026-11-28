@@ -17,7 +17,8 @@ export default class extends BaseSchema {
       table.json('details').nullable()
       table.timestamp('created_at').notNullable()
       table.timestamp('updated_at').notNullable()
-      table.index(['company_id'])
+      table.index(['company_id', 'created_at'])
+      table.index(['created_at'])
     })
   }
 

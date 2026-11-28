@@ -114,6 +114,8 @@ Then, in order:
    permission, false under view-as.
 7. The write is refused unless `canWrite` holds.
 8. Idempotency: a row in `planning_mutations` with this `mutationId` means `E_MUTATION_ID_REUSED`.
+   The hourly maintenance pass (`StorageMaintenanceService`) deletes markers 30 days after their
+   commit, except one whose restoration group is still pending, and audit entries after 365 days.
 9. `assertPlanningBaseRevision` (`apps/backend/app/services/planning_revision_service.ts`) refuses a stale
    `baseRevision` with `E_STALE_REVISION`.
 10. Before image: `readStateWithClient` (`apps/backend/app/services/state_repository_service.ts`).

@@ -603,12 +603,14 @@ export class PlanningHistorySchema extends BaseModel {
 }
 
 export class PlanningMutationSchema extends BaseModel {
-  static $columns = ['actorId', 'companyId', 'mutationId', 'originSessionId', 'restorationGroupId', 'revision'] as const
+  static $columns = ['actorId', 'companyId', 'createdAt', 'mutationId', 'originSessionId', 'restorationGroupId', 'revision'] as const
   $columns = PlanningMutationSchema.$columns
   @column()
   declare actorId: string
   @column({ isPrimary: true })
   declare companyId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare mutationId: string
   @column()
