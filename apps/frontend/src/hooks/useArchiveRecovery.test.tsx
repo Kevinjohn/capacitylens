@@ -13,6 +13,7 @@ import { useArchiveRecovery } from './useArchiveRecovery'
 import { permissionValue } from '@/test/permissionGrants'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 import { createDeferred } from '@/test/createDeferred'
+import { setMasqueradeToken } from '@/api/masqueradeToken'
 const { request } = vi.hoisted(() => ({ request: vi.fn() }))
 vi.mock('@/api/queryClient', async (original) => {
   const actual = await original<typeof import('@/api/queryClient')>()
@@ -83,6 +84,23 @@ describe('archive recovery request boundaries', () => {
     act(() => void invalidateInactiveReads(cache))
     expect(await screen.findByText('Second')).toBeInTheDocument()
     expect(request.mock.calls.every(([name]) => name === 'api.planning_archive.show')).toBe(true)
+  })
+  it.each([
+    ['the captured view-as-member proof', '1.0123456789abcdef0123456789abcdef'],
+    ['an explicit empty proof when none is held', null],
+  ])('sends %s with the read', async (_label, token) => {
+    request.mockResolvedValue({ data: payload('a-studio', 'First') })
+    setMasqueradeToken(token)
+    try {
+      render(view(new QueryClient()))
+      expect(await screen.findByText('First')).toBeInTheDocument()
+      expect(request).toHaveBeenCalledWith(
+        'api.planning_archive.show',
+        expect.objectContaining({ headers: { 'X-Masquerade-Context': token ?? '' } })
+      )
+    } finally {
+      setMasqueradeToken(null)
+    }
   })
   it('hides cached A synchronously on A → B → A and aborts obsolete reads', async () => {
     const pending = createDeferred<{ data: ArchiveRecovery }>()

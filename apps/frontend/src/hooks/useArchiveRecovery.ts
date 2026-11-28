@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, scopedQueryOptions } from '@/api/queryClient'
 import { useQueryScope } from '@/api/useQueryScope'
+import { getMasqueradeToken } from '@/api/masqueradeToken'
 import { useAuth } from '@/auth/authContext'
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext'
 import { buildAccessKey } from '@/data/planning/planningAccess'
@@ -38,7 +39,11 @@ export function useArchiveRecovery() {
           enabled,
           retry: false,
           refetchOnWindowFocus: false,
-          tuyau: { abortOnUnmount: true },
+          tuyau: {
+            abortOnUnmount: true,
+            // The proof captured for this view; an empty one is explicit, never a newer context.
+            headers: { 'X-Masquerade-Context': getMasqueradeToken() ?? '' },
+          },
         }
       ),
       scope,
