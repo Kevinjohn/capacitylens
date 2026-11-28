@@ -90,7 +90,7 @@ test.group('restricted values in replies', (group) => {
           }
         }
         // The export is labelled full only for an effective Owner, whoever is signed in.
-        if (name === 'api.company_exports.show' && reply.status() === 200) {
+        if (name === 'api.company_export.show' && reply.status() === 200) {
           const { completeness } = JSON.parse(text) as { completeness: string }
           assert.equal(completeness, testUser.effective === 'owner' ? 'full' : 'redacted', where)
         }

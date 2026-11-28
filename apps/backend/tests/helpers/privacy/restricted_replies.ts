@@ -170,7 +170,7 @@ export const replies: Record<string, Exposure> = {
         fixture.cookie
       ).send(),
   },
-  'api.company_exports.show': {
+  'api.company_export.show': {
     write: false,
     carries: (testUser) => [
       MARKER_CLIENT,
@@ -180,7 +180,7 @@ export const replies: Record<string, Exposure> = {
     ],
     call: (fixture) =>
       session(
-        fixture.client.visit('api.company_exports.show', { companyId }),
+        fixture.client.visit('api.company_export.show', { companyId }),
         fixture.cookie
       ).send(),
   },
@@ -387,8 +387,8 @@ export const replies: Record<string, Exposure> = {
   'api.masquerade.destroy': { none: IDENTITY },
   'api.masquerade.store': { none: IDENTITY },
   'api.masquerade.show': { none: IDENTITY },
-  'api.member_resource_links.destroy': { none: IDENTITY },
-  'api.member_resource_links.update': { none: IDENTITY },
+  'api.member_resource_link.destroy': { none: IDENTITY },
+  'api.member_resource_link.update': { none: IDENTITY },
   'api.members.index': { none: IDENTITY },
   'api.members.update': { none: IDENTITY },
   'api.member_status.update': { none: IDENTITY },

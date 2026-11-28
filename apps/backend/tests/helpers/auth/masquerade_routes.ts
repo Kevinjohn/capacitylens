@@ -15,20 +15,16 @@ export async function routeReport() {
 
 /**
  * Routes the package cannot classify. Each is public, or is about the signed-in person's own
- * account and carries `asOwnAccount()`, which refuses it while a view-as mode is active.
+ * account and carries `accountKitAccountBlocker`, which refuses it while a view-as mode is active.
  */
 export const reviewedUnclassified = [
   'GET,HEAD /api/v1/auth/me [UNCLASSIFIED READ] (Account Kit blocker registered)',
   'POST /api/v1/auth/sign-up [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/auth/sign-in [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/auth/sign-out [UNCLASSIFIED MUTATION]',
-  'POST /api/v1/auth/password-confirmation [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/auth/request-reset [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/auth/inspect-reset [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/auth/reset-password [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
-  'POST /api/v1/auth/change-password [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
-  'POST /api/v1/auth/delete-account [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
-  'POST /api/v1/auth/verification/send [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/auth/verification/inspect [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/auth/verification/complete [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'GET,HEAD /api/v1/invitations/:token/preview [UNCLASSIFIED READ] (Account Kit blocker registered)',
@@ -36,7 +32,6 @@ export const reviewedUnclassified = [
   'GET,HEAD /api/v1/masquerade [UNCLASSIFIED READ]',
   'GET,HEAD /health/live [UNCLASSIFIED READ]',
   'GET,HEAD /health/ready [UNCLASSIFIED READ]',
-  'GET,HEAD /api/v1/* [UNCLASSIFIED READ]',
   'GET,HEAD /* [UNCLASSIFIED READ]',
 ]
 
@@ -52,8 +47,12 @@ export const sensitiveReads = [
   'GET,HEAD /api/v1/diagnostics [BUSINESS READ] (sensitive)',
 ]
 
-/** The view-as controls, which always run as the signed-in person. */
+/** The view-as controls and authenticated own-account routes, which always run as the signed-in person. */
 export const signedInPersonRoutes = [
+  'POST /api/v1/auth/password-confirmation [RAW-GUARD BUSINESS MUTATION] (Account Kit blocker registered)',
+  'POST /api/v1/auth/change-password [RAW-GUARD BUSINESS MUTATION] (Account Kit blocker registered)',
+  'POST /api/v1/auth/delete-account [RAW-GUARD BUSINESS MUTATION] (Account Kit blocker registered)',
+  'POST /api/v1/auth/verification/send [RAW-GUARD BUSINESS MUTATION] (Account Kit blocker registered)',
   'POST /api/v1/companies/:companyId/masquerade [RAW-GUARD BUSINESS MUTATION]',
   'DELETE /api/v1/masquerade [RAW-GUARD BUSINESS MUTATION]',
 ]

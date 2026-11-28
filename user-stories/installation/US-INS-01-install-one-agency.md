@@ -49,4 +49,4 @@ flowchart TD
 
 See [Set up and open the installation company](../navigation/US-NAV-14-company-picker-setup.md#code-flow) for the browser continuation.
 
-**Code references:** [Ace command registration](../../apps/backend/adonisrc.ts#L27) · [app_upgrade.ts](../../apps/backend/commands/app_upgrade.ts#L13) · [routes.ts](../../apps/backend/start/routes.ts#L57) · [backup_provider.ts](../../apps/backend/providers/backup_provider.ts#L46) · [install-without-docker.md](../../docs-src/self-hosting/install-without-docker.md)
+**Code references:** [Ace command registration](../../apps/backend/adonisrc.ts#L27) · [app_upgrade.ts](../../apps/backend/commands/app_upgrade.ts#L13) · [routes.ts](../../apps/backend/start/routes.ts#L62) · [backup_provider.ts](../../apps/backend/providers/backup_provider.ts#L46) · [install-without-docker.md](../../docs-src/self-hosting/install-without-docker.md)
