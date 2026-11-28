@@ -566,9 +566,9 @@ test.describe('Scheduler', () => {
         return prev
       }
 
-      // The browser sums the server's per-day figures over the visible window, so widening the
+      // The browser sums the per-day capacity figures over the visible window, so widening the
       // window over the seed's quieter later weeks changes the drawn number. The figures themselves
-      // are the server's (apps/backend/tests/unit/planning/capacity_section.spec.ts).
+      // follow the shared rule (apps/backend/tests/unit/planning/capacity_section.spec.ts).
       const wk1 = await readAtZoom(1)
       const wk8 = await readAtZoom(8)
       expect(wk1.overall).toBeGreaterThan(wk8.overall)

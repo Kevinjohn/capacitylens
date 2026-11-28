@@ -7,6 +7,7 @@ import {
   resolveWeekStart,
 } from '@/store/selectors'
 import { useStore } from '@/store/useStore'
+import { buildPlanningCapacity } from '@/store/planningCapacity'
 import { useCompanyToday } from '@/hooks/useCompanyToday'
 import type { CapacityDisplayMode } from './capacityOverviewBar'
 import type { CapacityOverviewHorizon } from './capacityOverviewDates'
@@ -26,7 +27,7 @@ export function CapacityOverviewView() {
   const today = useCompanyToday()
   const schedulingMode = resolveSchedulingMode(data, activeCompanyId)
   const weekStartsOn = resolveWeekStart(data, activeCompanyId)
-  const capacity = useStore((state) => state.planning.capacity)
+  const capacity = useStore(buildPlanningCapacity)
   const placeholdersEnabled = hasPlaceholdersEnabled(data, activeCompanyId)
   const disciplinesEnabled = hasDisciplinesEnabled(data, activeCompanyId)
   const model = useMemo(

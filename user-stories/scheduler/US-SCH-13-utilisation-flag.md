@@ -46,8 +46,8 @@ Zoom and pan can change the visible date sample. Blocks-mode absence conflict ma
 
 **Code references:**
 
-- [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L84)
-- [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts#L137)
+- [capacity.ts](../../packages/shared/src/lib/capacity.ts#L183)
+- [capacity.ts](../../packages/shared/src/lib/capacity.ts#L183)
 - [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts#L60)
 - [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts#L98)
 - [capacity.ts](../../packages/shared/src/lib/capacity.ts#L117)

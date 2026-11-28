@@ -26,8 +26,8 @@ export interface ResourceCapacity {
   horizon: CapacityDays
 }
 
-/** Per-day capacity for every capacity-tracked resource, computed by the server for the planning
- * read. */
+/** Per-day capacity for every capacity-tracked resource, built by `buildCapacitySection` from the
+ * planning read's rows. */
 export interface CapacitySection {
   /** The scheduler's materialised window. */
   window: CapacityRange

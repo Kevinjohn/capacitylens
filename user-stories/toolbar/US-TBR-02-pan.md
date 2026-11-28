@@ -34,14 +34,11 @@ flowchart TD
 flowchart TD
   Nav["ToolbarDateNavigation Prev or Next invokes panDays with minus or plus seven"] --> Origin["schedulerSlice changes ui.originDate"]
   Origin --> View["useViewportAlignment re-anchors changed materialized range to configured week start"]
-  Origin --> Window["useStore subscription schedules a quiet capacity read when Today is known"]
-  Window -->|origin changes again| Reschedule["Clear previous timer and schedule latest window"]
-  Window -->|window settles| Read["refreshPlanning requests server figures for new window"]
-  Read -->|success| Cues["Apply capacity and refresh row cues"]
-  Read -->|failure| Gap["Planning read error; uncovered days lack server cues"]
+  Origin --> Window["buildPlanningCapacity builds the new window's figures from the rows already read"]
+  Window --> Cues["Row cues refresh without a server request"]
 ```
 
-Prev and Next are available to Schedule readers. The action changes display state and requests planning data when the window settles.
+Prev and Next are available to Schedule readers. The action changes display state only; it sends no request.
 
 **Code references:**
 

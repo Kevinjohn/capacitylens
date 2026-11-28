@@ -95,7 +95,7 @@ function useAuthRevalidation({
       // A refused identity clears the private cache in checkAuth, so it cannot start a read.
       void checkAuth('keep-previous').then((next) => {
         if (next?.kind === 'pass' && useStore.getState().activeCompanyId !== null) {
-          return useStore.getState().refreshPlanning()
+          return useStore.getState().revalidatePlanning()
         }
       })
     }

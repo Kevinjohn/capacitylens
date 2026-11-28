@@ -35,7 +35,7 @@ export const WEEK_SNAP_IDLE_MS = 120
 /** A Monday the scheduler view holds until the first planning read anchors it on the company's week. */
 export const UNANCHORED_WEEK_START = '1970-01-05'
 
-// The timeline's range and the overSoon window are shared with the server's capacity section.
+// The timeline's range and the overSoon window are shared with the capacity section's rule.
 export {
   DEFAULT_RANGE_DAYS,
   PAST_BUFFER_DAYS,

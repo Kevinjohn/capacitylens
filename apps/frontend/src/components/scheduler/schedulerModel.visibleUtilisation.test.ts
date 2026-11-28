@@ -66,7 +66,7 @@ function dataset(): AppData {
   }
 }
 
-// The server's figures: Bruce is booked four hours a day in the first week and Alfred not at all;
+// The capacity figures: Bruce is booked four hours a day in the first week and Alfred not at all;
 // the external partner has no entry.
 const CAPACITY = capacityOver(
   { from: FULL.start, to: FULL.end },
@@ -283,7 +283,7 @@ describe('buildSchedulerModel grouping and order', () => {
   })
 })
 
-describe("drawing the server's figures", () => {
+describe('drawing the capacity figures', () => {
   it('draws each day from the figures for its date and sums the visible ones', () => {
     const capacity = onlyRange(
       capacityOver(

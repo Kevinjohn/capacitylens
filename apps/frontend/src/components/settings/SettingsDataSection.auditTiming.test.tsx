@@ -15,7 +15,6 @@ import {
 } from '@/test/planningTransportHandle'
 import { m } from '@/i18n'
 import { SettingsDataSection } from './SettingsDataSection'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { permissionValue } from '@/test/permissionGrants'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
@@ -123,7 +122,6 @@ it.each(
         revision: revision + 1,
         access: makePlanningAccess(),
         today: getStubPlanningTransport().todayFor(companyId),
-        capacity: emptyCapacity(),
       }
       vi.spyOn(getPlanningTransportHandle(), 'read').mockImplementationOnce(async () => {
         hold.entered = true

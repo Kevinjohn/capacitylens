@@ -5,7 +5,6 @@ import { makeCompany } from '@/test/fixtures'
 import { createPlanningCache, createPlanningCacheState } from './planningCache'
 import { PlanningCacheError } from './planningErrors'
 import type { PlanningCacheState, PlanningTransport } from './planningCacheTypes'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 const context = { identity: 'bruce', companyId: 'wayne' }
@@ -49,7 +48,6 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
           companies: [makeCompany({ id: context.companyId })],
         },
         today: '2026-06-03',
-        capacity: emptyCapacity(),
       }),
     },
     ...(confirm ? { confirmRestorationCleanup: confirm } : {}),

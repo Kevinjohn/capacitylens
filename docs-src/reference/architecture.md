@@ -191,6 +191,12 @@ in the browser, and nothing is persisted.
 
 - `apps/frontend/src/data/planning/planningIntents.ts` builds the intent for a
   gesture. A build with no difference returns `null` and nothing is sent.
+- `apps/frontend/src/store/planningCapacity.ts` builds the grid window's and the Capacity Overview's
+  figures from the confirmed rows and the server's today with the shared `buildCapacitySection`;
+  panning and zooming send no request.
+- `revalidatePlanning` in the session slice is the tab check: when the page becomes visible, and
+  each minute while it is, a `ready` cache reads quietly with `ifRevision`, at most once every 30
+  seconds; a `failed` cache, or a write whose read failed, retries its read.
 - Runtime planning uses HTTP in `apps/frontend/src/data/planning/planningTransport.ts`. Unit tests
   use an explicit response stub without planning rules; shared domain, backend and browser tests
   cover scheduling and mutation rules against the server.
@@ -241,7 +247,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 
 | Capability | Entry | Owning module | Transaction owner | Live authorization check | Projection point | Failure codes | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Planning read | `GET …/planning`; scheduler | `app/services/planning_service.ts` `readPlanning` | Read-only `withActor`; access, revision and rows on one handle; no rows when `ifRevision` is the current revision | `resolvePlanningAccess`: view-as actor, live membership, `planning:read` ability | `transformState` by role | `E_ACCOUNT_MEMBERSHIP_LOST`, `E_AUTHORIZATION_DENIED`, 401, Kit codes | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/transactions.spec.ts`, `tests/unit/state_transformer.spec.ts` |
+| Planning read | `GET …/planning`; scheduler | `app/services/planning_service.ts` `readPlanning` | Read-only `withActor`; access, revision and rows on one handle; when `ifRevision` is the current revision no planning entity table is read and no rows are sent, only access, revision, today and history; the browser builds capacity from the rows | `resolvePlanningAccess`: view-as actor, live membership, `planning:read` ability | `transformState` by role | `E_ACCOUNT_MEMBERSHIP_LOST`, `E_AUTHORIZATION_DENIED`, 401, Kit codes | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/transactions.spec.ts`, `tests/unit/state_transformer.spec.ts` |
 | Archive recovery read | `GET …/planning/archive`; archive screens | `app/services/planning_service.ts` `readArchiveRecovery` | Read-only `withActor` | `resolvePlanningAccess` plus `canWrite` (false under view-as) | `archiveRecovery` identity-only rows | `E_AUTHORIZATION_DENIED`, `E_MASQUERADE_READ_ONLY`, `E_ACCOUNT_MEMBERSHIP_LOST` | `tests/functional/planning/archive_recovery.spec.ts` |
 | Allocation intents | `POST …/planning/mutations`, `allocation.*`; scheduler | `app/services/planning/planning_execution_service.ts`, `app/services/planning/planning_writer_service.ts` | `withActor` in `mutatePlanning` | `resolvePlanningAccess`, `planning:write` ability, access grant re-check, privacy gate | `buildProjectionChanges` | Planning failure table | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/availability.spec.ts`, `tests/functional/planning/company_bulk.spec.ts` |
 | Catalogue intents | `POST …/planning/mutations`, `catalogue.*`; catalogue editors | `app/services/planning/planning_execution_service.ts`, `app/services/planning/entity_rules.ts` | `withActor` in `mutatePlanning` | As allocation, plus owner-only privacy fields and the built-in client | `buildProjectionChanges` | Failure table, restoration confirmation, `E_PLANNING_CONFLICT` | `tests/functional/planning/operations.spec.ts`, `tests/functional/planning/independent_operations.spec.ts` |

@@ -93,7 +93,7 @@ export interface SchedulerModelOptions {
   // Visible utilisation follows the zoom/pan window; per-day conflict markers cover the materialized
   // timeline. Omitted when a visible projection replaces the utilisation, which is then left at 0.
   visibleWindow?: { start: ISODate; end: ISODate }
-  /** The server's capacity figures from the last planning read; null before the first read. */
+  /** The capacity figures built from the last planning read; null before the first read. */
   capacity: CapacitySection | null
   filters: Filters
   preferences: {
@@ -115,7 +115,7 @@ export interface CapacitySource {
   tracked: boolean
   /** The row's applicable personal time off covering one date. */
   listTimeOffOn: (date: ISODate) => TimeOff[]
-  /** The server's figures for one date; undefined when the read did not cover it. */
+  /** The capacity figures for one date; undefined when the window did not cover it. */
   resolveCapacityOnDay: (date: ISODate) => DayCapacity | undefined
   countTimeOffOn: (date: ISODate) => number
   /** The server's flag for time off or a closure on an over-capacity day, or in Blocks mode on any

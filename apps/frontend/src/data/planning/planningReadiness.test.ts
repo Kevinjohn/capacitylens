@@ -8,7 +8,6 @@ const ready: PlanningCacheMetadata = {
   access: makePlanningAccess(),
   revision: 4,
   today: '2026-06-03',
-  capacity: null,
   phase: { kind: 'ready', lastWrite: null },
   history: { canUndo: true, canRedo: false },
 }

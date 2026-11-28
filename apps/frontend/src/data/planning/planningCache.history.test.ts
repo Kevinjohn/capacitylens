@@ -9,7 +9,6 @@ import {
   makeReceipt,
   createHarness,
 } from './planningCacheTestKit'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 afterEach(() => setMasqueradeToken(null))
@@ -27,7 +26,6 @@ async function loaded(transport: Parameters<typeof createHarness>[0], revision =
     access: makePlanningAccess(),
     data: makeCanonicalData(),
     today: companyToday,
-    capacity: emptyCapacity(),
   })
   return h
 }
@@ -62,9 +60,9 @@ describe('planning cache history', () => {
       data: makeCanonicalData(),
       today: companyToday,
     }
-    await h.readSnapshot({ ...same, revision: 2, capacity: emptyCapacity() })
+    await h.readSnapshot({ ...same, revision: 2 })
     expect(h.state().planning.history.canUndo).toBe(true)
-    await h.readSnapshot({ ...same, revision: 3, capacity: emptyCapacity() })
+    await h.readSnapshot({ ...same, revision: 3 })
     expect(h.state().planning.history.canUndo).toBe(false)
   })
 
@@ -83,7 +81,6 @@ describe('planning cache history', () => {
         access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
         history: { canUndo: true, canRedo: false },
       })
       .mockResolvedValueOnce({
@@ -91,7 +88,6 @@ describe('planning cache history', () => {
         access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
         history: { canUndo: false, canRedo: true },
       })
       .mockResolvedValueOnce({
@@ -99,7 +95,6 @@ describe('planning cache history', () => {
         access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
         history: { canUndo: true, canRedo: false },
       })
     const h = await loaded({ execute, read, undo, redo })
@@ -157,7 +152,6 @@ describe('planning cache history', () => {
         access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
         history: { canUndo: false, canRedo: false },
       })
       await expect(h.cache.undo()).rejects.toMatchObject({ status: refusal.status })

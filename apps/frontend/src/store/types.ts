@@ -202,6 +202,9 @@ export interface StoreState extends StoreEntityActions {
   setMasquerade: (state: MasqueradeRuntimeState) => void
   /** Load the active company's canonical planning snapshot, entering its planning context first. */
   refreshPlanning: (options?: { fresh?: boolean; quiet?: boolean }) => Promise<boolean>
+  /** Check that a ready planning view is still current, at most once per
+   * `PLANNING_REVALIDATION_INTERVAL_MS`; retry a failed read. Resolves false when nothing was read. */
+  revalidatePlanning: () => Promise<boolean>
   /** End the current planning context and discard private planning rows. */
   clearPlanning: () => void
   /** Atomically claim an out-of-band replacement; release is idempotent for its context. */

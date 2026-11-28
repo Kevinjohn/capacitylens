@@ -49,7 +49,7 @@ export interface BuildCapacityOverviewModelInput {
   today: ISODate
   weekStartsOn?: 0 | 1
   horizon?: CapacityOverviewHorizon
-  /** The server's capacity figures from the last planning read; null before the first read. */
+  /** The capacity figures built from the last planning read; null before the first read. */
   capacity: CapacitySection | null
   includeTentative?: boolean
   placeholdersEnabled?: boolean

@@ -11,7 +11,6 @@ import {
   makeReceipt,
   createHarness,
 } from './planningCacheTestKit'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 afterEach(() => setMasqueradeToken(null))
@@ -41,7 +40,6 @@ const serverSnapshot: PlanningSnapshot = {
   access: makePlanningAccess(),
   data: serverData,
   today: companyToday,
-  capacity: emptyCapacity(),
 }
 
 type Read = ReturnType<typeof vi.fn<PlanningTransport['read']>>
@@ -60,7 +58,6 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
     access: makePlanningAccess(),
     data: makeCanonicalData(),
     today: companyToday,
-    capacity: emptyCapacity(),
   })
   await h.cache.execute(h.cache.begin(), intent)
   expect(h.state().planning.history.canUndo).toBe(true)
@@ -112,7 +109,6 @@ describe('planning write whose reply was lost', () => {
           access: makePlanningAccess(),
           data: makeCanonicalData(),
           today: companyToday,
-          capacity: emptyCapacity(),
         })
     )
     expect(h.state().planning).toMatchObject({

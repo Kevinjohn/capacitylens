@@ -10,7 +10,6 @@ import type {
   PlanningCacheOptions,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makeReceipt } from '@/test/planning/makeReceipt'
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
@@ -39,7 +38,6 @@ export function snapshot(
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],
     }),
     today: '2026-06-03',
-    capacity: emptyCapacity(),
     history,
   }
 }

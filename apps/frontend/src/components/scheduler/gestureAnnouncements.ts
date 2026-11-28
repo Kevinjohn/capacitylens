@@ -6,7 +6,7 @@ import type { ID, Resource } from '@capacitylens/shared/types/entities'
 import { resolveResourceDisplayName } from '@/lib/metadata'
 import { readServerDayCapacity } from './schedulerRowCapacity'
 
-/** The server's capacity figures and the visible span a keyboard announcement counts over. */
+/** The capacity figures and the visible span a keyboard announcement counts over. */
 interface CapacityAnnouncementInput {
   resources: Resource[]
   capacity: CapacitySection | null
@@ -21,7 +21,7 @@ interface VisibleOverCapacity {
 }
 
 /**
- * Counts a resource's over-capacity days in the visible range from the server's figures, the same
+ * Counts a resource's over-capacity days in the visible range from the capacity figures, the same
  * figures the grid draws. A date the server has not sent counts as not over. Returns `undefined`
  * for an unknown resource or one whose capacity is not tracked.
  */
@@ -49,7 +49,7 @@ function formatCapacityAnnouncement(overCapacity: VisibleOverCapacity | undefine
     : m.scheduler_sr_announce_over_other({ name, count: overDays })
 }
 
-/** Builds the screen-reader status from the server's figures for the visible range. */
+/** Builds the screen-reader status from the capacity figures for the visible range. */
 export function buildCapacityAnnouncement(input: CapacityAnnouncementInput): string {
   return formatCapacityAnnouncement(buildVisibleOverCapacity(input))
 }

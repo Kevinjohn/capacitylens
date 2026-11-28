@@ -11,7 +11,6 @@ import {
   makeReceipt,
   createHarness,
 } from './planningCacheTestKit'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 afterEach(() => setMasqueradeToken(null))
@@ -26,7 +25,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const h = createHarness({ execute, read })
     h.cache.setContext(context)
@@ -35,7 +33,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const draft = h.cache.begin()
     await h.readSnapshot({
@@ -43,7 +40,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     expect(draft.baseRevision).toBe(3)
     await expect(h.cache.execute(draft, intent)).rejects.toMatchObject({
@@ -65,7 +61,6 @@ describe('planning cache', () => {
         access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
       }),
     })
     h.cache.setContext(context)
@@ -74,7 +69,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const gesture = h.cache.begin()
     await h.readSnapshot({
@@ -82,7 +76,6 @@ describe('planning cache', () => {
       access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
-      capacity: emptyCapacity(),
     })
     const finalIntent = {
       operation: 'settings.update',
@@ -102,7 +95,6 @@ describe('planning cache', () => {
         access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
-        capacity: emptyCapacity(),
       })
       .mockRejectedValueOnce(new TypeError('read unavailable'))
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>

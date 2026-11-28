@@ -5,13 +5,16 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_COMPANY_ID,
+  makeActivity,
+  makeAllocation,
   makeCompany,
   makeAppData,
   makeResource,
   resetStoreWithCompany,
+  resetStoreWithData,
 } from '@/test/fixtures'
 import { useStore } from '@/store/useStore'
-import { capacityOver } from '@/test/capacityFixtures'
+import { getStubPlanningTransport } from '@/test/planningTransportHandle'
 import { CapacityOverviewView } from './CapacityOverviewView'
 
 function render(ui: ReactNode) {
@@ -56,23 +59,29 @@ describe('CapacityOverviewView', () => {
     expect(screen.getByRole('columnheader', { name: '10 – 13 Sep' })).toBeInTheDocument()
   })
 
-  it("draws the planning read's capacity figures", () => {
+  it('draws the capacity figures built from the planning rows', async () => {
     // Thursday 10 to Sunday 13 September: two free weekdays, one booked in full, and a weekend.
-    const capacity = capacityOver(
-      { from: '2026-09-10', to: '2026-12-06' },
-      {
-        clark: {
-          byDate: {
-            '2026-09-10': { allocated: 8 },
-            '2026-09-12': { available: 0 },
-            '2026-09-13': { available: 0 },
-          },
-        },
-      }
+    await resetStoreWithData(
+      makeAppData({
+        companies: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
+        resources: [
+          makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
+        ],
+        activities: [makeActivity({ companyId: DEFAULT_COMPANY_ID })],
+        allocations: [
+          makeAllocation({
+            companyId: DEFAULT_COMPANY_ID,
+            resourceId: 'clark',
+            startDate: '2026-09-10',
+            endDate: '2026-09-10',
+          }),
+        ],
+      })
     )
-    useStore.setState((state) => ({ planning: { ...state.planning, capacity } }))
+    getStubPlanningTransport().setToday('2026-09-10')
+    await useStore.getState().refreshPlanning({ fresh: true })
 
-    renderOverview()
+    render(<CapacityOverviewView />)
 
     const cells = within(screen.getByRole('row', { name: /Clark Kent/ })).getAllByRole('cell')
     expect(cells[0]).toHaveAttribute('title', '10 – 13 Sep · 1d free of 2d')

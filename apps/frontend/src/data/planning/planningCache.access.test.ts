@@ -6,7 +6,6 @@ import { makeCompany, makeAppData, makeClient } from '@/test/fixtures'
 import { createPlanningCache, createPlanningCacheState } from './planningCache'
 import { PlanningCacheError } from './planningErrors'
 import type { FullPlanningSnapshot, PlanningTransport } from './planningCacheTypes'
-import { emptyCapacity } from '@/test/capacityFixtures'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 import { createDeferred } from '@/test/createDeferred'
 
@@ -29,7 +28,6 @@ function snapshot(name: string, revision = 1): FullPlanningSnapshot {
       clients: [makeClient({ companyId: 'wayne', name })],
     }),
     today: '2026-06-03',
-    capacity: emptyCapacity(),
     history: { canUndo: true, canRedo: false },
   }
 }

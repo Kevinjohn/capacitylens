@@ -42,7 +42,7 @@ describe('buildSchedulerModel', () => {
     expect(r1.dayStates.length).toBe(days.length)
   })
 
-  it("overSoon is the server's flag, independent of the visible window", () => {
+  it('overSoon is its flag, independent of the visible window', () => {
     // No visible day is over, yet the server reports an over day in its fixed forward window.
     const rows = buildSchedulerModel({
       data: dataset(),
@@ -154,7 +154,7 @@ describe('displayed utilisation % over the visible window (1/2/4/8 weeks)', () =
   const winDays = listDaysISO('2026-06-01', '2026-07-26')
   const winRange = { from: winStart, to: '2026-07-26' }
   const winGeom = buildColumnGeometry(winDays, 48, { minimiseWeekends: false, weekendWidth: 22 })
-  // The server's figures: eight hours on weekdays, none at weekends; 8, 4, then 2 hours booked per
+  // The capacity figures: eight hours on weekdays, none at weekends; 8, 4, then 2 hours booked per
   // weekday in weeks 1, 2 and 3–4, and nothing after.
   const bookedPerWeekday = (date: ISODate) =>
     date <= '2026-06-05' ? 8 : date <= '2026-06-12' ? 4 : date <= '2026-06-26' ? 2 : 0

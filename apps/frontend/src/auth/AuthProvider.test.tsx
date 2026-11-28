@@ -112,7 +112,7 @@ describe('AuthProvider — server mode', () => {
     expect(onCompanyAccessReady).not.toHaveBeenCalled()
     expect(screen.queryByText('app-content')).not.toBeInTheDocument()
   })
-  it('refreshes a visible selected company every minute and stops after unmount', async () => {
+  it('checks a visible selected company every minute and stops after unmount', async () => {
     const fetchSpy = vi.fn(async () =>
       makeMeResponse(200, {
         user: { id: 'u1', email: 'a@b.test' },
@@ -120,7 +120,7 @@ describe('AuthProvider — server mode', () => {
     )
     vi.stubGlobal('fetch', fetchSpy)
     const { AuthProvider, useStore } = await renderFreshProvider()
-    const refreshPlanning = vi.fn(async () => true)
+    const revalidatePlanning = vi.fn(async () => true)
     let tick: () => void = () => {
       throw new Error('Expected a visible-session refresh timer.')
     }
@@ -136,26 +136,26 @@ describe('AuthProvider — server mode', () => {
     )
     expect(await screen.findByText('app-content')).toBeInTheDocument()
     expect(setInterval).toHaveBeenCalledWith(expect.any(Function), 60_000)
-    useStore.setState({ activeCompanyId: 'a-studio', refreshPlanning })
-    refreshPlanning.mockClear()
+    useStore.setState({ activeCompanyId: 'a-studio', revalidatePlanning })
+    revalidatePlanning.mockClear()
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
     try {
       await act(async () => {
         tick()
       })
-      expect(refreshPlanning).toHaveBeenCalledOnce()
+      expect(revalidatePlanning).toHaveBeenCalledOnce()
       visibility.mockReturnValue('hidden')
       await act(async () => {
         tick()
       })
-      expect(refreshPlanning).toHaveBeenCalledOnce()
+      expect(revalidatePlanning).toHaveBeenCalledOnce()
       visibility.mockReturnValue('visible')
       useStore.setState({ activeCompanyId: null })
-      refreshPlanning.mockClear()
+      revalidatePlanning.mockClear()
       await act(async () => {
         tick()
       })
-      expect(refreshPlanning).not.toHaveBeenCalled()
+      expect(revalidatePlanning).not.toHaveBeenCalled()
       mounted.unmount()
       expect(clearInterval).toHaveBeenCalledWith(123)
     } finally {

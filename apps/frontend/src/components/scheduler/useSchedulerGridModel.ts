@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import { hasActiveFilters, useStore } from '@/store/useStore'
+import { buildPlanningCapacity } from '@/store/planningCapacity'
 import { useActiveScopedData } from '@/store/useScopedData'
 import { createEmptyAppData } from '@capacitylens/shared/types/entities'
 import { LAYOUT } from './layout'
@@ -109,7 +110,7 @@ function useSchedulerModelProjection({
     () => buildModelPreferences(companyPrefs, companyWorkingDays),
     [companyPrefs, companyWorkingDays]
   )
-  const capacity = useStore((state) => state.planning.capacity)
+  const capacity = useStore(buildPlanningCapacity)
   // The static model spans the timeline so scrolling does not rebuild it. It sums no utilisation,
   // because the visible projection below sets the visible window's.
   const staticModel = useMemo(

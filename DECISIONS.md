@@ -95,9 +95,10 @@ and the tests, not here.
   companies itself.
 - Code that works across several companies stays on purpose: view-as searches every membership when
   no company is named. An export always names its company.
-- A planning read returns the current access grant, one integer company revision and the complete,
-  confidentially projected company slice, or no slice when the reader names the revision it already
-  holds and that revision is current, from one transaction. Every typed mutation carries the
+- A planning read returns the current access grant, one integer company revision, the company's
+  today and the complete, confidentially projected company slice, from one transaction. When the
+  reader names the revision it already holds and that revision is current, the server reads and
+  sends no slice. Every typed mutation carries the
   company revision it was drafted against; a mismatch returns 409 and the client refetches. An edit
   form's update also carries the row's `updatedAt` from when the form opened, and a mismatch
   returns the same 409. No automatic rebase or replay. A revision advances once per transaction
@@ -183,7 +184,10 @@ and the tests, not here.
 
 - Scheduling records and identity snapshots are never persisted in the browser. The planning
   slice is a non-persisted cache replaced from server reads, or advanced by the rows a committed
-  write's receipt returns; it is never authoritative.
+  write's receipt returns; it is never authoritative. The browser builds capacity, utilisation and
+  conflict figures from that slice and the server's today with the shared capacity rule, so panning
+  and zooming send no request. A visible, ready page checks its revision at most once every 30
+  seconds and takes any committed change or new today the read brings.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
 - Each server dataset has one home in the browser. TanStack Query owns server reads. The store
   owns the planning cache and the company directory, which store logic reads. No dataset is held

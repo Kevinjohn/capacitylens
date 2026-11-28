@@ -5,7 +5,7 @@ import type {
 } from '@capacitylens/shared/lib/capacity'
 import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath'
 
-/** One date's server figures. Unset fields default to nothing allocated against eight hours. */
+/** One date's capacity figures. Unset fields default to nothing allocated against eight hours. */
 export interface ServerDayFigures {
   allocated?: number
   /** Defaults to `allocated`. */
@@ -47,14 +47,6 @@ export function capacityDays(
     days.timeOffConflict[index] = figures.timeOffConflict ?? false
   }
   return days
-}
-
-/** A capacity section with no tracked resources, for reads whose figures a test does not draw. */
-export function emptyCapacity(
-  window: CapacityRange = { from: '2026-01-01', to: '2026-01-01' },
-  horizon: CapacityRange = window
-): CapacitySection {
-  return { window, horizon, resources: {} }
 }
 
 /** One resource's figures in {@link capacityOver}. */
