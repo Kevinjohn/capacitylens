@@ -1,11 +1,16 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  api,
   clearQueryCacheForScopeChange,
   client,
   buildScopeQueryKey,
+  invalidateInactiveReads,
   requestApiResponse,
+  scopedQueryOptions,
 } from './queryClient'
+import { setMasqueradeToken } from './masqueradeToken'
+import { readFetchCalls } from '@/test/fetchRequests'
 import { API_BULK_TIMEOUT_MS, API_REQUEST_TIMEOUT_MS } from '@/data/requestTimeout'
 
 describe('same-origin API requests', () => {
@@ -168,6 +173,63 @@ describe('requestApiResponse', () => {
       timeout.mockRestore()
       vi.unstubAllGlobals()
     }
+  })
+})
+
+describe('generated route queries', () => {
+  const scope = { userId: 'bruce', companyId: 'wayne', masqueradeGeneration: 3 }
+  const archiveRead = () =>
+    scopedQueryOptions(
+      api.api.planningArchive.show.queryOptions(
+        { params: { companyId: 'wayne' } },
+        { retry: false, tuyau: { abortOnUnmount: true } }
+      ),
+      scope,
+      ['editor', 'access-key', 7]
+    )
+
+  it('sends the current view-as-member proof and the query signal on every read', async () => {
+    const fetch = vi.fn(async () => Response.json({ companyId: 'wayne', rows: [] }))
+    vi.stubGlobal('fetch', fetch)
+    setMasqueradeToken('1.0123456789abcdef0123456789abcdef')
+    try {
+      const cache = new QueryClient()
+      await cache.fetchQuery(archiveRead())
+      const [read] = await readFetchCalls(fetch)
+      expect(read?.path).toBe('/api/v1/companies/wayne/planning/archive')
+      expect(read?.headers.get('X-Masquerade-Context')).toBe('1.0123456789abcdef0123456789abcdef')
+      expect(read?.signal).toBeInstanceOf(AbortSignal)
+    } finally {
+      setMasqueradeToken(null)
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keys the read by identity scope first, then route, then the caller projection', () => {
+    expect(archiveRead().queryKey).toEqual([
+      ...buildScopeQueryKey(scope, []),
+      ...api.api.planningArchive.show.queryKey({ params: { companyId: 'wayne' } }),
+      'editor',
+      'access-key',
+      7,
+    ])
+  })
+
+  it('marks only the archive and inactive-row reads stale', async () => {
+    const cache = new QueryClient()
+    const archive = archiveRead().queryKey
+    const inactive = buildScopeQueryKey(
+      scope,
+      api.api.companyState.show.queryKey({ query: { companyId: 'wayne', includeInactive: '1' } })
+    )
+    const members = buildScopeQueryKey(
+      scope,
+      api.api.members.index.queryKey({ params: { companyId: 'wayne' } })
+    )
+    for (const key of [archive, inactive, members]) cache.setQueryData(key, 'cached')
+    await invalidateInactiveReads(cache)
+    const stale = (key: readonly unknown[]) => cache.getQueryState(key)?.isInvalidated
+    expect([stale(archive), stale(inactive), stale(members)]).toEqual([true, true, false])
   })
 })
 

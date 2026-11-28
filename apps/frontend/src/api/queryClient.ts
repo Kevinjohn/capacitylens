@@ -166,8 +166,6 @@ const routeKeyId = (segment: unknown): string | null =>
 
 /** Route keys of the reads that show rows hidden from the planning cache (archived rows). */
 const INACTIVE_READ_ROUTES = new Set<string | null>([
-  'archive-recovery',
-  'inactive-company-data',
   routeKeyId(api.api.planningArchive.show.queryKey({ params: { companyId: '' } })[0]),
   routeKeyId(api.api.companyState.show.queryKey({ query: { companyId: '' } })[0]),
 ])
