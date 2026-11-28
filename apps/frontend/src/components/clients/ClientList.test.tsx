@@ -23,10 +23,14 @@ import { permissionValue } from '@/test/permissionGrants'
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures'
 
 const { archiveRequest } = vi.hoisted(() => ({ archiveRequest: vi.fn() }))
-vi.mock('@/api/queryClient', async (original) => ({
-  ...(await original<typeof import('@/api/queryClient')>()),
-  client: { request: archiveRequest },
-}))
+vi.mock('@/api/queryClient', async (original) => {
+  const { createTuyauReactQueryClient } = await import('@tuyau/react-query')
+  return {
+    ...(await original<typeof import('@/api/queryClient')>()),
+    client: { request: archiveRequest },
+    api: createTuyauReactQueryClient({ client: { request: archiveRequest } as never }),
+  }
+})
 
 function TestProviders({ children }: { children: ReactNode }) {
   const [cache] = useState(() => new QueryClient())
